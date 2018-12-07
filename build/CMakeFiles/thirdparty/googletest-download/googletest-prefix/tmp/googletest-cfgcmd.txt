@@ -1,0 +1,1 @@
+cmd='/conda/envs/cudf_dev/bin/cmake;-Dgtest_build_samples=ON;-DCMAKE_INSTALL_PREFIX:PATH=/cugraph_cudf/build/CMakeFiles/thirdparty/googletest-install;-GUnix Makefiles;<SOURCE_DIR><SOURCE_SUBDIR>'

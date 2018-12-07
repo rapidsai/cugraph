@@ -32,8 +32,8 @@
 
 #include <gunrock/util/shared_utils.cuh>
 
-#include <gdf/gdf.h>
-#include <gdf/errorutils.h>
+#include <cudf.h>
+#include <error_utils.h>
 #include <thrust/extrema.h>
 #include "graph_utils.cuh"
 

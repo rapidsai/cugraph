@@ -79,7 +79,7 @@ def networkx_Call(M, max_iter, tol, alpha):
  
    
 
-datasets = ['/datasets/networks/dolphins.mtx','/datasets/networks/karate.mtx','/datasets/golden_data/graphs/dblp.mtx']
+datasets = ['/datasets/networks/dolphins.mtx','/datasets/networks/karate.mtx','/datasets/golden_data/graphs/cit-Patents.mtx']
 Max_Iterations = [500]
 tolerance = [1.0e-06]
 alpha = [0.85]

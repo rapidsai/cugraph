@@ -1,0 +1,37 @@
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /cugraph_cudf/build/CMakeFiles/thirdparty/googletest-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_2e2e5/fast"
+make[3]: Entering directory '/cugraph_cudf/build/CMakeFiles/thirdparty/googletest-build/CMakeFiles/CMakeTmp'
+/usr/bin/make -f CMakeFiles/cmTC_2e2e5.dir/build.make CMakeFiles/cmTC_2e2e5.dir/build
+make[4]: Entering directory '/cugraph_cudf/build/CMakeFiles/thirdparty/googletest-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_2e2e5.dir/CheckSymbolExists.c.o
+/usr/bin/gcc-5    -o CMakeFiles/cmTC_2e2e5.dir/CheckSymbolExists.c.o   -c /cugraph_cudf/build/CMakeFiles/thirdparty/googletest-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_2e2e5
+/conda/envs/cudf_dev/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2e2e5.dir/link.txt --verbose=1
+/usr/bin/gcc-5      -rdynamic CMakeFiles/cmTC_2e2e5.dir/CheckSymbolExists.c.o  -o cmTC_2e2e5 
+CMakeFiles/cmTC_2e2e5.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x16): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_2e2e5.dir/build.make:86: recipe for target 'cmTC_2e2e5' failed
+make[4]: *** [cmTC_2e2e5] Error 1
+make[4]: Leaving directory '/cugraph_cudf/build/CMakeFiles/thirdparty/googletest-build/CMakeFiles/CMakeTmp'
+Makefile:121: recipe for target 'cmTC_2e2e5/fast' failed
+make[3]: *** [cmTC_2e2e5/fast] Error 2
+make[3]: Leaving directory '/cugraph_cudf/build/CMakeFiles/thirdparty/googletest-build/CMakeFiles/CMakeTmp'
+
+File /cugraph_cudf/build/CMakeFiles/thirdparty/googletest-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+

@@ -1,7 +1,7 @@
 
 from libcpp cimport bool
 
-cdef extern from "gdf.h":
+cdef extern from "cudf.h":
 
     ctypedef enum gdf_error: 
         pass
@@ -23,13 +23,17 @@ cdef extern from "gdf.h":
 
     ctypedef unsigned char gdf_valid_type
     ctypedef size_t gdf_size_type
+    ctypedef struct gdf_dtype_extra_info:
+        pass
  
     struct gdf_column_:
         void *data                       
         gdf_valid_type *valid
         gdf_size_type size             
         gdf_dtype dtype
-
+        gdf_size_type null_count
+        gdf_dtype_extra_info dtype_info
+        char* col_name
 
     ctypedef gdf_column_ gdf_column
 
@@ -40,8 +44,6 @@ cdef extern from "gdf.h":
                               gdf_dtype dtype,
                               gdf_size_type null_count)
 
-    cdef gdf_error gdf_column_view_new(gdf_column *column,
-                              void *data)
 
 cdef extern from "c_pagerank.h":
 

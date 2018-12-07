@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/cugraph_cudf/src/tests/mmio.c
+stdio.h
+-
+string.h
+-
+stdlib.h
+-
+ctype.h
+-
+mmio.h
+/cugraph_cudf/src/tests/mmio.h
+
+/cugraph_cudf/src/tests/mmio.h
+

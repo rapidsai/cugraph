@@ -1,0 +1,2 @@
+/usr/bin/ar qc libgmock.a  CMakeFiles/gmock.dir/src/gmock-all.cc.o
+/usr/bin/ranlib libgmock.a

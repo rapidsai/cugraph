@@ -89,7 +89,7 @@ endif()
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/include" 
     "${CUDA_INCLUDE_DIRS}" 
-    "$ENV{CONDA_PREFIX}/include/cudf"
+    "$ENV{CONDA_PREFIX}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../gunrock/"
     "${CMAKE_CURRENT_SOURCE_DIR}/../gunrock/externals/moderngpu/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../gunrock/externals/cub"

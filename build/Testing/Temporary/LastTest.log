@@ -1,0 +1,203 @@
+Start testing: Dec 07 21:33 UTC
+----------------------------------------------------------
+1/3 Testing: gdfgraph_test
+1/3 Test: gdfgraph_test
+Command: "/cugraph_cudf/build/gtests/gdfgraph_test"
+Directory: /cugraph_cudf/build/src/tests/gdf_graph
+"gdfgraph_test" start time: Dec 07 21:33 UTC
+Output:
+----------------------------------------------------------
+[==========] Running 15 tests from 6 test cases.
+[----------] Global test environment set-up.
+[----------] 5 tests from gdf_edge_list
+[ RUN      ] gdf_edge_list.success
+[       OK ] gdf_edge_list.success (1602 ms)
+[ RUN      ] gdf_edge_list.success_no_weights
+[       OK ] gdf_edge_list.success_no_weights (386 ms)
+[ RUN      ] gdf_edge_list.size_mismatch
+[       OK ] gdf_edge_list.size_mismatch (0 ms)
+[ RUN      ] gdf_edge_list.size_mismatch2
+[       OK ] gdf_edge_list.size_mismatch2 (1 ms)
+[ RUN      ] gdf_edge_list.wrong_type
+[       OK ] gdf_edge_list.wrong_type (0 ms)
+[----------] 5 tests from gdf_edge_list (1989 ms total)
+
+[----------] 2 tests from gdf_adj_list
+[ RUN      ] gdf_adj_list.success
+[       OK ] gdf_adj_list.success (1 ms)
+[ RUN      ] gdf_adj_list.success_no_weights
+[       OK ] gdf_adj_list.success_no_weights (0 ms)
+[----------] 2 tests from gdf_adj_list (1 ms total)
+
+[----------] 1 test from gdf_graph_properties
+[ RUN      ] gdf_graph_properties.success
+[       OK ] gdf_graph_properties.success (0 ms)
+[----------] 1 test from gdf_graph_properties (0 ms total)
+
+[----------] 2 tests from gdf_delete_adjacency_list
+[ RUN      ] gdf_delete_adjacency_list.success1
+[       OK ] gdf_delete_adjacency_list.success1 (5 ms)
+[ RUN      ] gdf_delete_adjacency_list.success2
+[       OK ] gdf_delete_adjacency_list.success2 (5 ms)
+[----------] 2 tests from gdf_delete_adjacency_list (10 ms total)
+
+[----------] 2 tests from gdf_delete_edge_list
+[ RUN      ] gdf_delete_edge_list.success1
+[       OK ] gdf_delete_edge_list.success1 (5 ms)
+[ RUN      ] gdf_delete_edge_list.success2
+[       OK ] gdf_delete_edge_list.success2 (6 ms)
+[----------] 2 tests from gdf_delete_edge_list (11 ms total)
+
+[----------] 3 tests from gdf_graph
+[ RUN      ] gdf_graph.gdf_add_transpose
+[       OK ] gdf_graph.gdf_add_transpose (10 ms)
+[ RUN      ] gdf_graph.memory
+[       OK ] gdf_graph.memory (1113 ms)
+[ RUN      ] gdf_graph.gdf_column_overhead
+[       OK ] gdf_graph.gdf_column_overhead (1001 ms)
+[----------] 3 tests from gdf_graph (2124 ms total)
+
+[----------] Global test environment tear-down
+[==========] 15 tests from 6 test cases ran. (4135 ms total)
+[  PASSED  ] 15 tests.
+<end of output>
+Test time =   4.30 sec
+----------------------------------------------------------
+Test Passed.
+"gdfgraph_test" end time: Dec 07 21:33 UTC
+"gdfgraph_test" time elapsed: 00:00:04
+----------------------------------------------------------
+
+2/3 Testing: pagerank_test
+2/3 Test: pagerank_test
+Command: "/cugraph_cudf/build/gtests/pagerank_test"
+Directory: /cugraph_cudf/build/src/tests/pagerank
+"pagerank_test" start time: Dec 07 21:33 UTC
+Output:
+----------------------------------------------------------
+[==========] Running 28 tests from 1 test case.
+[----------] Global test environment set-up.
+[----------] 28 tests from simple_test/Tests_Pagerank
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32_manualT/0
+[       OK ] simple_test/Tests_Pagerank.CheckFP32_manualT/0 (640 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32_manualT/1
+[       OK ] simple_test/Tests_Pagerank.CheckFP32_manualT/1 (6439 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32_manualT/2
+[       OK ] simple_test/Tests_Pagerank.CheckFP32_manualT/2 (23247 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32_manualT/3
+[       OK ] simple_test/Tests_Pagerank.CheckFP32_manualT/3 (2149 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32_manualT/4
+[       OK ] simple_test/Tests_Pagerank.CheckFP32_manualT/4 (2195 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32_manualT/5
+[       OK ] simple_test/Tests_Pagerank.CheckFP32_manualT/5 (1868 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32_manualT/6
+[       OK ] simple_test/Tests_Pagerank.CheckFP32_manualT/6 (2471 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32/0
+[       OK ] simple_test/Tests_Pagerank.CheckFP32/0 (47 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32/1
+[       OK ] simple_test/Tests_Pagerank.CheckFP32/1 (6431 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32/2
+[       OK ] simple_test/Tests_Pagerank.CheckFP32/2 (23235 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32/3
+[       OK ] simple_test/Tests_Pagerank.CheckFP32/3 (2145 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32/4
+[       OK ] simple_test/Tests_Pagerank.CheckFP32/4 (2195 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32/5
+[       OK ] simple_test/Tests_Pagerank.CheckFP32/5 (1848 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP32/6
+[       OK ] simple_test/Tests_Pagerank.CheckFP32/6 (2470 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64_manualT/0
+[       OK ] simple_test/Tests_Pagerank.CheckFP64_manualT/0 (47 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64_manualT/1
+[       OK ] simple_test/Tests_Pagerank.CheckFP64_manualT/1 (6504 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64_manualT/2
+[       OK ] simple_test/Tests_Pagerank.CheckFP64_manualT/2 (23631 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64_manualT/3
+[       OK ] simple_test/Tests_Pagerank.CheckFP64_manualT/3 (2150 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64_manualT/4
+[       OK ] simple_test/Tests_Pagerank.CheckFP64_manualT/4 (2241 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64_manualT/5
+[       OK ] simple_test/Tests_Pagerank.CheckFP64_manualT/5 (1875 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64_manualT/6
+[       OK ] simple_test/Tests_Pagerank.CheckFP64_manualT/6 (2476 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64/0
+[       OK ] simple_test/Tests_Pagerank.CheckFP64/0 (59 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64/1
+[       OK ] simple_test/Tests_Pagerank.CheckFP64/1 (6632 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64/2
+[       OK ] simple_test/Tests_Pagerank.CheckFP64/2 (23648 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64/3
+[       OK ] simple_test/Tests_Pagerank.CheckFP64/3 (2153 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64/4
+[       OK ] simple_test/Tests_Pagerank.CheckFP64/4 (2246 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64/5
+[       OK ] simple_test/Tests_Pagerank.CheckFP64/5 (1890 ms)
+[ RUN      ] simple_test/Tests_Pagerank.CheckFP64/6
+[       OK ] simple_test/Tests_Pagerank.CheckFP64/6 (2491 ms)
+[----------] 28 tests from simple_test/Tests_Pagerank (155424 ms total)
+
+[----------] Global test environment tear-down
+[==========] 28 tests from 1 test case ran. (155424 ms total)
+[  PASSED  ] 28 tests.
+<end of output>
+Test time = 155.59 sec
+----------------------------------------------------------
+Test Passed.
+"pagerank_test" end time: Dec 07 21:36 UTC
+"pagerank_test" time elapsed: 00:02:35
+----------------------------------------------------------
+
+3/3 Testing: grmat_test
+3/3 Test: grmat_test
+Command: "/cugraph_cudf/build/gtests/grmat_test"
+Directory: /cugraph_cudf/build/src/tests/grmat
+"grmat_test" start time: Dec 07 21:36 UTC
+Output:
+----------------------------------------------------------
+[==========] Running 15 tests from 1 test case.
+[----------] Global test environment set-up.
+[----------] 15 tests from simple_test/Tests_Grmat
+[ RUN      ] simple_test/Tests_Grmat.CheckFP32/0
+[       OK ] simple_test/Tests_Grmat.CheckFP32/0 (8233 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckFP32/1
+[       OK ] simple_test/Tests_Grmat.CheckFP32/1 (9502 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckFP32/2
+[       OK ] simple_test/Tests_Grmat.CheckFP32/2 (66 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckFP64/0
+[       OK ] simple_test/Tests_Grmat.CheckFP64/0 (8185 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckFP64/1
+[       OK ] simple_test/Tests_Grmat.CheckFP64/1 (12536 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckFP64/2
+[       OK ] simple_test/Tests_Grmat.CheckFP64/2 (70 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckInt32/0
+[       OK ] simple_test/Tests_Grmat.CheckInt32/0 (1248 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckInt32/1
+[       OK ] simple_test/Tests_Grmat.CheckInt32/1 (1653 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckInt32/2
+[       OK ] simple_test/Tests_Grmat.CheckInt32/2 (6 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckInt64/0
+[       OK ] simple_test/Tests_Grmat.CheckInt64/0 (2015 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckInt64/1
+[       OK ] simple_test/Tests_Grmat.CheckInt64/1 (3400 ms)
+[ RUN      ] simple_test/Tests_Grmat.CheckInt64/2
+[       OK ] simple_test/Tests_Grmat.CheckInt64/2 (5 ms)
+[ RUN      ] simple_test/Tests_Grmat.misc/0
+[       OK ] simple_test/Tests_Grmat.misc/0 (44591 ms)
+[ RUN      ] simple_test/Tests_Grmat.misc/1
+[       OK ] simple_test/Tests_Grmat.misc/1 (62966 ms)
+[ RUN      ] simple_test/Tests_Grmat.misc/2
+[       OK ] simple_test/Tests_Grmat.misc/2 (22 ms)
+[----------] 15 tests from simple_test/Tests_Grmat (154499 ms total)
+
+[----------] Global test environment tear-down
+[==========] 15 tests from 1 test case ran. (154499 ms total)
+[  PASSED  ] 15 tests.
+<end of output>
+Test time = 154.65 sec
+----------------------------------------------------------
+Test Passed.
+"grmat_test" end time: Dec 07 21:39 UTC
+"grmat_test" time elapsed: 00:02:34
+----------------------------------------------------------
+
+End testing: Dec 07 21:39 UTC
