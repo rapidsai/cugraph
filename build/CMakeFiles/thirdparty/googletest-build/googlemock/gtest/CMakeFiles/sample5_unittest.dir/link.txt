@@ -1,1 +1,0 @@
-/usr/bin/g++-5    -rdynamic CMakeFiles/sample5_unittest.dir/samples/sample5_unittest.cc.o CMakeFiles/sample5_unittest.dir/samples/sample1.cc.o  -o sample5_unittest libgtest_main.a libgtest.a -pthread 

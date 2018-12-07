@@ -1,6 +1,0 @@
-/usr/local/lib/libcugraph.so
-/usr/local/include/cugraph/cugraph.h
-/usr/local/include/cugraph/errorutils.h
-/usr/local/include/cugraph/types.h
-/usr/local/include/cugraph/utils.h
-/usr/local/include/cugraph/functions.h
