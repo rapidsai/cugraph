@@ -126,7 +126,7 @@ ext = Extension('cuGraph',
                 runtime_library_dirs=[CUDA['lib64'], '/usr/local/lib'],
                 # this syntax is specific to this build system
                 extra_compile_args={'gcc': ['-std=c++11'],
-                                    'nvcc': ['-arch=sm_60', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'",'-std=c++11','--expt-extended-lambda']},
+                                    'nvcc': ['-arch=sm_70', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'",'-std=c++11','--expt-extended-lambda']},
                 include_dirs = [numpy_include, CUDA['include'], '/usr/local/include', 'src', 'include','../gunrock','../gunrock/externals/moderngpu/include','../gunrock/externals/cub'],
                 extra_link_args=["-std=c++11"])
 
