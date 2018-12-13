@@ -6,9 +6,6 @@
 #include <cudf.h>
 #include <utilities/error_utils.h>
 
-#include "utils.h"
-#include "errorutils.h"
-
 #include "types.h"
 
 //extern "C" {

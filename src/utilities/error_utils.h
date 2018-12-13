@@ -25,6 +25,7 @@
 
 #define CUDA_CHECK_LAST() CUDA_TRY(cudaPeekAtLastError())
 
+#define GDF_TRY(x) if ((x)!=GDF_SUCCESS) return GDF_CUDA_ERROR;
 
 #define GDF_REQUIRE(F, S) if (!(F)) return (S);
 
