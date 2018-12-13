@@ -14,71 +14,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #=============================================================================
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-# Usage:
-#    $ mkdir build       # create directory for out-of-source build
-#    $ cd build          # enter the build directory
-#    $ cmake ..          # configure build system
-#    $ make              # make libnvggdf
-#    $ make pytest       # trigger test
-#    $ make install      # install libnvggdf
+project(NVGGDF VERSION 0.1.0 LANGUAGES C CXX CUDA)
 
-PROJECT(libnvggdf)
+###################################################################################################
+# - cmake modules ---------------------------------------------------------------------------------
+include(FeatureSummary)
+include(CheckIncludeFiles)
+include(CheckLibraryExists)
 
-cmake_minimum_required(VERSION 2.8)  # not sure about version required
-
+###################################################################################################
+# - compiler options ------------------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_C_COMPILER $ENV{CC})
+set(CMAKE_CXX_COMPILER $ENV{CXX})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD_REQURIED ON)
 message(STATUS "Using C++ standard: c++${CMAKE_CXX_STANDARD}")
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODULE_PATH})
 message(STATUS "CMAKE_MODULE_PATH:" "${CMAKE_MODULE_PATH}")
 
-#IF(CMAKE_COMPILER_IS_GNUCXX)
-#    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-#ENDIF(CMAKE_COMPILER_IS_GNUCXX)
-
-# Include CMake modules
-include(FeatureSummary)
-include(CheckIncludeFiles)
-include(CheckLibraryExists)
-#include(CTest)
-
-# Include custom modules (see cmake directory)
-#include(ConfigureGoogleTest)
-
 set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
-
-#find_package(CUDA)
-#set_package_properties(
-#    CUDA PROPERTIES TYPE REQUIRED
-#    PURPOSE "NVIDIA CUDA® parallel computing platform and programming model."
-#    URL "https://developer.nvidia.com/cuda-zone")
-#
-#if(CUDA_FOUND)
-#    message(STATUS "CUDA ${CUDA_VERSION} found in ${CUDA_TOOLKIT_ROOT_DIR}")
-#
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-std=c++11;--expt-extended-lambda; -Xcompiler -rdynamic -lineinfo)
-#    # Suppress SHFL warnings caused by modern GPU.
-#    # TODO: remove this when modern GPU is removed or fixed to use shfl_sync
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
-#        -Wno-deprecated-declarations;
-#        -Xptxas --disable-warnings)
-#    # set warnings as errors
-#    #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-Werror cross-execution-space-call;-Xcompiler -Wall,-Werror,-Wno-error=sign-compare)
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-Werror cross-execution-space-call;-Xcompiler -Wall,-Wno-error=sign-compare)
-#
-#    message(STATUS "CUDA_NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
-#else()
-#    message(FATAL_ERROR "CUDA not found, please check your settings.")
-#endif()
-
-include_directories(
-    "${CMAKE_CURRENT_SOURCE_DIR}" 
-    "${CUDA_INCLUDE_DIRS}" 
-    "$ENV{CONDA_PREFIX}/include/cudf"
-    "${CMAKE_CURRENT_SOURCE_DIR}"/../../../include
-    SYSTEM "/usr/local/include/nvgraph"
-)
 
 IF(CUDA_VERSION_MAJOR GREATER 7)
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode;arch=compute_60,code=sm_60)
@@ -92,35 +52,72 @@ IF(CMAKE_BUILD_TYPE MATCHES DEBUG)
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-g;-G;-lineinfo)
 ENDIF(CMAKE_BUILD_TYPE MATCHES DEBUG)
 
+###################################################################################################
+# - add cudf --------------------------------------------------------------------------------------
+if(NOT TARGET cudf)
+    find_path(CUDF_INCLUDE "cudf"
+          HINTS "$ENV{CUDF_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include")
+
+    find_library(CUDF_LIBRARY "cudf"
+          HINTS "$ENV{CUDF_ROOT}/lib"
+                "$ENV{CONDA_PREFIX}/lib")
+
+    add_library(cudf SHARED IMPORTED)
+    if (CUDF_INCLUDE AND CUDF_LIBRARY)
+        set_target_properties( cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
+    endif (CUDF_INCLUDE AND CUDF_LIBRARY)
+endif()
+
+###################################################################################################
+# - add cugraph -----------------------------------------------------------------------------------
+
+if(NOT TARGET cugraph)
+    add_library( cugraph SHARED IMPORTED)
+    set_target_properties( cugraph PROPERTIES IMPORTED_LOCATION ${CMAKE_INSTALL_PREFIX}/lib/libcugraph.so)
+    message(STATUS "cugraph found in ${CMAKE_INSTALL_PREFIX}/lib/libcugraph.so")
+endif()
+
+###################################################################################################
+# - add nvgraph -----------------------------------------------------------------------------------
+if(NOT TARGET NVGRAPH)
+    find_path(NVGRAPH_INCLUDE "nvgraph"
+          HINTS "$ENV{NVGRAPH_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include")
+    find_library(NVGRAPH_LIBRARY "nvgraph_st"
+             HINTS "$ENV{NVGRAPH_ROOT}/lib"
+                   "$ENV{CONDA_PREFIX}/lib")
+
+    add_library( nvgraph SHARED IMPORTED)
+    if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
+        set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
+        message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
+    endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
+endif()
+###################################################################################################
+# - include paths ---------------------------------------------------------------------------------
+include_directories(
+    "${CMAKE_CURRENT_SOURCE_DIR}" 
+    "${CUDA_INCLUDE_DIRS}" 
+    "${CUDF_INCLUDE}"
+    "${NVGRAPH_INCLUDE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}"/../../../include
+)
+
+###################################################################################################
+# - library targets -------------------------------------------------------------------------------
 cuda_add_library(nvggdf SHARED
     nvgraph_gdf.cu
 )
-if(NOT TARGET cudf)
-add_library( cudf SHARED IMPORTED)
-set_target_properties( gdf PROPERTIES IMPORTED_LOCATION $ENV{CONDA_PREFIX}/lib/libcudf.so)
-endif()
+
+###################################################################################################
+# - link libraries --------------------------------------------------------------------------------
 target_link_libraries(nvggdf cudf)
-
-if(NOT TARGET cugraph)
-add_library( cugraph SHARED IMPORTED)
-set_target_properties( cugraph PROPERTIES IMPORTED_LOCATION ${CMAKE_INSTALL_PREFIX}/lib/libcugraph.so)
-endif()
 target_link_libraries(nvggdf cugraph)
-message(STATUS "cugraph found in /usr/local/lib/libcugraph.so")
-
-if(NOT TARGET nvgraph)
-add_library( nvgraph SHARED IMPORTED)
-set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION /usr/local/lib/libnvgraph_st.so)
-endif()
 target_link_libraries(nvggdf nvgraph)
-message(STATUS "nvgraph found in /usr/local/lib/libnvgraph_st.so")
-# Command to symlink files into the build directory
-#add_custom_command(  # link the include directory
-#    OUTPUT include
-#    COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/include include
-#    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# The install target
+###################################################################################################
+# - install targets -------------------------------------------------------------------------------
 install(TARGETS nvggdf LIBRARY DESTINATION lib)
 install(FILES nvgraph_gdf.h DESTINATION include/cugraph)
 
