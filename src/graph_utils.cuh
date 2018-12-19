@@ -27,7 +27,7 @@
 #include <thrust/sort.h>
 
 #define USE_CG 1
-//#define DEBUG 1
+#define DEBUG 1
 
 namespace cugraph
 {

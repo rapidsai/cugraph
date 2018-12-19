@@ -119,15 +119,15 @@ except AttributeError:
 
 
 ext = Extension('cuGraph',
-                sources=['src/pagerank.cu', 'src/cugraph.cu', 'python/pagerank/pagerank_wrapper.pyx'],
+                sources=['src/pagerank.cu', 'src/cugraph.cu', 'python/cugraph.pyx'],
                 library_dirs=[CUDA['lib64'], '/usr/local/lib'],
-                libraries=['cudart','cublas','cusolver','cudf'],
+                libraries=['cudart','cublas','cusolver','cudf','nvgraph_st'],
                 language='c++',
                 runtime_library_dirs=[CUDA['lib64'], '/usr/local/lib'],
                 # this syntax is specific to this build system
                 extra_compile_args={'gcc': ['-std=c++11'],
                                     'nvcc': ['-arch=sm_70', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'",'-std=c++11','--expt-extended-lambda']},
-                include_dirs = [numpy_include, CUDA['include'], '/usr/local/include', 'src', 'include','../gunrock','../gunrock/externals/moderngpu/include','../gunrock/externals/cub'],
+                include_dirs = ['/usr/local/include/nvgraph',numpy_include, CUDA['include'], '/usr/local/include', 'src', 'include','../gunrock','../gunrock/externals/moderngpu/include','../gunrock/externals/cub'],
                 extra_link_args=["-std=c++11"])
 
 

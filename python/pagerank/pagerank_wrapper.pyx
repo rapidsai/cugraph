@@ -109,38 +109,44 @@ class Graph:
                        <gdf_column*>value)
     
     def view_edge_list(self):
-        ##TO DO
         """
         Display the edge list.
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph* g = <gdf_graph*>graph
-        size = g.edgeList.src_indices.size
-        print(size)
-        cdef object cffi_view = <object>g.edgeList.src_indices
-        data = cudf._gdf.cffi_view_to_column_mem(cffi_view)
-        #return pygdf.Series(data)        
-        return 0
+        col_size = g.edgeList.src_indices.size
 
-    #def add_adj_list(self, offsets_col, indices_col, value_col):
-    #    """
-    #    Warp existing gdf columns representing an adjacency list in a gdf_graph.
-    #    """
-    #    ##TO TEST
-    #    cdef uintptr_t graph = self.graph_ptr
-    #    cdef uintptr_t offsets=create_column(offsets_col)
-    #    cdef uintptr_t indices=create_column(indices_col)
-    #    cdef uintptr_t value
-    #    if value_col is None:
-    #        value = 0
-    #    else:
-    #        value=create_column(value_col)
-    #
-    #    gdf_adj_list_view(<gdf_graph*>graph,
-    #                   <gdf_column*>offsets,
-    #                   <gdf_column*>indices,
-    #                   <gdf_column*>value)
+        cdef uintptr_t src_col_data = <uintptr_t>g.edgeList.src_indices.data
+        cdef uintptr_t dest_col_data = <uintptr_t>g.edgeList.dest_indices.data
 
+        src_data = rmm.device_array_from_ptr(src_col_data,
+                                     nelem=col_size,
+                                     dtype=np.int32,
+                                     finalizer=rmm._make_finalizer(src_col_data, 0))
+        dest_data = rmm.device_array_from_ptr(dest_col_data,
+                                     nelem=col_size,
+                                     dtype=np.int32,
+                                     finalizer=rmm._make_finalizer(dest_col_data, 0))
+
+        return cudf.Series(src_data), cudf.Series(dest_data)
+
+    def add_adj_list(self, offsets_col, indices_col, value_col):
+        """
+        Warp existing gdf columns representing an adjacency list in a gdf_graph.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef uintptr_t offsets=create_column(offsets_col)
+        cdef uintptr_t indices=create_column(indices_col)
+        cdef uintptr_t value
+        if value_col is None:
+            value = 0
+        else:
+            value=create_column(value_col)
+    
+        gdf_adj_list_view(<gdf_graph*>graph,
+                       <gdf_column*>offsets,
+                       <gdf_column*>indices,
+                       <gdf_column*>value)
 
     def add_transpose(self):
         """
@@ -183,7 +189,7 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,none)
+    >>> G.add_edge_list(sources,destinations,None)
     >>> pr = cuGraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
     cdef uintptr_t graph = G.graph_ptr
@@ -196,3 +202,4 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
 
     gdf_pagerank(<gdf_graph*>graph, <gdf_column*>pagerank_ptr, <float> alpha, <float> tol, <int> max_iter, <bool> 0)
     return pagerank
+

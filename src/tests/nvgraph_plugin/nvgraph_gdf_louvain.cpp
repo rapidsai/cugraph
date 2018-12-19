@@ -75,10 +75,6 @@ TEST(nvgraph_louvain_grmat, success)
   col_weights.dtype = GDF_FLOAT32;
   col_weights.valid = nullptr;
 
-  col_src.null_count = 0;
-  col_dest.null_count = 0;
-  col_weights.null_count = 0;
-
   ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
   cudaMallocManaged (&col_weights.data, sizeof(int) * edges);
   col_weights.size = edges;

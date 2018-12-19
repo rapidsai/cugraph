@@ -21,11 +21,11 @@ def cuGraph_Call(M, max_iter, tol, alpha):
     #Device data
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
-    #values = cudf.Series(np.ones(len(sources), dtype = np.float64))
+    values = cudf.Series(np.ones(len(sources), dtype = np.float64))
 
     # CuGraph Pagerank Call
     G = cuGraph.Graph()
-    G.add_edge_list(sources,destinations, None)
+    G.add_edge_list(sources,destinations,values)
     t1 = time.time()
     pr = cuGraph.pagerank(G, alpha = alpha, max_iter = max_iter, tol = tol)
     t2 =  time.time() - t1
@@ -102,3 +102,5 @@ def test_pagerank(graph_file, max_iter, tol, alpha):
             err = err + 1
     print(err)
     assert err<(0.01*len(sorted_pr))
+
+

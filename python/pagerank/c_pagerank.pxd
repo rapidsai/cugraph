@@ -43,7 +43,7 @@ cdef extern from "cudf.h":
     cdef gdf_error gdf_column_view_new(gdf_column *column,
                               void *data)
 
-cdef extern from "c_pagerank.h":
+cdef extern from "pagerank/c_pagerank.h":
 
     struct gdf_edge_list:
         gdf_column *src_indices
@@ -65,7 +65,7 @@ cdef extern from "c_pagerank.h":
                              const gdf_column *source_indices,
                              const gdf_column *destination_indices,
                              const gdf_column *edge_data)
-    
+
     cdef gdf_error gdf_adj_list_view (gdf_graph *graph, 
                              const gdf_column *offsets,
                              const gdf_column *indices,
@@ -73,3 +73,4 @@ cdef extern from "c_pagerank.h":
 
     cdef gdf_error gdf_add_transpose(gdf_graph *graph)
     cdef gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess)
+
