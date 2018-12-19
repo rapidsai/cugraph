@@ -43,8 +43,8 @@ void cpy_column_view(const gdf_column *in, gdf_column *out) {
 
 gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets, 
                                  const gdf_column *indices, const gdf_column *edge_data) {
-  GDF_REQUIRE( !offsets->valid , GDF_VALIDITY_UNSUPPORTED );                    
-  GDF_REQUIRE( !indices->valid , GDF_VALIDITY_UNSUPPORTED );
+  GDF_REQUIRE( offsets->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );                    
+  GDF_REQUIRE( indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( (offsets->dtype == indices->dtype), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((offsets->dtype == GDF_INT32) || (offsets->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( (offsets->size > 0), GDF_DATASET_EMPTY ); 
@@ -74,8 +74,8 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
   GDF_REQUIRE( src_indices->dtype == dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((src_indices->dtype == GDF_INT32) || (src_indices->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY ); 
-  GDF_REQUIRE( !src_indices->valid , GDF_VALIDITY_UNSUPPORTED );                    
-  GDF_REQUIRE( !dest_indices->valid , GDF_VALIDITY_UNSUPPORTED );
+  GDF_REQUIRE( src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );                    
+  GDF_REQUIRE( dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( graph->edgeList == nullptr , GDF_INVALID_API_CALL);
 
   graph->edgeList = new gdf_edge_list;
@@ -183,11 +183,11 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   GDF_REQUIRE( graph->edgeList != nullptr, GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( graph->edgeList->src_indices->size == graph->edgeList->dest_indices->size, GDF_COLUMN_SIZE_MISMATCH ); 
   GDF_REQUIRE( graph->edgeList->src_indices->dtype == graph->edgeList->dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );  
-  GDF_REQUIRE( !graph->edgeList->src_indices->valid , GDF_VALIDITY_UNSUPPORTED );                 
-  GDF_REQUIRE( !graph->edgeList->dest_indices->valid , GDF_VALIDITY_UNSUPPORTED );  
+  GDF_REQUIRE( graph->edgeList->src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );                 
+  GDF_REQUIRE( graph->edgeList->dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );  
   GDF_REQUIRE( pagerank != nullptr , GDF_INVALID_API_CALL ); 
   GDF_REQUIRE( pagerank->data != nullptr , GDF_INVALID_API_CALL ); 
-  GDF_REQUIRE( !pagerank->valid , GDF_VALIDITY_UNSUPPORTED );          
+  GDF_REQUIRE( pagerank->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );          
   GDF_REQUIRE( pagerank->size > 0 , GDF_INVALID_API_CALL );         
 
   int m=pagerank->size, nnz = graph->edgeList->src_indices->size, status = 0;

@@ -326,7 +326,7 @@ gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, gdf_
     }
 
     GDF_REQUIRE ((src->dtype == dest->dtype), GDF_DTYPE_MISMATCH);
-    GDF_REQUIRE (!src->valid, GDF_VALIDITY_UNSUPPORTED);
+    GDF_REQUIRE (src->null_count == 0, GDF_VALIDITY_UNSUPPORTED);
 
     if (argc < 2 || args.CheckCmdLineFlag("help"))
     {
@@ -362,7 +362,7 @@ gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, gdf_
 
     GDF_REQUIRE((src->size == dest->size), GDF_COLUMN_SIZE_MISMATCH);
     GDF_REQUIRE ((src->dtype == dest->dtype), GDF_DTYPE_MISMATCH);
-    GDF_REQUIRE (!src->valid, GDF_VALIDITY_UNSUPPORTED);
+    GDF_REQUIRE (src->null_count == 0, GDF_VALIDITY_UNSUPPORTED);
 
     return status;
 }

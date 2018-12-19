@@ -48,6 +48,9 @@ class Tests_Sssp : public ::testing::TestWithParam<Sssp_Usecase> {
     col_src.valid = nullptr;
     col_dest.dtype = GDF_INT32;
     col_dest.valid = nullptr;
+
+    col_src.null_count = 0;
+    col_dest.null_count = 0;
     ASSERT_EQ(gdf_grmat_gen (param.grmat_param.c_str(), v, e, &col_src, &col_dest, nullptr),GDF_SUCCESS);
     //col_w.fill(1.0)
     gdf_graph G;

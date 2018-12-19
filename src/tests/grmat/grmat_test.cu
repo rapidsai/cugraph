@@ -105,6 +105,10 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
      col_sources.valid = nullptr;
      col_destinations.dtype = gdf_vertexId_type;
      col_destinations.valid = nullptr;
+     col_sources.null_count = 0;
+     col_destinations.null_count = 0;
+     col_sources.null_count = 0;
+     col_destinations.null_count = 0;
 
      int rmat_scale = 0, edge_factor = 0, undirected = false;
      char* argv[32] = {0};
@@ -201,6 +205,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     col_destinations.dtype = gdf_vertexId_type;
     col_destinations.valid = nullptr;
 
+    col_sources.null_count = 0;
+    col_destinations.null_count = 0;
+
     size_t vertices = 0, edges = 0;
 
     ASSERT_EQ(gdf_grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr), GDF_SUCCESS);
@@ -225,6 +232,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     col_destinations.dtype = gdf_vertexId_type;
     col_destinations.valid = nullptr;
 
+    col_sources.null_count = 0;
+    col_destinations.null_count = 0;
+
     size_t vertices = 0, edges = 0;
 
     ASSERT_EQ(gdf_grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr), GDF_SUCCESS);
@@ -235,6 +245,8 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
     col_sources.valid = nullptr;
     col_destinations.valid = nullptr;
+    col_sources.null_count = 0;
+    col_destinations.null_count = 0;
 
     ASSERT_EQ(gdf_edge_list_view(G.get(), &col_sources, &col_destinations, nullptr), GDF_SUCCESS);
     std::vector<int> src2_h(edges), dest2_h(edges);
@@ -267,6 +279,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     col_destinations.dtype = gdf_vertexId_type;
     col_destinations.valid = nullptr;
 
+    col_sources.null_count = 0;
+    col_destinations.null_count = 0;
+
     size_t vertices1 = 0, edges1 = 0;
 
     ASSERT_EQ(gdf_grmat_gen ((char *)param.argv.c_str(), vertices1, edges1, &col_sources, &col_destinations, nullptr), GDF_SUCCESS);
@@ -287,6 +302,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     col_destinations.dtype = gdf_vertexId_type;
     col_sources.valid = nullptr;
     col_destinations.valid = nullptr;
+
+    col_sources.null_count = 0;
+    col_destinations.null_count = 0;
  
     size_t vertices2 = 0, edges2 = 0;
 
@@ -333,6 +351,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
      col_destinations.dtype = gdf_vertexId_type;
      col_destinations.valid = nullptr;
 
+    col_sources.null_count = 0;
+    col_destinations.null_count = 0;
+
     size_t vertices = 0, edges = 0;
 
     ASSERT_EQ(gdf_grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr), GDF_SUCCESS);
@@ -343,6 +364,8 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     col_sources.valid = nullptr;
     col_destinations.dtype_info = extra_info;
     col_destinations.valid = nullptr;
+    col_sources.null_count = 0;
+    col_destinations.null_count = 0;
     std::vector<T> grmat(vertices);
     col_grmat = create_gdf_column(grmat);
 

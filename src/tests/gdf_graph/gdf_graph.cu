@@ -25,10 +25,13 @@ TEST(gdf_edge_list, success)
   
   col_src.dtype = GDF_INT32;
   col_src.valid = nullptr;
+  col_src.null_count = 0;
   col_dest.dtype = GDF_INT32; 
   col_dest.valid = nullptr;
+  col_dest.null_count = 0;
   col_weights.dtype = GDF_FLOAT32; 
   col_weights.valid = nullptr;
+  col_weights.null_count = 0;
 
   size_t vertices = 0, edges = 0;
   char argv [1024] = "grmat --rmat_scale=20 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
@@ -69,6 +72,9 @@ TEST(gdf_edge_list, success_no_weights)
   col_src.valid = nullptr;
   col_dest.dtype = GDF_INT32; 
   col_dest.valid = nullptr;
+  col_src.null_count = 0;
+  col_dest.null_count = 0;
+
  
   size_t vertices = 0, edges = 0;
   char argv [1024] = "grmat --rmat_scale=20 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
@@ -407,6 +413,9 @@ TEST(gdf_graph, memory)
   col_src.valid = nullptr;
   col_dest.dtype = GDF_INT32;
   col_dest.valid = nullptr;
+
+  col_src.null_count = 0;
+  col_dest.null_count = 0;
 
   size_t free, free2, free3, free4_, free4, total;  
   

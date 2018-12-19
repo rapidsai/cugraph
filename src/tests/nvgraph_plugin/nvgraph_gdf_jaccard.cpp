@@ -125,6 +125,9 @@ TEST(nvgraph_jaccard_grmat, success)
   col_dest.dtype = GDF_INT32;
   col_dest.valid = nullptr;
 
+  col_src.null_count = 0;
+  col_dest.null_count = 0;
+
   ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
   std::vector<int> src_h (col_src.size, 0);
   std::vector<int> dest_h (col_dest.size, 0);

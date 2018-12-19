@@ -595,6 +595,7 @@ gdf_column_ptr create_gdf_column(std::vector<col_type> const & host_vector)
   else if(std::is_same<col_type,double>::value) gdf_col_type = GDF_FLOAT64;
   // Fill the gdf_column members
   the_column->valid = nullptr;
+  the_column->null_count = 0;
   the_column->size = host_vector.size();
   the_column->dtype = gdf_col_type;
   gdf_dtype_extra_info extra_info;
@@ -627,6 +628,7 @@ void create_gdf_column(std::vector<col_type> const & host_vector, gdf_column * t
   else if(std::is_same<col_type,double>::value) gdf_col_type = GDF_FLOAT64;
   // Fill the gdf_column members
   the_column->valid = nullptr;
+  the_column->null_count = 0;
   the_column->size = host_vector.size();
   the_column->dtype = gdf_col_type;
   gdf_dtype_extra_info extra_info;
