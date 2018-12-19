@@ -1,7 +1,7 @@
 
 from libcpp cimport bool
 
-cdef extern from "gdf.h":
+cdef extern from "cudf.h":
 
     ctypedef enum gdf_error: 
         pass
