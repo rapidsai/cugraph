@@ -428,4 +428,39 @@ void remove_duplicate (IndexType* src, IndexType* dest, ValueType* val, SizeT &n
   }
 }
 
+template <typename IndexType>
+void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indices)
+{
+  int nthreads = min(v,CUDA_MAX_KERNEL_THREADS); 
+  int nblocks = min((v + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS); 
+  offsets_to_indices_kernel<<<nblocks,nthreads>>>(offsets,v,indices);
+}
+
+template <typename IndexType>
+__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) offsets_to_indices_kernel (const IndexType *offsets, IndexType v, IndexType *indices){
+    
+    int tid, ctaStart;
+    tid = threadIdx.x; 
+    ctaStart = blockIdx.x;                        
+    
+    for (int j = ctaStart ; j < v; j += gridDim.x) {    
+        IndexType colStart = offsets[j];
+        IndexType colEnd   = offsets[j+1];
+        IndexType rowNnz   = colEnd - colStart;
+        
+        for ( int i = 0; i < rowNnz; i+= blockDim.x) {
+            if ((colStart + tid + i) < colEnd) {
+                indices[colStart + tid + i] = j;
+            }
+        }
+    }
+}
+
+template <typename IndexType>
+void sequence(IndexType n, IndexType *vec, IndexType init = 0)
+{
+  thrust::sequence(thrust::device,thrust::device_pointer_cast(vec), thrust::device_pointer_cast(vec+n), init);
+}
+
+
 } //namespace cugraph
