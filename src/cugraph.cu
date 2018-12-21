@@ -135,6 +135,46 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
   return GDF_SUCCESS;
 }
 
+gdf_error gdf_add_edge_list (gdf_graph *graph) {
+    if (graph->edgeList == nullptr) {
+      GDF_REQUIRE( graph->adjList != nullptr , GDF_INVALID_API_CALL);
+      int *d_src;
+      graph->edgeList = new gdf_edge_list;
+      graph->edgeList->src_indices = new gdf_column;
+      graph->edgeList->dest_indices = new gdf_column;
+      graph->edgeList->ownership = 1;
+
+
+      CUDA_TRY(cudaMallocManaged ((void**)&d_src, sizeof(int) * graph->adjList->indices->size));
+
+      cugraph::offsets_to_indices<int>((int*)graph->adjList->offsets->data, 
+                                  graph->adjList->offsets->size-1, 
+                                  (int*)d_src);
+
+      gdf_column_view(graph->edgeList->src_indices, d_src, 
+                        nullptr, graph->adjList->indices->size, graph->adjList->indices->dtype);
+      gdf_column_view(graph->edgeList->dest_indices, graph->adjList->indices->data, 
+                        nullptr, graph->adjList->indices->size, graph->adjList->indices->dtype);
+      if (graph->adjList->edge_data!= nullptr) {
+        gdf_column_view(graph->edgeList->edge_data, graph->adjList->edge_data->data, 
+                          nullptr, graph->adjList->edge_data->size, graph->adjList->edge_data->dtype);
+      }
+  }
+  return GDF_SUCCESS;
+}
+
+gdf_error gdf_adj_offsets_to_indices (gdf_graph *graph, gdf_column *indices) {
+  GDF_REQUIRE( graph->adjList != nullptr , GDF_INVALID_API_CALL);
+  GDF_REQUIRE( indices->size == graph->adjList->indices->size, GDF_COLUMN_SIZE_MISMATCH );
+  GDF_REQUIRE( indices->dtype == graph->adjList->indices->dtype, GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( indices->size > 0, GDF_DATASET_EMPTY ); 
+
+  cugraph::offsets_to_indices<int>((int*)graph->adjList->offsets->data, 
+                     graph->adjList->offsets->size-1, 
+                     (int*)indices->data);
+
+  return GDF_SUCCESS;
+}
 
 template <typename WT>
 gdf_error gdf_add_transpose_impl (gdf_graph *graph) {
@@ -244,11 +284,6 @@ gdf_error gdf_add_adj_list(gdf_graph *graph)
   }
 }
 
-gdf_error gdf_add_edge_list(gdf_graph *graph)
-{
-  return GDF_UNSUPPORTED_METHOD;
-}
-
 gdf_error gdf_add_transpose(gdf_graph *graph)
 {
   if (graph->edgeList->edge_data != nullptr) {
@@ -287,7 +322,6 @@ gdf_error gdf_delete_transpose(gdf_graph *graph) {
   graph->transposedAdjList = nullptr;
   return GDF_SUCCESS;
 }
-
 
 gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess)
 { 

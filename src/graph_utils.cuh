@@ -428,13 +428,7 @@ void remove_duplicate (IndexType* src, IndexType* dest, ValueType* val, SizeT &n
   }
 }
 
-template <typename IndexType>
-void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indices)
-{
-  int nthreads = min(v,CUDA_MAX_KERNEL_THREADS); 
-  int nblocks = min((v + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS); 
-  offsets_to_indices_kernel<<<nblocks,nthreads>>>(offsets,v,indices);
-}
+
 
 template <typename IndexType>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) offsets_to_indices_kernel (const IndexType *offsets, IndexType v, IndexType *indices){
@@ -454,6 +448,14 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) offsets_to_indices_ke
             }
         }
     }
+}
+
+template <typename IndexType>
+void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indices)
+{
+  int nthreads = min(v,CUDA_MAX_KERNEL_THREADS); 
+  int nblocks = min((v + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS); 
+  offsets_to_indices_kernel<<<nblocks,nthreads>>>(offsets,v,indices);
 }
 
 template <typename IndexType>

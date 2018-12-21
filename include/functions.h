@@ -60,3 +60,5 @@ gdf_error gdf_delete_transpose(gdf_graph *graph);
 gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess);
 
 gdf_error gdf_grmat_gen (const char* argv, size_t &vertices, size_t &edges, gdf_column* src, gdf_column* dest, gdf_column* val);
+
+gdf_error gdf_adj_offsets_to_indices (gdf_graph *graph, gdf_column *indices);
