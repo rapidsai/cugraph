@@ -42,7 +42,6 @@ class cudaDataType(Enum):
 np_to_cudaDataType = {np.int8:cudaDataType.CUDA_R_8I, np.int32:cudaDataType.CUDA_R_32I, np.float32:cudaDataType.CUDA_R_32F, np.float64:cudaDataType.CUDA_R_64F}
 gdf_to_cudaDataType = {libgdf.GDF_INT8:cudaDataType.CUDA_R_8I, libgdf.GDF_INT32:cudaDataType.CUDA_R_32I, libgdf.GDF_FLOAT32:cudaDataType.CUDA_R_32F, libgdf.GDF_FLOAT64:cudaDataType.CUDA_R_64F}
 
-#cpdef nvJaccard(offsets_col, indices_col, value_col):
 cpdef nvJaccard(input_graph):
     """
     Compute the Jaccard similarity between each pair of vertices connected by an edge. Jaccard similarity is defined between two sets as the ratio of the volume of their intersection divided by the volume of their union. In the context of graphs, the neighborhood of a vertex is seen as a set. The Jaccard similarity weight of each edge represents the strength of connection between vertices based on the relative similarity of their neighbors.
@@ -78,15 +77,6 @@ cpdef nvJaccard(input_graph):
     e = g.adjList.indices.size
     index_type = gdf_to_cudaDataType[g.adjList.indices.dtype].value
     val_type = gdf_to_cudaDataType[g.adjList.edge_data.dtype].value
-
-    print(index_type) 
-    #cdef uintptr_t offsets_ptr = _get_column_data_ptr(offsets_col)
-    #cdef uintptr_t indices_ptr = _get_column_data_ptr(indices_col)
-    #cdef uintptr_t value_ptr = _get_column_data_ptr(value_col)
-    #n = len(offsets_col) - 1
-    #e = len(indices_col)
-    #index_type = np_to_cudaDataType[indices_col.dtype.type].value
-    #val_type = np_to_cudaDataType[value_col.dtype.type].value
 
     weight_j = cudf.Series(np.zeros(e,dtype=np.float32))
     cdef uintptr_t weight_j_ptr = _get_column_data_ptr(weight_j)
