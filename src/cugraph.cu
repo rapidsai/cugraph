@@ -98,39 +98,39 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
 
 template <typename WT>
 gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
-    GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
-    GDF_REQUIRE( graph->adjList == nullptr , GDF_INVALID_API_CALL);
-    
-    int nnz = graph->edgeList->src_indices->size, status = 0;
-    graph->adjList = new gdf_adj_list;
-    graph->adjList->offsets = new gdf_column;
-    graph->adjList->indices = new gdf_column;
-    graph->adjList->ownership = 1;
+    if (graph->adjList == nullptr) {
+      GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
+      int nnz = graph->edgeList->src_indices->size, status = 0;
+      graph->adjList = new gdf_adj_list;
+      graph->adjList->offsets = new gdf_column;
+      graph->adjList->indices = new gdf_column;
+      graph->adjList->ownership = 1;
 
-  if (graph->edgeList->edge_data!= nullptr) {
-    graph->adjList->edge_data = new gdf_column;
+    if (graph->edgeList->edge_data!= nullptr) {
+      graph->adjList->edge_data = new gdf_column;
 
-    CSR_Result_Weighted<int,WT> adj_list;
-    status = ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
-    
-    gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets, 
-                          nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
-    gdf_column_view(graph->adjList->indices, adj_list.colIndices, 
-                          nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
-    gdf_column_view(graph->adjList->edge_data, adj_list.edgeWeights, 
-                        nullptr, adj_list.nnz, graph->edgeList->edge_data->dtype);
-  }
-  else {
-    CSR_Result<int> adj_list;
-    status = ConvertCOOtoCSR((int*)graph->edgeList->src_indices->data,(int*)graph->edgeList->dest_indices->data, nnz, adj_list);      
-    gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets, 
-                          nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
-    gdf_column_view(graph->adjList->indices, adj_list.colIndices, 
-                          nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
-  }
-  if (status !=0) {
-    std::cerr << "Could not generate the adj_list" << std::endl;
-    return GDF_CUDA_ERROR;
+      CSR_Result_Weighted<int,WT> adj_list;
+      status = ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
+      
+      gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets, 
+                            nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
+      gdf_column_view(graph->adjList->indices, adj_list.colIndices, 
+                            nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
+      gdf_column_view(graph->adjList->edge_data, adj_list.edgeWeights, 
+                          nullptr, adj_list.nnz, graph->edgeList->edge_data->dtype);
+    }
+    else {
+      CSR_Result<int> adj_list;
+      status = ConvertCOOtoCSR((int*)graph->edgeList->src_indices->data,(int*)graph->edgeList->dest_indices->data, nnz, adj_list);      
+      gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets, 
+                            nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
+      gdf_column_view(graph->adjList->indices, adj_list.colIndices, 
+                            nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
+    }
+    if (status !=0) {
+      std::cerr << "Could not generate the adj_list" << std::endl;
+      return GDF_CUDA_ERROR;
+    }
   }
   return GDF_SUCCESS;
 }
@@ -138,37 +138,38 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
 
 template <typename WT>
 gdf_error gdf_add_transpose_impl (gdf_graph *graph) {
-    GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
-    GDF_REQUIRE( graph->transposedAdjList == nullptr , GDF_INVALID_API_CALL);
-    int nnz = graph->edgeList->src_indices->size, status = 0;
-    graph->transposedAdjList = new gdf_adj_list;
-    graph->transposedAdjList->offsets = new gdf_column;
-    graph->transposedAdjList->indices = new gdf_column;
-    graph->transposedAdjList->ownership = 1;
-  
-  if (graph->edgeList->edge_data) {
-    graph->transposedAdjList->edge_data = new gdf_column;
-    CSR_Result_Weighted<int,WT> adj_list;
-    status = ConvertCOOtoCSR_weighted( (int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
-    gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets, 
-                          nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
-    gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices, 
-                          nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
-    gdf_column_view(graph->transposedAdjList->edge_data, adj_list.edgeWeights, 
-                        nullptr, adj_list.nnz, graph->edgeList->edge_data->dtype);
-  }
-  else {
+    if (graph->transposedAdjList == nullptr ) {
+      GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
+      int nnz = graph->edgeList->src_indices->size, status = 0;
+      graph->transposedAdjList = new gdf_adj_list;
+      graph->transposedAdjList->offsets = new gdf_column;
+      graph->transposedAdjList->indices = new gdf_column;
+      graph->transposedAdjList->ownership = 1;
+    
+      if (graph->edgeList->edge_data) {
+        graph->transposedAdjList->edge_data = new gdf_column;
+        CSR_Result_Weighted<int,WT> adj_list;
+        status = ConvertCOOtoCSR_weighted( (int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
+        gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets, 
+                              nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
+        gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices, 
+                              nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
+        gdf_column_view(graph->transposedAdjList->edge_data, adj_list.edgeWeights, 
+                            nullptr, adj_list.nnz, graph->edgeList->edge_data->dtype);
+      }
+      else {
 
-    CSR_Result<int> adj_list;
-    status = ConvertCOOtoCSR((int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, nnz, adj_list);      
-    gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets, 
-                          nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
-    gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices, 
-                          nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
-  }
-    if (status !=0) {
-      std::cerr << "Could not generate the adj_list" << std::endl;
-      return GDF_CUDA_ERROR;
+        CSR_Result<int> adj_list;
+        status = ConvertCOOtoCSR((int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, nnz, adj_list);      
+        gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets, 
+                              nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
+        gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices, 
+                              nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
+      }
+      if (status !=0) {
+        std::cerr << "Could not generate the adj_list" << std::endl;
+        return GDF_CUDA_ERROR;
+      }
     }
     return GDF_SUCCESS;
 }
