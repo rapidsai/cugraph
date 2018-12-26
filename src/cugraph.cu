@@ -142,7 +142,7 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
       graph->edgeList = new gdf_edge_list;
       graph->edgeList->src_indices = new gdf_column;
       graph->edgeList->dest_indices = new gdf_column;
-      graph->edgeList->ownership = 1;
+      graph->edgeList->ownership = 2;
 
 
       CUDA_TRY(cudaMallocManaged ((void**)&d_src, sizeof(int) * graph->adjList->indices->size));
@@ -152,12 +152,12 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
                                   (int*)d_src);
 
       gdf_column_view(graph->edgeList->src_indices, d_src, 
-                        nullptr, graph->adjList->indices->size, graph->adjList->indices->dtype);
-      gdf_column_view(graph->edgeList->dest_indices, graph->adjList->indices->data, 
-                        nullptr, graph->adjList->indices->size, graph->adjList->indices->dtype);
-      if (graph->adjList->edge_data!= nullptr) {
-        gdf_column_view(graph->edgeList->edge_data, graph->adjList->edge_data->data, 
-                          nullptr, graph->adjList->edge_data->size, graph->adjList->edge_data->dtype);
+                      nullptr, graph->adjList->indices->size, graph->adjList->indices->dtype);
+      cpy_column_view(graph->adjList->indices, graph->edgeList->dest_indices);
+      
+      if (graph->adjList->edge_data != nullptr) {
+        graph->edgeList->edge_data = new gdf_column;
+        cpy_column_view(graph->adjList->edge_data, graph->edgeList->edge_data);
       }
   }
   return GDF_SUCCESS;
