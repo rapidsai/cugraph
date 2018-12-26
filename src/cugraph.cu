@@ -68,6 +68,24 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
   return GDF_SUCCESS;
 }
 
+gdf_error gdf_adj_list::get_vertex_identifiers(gdf_column *identifiers) {
+  GDF_REQUIRE( offsets != nullptr , GDF_INVALID_API_CALL);
+  GDF_REQUIRE( offsets->data != nullptr , GDF_INVALID_API_CALL);
+  cugraph::sequence<int>((int)offsets->size-1, (int*)identifiers->data);
+  return GDF_SUCCESS;
+}
+
+gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
+  GDF_REQUIRE( offsets != nullptr , GDF_INVALID_API_CALL);
+  GDF_REQUIRE( offsets->data != nullptr , GDF_INVALID_API_CALL);
+  GDF_REQUIRE( src_indices->size == indices->size, GDF_COLUMN_SIZE_MISMATCH );
+  GDF_REQUIRE( src_indices->dtype == indices->dtype, GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY ); 
+  cugraph::offsets_to_indices<int>((int*)offsets->data, offsets->size-1, (int*)src_indices->data);
+
+  return GDF_SUCCESS;
+}
+
 gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices, 
                                  const gdf_column *dest_indices, const gdf_column *edge_data) {
   GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
@@ -163,18 +181,6 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
   return GDF_SUCCESS;
 }
 
-gdf_error gdf_adj_offsets_to_indices (gdf_graph *graph, gdf_column *indices) {
-  GDF_REQUIRE( graph->adjList != nullptr , GDF_INVALID_API_CALL);
-  GDF_REQUIRE( indices->size == graph->adjList->indices->size, GDF_COLUMN_SIZE_MISMATCH );
-  GDF_REQUIRE( indices->dtype == graph->adjList->indices->dtype, GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( indices->size > 0, GDF_DATASET_EMPTY ); 
-
-  cugraph::offsets_to_indices<int>((int*)graph->adjList->offsets->data, 
-                     graph->adjList->offsets->size-1, 
-                     (int*)indices->data);
-
-  return GDF_SUCCESS;
-}
 
 template <typename WT>
 gdf_error gdf_add_transpose_impl (gdf_graph *graph) {

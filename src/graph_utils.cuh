@@ -456,12 +456,14 @@ void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indice
   int nthreads = min(v,CUDA_MAX_KERNEL_THREADS); 
   int nblocks = min((v + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS); 
   offsets_to_indices_kernel<<<nblocks,nthreads>>>(offsets,v,indices);
+  cudaCheckError();
 }
 
 template <typename IndexType>
 void sequence(IndexType n, IndexType *vec, IndexType init = 0)
 {
   thrust::sequence(thrust::device,thrust::device_pointer_cast(vec), thrust::device_pointer_cast(vec+n), init);
+  cudaCheckError();
 }
 
 
