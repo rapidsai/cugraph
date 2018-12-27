@@ -504,29 +504,27 @@ TEST(gdf_graph, get_source_indices)
       25, 27, 31, 23, 24, 31, 29, 33, 2, 23, 24, 33, 2, 31, 33, 23, 26, 32, 33, 1, 8, 32, 33, 0, 24, 25, 28, 32, 33, 2, 8, 14, 15, 18, 20, 22, 23, 29, 30, 31, 33, 8, 9, 13, 14, 15, 
       18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32};
 
-  std::vector<int> idx_h(off_h.size()-1), idx2_h(off_h.size()-1);
-
+  std::vector<int> src_h(ind_h.size()), src2_h(ind_h.size());
       
   gdf_graph *G = new gdf_graph;
-  gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_idx = new gdf_column;
+  gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_src = new gdf_column;
   
   create_gdf_column(off_h, col_off);
   create_gdf_column(ind_h, col_ind);
-  create_gdf_column(idx2_h, col_idx);
+  create_gdf_column(src2_h, col_src);
 
   ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, nullptr),GDF_SUCCESS);
-  ASSERT_EQ(G->adjList->get_vertex_identifiers(col_idx),GDF_SUCCESS);
+  ASSERT_EQ(G->adjList->get_source_indices(col_src),GDF_SUCCESS);
+  cudaMemcpy(&src2_h[0], col_src->data, sizeof(int) * col_src->size, cudaMemcpyDeviceToHost);
+  
+  offsets2indices(off_h, src_h);
 
-  cudaMemcpy(&idx2_h[0], col_idx->data, sizeof(int) * col_idx->size, cudaMemcpyDeviceToHost);
-  
-  std::generate(idx_h.begin(), idx_h.end(), [n = 0]() mutable {return n++;});
-  
-  ASSERT_EQ( eq(idx_h,idx2_h), 0);
+  ASSERT_EQ( eq(src_h,src2_h), 0);
 
   delete G;
   gdf_col_delete(col_off);
   gdf_col_delete(col_ind);
-  gdf_col_delete(col_idx);
+  gdf_col_delete(col_src);
 }
 
 TEST(gdf_graph, memory)
