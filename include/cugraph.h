@@ -3,12 +3,8 @@
 #include <cstdlib>
 #include <cstdint>
 
-#include <gdf/gdf.h>
-#include <gdf/utils.h>
-#include <gdf/errorutils.h>
-
-#include "utils.h"
-#include "errorutils.h"
+#include <cudf.h>
+#include <utilities/error_utils.h>
 
 #include "types.h"
 
