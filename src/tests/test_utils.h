@@ -73,7 +73,7 @@ void verbose_diff(std::vector<T> & v1, std::vector<T> & v2) {
   {
     if (v1[i] != v2[i])
     {
-      std::cout << "[" << i <<"] : " << v1[i] << " -- ref = "<< v2[i]<<std::endl;
+      std::cout << "[" << i <<"] : " << v1[i] << " vs. "<< v2[i]<<std::endl;
     }
   }
 }
