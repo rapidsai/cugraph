@@ -403,6 +403,130 @@ TEST(gdf_graph, gdf_add_transpose)
   EXPECT_EQ(free4,free);
 }
 
+void offsets2indices(std::vector<int> &offsets, std::vector<int> &indices) {
+  for (int i = 0; i < (int)offsets.size()-1; ++i) 
+    for (int j = offsets[i]; j < offsets[i+1]; ++j) 
+      indices[j] = i;
+}
+TEST(gdf_graph, gdf_add_edge_list)
+{
+  
+  // Hard-coded Zachary Karate Club network input
+  std::vector<int> off_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 
+      139, 156};
+  std::vector<int> ind_h = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 0, 2, 3, 7, 13, 17, 19, 21, 30, 0, 1, 3, 7, 8, 9, 13, 27, 28, 32, 0, 1, 2, 7, 12, 13, 0, 6, 10, 0, 
+      6, 10, 16, 0, 4, 5, 16, 0, 1, 2, 3, 0, 2, 30, 32, 33, 2, 33, 0, 4, 5, 0, 0, 3, 0, 1, 2, 3, 33, 32, 33, 32, 33, 5, 6, 0, 1, 32, 33, 0, 1, 33, 32, 33, 0, 1, 32, 33, 25, 27, 29, 32, 33, 
+      25, 27, 31, 23, 24, 31, 29, 33, 2, 23, 24, 33, 2, 31, 33, 23, 26, 32, 33, 1, 8, 32, 33, 0, 24, 25, 28, 32, 33, 2, 8, 14, 15, 18, 20, 22, 23, 29, 30, 31, 33, 8, 9, 13, 14, 15, 
+      18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32};
+  std::vector<float> w_h = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
+      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
+      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
+      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
+      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+      
+  gdf_graph *G = new gdf_graph;
+  gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_w = new gdf_column;
+  
+  create_gdf_column(off_h, col_off);
+  create_gdf_column(ind_h, col_ind);
+  create_gdf_column(w_h, col_w);
+
+  ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, col_w),GDF_SUCCESS);
+
+  ASSERT_EQ(gdf_add_edge_list(G),GDF_SUCCESS);
+
+  std::vector<int> src_h(ind_h.size()), src2_h(ind_h.size()), dest2_h(ind_h.size());
+  std::vector<float> w2_h(w_h.size());
+
+  cudaMemcpy(&src2_h[0], G->edgeList->src_indices->data, sizeof(int) * ind_h.size(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&dest2_h[0], G->edgeList->dest_indices->data, sizeof(int) * ind_h.size(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&w2_h[0], G->edgeList->edge_data->data, sizeof(float) * w_h.size(), cudaMemcpyDeviceToHost);
+  
+  offsets2indices(off_h, src_h);
+
+  ASSERT_LE(*(std::max_element(src2_h.begin(), src2_h.end())),(int)off_h.size()-1);
+  ASSERT_GE(*(std::min_element(src2_h.begin(), src2_h.end())),off_h.front());
+
+  ASSERT_EQ( eq(src_h,src2_h), 0);
+  ASSERT_EQ( eq(ind_h,dest2_h), 0);
+  ASSERT_EQ( eq(w_h,w2_h), 0);
+
+  delete G;
+  gdf_col_delete(col_off);
+  gdf_col_delete(col_ind);
+  gdf_col_delete(col_w);
+}
+
+TEST(gdf_graph, get_vertex_identifiers)
+{
+  
+  // Hard-coded Zachary Karate Club network input
+  std::vector<int> off_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 
+      139, 156};
+  std::vector<int> ind_h = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 0, 2, 3, 7, 13, 17, 19, 21, 30, 0, 1, 3, 7, 8, 9, 13, 27, 28, 32, 0, 1, 2, 7, 12, 13, 0, 6, 10, 0, 
+      6, 10, 16, 0, 4, 5, 16, 0, 1, 2, 3, 0, 2, 30, 32, 33, 2, 33, 0, 4, 5, 0, 0, 3, 0, 1, 2, 3, 33, 32, 33, 32, 33, 5, 6, 0, 1, 32, 33, 0, 1, 33, 32, 33, 0, 1, 32, 33, 25, 27, 29, 32, 33, 
+      25, 27, 31, 23, 24, 31, 29, 33, 2, 23, 24, 33, 2, 31, 33, 23, 26, 32, 33, 1, 8, 32, 33, 0, 24, 25, 28, 32, 33, 2, 8, 14, 15, 18, 20, 22, 23, 29, 30, 31, 33, 8, 9, 13, 14, 15, 
+      18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32};
+
+  std::vector<int> idx_h(off_h.size()-1), idx2_h(off_h.size()-1);
+
+      
+  gdf_graph *G = new gdf_graph;
+  gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_idx = new gdf_column;
+  
+  create_gdf_column(off_h, col_off);
+  create_gdf_column(ind_h, col_ind);
+  create_gdf_column(idx2_h, col_idx);
+
+  ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, nullptr),GDF_SUCCESS);
+  ASSERT_EQ(G->adjList->get_vertex_identifiers(col_idx),GDF_SUCCESS);
+
+  cudaMemcpy(&idx2_h[0], col_idx->data, sizeof(int) * col_idx->size, cudaMemcpyDeviceToHost);
+  
+  std::generate(idx_h.begin(), idx_h.end(), [n = 0]() mutable {return n++;});
+  
+  ASSERT_EQ( eq(idx_h,idx2_h), 0);
+
+  delete G;
+  gdf_col_delete(col_off);
+  gdf_col_delete(col_ind);
+  gdf_col_delete(col_idx);
+}
+
+TEST(gdf_graph, get_source_indices)
+{
+  
+  // Hard-coded Zachary Karate Club network input
+  std::vector<int> off_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 
+      139, 156};
+  std::vector<int> ind_h = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 0, 2, 3, 7, 13, 17, 19, 21, 30, 0, 1, 3, 7, 8, 9, 13, 27, 28, 32, 0, 1, 2, 7, 12, 13, 0, 6, 10, 0, 
+      6, 10, 16, 0, 4, 5, 16, 0, 1, 2, 3, 0, 2, 30, 32, 33, 2, 33, 0, 4, 5, 0, 0, 3, 0, 1, 2, 3, 33, 32, 33, 32, 33, 5, 6, 0, 1, 32, 33, 0, 1, 33, 32, 33, 0, 1, 32, 33, 25, 27, 29, 32, 33, 
+      25, 27, 31, 23, 24, 31, 29, 33, 2, 23, 24, 33, 2, 31, 33, 23, 26, 32, 33, 1, 8, 32, 33, 0, 24, 25, 28, 32, 33, 2, 8, 14, 15, 18, 20, 22, 23, 29, 30, 31, 33, 8, 9, 13, 14, 15, 
+      18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32};
+
+  std::vector<int> src_h(ind_h.size()), src2_h(ind_h.size());
+      
+  gdf_graph *G = new gdf_graph;
+  gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_src = new gdf_column;
+  
+  create_gdf_column(off_h, col_off);
+  create_gdf_column(ind_h, col_ind);
+  create_gdf_column(src2_h, col_src);
+
+  ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, nullptr),GDF_SUCCESS);
+  ASSERT_EQ(G->adjList->get_source_indices(col_src),GDF_SUCCESS);
+  cudaMemcpy(&src2_h[0], col_src->data, sizeof(int) * col_src->size, cudaMemcpyDeviceToHost);
+  
+  offsets2indices(off_h, src_h);
+
+  ASSERT_EQ( eq(src_h,src2_h), 0);
+
+  delete G;
+  gdf_col_delete(col_off);
+  gdf_col_delete(col_ind);
+  gdf_col_delete(col_src);
+}
+
 TEST(gdf_graph, memory)
 {
 

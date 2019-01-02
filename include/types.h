@@ -25,12 +25,12 @@ struct gdf_edge_list{
       gdf_col_release(dest_indices);
       gdf_col_release(edge_data);
     }
-    //else if (ownership == 2 )
-    //{
-    //  gdf_col_release(src_indices);
-    //  gdf_col_release(dest_indices);
-    //  gdf_col_delete(edge_data);
-    //}
+    else if (ownership == 2 )
+    {
+      gdf_col_delete(src_indices);
+      gdf_col_release(dest_indices);
+      gdf_col_release(edge_data);
+    }
     else {
       gdf_col_delete(src_indices);
       gdf_col_delete(dest_indices);
@@ -63,6 +63,9 @@ struct gdf_adj_list{
       gdf_col_delete(edge_data);
     }
   }
+  gdf_error get_vertex_identifiers(gdf_column *identifiers);
+  gdf_error get_source_indices(gdf_column *indices);
+
 };
 
 struct gdf_dynamic{
