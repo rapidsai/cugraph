@@ -143,12 +143,6 @@ class Graph:
         cdef uintptr_t graph = self.graph_ptr
         err = gdf_delete_edge_list(<gdf_graph*>graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-        cdef gdf_graph* g = <gdf_graph*>graph
-        cdef uintptr_t x = <uintptr_t>g.edgeList
-        cdef uintptr_t y = <uintptr_t>g.adjList
-        print("after delete")
-        print(x)
-        print(y) 
 
     def add_adj_list(self, offsets_col, indices_col, value_col):
         """
