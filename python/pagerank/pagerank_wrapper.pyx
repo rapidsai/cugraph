@@ -50,7 +50,7 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     
     cdef gdf_graph* g = <gdf_graph*>graph
-    size = g.transposedAdjList.offsets.size
+    size = g.transposedAdjList.offsets.size - 1
     pagerank = cudf.Series(np.zeros(g.transposedAdjList.offsets.size,dtype=np.float32))
     cdef uintptr_t pagerank_ptr = create_column(pagerank)    
 

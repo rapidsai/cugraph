@@ -143,6 +143,12 @@ class Graph:
         cdef uintptr_t graph = self.graph_ptr
         err = gdf_delete_edge_list(<gdf_graph*>graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
+        cdef gdf_graph* g = <gdf_graph*>graph
+        cdef uintptr_t x = <uintptr_t>g.edgeList
+        cdef uintptr_t y = <uintptr_t>g.adjList
+        print("after delete")
+        print(x)
+        print(y) 
 
     def add_adj_list(self, offsets_col, indices_col, value_col):
         """
@@ -162,11 +168,11 @@ class Graph:
                                 <gdf_column*>indices,
                                 <gdf_column*>value)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-
+        
     def to_adj_list(self):
         ##TO TEST
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_add_edge_list(<gdf_graph*>graph)
+        err = gdf_add_adj_list(<gdf_graph*>graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         
         cdef gdf_graph* g = <gdf_graph*>graph
@@ -186,7 +192,6 @@ class Graph:
                                      finalizer=rmm._make_finalizer(indices_col_data, 0))
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
-
 
     def delete_adj_list(self):
         """
