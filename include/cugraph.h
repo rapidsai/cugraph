@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include <cudf.h>
-#include <utilities/error_utils.h>
 
 #include "types.h"
 

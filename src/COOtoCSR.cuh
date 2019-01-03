@@ -17,7 +17,7 @@
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
 
-#include <utilities/error_utils.h>
+#include "utilities/error_utils.h"
 
 template <typename T>
 struct CSR_Result {

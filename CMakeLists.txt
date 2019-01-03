@@ -132,6 +132,7 @@ endif()
 # - include paths ---------------------------------------------------------------------------------
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/include" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUDA_INCLUDE_DIRS}" 
     "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
