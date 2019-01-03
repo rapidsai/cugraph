@@ -126,11 +126,12 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
 
     if (graph->edgeList->edge_data!= nullptr) {
       graph->adjList->edge_data = new gdf_column;
+
       CSR_Result_Weighted<int,WT> adj_list;
       status = ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
       
       gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets, 
-                            nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
+                            nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
       gdf_column_view(graph->adjList->indices, adj_list.colIndices, 
                             nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
       gdf_column_view(graph->adjList->edge_data, adj_list.edgeWeights, 
@@ -140,7 +141,7 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
       CSR_Result<int> adj_list;
       status = ConvertCOOtoCSR((int*)graph->edgeList->src_indices->data,(int*)graph->edgeList->dest_indices->data, nnz, adj_list);      
       gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets, 
-                            nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
+                            nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
       gdf_column_view(graph->adjList->indices, adj_list.colIndices, 
                             nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
     }
@@ -196,7 +197,7 @@ gdf_error gdf_add_transpose_impl (gdf_graph *graph) {
         CSR_Result_Weighted<int,WT> adj_list;
         status = ConvertCOOtoCSR_weighted( (int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
         gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets, 
-                              nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
+                              nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
         gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices, 
                               nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
         gdf_column_view(graph->transposedAdjList->edge_data, adj_list.edgeWeights, 
@@ -207,7 +208,7 @@ gdf_error gdf_add_transpose_impl (gdf_graph *graph) {
         CSR_Result<int> adj_list;
         status = ConvertCOOtoCSR((int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, nnz, adj_list);      
         gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets, 
-                              nullptr, adj_list.size, graph->edgeList->src_indices->dtype);
+                              nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
         gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices, 
                               nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
       }

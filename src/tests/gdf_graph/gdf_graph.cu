@@ -348,9 +348,9 @@ TEST(gdf_delete_edge_list, success2)
 
 TEST(gdf_graph, gdf_add_transpose)
 {
-  std::vector<int> src_h={2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 18, 20, 22, 32, 3, 4, 8, 14, 18, 20, 22, 31, 4, 8, 9, 10, 14, 28, 29, 33, 8, 13, 14, 7, 11, 7, 11, 17, 17, 31, 33, 34, 34, 34, 33, 34, 33, 34, 33, 34, 34, 33, 34, 33, 34, 26, 28, 30, 33, 34, 26, 28, 32, 32, 30, 34, 34, 32, 34, 33, 34, 33, 34, 33, 34, 34};
-  std::vector<int> dest_h={1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6, 7, 9, 9, 9, 10, 14, 15, 15, 16, 16, 19, 19, 20, 21, 21, 23, 23, 24, 24, 24, 24, 24, 25, 25, 25, 26, 27, 27, 28, 29, 29, 30, 30, 31, 31, 32, 32, 33};
-
+  std::vector<int> src_h={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
+  std::vector<int> dest_h={1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
+  
   gdf_graph *G = new gdf_graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column;
   size_t free, free2, free3, free4, total;  
@@ -382,7 +382,7 @@ TEST(gdf_graph, gdf_add_transpose)
   size_t zero = 0;
   EXPECT_GT(off_h.size(), zero);
   EXPECT_GT(ind_h.size(), zero);
-  EXPECT_EQ(off_h.size()-1, (size_t)(*(std::max_element(ind_h.begin(), ind_h.end()))));
+  EXPECT_EQ(off_h.size()-2, (size_t)(*(std::max_element(ind_h.begin(), ind_h.end()))));
   EXPECT_EQ(ind_h.size(), (size_t)off_h.back());
 
   std::sort (ind_h.begin(), ind_h.end());
@@ -403,6 +403,64 @@ TEST(gdf_graph, gdf_add_transpose)
   EXPECT_EQ(free4,free);
 }
 
+TEST(gdf_graph, gdf_add_adjList)
+{
+  std::vector<int> src_h={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
+  std::vector<int> dest_h={1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
+  std::vector<int> off_ref_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
+
+  gdf_graph *G = new gdf_graph;
+  gdf_column *col_src = new gdf_column, *col_dest = new gdf_column;
+  size_t free, free2, free3, free4, total;  
+  
+  cudaMemGetInfo(&free, &total);
+  
+  create_gdf_column(src_h, col_src);
+  create_gdf_column(dest_h, col_dest);
+
+  cudaMemGetInfo(&free2, &total);
+  EXPECT_NE(free,free2);
+
+  ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, nullptr),GDF_SUCCESS);
+  
+  cudaMemGetInfo(&free3, &total);
+  EXPECT_EQ(free2,free3);
+  EXPECT_NE(free,free3);
+
+  ASSERT_EQ(gdf_add_adj_list(G),GDF_SUCCESS);
+
+  //this check doen't work on small case (false positive)
+  //cudaMemGetInfo(&free3, &total);
+  //EXPECT_NE(free3,free2);
+
+  std::vector<int> off_h(G->adjList->offsets->size ), ind_h(G->adjList->indices->size);
+
+  cudaMemcpy(&off_h[0], G->adjList->offsets->data, sizeof(int) * G->adjList->offsets->size, cudaMemcpyDeviceToHost);
+  cudaMemcpy(&ind_h[0], G->adjList->indices->data, sizeof(int) * G->adjList->indices->size, cudaMemcpyDeviceToHost);
+  size_t zero = 0;
+  EXPECT_GT(off_h.size(), zero);
+  EXPECT_GT(ind_h.size(), zero);
+  EXPECT_EQ(off_h.size()-2, (size_t)(*(std::max_element(ind_h.begin(), ind_h.end()))));
+  EXPECT_EQ(ind_h.size(), (size_t)off_h.back());
+
+  std::sort (ind_h.begin(), ind_h.end());
+  std::sort (dest_h.begin(), dest_h.end()); 
+
+  EXPECT_EQ( eq(ind_h,dest_h), 0);
+  EXPECT_EQ( eq(off_h,off_ref_h), 0);
+
+  delete G;
+
+  cudaMemGetInfo(&free4, &total);
+  EXPECT_EQ(free4,free2);
+  EXPECT_NE(free4,free);
+
+  gdf_col_delete(col_src);
+  gdf_col_delete(col_dest);
+
+  cudaMemGetInfo(&free4, &total);
+  EXPECT_EQ(free4,free);
+}
 void offsets2indices(std::vector<int> &offsets, std::vector<int> &indices) {
   for (int i = 0; i < (int)offsets.size()-1; ++i) 
     for (int j = offsets[i]; j < offsets[i+1]; ++j) 
