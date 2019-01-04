@@ -33,17 +33,16 @@ function(configure_test TEST_NAME Tests_SRCS)
     if(NVG_PLUGIN)
         if(NOT TARGET nvgraph)
             add_library( nvgraph SHARED IMPORTED)
-
     	    if (NVGRAPH_LIBRARY)
                 set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
     	    endif (NVGRAPH_LIBRARY)
-            include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../plugin/nvgraph")
         endif()
     	if (NVGRAPH_INCLUDE)
             include_directories(
                 "${NVGRAPH_INCLUDE}"
             )
     	endif (NVGRAPH_INCLUDE)
+        include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../plugin/nvgraph")
         target_link_libraries(${TEST_NAME} nvgraph)
         target_link_libraries(${TEST_NAME} nvggdf)
     endif()

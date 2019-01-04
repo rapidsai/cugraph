@@ -1,6 +1,7 @@
 #include <nvgraph_gdf.h>
 #include <thrust/device_vector.h>
 #include <ctime>
+#include "utilities/error_utils.h"
 
 gdf_error nvgraph2gdf_error(nvgraphStatus_t nvg_stat)
 {

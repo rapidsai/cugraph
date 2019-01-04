@@ -122,7 +122,7 @@ endif (CUDF_INCLUDE AND CUDF_LIBRARY)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
-if(NOT NVG_PLUGIN)
+if(NVG_PLUGIN)
     find_library(NVGRAPH_LIBRARY "nvgraph_st"
              HINTS "$ENV{NVGRAPH_ROOT}/lib"
                    "$ENV{CONDA_PREFIX}/lib")
