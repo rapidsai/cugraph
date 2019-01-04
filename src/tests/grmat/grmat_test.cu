@@ -433,9 +433,9 @@ TEST_P (Tests_Grmat, misc)
 
 //--gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Grmat, 
-                        ::testing::Values( Grmat_Usecase("grmat --rmat_scale=24 --rmat_edgefactor=16 --device=0 --rmat_undirected --quiet")
-                                          ,Grmat_Usecase("grmat --rmat_scale=25 --rmat_edgefactor=22 --device=0 --normalized --quiet")
-                                          ,Grmat_Usecase("grmat --rmat_scale=2 --rmat_edgefactor=2  --device=0 --normalized --quiet")
+                        ::testing::Values( Grmat_Usecase("grmat --rmat_scale=16 --rmat_edgefactor=14  --device=0 --normalized --quiet")
+                        				  ,Grmat_Usecase("grmat --rmat_scale=16 --rmat_edgefactor=16 --device=0 --rmat_undirected --quiet")
+                                          ,Grmat_Usecase("grmat --rmat_scale=17 --rmat_edgefactor=22 --device=0 --normalized --quiet")
                                          )
                        );
 
