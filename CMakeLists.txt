@@ -36,7 +36,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQURIED ON)
 
-set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
+#set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
 
 find_package(CUDA)
 set_package_properties(
@@ -122,7 +122,7 @@ endif (CUDF_INCLUDE AND CUDF_LIBRARY)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
-if(NOT NVG_PLUGIN)
+if(NVG_PLUGIN)
     find_library(NVGRAPH_LIBRARY "nvgraph_st"
              HINTS "$ENV{NVGRAPH_ROOT}/lib"
                    "$ENV{CONDA_PREFIX}/lib")
