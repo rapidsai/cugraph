@@ -33,8 +33,8 @@
 #include <gunrock/util/shared_utils.cuh>
 
 #include <cudf.h>
-#include <utilities/error_utils.h>
 #include <thrust/extrema.h>
+#include "utilities/error_utils.h"
 #include "graph_utils.cuh"
 
 using namespace gunrock;

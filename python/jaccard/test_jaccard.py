@@ -1,4 +1,4 @@
-import cuGraph
+import cugraph
 import cudf
 import numpy as np
 import sys
@@ -35,12 +35,12 @@ def cuGraph_Call(M):
     col_indices = cudf.Series(M.indices)
     values = cudf.Series(np.ones(len(col_indices), dtype = np.float32))
 
-    G = cuGraph.Graph()
+    G = cugraph.Graph()
     G.add_adj_list(row_offsets,col_indices,values)    
 
-    # CuGraph Pagerank Call
+    # cugraph Jaccard Call
     t1 = time.time()
-    coeff = cuGraph.nvJaccard(G)
+    coeff = cugraph.nvJaccard(G)
     t2 =  time.time() - t1
     print('Time : '+str(t2))
 

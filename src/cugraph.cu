@@ -16,6 +16,8 @@
 #include "graph_utils.cuh"
 #include "pagerank.cuh"
 #include "COOtoCSR.cuh"
+#include "utilities/error_utils.h"
+	
 //#include <functions.h>
 
 void gdf_col_delete(gdf_column* col) {
