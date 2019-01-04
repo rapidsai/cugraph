@@ -135,7 +135,6 @@ if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
     message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
 endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
 
-
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
 include_directories(
