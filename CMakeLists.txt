@@ -147,12 +147,12 @@ cuda_add_library(cugraph SHARED
     src/grmat.cu
     src/cugraph.cu
     src/pagerank.cu
-    ../gunrock/gunrock/util/test_utils.cu
-    ../gunrock/gunrock/util/error_utils.cu
-    ../gunrock/gunrock/util/misc_utils.cu
-    ../gunrock/externals/moderngpu/src/mgpucontext.cu
-    ../gunrock/externals/moderngpu/src/mgpuutil.cpp
-    ../gunrock/gunrock/util/gitsha1.c
+    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
+    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
+    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
+    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpucontext.cu
+    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpuutil.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/gitsha1.c
 )
 
 ###################################################################################################
