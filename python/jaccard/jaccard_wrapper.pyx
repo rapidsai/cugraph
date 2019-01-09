@@ -69,19 +69,36 @@ cpdef nvJaccard(input_graph):
     cdef uintptr_t graph = input_graph.graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
+    cdef uintptr_t adjList_ptr = <uintptr_t>g.adjList
+    if adjList_ptr is 0:
+        err = gdf_add_adj_list(<gdf_graph*>graph)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+    cdef uintptr_t edgeList_ptr = <uintptr_t>g.edgeList
+    if edgeList_ptr is 0:
+        err = gdf_add_edge_list(<gdf_graph*>graph)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)	
+    cdef uintptr_t src_col_data = <uintptr_t>g.edgeList.src_indices.data
+    cdef uintptr_t dest_col_data = <uintptr_t>g.edgeList.dest_indices.data
+
     cdef uintptr_t offsets_ptr = <uintptr_t>g.adjList.offsets.data
     cdef uintptr_t indices_ptr = <uintptr_t>g.adjList.indices.data
-    cdef uintptr_t value_ptr = <uintptr_t>g.adjList.edge_data.data
+    cdef uintptr_t edge_value_ptr = <uintptr_t>g.adjList.edge_data
+    cdef uintptr_t value_ptr
+    val_type = gdf_to_cudaDataType[libgdf.GDF_FLOAT32].value
+    if edge_value_ptr:
+        value_ptr = <uintptr_t>g.adjList.edge_data.data
+        val_type = gdf_to_cudaDataType[g.adjList.edge_data.dtype].value
+    else:
+        value_ptr = <uintptr_t>NULL
 
     n = g.adjList.offsets.size - 1
     e = g.adjList.indices.size
     index_type = gdf_to_cudaDataType[g.adjList.indices.dtype].value
-    val_type = gdf_to_cudaDataType[g.adjList.edge_data.dtype].value
 
-    weight_j = cudf.Series(np.zeros(e,dtype=np.float32))
+    weight_j = cudf.Series(np.ones(e,dtype=np.float32), nan_as_null=False)
     cdef uintptr_t weight_j_ptr = _get_column_data_ptr(weight_j)
-
     cdef float c_gamma = 1.0
+
     nvgraphJaccard(<cudaDataType_t>index_type,
                    <cudaDataType_t>val_type,
                    <size_t>n,
@@ -95,4 +112,18 @@ cpdef nvJaccard(input_graph):
                    <void*>weight_j_ptr
                    )
 
-    return weight_j                                      
+    col_size = g.edgeList.src_indices.size
+    src_data = rmm.device_array_from_ptr(src_col_data,
+                                             nelem=col_size,
+                                             dtype=np.int32,
+                                             )
+    dest_data = rmm.device_array_from_ptr(dest_col_data,
+                                            nelem=col_size,
+                                            dtype=np.int32,
+                                            )
+    df = cudf.DataFrame()
+    df['source'] = cudf.Series(src_data)
+    df['destination'] = cudf.Series(dest_data)
+    df['jaccard_coeff'] = weight_j
+
+    return df

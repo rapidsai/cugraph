@@ -17,7 +17,7 @@ def ReadMtxFile(mmFile):
     
 
 def cuGraph_Call(M):
-    
+   
     nnz_per_row = {r : 0 for r in range(M.get_shape()[0])}
     for nnz in range(M.getnnz()):
         nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
@@ -33,18 +33,18 @@ def cuGraph_Call(M):
     #Device data
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    values = cudf.Series(np.ones(len(col_indices), dtype = np.float32))
-
+    #values = cudf.Series(np.ones(len(col_indices), dtype = np.float32), nan_as_null = False)
+    
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets,col_indices,values)    
+    G.add_adj_list(row_offsets,col_indices,None)    
 
     # cugraph Jaccard Call
     t1 = time.time()
-    coeff = cugraph.nvJaccard(G)
+    df = cugraph.nvJaccard(G)
     t2 =  time.time() - t1
     print('Time : '+str(t2))
 
-    return coeff
+    return df['jaccard_coeff']
 
 def networkx_Call(M):
 
@@ -54,8 +54,7 @@ def networkx_Call(M):
     destinations = M.col
     edges = []
     for i in range(len(sources)):
-        edges.append((sources[i],destinations[i]))
-    print(edges)  
+        edges.append((sources[i],destinations[i]))  
     # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this explicitly
     print('Format conversion ... ')
 
@@ -78,7 +77,7 @@ def networkx_Call(M):
     return coeff
    
 
-datasets = ['/datasets/networks/karate.mtx', '/datasets/networks/dolphins.mtx', '/datasets/golden_data/graphs/dblp.mtx']
+datasets = ['/datasets/networks/dolphins.mtx', '/datasets/networks/karate.mtx', '/datasets/golden_data/graphs/dblp.mtx']
 
 @pytest.mark.parametrize('graph_file', datasets)
 
