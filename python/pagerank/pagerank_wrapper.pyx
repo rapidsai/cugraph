@@ -62,4 +62,3 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
-
