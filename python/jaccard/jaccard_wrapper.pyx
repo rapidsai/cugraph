@@ -1,4 +1,5 @@
 from c_jaccard cimport *
+#from c_graph cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 import cudf
@@ -6,7 +7,7 @@ from libgdf_cffi import libgdf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
-dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
+gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
 
 def _get_ctype_ptr(obj):
     # The manner to access the pointers in the gdf's might change, so
@@ -66,6 +67,7 @@ cpdef nvJaccard(input_graph):
     >>> G.add_edge_list(sources,destinations,None)
     >>> jaccard_weights = cuGraph.jaccard(G)
     """
+
     cdef uintptr_t graph = input_graph.graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
@@ -73,12 +75,6 @@ cpdef nvJaccard(input_graph):
     if adjList_ptr is 0:
         err = gdf_add_adj_list(<gdf_graph*>graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-    cdef uintptr_t edgeList_ptr = <uintptr_t>g.edgeList
-    if edgeList_ptr is 0:
-        err = gdf_add_edge_list(<gdf_graph*>graph)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)	
-    cdef uintptr_t src_col_data = <uintptr_t>g.edgeList.src_indices.data
-    cdef uintptr_t dest_col_data = <uintptr_t>g.edgeList.dest_indices.data
 
     cdef uintptr_t offsets_ptr = <uintptr_t>g.adjList.offsets.data
     cdef uintptr_t indices_ptr = <uintptr_t>g.adjList.indices.data
@@ -112,17 +108,15 @@ cpdef nvJaccard(input_graph):
                    <void*>weight_j_ptr
                    )
 
-    col_size = g.edgeList.src_indices.size
-    src_data = rmm.device_array_from_ptr(src_col_data,
-                                             nelem=col_size,
-                                             dtype=np.int32,
-                                             )
-    dest_data = rmm.device_array_from_ptr(dest_col_data,
-                                            nelem=col_size,
-                                            dtype=np.int32,
+    dest_data = rmm.device_array_from_ptr(<uintptr_t>g.adjList.indices.data,
+                                            nelem=e,
+                                            dtype=gdf_to_np_dtypes[g.adjList.indices.dtype],
                                             )
     df = cudf.DataFrame()
-    df['source'] = cudf.Series(src_data)
+    df['source'] = cudf.Series(np.zeros(e,dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
+    cdef uintptr_t src_indices_ptr = create_column(df['source']) 
+    err = g.adjList.get_source_indices(<gdf_column*>src_indices_ptr);
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
     df['destination'] = cudf.Series(dest_data)
     df['jaccard_coeff'] = weight_j
 

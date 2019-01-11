@@ -51,6 +51,8 @@ cdef extern from "cugraph.h":
         gdf_column *offsets
         gdf_column *indices
         gdf_column *edge_data
+        gdf_error get_vertex_identifiers(gdf_column *identifiers)
+        gdf_error get_source_indices(gdf_column *indices)
 
     struct gdf_graph:
         gdf_edge_list *edgeList
@@ -72,3 +74,5 @@ cdef extern from "cugraph.h":
     cdef gdf_error gdf_delete_adj_list(gdf_graph *graph)
     cdef gdf_error gdf_add_transpose(gdf_graph *graph)
     cdef gdf_error gdf_delete_transpose(gdf_graph *graph)
+
+    
