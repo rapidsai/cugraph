@@ -37,6 +37,8 @@
 #include "utilities/error_utils.h"
 #include "graph_utils.cuh"
 
+#include <rmm_utils.h>
+
 using namespace gunrock;
 using namespace gunrock::util;
 using namespace gunrock::graphio;
@@ -174,20 +176,26 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
 
     if (util::SetDevice(gpu_idx[0]))
         return GDF_CUDA_ERROR;
-    CUDA_TRY(cudaMallocManaged ((void**)&coo.row, sizeof(VertexId) * rmat_all_edges));
-    CUDA_TRY(cudaMallocManaged ((void**)&coo.col, sizeof(VertexId) * rmat_all_edges));
+
+    //RMM:
+    //
+    cudaStream_t stream{nullptr};
+    rmm_temp_allocator allocator(stream);
+    
+    ALLOC_MANAGED_TRY((void**)&coo.row, sizeof(VertexId) * rmat_all_edges, stream);
+    ALLOC_MANAGED_TRY((void**)&coo.col, sizeof(VertexId) * rmat_all_edges, stream);
     if (val != nullptr)
     {
-        CUDA_TRY(cudaMallocManaged ((void**)&coo.val, sizeof(Value) * rmat_all_edges));
+      ALLOC_MANAGED_TRY((void**)&coo.val, sizeof(Value) * rmat_all_edges, stream);
     }
     if ((coo.row == NULL) ||(coo.col == NULL))
     {
         if (!quiet)
             printf ("Error: Cuda malloc failed \n");
         if (coo.row != nullptr)
-                cudaFree (coo.row);
+          ALLOC_FREE_TRY(coo.row, stream);
         if (coo.col != nullptr)
-                cudaFree (coo.col);
+          ALLOC_FREE_TRY(coo.col, stream);
         return GDF_CUDA_ERROR;
     }
     cpu_timer2.Start();
@@ -210,11 +218,11 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
     else
     {
         if (coo.row != nullptr)
-                cudaFree (coo.row);
+          ALLOC_FREE_TRY(coo.row, stream);
         if (coo.col != nullptr)
-                cudaFree (coo.col);
+          ALLOC_FREE_TRY(coo.col, stream);
         if (coo.val != nullptr)
-                cudaFree (coo.val);
+          ALLOC_FREE_TRY(coo.val, stream);
 
         return GDF_CUDA_ERROR;
     }
@@ -241,8 +249,9 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
     
     cudaMemcpy((void*)&nodes_row, (void*)&(coo.row[rmat_all_edges-1]), sizeof(VertexId), cudaMemcpyDeviceToHost);
   
-    tmp = thrust::max_element(thrust::device_pointer_cast((VertexId*)(coo.col)), 
-                                thrust::device_pointer_cast((VertexId*)(coo.col + rmat_all_edges)));
+    tmp = thrust::max_element(thrust::cuda::par(allocator).on(stream),
+                              thrust::device_pointer_cast((VertexId*)(coo.col)), 
+                              thrust::device_pointer_cast((VertexId*)(coo.col + rmat_all_edges)));
     nodes_col = tmp[0];
     
     VertexId max_nodes = (nodes_row > nodes_col)? nodes_row: nodes_col;
@@ -262,11 +271,11 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
     else
     {
         if (coo.row != nullptr)
-            cudaFree (coo.row);
+          ALLOC_FREE_TRY(coo.row, stream);
         if (coo.col != nullptr)
-            cudaFree (coo.col);
+          ALLOC_FREE_TRY(coo.col, stream);
         if (coo.val != nullptr)
-            cudaFree (coo.val);
+          ALLOC_FREE_TRY(coo.val, stream);
         if (!quiet)
             printf ("Error : Pointers for gdf column are null, releasing allocated memory for graph\n");
           
