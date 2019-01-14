@@ -18,6 +18,9 @@
 #include <cugraph.h>
 #include "test_utils.h"
 #include <string.h>
+
+#include <rmm_utils.h>
+
 //#include "functions.h"
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -26,10 +29,6 @@ static int PERF = 0;
 // iterations for perf tests
 // enabled by command line parameter '--perf-iters"
 static int PERF_MULTIPLIER = 5;
-
-void dumy(void* in, void* out ) {
-
-}
 
 
 void get_array_of_strings (char** argv, char* args, int& argc)
@@ -154,8 +153,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
          ASSERT_EQ((expected_amount_of_memory <= (memory_occupied_after-memory_occupied_before)), 1);
      }
 
-    (cudaFree(col_sources.data));
-    (cudaFree(col_destinations.data));
+     cudaStream_t stream{nullptr};
+     ALLOC_FREE_TRY(col_sources.data, stream);
+     ALLOC_FREE_TRY(col_destinations.data, stream);
 
      //size_t free_release, total_release;
      //cudaMemGetInfo (&free_release, &total_release);
@@ -213,8 +213,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     ASSERT_EQ(gdf_grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr), GDF_SUCCESS);
 
     ASSERT_EQ((vertices < (1 << 30)), 1);
-    (cudaFree(col_sources.data));
-    (cudaFree(col_destinations.data));
+    cudaStream_t stream{nullptr};
+    ALLOC_FREE_TRY(col_sources.data, stream);
+    ALLOC_FREE_TRY(col_destinations.data, stream);
   }
 
   template <typename T>
@@ -257,8 +258,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     ASSERT_EQ( eq(src1_h,src2_h), 0);
     ASSERT_EQ( eq(dest1_h,dest2_h), 0);
 
-    (cudaFree(col_sources.data));
-    (cudaFree(col_destinations.data));
+    cudaStream_t stream{nullptr};
+    ALLOC_FREE_TRY(col_sources.data, stream);
+    ALLOC_FREE_TRY(col_destinations.data, stream);
   }
 
   template <typename T1, typename T2>
@@ -289,9 +291,10 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
     cudaMemcpy(&src1_h[0], col_sources.data, sizeof(T1) * edges1, cudaMemcpyDeviceToHost);
     cudaMemcpy(&dest1_h[0], col_destinations.data, sizeof(T1) * edges1, cudaMemcpyDeviceToHost);
-    
-    (cudaFree(col_sources.data));
-    (cudaFree(col_destinations.data));
+
+    cudaStream_t stream{nullptr};
+    ALLOC_FREE_TRY(col_sources.data, stream);
+    ALLOC_FREE_TRY(col_destinations.data, stream);
 
     if (sizeof (T2) == 4)
          gdf_vertexId_type = GDF_INT32;
@@ -318,8 +321,8 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     ASSERT_EQ( eq(src1_h, src2_h), 0);
     ASSERT_EQ( eq(dest1_h, dest2_h), 0);
 
-    (cudaFree(col_sources.data));
-    (cudaFree(col_destinations.data));
+    ALLOC_FREE_TRY(col_sources.data, stream);
+    ALLOC_FREE_TRY(col_destinations.data, stream);
   }
 
   template <typename VertexId, typename T, bool manual_tanspose>
@@ -392,8 +395,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
       cudaProfilerStop();
       (cudaDeviceSynchronize());
     }
-    (cudaFree (col_sources.data));
-    (cudaFree (col_destinations.data));
+    cudaStream_t stream{nullptr};
+    ALLOC_FREE_TRY (col_sources.data, stream);
+    ALLOC_FREE_TRY (col_destinations.data, stream);
     col_sources.data = nullptr;
     col_destinations.data = nullptr;
     EXPECT_EQ(status,0);
