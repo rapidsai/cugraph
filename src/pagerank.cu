@@ -24,6 +24,9 @@
 #include "cub/cub.cuh"
 #include <algorithm>
 #include <iomanip>
+
+#include <rmm_utils.h>
+
 namespace cugraph
 {
   
@@ -93,8 +96,10 @@ int pagerank (  IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, 
   if (alpha <= 0.0f || alpha >= 1.0f)
           return -1;
 
-  cudaMallocManaged ((void**)&b,    sizeof(ValueType) * n);
-  cudaMallocManaged ((void**)&tmp,    sizeof(ValueType) * n);
+  cudaStream_t stream{nullptr};
+  
+  ALLOC_MANAGED_TRY ((void**)&b,    sizeof(ValueType) * n, stream);
+  ALLOC_MANAGED_TRY ((void**)&tmp,    sizeof(ValueType) * n, stream);
   cudaCheckError();
 
   if (!has_guess)  {
@@ -112,7 +117,7 @@ int pagerank (  IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, 
   cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
                                              cscPtr, cscInd, tmp, pagerank_vector, n, n, e);
    // Allocate temporary storage
- cudaMallocManaged(&cub_d_temp_storage,cub_temp_storage_bytes);
+  ALLOC_MANAGED_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
  cudaCheckError()
   #ifdef PR_VERBOSE
       std::stringstream ss;
@@ -144,9 +149,9 @@ int pagerank (  IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, 
   #endif
   //printv(n,pagerank_vector,0);
 
- cudaFree(b);  
- cudaFree(tmp);
- cudaFree(cub_d_temp_storage);    
+  ALLOC_FREE_TRY(b, stream);  
+  ALLOC_FREE_TRY(tmp, stream);
+  ALLOC_FREE_TRY(cub_d_temp_storage, stream);    
   
   return converged ? 0 : 1;
 }
