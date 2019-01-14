@@ -17,9 +17,12 @@
 #include "test_utils.h"
 #include <string.h>
 
+#include <rmm_utils.h>
+
 TEST(gdf_edge_list, success)
 {
-       
+  cudaStream_t stream{nullptr};
+  
   gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
   gdf_column col_src, col_dest, col_weights;
   
@@ -57,14 +60,15 @@ TEST(gdf_edge_list, success)
   ASSERT_EQ( eq(dest_h,dest2_h), 0);
   ASSERT_EQ( eq(w_h,w2_h), 0);
 
-  cudaFree(col_src.data);
-  cudaFree(col_dest.data);
-  cudaFree(col_weights.data);
+  ALLOC_FREE_TRY(col_src.data, stream);
+  ALLOC_FREE_TRY(col_dest.data, stream);
+  ALLOC_FREE_TRY(col_weights.data, stream);
 }
 
 TEST(gdf_edge_list, success_no_weights)
 {
-       
+  cudaStream_t stream{nullptr};
+  
   gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
   gdf_column col_src, col_dest;
   
@@ -82,8 +86,8 @@ TEST(gdf_edge_list, success_no_weights)
  
   ASSERT_EQ(gdf_edge_list_view(G.get(), &col_src, &col_dest, nullptr),GDF_SUCCESS);
 
-  cudaFree(col_src.data);
-  cudaFree(col_dest.data);
+  ALLOC_FREE_TRY(col_src.data, stream);
+  ALLOC_FREE_TRY(col_dest.data, stream);
 }
 
 TEST(gdf_edge_list, size_mismatch)
@@ -635,8 +639,10 @@ TEST(gdf_graph, memory)
   EXPECT_EQ(free4,free3);
   EXPECT_NE(free4,free);
 
-  cudaFree(col_src.data);
-  cudaFree(col_dest.data);
+  cudaStream_t stream{nullptr};
+
+  ALLOC_FREE_TRY(col_src.data, stream);
+  ALLOC_FREE_TRY(col_dest.data, stream);
 
   cudaMemGetInfo(&free4, &total);
   EXPECT_EQ(free4,free);
