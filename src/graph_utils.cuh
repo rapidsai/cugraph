@@ -26,6 +26,8 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 
+#include <rmm_utils.h>
+
 #define USE_CG 1
 //#define DEBUG 1
 
@@ -128,10 +130,16 @@ T parallel_prefix_sum(int n, int *ind,T *w) {
 //dot
 template <typename T>
 T dot(size_t n, T* x, T* y) {
-  T result = thrust::inner_product(thrust::device_pointer_cast(x), 
-                                               thrust::device_pointer_cast(x+n),
-                                               thrust::device_pointer_cast(y), 
-                                               0.0f);
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+  
+  T result = thrust::inner_product(thrust::cuda::par(allocator).on(stream),
+                                   thrust::device_pointer_cast(x), 
+                                   thrust::device_pointer_cast(x+n),
+                                   thrust::device_pointer_cast(y), 
+                                   0.0f);
   cudaCheckError();
   return result;
 }
@@ -149,11 +157,17 @@ struct axpy_functor : public thrust::binary_function<T,T,T> {
 
 template <typename T>
 void axpy(size_t n, T a,  T* x,  T* y) {
-  thrust::transform(thrust::device_pointer_cast(x), 
-                              thrust::device_pointer_cast(x+n), 
-                              thrust::device_pointer_cast(y), 
-                              thrust::device_pointer_cast(y), 
-                              axpy_functor<T>(a));
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+    
+  thrust::transform(thrust::cuda::par(allocator).on(stream),
+                    thrust::device_pointer_cast(x), 
+                    thrust::device_pointer_cast(x+n), 
+                    thrust::device_pointer_cast(y), 
+                    thrust::device_pointer_cast(y), 
+                    axpy_functor<T>(a));
   cudaCheckError();
 }
 
@@ -168,37 +182,60 @@ struct square {
 
 template <typename T>
 T nrm2(size_t n, T* x) {
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+  
   T init = 0;
-  T result = std::sqrt( thrust::transform_reduce(thrust::device_pointer_cast(x), 
-                            thrust::device_pointer_cast(x+n), 
-                            square<T>(), 
-                            init, 
-                            thrust::plus<T>()) );
+  T result = std::sqrt( thrust::transform_reduce(thrust::cuda::par(allocator).on(stream),
+                                                 thrust::device_pointer_cast(x), 
+                                                 thrust::device_pointer_cast(x+n), 
+                                                 square<T>(), 
+                                                 init, 
+                                                 thrust::plus<T>()) );
   cudaCheckError();
   return result;
 }
 
 template <typename T>
 T nrm1(size_t n, T* x) {
-    T result = thrust::reduce(thrust::device_pointer_cast(x), thrust::device_pointer_cast(x+n));
-    cudaCheckError();
-    return result;
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+    
+  T result = thrust::reduce(thrust::cuda::par(allocator).on(stream),
+                            thrust::device_pointer_cast(x), thrust::device_pointer_cast(x+n));
+  cudaCheckError();
+  return result;
 }
 
 template <typename T>
 void scal(size_t n, T val, T* x) {
-  thrust::transform(thrust::device_pointer_cast(x),
-                                  thrust::device_pointer_cast( x + n),  
-                                  thrust::make_constant_iterator(val), 
-                                  thrust::device_pointer_cast(x), 
-                                  thrust::multiplies<T>());
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+  
+  thrust::transform(thrust::cuda::par(allocator).on(stream),
+                    thrust::device_pointer_cast(x), thrust::device_pointer_cast( x + n),  
+                    thrust::make_constant_iterator(val), 
+                    thrust::device_pointer_cast(x), 
+                    thrust::multiplies<T>());
   cudaCheckError();
 }
 
 template <typename T>
 void fill(size_t n, T* x, T value) {
-    thrust::fill(thrust::device_pointer_cast(x), thrust::device_pointer_cast(x + n), value);
-    cudaCheckError();
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+  
+  thrust::fill(thrust::cuda::par(allocator).on(stream),
+               thrust::device_pointer_cast(x), thrust::device_pointer_cast(x + n), value);
+  cudaCheckError();
 }
 
 template <typename T>
@@ -206,7 +243,8 @@ void printv(size_t n, T* vec, int offset) {
     thrust::device_ptr<T> dev_ptr(vec);
     std::cout.precision(15);
     std::cout << "sample size = "<< n << ", offset = "<< offset << std::endl;
-    thrust::copy(dev_ptr+offset,dev_ptr+offset+n, std::ostream_iterator<T>(std::cout, " "));
+    thrust::copy(dev_ptr+offset,dev_ptr+offset+n, std::ostream_iterator<T>(std::cout, " "));//Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
+    
     cudaCheckError();
     std::cout << std::endl;
 }
@@ -214,10 +252,15 @@ void printv(size_t n, T* vec, int offset) {
 template<typename T>
 void copy(size_t n, T *x, T *res)
 {
-    thrust::device_ptr<T> dev_ptr(x);
-    thrust::device_ptr<T> res_ptr(res);
-    thrust::copy_n(dev_ptr, n, res_ptr);
-    cudaCheckError();
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+    
+  thrust::device_ptr<T> dev_ptr(x);
+  thrust::device_ptr<T> res_ptr(res);
+  thrust::copy_n(thrust::cuda::par(allocator).on(stream), dev_ptr, n, res_ptr);
+  cudaCheckError();
 }
 
 template <typename T>
@@ -240,11 +283,16 @@ struct dangling_functor : public thrust::unary_function<T,T> {
 
 template <typename T>
 void update_dangling_nodes(size_t n, T* dangling_nodes, T damping_factor) {
-  thrust::transform_if(thrust::device_pointer_cast(dangling_nodes),
-  	thrust::device_pointer_cast( dangling_nodes + n),  
-  	thrust::device_pointer_cast(dangling_nodes), 
-  	dangling_functor<T>(1.0-damping_factor),
-  	is_zero<T>());
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+    
+  thrust::transform_if(thrust::cuda::par(allocator).on(stream),
+                       thrust::device_pointer_cast(dangling_nodes), thrust::device_pointer_cast( dangling_nodes + n),  
+                       thrust::device_pointer_cast(dangling_nodes), 
+                       dangling_functor<T>(1.0-damping_factor),
+                       is_zero<T>());
   cudaCheckError();
 }
 
@@ -273,8 +321,10 @@ flag_leafs ( const  IndexType n, IndexType *degree, ValueType *bookmark) {
 //just swap coo src and dest arrays after that to interpret it as HT
 template <typename IndexType, typename ValueType>
 void HT_matrix_coo ( const  IndexType n, const IndexType e, const IndexType *src, ValueType *cooVal, ValueType *bookmark) {
-  IndexType *degree;
-  cudaMallocManaged ((void**)&degree, sizeof(IndexType) * n);
+  IndexType *degree{nullptr};
+  cudaStream_t stream{nullptr};
+  
+  ALLOC_MANAGED_TRY ((void**)&degree, sizeof(IndexType) * n, stream);
   cudaMemset(degree, 0, sizeof(IndexType) * n);
 
   dim3 nthreads, nblocks;
@@ -295,6 +345,9 @@ void HT_matrix_coo ( const  IndexType n, const IndexType e, const IndexType *src
   //printv(n, degree , 0);
   //printv(n, bookmark , 0);
   //printv(e, cooVal , 0);
+
+  //this was missing: TODO: check if okay
+  ALLOC_FREE_TRY(degree, stream);
 }
 
 template <typename IndexType, typename ValueType>
@@ -330,7 +383,10 @@ equi_prob2 ( const  IndexType n, const IndexType e, const IndexType *csrPtr, con
 template <typename IndexType, typename ValueType>
 void HT_matrix_csc_coo ( const  IndexType n, const IndexType e, const IndexType *csrPtr, const IndexType *csrInd, ValueType *val, ValueType *bookmark) {
   IndexType *degree;
-  cudaMallocManaged ((void**)&degree, sizeof(IndexType) * n);
+
+  cudaStream_t stream{nullptr};
+  
+  ALLOC_MANAGED_TRY ((void**)&degree, sizeof(IndexType) * n, stream);
   cudaMemset(degree, 0, sizeof(IndexType) * n);
 
   dim3 nthreads, nblocks;
@@ -366,6 +422,10 @@ void HT_matrix_csc_coo ( const  IndexType n, const IndexType e, const IndexType 
   nblocks.z  = 1;
   flag_leafs <IndexType,ValueType><<<nblocks,nthreads>>>(n, degree, bookmark);
   cudaCheckError();
+  
+  //this was missing! TODO: check if okay.
+  ALLOC_FREE_TRY(degree, stream);
+  
 }
 
 
@@ -391,18 +451,25 @@ void permute_vals(const  IndexType e, IndexType *perm, ValueType *in, ValueType 
 template <typename IndexType, typename ValueType, typename SizeT>
 void remove_duplicate (IndexType* src, IndexType* dest, ValueType* val, SizeT &nnz)
 {
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+    
   if (val != NULL)
   {
-      thrust::stable_sort_by_key(thrust::device, thrust::raw_pointer_cast(val), thrust::raw_pointer_cast(val) + nnz, thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(dest))));
-      thrust::stable_sort_by_key(thrust::device, thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(dest + nnz), thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(val))));
-      thrust::stable_sort_by_key(thrust::device, thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(src + nnz), thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(val))));
+      thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), thrust::raw_pointer_cast(val), thrust::raw_pointer_cast(val) + nnz, thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(dest))));
+      
+      thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(dest + nnz), thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(val))));
+      
+      thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(src + nnz), thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(val))));
 
       typedef thrust::tuple<IndexType*, ValueType*> IteratorTuple;
       typedef thrust::zip_iterator<IteratorTuple> ZipIterator;
       typedef thrust::tuple<IndexType*, ZipIterator> ZipIteratorTuple;
       typedef thrust::zip_iterator<ZipIteratorTuple> ZipZipIterator;
 
-      ZipZipIterator newEnd = thrust::unique(thrust::device, thrust::make_zip_iterator( thrust::make_tuple(thrust::raw_pointer_cast(src), thrust::make_zip_iterator( thrust::make_tuple(thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(val))))),
+      ZipZipIterator newEnd = thrust::unique(thrust::cuda::par(allocator).on(stream), thrust::make_zip_iterator( thrust::make_tuple(thrust::raw_pointer_cast(src), thrust::make_zip_iterator( thrust::make_tuple(thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(val))))),
                                          thrust::make_zip_iterator( thrust::make_tuple(thrust::raw_pointer_cast(src+nnz), thrust::make_zip_iterator( thrust::make_tuple(dest+nnz, val+nnz)))));
 
       ZipIteratorTuple endTuple = newEnd.get_iterator_tuple();
@@ -412,13 +479,14 @@ void remove_duplicate (IndexType* src, IndexType* dest, ValueType* val, SizeT &n
   }
   else
   {
-      thrust::stable_sort_by_key(thrust::device, thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(dest + nnz), thrust::raw_pointer_cast(src));
-      thrust::stable_sort_by_key(thrust::device, thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(src + nnz), thrust::raw_pointer_cast(dest));
+      thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(dest + nnz), thrust::raw_pointer_cast(src));
+      
+      thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(src + nnz), thrust::raw_pointer_cast(dest));
 
       typedef thrust::tuple<IndexType*, IndexType*> IteratorTuple;
       typedef thrust::zip_iterator<IteratorTuple> ZipIterator;
 
-      ZipIterator newEnd = thrust::unique( thrust::device, thrust::make_zip_iterator( thrust::make_tuple(thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(dest)) ),
+      ZipIterator newEnd = thrust::unique(thrust::cuda::par(allocator).on(stream), thrust::make_zip_iterator( thrust::make_tuple(thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(dest)) ),
                                          thrust::make_zip_iterator( thrust::make_tuple(thrust::raw_pointer_cast(src+nnz), thrust::raw_pointer_cast(dest+nnz))));
 
       IteratorTuple endTuple = newEnd.get_iterator_tuple();
