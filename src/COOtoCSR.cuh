@@ -19,6 +19,8 @@
 
 #include "utilities/error_utils.h"
 
+#include <rmm_utils.h>
+
 template <typename T>
 struct CSR_Result {
 	std::int64_t size;
@@ -73,9 +75,15 @@ template <typename T>
 gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T>& result) {
     // Sort source and destination columns by source
     //   Allocate local memory for operating on
-    T* srcs, *dests;
-    CUDA_TRY(cudaMallocManaged(&srcs, sizeof(T) * nnz));
-    CUDA_TRY(cudaMallocManaged(&dests, sizeof(T) * nnz));
+    T* srcs{nullptr}, *dests{nullptr};
+
+    //RMM
+    //
+    cudaStream_t stream{nullptr};
+    rmm_temp_allocator allocator(stream);
+    
+    ALLOC_MANAGED_TRY((void**)&srcs, sizeof(T) * nnz, stream);
+    ALLOC_MANAGED_TRY((void**)&dests, sizeof(T) * nnz, stream);
 
     CUDA_TRY(cudaMemcpy(srcs, sources, sizeof(T) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, destinations, sizeof(T) * nnz, cudaMemcpyDefault));
@@ -83,37 +91,37 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     //   Call CUB SortPairs to sort using srcs as the keys
     void* tmpStorage = nullptr;
     size_t tmpBytes = 0;
-    thrust::stable_sort_by_key(thrust::device, dests, dests + nnz, srcs);
-    thrust::stable_sort_by_key(thrust::device, srcs, srcs + nnz, dests);
+    thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), dests, dests + nnz, srcs);
+    thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), srcs, srcs + nnz, dests);
 
 	// Find max id (since this may be in the dests array but not the srcs array we need to check both)
     T maxId = -1;
     //   Max from srcs after sorting is just the last element
     CUDA_TRY(cudaMemcpy(&maxId, &(srcs[nnz-1]), sizeof(T), cudaMemcpyDefault));
-    auto maxId_it = thrust::max_element(thrust::device, dests, dests + nnz);
+    auto maxId_it = thrust::max_element(thrust::cuda::par(allocator).on(stream), dests, dests + nnz);
     T maxId2;
     CUDA_TRY(cudaMemcpy(&maxId2, maxId_it, sizeof(T), cudaMemcpyDefault));
     maxId = maxId > maxId2 ? maxId : maxId2;
     result.size = maxId + 1;
 
     // Allocate offsets array
-    CUDA_TRY(cudaMallocManaged(&result.rowOffsets, (maxId + 2) * sizeof(T)));
+    ALLOC_MANAGED_TRY((void**)&result.rowOffsets, (maxId + 2) * sizeof(T), stream);
 
     // Set all values in offsets array to zeros
     CUDA_TRY(cudaMemset(result.rowOffsets, 0,(maxId + 2) * sizeof(int)));
 
     // Allocate temporary arrays same size as sources array, and single value to get run counts
-    T* unique, *counts, *runCount;
-    CUDA_TRY(cudaMallocManaged(&unique, (maxId + 1) * sizeof(T)));
-    CUDA_TRY(cudaMallocManaged(&counts, (maxId + 1) * sizeof(T)));
-    CUDA_TRY(cudaMallocManaged(&runCount, sizeof(T)));
+    T* unique{nullptr}, *counts{nullptr}, *runCount{nullptr};
+    ALLOC_MANAGED_TRY((void**)&unique, (maxId + 1) * sizeof(T), stream);
+    ALLOC_MANAGED_TRY((void**)&counts, (maxId + 1) * sizeof(T), stream);
+    ALLOC_MANAGED_TRY((void**)&runCount, sizeof(T), stream);
 
     // Use CUB run length encoding to get unique values and run lengths
     tmpStorage = nullptr;
     cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
-    CUDA_TRY(cudaMallocManaged(&tmpStorage, tmpBytes));
+    ALLOC_MANAGED_TRY((void**)&tmpStorage, tmpBytes, stream);
     cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
-    CUDA_TRY(cudaFree(tmpStorage));
+    ALLOC_FREE_TRY(tmpStorage, stream);
 
     // Set offsets to run sizes for each index
     T runCount_h;
@@ -123,15 +131,15 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, result.rowOffsets);
 
     // Scan offsets to get final offsets
-    thrust::exclusive_scan(thrust::device, result.rowOffsets, result.rowOffsets + maxId + 2, result.rowOffsets);
+    thrust::exclusive_scan(thrust::cuda::par(allocator).on(stream), result.rowOffsets, result.rowOffsets + maxId + 2, result.rowOffsets);
 
     // Clean up temporary allocations
     result.nnz = nnz;
     result.colIndices = dests;
-    CUDA_TRY(cudaFree(srcs));
-    CUDA_TRY(cudaFree(unique));
-    CUDA_TRY(cudaFree(counts));
-    CUDA_TRY(cudaFree(runCount));
+    ALLOC_FREE_TRY(srcs, stream);
+    ALLOC_FREE_TRY(unique, stream);
+    ALLOC_FREE_TRY(counts, stream);
+    ALLOC_FREE_TRY(runCount, stream);
     return GDF_SUCCESS;
 }
 
@@ -140,24 +148,31 @@ template <typename T, typename W>
 gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, int64_t nnz, CSR_Result_Weighted<T, W>& result) {
     // Sort source and destination columns by source
     //   Allocate local memory for operating on
-	T* srcs, *dests;
-	W* weights;
-    CUDA_TRY(cudaMallocManaged(&srcs, sizeof(T) * nnz));
-    CUDA_TRY(cudaMallocManaged(&dests, sizeof(T) * nnz));
-    CUDA_TRY(cudaMallocManaged(&weights, sizeof(W) * nnz));
+    T* srcs{nullptr};
+    T* dests{nullptr};
+	W* weights{nullptr};
+
+    //RMM:
+    //
+    cudaStream_t stream{nullptr};
+    rmm_temp_allocator allocator(stream);
+    
+    ALLOC_MANAGED_TRY((void**)&srcs, sizeof(T) * nnz, stream);
+    ALLOC_MANAGED_TRY((void**)&dests, sizeof(T) * nnz, stream);
+    ALLOC_MANAGED_TRY((void**)&weights, sizeof(W) * nnz, stream);
     CUDA_TRY(cudaMemcpy(srcs, sources, sizeof(T) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, destinations, sizeof(T) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(weights, edgeWeights, sizeof(W) * nnz, cudaMemcpyDefault));
 
     // Call Thrust::sort_by_key to sort the arrays with srcs as keys:
-    thrust::stable_sort_by_key(thrust::device, dests, dests + nnz, thrust::make_zip_iterator(thrust::make_tuple(srcs, weights)));
-    thrust::stable_sort_by_key(thrust::device, srcs, srcs + nnz, thrust::make_zip_iterator(thrust::make_tuple(dests, weights)));
+    thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), dests, dests + nnz, thrust::make_zip_iterator(thrust::make_tuple(srcs, weights)));
+    thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), srcs, srcs + nnz, thrust::make_zip_iterator(thrust::make_tuple(dests, weights)));
 
 	// Find max id (since this may be in the dests array but not the srcs array we need to check both)
     T maxId = -1;
     //   Max from srcs after sorting is just the last element
     CUDA_TRY(cudaMemcpy(&maxId, &(srcs[nnz-1]), sizeof(T), cudaMemcpyDefault));
-    auto maxId_it = thrust::max_element(thrust::device, dests, dests + nnz);
+    auto maxId_it = thrust::max_element(thrust::cuda::par(allocator).on(stream), dests, dests + nnz);
     //   Max from dests requires a scan to find
     T maxId2;
     CUDA_TRY(cudaMemcpy(&maxId2, maxId_it, sizeof(T), cudaMemcpyDefault));
@@ -165,7 +180,7 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     result.size = maxId + 1;
 
     // Allocate offsets array
-    CUDA_TRY(cudaMallocManaged(&result.rowOffsets, (maxId + 2) * sizeof(T)));
+    ALLOC_MANAGED_TRY((void**)&result.rowOffsets, (maxId + 2) * sizeof(T), stream);
 
     // Set all values in offsets array to zeros
     // /CUDA_TRY(
@@ -175,17 +190,17 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
 
     // Allocate temporary arrays same size as sources array, and single value to get run counts
     T* unique, *counts, *runCount;
-    CUDA_TRY(cudaMallocManaged(&unique, (maxId + 1) * sizeof(T)));
-    CUDA_TRY(cudaMallocManaged(&counts, (maxId + 1) * sizeof(T)));
-    CUDA_TRY(cudaMallocManaged(&runCount, sizeof(T)));
+    ALLOC_MANAGED_TRY((void**)&unique, (maxId + 1) * sizeof(T), stream);
+    ALLOC_MANAGED_TRY((void**)&counts, (maxId + 1) * sizeof(T), stream);
+    ALLOC_MANAGED_TRY((void**)&runCount, sizeof(T), stream);
 
     // Use CUB run length encoding to get unique values and run lengths
     void *tmpStorage = nullptr;
     size_t tmpBytes = 0;
     cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
-    CUDA_TRY(cudaMallocManaged(&tmpStorage, tmpBytes));
+    ALLOC_MANAGED_TRY(&tmpStorage, tmpBytes, stream);
     cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
-    CUDA_TRY(cudaFree(tmpStorage));
+    ALLOC_FREE_TRY(tmpStorage, stream);
 
     // Set offsets to run sizes for each index
     T runCount_h;
@@ -195,15 +210,15 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, result.rowOffsets);
 
     // Scan offsets to get final offsets
-    thrust::exclusive_scan(thrust::device, result.rowOffsets, result.rowOffsets + maxId + 2, result.rowOffsets);
+    thrust::exclusive_scan(thrust::cuda::par(allocator).on(stream), result.rowOffsets, result.rowOffsets + maxId + 2, result.rowOffsets);
 
     // Clean up temporary allocations
     result.nnz = nnz;
     result.colIndices = dests;
     result.edgeWeights = weights;
-    CUDA_TRY(cudaFree(srcs));
-    CUDA_TRY(cudaFree(unique));
-    CUDA_TRY(cudaFree(counts));
-    CUDA_TRY(cudaFree(runCount));
+    ALLOC_FREE_TRY(srcs, stream);
+    ALLOC_FREE_TRY(unique, stream);
+    ALLOC_FREE_TRY(counts, stream);
+    ALLOC_FREE_TRY(runCount, stream);
     return GDF_SUCCESS;
 }
