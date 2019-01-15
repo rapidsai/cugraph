@@ -4,6 +4,8 @@
 #include <algorithm>
 #include "test_utils.h"
 
+#include <rmm_utils.h>
+
 TEST(nvgraph_louvain, success)
 {
   gdf_graph G;
@@ -38,7 +40,8 @@ TEST(nvgraph_louvain, success)
   int num_level = 40;
   int* best_cluster_vec = NULL;
 
-  cudaMallocManaged ((void**)&best_cluster_vec, sizeof(int) * no_vertex);
+  cudaStream_t stream{nullptr};
+  ALLOC_MANAGED_TRY((void**)&best_cluster_vec, sizeof(int) * no_vertex, stream);
   
   ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, nvgraphLouvain (CUDA_R_32I, CUDA_R_32F, no_vertex, ind_h.size(),
                             G.adjList->offsets->data, G.adjList->indices->data, G.adjList->edge_data->data, weighted, has_init_cluster, nullptr,
@@ -55,7 +58,7 @@ TEST(nvgraph_louvain, success)
 
   //printf ("Modularity is %f \n", modularity);
 
-  cudaFree (best_cluster_vec);
+  ALLOC_FREE_TRY (best_cluster_vec, stream);
 }
 
 TEST(nvgraph_louvain_grmat, success)
@@ -80,7 +83,9 @@ TEST(nvgraph_louvain_grmat, success)
   col_weights.null_count = 0;
 
   ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
-  cudaMallocManaged (&col_weights.data, sizeof(int) * edges);
+
+  cudaStream_t stream{nullptr};
+  ALLOC_MANAGED_TRY ((void**)&col_weights.data, sizeof(int) * edges, stream);
   col_weights.size = edges;
   std::vector<float> w_h (edges, (float)1.0);
   cudaMemcpy (col_weights.data, (void*) &(w_h[0]), sizeof(float)*edges, cudaMemcpyHostToDevice);
@@ -96,7 +101,7 @@ TEST(nvgraph_louvain_grmat, success)
   int num_level = 0;
   int* best_cluster_vec = NULL;
 
-  cudaMallocManaged ((void**)&best_cluster_vec, sizeof(int) * vertices);
+  ALLOC_MANAGED_TRY ((void**)&best_cluster_vec, sizeof(int) * vertices, stream);
 
   ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, nvgraphLouvain (CUDA_R_32I, CUDA_R_32F, vertices, edges, G.adjList->offsets->data, G.adjList->indices->data, G.adjList->edge_data->data, weighted, has_init_cluster, nullptr, (void*) &modularity, (void*) best_cluster_vec, (void *)(&num_level)));
 
@@ -110,10 +115,10 @@ TEST(nvgraph_louvain_grmat, success)
   ASSERT_EQ((modularity >= 0.002875), 1);
    
 
-  cudaFree (best_cluster_vec);
-  cudaFree(col_src.data);
-  cudaFree(col_dest.data);
-  cudaFree(col_weights.data);
+  ALLOC_FREE_TRY (best_cluster_vec, stream);
+  ALLOC_FREE_TRY(col_src.data, stream);
+  ALLOC_FREE_TRY(col_dest.data, stream);
+  ALLOC_FREE_TRY(col_weights.data, stream);
 }
 int main(int argc, char **argv)  {
     srand(42);

@@ -5,6 +5,8 @@
 #include <algorithm>
 #include "test_utils.h"
 
+#include <rmm_utils.h>
+
 template <bool weighted, typename T> 
 int jaccard_ref(int n, int e, int *csrPtr, int *csrInd, T * csrVal, T *v, T *work, T gamma, T *weight) {
    /* ASSUMPTION: std::set_intersection assumes the arrays are sorted/ordered */
@@ -85,7 +87,8 @@ TEST(nvgraph_jaccard, success)
   float* weight_j = NULL;
   float gamma = 1.0;
 
-  cudaMallocManaged ((void**)&weight_j, sizeof(float)*edges);
+  cudaStream_t stream{nullptr};
+  ALLOC_MANAGED_TRY((void**)&weight_j, sizeof(float)*edges, stream);
   
   ASSERT_EQ(nvgraphJaccard (CUDA_R_32I, CUDA_R_32F, no_vertex, edges,
                             (void*)G.adjList->offsets->data, 
@@ -105,9 +108,9 @@ TEST(nvgraph_jaccard, success)
 
   EXPECT_EQ(eq (jaccard_w, jw_h), 0);  
 
-  cudaFree (weight_j);
-  cudaFree (col_off.data);
-  cudaFree (col_ind.data);
+  ALLOC_FREE_TRY (weight_j, stream);
+  ALLOC_FREE_TRY (col_off.data, stream);
+  ALLOC_FREE_TRY (col_ind.data, stream);
 }
 
 TEST(nvgraph_jaccard_grmat, success)
@@ -150,7 +153,8 @@ TEST(nvgraph_jaccard_grmat, success)
   cudaMemcpy ((void*) &off_h[0], G.adjList->offsets->data, sizeof(int)*(vertices+1), cudaMemcpyDeviceToHost);
   cudaMemcpy ((void*) &ind_h[0], G.adjList->indices->data, sizeof(int)*edges, cudaMemcpyDeviceToHost);
 
-  cudaMallocManaged ((void**)&weight_j, sizeof(float)*edges);
+  cudaStream_t stream{nullptr};
+  ALLOC_MANAGED_TRY((void**)&weight_j, sizeof(float)*edges, stream);
 
   ASSERT_EQ(nvgraphJaccard (CUDA_R_32I, CUDA_R_32F, vertices, edges,
                             (void*)G.adjList->offsets->data,
@@ -172,9 +176,9 @@ TEST(nvgraph_jaccard_grmat, success)
   
   EXPECT_EQ(eq (jaccard_w, jw_h), 0);
 
-  cudaFree (weight_j);
-  cudaFree (col_src.data);
-  cudaFree (col_dest.data);
+  ALLOC_FREE_TRY(weight_j, stream);
+  ALLOC_FREE_TRY(col_src.data, stream);
+  ALLOC_FREE_TRY(col_dest.data, stream);
 }
 
 int main(int argc, char **argv)  {
