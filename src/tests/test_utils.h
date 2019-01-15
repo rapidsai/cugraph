@@ -25,6 +25,8 @@ extern "C" {
 #include <thrust/device_vector.h>
 #include <thrust/sequence.h>
 
+#include <rmm_utils.h>
+
 #include "cugraph.h"
 
 #ifndef CUDA_RT_CALL
@@ -42,7 +44,8 @@ std::function<void(gdf_column*)> gdf_col_deleter = [](gdf_column* col){
   if (col) { 
     col->size = 0; 
     if(col->data){
-      CUDA_RT_CALL(cudaFree(col->data));
+      cudaStream_t stream{nullptr};
+      ALLOC_FREE_TRY(col->data, stream);
     }
     delete col;  
   }
@@ -93,7 +96,7 @@ void printv(size_t n, T* vec, int offset) {
     thrust::device_ptr<T> dev_ptr(vec);
     std::cout.precision(15);
     std::cout << "sample size = "<< n << ", offset = "<< offset << std::endl;
-    thrust::copy(dev_ptr+offset,dev_ptr+offset+n, std::ostream_iterator<T>(std::cout, " "));
+    thrust::copy(dev_ptr+offset,dev_ptr+offset+n, std::ostream_iterator<T>(std::cout, " "));//Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
     std::cout << std::endl;
 }
 
@@ -578,7 +581,10 @@ gdf_column_ptr create_gdf_column(std::vector<col_type> const & host_vector)
   gdf_column_ptr the_column{new gdf_column, gdf_col_deleter};
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
-  cudaMallocManaged(&(the_column->data), input_size_bytes);
+
+  cudaStream_t stream{nullptr};
+  
+  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly
@@ -611,7 +617,9 @@ void create_gdf_column(std::vector<col_type> const & host_vector, gdf_column * t
 
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
-  cudaMallocManaged(&(the_column->data), input_size_bytes);
+
+  cudaStream_t stream{nullptr};
+  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly
@@ -639,10 +647,10 @@ void create_gdf_column(std::vector<col_type> const & host_vector, gdf_column * t
 void gdf_col_delete(gdf_column* col) {
   if (col)
   {
-    col->size = 0; 
+    col->size = 0;
+    cudaStream_t stream{nullptr};
     if(col->data)
-      if (cudaFree(col->data) != cudaSuccess) 
-        std::cerr << "CUDA ERROR : " << cudaGetErrorString(cudaGetLastError()) <<std::endl;    
+      ALLOC_FREE_TRY(col->data, stream);
     delete col;
     col->data = nullptr;
     col = nullptr;  
