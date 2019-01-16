@@ -122,11 +122,18 @@ endif (CUDF_INCLUDE AND CUDF_LIBRARY)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
-if(NVG_PLUGIN)
-    find_library(NVGRAPH_LIBRARY "nvgraph_st"
-             HINTS "$ENV{NVGRAPH_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-endif()
+find_path(NVGRAPH_INCLUDE "nvgraph"
+      HINTS "$ENV{NVGRAPH_ROOT}/include"
+            "$ENV{CONDA_PREFIX}/include")
+find_library(NVGRAPH_LIBRARY "nvgraph_st"
+         HINTS "$ENV{NVGRAPH_ROOT}/lib"
+               "$ENV{CONDA_PREFIX}/lib")
+
+add_library( nvgraph SHARED IMPORTED)
+if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
+    set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
+    message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
+endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
@@ -135,6 +142,7 @@ include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUDA_INCLUDE_DIRS}" 
     "${CUDF_INCLUDE}"
+    "${NVGRAPH_INCLUDE}"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/cub"
@@ -147,6 +155,7 @@ cuda_add_library(cugraph SHARED
     src/grmat.cu
     src/cugraph.cu
     src/pagerank.cu
+    src/nvgraph_gdf.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
@@ -157,8 +166,7 @@ cuda_add_library(cugraph SHARED
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
-target_link_libraries(cugraph cudf)
-target_link_libraries(cugraph ${Boost_LIBRARIES})
+target_link_libraries(cugraph cudf ${Boost_LIBRARIES} nvgraph_st)
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory
     OUTPUT include
@@ -173,21 +181,6 @@ set_package_properties(GTest PROPERTIES TYPE OPTIONAL
     PURPOSE "Google C++ Testing Framework (Google Test)."
     URL "https://github.com/google/googletest")
 
-if(NOT NVG_PLUGIN)
-    set(NVG_PLUGIN "FALSE")
-else()
-    if(NOT EXISTS ${NVGRAPH_LIBRARY})
-        set(NVG_PLUGIN "FALSE")
-    endif()
-    message(STATUS "Could not find Nvgraph plugin")
-endif()
-message(STATUS "Nvgraph plugin : ${NVG_PLUGIN}")
-
-###################################################################################################
-# - Adding plugin -------------------------------------------------------------------------------
-if(NVG_PLUGIN)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/nvgraph)
-endif()
 
 ###################################################################################################
 # - Generate the Tests -------------------------------------------------------------------------------
