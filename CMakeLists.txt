@@ -166,7 +166,7 @@ cuda_add_library(cugraph SHARED
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
-target_link_libraries(cugraph cudf ${Boost_LIBRARIES} nvgraph_st)
+target_link_libraries(cugraph cudf ${Boost_LIBRARIES} nvgraph)
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory
     OUTPUT include
