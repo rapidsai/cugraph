@@ -28,7 +28,7 @@ include(CTest)
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
-option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
+option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_COMPILER $ENV{CC})
@@ -116,6 +116,23 @@ else()
 endif()
 
 ###################################################################################################
+# - nvstrings -------------------------------------------------------------------------------------
+
+find_file(NVSTRINGS_INCLUDE "NVStrings.h"
+          HINTS "$ENV{NVSTRINGS_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include")
+find_library(NVSTRINGS_LIBRARY "NVStrings"
+             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
+                   "$ENV{CONDA_PREFIX}/lib")
+
+add_library(nvstrings SHARED IMPORTED)
+if (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
+set_target_properties( nvstrings PROPERTIES IMPORTED_LOCATION ${NVSTRINGS_LIBRARY})
+message(STATUS "NVSTRINGS found in ${NVSTRINGS_LIBRARY}")
+endif (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
+
+
+###################################################################################################
 # - add cudf --------------------------------------------------------------------------------------
 find_path(CUDF_INCLUDE "cudf"
           HINTS "$ENV{CUDF_ROOT}/include"
@@ -177,7 +194,7 @@ cuda_add_library(cugraph SHARED
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
-target_link_libraries(cugraph cudf ${Boost_LIBRARIES} nvgraph)
+target_link_libraries(cugraph cudf ${Boost_LIBRARIES} nvgraph nvstrings)
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory
     OUTPUT include
