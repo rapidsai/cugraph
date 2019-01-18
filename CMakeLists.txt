@@ -28,6 +28,8 @@ include(CTest)
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
+option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_COMPILER $ENV{CC})
 set(CMAKE_CXX_COMPILER $ENV{CXX})
@@ -36,6 +38,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQURIED ON)
 
+if(NOT CMAKE_CXX11_ABI)
+		message(STATUS "CUDF: Disabling the GLIBCXX11 ABI")
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+		set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
+	elseif(CMAKE_CXX11_ABI)
+		message(STATUS "CUDF: Enabling the GLIBCXX11 ABI")
+	endif(NOT CMAKE_CXX11_ABI)
+	
 #set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
 
 find_package(CUDA)
