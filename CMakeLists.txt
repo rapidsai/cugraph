@@ -28,7 +28,7 @@ include(CTest)
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
-option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
+option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_COMPILER $ENV{CC})
@@ -43,9 +43,9 @@ if(NOT CMAKE_CXX11_ABI)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
 		set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
-	elseif(CMAKE_CXX11_ABI)
+elseif(CMAKE_CXX11_ABI)
 		message(STATUS "CUDF: Enabling the GLIBCXX11 ABI")
-	endif(NOT CMAKE_CXX11_ABI)
+endif(NOT CMAKE_CXX11_ABI)
 	
 #set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
 
