@@ -126,6 +126,9 @@ if(NVG_PLUGIN)
     find_library(NVGRAPH_LIBRARY "nvgraph_st"
              HINTS "$ENV{NVGRAPH_ROOT}/lib"
                    "$ENV{CONDA_PREFIX}/lib")
+    find_path(NVGRAPH_INCLUDE "nvgraph"
+             HINTS "$ENV{NVGRAPH_ROOT}/include"
+                   "$ENV{CONDA_PREFIX}/include")
 endif()
 
 ###################################################################################################
@@ -135,6 +138,7 @@ include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUDA_INCLUDE_DIRS}" 
     "${CUDF_INCLUDE}"
+    "${NVGRAPH_INCLUDE}"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/cub"
