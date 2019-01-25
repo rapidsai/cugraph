@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH_TESTS LANGUAGES C CXX)
+project(CUGRAPH_TESTS LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ project(CUGRAPH_TESTS LANGUAGES C CXX)
 # - compiler function -----------------------------------------------------------------------------
 function(configure_test TEST_NAME Tests_SRCS)
 #    message(STATUS "${TEST_NAME} will link against: gdf, cugraph")
-    cuda_add_executable(${TEST_NAME} ${Tests_SRCS})
+    add_executable(${TEST_NAME} ${Tests_SRCS})
     target_link_libraries(${TEST_NAME} gmock_main gmock GTest::GTest cudf cugraph nvgraph)
     #if(NVG_PLUGIN)
     #    if(NOT TARGET nvgraph)
@@ -64,7 +64,7 @@ include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CUDA_INCLUDE_DIRS}"
+    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
 )
 
 ###################################################################################################
