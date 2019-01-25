@@ -128,7 +128,7 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
 
     if (graph->edgeList->edge_data!= nullptr) {
       graph->adjList->edge_data = new gdf_column;
-      
+
       CSR_Result_Weighted<int,WT> adj_list;
       status = ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
       
@@ -279,7 +279,10 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
 
 
 gdf_error gdf_add_adj_list(gdf_graph *graph)
-{
+{ 
+  GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
+  GDF_REQUIRE( graph->adjList == nullptr , GDF_INVALID_API_CALL);
+
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
       case GDF_FLOAT32:   return gdf_add_adj_list_impl<float>(graph);

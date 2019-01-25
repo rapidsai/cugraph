@@ -19,18 +19,18 @@ def cugraph_Call(M, max_iter, tol, alpha):
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
     # values = cudf.Series(np.ones(len(sources), dtype = np.float64))
-
+    
     # cugraph Pagerank Call
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     t1 = time.time()
-    pr = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol)
+    df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
     # Sort Pagerank values
     sorted_pr = []
-    for i, rank in enumerate(pr):
+    for i, rank in enumerate(df['pagerank']):
         sorted_pr.append((i, rank))
 
     return sorted(sorted_pr, key=lambda x: x[1], reverse=True)
