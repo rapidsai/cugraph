@@ -1,3 +1,5 @@
+// -*-c++-*-
+
 /*
  * Copyright (c) 2019, NVIDIA CORPORATION.
  *
@@ -23,16 +25,33 @@
 #include <thrust/scan.h>
 #include <thrust/binary_search.h>
 #include <cudf.h>
-#include "utilities/error_utils.h"
 #include <cuda_runtime_api.h>
+
+#include "utilities/error_utils.h"
+#include "graph_utils.cuh"
 
 namespace cugraph {
 
   namespace detail {
-    typedef unsigned long long   hash_type;
+    typedef uint32_t   hash_type;
+    
+    template <typename VertexIdType>
+    class HashFunctionObject {
+    public:
+      HashFunctionObject(uint32_t hash_size): hash_size_(hash_size) {}
+
+      __device__ __host__
+      hash_type operator()(const VertexIdType &vertex_id) {
+	return (vertex_id % hash_size_);
+      }
+
+    private:
+      uint32_t hash_size_;
+    };
 
     template<typename T, typename F>
     __global__ void CountHash(const T *vertex_ids, size_t size, hash_type *counts, F hashing_function) {
+
       int first = blockIdx.x * blockDim.x + threadIdx.x;
       int stride = blockDim.x * gridDim.x;
  
@@ -43,8 +62,10 @@ namespace cugraph {
 
     template<typename T, typename F>
     __global__ void PopulateHash(const T *vertex_ids, size_t size, T *hash_data,
-                                 hash_type *hash_bins_start, hash_type *hash_bins_end,
+                                 hash_type *hash_bins_start,
+				 hash_type *hash_bins_end,
                                  F hashing_function ) {
+
       int first = blockIdx.x * blockDim.x + threadIdx.x;
       int stride = blockDim.x * gridDim.x;
 
@@ -107,8 +128,10 @@ namespace cugraph {
     template<typename T, typename F>
     __global__ void Renumber(const T *vertex_ids, size_t size,
                              T *renumbered_ids, const T *hash_data,
-                             const hash_type *hash_bins_start, const hash_type *hash_bins_end,
-                             const hash_type *hash_bins_base, F hashing_function ) {
+                             const hash_type *hash_bins_start,
+			     const hash_type *hash_bins_end,
+                             const hash_type *hash_bins_base,
+			     F hashing_function ) {
       //
       //  For each vertex, look up in the hash table the vertex id
       //
@@ -125,6 +148,7 @@ namespace cugraph {
     template<typename T>
     __global__ void CompactNumbers(T *numbering_map, uint32_t hash_size, const T *hash_data, const hash_type *hash_bins_start,
                                    const hash_type *hash_bins_end, const hash_type *hash_bins_base) {
+
       int first = blockIdx.x * blockDim.x + threadIdx.x;
       int stride = blockDim.x * gridDim.x;
 
@@ -134,43 +158,42 @@ namespace cugraph {
         }
       }
     }
-
-    template <typename T>
-    class HashFunctionObject {
-      public:
-        HashFunctionObject(uint32_t hash_size): hash_size_(hash_size) {}
-
-        __device__ __host__
-        hash_type operator()(const T &vertex_id) {
-          return (vertex_id % hash_size_);
-        }
-
-      private:
-        hash_type hash_size_;
-    };
   }
 
 
   /**
-   * @brief Renumber vertices to a dense numbering (0..size-1)
+   * @brief Renumber vertices to a dense numbering (0..vertex_size-1)
    *
    *    This is a templated function so it can take 32 or 64 bit integers.  The
    *    intention is to take source and destination vertex ids that might be
    *    sparsely scattered across the range and push things down to a dense
    *    numbering.
    *
+   *    Arrays src, dst, src_renumbered, dst_renumbered and numbering_map are
+   *    assumed to be pre-allocated.  numbering_map is best safely allocated
+   *    to store 2 * size vertices.
+   *
    * @param[in]  size                 Number of edges
    * @param[in]  src                  List of source vertices
    * @param[in]  dst                  List of dest vertices
    * @param[out] src_renumbered       List of source vertices, renumbered
    * @param[out] dst_renumbered       List of dest vertices, renumbered
+   * @param[out] vertex_size          Number of unique vertices
    * @param[out] numbering_map        Map of new vertex id to original vertex id.  numbering_map[newId] = oldId
    *
    * @return  SOME SORT OF ERROR CODE
    */
-  template <typename T>
-  gdf_error renumber_vertices(size_t size, const T *src, const T *dst, T *src_renumbered, T *dst_renumbered,
-                              T * numbering_map, uint32_t hash_size = 8191) {
+  template <typename T_in, typename T_out>
+  gdf_error renumber_vertices(size_t size,
+			      const T_in *src,
+			      const T_in *dst,
+			      T_out *src_renumbered,
+			      T_out *dst_renumbered,
+                              size_t *new_size,
+			      T_in ** numbering_map,
+			      int max_threads_per_block = CUDA_MAX_KERNEL_THREADS,
+			      int max_blocks = CUDA_MAX_BLOCKS,
+			      uint32_t hash_size = 8191) {
     //
     // Assume - src/dst/src_renumbered/dst_renumbered/numbering_map are all pre-allocated.
     //
@@ -181,28 +204,30 @@ namespace cugraph {
     //
     // We need 3 for hashing, and one array for data
     //
-    T *hash_data;
-    detail::hash_type *hash_bins_start;
-    detail::hash_type *hash_bins_end;
-    detail::hash_type *hash_bins_base;
-    const int threadsPerBlock = 32;
-    const int threadBlocks = 32;
-    //const int threadsPerBlock = 1;
-    //const int threadBlocks = 1;
+    T_in *hash_data;
 
-    detail::HashFunctionObject<T>  hash(hash_size);
+    detail::HashFunctionObject<T_in>  hash(hash_size);
 
-    CUDA_TRY(cudaMalloc(&hash_data,       2 * size * sizeof(T)));
-    CUDA_TRY(cudaMalloc(&hash_bins_start, (1 + hash_size) * sizeof(detail::hash_type)));
-    CUDA_TRY(cudaMalloc(&hash_bins_end,   (1 + hash_size) * sizeof(detail::hash_type)));
-    CUDA_TRY(cudaMalloc(&hash_bins_base,  (1 + hash_size) * sizeof(detail::hash_type)));
+    detail::hash_type  *hash_bins_start;
+    detail::hash_type  *hash_bins_end;
+    detail::hash_type  *hash_bins_base;
+
+    int threads_per_block = min((int) size, max_threads_per_block);
+    int thread_blocks = min(((int) size + threads_per_block - 1) / threads_per_block, max_blocks);
+
+std::cout << "threads_per_block = " << threads_per_block << ", thread_blocks = " << thread_blocks << std::endl;
+
+    CUDA_TRY(cudaMalloc(&hash_data,       2 * size * sizeof(T_in)));
+    CUDA_TRY(cudaMalloc(&hash_bins_start, (1 + hash_size) * sizeof(uint32_t)));
+    CUDA_TRY(cudaMalloc(&hash_bins_end,   (1 + hash_size) * sizeof(uint32_t)));
+    CUDA_TRY(cudaMalloc(&hash_bins_base,  (1 + hash_size) * sizeof(uint32_t)));
 
     //
     //  Pass 1: count how many vertex ids end up in each hash bin
     //
-    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::hash_type)));
-    detail::CountHash<<<threadBlocks, threadsPerBlock>>>(src, size, hash_bins_start, hash);
-    detail::CountHash<<<threadBlocks, threadsPerBlock>>>(dst, size, hash_bins_start, hash);
+    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(uint32_t)));
+    detail::CountHash<<<thread_blocks, threads_per_block>>>(src, size, hash_bins_start, hash);
+    detail::CountHash<<<thread_blocks, threads_per_block>>>(dst, size, hash_bins_start, hash);
 
     //
     //  Need to compute the partial sums and copy them into hash_bins_end
@@ -214,13 +239,13 @@ namespace cugraph {
     //  Pass 2: Populate hash_data with data from the hash bins.  This implementation
     //    will do some partial deduplication, but we'll need to fully dedupe later.
     //
-    detail::PopulateHash<<<threadBlocks, threadsPerBlock>>>(src, size, hash_data, hash_bins_start, hash_bins_end, hash);
-    detail::PopulateHash<<<threadBlocks, threadsPerBlock>>>(dst, size, hash_data, hash_bins_start, hash_bins_end, hash);
+    detail::PopulateHash<<<thread_blocks, threads_per_block>>>(src, size, hash_data, hash_bins_start, hash_bins_end, hash);
+    detail::PopulateHash<<<thread_blocks, threads_per_block>>>(dst, size, hash_data, hash_bins_start, hash_bins_end, hash);
 
     //
     //  Now we need to dedupe the hash bins
     //
-    detail::DedupeHash<<<threadBlocks, threadsPerBlock>>>(hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
+    detail::DedupeHash<<<thread_blocks, threads_per_block>>>(hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
 
     //
     //  Now we can compute densly packed indices
@@ -231,10 +256,15 @@ namespace cugraph {
     //  Finally, we'll iterate over src and dst and populate src_renumbered
     //  and dst_renumbered.
     //
-    detail::Renumber<<<threadBlocks, threadsPerBlock>>>(src, size, src_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
-    detail::Renumber<<<threadBlocks, threadsPerBlock>>>(dst, size, dst_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
+    detail::Renumber<<<thread_blocks, threads_per_block>>>(src, size, src_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
+    detail::Renumber<<<thread_blocks, threads_per_block>>>(dst, size, dst_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
 
-    detail::CompactNumbers<<<threadBlocks, threadsPerBlock>>>(numbering_map, hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
+    uint32_t temp{0};
+    CUDA_TRY(cudaMemcpy(&temp, hash_bins_base + hash_size, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    *new_size = temp;
+
+    CUDA_TRY(cudaMalloc(numbering_map, (*new_size) * sizeof(T_in)));
+    detail::CompactNumbers<<<thread_blocks, threads_per_block>>>(*numbering_map, hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
 
     CUDA_TRY(cudaFree(hash_data));
     CUDA_TRY(cudaFree(hash_bins_start));
