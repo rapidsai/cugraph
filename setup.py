@@ -21,7 +21,7 @@ except AttributeError:
 # temporary fix. cudf 0.5 will have a cudf.get_include()
 cudf_include = os.path.normpath(sys.prefix) + '/include'
 
-cython_files = ['python/pagerank/pagerank_wrapper.pyx']
+cython_files = ['python/pagerank/pagerank_wrapper.pyx', 'python/bfs/bfs_wrapper.pyx']
 
 extensions = [
     Extension("cugraph",

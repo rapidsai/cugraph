@@ -133,6 +133,7 @@ endif()
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/include" 
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/cub"
     "${CUDA_INCLUDE_DIRS}" 
     "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
@@ -147,6 +148,7 @@ cuda_add_library(cugraph SHARED
     src/grmat.cu
     src/cugraph.cu
     src/pagerank.cu
+    src/bfs.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
