@@ -1,23 +1,30 @@
 name: cugraph_dev_py35
 channels:
 - nvidia
+- rapidsai
 - numba
 - conda-forge
-- rapidsai
 - defaults
 dependencies:
+- cudf
+- nvgraph
 - cmake>=3.12
-- python=3.5.*
-- pytest
-- numba>=0.40.0dev
+- python>=3.6,<3.8
+- numba>=0.40
 - pandas>=0.23.4
-- pyarrow=0.10.0
+- pyarrow=0.11.1
 - notebook>=0.5.0
 - boost
 - nvstrings
-- cudatoolkit>=9.2
-- cudf
-- libgdf_cffi
 - cffi>=1.10.0   
 - distributed>=1.23.0
-- cython=0.28.*
+- cython>=0.29,<0.30
+- pytest
+- sphinx
+- sphinx_rtd_theme
+- sphinxcontrib-websupport
+- numpydoc
+- ipython
+- recommonmark
+- pip:
+  - sphinx-markdown-tables
