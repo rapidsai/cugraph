@@ -5,48 +5,32 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH_TESTS LANGUAGES C CXX)
+project(CUGRAPH_TESTS LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
-if(NOT TARGET NVGRAPH AND NVG_PLUGIN)
-    find_path(NVGRAPH_INCLUDE "nvgraph"
-          HINTS "$ENV{NVGRAPH_ROOT}/include"
-                "$ENV{CONDA_PREFIX}/include")
-    find_library(NVGRAPH_LIBRARY "nvgraph_st"
-             HINTS "$ENV{NVGRAPH_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-    add_library( nvgraph SHARED IMPORTED)
-    if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
-        set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
-        message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
-    endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
-endif(NOT TARGET NVGRAPH AND NVG_PLUGIN)
+#if(NOT TARGET NVGRAPH AND NVG_PLUGIN)
+#    find_path(NVGRAPH_INCLUDE "nvgraph"
+#          HINTS "$ENV{NVGRAPH_ROOT}/include"
+#                "$ENV{CONDA_PREFIX}/include")
+#    find_library(NVGRAPH_LIBRARY "nvgraph_st"
+#             HINTS "$ENV{NVGRAPH_ROOT}/lib"
+#                   "$ENV{CONDA_PREFIX}/lib")
+#
+#    add_library( nvgraph SHARED IMPORTED)
+#    if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
+#        set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
+#        message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
+#    endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
+#endif(NOT TARGET NVGRAPH AND NVG_PLUGIN)
 
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 function(configure_test TEST_NAME Tests_SRCS)
 #    message(STATUS "${TEST_NAME} will link against: gdf, cugraph")
-    cuda_add_executable(${TEST_NAME} ${Tests_SRCS})
-    target_link_libraries(${TEST_NAME} gmock_main gmock GTest::GTest cudart cuda cudf cugraph)
-    if(NVG_PLUGIN)
-        if(NOT TARGET nvgraph)
-            add_library( nvgraph SHARED IMPORTED)
-    	    if (NVGRAPH_LIBRARY)
-                set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
-    	    endif (NVGRAPH_LIBRARY)
-        endif()
-    	if (NVGRAPH_INCLUDE)
-            include_directories(
-                "${NVGRAPH_INCLUDE}"
-            )
-    	endif (NVGRAPH_INCLUDE)
-        include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../plugin/nvgraph")
-        target_link_libraries(${TEST_NAME} nvgraph)
-        target_link_libraries(${TEST_NAME} nvggdf)
-    endif()
-    #target_link_libraries(${TEST_NAME} gmock_main gmock GTest::GTest cugraph)
+
+    add_executable(${TEST_NAME} ${Tests_SRCS})
+    target_link_libraries(${TEST_NAME} gmock_main gmock GTest::GTest cudart cudf cugraph nvgraph)
     set_target_properties(${TEST_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/")
 
@@ -63,7 +47,7 @@ include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CUDA_INCLUDE_DIRS}"
+    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
 )
 
 ###################################################################################################
@@ -89,7 +73,6 @@ set(PAGERANK_TEST_SRCS
 
 configure_test(PAGERANK_TEST "${PAGERANK_TEST_SRCS}")
 
-if(NVG_PLUGIN)
 ###################################################################################################
 #-SSSP tests -- ---------------------------------------------------------------------------------
 set(SSSP_TEST_SRCS
@@ -113,8 +96,6 @@ set(JACCARD_TEST_SRCS
         "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_jaccard.cpp")
 
 configure_test(JACCARD_TEST "${JACCARD_TEST_SRCS}")
-
-endif()
 
 message(STATUS "******** Tests are ready ********")
 
