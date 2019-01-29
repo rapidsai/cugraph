@@ -215,8 +215,6 @@ namespace cugraph {
     int threads_per_block = min((int) size, max_threads_per_block);
     int thread_blocks = min(((int) size + threads_per_block - 1) / threads_per_block, max_blocks);
 
-std::cout << "threads_per_block = " << threads_per_block << ", thread_blocks = " << thread_blocks << std::endl;
-
     CUDA_TRY(cudaMalloc(&hash_data,       2 * size * sizeof(T_in)));
     CUDA_TRY(cudaMalloc(&hash_bins_start, (1 + hash_size) * sizeof(uint32_t)));
     CUDA_TRY(cudaMalloc(&hash_bins_end,   (1 + hash_size) * sizeof(uint32_t)));
