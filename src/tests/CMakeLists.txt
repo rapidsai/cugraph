@@ -7,6 +7,8 @@ cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
 project(CUGRAPH_TESTS LANGUAGES C CXX CUDA)
 
+set(CMAKE_CUDA_FLAGS "-shared -cudart shared")
+
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
 #if(NOT TARGET NVGRAPH AND NVG_PLUGIN)
@@ -96,6 +98,14 @@ set(JACCARD_TEST_SRCS
         "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_jaccard.cpp")
 
 configure_test(JACCARD_TEST "${JACCARD_TEST_SRCS}")
+
+###################################################################################################
+#-RENUMBERING  tests -- ---------------------------------------------------------------------------------
+set(RENUMBERING_TEST_SRCS
+        "${CMAKE_CURRENT_SOURCE_DIR}/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
+
+configure_test(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
 
 message(STATUS "******** Tests are ready ********")
 
