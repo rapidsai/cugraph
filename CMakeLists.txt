@@ -28,54 +28,96 @@ include(CTest)
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
+#option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_COMPILER $ENV{CC})
 set(CMAKE_CXX_COMPILER $ENV{CXX})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CUDA_STANDARD 14)
-set(CMAKE_CUDA_STANDARD_REQURIED ON)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
+#if(NOT CMAKE_CXX11_ABI)
+#		message(STATUS "CUDF: Disabling the GLIBCXX11 ABI")
+#		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+#		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+#		set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
+#elseif(CMAKE_CXX11_ABI)
+#		message(STATUS "CUDF: Enabling the GLIBCXX11 ABI")
+#endif(NOT CMAKE_CXX11_ABI)
+	
 #set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
 
-find_package(CUDA)
-set_package_properties(
-    CUDA PROPERTIES TYPE REQUIRED
-    PURPOSE "NVIDIA CUDA® parallel computing platform and programming model."
-    URL "https://developer.nvidia.com/cuda-zone")
+#find_package(CUDA)
+#set_package_properties(
+#    CUDA PROPERTIES TYPE REQUIRED
+#    PURPOSE "NVIDIA CUDA® parallel computing platform and programming model."
+#    URL "https://developer.nvidia.com/cuda-zone")
 
-if(CUDA_FOUND)
-    message(STATUS "CUDA ${CUDA_VERSION} found in ${CUDA_TOOLKIT_ROOT_DIR}")
+#if(CUDA_FOUND)
+#    message(STATUS "CUDA ${CUDA_VERSION} found in ${CUDA_TOOLKIT_ROOT_DIR}")
 
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-std=c++11;--expt-extended-lambda; -Xcompiler -rdynamic -lineinfo)
-    # Suppress SHFL warnings caused by modern GPU.
-    # TODO: remove this when modern GPU is removed or fixed to use shfl_sync
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -Wno-deprecated-declarations; -Xptxas --disable-warnings)
-    # set warnings as errors
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-Werror cross-execution-space-call;-Xcompiler -Wall,-Wno-error=sign-compare)
+#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-std=c++11;--expt-extended-lambda; -Xcompiler -rdynamic -lineinfo)
+#    # Suppress SHFL warnings caused by modern GPU.
+#    # TODO: remove this when modern GPU is removed or fixed to use shfl_sync
+#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -Wno-deprecated-declarations; -Xptxas --disable-warnings)
+#    # set warnings as errors
+#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-Werror cross-execution-space-call;-Xcompiler -Wall,-Wno-error=sign-compare)
 
-    message(STATUS "CUDA_NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
-else()
-    message(FATAL_ERROR "CUDA not found, please check your settings.")
-endif()
+#    message(STATUS "CUDA_NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
+#else()
+#    message(FATAL_ERROR "CUDA not found, please check your settings.")
+#endif()
 
 message(STATUS "Using C++ standard: c++${CMAKE_CXX_STANDARD}")
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODULE_PATH})
 message(STATUS "CMAKE_MODULE_PATH:" "${CMAKE_MODULE_PATH}")
 
-IF(CUDA_VERSION_MAJOR GREATER 7)
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode;arch=compute_60,code=sm_60)
-ENDIF(CUDA_VERSION_MAJOR GREATER 7)
+#IF(CUDA_VERSION_MAJOR GREATER 7)
+#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode;arch=compute_60,code=sm_60)
+#ENDIF(CUDA_VERSION_MAJOR GREATER 7)
 
-IF(CUDA_VERSION_MAJOR GREATER 8)
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode;arch=compute_70,code=sm_70)
-ENDIF(CUDA_VERSION_MAJOR GREATER 8)
+#IF(CUDA_VERSION_MAJOR GREATER 8)
+#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode;arch=compute_70,code=sm_70)
+#ENDIF(CUDA_VERSION_MAJOR GREATER 8)
 
-IF(CMAKE_BUILD_TYPE MATCHES DEBUG)
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-g;-G;-lineinfo)
-ENDIF(CMAKE_BUILD_TYPE MATCHES DEBUG)
+#IF(CMAKE_BUILD_TYPE MATCHES DEBUG)
+#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-g;-G;-lineinfo)
+#ENDIF(CMAKE_BUILD_TYPE MATCHES DEBUG)
 
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+    option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
+    if(CMAKE_CXX11_ABI)
+        message(STATUS "cuGraph: Enabling the GLIBCXX11 ABI")
+    else()
+        message(STATUS "cuGraph: Disabling the GLIBCXX11 ABI")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
+    endif(CMAKE_CXX11_ABI)
+endif(CMAKE_COMPILER_IS_GNUCXX)
+	
+# Keith testing space
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70")
+	
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda -Xcompiler -rdynamic -lineinfo")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Wno-deprecated-declarations -Xptxas --disable-warnings")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
+	
+# Debug options
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    message(STATUS "Building with debugging flags")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G -lineinfo")
+endif(CMAKE_BUILD_TYPE MATCHES Debug)
+	
+message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
+	
 
 ###################################################################################################
 # - cmake custom modules --------------------------------------------------------------------------
@@ -122,11 +164,18 @@ endif (CUDF_INCLUDE AND CUDF_LIBRARY)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
-if(NVG_PLUGIN)
-    find_library(NVGRAPH_LIBRARY "nvgraph_st"
-             HINTS "$ENV{NVGRAPH_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-endif()
+find_path(NVGRAPH_INCLUDE "nvgraph"
+      HINTS "$ENV{NVGRAPH_ROOT}/include"
+            "$ENV{CONDA_PREFIX}/include")
+find_library(NVGRAPH_LIBRARY "nvgraph_st"
+         HINTS "$ENV{NVGRAPH_ROOT}/lib"
+               "$ENV{CONDA_PREFIX}/lib")
+
+add_library( nvgraph SHARED IMPORTED)
+if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
+    set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
+    message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
+endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
@@ -135,7 +184,9 @@ include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/external/cub"
     "${CUDA_INCLUDE_DIRS}" 
+    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" 
     "${CUDF_INCLUDE}"
+    "${NVGRAPH_INCLUDE}"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/cub"
@@ -143,12 +194,23 @@ include_directories(
 )
 
 ###################################################################################################
+# - library paths ---------------------------------------------------------------------------------
+
+link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the link directories for nvcc
+                 "${CMAKE_BINARY_DIR}/lib"
+                 "${GTEST_LIBRARY_DIR}")
+
+###################################################################################################
 # - library targets -------------------------------------------------------------------------------
-cuda_add_library(cugraph SHARED
+add_library(cugraph SHARED
     src/grmat.cu
     src/cugraph.cu
     src/pagerank.cu
+<<<<<<< HEAD
     src/bfs.cu
+=======
+    src/nvgraph_gdf.cu
+>>>>>>> master
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
@@ -159,8 +221,9 @@ cuda_add_library(cugraph SHARED
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
-target_link_libraries(cugraph cudf)
-target_link_libraries(cugraph ${Boost_LIBRARIES})
+
+target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES})
+
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory
     OUTPUT include
@@ -175,21 +238,6 @@ set_package_properties(GTest PROPERTIES TYPE OPTIONAL
     PURPOSE "Google C++ Testing Framework (Google Test)."
     URL "https://github.com/google/googletest")
 
-if(NOT NVG_PLUGIN)
-    set(NVG_PLUGIN "FALSE")
-else()
-    if(NOT EXISTS ${NVGRAPH_LIBRARY})
-        set(NVG_PLUGIN "FALSE")
-    endif()
-    message(STATUS "Could not find Nvgraph plugin")
-endif()
-message(STATUS "Nvgraph plugin : ${NVG_PLUGIN}")
-
-###################################################################################################
-# - Adding plugin -------------------------------------------------------------------------------
-if(NVG_PLUGIN)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/nvgraph)
-endif()
 
 ###################################################################################################
 # - Generate the Tests -------------------------------------------------------------------------------
