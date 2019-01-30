@@ -55,8 +55,10 @@ cpdef nvLouvain(input_graph):
 
     Returns
     -------
-    louvain_parts  : cudf.Series
-      GPU data frame of size V containing the partition id each vertex is assigned to.
+    louvain_parts, modularity_score  : cudf.DataFrame
+      louvain_parts: GPU data frame of size V containing two columns: the vertex id 
+          and the partition id it is assigned to.
+      modularity_score: a double value containing the modularity score of the partitioning
  
     Examples
     --------
@@ -79,8 +81,13 @@ cpdef nvLouvain(input_graph):
     index_type = gdf_to_cudaDataType[g.adjList.indices.dtype].value
     val_type = gdf_to_cudaDataType[g.adjList.edge_data.dtype].value
     
-    louvain_parts = cudf.Series(np.zeros(n,dtype=np.int32))
-    cdef uintptr_t louvain_parts_ptr = _get_column_data_ptr(louvain_parts)
+    df = cudf.DataFrame()
+    df['vertex'] = cudf.Series(np.zeros(n, dtype=np.int32))
+    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
+    err = g.adjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+    
+    df['partition'] = cudf.Series(np.zeros(n,dtype=np.int32))
+    cdef uintptr_t louvain_parts_ptr = _get_column_data_ptr(df['partition'])
 
     cdef double final_modularity = 1.0
     cdef int num_level
@@ -99,4 +106,8 @@ cpdef nvLouvain(input_graph):
                    <void*>&num_level
                    )
 
-    return louvain_parts                                      
+    cdef double fm = final_modularity
+    cdef float tmp = (<float*>(<void*>&final_modularity))[0]
+    if (val_type == cudaDataType.CUDA_R_32F):
+        fm = tmp
+    return df, fm                                      

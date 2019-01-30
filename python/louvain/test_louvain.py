@@ -34,11 +34,11 @@ def cuGraph_Call(M):
 
     # cugraph Louvain Call
     t1 = time.time()
-    parts = cugraph.nvLouvain(G)
+    parts, mod = cugraph.nvLouvain(G)
     t2 =  time.time() - t1
     print('Time : '+str(t2))
 
-    return parts
+    return parts, mod
 
 def networkx_Call(M):
     M = M.tocsr()
@@ -64,15 +64,16 @@ datasets = ['/datasets/networks/karate.mtx', '/datasets/networks/dolphins.mtx', 
 
 def test_louvain(graph_file):
     M = ReadMtxFile(graph_file)
-    cu_parts = cuGraph_Call(M)
+    cu_parts, cu_mod = cuGraph_Call(M)
     nx_parts = networkx_Call(M)
     
     # Calculating modularity scores for comparison
     Gnx = nx.Graph(M)
     cu_map = {0:0}
     for i in range(len(cu_parts)):
-        cu_map[i] = cu_parts[i]
-    cu_mod = community.modularity(cu_map, Gnx)
+        cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
+    cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
     assert len(cu_parts) == len(nx_parts)
     assert cu_mod > (.82 * nx_mod)
+    assert abs(cu_mod - cu_mod_nx) < .0001
