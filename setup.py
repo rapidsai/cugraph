@@ -84,13 +84,12 @@ extensions = [
                             NVGRAPH['include'],
                             CUDA['include'],
                             'src',
-                            'src/plugin/nvgraph',
                             'include',
                             '../gunrock',
                             '../gunrock/externals/moderngpu/include',
                             '../gunrock/externals/cub'],
               library_dirs=[get_python_lib(), NVGRAPH['lib']],
-              libraries=['nvggdf', 'nvgraph_st', 'cugraph', 'cudf'],
+              libraries=['nvgraph_st', 'cugraph', 'cudf'],
               language='c++',
               extra_compile_args=['-std=c++11'])
 ]

@@ -71,9 +71,9 @@ def networkx_Call(M, source):
     return path
 
 
-datasets = ['datasets/networks/dolphins.mtx',
-            'datasets/networks/karate.mtx',
-            'datasets/golden_data/graphs/dblp.mtx']
+datasets = ['/datasets/networks/dolphins.mtx',
+            '/datasets/networks/karate.mtx',
+            '/datasets/golden_data/graphs/dblp.mtx']
 
 source = [1]
 
