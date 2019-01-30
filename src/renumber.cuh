@@ -125,9 +125,9 @@ namespace cugraph {
       }
     }
 
-    template<typename T, typename F>
-    __global__ void Renumber(const T *vertex_ids, size_t size,
-                             T *renumbered_ids, const T *hash_data,
+    template<typename T_in, typename T_out, typename F>
+    __global__ void Renumber(const T_in *vertex_ids, size_t size,
+                             T_out *renumbered_ids, const T_in *hash_data,
                              const hash_type *hash_bins_start,
 			     const hash_type *hash_bins_end,
                              const hash_type *hash_bins_base,
@@ -140,7 +140,7 @@ namespace cugraph {
 
       for (int i = first ; i < size ; i += stride) {
         hash_type hash = hashing_function(vertex_ids[i]);
-        const T *id = thrust::lower_bound(thrust::device, hash_data + hash_bins_start[hash], hash_data + hash_bins_end[hash], vertex_ids[i]);
+        const T_in *id = thrust::lower_bound(thrust::device, hash_data + hash_bins_start[hash], hash_data + hash_bins_end[hash], vertex_ids[i]);
         renumbered_ids[i] = hash_bins_base[hash] + (id - (hash_data + hash_bins_start[hash]));
       }
     }

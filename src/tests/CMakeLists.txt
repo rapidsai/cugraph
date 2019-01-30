@@ -99,6 +99,14 @@ set(JACCARD_TEST_SRCS
 
 configure_test(JACCARD_TEST "${JACCARD_TEST_SRCS}")
 
+###################################################################################################
+#-RENUMBERING  tests -- ---------------------------------------------------------------------------------
+set(RENUMBERING_TEST_SRCS
+        "${CMAKE_CURRENT_SOURCE_DIR}/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
+
+configure_test(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
+
 message(STATUS "******** Tests are ready ********")
 
 ###################################################################################################
