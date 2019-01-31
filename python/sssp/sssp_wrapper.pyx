@@ -24,8 +24,8 @@ cpdef sssp(G, source):
 
     Returns
     -------
-    distances : cudf.Series              
-       distances[i] is the distance of vertex i from the source
+    distances : 
+        GPU data frame containing two cudf.Series of size V: the vertex identifiers and the corresponding SSSP distances.
     
     Examples
     --------
