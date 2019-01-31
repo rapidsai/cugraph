@@ -25,9 +25,10 @@ cpdef bfs(G, start, directed=True):
     
     Returns
     -------
-    distances, predecessors : cudf.Series
-        distances gives the path distance for each vertex from the starting vertex
-        predecessors gives for each vertex the vertex it was reached from in the traversal
+    df : cudf.DataFrame
+        df['vertex'][i] gives the vertex id of the i'th vertex
+        df['distance'][i] gives the path distance for the i'th vertex from the starting vertex
+        df['predecessor'][i] gives for the i'th vertex the vertex it was reached from in the traversal
         
     Examples
     --------
@@ -42,10 +43,17 @@ cpdef bfs(G, start, directed=True):
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
     num_verts = g.adjList.offsets.size - 1
-    distances = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef uintptr_t distances_ptr = create_column(distances)
-    predecessors = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef uintptr_t predecessors_ptr = create_column(distances)
+    
+    df = cudf.DataFrame()
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef uintptr_t vertex_ptr = create_column(df['vertex'])
+    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef uintptr_t distances_ptr = create_column(df['distance'])
+    df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef uintptr_t predecessors_ptr = create_column(df['predecessor'])
+    
+    err = g.adjList.get_vertex_identifiers(<gdf_column*>vertex_ptr)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
     
     gdf_bfs(<gdf_graph*>g, <gdf_column*>distances_ptr, <gdf_column*>predecessors_ptr, <int>start, <bool>directed)
-    return distances, predecessors
+    return df
