@@ -3,6 +3,14 @@
 #include <ctime>
 #include "utilities/error_utils.h"
 
+//RMM:
+//
+	
+#include <rmm_utils.h>
+		
+template<typename T>
+using Vector = thrust::device_vector<T, rmm_allocator<T>>;
+
 gdf_error nvgraph2gdf_error(nvgraphStatus_t nvg_stat)
 {
   switch (nvg_stat) {
@@ -160,13 +168,18 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 
   int sssp_index = 0;
   int weight_index = 0;
-  thrust::device_vector<float> d_val;
+  Vector<float> d_val;
+		
+  //RMM:
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
   start = std::clock();
   if (gdf_G->transposedAdjList->edge_data == nullptr) {
     // use a fp32 vector  [1,...,1]
     settype = CUDA_R_32F;
     d_val.resize(gdf_G->transposedAdjList->indices->size);
-    thrust::fill(d_val.begin(), d_val.end(), 1.0);
+    thrust::fill(thrust::cuda::par(allocator).on(stream), d_val.begin(), d_val.end(), 1.0);
     NVG_TRY(nvgraphAttachEdgeData(nvg_handle, nvgraph_G, weight_index, settype, (void *) thrust::raw_pointer_cast(d_val.data())));
   }
   else {
