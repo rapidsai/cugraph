@@ -13,6 +13,7 @@
 #include <iomanip>
 #include "bfs.cuh"
 #include <limits>
+#include "rmm_utils.h"
 
 #include "graph_utils.cuh"
 #include "bfs_kernels.cuh"
@@ -31,7 +32,7 @@ namespace cugraph {
 		deterministic = false;
 		//Working data
 		//Each vertex can be in the frontier at most once
-		cudaMalloc(&frontier, n * sizeof(IndexType));
+		ALLOC_MANAGED_TRY(&frontier, n * sizeof(IndexType), nullptr)
 
 		//We will update frontier during the execution
 		//We need the orig to reset frontier, or cudaFree
@@ -40,20 +41,20 @@ namespace cugraph {
 		//size of bitmaps for vertices
 		vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
 		//ith bit of visited_bmap is set <=> ith vertex is visited
-		cudaMalloc(&visited_bmap, sizeof(int) * vertices_bmap_size);
+		ALLOC_MANAGED_TRY(&visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
 		//ith bit of isolated_bmap is set <=> degree of ith vertex = 0
-		cudaMalloc(&isolated_bmap, sizeof(int) * vertices_bmap_size);
+		ALLOC_MANAGED_TRY(&isolated_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
 		//vertices_degree[i] = degree of vertex i
-		cudaMalloc(&vertex_degree, sizeof(IndexType) * n);
+		ALLOC_MANAGED_TRY(&vertex_degree, sizeof(IndexType) * n, nullptr);
 
 		//Cub working data
 		cub_exclusive_sum_alloc(n + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
 
 		//We will need (n+1) ints buffer for two differents things (bottom up or top down) - sharing it since those uses are mutually exclusive
-		cudaMalloc(&buffer_np1_1, (n + 1) * sizeof(IndexType));
-		cudaMalloc(&buffer_np1_2, (n + 1) * sizeof(IndexType));
+		ALLOC_MANAGED_TRY(&buffer_np1_1, (n + 1) * sizeof(IndexType), nullptr);
+		ALLOC_MANAGED_TRY(&buffer_np1_2, (n + 1) * sizeof(IndexType), nullptr);
 
 		//Using buffers : top down
 
@@ -74,13 +75,13 @@ namespace cugraph {
 
 		//We use buckets of edges (32 edges per bucket for now, see exact macro in bfs_kernels). frontier_vertex_degree_buckets_offsets[i] is the index k such as frontier[k] is the source of the first edge of the bucket
 		//See top down kernels for more details
-		cudaMalloc(&exclusive_sum_frontier_vertex_buckets_offsets,
-						((nnz / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType));
+		ALLOC_MANAGED_TRY(&exclusive_sum_frontier_vertex_buckets_offsets,
+						((nnz / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType), nullptr);
 
 		//Init device-side counters
 		//Those counters must be/can be reset at each bfs iteration
 		//Keeping them adjacent in memory allow use call only one cudaMemset - launch latency is the current bottleneck
-		cudaMalloc(&d_counters_pad, 4 * sizeof(IndexType));
+		ALLOC_MANAGED_TRY(&d_counters_pad, 4 * sizeof(IndexType), nullptr);
 
 		d_new_frontier_cnt = &d_counters_pad[0];
 		d_mu = &d_counters_pad[1];
@@ -116,7 +117,7 @@ namespace cugraph {
 
 		//We need distances to use bottom up
 		if (directed && !computeDistances)
-			cudaMalloc(&distances, n * sizeof(IndexType));
+			ALLOC_MANAGED_TRY(&distances, n * sizeof(IndexType), nullptr);
 	}
 
 	template<typename IndexType>
@@ -451,19 +452,19 @@ namespace cugraph {
 	template<typename IndexType>
 	void Bfs<IndexType>::clean() {
 		//the vectors have a destructor that takes care of cleaning
-		cudaFree(original_frontier);
-		cudaFree(visited_bmap);
-		cudaFree(isolated_bmap);
-		cudaFree(vertex_degree);
-		cudaFree(d_cub_exclusive_sum_storage);
-		cudaFree(buffer_np1_1);
-		cudaFree(buffer_np1_2);
-		cudaFree(exclusive_sum_frontier_vertex_buckets_offsets);
-		cudaFree(d_counters_pad);
+		ALLOC_FREE_TRY(original_frontier, nullptr);
+		ALLOC_FREE_TRY(visited_bmap, nullptr);
+		ALLOC_FREE_TRY(isolated_bmap, nullptr);
+		ALLOC_FREE_TRY(vertex_degree, nullptr);
+		ALLOC_FREE_TRY(d_cub_exclusive_sum_storage, nullptr);
+		ALLOC_FREE_TRY(buffer_np1_1, nullptr);
+		ALLOC_FREE_TRY(buffer_np1_2, nullptr);
+		ALLOC_FREE_TRY(exclusive_sum_frontier_vertex_buckets_offsets, nullptr);
+		ALLOC_FREE_TRY(d_counters_pad, nullptr);
 
 		//In that case, distances is a working data
 		if (directed && !computeDistances)
-			cudaFree(distances);
+			ALLOC_FREE_TRY(distances, nullptr);
 	}
 
 	template class Bfs<int> ;
