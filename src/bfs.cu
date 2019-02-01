@@ -32,7 +32,7 @@ namespace cugraph {
 		deterministic = false;
 		//Working data
 		//Each vertex can be in the frontier at most once
-		ALLOC_MANAGED_TRY(&frontier, n * sizeof(IndexType), nullptr)
+		ALLOC_MANAGED_TRY(&frontier, n * sizeof(IndexType), nullptr);
 
 		//We will update frontier during the execution
 		//We need the orig to reset frontier, or cudaFree
