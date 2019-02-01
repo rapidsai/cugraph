@@ -49,7 +49,7 @@ run:
 ```bash
 mkdir build   # create build directory for out-of-source build
 cd build      # enter the build directory
-cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX -DNVG_PLUGIN=FALSE  # configure cmake ... use $CONDA_PREFIX if you're using Anaconda
+cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX 
 ```
 
 Add `-DNVG_PLUGIN=TRUE` to configure cmake to build nvGraph plugin for cuGraph.

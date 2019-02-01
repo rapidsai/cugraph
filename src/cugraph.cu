@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -19,15 +19,16 @@
 #include "utilities/error_utils.h"
 #include "bfs.cuh"
 
-//#include <functions.h>
+#include <rmm_utils.h>
 
 void gdf_col_delete(gdf_column* col) {
   if (col)
   {
     col->size = 0; 
     if(col->data)
-      if (cudaFree(col->data) != cudaSuccess) 
-        std::cerr << "CUDA ERROR : " << cudaGetErrorString(cudaGetLastError()) <<std::endl;    
+        {
+        ALLOC_FREE_TRY(col->data, nullptr);
+        }
     delete col;
     col->data = nullptr;
     col = nullptr;  
@@ -248,10 +249,10 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   if (graph->transposedAdjList == nullptr) {
     gdf_add_transpose(graph);
   }
-
-  CUDA_TRY(cudaMallocManaged ((void**)&d_leaf_vector,    sizeof(WT) * m));
-  CUDA_TRY(cudaMallocManaged ((void**)&d_val, sizeof(WT) * nnz )); 
-  CUDA_TRY(cudaMallocManaged ((void**)&d_pr,    sizeof(WT) * m));
+  cudaStream_t stream{nullptr};
+  ALLOC_MANAGED_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
+  ALLOC_MANAGED_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
+  ALLOC_MANAGED_TRY((void**)&d_pr,    sizeof(WT) * m, stream);
 
   cugraph::HT_matrix_csc_coo(m, nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
 
@@ -272,9 +273,11 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
     }   
  
   cugraph::copy<WT>(m, d_pr, (WT*)pagerank->data);
-  cudaFree(d_val);
-  cudaFree(d_pr);    
-  cudaFree(d_leaf_vector);  
+
+  ALLOC_FREE_TRY(d_val, stream);
+  ALLOC_FREE_TRY(d_pr, stream);
+  ALLOC_FREE_TRY(d_leaf_vector, stream);
+
   return GDF_SUCCESS;
 }
 

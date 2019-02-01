@@ -13,7 +13,6 @@ install_requires = [
     'cython'
 ]
 
-
 def find_in_path(name, path):
     "Find a file in a search path"
     #adapted fom http://code.activestate.com/recipes/52224-find-a-file-given-a-search-path/
@@ -61,7 +60,6 @@ def locate_nvgraph():
             raise EnvironmentError('The nvgraph library could not be located') 
     nvgraph_config = {'include':pjoin(os.path.dirname(os.path.dirname(nvgraph_found)), 'include', 'nvgraph'),
     'lib':os.path.dirname(nvgraph_found)}
-    print(nvgraph_config['include'], nvgraph_config['lib'])
     return nvgraph_config
   
 CUDA = locate_cuda()
@@ -90,7 +88,7 @@ extensions = [
                             '../gunrock/externals/moderngpu/include',
                             '../gunrock/externals/cub'],
               library_dirs=[get_python_lib(), NVGRAPH['lib']],
-              libraries=['cugraph', 'cudf', 'nvgraph_st'],
+              libraries=['nvgraph_st', 'cugraph', 'cudf'],
               language='c++',
               extra_compile_args=['-std=c++11'])
 ]

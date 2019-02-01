@@ -32,8 +32,8 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
     
     Returns
     -------
-    PageRank : cudf.Series
-        pagerank[i] is the PageRank of vertex i.
+    PageRank : cudf.DataFrame
+        GPU data frame containing two cudf.Series of size V: the vertex identifiers and the corresponding PageRank values.
 
     Examples
     --------
