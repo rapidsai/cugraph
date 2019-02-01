@@ -75,7 +75,7 @@ template <typename T>
 gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T>& result) {
     // Sort source and destination columns by source
     //   Allocate local memory for operating on
-â   T* srcs{nullptr}, *dests{nullptr};
+    T* srcs{nullptr}, *dests{nullptr};
     //RMM
     //
     cudaStream_t stream{nullptr};
