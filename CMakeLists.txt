@@ -213,10 +213,15 @@ add_library(cugraph SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/gitsha1.c
 )
 
+option(BUILD_TESTS "Configure CMake to build tests" OFF)
+
+add_subdirectory(thirdparty/rmm "${CMAKE_BINARY_DIR}/rmm")
+include_directories("${CMAKE_SOURCE_DIR}/thirdparty/rmm/include")
+
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES})
+target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES} rmm)
 
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory
