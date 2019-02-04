@@ -116,7 +116,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
      int rmat_scale = 0, edge_factor = 0, undirected = false;
      char* argv[32] = {0};
      int argc = 0;
-     std::string tmp_argv = param.argv;
+     std::string tmp_argv(param.argv.c_str());
      get_array_of_strings (argv, (char *)tmp_argv.c_str(), argc);
      rmat_scale = atoi(strrchr(argv[1], '=')+1);
      edge_factor = atoi(strrchr(argv[2], '=')+1);
@@ -171,7 +171,8 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     int rmat_scale = 0, edge_factor = 0, undirected = false;;
     char* argv[32] = {0};
     int argc = 0;
-    std::string tmp_argv = param.argv;
+    std::string tmp_argv(param.argv.c_str());
+
     get_array_of_strings (argv, (char *)tmp_argv.c_str(), argc);
     
     rmat_scale = atoi(strrchr(argv[1], '=')+1);
