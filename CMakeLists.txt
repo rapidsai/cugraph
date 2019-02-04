@@ -36,7 +36,7 @@ set(CMAKE_CXX_COMPILER $ENV{CXX})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CUDA_STANDARD 14)
-set(CMAKE_CUDA_STANDARD_REQURIED ON)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 #if(NOT CMAKE_CXX11_ABI)
 #		message(STATUS "CUDF: Disabling the GLIBCXX11 ABI")
@@ -192,6 +192,13 @@ include_directories(
 )
 
 ###################################################################################################
+# - library paths ---------------------------------------------------------------------------------
+
+link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the link directories for nvcc
+                 "${CMAKE_BINARY_DIR}/lib"
+                 "${GTEST_LIBRARY_DIR}")
+
+###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 add_library(cugraph SHARED
     src/grmat.cu
@@ -208,7 +215,9 @@ add_library(cugraph SHARED
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
-target_link_libraries(cugraph cudf ${Boost_LIBRARIES} nvgraph)
+
+target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES})
+
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory
     OUTPUT include
