@@ -73,7 +73,6 @@ except AttributeError:
 
 # temporary fix. cudf 0.5 will have a cudf.get_include()
 cudf_include = os.path.normpath(sys.prefix) + '/include'
- 
 cython_files = ['python/cugraph.pyx']
 
 extensions = [

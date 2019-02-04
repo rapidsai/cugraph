@@ -182,6 +182,7 @@ endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/include" 
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/cub"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" 
     "${CUDF_INCLUDE}"
     "${NVGRAPH_INCLUDE}"
@@ -204,6 +205,7 @@ add_library(cugraph SHARED
     src/grmat.cu
     src/cugraph.cu
     src/pagerank.cu
+    src/bfs.cu
     src/nvgraph_gdf.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
