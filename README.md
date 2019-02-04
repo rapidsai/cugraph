@@ -47,6 +47,7 @@ This project uses cmake for building the C/C++ library. To configure cmake,
 run:
 
 ```bash
+cd cpp	      # enter cpp directory
 mkdir build   # create build directory for out-of-source build
 cd build      # enter the build directory
 cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX 
