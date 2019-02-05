@@ -7,7 +7,7 @@ channels:
 - defaults
 dependencies:
 - cmake>=3.12
-- python=>=3.6,<3.8
+- python>=3.6,<3.8
 - pytest
 - numba>=0.40.0dev
 - pandas>=0.23.4
@@ -17,10 +17,9 @@ dependencies:
 - nvstrings
 - cudatoolkit>=9.2
 - cudf
-- libgdf_cffi
 - cffi>=1.10.0   
 - distributed>=1.23.0
-- cython=0.28.*
+- cython>=0.29.*
 - scipy
 - networkx
 - python-louvain
