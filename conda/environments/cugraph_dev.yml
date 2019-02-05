@@ -1,4 +1,4 @@
-name: cugraph_dev_py35
+name: cugraph_dev
 channels:
 - nvidia
 - numba
@@ -7,7 +7,7 @@ channels:
 - defaults
 dependencies:
 - cmake>=3.12
-- python=3.5.*
+- python=>=3.6,<3.8
 - pytest
 - numba>=0.40.0dev
 - pandas>=0.23.4
