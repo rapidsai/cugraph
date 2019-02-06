@@ -104,8 +104,6 @@ cd build      # enter the build directory
 cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX 
 ```
 
-Add `-DNVG_PLUGIN=TRUE` to configure cmake to build nvGraph plugin for cuGraph.
-
 To build the C/C++ code
 ```bash
 make          #This should produce a shared library named `libcugraph.so`
