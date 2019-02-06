@@ -29,6 +29,7 @@
 
 #include "utilities/error_utils.h"
 #include "graph_utils.cuh"
+#include "rmm_utils.h"
 
 namespace cugraph {
 
@@ -215,10 +216,10 @@ namespace cugraph {
     int threads_per_block = min((int) size, max_threads_per_block);
     int thread_blocks = min(((int) size + threads_per_block - 1) / threads_per_block, max_blocks);
 
-    CUDA_TRY(cudaMalloc(&hash_data,       2 * size * sizeof(T_in)));
-    CUDA_TRY(cudaMalloc(&hash_bins_start, (1 + hash_size) * sizeof(uint32_t)));
-    CUDA_TRY(cudaMalloc(&hash_bins_end,   (1 + hash_size) * sizeof(uint32_t)));
-    CUDA_TRY(cudaMalloc(&hash_bins_base,  (1 + hash_size) * sizeof(uint32_t)));
+    ALLOC_TRY(&hash_data,       2 * size * sizeof(T_in), nullptr);
+    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(uint32_t), nullptr);
+    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(uint32_t), nullptr);
+    ALLOC_TRY(&hash_bins_base,  (1 + hash_size) * sizeof(uint32_t), nullptr);
 
     //
     //  Pass 1: count how many vertex ids end up in each hash bin
@@ -261,13 +262,13 @@ namespace cugraph {
     CUDA_TRY(cudaMemcpy(&temp, hash_bins_base + hash_size, sizeof(uint32_t), cudaMemcpyDeviceToHost));
     *new_size = temp;
 
-    CUDA_TRY(cudaMalloc(numbering_map, (*new_size) * sizeof(T_in)));
+    ALLOC_TRY(numbering_map, (*new_size) * sizeof(T_in), nullptr);
     detail::CompactNumbers<<<thread_blocks, threads_per_block>>>(*numbering_map, hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
 
-    CUDA_TRY(cudaFree(hash_data));
-    CUDA_TRY(cudaFree(hash_bins_start));
-    CUDA_TRY(cudaFree(hash_bins_end));
-    CUDA_TRY(cudaFree(hash_bins_base));
+    ALLOC_FREE_TRY(hash_data, nullptr);
+    ALLOC_FREE_TRY(hash_bins_start, nullptr);
+    ALLOC_FREE_TRY(hash_bins_end, nullptr);
+    ALLOC_FREE_TRY(hash_bins_base, nullptr);
     return GDF_SUCCESS;
   }
   
