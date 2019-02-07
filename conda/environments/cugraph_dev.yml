@@ -10,6 +10,7 @@ dependencies:
 - scipy
 - networkx
 - python-louvain
+- cudatoolkit
 - cmake>=3.12
 - python>=3.6,<3.8
 - numba>=0.40
