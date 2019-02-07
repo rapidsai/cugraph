@@ -89,7 +89,7 @@ extensions = [
                             '../cpp/build/gunrock/externals/moderngpu/include',
                             '../cpp/build/gunrock/externals/cub'],
               library_dirs=[get_python_lib(), NVGRAPH['lib']],
-              libraries=['nvgraph_st', 'cugraph', 'cudf'],
+              libraries=['cugraph', 'cudf', 'nvgraph_st'],
               language='c++',
               extra_compile_args=['-std=c++14'])
 ]
@@ -109,10 +109,6 @@ setup(name='cugraph',
       author="NVIDIA Corporation",
       setup_requires=['cython'],
       ext_modules=cythonize(extensions),
-      packages=find_packages(include=['cugraph', 'cugraph.*']),
-      package_data={
-        'cugraph.tests': ['data/*.pickle'],
-      },
       install_requires=install_requires,
       license="Apache",
       cmdclass=versioneer.get_cmdclass(),
