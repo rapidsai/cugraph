@@ -139,7 +139,7 @@ run:
 cd cpp	      # enter cpp directory
 mkdir build   # create build directory for out-of-source build
 cd build      # enter the build directory
-cmake .. -DVNG_PLUGIN=TRUE -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX 
+cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX 
 ```
 
 To build the C/C++ code
