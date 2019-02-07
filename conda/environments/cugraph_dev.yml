@@ -4,12 +4,14 @@ channels:
 - rapidsai
 - numba
 - conda-forge
+- mpi4py
 - defaults
 dependencies:
 - cudf
 - scipy
 - networkx
 - python-louvain
+- openmpi
 - cudatoolkit
 - cmake>=3.12
 - python>=3.6,<3.8

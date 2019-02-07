@@ -868,13 +868,13 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	
     int	rank, ntask;
 	rhsv_t	rval = {RHS_RANDOM, REALV(0.0), NULL};
-	REAL a = (REALV(1.0)-REALV(damping_factor))/((REAL)global_v);
+	REAL a = (REALV(1.0)-damping_factor)/((REAL)global_v);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &ntask);
 	spmat_t *m = createSpmat(ntask);
     REAL* pr;
 	gdf_multi_coo2csr(global_v, src_indices, dest_indices, m);
-	pagerank_solver(max_iter, REALV(damping_factor), a, rval, m, pr);
+	pagerank_solver(max_iter, damping_factor, a, rval, m, pr);
 	fill_gdf_output(m, pr, v_idx, pagerank);
 	if (rval.str) free(rval.str);
 }

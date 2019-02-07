@@ -134,6 +134,14 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+find_package(MPI)
+if (MPI)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
+endif()
+
+
 find_package(Git QUIET)
 if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
     execute_process(COMMAND ${GIT_EXECUTABLE} log  -1 --pretty=format:"%ad" --date=format:%Y%m%d%H%M%S OUTPUT_VARIABLE LATEST_COMMIT_DATE WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
@@ -182,6 +190,7 @@ endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/include" 
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/multi_pagerank"
     "${CMAKE_CURRENT_SOURCE_DIR}/external/cub"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" 
     "${CUDF_INCLUDE}"
@@ -208,6 +217,12 @@ add_library(cugraph SHARED
     src/pagerank.cu
     src/bfs.cu
     src/nvgraph_gdf.cu
+    src/multi_pagerank/cuda_kernels.cu
+    src/multi_pagerank/multi_pagerank.cu
+    src/multi_pagerank/adtp.c
+    src/multi_pagerank/phsort.c
+    src/multi_pagerank/tmp_pool.c
+    src/multi_pagerank/utils.c
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
