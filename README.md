@@ -107,7 +107,7 @@ cd CUGRAPH_HOME
 git submodule update --init --remote --recursive
 ```
 
-- Create the conda development environment `cudf_dev`
+- Create the conda development environment `cugraph_dev`
 
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
@@ -151,7 +151,7 @@ make install  #The default locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE
 Install the Python package to your Python path:
 
 ```bash
-python setup.py install    # install cudf python bindings
+python setup.py install    # install cugraph python bindings
 ```
 
 ### Run tests
