@@ -1,15 +1,18 @@
-from os.path import join as pjoin
-from setuptools import setup
+# Copyright (c) 2018, NVIDIA CORPORATION.
+
+from setuptools import setup, find_packages
 from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy
+
+import versioneer
+from distutils.sysconfig import get_python_lib
+from os.path import join as pjoin
 import os
 import sys
 
-from distutils.sysconfig import get_python_lib
-
 install_requires = [
-    'numpy',
+    'numba',
     'cython'
 ]
 
@@ -65,15 +68,13 @@ def locate_nvgraph():
 CUDA = locate_cuda()
 NVGRAPH = locate_nvgraph()
 
-# Obtain the numpy include directory.  This logic works across numpy versions.
 try:
     numpy_include = numpy.get_include()
 except AttributeError:
     numpy_include = numpy.get_numpy_include()
 
-# temporary fix. cudf 0.5 will have a cudf.get_include()
 cudf_include = os.path.normpath(sys.prefix) + '/include'
-cython_files = ['python/cugraph.pyx']
+cython_files = ['cugraph/*.pyx']
 
 extensions = [
     Extension("cugraph",
@@ -82,26 +83,34 @@ extensions = [
                             cudf_include,
                             NVGRAPH['include'],
                             CUDA['include'],
-                            'cpp/src',
-                            'cpp/include',
-                            '../gunrock',
-                            '../gunrock/externals/moderngpu/include',
-                            '../gunrock/externals/cub'],
+                            '../cpp/src',
+                            '../cpp/include',
+                            '../cpp/build/gunrock',
+                            '../cpp/build/gunrock/externals/moderngpu/include',
+                            '../cpp/build/gunrock/externals/cub'],
               library_dirs=[get_python_lib(), NVGRAPH['lib']],
-              libraries=['nvgraph_st', 'cugraph', 'cudf'],
+              libraries=['cugraph', 'cudf', 'nvgraph_st'],
               language='c++',
-              extra_compile_args=['-std=c++11'])
+              extra_compile_args=['-std=c++14'])
 ]
 
 setup(name='cugraph',
-      description='cuGraph - RAPIDS Graph Analytic Algorithms',
-      author='NVIDIA Corporation',
-      # todo: Add support for versioneer
-      version='0.1',
+      description="cuGraph - GPU Graph Analytics",
+      version=versioneer.get_version(),
+      classifiers=[
+        # "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        # "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7"
+      ],
+      # Include the separately-compiled shared library
+      author="NVIDIA Corporation",
+      setup_requires=['cython'],
       ext_modules=cythonize(extensions),
       install_requires=install_requires,
       license="Apache",
-      zip_safe=False)
-
-
-
+      cmdclass=versioneer.get_cmdclass(),
+      zip_safe=False
+      )

@@ -1,0 +1,8 @@
+include "graph/c_graph.pyx"
+include "nvgraph/c_nvgraph.pyx"
+include "pagerank/pagerank_wrapper.pyx"
+include "sssp/sssp_wrapper.pyx"
+include "jaccard/jaccard_wrapper.pyx"
+include "grmat/grmat_wrapper.pyx"
+include "louvain/louvain_wrapper.pyx"
+include "bfs/bfs_wrapper.pyx"
