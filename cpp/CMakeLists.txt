@@ -190,6 +190,7 @@ include_directories(
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/cub"
     ${Boost_INCLUDE_DIRS}
+    ${MPI_CXX_INCLUDE_PATH}
 )
 
 ###################################################################################################
@@ -218,7 +219,7 @@ add_library(cugraph SHARED
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES})
+target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES} ${MPI_CXX_LIBRARIES})
 
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory
