@@ -58,7 +58,8 @@ gdf_error gdf_delete_transpose(gdf_graph *graph);
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess);
-
+gdf_error gdf_multi_pagerank (const size_t global_v, const gdf_column *src_indices, const gdf_column *dest_indices, 
+	                         gdf_column *v_idx, gdf_column *pagerank, const float damping_factor, const int max_iter);
 gdf_error gdf_grmat_gen (const char* argv, size_t &vertices, size_t &edges, gdf_column* src, gdf_column* dest, gdf_column* val);
 
 gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_node, bool directed);

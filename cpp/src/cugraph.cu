@@ -18,6 +18,7 @@
 #include "COOtoCSR.cuh"
 #include "utilities/error_utils.h"
 #include "bfs.cuh"
+#include "multi_pagerank.cuh"
 
 #include <rmm_utils.h>
 
@@ -366,4 +367,9 @@ gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecess
 	bfs.configure(distances_ptr, predecessors_ptr, nullptr);
 	bfs.traverse(start_node);
 	return GDF_SUCCESS;
+}
+
+gdf_error gdf_multi_pagerank (const size_t global_v, const gdf_column *src_indices, const gdf_column *dest_indices, 
+                           gdf_column *v_idx, gdf_column *pagerank, const float damping_factor, const int max_iter){
+  return gdf_multi_pagerank_impl (global_v, src_indices, dest_indices, v_idx, pagerank, damping_factor, max_iter);
 }
