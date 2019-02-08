@@ -103,7 +103,9 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 ```bash
 CUGRAPH_HOME=$(pwd)/cugraph
 git clone https://github.com/rapidsai/cugraph.git $CUGRAPH_HOME
-cd CUGRAPH_HOME
+
+# Next load all the submodules
+cd $CUGRAPH_HOME
 git submodule update --init --remote --recursive
 ```
 
@@ -112,8 +114,9 @@ git submodule update --init --remote --recursive
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev.yml
+
 # activate the environment
-source activate 
+conda activate cugraph_dev 
 ```
 
 
@@ -122,7 +125,7 @@ The environment can be updated as development includes/changes the depedencies. 
 
 ```bash
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev.yml
-source activate 
+conda activate cugraph_dev 
 ```
 
 
