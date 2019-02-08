@@ -117,6 +117,14 @@ set(RENUMBERING_TEST_SRCS
 
 configure_test(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
 
+###################################################################################################
+#-MULTI_PAGERANK  tests -- ---------------------------------------------------------------------------------
+set(MULTI_PAGERANK_TEST_SRCS
+        "${CMAKE_CURRENT_SOURCE_DIR}/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/multi_pagerank/multi_pagerank_test.cu")
+
+configure_test(MULTI_PAGERANK_TEST "${MULTI_PAGERANK_TEST_SRCS}")
+
 message(STATUS "******** Tests are ready ********")
 
 ###################################################################################################

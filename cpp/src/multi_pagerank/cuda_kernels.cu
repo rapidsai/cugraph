@@ -1194,8 +1194,8 @@ __global__ void mark_subm(LOCINT *v, int64_t n, LOCINT *sep, int nsep, int *subm
 int64_t keep_all_rows_cuda(LOCINT *u_h, LOCINT *v_h, int64_t ned, LOCINT **uout_d, LOCINT **vout_d) {
 	uout_d[0] = (LOCINT *)tmp_get(bufpool, ned*sizeof(*uout_d[0]));
 	vout_d[0] = (LOCINT *)tmp_get(bufpool, ned*sizeof(*vout_d[0]));
-	CHECK_CUDA(cudaMemcpy(uout_d[0], u_h, ned*sizeof(*uout_d[0]), cudaMemcpyHostToDevice));
-	CHECK_CUDA(cudaMemcpy(vout_d[0], v_h, ned*sizeof(*vout_d[0]), cudaMemcpyHostToDevice));
+	CHECK_CUDA(cudaMemcpy(uout_d[0], u_h, ned*sizeof(*uout_d[0]), cudaMemcpyDeviceToDevice));
+	CHECK_CUDA(cudaMemcpy(vout_d[0], v_h, ned*sizeof(*vout_d[0]), cudaMemcpyDeviceToDevice));
 	return ned;
 }
 
@@ -1204,7 +1204,7 @@ int64_t remove_rows_cuda(LOCINT *u_h, LOCINT *v_h, int64_t ned, LOCINT **uout_d,
 	// 1. REMOVE ROWS WITH LENGTH EQUAL TO MAXIMUM OR 1 
 
 	LOCINT *u_d = (LOCINT *)tmp_get(bufpool, ned*sizeof(*u_d));
-	CHECK_CUDA(cudaMemcpy(u_d, u_h, ned*sizeof(*u_d), cudaMemcpyHostToDevice));
+	CHECK_CUDA(cudaMemcpy(u_d, u_h, ned*sizeof(*u_d), cudaMemcpyDeviceToDevice));
 
 	// compute length of rows
 	LOCINT *uu_d = (LOCINT *)tmp_get(bufpool, ned*sizeof(*uu_d));
@@ -1252,7 +1252,7 @@ int64_t remove_rows_cuda(LOCINT *u_h, LOCINT *v_h, int64_t ned, LOCINT **uout_d,
 
 	LOCINT *tmp_d = (LOCINT *)tmp_get(bufpool, ned*sizeof(*tmp_d));
 	LOCINT *v_d = (LOCINT *)tmp_get(bufpool, ned*sizeof(*v_d));
-	CHECK_CUDA(cudaMemcpy(v_d, v_h, ned*sizeof(*v_d), cudaMemcpyHostToDevice));
+	CHECK_CUDA(cudaMemcpy(v_d, v_h, ned*sizeof(*v_d), cudaMemcpyDeviceToDevice));
 
 	cubFlagged(u_d, eflag, tmp_d, nrem_d, ned);
 	CHECK_CUDA(cudaMemcpy(&nrem, nrem_d, sizeof(nrem), cudaMemcpyDeviceToHost));

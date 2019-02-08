@@ -80,6 +80,7 @@
 #endif
 char IOBUF[IOINT_NUM*(LOCINT_MAX_CHAR+1)];
 
+#define MPR_VERBOSE 1
 
 typedef struct {
 	int	code;
@@ -181,159 +182,6 @@ static void destroySpmat(spmat_t *m) {
 	free(m->koff);
 
 	return;
-}
-
-void darray2file(FILE *fp, int n, LOCINT *d_a) {
-    LOCINT *h_a = (LOCINT*)Malloc(n*sizeof(LOCINT));
-	CHECK_CUDA(cudaMemcpy(h_a, d_a, n*sizeof(LOCINT), cudaMemcpyDeviceToHost));
-	for(int i = 0; i < n; i++)
-		fprintf(fp, "%d ", h_a[i]);
-	fprintf(fp, "\n");
-	free(h_a);
-}
-
-static inline uint8_t str2bin(char *s, LOCINT *v) {
-
-	char	*p;
-	LOCINT	ex=1;
-	uint8_t len=0;
-
-	for(; *s < '0' || *s > '9'; s++, len++);
-	for(p=s; *p >= '0' && *p <= '9'; p++);
-
-	len += p-s;
-
-	*v = 0;
-	while(p > s) {
-		*v += ex*(*--p - '0');
-		ex *= 10;
-	}
-	return len;
-}
-
-static int64_t freadGraphSOA(const char *fname, int scale, int edgef, LOCINT **uout, LOCINT **vout, int64_t *ned, double *rtime) {
-
-	int	rank;
-	LOCINT	*uv[2]={NULL,NULL};
-	LOCINT	N = ((LOCINT)1) << scale;
-	int64_t	nalloc, rbyte, rem, i, edge_max;
-	double	t;
-
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-	t = MPI_Wtime();
-	FILE *fp = Fopen(fname, "r");
-	*rtime = MPI_Wtime()-t;
-
-	i = 0;
-	rem = 0;
-	nalloc = 0;
-	edge_max = ((int64_t)N)*edgef;
-#ifndef __APPLE__
-	if (avoid_read_cache) {
-		int fd = fileno(fp);
-		posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-	}
-#endif
-	while(1) {
-
-		char *q = IOBUF + rem;
-
-		// read at most 2^scale*edgef edges
-		if (i/2 >= edge_max) break;
-
-		t = MPI_Wtime();
-		rbyte = fread(q, 1, sizeof(IOBUF)-(q-IOBUF), fp);
-		*rtime += MPI_Wtime()-t;
-
-		if (!rbyte) break;
-
-		for(q += rbyte-1, rem = 0;
-		    *q >= '0' && *q <= '9';
-		    q--, rem++);
-
-		char *p = IOBUF;
-		while(p < q) {
-			LOCINT val;
-			p += str2bin(p, &val);
-			if (val >= N) {
-				fprintf(stderr,
-					"[%d] edge in file %s contains a vertex=%" PRILOC " >= 2^scale=%" PRILOC "\n",
-					rank, fname, val, N);
-				exit(EXIT_FAILURE);
-			}
-			if (i/2 == nalloc) {
-				uv[0] = (LOCINT *)Realloc(uv[0], (i+CHUNK_SIZE)*sizeof(*uv[0]));
-				uv[1] = (LOCINT *)Realloc(uv[1], (i+CHUNK_SIZE)*sizeof(*uv[1]));
-				nalloc += CHUNK_SIZE;
-			}
-			uv[i&1][i/2] = val;
-			i++;
-			
-		}
-		//if (rem) memcpy(IOBUF, q+1, rem); 
-		for(int i = 0; i < rem; i++) IOBUF[i] = q[1+i];
-	}
-	if (i&1) {
-		fprintf(stderr,"[%d] incomplete egde in file %s!\n", rank, fname);
-		exit(EXIT_FAILURE);
-	}
-
-	int64_t pos = ftell(fp);
-
-	t = MPI_Wtime();
-	fclose(fp);
-	*rtime += MPI_Wtime()-t;
-
-	*uout = uv[0];
-	*vout = uv[1];
-	*ned = i/2;
-
-	return pos;
-}
-
-static size_t freadGraphSOA_GCONV(const char *fname, LOCINT **h_u, LOCINT **h_v, int64_t *ned, double *rtime) {
-
-	FILE	*fp=NULL;
-	char	*h_data=NULL;
-	size_t	fsize;
-
-	fsize = getFsize(fname);
-	h_data = (char *)Malloc(fsize);
-
-	*rtime = MPI_Wtime();
-	fp = Fopen(fname, "r");
-#ifndef __APPLE__
-	if (avoid_read_cache) {
-		int fd = fileno(fp);
-		posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-	}
-#endif
-	Fread(h_data, 1, fsize, fp);
-	fclose(fp);
-	*rtime = MPI_Wtime() - *rtime;
-
-	// +1 because last row may not end with a newline
-	int nchunks = (fsize+1 + sizeof(uint4)-1) / sizeof(uint4);
-
-	uint4 *d_data;
-	CHECK_CUDA(cudaMalloc(&d_data, nchunks*sizeof(*d_data)));
-	CHECK_CUDA(cudaMemcpy(d_data, h_data, fsize, cudaMemcpyHostToDevice));
-
-	LOCINT *d_u=NULL, *d_v=NULL;
-	*ned = ASCIICouple2BinCuda_entry(d_data, fsize, &d_u, &d_v, 0);
-
-	h_u[0] = (LOCINT *)Malloc(ned[0]*sizeof(**h_u));
-	h_v[0] = (LOCINT *)Malloc(ned[0]*sizeof(**h_v));
-	CHECK_CUDA(cudaMemcpy(h_u[0], d_u, ned[0]*sizeof(**h_u), cudaMemcpyDeviceToHost));
-	CHECK_CUDA(cudaMemcpy(h_v[0], d_v, ned[0]*sizeof(**h_v), cudaMemcpyDeviceToHost));
-
-	free(h_data);
-	CHECK_CUDA(cudaFree(d_u));
-	CHECK_CUDA(cudaFree(d_v));
-	CHECK_CUDA(cudaFree(d_data));
-
-	return fsize;
 }
 
 static void check_row_overlap(LOCINT first_row, LOCINT last_row, int *exchup, int *exchdown) {
@@ -455,26 +303,12 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 	MPI_Comm_size(MPI_COMM_WORLD, &ntask);
 
 
-	if (!ein) {
-		snprintf(fname, MAX_LINE, "sorted_%d.txt", rank);
-
-		MPI_Barrier(MPI_COMM_WORLD);
-		tr = MPI_Wtime();
-#if !defined(USE_DEV_IOCONV_READ)
-		rbytes = freadGraphSOA(fname, scale, edgef, &u, &v, &ned, &tdr);
-#else
-		rbytes = freadGraphSOA_GCONV(fname, &u, &v, &ned, &tdr);
-#endif
-		MPI_Barrier(MPI_COMM_WORLD);
-		tr = MPI_Wtime()-tr;
-	} else {
-		u = ein->u;
-		v = ein->v;
-		ned = ein->ned;
-	}
+	u = ein->u;
+	v = ein->v;
+	ned = ein->ned;
 	
-	m->firstRow = u[0];
-	m->lastRow  = u[ned-1];
+	CHECK_CUDA(cudaMemcpy(&m->firstRow, &u[0], sizeof(m->firstRow), cudaMemcpyDeviceToHost));
+	CHECK_CUDA(cudaMemcpy(&m->lastRow, &u[ned-1], sizeof(m->lastRow), cudaMemcpyDeviceToHost));
 
 
 	// quick sanity check on (sorted) edges received as input
@@ -487,16 +321,15 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 	//cudaProfilerStart();
 	tg = MPI_Wtime();
 
-	LOCINT	*u_d=NULL, *v_d=NULL; // alloc-ed in remove_rows_cuda() and
-				      // dealloc-ed in get_csr_multi_cuda()
+	// temp data using pool
+	LOCINT	*u_d=NULL, *v_d=NULL; // alloc-ed in <remove/keep>_rows_cuda() and
+				                // dealloc-ed in get_csr_multi_cuda()
 
 	// remove rows smaller than 1
 	//ned = remove_rows_cuda(u, v, ned, &u_d, &v_d);
 	
 	// simply keep the same input 
 	ned = keep_all_rows_cuda(u, v, ned, &u_d, &v_d);
-
-	CHECK_CUDA(cudaMemcpy(&m->firstRow, u_d, sizeof(m->firstRow), cudaMemcpyDeviceToHost));
 
 	// quick sanity check
 	check_row_overlap(m->firstRow, m->lastRow, &EXCH_UP, &EXCH_DOWN);
@@ -508,7 +341,7 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 	// expand [m->firstRow, m->lastRow] ranges in order to partition [0, N-1]
 	// (empty rows outside any [m->firstRow, m->lastRow] range may appear as
 	// columns in other rows
-	//adjust_row_range(N, &m->firstRow, &m->lastRow);
+	adjust_row_range(N, &m->firstRow, &m->lastRow);
 	
 	m->intColsNum = m->lastRow - m->firstRow + 1;
 
@@ -600,10 +433,7 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 	}
 	if (rowsToSend) free(rowsToSend);
 	if (lastrow_all) free(lastrow_all);
-	if (!ein) {
-		free(u);
-		free(v);
-	}
+
 	return;
 }
 
@@ -755,11 +585,12 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 	END_RANGE;
 	MPI_Barrier(MPI_COMM_WORLD);
 	tc = MPI_Wtime()-tc;
-
+	cugraph::scal(m->intColsNum, (float)1.0/cugraph::nrm1(m->intColsNum,r_d[numIter&1]), r_d[numIter&1]);
 	sum = reduce_cuda(r_d[numIter&1], m->intColsNum);
 	MPI_Reduce(rank?&sum:MPI_IN_PLACE, &sum, 1, REAL_MPI, MPI_SUM, 0, MPI_COMM_WORLD);
-	
-	{// to test results for now...
+
+#if	MPR_VERBOSE
+	{
 		char fname[256];
 		snprintf(fname, 256, "myresult_%d.txt", rank);
 		REAL *r = new REAL[m->intColsNum];
@@ -770,7 +601,7 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 		fclose(fp);
 		delete [] r;
 	}
-
+#endif
 
 	MPI_Reduce(td2h, td2h+1, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 	MPI_Reduce(rank?td2h:MPI_IN_PLACE, td2h, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
@@ -784,6 +615,7 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 	MPI_Reduce(tspmv, tspmv+1, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 	MPI_Reduce(rank?tspmv:MPI_IN_PLACE, tspmv, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
 
+#if	MPR_VERBOSE
 	if (0 == rank) {
 		printf("\tgen   time: %.4lf secs\n", tg);
 		printf("\tcomp  time: %.4lf secs\n", tc);
@@ -793,6 +625,7 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 		printf("\t\tmin/max spmv: %.4lf/%.4lf secs\n", tspmv[0], tspmv[1]);
 		printf("PageRank sum: %E\n", sum);
 	}
+#endif
 
 	cancelReqs(reqs, m->recvNum);
 
@@ -803,8 +636,13 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 
 	if (r_h) free(r_h);
 	if (reqs) free(reqs);
-	if (r_d[!(numIter&1)]) CHECK_CUDA(cudaFree(r_d[!(numIter&1)]));
-	pr = r_d[numIter&1];
+
+	cudaMemcpy(pr,   r_d[numIter&1],   sizeof(float) * m->intColsNum, cudaMemcpyDeviceToDevice);
+
+	if (r_d[0]) CHECK_CUDA(cudaFree(r_d[0]));
+	if (r_d[1]) CHECK_CUDA(cudaFree(r_d[1]));
+
+	cudaCheckError();
 	return;
 }
 
@@ -820,7 +658,6 @@ gdf_error load_gdf_input (const gdf_column *src_indices,
   GDF_REQUIRE( ((src_indices->dtype == GDF_INT32) || (src_indices->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY ); 
 
-  el = (elist_t *)Malloc(sizeof(*el));
   el->u = (LOCINT*)src_indices->data; 
   el->v = (LOCINT*)dest_indices->data; 
   el->ned = src_indices->size; 
@@ -856,10 +693,10 @@ gdf_error fill_gdf_output (spmat_t *m,
 // coo to csr
 // spmat_t is a custom structure for distributed csr matriices in PRBench
 void gdf_multi_coo2csr(size_t N, const gdf_column *src_indices, const gdf_column *dest_indices, spmat_t *m) {
-	elist_t * el = nullptr;
+	elist_t * el = (elist_t *)Malloc(sizeof(*el));
 	load_gdf_input(src_indices, dest_indices, el);
 	coo2csr(N, m, el);
-	if (el) free(el); // just free the structure
+	if (el) free(el); //just free the structure
 }
 
 //Build a CSR matrix and solve Pagerank
@@ -869,12 +706,29 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
     int	rank, ntask;
 	rhsv_t	rval = {RHS_RANDOM, REALV(0.0), NULL};
 	REAL a = (REALV(1.0)-damping_factor)/((REAL)global_v);
+	
+	//setup 
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &ntask);
+	MPI_Barrier(MPI_COMM_WORLD);
+	init_cuda();
 	spmat_t *m = createSpmat(ntask);
-    REAL* pr;
+    REAL* pr = nullptr;
+
+    //coo2csr
 	gdf_multi_coo2csr(global_v, src_indices, dest_indices, m);
+	cudaCheckError();
+	//allocate local result
+	cudaMalloc(&pr,m->intColsNum*sizeof(float));
+	//solve
 	pagerank_solver(max_iter, damping_factor, a, rval, m, pr);
+
+	//store the local result in gdf_columns
 	fill_gdf_output(m, pr, v_idx, pagerank);
+
+	//cleanup
 	if (rval.str) free(rval.str);
+	destroySpmat(m);
+	cleanup_cuda();
+	return GDF_SUCCESS;
 }
