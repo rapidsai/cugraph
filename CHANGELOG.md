@@ -3,9 +3,12 @@
 
 ## New Features
 
-- PR #41 jaccard grmat graph bindings
+- PR #41 RMAT graph bindings
 - PR #43 Louvain binings
 - PR #44 SSSP bindings
+- PR #47 BSF bindings
+- PR #53 New Repo structure
+- PR #67 RMM Integration with rmm as as submodule
 
 ## Improvements
 
