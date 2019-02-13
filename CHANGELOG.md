@@ -3,6 +3,7 @@
 
 ## New Features
 
+- PR #73 Weighted Jaccard bindings
 - PR #41 RMAT graph bindings
 - PR #43 Louvain binings
 - PR #44 SSSP bindings
