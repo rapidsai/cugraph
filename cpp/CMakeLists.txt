@@ -28,7 +28,10 @@ include(CTest)
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
-#option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
+### NOTE:  This flag is set to ensure the RMM is compiled with the ABI on.
+###   if/when RMM is updated to default to using the CXX11 ABI we can remove
+###   this line.
+option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_COMPILER $ENV{CC})
@@ -38,15 +41,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-#if(NOT CMAKE_CXX11_ABI)
-#		message(STATUS "CUDF: Disabling the GLIBCXX11 ABI")
-#		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-#		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-#		set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
-#elseif(CMAKE_CXX11_ABI)
-#		message(STATUS "CUDF: Enabling the GLIBCXX11 ABI")
-#endif(NOT CMAKE_CXX11_ABI)
-	
 #set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
 
 #find_package(CUDA)
@@ -90,15 +84,6 @@ message(STATUS "CMAKE_MODULE_PATH:" "${CMAKE_MODULE_PATH}")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
-    if(CMAKE_CXX11_ABI)
-        message(STATUS "cuGraph: Enabling the GLIBCXX11 ABI")
-    else()
-        message(STATUS "cuGraph: Disabling the GLIBCXX11 ABI")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
-    endif(CMAKE_CXX11_ABI)
 endif(CMAKE_COMPILER_IS_GNUCXX)
 	
 # Keith testing space
