@@ -39,7 +39,7 @@ namespace cugraph {
     template <typename VertexIdType>
     class HashFunctionObject {
     public:
-      HashFunctionObject(uint32_t hash_size): hash_size_(hash_size) {}
+      HashFunctionObject(hash_type hash_size): hash_size_(hash_size) {}
 
       __device__ __host__
       hash_type operator()(const VertexIdType &vertex_id) {
@@ -47,7 +47,7 @@ namespace cugraph {
       }
 
     private:
-      uint32_t hash_size_;
+      hash_type hash_size_;
     };
 
     template<typename T, typename F>
@@ -67,11 +67,11 @@ namespace cugraph {
 				 hash_type *hash_bins_end,
                                  F hashing_function ) {
 
-      int first = blockIdx.x * blockDim.x + threadIdx.x;
-      int stride = blockDim.x * gridDim.x;
+      uint32_t first = blockIdx.x * blockDim.x + threadIdx.x;
+      uint32_t stride = blockDim.x * gridDim.x;
 
-      for (int i = first ; i < size ; i += stride) {
-        int hash_index = hashing_function(vertex_ids[i]);
+      for (uint32_t i = first ; i < size ; i += stride) {
+        uint32_t hash_index = hashing_function(vertex_ids[i]);
 
         //
         //  We're populating the hash table in parallel.  To limit
@@ -81,11 +81,11 @@ namespace cugraph {
         //  insert some number of duplicate entries.  We'll dedupe
         //  the rest later.
         //
-        int hash_begin = hash_bins_start[hash_index];
-        int hash_end = hash_bins_end[hash_index];
+        uint32_t hash_begin = hash_bins_start[hash_index];
+        uint32_t hash_end = hash_bins_end[hash_index];
         bool found = false;
 
-        for (int j = hash_begin ; (j < hash_end) && (!found) ; ++j) {
+        for (uint32_t j = hash_begin ; (j < hash_end) && (!found) ; ++j) {
           if (vertex_ids[i] == hash_data[j])
             found = true;
         }
@@ -98,7 +98,7 @@ namespace cugraph {
     }
 
     template<typename T>
-    __global__ void DedupeHash(uint32_t hash_size, T *hash_data, hash_type *hash_bins_start,
+    __global__ void DedupeHash(hash_type hash_size, T *hash_data, hash_type *hash_bins_start,
                                hash_type *hash_bins_end, hash_type *hash_bins_base) {
 
       int first = blockIdx.x * blockDim.x + threadIdx.x;
@@ -147,7 +147,7 @@ namespace cugraph {
     }
 
     template<typename T>
-    __global__ void CompactNumbers(T *numbering_map, uint32_t hash_size, const T *hash_data, const hash_type *hash_bins_start,
+    __global__ void CompactNumbers(T *numbering_map, hash_type hash_size, const T *hash_data, const hash_type *hash_bins_start,
                                    const hash_type *hash_bins_end, const hash_type *hash_bins_base) {
 
       int first = blockIdx.x * blockDim.x + threadIdx.x;
@@ -157,6 +157,29 @@ namespace cugraph {
         for (int j = hash_bins_start[i] ; j < hash_bins_end[i] ; ++j) {
           numbering_map[hash_bins_base[i] + (j - hash_bins_start[i])] = hash_data[j];
         }
+      }
+    }
+
+    __global__ void SetupHash(hash_type hash_size, hash_type *hash_bins_start, hash_type *hash_bins_end) {
+      hash_bins_end[0] = 0;
+      for (hash_type i = 0 ; i < hash_size ; ++i) {
+        hash_bins_end[i+1] = hash_bins_end[i] + hash_bins_start[i];
+      }
+
+      for (hash_type i = 0 ; i < (hash_size + 1) ; ++i) {
+        hash_bins_start[i] = hash_bins_end[i];
+      }
+   }
+
+    __global__ void ComputeBase(hash_type hash_size, hash_type *hash_bins_base) {
+      hash_type sum = 0;
+      for (hash_type i = 0 ; i < hash_size ; ++i) {
+        sum += hash_bins_base[i];
+      }
+
+      hash_bins_base[hash_size] = sum;
+      for (hash_type i = hash_size ; i > 0 ; --i) {
+        hash_bins_base[i-1] = hash_bins_base[i] - hash_bins_base[i-1];
       }
     }
   }
@@ -194,7 +217,9 @@ namespace cugraph {
 			      T_in ** numbering_map,
 			      int max_threads_per_block = CUDA_MAX_KERNEL_THREADS,
 			      int max_blocks = CUDA_MAX_BLOCKS,
-			      uint32_t hash_size = 8191) {
+			      //detail::hash_type hash_size = 8191) {
+			      detail::hash_type hash_size = 79) {
+
     //
     // Assume - src/dst/src_renumbered/dst_renumbered/numbering_map are all pre-allocated.
     //
@@ -217,22 +242,21 @@ namespace cugraph {
     int thread_blocks = min(((int) size + threads_per_block - 1) / threads_per_block, max_blocks);
 
     ALLOC_TRY(&hash_data,       2 * size * sizeof(T_in), nullptr);
-    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(uint32_t), nullptr);
-    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(uint32_t), nullptr);
-    ALLOC_TRY(&hash_bins_base,  (1 + hash_size) * sizeof(uint32_t), nullptr);
+    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(detail::hash_type), nullptr);
+    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(detail::hash_type), nullptr);
+    ALLOC_TRY(&hash_bins_base,  (1 + hash_size) * sizeof(detail::hash_type), nullptr);
 
     //
     //  Pass 1: count how many vertex ids end up in each hash bin
     //
-    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(uint32_t)));
+    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::hash_type)));
     detail::CountHash<<<thread_blocks, threads_per_block>>>(src, size, hash_bins_start, hash);
     detail::CountHash<<<thread_blocks, threads_per_block>>>(dst, size, hash_bins_start, hash);
 
     //
     //  Need to compute the partial sums and copy them into hash_bins_end
     //
-    thrust::exclusive_scan(thrust::device, hash_bins_start, hash_bins_start + 1 + hash_size, hash_bins_start);
-    thrust::copy(thrust::device, hash_bins_start, hash_bins_start + 1 + hash_size, hash_bins_end);
+    detail::SetupHash<<<1,1>>>(hash_size, hash_bins_start, hash_bins_end);
 
     //
     //  Pass 2: Populate hash_data with data from the hash bins.  This implementation
@@ -249,7 +273,7 @@ namespace cugraph {
     //
     //  Now we can compute densly packed indices
     //
-    thrust::exclusive_scan(thrust::device, hash_bins_base, hash_bins_base + 1 + hash_size, hash_bins_base);
+    detail::ComputeBase<<<1,1>>>(hash_size, hash_bins_base);
 
     //
     //  Finally, we'll iterate over src and dst and populate src_renumbered
@@ -258,17 +282,19 @@ namespace cugraph {
     detail::Renumber<<<thread_blocks, threads_per_block>>>(src, size, src_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
     detail::Renumber<<<thread_blocks, threads_per_block>>>(dst, size, dst_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
 
-    uint32_t temp{0};
-    CUDA_TRY(cudaMemcpy(&temp, hash_bins_base + hash_size, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    detail::hash_type temp{0};
+    CUDA_TRY(cudaMemcpy(&temp, hash_bins_base + hash_size, sizeof(detail::hash_type), cudaMemcpyDeviceToHost));
     *new_size = temp;
 
     ALLOC_TRY(numbering_map, (*new_size) * sizeof(T_in), nullptr);
+
     detail::CompactNumbers<<<thread_blocks, threads_per_block>>>(*numbering_map, hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
 
     ALLOC_FREE_TRY(hash_data, nullptr);
     ALLOC_FREE_TRY(hash_bins_start, nullptr);
     ALLOC_FREE_TRY(hash_bins_end, nullptr);
     ALLOC_FREE_TRY(hash_bins_base, nullptr);
+
     return GDF_SUCCESS;
   }
   

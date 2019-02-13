@@ -22,6 +22,7 @@
 #include "cuda_profiler_api.h"
 
 #include "renumber.cuh"
+#include "rmm_utils.h"
 
 #include <chrono>
 
@@ -70,6 +71,11 @@ __global__ void generate_destinations(curandState *state, int n, const uint32_t 
   state[first] = local_state;
 }
 
+cudaError_t test_free(void *ptr) {
+  ALLOC_FREE_TRY(ptr, nullptr);
+  return cudaSuccess;
+}
+
 TEST_F(RenumberingTest, SmallFixedVertexList)
 {
   uint32_t src_data[] = { 4U,  6U,  8U, 20U,  1U };
@@ -112,7 +118,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList)
 
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
@@ -157,7 +163,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
 
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
@@ -206,7 +212,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
 
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
 TEST_F(RenumberingTest, Random100KVertexSet)
@@ -277,7 +283,7 @@ TEST_F(RenumberingTest, Random100KVertexSet)
   EXPECT_EQ(max_id, (unique_verts - 1));
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
   free(src_data);
   free(dst_data);
   free(tmp_results);
@@ -330,5 +336,5 @@ TEST_F(RenumberingTest, Random10MVertexSet)
 
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
