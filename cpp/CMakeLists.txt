@@ -28,11 +28,6 @@ include(CTest)
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
-### NOTE:  This flag is set to ensure the RMM is compiled with the ABI on.
-###   if/when RMM is updated to default to using the CXX11 ABI we can remove
-###   this line.
-option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
-
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_COMPILER $ENV{CC})
 set(CMAKE_CXX_COMPILER $ENV{CXX})
@@ -40,6 +35,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+###################################################################################################
+###   C++ ABI changes.
+###
+###   By default, cugraph builds with the new C++ ABI.  In order to insure that thirdparty
+###   applications build with the properly setting (specifically RMM) we need to set
+###   the CMAKE_CXX11_ABI flag appropriately.
+###
+###   If a user wants to build with the OLD ABI, then they need to define CMAKE_CXX11_ABI
+###   to be OFF (typically on the cmake command line).
+###
+###   This block of code will configure the old ABI if the flag is set to OFF and
+###   do nothing (the default behavior of the C++14 compiler).
+###
+option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
+
+if(CMAKE_CXX11_ABI)
+    message(STATUS "cuGraph: Enabling the GLIBCXX11 ABI")
+else()
+    message(STATUS "cuGraph: Disabling the GLIBCXX11 ABI")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
+endif(CMAKE_CXX11_ABI)
+
+###################################################################################################
 
 #set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
 
@@ -102,7 +123,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
 	
 message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
-	
+
 
 ###################################################################################################
 # - cmake custom modules --------------------------------------------------------------------------
