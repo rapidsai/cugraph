@@ -50,12 +50,12 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G, const int *source_vert, gdf_column 
  * Wrapper function for Nvgraph balanced cut clustering
  * @param gdf_G Pointer to GDF graph object
  * @param num_clusters The desired number of clusters
- * @param num_eigen_vects The number of eigen-vectors to use
- * @param evs_type The type of the eigen-value solver to use
- * @param evs_tolerance The tolerance to use for the eigen-value solver
- * @param evs_max_iter The maximum number of iterations of the eigen-value solver
+ * @param num_eigen_vects The number of eigenvectors to use
+ * @param evs_type The type of the eigenvalue solver to use
+ * @param evs_tolerance The tolerance to use for the eigenvalue solver
+ * @param evs_max_iter The maximum number of iterations of the eigenvalue solver
  * @param kmean_tolerance The tolerance to use for the kmeans solver
- * @param kmean_max_iter The maximum number of iteration of the kmeans solver
+ * @param kmean_max_iter The maximum number of iteration of the k-means solver
  * @param clustering Pointer to a GDF column in which the resulting clustering will be stored
  * @param eig_vals Pointer to a GDF column in which the resulting eigenvalues will be stored
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
@@ -72,3 +72,28 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
 																						gdf_column* clustering,
 																						gdf_column* eig_vals,
 																						gdf_column* eig_vects);
+
+/**
+ * Wrapper function for Nvgraph spectral modularity maximization algorithm
+ * @param gdf_G Pointer to GDF graph object
+ * @param n_clusters The desired number of clusters
+ * @param n_eig_vects The number of eigenvectors to use
+ * @param evs_tolerance The tolerance to use for the eigenvalue solver
+ * @param evs_max_iter The maximum number of iterations of the eigenvalue solver
+ * @param kmean_tolerance The tolerance to use for the k-means solver
+ * @param kmean_max_iter The maximum number of iterations of the k-means solver
+ * @param clustering Pointer to a GDF column in which the resulting clustering will be stored
+ * @param eig_vals Pointer to a GDF column in which the resulting eigenvalues will be stored
+ * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
+ * @return
+ */
+gdf_error gdf_spectralModularityMaximization_nvgraph(	gdf_graph* gdf_G,
+																											const int n_clusters,
+																											const int n_eig_vects,
+																											const float evs_tolerance,
+																											const int evs_max_iter,
+																											const float kmean_tolerance,
+																											const int kmean_max_iter,
+																											gdf_column* clustering,
+																											gdf_column* eig_vals,
+																											gdf_column* eig_vects);
