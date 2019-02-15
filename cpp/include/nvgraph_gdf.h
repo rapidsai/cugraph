@@ -64,7 +64,6 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G, const int *source_vert, gdf_column 
 gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
 																						const int num_clusters,
 																						const int num_eigen_vects,
-																						const int evs_type,
 																						const float evs_tolerance,
 																						const int evs_max_iter,
 																						const float kmean_tolerance,
@@ -97,3 +96,42 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(	gdf_graph* gdf_G,
 																											gdf_column* clustering,
 																											gdf_column* eig_vals,
 																											gdf_column* eig_vects);
+
+/**
+ * Wrapper function for Nvgraph clustering modularity metric
+ * @param gdf_G Pointer to GDF graph object
+ * @param n_clusters Number of clusters in the clustering
+ * @param clustering Pointer to GDF column containing the clustering to analyze
+ * @param score Pointer to a float in which the result will be written
+ * @return Error code
+ */
+gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
+                                                   const int n_clusters,
+                                                   gdf_column* clustering,
+                                                   float* score);
+
+/**
+ * Wrapper function for Nvgraph clustering edge cut metric
+ * @param gdf_G Pointer to GDF graph object
+ * @param n_clusters Number of clusters in the clustering
+ * @param clustering Pointer to GDF column containing the clustering to analyze
+ * @param score Pointer to a float in which the result will be written
+ * @return Error code
+ */
+gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
+                                                   const int n_clusters,
+                                                   gdf_column* clustering,
+                                                   float* score);
+
+/**
+ * Wrapper function for Nvgraph clustering ratio cut metric
+ * @param gdf_G Pointer to GDF graph object
+ * @param n_clusters Number of clusters in the clustering
+ * @param clustering Pointer to GDF column containing the clustering to analyze
+ * @param score Pointer to a float in which the result will be written
+ * @return Error code
+ */
+gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
+                                                   const int n_clusters,
+                                                   gdf_column* clustering,
+                                                   float* score);

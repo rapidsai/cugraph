@@ -271,7 +271,6 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
 																						const int num_clusters,
 																						const int num_eigen_vects,
-																						const int evs_type,
 																						const float evs_tolerance,
 																						const int evs_max_iter,
 																						const float kmean_tolerance,
@@ -302,20 +301,24 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
 	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
 	int weight_index = 0;
 
+	// Pack parameters for call to Nvgraph
+	SpectralClusteringParameter param;
+	param.n_clusters = num_clusters;
+	param.n_eig_vects = num_eigen_vects;
+	param.algorithm = NVGRAPH_BALANCED_CUT_LANCZOS;
+	param.evs_tolerance = evs_tolerance;
+	param.evs_max_iter = evs_max_iter;
+	param.kmean_tolerance = kmean_tolerance;
+	param.kmean_max_iter = kmean_max_iter;
+
 	// Make call to Nvgraph balancedCutClustering
-	NVG_TRY(nvgraphBalancedCutClustering(nvg_handle,
-																				nvgraph_G,
-																				weight_index,
-																				num_clusters,
-																				num_eigen_vects,
-																				evs_type,
-																				evs_tolerance,
-																				evs_max_iter,
-																				kmean_tolerance,
-																				kmean_max_iter,
-																				clustering->data,
-																				eig_vals->data,
-																				eig_vects->data));
+	NVG_TRY(nvgraphSpectralClustering(nvg_handle,
+																		nvgraph_G,
+																		weight_index,
+																		&param,
+																		(int* )clustering->data,
+																		eig_vals->data,
+																		eig_vects->data));
 	NVG_TRY(nvgraphDestroyGraphDescr(nvg_handle, nvgraph_G));
 	NVG_TRY(nvgraphDestroy(nvg_handle));
 	return GDF_SUCCESS;
@@ -354,21 +357,113 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
 	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
 	int weight_index = 0;
 
+	// Pack parameters for call to Nvgraph
+	SpectralClusteringParameter param;
+	param.n_clusters = n_clusters;
+	param.n_eig_vects = n_eig_vects;
+	param.algorithm = NVGRAPH_MODULARITY_MAXIMIZATION;
+	param.evs_tolerance = evs_tolerance;
+	param.evs_max_iter = evs_max_iter;
+	param.kmean_tolerance = kmean_tolerance;
+	param.kmean_max_iter = kmean_max_iter;
+
 	// Make call to Nvgraph balancedCutClustering
-	NVG_TRY(nvgraphSpectralModularityMaximization(nvg_handle,
-																								nvgraph_G,
-																								weight_index,
-																								n_clusters,
-																								n_eig_vects,
-																								evs_tolerance,
-																								evs_max_iter,
-																								kmean_tolerance,
-																								kmean_max_iter,
-																								clustering->data,
-																								eig_vals->data,
-																								eig_vects->data));
+	NVG_TRY(nvgraphSpectralClustering(nvg_handle,
+																		nvgraph_G,
+																		weight_index,
+																		&param,
+																		(int* )clustering->data,
+																		eig_vals->data,
+																		eig_vects->data));
 	NVG_TRY(nvgraphDestroyGraphDescr(nvg_handle, nvgraph_G));
 	NVG_TRY(nvgraphDestroy(nvg_handle));
+	return GDF_SUCCESS;
+}
+
+gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
+																										const int n_clusters,
+																										gdf_column* clustering,
+																										float* score) {
+	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
+	GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
+
+	// Initialize Nvgraph and wrap the graph
+	nvgraphHandle_t nvg_handle = nullptr;
+	nvgraphGraphDescr_t nvgraph_G = nullptr;
+	NVG_TRY(nvgraphCreate(&nvg_handle));
+	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+	int weight_index = 0;
+
+	// Make Nvgraph call
+
+	NVG_TRY(nvgraphAnalyzeClustering(	nvg_handle,
+																		nvgraph_G,
+																		weight_index,
+																		n_clusters,
+																		(const int*)clustering->data,
+																		NVGRAPH_MODULARITY,
+																		score));
+	return GDF_SUCCESS;
+}
+
+gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
+																										const int n_clusters,
+																										gdf_column* clustering,
+																										float* score) {
+	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
+	GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
+
+	// Initialize Nvgraph and wrap the graph
+	nvgraphHandle_t nvg_handle = nullptr;
+	nvgraphGraphDescr_t nvgraph_G = nullptr;
+	NVG_TRY(nvgraphCreate(&nvg_handle));
+	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+	int weight_index = 0;
+
+	// Make Nvgraph call
+
+	NVG_TRY(nvgraphAnalyzeClustering(	nvg_handle,
+																		nvgraph_G,
+																		weight_index,
+																		n_clusters,
+																		(const int*)clustering->data,
+																		NVGRAPH_EDGE_CUT,
+																		score));
+	return GDF_SUCCESS;
+}
+
+gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
+																										const int n_clusters,
+																										gdf_column* clustering,
+																										float* score) {
+	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
+	GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
+
+	// Initialize Nvgraph and wrap the graph
+	nvgraphHandle_t nvg_handle = nullptr;
+	nvgraphGraphDescr_t nvgraph_G = nullptr;
+	NVG_TRY(nvgraphCreate(&nvg_handle));
+	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+	int weight_index = 0;
+
+	// Make Nvgraph call
+
+	NVG_TRY(nvgraphAnalyzeClustering(	nvg_handle,
+																		nvgraph_G,
+																		weight_index,
+																		n_clusters,
+																		(const int*)clustering->data,
+																		NVGRAPH_RATIO_CUT,
+																		score));
 	return GDF_SUCCESS;
 }
 
