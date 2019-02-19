@@ -1,3 +1,16 @@
+# Copyright (c) 2019, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import cugraph
 import cudf
 import pytest
@@ -13,26 +26,33 @@ def ReadMtxFile(mmFile):
     return mmread(mmFile).asfptype()
 
 def compare_series(series_1, series_2):
+    if (len(series_1) != len(series_2)):
+        print("Series do not match in length")
+        return 0
     for i in range(len(series_1)):
         if(series_1[i] != series_2[i]):
+            print("Series[" + str(i) + "] does not match, " + str(series_1[i]) + ", " + str(series_2[i]))
             return 0
     return 1
+
+def compareOffsets(cu, np):
+    if not (len(cu) <= len(np)):
+        print("Mismatched length: " + str(len(cu)) + " != " + str(len(np)))
+        return False
+    for i in range(len(cu)):
+        if cu[i] != np[i]:
+            print("Series[" + str(i) + "]: " + str(cu[i]) + " != " + str(np[i]))
+            return False
+    return True
 
 datasets = ['/datasets/networks/karate.mtx', '/datasets/golden_data/graphs/dblp.mtx']
 
 @pytest.mark.parametrize('graph_file', datasets)
-
 def test_add_edge_list_to_adj_list(graph_file):
 
     M = ReadMtxFile(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
-
-    nnz_per_row = {r : 0 for r in range(M.get_shape()[0])}
-    for nnz in range(M.getnnz()):
-        nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
-    for nnz in range(M.getnnz()):
-        M.data[nnz] = 1.0/float(nnz_per_row[M.row[nnz]])
 
     M = M.tocsr()
     if M is None :  
@@ -40,30 +60,19 @@ def test_add_edge_list_to_adj_list(graph_file):
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
 	
-    offsets_exp = cudf.Series(M.indptr)
-    indices_exp = cudf.Series(M.indices)
-    #values = cudf.Series(np.ones(len(sources), dtype = np.float64))
+    offsets_exp = M.indptr
+    indices_exp = M.indices
 
     # cugraph add_egde_list to_adj_list call
     G = cugraph.Graph()
     G.add_edge_list(sources,destinations, None)
-    offsets, indices = G.to_adj_list()
-
-    assert compare_series(offsets, offsets_exp)
-    assert compare_series(indices, indices_exp)
+    offsets_cu, indices_cu = G.view_adj_list()
+    assert compareOffsets(offsets_cu, offsets_exp)
+    assert compare_series(indices_cu, indices_exp)
 
 @pytest.mark.parametrize('graph_file', datasets)
-
 def test_add_adj_list_to_edge_list(graph_file):
-
     M = ReadMtxFile(graph_file)
-
-    nnz_per_row = {r : 0 for r in range(M.get_shape()[0])}
-    for nnz in range(M.getnnz()):
-        nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
-    for nnz in range(M.getnnz()):
-        M.data[nnz] = 1.0/float(nnz_per_row[M.row[nnz]])
-
     M = M.tocsr()
     if M is None :  
         raise TypeError('Could not read the input graph')
@@ -72,7 +81,6 @@ def test_add_adj_list_to_edge_list(graph_file):
             
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
-    #values = cudf.Series(np.ones(len(sources), dtype = np.float64))
 
     M = M.tocoo()
     sources_exp = cudf.Series(M.row)
@@ -82,10 +90,40 @@ def test_add_adj_list_to_edge_list(graph_file):
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
     sources, destinations = G.to_edge_list()
-
-    assert compare_series(sources, sources_exp)
-    assert compare_series(destinations, destinations_exp)
+    sources_cu = np.array(sources)
+    destinations_cu = np.array(destinations)
+    assert compare_series(sources_cu, sources_exp)
+    assert compare_series(destinations_cu, destinations_exp)
+   
+@pytest.mark.parametrize('graph_file', datasets)
+def test_transpose_from_adj_list(graph_file): 
+    M = ReadMtxFile(graph_file)
+    M = M.tocsr()
+    offsets = cudf.Series(M.indptr)
+    indices = cudf.Series(M.indices)
+    G = cugraph.Graph()
+    G.add_adj_list(offsets, indices, None)
+    G.add_transpose()
+    Mt = M.transpose().tocsr()
+    toff, tind = G.view_transpose_adj_list()
+    assert compare_series(Mt.indices, tind)
+    assert compareOffsets(toff, Mt.indptr)
     
+@pytest.mark.parametrize('graph_file', datasets)
+def test_view_edge_list_from_adj_list(graph_file):
+    M = ReadMtxFile(graph_file)
+    M = M.tocsr()
+    offsets = cudf.Series(M.indptr)
+    indices = cudf.Series(M.indices)
+    G = cugraph.Graph()
+    G.add_adj_list(offsets, indices, None)
+    src2, dst2 = G.view_edge_list()
+    M = M.tocoo()
+    src1 = M.row
+    dst1 = M.col
+    assert compare_series(src1, src2)
+    assert compare_series(dst1, dst2)
+       
 '''
 @pytest.mark.parametrize('graph_file', datasets)
 
