@@ -68,9 +68,7 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
 																						const int evs_max_iter,
 																						const float kmean_tolerance,
 																						const int kmean_max_iter,
-																						gdf_column* clustering,
-																						gdf_column* eig_vals,
-																						gdf_column* eig_vects);
+																						gdf_column* clustering);
 
 /**
  * Wrapper function for Nvgraph spectral modularity maximization algorithm
@@ -93,9 +91,7 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(	gdf_graph* gdf_G,
 																											const int evs_max_iter,
 																											const float kmean_tolerance,
 																											const int kmean_max_iter,
-																											gdf_column* clustering,
-																											gdf_column* eig_vals,
-																											gdf_column* eig_vects);
+																											gdf_column* clustering);
 
 /**
  * Wrapper function for Nvgraph clustering modularity metric

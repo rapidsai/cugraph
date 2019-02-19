@@ -90,16 +90,17 @@ gdf_error nvgraph2gdf_error_verbose(nvgraphStatus_t nvg_stat)
 }
 
 #ifdef VERBOSE
-#define NVG_TRY(call)                     \
-{                                         \
-  if ((call)!=NVGRAPH_STATUS_SUCCESS)   \
-    return nvgraph2gdf_error_verbose((call)); \
+#define NVG_TRY(call)                     				\
+{                                         				\
+  if ((call)!=NVGRAPH_STATUS_SUCCESS)   					\
+    return nvgraph2gdf_error_verbose((call)); 		\
 }
 #else
-#define NVG_TRY(call)                     \
-{                                         \
-  if ((call)!=NVGRAPH_STATUS_SUCCESS)   \
-    return nvgraph2gdf_error((call)); \
+#define NVG_TRY(call)                     							\
+{																												\
+	nvgraphStatus_t err_code = (call);										\
+  if (err_code != NVGRAPH_STATUS_SUCCESS)   						\
+    return nvgraph2gdf_error(err_code); 								\
 }
 #endif
 
@@ -114,7 +115,6 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 									(gdf_G->transposedAdjList == nullptr)),
 							GDF_INVALID_API_CALL);
 	nvgraphTopologyType_t TT;
-	;
 	cudaDataType_t settype;
 	// create an nvgraph graph handle
 	NVG_TRY(nvgraphCreateGraphDescr(nvg_handle, nvgraph_G));
@@ -143,7 +143,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 																				0,
 																				settype,
 																				(float * ) gdf_G->transposedAdjList->edge_data->data))
-					;
+				break;
 				case GDF_FLOAT64:
 					settype = CUDA_R_64F;
 					NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
@@ -151,7 +151,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 																				0,
 																				settype,
 																				(double * ) gdf_G->transposedAdjList->edge_data->data))
-					;
+				break;
 				default:
 					return GDF_UNSUPPORTED_DTYPE;
 			}
@@ -181,7 +181,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 																				0,
 																				settype,
 																				(float * ) gdf_G->adjList->edge_data->data))
-					;
+				break;
 				case GDF_FLOAT64:
 					settype = CUDA_R_64F;
 					NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
@@ -189,7 +189,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 																				0,
 																				settype,
 																				(double * ) gdf_G->adjList->edge_data->data))
-					;
+				break;
 				default:
 					return GDF_UNSUPPORTED_DTYPE;
 			}
@@ -246,8 +246,10 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 		switch (gdf_G->transposedAdjList->edge_data->dtype) {
 			case GDF_FLOAT32:
 				settype = CUDA_R_32F;
+				break;
 			case GDF_FLOAT64:
 				settype = CUDA_R_64F;
+				break;
 			default:
 				return GDF_UNSUPPORTED_DTYPE;
 		}
@@ -275,20 +277,12 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
 																						const int evs_max_iter,
 																						const float kmean_tolerance,
 																						const int kmean_max_iter,
-																						gdf_column* clustering,
-																						gdf_column* eig_vals,
-																						gdf_column* eig_vects) {
+																						gdf_column* clustering) {
 	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
 	GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
-	GDF_REQUIRE(eig_vals != nullptr, GDF_INVALID_API_CALL);
-	GDF_REQUIRE(eig_vals->data != nullptr, GDF_INVALID_API_CALL);
-	GDF_REQUIRE(!eig_vals->valid, GDF_VALIDITY_UNSUPPORTED);
-	GDF_REQUIRE(eig_vects != nullptr, GDF_INVALID_API_CALL);
-	GDF_REQUIRE(eig_vects->data != nullptr, GDF_INVALID_API_CALL);
-	GDF_REQUIRE(!eig_vects->valid, GDF_VALIDITY_UNSUPPORTED);
 
 	// Ensure that the input graph has values
 	GDF_TRY(gdf_add_adj_list(gdf_G));
@@ -312,13 +306,18 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
 	param.kmean_max_iter = kmean_max_iter;
 
 	// Make call to Nvgraph balancedCutClustering
-	NVG_TRY(nvgraphSpectralClustering(nvg_handle,
-																		nvgraph_G,
-																		weight_index,
-																		&param,
-																		(int* )clustering->data,
-																		eig_vals->data,
-																		eig_vects->data));
+	void* eig_vals = malloc(num_eigen_vects * sizeof(double));
+	void* eig_vects = malloc(num_eigen_vects * clustering->size * sizeof(double));
+	nvgraphStatus_t err = nvgraphSpectralClustering(nvg_handle,
+																									nvgraph_G,
+																									weight_index,
+																									&param,
+																									(int*) clustering->data,
+																									eig_vals,
+																									eig_vects);
+	free(eig_vals);
+	free(eig_vects);
+	NVG_TRY(err);
 	NVG_TRY(nvgraphDestroyGraphDescr(nvg_handle, nvgraph_G));
 	NVG_TRY(nvgraphDestroy(nvg_handle));
 	return GDF_SUCCESS;
@@ -331,20 +330,12 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
 																											const int evs_max_iter,
 																											const float kmean_tolerance,
 																											const int kmean_max_iter,
-																											gdf_column* clustering,
-																											gdf_column* eig_vals,
-																											gdf_column* eig_vects) {
+																											gdf_column* clustering) {
 	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
 	GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
-	GDF_REQUIRE(eig_vals != nullptr, GDF_INVALID_API_CALL);
-	GDF_REQUIRE(eig_vals->data != nullptr, GDF_INVALID_API_CALL);
-	GDF_REQUIRE(!eig_vals->valid, GDF_VALIDITY_UNSUPPORTED);
-	GDF_REQUIRE(eig_vects != nullptr, GDF_INVALID_API_CALL);
-	GDF_REQUIRE(eig_vects->data != nullptr, GDF_INVALID_API_CALL);
-	GDF_REQUIRE(!eig_vects->valid, GDF_VALIDITY_UNSUPPORTED);
 
 	// Ensure that the input graph has values
 	GDF_TRY(gdf_add_adj_list(gdf_G));
@@ -368,13 +359,18 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
 	param.kmean_max_iter = kmean_max_iter;
 
 	// Make call to Nvgraph balancedCutClustering
-	NVG_TRY(nvgraphSpectralClustering(nvg_handle,
-																		nvgraph_G,
-																		weight_index,
-																		&param,
-																		(int* )clustering->data,
-																		eig_vals->data,
-																		eig_vects->data));
+	void* eig_vals = malloc(n_eig_vects * sizeof(double));
+	void* eig_vects = malloc(n_eig_vects * clustering->size * sizeof(double));
+	nvgraphStatus_t err = nvgraphSpectralClustering(nvg_handle,
+																									nvgraph_G,
+																									weight_index,
+																									&param,
+																									(int*) clustering->data,
+																									eig_vals,
+																									eig_vects);
+	free(eig_vals);
+	free(eig_vects);
+	NVG_TRY(err);
 	NVG_TRY(nvgraphDestroyGraphDescr(nvg_handle, nvgraph_G));
 	NVG_TRY(nvgraphDestroy(nvg_handle));
 	return GDF_SUCCESS;
@@ -399,20 +395,20 @@ gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
 
 	// Make Nvgraph call
 
-	NVG_TRY(nvgraphAnalyzeClustering(	nvg_handle,
+	NVG_TRY(nvgraphAnalyzeClustering(nvg_handle,
 																		nvgraph_G,
 																		weight_index,
 																		n_clusters,
-																		(const int*)clustering->data,
+																		(const int* )clustering->data,
 																		NVGRAPH_MODULARITY,
 																		score));
 	return GDF_SUCCESS;
 }
 
 gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
-																										const int n_clusters,
-																										gdf_column* clustering,
-																										float* score) {
+																									const int n_clusters,
+																									gdf_column* clustering,
+																									float* score) {
 	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
 	GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
@@ -428,20 +424,20 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
 
 	// Make Nvgraph call
 
-	NVG_TRY(nvgraphAnalyzeClustering(	nvg_handle,
+	NVG_TRY(nvgraphAnalyzeClustering(nvg_handle,
 																		nvgraph_G,
 																		weight_index,
 																		n_clusters,
-																		(const int*)clustering->data,
+																		(const int* )clustering->data,
 																		NVGRAPH_EDGE_CUT,
 																		score));
 	return GDF_SUCCESS;
 }
 
 gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
-																										const int n_clusters,
-																										gdf_column* clustering,
-																										float* score) {
+																									const int n_clusters,
+																									gdf_column* clustering,
+																									float* score) {
 	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
 	GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
@@ -457,11 +453,11 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
 
 	// Make Nvgraph call
 
-	NVG_TRY(nvgraphAnalyzeClustering(	nvg_handle,
+	NVG_TRY(nvgraphAnalyzeClustering(nvg_handle,
 																		nvgraph_G,
 																		weight_index,
 																		n_clusters,
-																		(const int*)clustering->data,
+																		(const int* )clustering->data,
 																		NVGRAPH_RATIO_CUT,
 																		score));
 	return GDF_SUCCESS;

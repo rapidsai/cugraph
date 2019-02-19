@@ -78,10 +78,6 @@ cpdef spectralBalancedCutClustering(G,
     cdef uintptr_t identifier_ptr = create_column(df['vertex'])
     df['cluster'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
     cdef uintptr_t cluster_ptr = create_column(df['cluster'])
-    df['eigenvalues'] = cudf.Series(np.zeros(num_eigen_vects, dtype=np.float32))
-    cdef uintptr_t eigenvalues_ptr = create_column(df['eigenvalues'])
-    df['eigenvectors'] = cudf.Series(np.zeros(num_eigen_vects * num_vert, dtype=np.float32))
-    cdef uintptr_t eigenvectors_ptr = create_column(df['eigenvectors'])
     
     # Set the vertex identifiers
     err = g.adjList.get_vertex_identifiers(< gdf_column *> identifier_ptr)
@@ -94,9 +90,7 @@ cpdef spectralBalancedCutClustering(G,
                                             evs_max_iter,
                                             kmean_tolerance,
                                             kmean_max_iter,
-                                            < gdf_column *> cluster_ptr,
-                                            < gdf_column *> eigenvalues_ptr,
-                                            < gdf_column *> eigenvectors_ptr)
+                                            < gdf_column *> cluster_ptr)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
@@ -144,7 +138,7 @@ cpdef spectralModularityMaximizationClustering(G,
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
+    >>> DF = cuGraph.spectralModularityMaximizationClustering(G, 5)
     """
 
     cdef uintptr_t graph = G.graph_ptr
@@ -158,10 +152,6 @@ cpdef spectralModularityMaximizationClustering(G,
     cdef uintptr_t identifier_ptr = create_column(df['vertex'])
     df['cluster'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
     cdef uintptr_t cluster_ptr = create_column(df['cluster'])
-    df['eigenvalues'] = cudf.Series(np.zeros(num_eigen_vects, dtype=np.float32))
-    cdef uintptr_t eigenvalues_ptr = create_column(df['eigenvalues'])
-    df['eigenvectors'] = cudf.Series(np.zeros(num_eigen_vects * num_vert, dtype=np.float32))
-    cdef uintptr_t eigenvectors_ptr = create_column(df['eigenvectors'])
     
     # Set the vertex identifiers
     err = g.adjList.get_vertex_identifiers(< gdf_column *> identifier_ptr)
@@ -174,9 +164,7 @@ cpdef spectralModularityMaximizationClustering(G,
                                                      evs_max_iter,
                                                      kmean_tolerance,
                                                      kmean_max_iter,
-                                                     < gdf_column *> cluster_ptr,
-                                                     < gdf_column *> eigenvalues_ptr,
-                                                     < gdf_column *> eigenvectors_ptr)
+                                                     < gdf_column *> cluster_ptr)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
@@ -241,7 +229,7 @@ cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,None)
     >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_modularity(G, 5, DF['cluster'])
+    >>> score = cuGraph.analyzeClustering_edge_cut(G, 5, DF['cluster'])
     """
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
@@ -276,7 +264,7 @@ cpdef analyzeClustering_ratio_cut(G, n_clusters, clustering):
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,None)
     >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_modularity(G, 5, DF['cluster'])
+    >>> score = cuGraph.analyzeClustering_ratio_cut(G, 5, DF['cluster'])
     """
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
