@@ -1,6 +1,6 @@
 #pragma once
 
-#define DEBUG_NO_RMM
+///#define DEBUG_NO_RMM
 
 #include <sstream>
 #include <stdexcept>
@@ -53,6 +53,11 @@ using rmm_temp_allocator = rmm_allocator<char>; // Use this alias for thrust::cu
     cudaFree( (ptr) );                              \
 }
 #else
+
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
+using rmm_temp_allocator = rmm_allocator<char>;
 
 #define ALLOC_TRY( ptr, sz, stream ){                   \
       RMM_TRY_THROW( RMM_ALLOC((ptr), (sz), (stream)) ) \
