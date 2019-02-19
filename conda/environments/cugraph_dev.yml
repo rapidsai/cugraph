@@ -4,7 +4,6 @@ channels:
 - rapidsai
 - numba
 - conda-forge
-- mpi4py
 - defaults
 dependencies:
 - cudf>=0.5.1
