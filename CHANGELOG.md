@@ -10,6 +10,8 @@
 - PR #47 BSF bindings
 - PR #53 New Repo structure
 - PR #67 RMM Integration with rmm as as submodule
+- PR #82 Spectral Clustering bindings
+- PR #82 Clustering metrics binding
 
 ## Improvements
 
