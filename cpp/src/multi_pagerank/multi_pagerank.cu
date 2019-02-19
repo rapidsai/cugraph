@@ -66,10 +66,6 @@
 #define LOCINT_MAX_CHAR	(11)
 #endif
 
-#define RMAT_A	(0.57f)
-#define RMAT_B	(0.19f)
-#define RMAT_C	(0.19f)
-
 // ~200 Mb buffer
 // If smaller the hdd/ssd cache may have an 
 // effect even with --no-rcache
@@ -80,7 +76,7 @@
 #endif
 char IOBUF[IOINT_NUM*(LOCINT_MAX_CHAR+1)];
 
-#define MPR_VERBOSE 1
+//#define MPR_VERBOSE 1
 
 typedef struct {
 	int	code;
@@ -214,13 +210,12 @@ void adjust_row_range(size_t N, LOCINT *first_row, LOCINT *last_row) {
 
 	int	rank, ntask;
 	
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &ntask);
-
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &ntask);
+    
 	MPI_Sendrecv(first_row, 1, LOCINT_MPI, (rank+ntask-1)%ntask, rank,
 		     last_row, 1, LOCINT_MPI, (rank+1)%ntask, (rank+1)%ntask,
     		     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	// TODO FIX THIS
 	*last_row = ((rank < ntask-1) ? *last_row : N-1);
 	if (rank == 0) *first_row = 0;
 
@@ -408,6 +403,7 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 
 		MPI_Reduce(rank ? &rbytes : MPI_IN_PLACE, &rbytes, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 	}
+#if	MPR_VERBOSE
 	//cudaProfilerStop();
 	if (0 == rank) {
 		if (!ein) {
@@ -417,7 +413,7 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 		printf("\tgen   time: %.4lf secs\n", tg);
 		fflush(stdout);
 	}
-
+#endif
 	// sanity check (untimed)
 	if (m->totToSend) {
 		CHECK_CUDA(cudaMemcpy(rowsToSend, m->rowsToSend_d, m->totToSend*sizeof(*rowsToSend), cudaMemcpyDeviceToHost));
@@ -436,6 +432,7 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 
 	return;
 }
+
 
 static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m, REAL *pr) {
 
@@ -484,6 +481,18 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 		   reqs, MPI_COMM_WORLD);
 #endif
 	//MPI_Pcontrol(1);
+	
+	// dangling node experiment
+	/*
+		REAL *bb=0, *d_leaf_vector=0;
+		ALLOC_MANAGED_TRY((void**)&d_leaf_vector, sizeof(REAL) * m->intColsNum, 0);
+		ALLOC_MANAGED_TRY ((void**)&bb,    sizeof(REAL) * m->intColsNum, 0);
+		REAL randomProbability =  static_cast<REAL>( 1.0/m->intColsNum);
+  		cugraph::fill(m->intColsNum, bb, randomProbability);
+  		int nn = m->intColsNum;
+		cugraph::flag_leaves2(nn, m->nnz[rank], m->cols_d[rank], d_leaf_vector);
+		cugraph::update_dangling_nodes(m->intColsNum, d_leaf_vector, c);
+	*/
 	tc = MPI_Wtime();
 	START_RANGE("SPMV_ALL_ITER", 1);
 	for(i = 0; i < numIter; i++) {
@@ -521,6 +530,7 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 		setarray(r_d[d], m->intColsNum, a*sum, stream[0]);
 		END_RANGE;
 
+
 		START_RANGE("SPMV_LOOP", 1);
 		for(int k = 0; k < m->ncsr; k++) {
 
@@ -533,7 +543,12 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
                             	       m->roff_d[curr], m->cols_d[curr], m->vals_d[curr],
                             	       r_d[s], r_d[d], m->koff[curr], stream[0]);
 			CHECK_CUDA(cudaEventRecord(event[1], stream[0]));
-
+			// dangling node experiment
+			/*
+    		float dot_res = cugraph::dot( m->intColsNum, d_leaf_vector, r_d[s]);
+    		cugraph::axpy(m->intColsNum, dot_res,  bb,  r_d[d]);
+   			cugraph::scal(m->intColsNum, static_cast<REAL>(1.0/cugraph::nrm2(m->intColsNum, r_d[d])) , r_d[d]);
+			*/
 			START_RANGE("MPI+H2D_str1", 3)
 			if (k < m->ncsr-1) {
 
@@ -585,9 +600,9 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 	END_RANGE;
 	MPI_Barrier(MPI_COMM_WORLD);
 	tc = MPI_Wtime()-tc;
-	cugraph::scal(m->intColsNum, (float)1.0/cugraph::nrm1(m->intColsNum,r_d[numIter&1]), r_d[numIter&1]);
 	sum = reduce_cuda(r_d[numIter&1], m->intColsNum);
 	MPI_Reduce(rank?&sum:MPI_IN_PLACE, &sum, 1, REAL_MPI, MPI_SUM, 0, MPI_COMM_WORLD);
+	cugraph::scal(m->intColsNum, (float)1.0/cugraph::nrm1(m->intColsNum,r_d[numIter&1]), r_d[numIter&1]);
 
 #if	MPR_VERBOSE
 	{
@@ -692,19 +707,21 @@ gdf_error fill_gdf_output (spmat_t *m,
 
 // coo to csr
 // spmat_t is a custom structure for distributed csr matriices in PRBench
-void gdf_multi_coo2csr(size_t N, const gdf_column *src_indices, const gdf_column *dest_indices, spmat_t *m) {
+void gdf_multi_coo2csr_t(size_t N, const gdf_column *src_indices, const gdf_column *dest_indices, spmat_t *m) {
 	elist_t * el = (elist_t *)Malloc(sizeof(*el));
-	load_gdf_input(src_indices, dest_indices, el);
+	load_gdf_input(dest_indices, src_indices, el);
 	coo2csr(N, m, el);
 	if (el) free(el); //just free the structure
 }
+
+
 
 //Build a CSR matrix and solve Pagerank
 gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_indices, const gdf_column *dest_indices, 
 	                         gdf_column *v_idx, gdf_column *pagerank, const float damping_factor, const int max_iter) {
 	
     int	rank, ntask;
-	rhsv_t	rval = {RHS_RANDOM, REALV(0.0), NULL};
+	rhsv_t	rval = {RHS_CONSTANT, 1.0/global_v, NULL};
 	REAL a = (REALV(1.0)-damping_factor)/((REAL)global_v);
 	
 	//setup 
@@ -715,8 +732,8 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	spmat_t *m = createSpmat(ntask);
     REAL* pr = nullptr;
 
-    //coo2csr
-	gdf_multi_coo2csr(global_v, src_indices, dest_indices, m);
+    //coo2csr transposed
+	gdf_multi_coo2csr_t(global_v, src_indices, dest_indices, m);
 	cudaCheckError();
 	//allocate local result
 	cudaMalloc(&pr,m->intColsNum*sizeof(float));

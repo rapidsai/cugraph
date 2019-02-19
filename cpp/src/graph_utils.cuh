@@ -525,5 +525,30 @@ void sequence(IndexType n, IndexType *vec, IndexType init = 0)
   cudaCheckError();
 }
 
+//google matrix kernels
+template <typename IndexType, typename ValType>
+__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+flag_leaves2_kernel (const IndexType e, const IndexType *ind, ValType *leafs) {
+    for (IndexType i=threadIdx.x+blockIdx.x*blockDim.x; i<e; i+=gridDim.x*blockDim.x) 
+        leafs[ind[i]] = 1.0;
+}
+
+// get the dangling nodes info from csr indices of H^T. Dangling nodes are indicated by 0.
+template <typename IndexType, typename ValType>
+void flag_leaves2 ( const  IndexType n, const IndexType e, const IndexType *csrInd, ValType *leafs) {
+  ValType val = 0.0;
+  cugraph::fill(n,leafs,val);
+  cudaCheckError();
+  dim3 nthreads, nblocks;
+  nthreads.x = min(e,CUDA_MAX_KERNEL_THREADS); 
+  nthreads.y = 1; 
+  nthreads.z = 1;  
+  nblocks.x  = min((e + nthreads.x - 1)/nthreads.x,CUDA_MAX_BLOCKS); 
+  nblocks.y  = 1; 
+  nblocks.z  = 1;
+  cugraph::flag_leaves2_kernel<IndexType,ValType><<<nblocks,nthreads>>>(e,csrInd,leafs);
+  cudaCheckError();
+  
+}
 
 } //namespace cugraph

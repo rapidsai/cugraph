@@ -12,11 +12,13 @@
 // Pagerank solver tests
 // Author: Alex Fender afender@nvidia.com
 
+#include <mpi.h>
+#include <algorithm>
 #include "gtest/gtest.h"
 #include <cugraph.h>
 #include "cuda_profiler_api.h"
 #include "test_utils.h"
-#include <mpi.h>
+
 typedef struct Pagerank_Usecase_t {
   std::string matrix_file;
   std::string result_file;
@@ -28,29 +30,44 @@ typedef struct Pagerank_Usecase_t {
   }
 } Pagerank_Usecase;
 
+void print_top_ranking(std::vector <float>& pagerank, size_t top_k){
+    std::vector<std::pair<int,float> > items;
+    for (int i = 0; i < pagerank.size(); ++i)
+        items.push_back(std::make_pair(i, pagerank[i]));
+
+    // this is a reverse  key value sort by pagerank value
+    std::sort(items.begin(), items.end(),[](const std::pair<int,float> &left, const std::pair<int,float> &right) 
+                                            {return left.second > right.second; });
+
+    for (size_t i = 0; i < std::min(pagerank.size(), top_k); ++i)
+      std::cout << items[i].first << " "<< items[i].second <<std::endl;
+}
+
 class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
   public:
   Tests_Pagerank() {  }
   virtual void SetUp() {  
-    char **argv = nullptr;
-    int argc = 0;
-    MPI_Init(&argc, &argv);
+  
   }
-  virtual void TearDown() { MPI_Finalize(); }
+  virtual void TearDown() { }
 
   template <typename idx_T>
   void run_current_test(const Pagerank_Usecase& param) {
+
+      int ntask;
+      MPI_Comm_size(MPI_COMM_WORLD, &ntask);
+      ASSERT_EQ(ntask,1) << "This test works for one MPI process"<< "\n";
+
      const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
-
      int m, k, nnz;
      MM_typecode mc;
      
      gdf_error status;
      float damping_factor=0.85;
      float tol = 1E-5f;
-     int max_iter=20;
+     int max_iter=30;
      gdf_column *col_src = new gdf_column, 
                 *col_dest = new gdf_column, 
                 *col_pagerank = new gdf_column, 
@@ -73,9 +90,9 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      ASSERT_EQ( (mm_to_coo<int,float>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
      ASSERT_EQ(fclose(fpin),0);
     
-    // gdf columns (transposing here)
-    create_gdf_column(cooColInd, col_src);
-    create_gdf_column(cooRowInd, col_dest);
+    // gdf columns 
+    create_gdf_column(cooRowInd, col_src);
+    create_gdf_column(cooColInd, col_dest);
 
     // solve
     cudaProfilerStart();
@@ -89,7 +106,12 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     // CUDA_RT_CALL(cudaMemcpy(&calculated_res[0],   col_pagerank->data,   sizeof(float) * m, cudaMemcpyDeviceToHost));
     // for (int i = 0; i < m; i++)
     //       std::cout << i << " "<< calculated_res[i] <<std::endl;
-    
+
+    //Print top k
+    //std::vector<float> calculated_res(m);
+    //CUDA_RT_CALL(cudaMemcpy(&calculated_res[0],   col_pagerank->data,   sizeof(float) * m, cudaMemcpyDeviceToHost));
+    //print_top_ranking(calculated_res, 32);
+
     // Check vs golden data
     if (param.result_file.length()>0)
     {
@@ -105,7 +127,6 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
       int n_err = 0;
       for (int i = 0; i < m; i++)
       {
-          if(i > (m-20)) std::cout << expected_res[i] << " " << calculated_res[i] <<std::endl;
           err = fabs(expected_res[i] - calculated_res[i]);
           if (err> tol*1.1)
           {
@@ -131,21 +152,23 @@ TEST_P(Tests_Pagerank, Check32) {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Pagerank, 
-                        ::testing::Values(  //Pagerank_Usecase("/datasets/networks/karate.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/golden_data/graphs/cit-Patents.mtx", "/datasets/golden_data/results/pagerank/cit-Patents.pagerank_val_0.85.bin")
-                                            //,Pagerank_Usecase("/datasets/golden_data/graphs/ljournal-2008.mtx", "/datasets/golden_data/results/pagerank/ljournal-2008.pagerank_val_0.85.bin")
-                                            //,Pagerank_Usecase("/datasets/golden_data/graphs/webbase-1M.mtx", "/datasets/golden_data/results/pagerank/webbase-1M.pagerank_val_0.85.bin")
-                                            //Pagerank_Usecase("/datasets/golden_data/graphs/web-BerkStan.mtx", "/datasets/golden_data/results/pagerank/web-BerkStan.pagerank_val_0.85.bin")
-                                            //Pagerank_Usecase("/datasets/golden_data/graphs/web-Google.mtx", "/datasets/golden_data/results/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            //Pagerank_Usecase("/datasets/golden_data/graphs/ibm32.mtx", "")
-                                            Pagerank_Usecase("/datasets/golden_data/graphs/wiki-Talk.mtx", "/datasets/golden_data/results/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                        ::testing::Values(   Pagerank_Usecase("/datasets/golden_data/graphs/cit-Patents.mtx", "/datasets/golden_data/results/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/ljournal-2008.mtx", "/datasets/golden_data/results/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/webbase-1M.mtx", "/datasets/golden_data/results/pagerank/webbase-1M.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/web-BerkStan.mtx", "/datasets/golden_data/results/pagerank/web-BerkStan.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/web-Google.mtx", "/datasets/golden_data/results/pagerank/web-Google.pagerank_val_0.85.bin")
                                          )
                        );
 
 int main(int argc, char **argv)  {
+    MPI_Init(&argc, &argv);
+
     srand(42);
     ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+
+   int r = RUN_ALL_TESTS();
+   MPI_Finalize();
+   return r;
 }
 
 
