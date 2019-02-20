@@ -83,7 +83,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      ASSERT_FALSE(mm_is_skew(mc));
      
      // Allocate memory on host
-     std::vector<int> cooRowInd(nnz), cooColInd(nnz);
+     std::vector<int> cooRowInd(nnz), cooColInd(nnz), vidx(m);
      std::vector<float> cooVal(nnz), pagerank(m);
 
      // Read
@@ -93,6 +93,10 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     // gdf columns 
     create_gdf_column(cooRowInd, col_src);
     create_gdf_column(cooColInd, col_dest);
+    create_gdf_column(pagerank, col_pagerank);
+    create_gdf_column(vidx, col_vidx);
+
+
 
     // solve
     cudaProfilerStart();

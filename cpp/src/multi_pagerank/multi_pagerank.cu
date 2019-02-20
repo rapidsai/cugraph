@@ -688,20 +688,14 @@ gdf_error fill_gdf_output (spmat_t *m,
        					   gdf_column *gdf_v_idx, 
        					   gdf_column *gdf_pr) {
 
-  LOCINT* idx;
-  cudaMalloc(&idx, m->intColsNum*sizeof(LOCINT));
-  sequence(m->intColsNum,idx,m->firstRow);
-#if LOCINT_SIZE == 8
-  gdf_column_view(gdf_v_idx, idx, nullptr, m->intColsNum, GDF_INT64);
-#else
-  gdf_column_view(gdf_v_idx, idx, nullptr, m->intColsNum, GDF_INT32);
-#endif
+if (gdf_v_idx->dtype == GDF_INT64)
+ cugraph::sequence<int64_t>(m->intColsNum,(int64_t*)gdf_v_idx->data,(int64_t)m->firstRow);
+else
+ cugraph::sequence<int>(m->intColsNum,(int*)gdf_v_idx->data,(int)m->firstRow);
 
-#if REAL_SIZE == 8
-  gdf_column_view(gdf_pr, pr, nullptr, m->intColsNum, GDF_FLOAT64);
-#else
-  gdf_column_view(gdf_pr, pr, nullptr, m->intColsNum, GDF_FLOAT32);
-#endif
+
+  CHECK_CUDA(cudaMemcpy(gdf_pr->data, pr, m->intColsNum*sizeof(float), cudaMemcpyDeviceToDevice));
+
   return GDF_SUCCESS;
 }
 
@@ -719,7 +713,9 @@ void gdf_multi_coo2csr_t(size_t N, const gdf_column *src_indices, const gdf_colu
 //Build a CSR matrix and solve Pagerank
 gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_indices, const gdf_column *dest_indices, 
 	                         gdf_column *v_idx, gdf_column *pagerank, const float damping_factor, const int max_iter) {
-	
+	GDF_REQUIRE( ((v_idx->dtype == GDF_INT32) || (v_idx->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
+	GDF_REQUIRE((pagerank->dtype == GDF_FLOAT32), GDF_UNSUPPORTED_DTYPE );
+
     int	rank, ntask;
 	rhsv_t	rval = {RHS_CONSTANT, 1.0/global_v, NULL};
 	REAL a = (REALV(1.0)-damping_factor)/((REAL)global_v);
@@ -745,6 +741,7 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 
 	//cleanup
 	if (rval.str) free(rval.str);
+	cudaFree(pr);
 	destroySpmat(m);
 	cleanup_cuda();
 	return GDF_SUCCESS;
