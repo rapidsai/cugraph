@@ -1,20 +1,32 @@
-# cuGraph: GPU accelerated graph analytics
+# <div align="left"><img src="img/rapids_logo.png" width="90px"/>&nbsp;cuGraph - GPU Graph Analytics</div>
 
-cuGraph is a library implementing Graph Analytics functionalities based on GPU Data Frames. For more project details, see [rapids.ai](https://rapids.ai/).
+[![Build Status](http://18.191.94.64/buildStatus/icon?job=cugraph-master)](http://18.191.94.64/job/cugraph-master/)  [![Documentation Status](https://readthedocs.org/projects/cugraph/badge/?version=latest)](https://cugraph.readthedocs.io/en/latest/)
+
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process GPU Dataframe - see [cuDF](https://github.com/rapidsai/cudf). cuGraph aims at provides a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
+
+ For more project details, see [rapids.ai](https://rapids.ai/).
+
+**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/master/README.md) ensure you are on the `master` branch.
+
+
+
+## Quick Start
+
+Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
+
+## 
 
 
 
 ## Install cuGraph
 
-### Conda
+### Conda (Coming Soon)
 
 It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
 
 Install and update cuGraph using the conda command:
 
 ```bash
-# NOT YET WORKING #
-
 # CUDA 9.2
 conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph
 
@@ -24,14 +36,11 @@ conda install -c nvidia/label/cuda10.0 -c rapidsai/label/cuda10.0 -c numba -c co
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
-### Pip
+### Pip (Coming Soon)
 
-It is easy to install cuDF using pip. You must specify the CUDA version to ensure you install the right package.
+It is easy to install cuGraph using pip. You must specify the CUDA version to ensure you install the right package.
 
 ```bash
-# NOT YET WORKING #
-
-
 # CUDA 9.2
 pip install cugraph-cuda92
 
@@ -45,6 +54,8 @@ pip install cugraph-cuda100
 
 
 ## Development Setup
+
+The following instructions are for developers and contributors to cuGraph OSS development. These instructions are tested on Linux Ubuntu 16.04 & 18.04. Use these instructions to build cuGraph from source and contribute to its development.  Other operating systems may be compatible, but are not currently tested.
 
 The following instructions are tested on Linux systems.
 
@@ -66,33 +77,63 @@ You can obtain CUDA from [https://developer.nvidia.com/cuda-downloads](https://d
 
 
 
-## Install cuGraph
+Since `cmake` will download and build Apache Arrow you may need to install Boost C++ (version 1.58+) before running
+`cmake`:
 
-### Conda
+```bash
+# Install Boost C++ for Ubuntu 16.04/18.04
+$ sudo apt-get install libboost-all-dev
+```
 
-You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
+or
 
-Note: This conda installation only applies to Linux and Python versions 3.5/3.6.
+```bash
+# Install Boost C++ for Conda
+$ conda install -c conda-forge boost
+```
 
-You can create and activate a development environment using the conda commands:
+
+
+## Building cuGraph from source
+
+To install cuGraph from source, ensure the dependencies are met and follow the steps below:
+
+- Clone the repository and submodules
+
+```bash
+CUGRAPH_HOME=$(pwd)/cugraph
+git clone https://github.com/rapidsai/cugraph.git $CUGRAPH_HOME
+
+# Next load all the submodules
+cd $CUGRAPH_HOME
+git submodule update --init --remote --recursive
+```
+
+- Create the conda development environment `cugraph_dev`
 
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev.yml
+
 # activate the environment
-source activate 
+conda activate cugraph_dev 
 ```
+
+
 
 The environment can be updated as development includes/changes the depedencies. To do so, run:
 
 ```bash
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev.yml
-source activate 
+conda activate cugraph_dev 
 ```
+
+
 
 This installs the required `cmake`, `cudf`, `pyarrow` and other
 dependencies into the `cugraph_dev` conda environment and activates it.
-### Configure and build
+
+Build and install `libcugraph`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
 
 This project uses cmake for building the C/C++ library. To configure cmake,
 run:
@@ -113,7 +154,7 @@ make install  #The default locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE
 Install the Python package to your Python path:
 
 ```bash
-python setup.py install    # install cudf python bindings
+python setup.py install    # install cugraph python bindings
 ```
 
 ### Run tests
@@ -133,3 +174,21 @@ pytest
 ### Documentation
 
 Python API documentation can be generated from [docs](docs) directory.
+
+
+
+
+
+------
+
+
+
+## <div align="left"><img src="img/rapids_logo.png" width="265px"/></div> Open GPU Data Science
+
+The RAPIDS suite of open source software libraries aim to enable execution of end-to-end data science and analytics pipelines entirely on GPUs. It relies on NVIDIA® CUDA® primitives for low-level compute optimization, but exposing that GPU parallelism and high-bandwidth memory speed through user-friendly Python interfaces.
+
+<p align="center"><img src="img/rapids_arrow.png" width="80%"/></p>
+
+### Apache Arrow on GPU
+
+The GPU version of [Apache Arrow](https://arrow.apache.org/) is a common API that enables efficient interchange of tabular data between processes running on the GPU. End-to-end computation on the GPU avoids unnecessary copying and converting of data off the GPU, reducing compute time and cost for high-performance analytics common in artificial intelligence workloads. As the name implies, cuDF uses the Apache Arrow columnar data format on the GPU. Currently, a subset of the features in Apache Arrow are supported.

@@ -285,6 +285,9 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
 
 gdf_error gdf_add_adj_list(gdf_graph *graph)
 { 
+	if (graph->adjList != nullptr)
+		return GDF_SUCCESS;
+
   GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
   GDF_REQUIRE( graph->adjList == nullptr , GDF_INVALID_API_CALL);
 
@@ -302,6 +305,8 @@ gdf_error gdf_add_adj_list(gdf_graph *graph)
 
 gdf_error gdf_add_transpose(gdf_graph *graph)
 {
+	if (graph->edgeList == nullptr)
+		gdf_add_edge_list(graph);
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
       case GDF_FLOAT32:   return gdf_add_transpose_impl<float>(graph);

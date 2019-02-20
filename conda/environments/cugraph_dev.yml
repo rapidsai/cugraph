@@ -4,10 +4,10 @@ channels:
 - rapidsai
 - numba
 - conda-forge
-- mpi4py
 - defaults
 dependencies:
-- cudf
+- cudf>=0.5.1
+- nvgraph
 - scipy
 - networkx
 - python-louvain

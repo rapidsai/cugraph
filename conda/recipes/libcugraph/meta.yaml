@@ -6,7 +6,7 @@
 {% set git_revision_count=environ.get('GIT_DESCRIBE_NUMBER', 0) %}
 {% set cuda_version='.'.join(environ.get('CUDA', 'unknown').split('.')[:2]) %}
 package:
-  name: cugraph
+  name: libcugraph
   version: {{ version }}
 
 source:
@@ -24,9 +24,16 @@ build:
 
 requirements:
   build:
-    - libcugraph={{ version }}
+    - cmake>=3.12.4
+    - cudf>=0.5.1,<0.6.0
+    - networkx
+    - cython
+    - nvgraph
   run:
-    - libcugraph={{ version }}
+    - cudf>=0.5.1,<0.6.0
+    - networkx
+    - cython
+    - nvgraph
 
 #test:
 #  commands:
@@ -37,4 +44,4 @@ about:
   home: http://rapids.ai/
   license: Apache-2.0
   license_file: ../../../LICENSE
-  summary: libcugraph library
+  summary: libgraph library

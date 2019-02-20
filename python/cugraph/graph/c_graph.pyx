@@ -1,3 +1,16 @@
+# Copyright (c) 2019, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -49,19 +62,24 @@ class Graph:
 
     def add_edge_list(self, source_col, dest_col, value_col=None):
         """
-        Warp existing gdf columns representing an edge list in a gdf_graph. cuGraph does not own the memory used to represent this graph. This function does not allocate memory. 
-        The cuGraph graph should not already contain the connectivity information as an edge list.
-        If successful, the cuGraph graph descriptor contains the newly added edge list (edge_data is optional).
+        Wrap existing gdf columns representing an edge list in a gdf_graph. cuGraph 
+        does not own the memory used to represent this graph. This function does not 
+        allocate memory. The cuGraph graph should not already contain the connectivity 
+        information as an edge list. If successful, the cuGraph graph descriptor 
+        contains the newly added edge list (edge_data is optional).
         Parameters
         ----------
         source_indices : gdf_column       
-            This gdf_column of size E (number of edges) contains the index of the source for each edge.
+            This gdf_column of size E (number of edges) contains the index of the 
+                source for each edge.
             Indices must be in the range [0, V-1]. 
         destination_indices   : gdf_column
-            This gdf_column of size E (number of edges) contains the index of the destination for each edge. 
+            This gdf_column of size E (number of edges) contains the index of the 
+                destination for each edge. 
             Indices must be in the range [0, V-1].
         edge_data (optional)  : gdf_column
-            This pointer can be ``none``. If not, this gdf_column of size E (number of edges) contains the weiht for each edge. 
+            This pointer can be ``none``. If not, this gdf_column of size E 
+                (number of edges) contains the weight for each edge. 
             The type expected to be floating point.
         Examples
         --------
@@ -93,10 +111,11 @@ class Graph:
 
     def view_edge_list(self):
         """
-        Display the edge list.
+        Display the edge list. Compute it if needed.
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph* g = <gdf_graph*>graph
+        gdf_add_edge_list(g)
         col_size = g.edgeList.src_indices.size
 
         cdef uintptr_t src_col_data = <uintptr_t>g.edgeList.src_indices.data
@@ -164,7 +183,7 @@ class Graph:
                                 <gdf_column*>value)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         
-    def to_adj_list(self):
+    def view_adj_list(self):
         """
         Compute the adjacency list from edge list and return offsets and indices as cudf Series.
         """
@@ -189,7 +208,35 @@ class Graph:
                                      finalizer=rmm._make_finalizer(indices_col_data, 0))
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
+    
+    def view_transpose_adj_list(self):
+        """
+        Return a view of the transposed adjacency list, computing it if it doesn't
+        exist.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph* g = <gdf_graph*>graph
+        err = gdf_add_transpose(g)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+        
+        off_size = g.transposedAdjList.offsets.size
+        ind_size = g.transposedAdjList.indices.size
+        
+        cdef uintptr_t offsets_col_data = <uintptr_t>g.transposedAdjList.offsets.data
+        cdef uintptr_t indices_col_data = <uintptr_t>g.transposedAdjList.indices.data
+        
+        offsets_data = rmm.device_array_from_ptr(offsets_col_data,
+                                     nelem=off_size,
+                                     dtype=np.int32,
+                                     finalizer=rmm._make_finalizer(offsets_col_data, 0))
+        indices_data = rmm.device_array_from_ptr(indices_col_data,
+                                     nelem=ind_size,
+                                     dtype=np.int32,
+                                     finalizer=rmm._make_finalizer(indices_col_data, 0))
 
+        return cudf.Series(offsets_data), cudf.Series(indices_data)
+        
+    
     def delete_adj_list(self):
         """
         Delete the adjacency list.
