@@ -23,7 +23,7 @@ import numpy as np
 
 cpdef spectralBalancedCutClustering(G,
                                     num_clusters,
-                                    num_eigen_vects=1,
+                                    num_eigen_vects=2,
                                     evs_tolerance=.00001,
                                     evs_max_iter=100,
                                     kmean_tolerance=.00001,
@@ -39,7 +39,7 @@ cpdef spectralBalancedCutClustering(G,
     num_clusters : integer
         Specifies the number of clusters to find
     num_eigen_vects : integer
-        Specifies the number of eigenvectors to use 
+        Specifies the number of eigenvectors to use. Must be lower or equal to num_clusters.
     evs_tolerance: float
         Specifies the tolerance to use in the eigensolver
     evs_max_iter: integer
@@ -95,7 +95,7 @@ cpdef spectralBalancedCutClustering(G,
 
 cpdef spectralModularityMaximizationClustering(G,
                                                num_clusters,
-                                               num_eigen_vects=1,
+                                               num_eigen_vects=2,
                                                evs_tolerance=.00001,
                                                evs_max_iter=100,
                                                kmean_tolerance=.00001,
@@ -111,7 +111,7 @@ cpdef spectralModularityMaximizationClustering(G,
     num_clusters : integer
         Specifies the number of clusters to find
     num_eigen_vects : integer
-        Specifies the number of eigenvectors to use 
+        Specifies the number of eigenvectors to use. Must be lower or equal to num_clusters
     evs_tolerance: float
         Specifies the tolerance to use in the eigensolver
     evs_max_iter: integer
@@ -126,8 +126,6 @@ cpdef spectralModularityMaximizationClustering(G,
     DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the corresponding SSSP distances.
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
-        DF['eigenvalues'] contains the computed eigenvalues
-        DF['eigenvectors'] contains the computed eigenvectors
         
     Example:
     --------
