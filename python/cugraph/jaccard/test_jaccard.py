@@ -1,3 +1,16 @@
+# Copyright (c) 2019, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import cugraph
 import cudf
 import numpy as np
@@ -17,13 +30,6 @@ def ReadMtxFile(mmFile):
     
 
 def cuGraph_Call(M):
-   
-    nnz_per_row = {r : 0 for r in range(M.get_shape()[0])}
-    for nnz in range(M.getnnz()):
-        nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
-    for nnz in range(M.getnnz()):
-        M.data[nnz] = 1.0/float(nnz_per_row[M.row[nnz]])
-
     M = M.tocsr()
     if M is None :
         raise TypeError('Could not read the input graph')
@@ -33,7 +39,6 @@ def cuGraph_Call(M):
     #Device data
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    #values = cudf.Series(np.ones(len(col_indices), dtype = np.float32), nan_as_null = False)
     
     G = cugraph.Graph()
     G.add_adj_list(row_offsets,col_indices,None)    
@@ -44,7 +49,7 @@ def cuGraph_Call(M):
     t2 =  time.time() - t1
     print('Time : '+str(t2))
 
-    return df['jaccard_coeff']
+    return df['jaccard_coeff'].to_array()
 
 def networkx_Call(M):
 
@@ -62,8 +67,6 @@ def networkx_Call(M):
     G = nx.DiGraph(M)
     Gnx = G.to_undirected()
 
-    #z = {k: 1.0/M.shape[0] for k in range(M.shape[0])}
-
     # Networkx Jaccard Call
     print('Solving... ')
     t1 = time.time()
@@ -77,7 +80,9 @@ def networkx_Call(M):
     return coeff
    
 
-datasets = ['/datasets/networks/dolphins.mtx', '/datasets/networks/karate.mtx', '/datasets/golden_data/graphs/dblp.mtx']
+datasets = ['/datasets/networks/dolphins.mtx', 
+            '/datasets/networks/karate.mtx', 
+            '/datasets/networks/netscience.mtx']
 
 @pytest.mark.parametrize('graph_file', datasets)
 
