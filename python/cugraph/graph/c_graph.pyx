@@ -41,7 +41,7 @@ cdef create_column(col):
 
 class Graph:
     """
-        cuGraph graph class containing basic graph creation and transformation operations.
+    cuGraph graph class containing basic graph creation and transformation operations.
     """
     def __init__(self):
         """
