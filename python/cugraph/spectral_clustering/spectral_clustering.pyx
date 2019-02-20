@@ -39,7 +39,7 @@ cpdef spectralBalancedCutClustering(G,
     num_clusters : integer
         Specifies the number of clusters to find
     num_eigen_vects : integer
-        Specifies the number of eigenvectors to use 
+        Specifies the number of eigenvectors to use. Must be lower or equal to num_clusters.
     evs_tolerance: float
         Specifies the tolerance to use in the eigensolver
     evs_max_iter: integer
@@ -111,7 +111,7 @@ cpdef spectralModularityMaximizationClustering(G,
     num_clusters : integer
         Specifies the number of clusters to find
     num_eigen_vects : integer
-        Specifies the number of eigenvectors to use 
+        Specifies the number of eigenvectors to use. Must be lower or equal to num_clusters
     evs_tolerance: float
         Specifies the tolerance to use in the eigensolver
     evs_max_iter: integer
