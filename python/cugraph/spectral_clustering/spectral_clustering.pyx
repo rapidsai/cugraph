@@ -23,7 +23,7 @@ import numpy as np
 
 cpdef spectralBalancedCutClustering(G,
                                     num_clusters,
-                                    num_eigen_vects=1,
+                                    num_eigen_vects=2,
                                     evs_tolerance=.00001,
                                     evs_max_iter=100,
                                     kmean_tolerance=.00001,
@@ -95,7 +95,7 @@ cpdef spectralBalancedCutClustering(G,
 
 cpdef spectralModularityMaximizationClustering(G,
                                                num_clusters,
-                                               num_eigen_vects=1,
+                                               num_eigen_vects=2,
                                                evs_tolerance=.00001,
                                                evs_max_iter=100,
                                                kmean_tolerance=.00001,
