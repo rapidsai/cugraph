@@ -54,8 +54,6 @@ cpdef spectralBalancedCutClustering(G,
     DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the corresponding SSSP distances.
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
-        DF['eigenvalues'] contains the computed eigenvalues
-        DF['eigenvectors'] contains the computed eigenvectors
         
     Example:
     --------

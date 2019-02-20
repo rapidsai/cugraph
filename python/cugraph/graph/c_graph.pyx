@@ -139,7 +139,7 @@ class Graph:
 
         return cudf.Series(src_data), cudf.Series(dest_data)
 
-    def to_edge_list(self):
+    def view_edge_list(self):
         """
         Compute the edge list from adjacency list and return sources and destinations as cudf Series.
         """
