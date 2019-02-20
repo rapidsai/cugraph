@@ -12,10 +12,12 @@
 - PR #67 RMM Integration with rmm as as submodule
 - PR #82 Spectral Clustering bindings
 - PR #82 Clustering metrics binding
+- PR #85 Helper functions on python Graph object
 
 ## Improvements
 
 - PR #50 Reorganize directory structure to match cuDF
+- PR #85 Deleted setup.py and setup.cfg which had been replaced
 
 ## Bug Fixes
 
