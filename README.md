@@ -151,6 +151,25 @@ make          #This should produce a shared library named `libcugraph.so`
 make install  #The default locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/cugraph` respectively.
 ```
 
+### C++ ABI issues
+
+cugraph builds with C++14 features.  By default, we build cugraph with the latest ABI (the ABI changed with C++11).  The version of cudf pointed to in the conda installation above is build with the new ABI.
+
+If you see a link errors indicating trouble finding functions that use C++ strings when trying to build cugraph you may have an ABI incompatibility.
+
+There are a couple of complications that may make this a problem:
+* if you need to link in a library built with the old ABI, you may need to build the entire tool chain from source using the old ABI.
+* if you build cudf from source (for whatever reason), the default behavior for cudf (at least through version 0.5.x) is to build using the old ABI.  You can build with the new ABI, but you need to follow the instructions in CUDF to explicitly turn that on.
+
+If you must build cugraph with the old ABI, you can use the following command (instead of the cmake call above):
+
+```bash
+cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX -DCMAKE_CXX11_ABI=OFF
+```
+ 
+
+### Python package
+
 Install the Python package to your Python path:
 
 ```bash
