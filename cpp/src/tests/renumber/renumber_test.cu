@@ -294,12 +294,9 @@ TEST_F(RenumberingTest, Random10MVertexSet)
 {
   const int num_verts = 10000000;
 
-  //  A sampling of performance on aschaffer-DGX-Station
-  //const int hash_size =  33554467;  // 907 ms
-  //const int hash_size =  3355453;   // 743 ms
-  //const int hash_size =  335557;    // 719 ms
-  const int hash_size =  32767;       // 515 ms
-  //const int hash_size =  8191;      // 633 ms
+  //  A sampling of performance on single Quadro GV100
+  //const int hash_size =  32767;       // 238 ms
+  const int hash_size =  8191;      // 224 ms
 
   uint32_t *src_d;
   uint32_t *dst_d;
@@ -326,7 +323,54 @@ TEST_F(RenumberingTest, Random10MVertexSet)
   //
   size_t unique_verts = 0;
   auto start = std::chrono::system_clock::now();
-  EXPECT_EQ(cugraph::renumber_vertices(num_verts, src_d, dst_d, src_d, dst_d, &unique_verts, &number_map_d, 64, 64, hash_size), GDF_SUCCESS);
+  EXPECT_EQ(cugraph::renumber_vertices(num_verts, src_d, dst_d, src_d, dst_d, &unique_verts, &number_map_d, CUDA_MAX_KERNEL_THREADS, CUDA_MAX_BLOCKS, hash_size), GDF_SUCCESS);
+  auto end = std::chrono::system_clock::now();
+  std::chrono::duration<double> elapsed_seconds = end-start;
+
+  std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count()*1000 << std::endl;
+  std::cout << "  unique verts = " << unique_verts << std::endl;
+  std::cout << "  hash size = " << hash_size << std::endl;
+
+  EXPECT_EQ(cudaFree(src_d), cudaSuccess);
+  EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
+}
+
+TEST_F(RenumberingTest, Random100MVertexSet)
+{
+  const int num_verts = 100000000;
+
+  //  A sampling of performance on single Quadro GV100
+  const int hash_size =  8192;      // 2833 ms
+  //const int hash_size =  16384;      // 2796 ms
+  //const int hash_size =  32768;      // 3255 ms
+
+  uint32_t *src_d;
+  uint32_t *dst_d;
+  uint32_t *number_map_d;
+
+  EXPECT_EQ(cudaMalloc(&src_d, sizeof(uint32_t) * num_verts), cudaSuccess);
+  EXPECT_EQ(cudaMalloc(&dst_d, sizeof(uint32_t) * num_verts), cudaSuccess);
+
+  //
+  //  Init the random number generate
+  //
+  const int num_threads{64};
+  curandState *state;
+
+  EXPECT_EQ(cudaMalloc(&state, sizeof(curandState) * num_threads), cudaSuccess);
+  setup_generator<<<num_threads,1>>>(state);
+  generate_sources<<<num_threads,1>>>(state, num_verts, src_d);
+  generate_destinations<<<num_threads,1>>>(state, num_verts, src_d, dst_d);
+
+  std::cout << "done with initialization" << std::endl;
+
+  //
+  //  Renumber everything
+  //
+  size_t unique_verts = 0;
+  auto start = std::chrono::system_clock::now();
+  EXPECT_EQ(cugraph::renumber_vertices(num_verts, src_d, dst_d, src_d, dst_d, &unique_verts, &number_map_d, CUDA_MAX_KERNEL_THREADS, CUDA_MAX_BLOCKS, hash_size), GDF_SUCCESS);
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end-start;
 

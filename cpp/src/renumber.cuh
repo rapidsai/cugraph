@@ -22,6 +22,8 @@
 #ifndef RENUMBER_H
 #define RENUMBER_H
 
+#include <chrono>
+
 #include <thrust/scan.h>
 #include <thrust/binary_search.h>
 #include <cudf.h>
@@ -29,12 +31,14 @@
 
 #include "utilities/error_utils.h"
 #include "graph_utils.cuh"
+#include "heap.cuh"
 #include "rmm_utils.h"
 
 namespace cugraph {
 
   namespace detail {
-    typedef uint32_t   hash_type;
+    typedef uint32_t               hash_type;
+    typedef unsigned long long     index_type;
     
     template <typename VertexIdType>
     class HashFunctionObject {
@@ -51,20 +55,20 @@ namespace cugraph {
     };
 
     template<typename T, typename F>
-    __global__ void CountHash(const T *vertex_ids, size_t size, hash_type *counts, F hashing_function) {
+    __global__ void CountHash(const T *vertex_ids, size_t size, index_type *counts, F hashing_function) {
 
       int first = blockIdx.x * blockDim.x + threadIdx.x;
       int stride = blockDim.x * gridDim.x;
  
       for (int i = first ; i < size ; i += stride) {
-        atomicAdd(&counts[hashing_function(vertex_ids[i])], hash_type{1});
+        atomicAdd(&counts[hashing_function(vertex_ids[i])], index_type{1});
       }
     }
 
     template<typename T, typename F>
     __global__ void PopulateHash(const T *vertex_ids, size_t size, T *hash_data,
-                                 hash_type *hash_bins_start,
-				 hash_type *hash_bins_end,
+                                 index_type *hash_bins_start,
+				 index_type *hash_bins_end,
                                  F hashing_function ) {
 
       uint32_t first = blockIdx.x * blockDim.x + threadIdx.x;
@@ -72,66 +76,92 @@ namespace cugraph {
 
       for (uint32_t i = first ; i < size ; i += stride) {
         uint32_t hash_index = hashing_function(vertex_ids[i]);
-
-        //
-        //  We're populating the hash table in parallel.  To limit
-        //  the large numbers of duplicates being inserted we'll
-        //  scan the hash bin to see if this address is already
-        //  there.  Note that there's a race condition here, we will
-        //  insert some number of duplicate entries.  We'll dedupe
-        //  the rest later.
-        //
-        uint32_t hash_begin = hash_bins_start[hash_index];
-        uint32_t hash_end = hash_bins_end[hash_index];
-        bool found = false;
-
-        for (uint32_t j = hash_begin ; (j < hash_end) && (!found) ; ++j) {
-          if (vertex_ids[i] == hash_data[j])
-            found = true;
-        }
-
-        if (!found) {
-          hash_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
-          hash_data[hash_offset] = vertex_ids[i];
-        }
+        index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+        hash_data[hash_offset] = vertex_ids[i];
       }
     }
 
     template<typename T>
-    __global__ void DedupeHash(hash_type hash_size, T *hash_data, hash_type *hash_bins_start,
-                               hash_type *hash_bins_end, hash_type *hash_bins_base) {
+    __global__ void DedupeHash(index_type hash_size, T *hash_data, index_type *hash_bins_start,
+                               index_type *hash_bins_end, index_type *hash_bins_base) {
 
-      int first = blockIdx.x * blockDim.x + threadIdx.x;
-      int stride = blockDim.x * gridDim.x;
+      index_type first = blockIdx.x * blockDim.x + threadIdx.x;
+      index_type stride = blockDim.x * gridDim.x;
 
-      for (int i = first ; i < hash_size ; i += stride) {
+      for (index_type i = first ; i < hash_size ; i += stride) {
         //
-        //  For each hash bin, we want to dedupe the
-        //  elements.  For now, let's just sort and dedupe
-        //  using the STL.  At the end we want:
+        //  For each hash bin, we want to dedupe the elements.
         //
         //    hash_bins_start[i] to be unchanged
         //    hash_bins_end[i] to point to the end of the deduped bin
         //    hash_bins_base[i] to identify the number of unique elements in the bin
         //
         if (hash_bins_end[i] > hash_bins_start[i]) {
-          thrust::sort(thrust::device, hash_data + hash_bins_start[i], hash_data + hash_bins_end[i]);
-          T *new_end = thrust::unique(thrust::device, hash_data + hash_bins_start[i], hash_data + hash_bins_end[i]);
+	  //
+	  //  We're going to sort and dedupe this hash bin.
+	  //
+	  index_type size = hash_bins_end[i] - hash_bins_start[i];
+	  T *heap = hash_data + hash_bins_start[i];
 
-          hash_bins_base[i] = (new_end - (hash_data + hash_bins_start[i]));
-          hash_bins_end[i] = hash_bins_start[i] + hash_bins_base[i];
+	  thrust::greater<T>  compare;
+
+	  heap::heapify(heap, size, compare);
+
+	  hash_bins_start[i] = size;
+
+	  //
+	  //  Pop the top element off the heap.
+	  //
+	  //  NOTE: We're taking advantage of a side-effect here.
+	  //        The heap_pop method swaps the top of the heap
+	  //        with the last element in the array.  We want
+	  //        our element to be the last element in the
+	  //        array, so we don't have to do anything special
+	  //        here.
+	  //
+	  //        Otherwise we would capture the output of heap_pop
+	  //        and set heap[size-1] to be that value.
+	  //
+	  heap::heap_pop(heap, size, compare);
+	  --size;
+	  ++hash_bins_base[i];
+	  --hash_bins_start[i];
+
+	  while (size > 0) {
+	    T top = heap::heap_pop(heap, size, compare);
+	    --size;
+
+	    //
+	    //  Now some dedupe logic.  If top is equal to
+	    //  the last element we pull off of the heap then
+	    //  we have a duplicate and we'll just skip it.
+	    //
+	    if (heap[hash_bins_start[i]] != top) {
+	      //
+	      //  We want to keep this element, so fix the counts
+	      //  and store it.
+	      //
+	      ++hash_bins_base[i];
+	      --hash_bins_start[i];
+	      heap[hash_bins_start[i]] = top;
+	    }
+	  }
+
+	  hash_bins_base[i] = hash_bins_base[i];
+	  hash_bins_start[i] = hash_bins_end[i] - hash_bins_base[i];
         } else {
           hash_bins_base[i] = 0;
         }
       }
+
     }
 
     template<typename T_in, typename T_out, typename F>
     __global__ void Renumber(const T_in *vertex_ids, size_t size,
                              T_out *renumbered_ids, const T_in *hash_data,
-                             const hash_type *hash_bins_start,
-			     const hash_type *hash_bins_end,
-                             const hash_type *hash_bins_base,
+                             const index_type *hash_bins_start,
+			     const index_type *hash_bins_end,
+                             const index_type *hash_bins_base,
 			     F hashing_function ) {
       //
       //  For each vertex, look up in the hash table the vertex id
@@ -141,14 +171,14 @@ namespace cugraph {
 
       for (int i = first ; i < size ; i += stride) {
         hash_type hash = hashing_function(vertex_ids[i]);
-        const T_in *id = thrust::lower_bound(thrust::device, hash_data + hash_bins_start[hash], hash_data + hash_bins_end[hash], vertex_ids[i]);
+        const T_in *id = thrust::lower_bound(thrust::seq, hash_data + hash_bins_start[hash], hash_data + hash_bins_end[hash], vertex_ids[i]);
         renumbered_ids[i] = hash_bins_base[hash] + (id - (hash_data + hash_bins_start[hash]));
       }
     }
 
     template<typename T>
-    __global__ void CompactNumbers(T *numbering_map, hash_type hash_size, const T *hash_data, const hash_type *hash_bins_start,
-                                   const hash_type *hash_bins_end, const hash_type *hash_bins_base) {
+    __global__ void CompactNumbers(T *numbering_map, hash_type hash_size, const T *hash_data, const index_type *hash_bins_start,
+                                   const index_type *hash_bins_end, const index_type *hash_bins_base) {
 
       int first = blockIdx.x * blockDim.x + threadIdx.x;
       int stride = blockDim.x * gridDim.x;
@@ -160,7 +190,7 @@ namespace cugraph {
       }
     }
 
-    __global__ void SetupHash(hash_type hash_size, hash_type *hash_bins_start, hash_type *hash_bins_end) {
+    __global__ void SetupHash(hash_type hash_size, index_type *hash_bins_start, index_type *hash_bins_end) {
       hash_bins_end[0] = 0;
       for (hash_type i = 0 ; i < hash_size ; ++i) {
         hash_bins_end[i+1] = hash_bins_end[i] + hash_bins_start[i];
@@ -171,8 +201,8 @@ namespace cugraph {
       }
    }
 
-    __global__ void ComputeBase(hash_type hash_size, hash_type *hash_bins_base) {
-      hash_type sum = 0;
+    __global__ void ComputeBase(hash_type hash_size, index_type *hash_bins_base) {
+      index_type sum = 0;
       for (hash_type i = 0 ; i < hash_size ; ++i) {
         sum += hash_bins_base[i];
       }
@@ -183,7 +213,6 @@ namespace cugraph {
       }
     }
   }
-
 
   /**
    * @brief Renumber vertices to a dense numbering (0..vertex_size-1)
@@ -217,8 +246,7 @@ namespace cugraph {
 			      T_in ** numbering_map,
 			      int max_threads_per_block = CUDA_MAX_KERNEL_THREADS,
 			      int max_blocks = CUDA_MAX_BLOCKS,
-			      //detail::hash_type hash_size = 8191) {
-			      detail::hash_type hash_size = 79) {
+			      detail::hash_type hash_size = 8191) {
 
     //
     // Assume - src/dst/src_renumbered/dst_renumbered/numbering_map are all pre-allocated.
@@ -234,22 +262,24 @@ namespace cugraph {
 
     detail::HashFunctionObject<T_in>  hash(hash_size);
 
-    detail::hash_type  *hash_bins_start;
-    detail::hash_type  *hash_bins_end;
-    detail::hash_type  *hash_bins_base;
+    detail::index_type  *hash_bins_start;
+    detail::index_type  *hash_bins_end;
+    detail::index_type  *hash_bins_base;
 
     int threads_per_block = min((int) size, max_threads_per_block);
     int thread_blocks = min(((int) size + threads_per_block - 1) / threads_per_block, max_blocks);
+    int hash_threads_per_block = min((int) hash_size, max_threads_per_block);
+    int hash_thread_blocks = min(((int) hash_size + hash_threads_per_block - 1) / hash_threads_per_block, max_blocks);
 
     ALLOC_TRY(&hash_data,       2 * size * sizeof(T_in), nullptr);
-    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(detail::hash_type), nullptr);
-    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(detail::hash_type), nullptr);
-    ALLOC_TRY(&hash_bins_base,  (1 + hash_size) * sizeof(detail::hash_type), nullptr);
+    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(detail::index_type), nullptr);
+    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(detail::index_type), nullptr);
+    ALLOC_TRY(&hash_bins_base,  (1 + hash_size) * sizeof(detail::index_type), nullptr);
 
     //
     //  Pass 1: count how many vertex ids end up in each hash bin
     //
-    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::hash_type)));
+    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::index_type)));
     detail::CountHash<<<thread_blocks, threads_per_block>>>(src, size, hash_bins_start, hash);
     detail::CountHash<<<thread_blocks, threads_per_block>>>(dst, size, hash_bins_start, hash);
 
@@ -268,7 +298,7 @@ namespace cugraph {
     //
     //  Now we need to dedupe the hash bins
     //
-    detail::DedupeHash<<<thread_blocks, threads_per_block>>>(hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
+    detail::DedupeHash<<<hash_thread_blocks, hash_threads_per_block>>>(hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
 
     //
     //  Now we can compute densly packed indices
@@ -282,13 +312,13 @@ namespace cugraph {
     detail::Renumber<<<thread_blocks, threads_per_block>>>(src, size, src_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
     detail::Renumber<<<thread_blocks, threads_per_block>>>(dst, size, dst_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
 
-    detail::hash_type temp{0};
-    CUDA_TRY(cudaMemcpy(&temp, hash_bins_base + hash_size, sizeof(detail::hash_type), cudaMemcpyDeviceToHost));
+    detail::index_type temp{0};
+    CUDA_TRY(cudaMemcpy(&temp, hash_bins_base + hash_size, sizeof(detail::index_type), cudaMemcpyDeviceToHost));
     *new_size = temp;
 
     ALLOC_TRY(numbering_map, (*new_size) * sizeof(T_in), nullptr);
 
-    detail::CompactNumbers<<<thread_blocks, threads_per_block>>>(*numbering_map, hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
+    detail::CompactNumbers<<<hash_thread_blocks, hash_threads_per_block>>>(*numbering_map, hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
 
     ALLOC_FREE_TRY(hash_data, nullptr);
     ALLOC_FREE_TRY(hash_bins_start, nullptr);
