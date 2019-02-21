@@ -502,6 +502,7 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
 	result->adjList = new gdf_edge_list;
 	result->adjList->offsets = new gdf_column;
 	result->adjList->indices = new gdf_column;
+	result->adjList->ownership = 0;
 	int *offsets, *indices;
 	CUDA_TRY(cudaMallocManaged((void**)&offsets, sizeof(int) * (num_verts + 1)));
 	CUDA_TRY(cudaMallocManaged((void**)&indices, sizeof(int) * num_edges));

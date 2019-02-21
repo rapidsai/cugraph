@@ -51,4 +51,9 @@ cdef extern from "nvgraph_gdf.h":
     cdef gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
                                                             const int n_clusters,
                                                             gdf_column* clustering,
-                                                            float* score)                               
+                                                            float* score)
+    
+    cdef gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
+                                                       gdf_graph* result,
+                                                       gdf_column* vertices)
+                                   
