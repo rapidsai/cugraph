@@ -131,3 +131,14 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
                                                    const int n_clusters,
                                                    gdf_column* clustering,
                                                    float* score);
+
+/**
+ * Wrapper function for Nvgraph extract subgraph by vertices
+ * @param gdf_G Pointer to GDF graph object, this is the input graph
+ * @param result Pointer to GDF graph object, this is the output must be a valid pointer
+ * @param vertices Pointer to GDF column object which contains the list of vertices to extract
+ * @return Error code
+ */
+gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
+                                              gdf_graph* result,
+                                              gdf_column* vertices);

@@ -143,7 +143,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 																				0,
 																				settype,
 																				(float * ) gdf_G->transposedAdjList->edge_data->data))
-				break;
+					break;
 				case GDF_FLOAT64:
 					settype = CUDA_R_64F;
 					NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
@@ -151,7 +151,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 																				0,
 																				settype,
 																				(double * ) gdf_G->transposedAdjList->edge_data->data))
-				break;
+					break;
 				default:
 					return GDF_UNSUPPORTED_DTYPE;
 			}
@@ -181,7 +181,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 																				0,
 																				settype,
 																				(float * ) gdf_G->adjList->edge_data->data))
-				break;
+					break;
 				case GDF_FLOAT64:
 					settype = CUDA_R_64F;
 					NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
@@ -189,7 +189,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 																				0,
 																				settype,
 																				(double * ) gdf_G->adjList->edge_data->data))
-				break;
+					break;
 				default:
 					return GDF_UNSUPPORTED_DTYPE;
 			}
@@ -463,3 +463,63 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
 	return GDF_SUCCESS;
 }
 
+gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
+																							gdf_graph* result,
+																							gdf_column* vertices) {
+	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
+	GDF_REQUIRE(vertices != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE(vertices->data != nullptr, GDF_INVALID_API_CALL);
+	GDF_REQUIRE(!vertices->valid, GDF_VALIDITY_UNSUPPORTED);
+
+	// Initialize Nvgraph and wrap the graph
+	nvgraphHandle_t nvg_handle = nullptr;
+	nvgraphGraphDescr_t nvgraph_G = nullptr;
+	NVG_TRY(nvgraphCreate(&nvg_handle));
+	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+
+	// Create an Nvgraph graph descriptor for the result and initialize
+	nvgraphGraphDescr_t nv_result = nullptr;
+	NVG_TRY(nvgraphCreateGraphDescr(nvg_handle, &nv_result));
+
+	// Call Nvgraph function to get subgraph (into nv_result descriptor)
+	NVG_TRY(nvgraphExtractSubgraphByVertex(	nvg_handle,
+																					nvgraph_G,
+																					nv_result,
+																					vertices->data,
+																					vertices->size));
+
+	// Get the vertices and edges of the created subgraph to allocate memory:
+	nvgraphCSRTopology32I_st topo;
+	topo.source_offsets = nullptr;
+	topo.destination_indices = nullptr;
+	nvgraphTopologyType_t TT = NVGRAPH_CSR_32;
+	NVG_TRY(nvgraphGetGraphStructure(nvg_handle, nv_result, (void*)&topo, &TT));
+	if (TT != NVGRAPH_CSR_32)
+		return GDF_C_ERROR;
+	int num_verts = topo.nvertices;
+	int num_edges = topo.nedges;
+	result->adjList = new gdf_edge_list;
+	result->adjList->offsets = new gdf_column;
+	result->adjList->indices = new gdf_column;
+	int *offsets, *indices;
+	CUDA_TRY(cudaMallocManaged((void**)&offsets, sizeof(int) * (num_verts + 1)));
+	CUDA_TRY(cudaMallocManaged((void**)&indices, sizeof(int) * num_edges));
+	gdf_column_view(result->adjList->offsets,
+	                offsets,
+	                nullptr,
+	                num_verts + 1,
+	                GDF_INT32);
+	gdf_column_view(result->adjList->indices,
+	                indices,
+	                nullptr,
+	                num_edges,
+	                GDF_INT32);
+
+	// Call nvgraphGetGraphStructure again to copy out the data
+	topo.source_offsets = result->adjList->offsets->data;
+	topo.destination_indices = result->adjList->indices->data;
+	NVG_TRY(nvgraphGetGraphStructure(nvg_handle, nv_result, (void*)&topo, &TT));
+
+	return GDF_SUCCESS;
+}
