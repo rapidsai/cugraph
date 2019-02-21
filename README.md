@@ -155,7 +155,7 @@ make install  #The default locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE
 
 cugraph builds with C++14 features.  By default, we build cugraph with the latest ABI (the ABI changed with C++11).  The version of cudf pointed to in the conda installation above is build with the new ABI.
 
-If you see a link errors indicating trouble finding functions that use C++ strings when trying to build cugraph you may have an ABI incompatibility.
+If you see link errors indicating trouble finding functions that use C++ strings when trying to build cugraph you may have an ABI incompatibility.
 
 There are a couple of complications that may make this a problem:
 * if you need to link in a library built with the old ABI, you may need to build the entire tool chain from source using the old ABI.
