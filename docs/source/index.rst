@@ -1,4 +1,4 @@
-Welcome to cuDF's documentation!
+Welcome to cugraph's documentation!
 =================================
 
 .. toctree::
