@@ -41,7 +41,7 @@ cdef create_column(col):
 
 class Graph:
     """
-        cuGraph graph class containing basic graph creation and transformation operations.
+    cuGraph graph class containing basic graph creation and transformation operations.
     """
     def __init__(self):
         """
@@ -136,30 +136,6 @@ class Graph:
                                      nelem=col_size,
                                      dtype=np.int32,
                                      finalizer=rmm._make_finalizer(dest_col_data, 0))
-
-        return cudf.Series(src_data), cudf.Series(dest_data)
-
-    def to_edge_list(self):
-        """
-        Compute the edge list from adjacency list and return sources and destinations as cudf Series.
-        """
-        cdef uintptr_t graph = self.graph_ptr
-        err = gdf_add_edge_list(< gdf_graph *> graph)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
-
-        cdef gdf_graph * g = < gdf_graph *> graph
-        col_size = g.edgeList.src_indices.size
-        cdef uintptr_t src_col_data = < uintptr_t > g.edgeList.src_indices.data
-        cdef uintptr_t dest_col_data = < uintptr_t > g.edgeList.dest_indices.data
-
-        src_data = rmm.device_array_from_ptr(src_col_data,
-                                     nelem=col_size,
-                                     dtype=np.int32)  # ,
-                                     # finalizer=rmm._make_finalizer(src_col_data, 0))
-        dest_data = rmm.device_array_from_ptr(dest_col_data,
-                                     nelem=col_size,
-                                     dtype=np.int32)  # ,
-                                     # finalizer=rmm._make_finalizer(dest_col_data, 0))
 
         return cudf.Series(src_data), cudf.Series(dest_data)
 
