@@ -45,7 +45,10 @@ cpdef subgraph(G, vertices):
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,None)
-    >>> verts = [0,1,2,3]
+    >>> verts = numpy.zeros(3, dtype=np.int32)
+    >>> verts[0] = 0
+    >>> verts[1] = 1
+    >>> verts[2] = 2
     >>> sverts = cudf.Series(verts)
     >>> Sg = cuGraph.subgraph(G, sverts)
     """
@@ -53,13 +56,13 @@ cpdef subgraph(G, vertices):
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
 
-    resultGraph = cugraph.Graph()
+    resultGraph = Graph()
     cdef uintptr_t rGraph = resultGraph.graph_ptr
     cdef gdf_graph* rg = <gdf_graph*>rGraph
     
     cdef uintptr_t vert_ptr = create_column(vertices)
 
-    err = gdf_balancedCutClustering_nvgraph(g, rg, <gdf_column*>vert_ptr)
+    err = gdf_extract_subgraph_vertex_nvgraph(g, rg, <gdf_column*>vert_ptr)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return resultGraph

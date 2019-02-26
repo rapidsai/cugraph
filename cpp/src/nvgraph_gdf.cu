@@ -486,7 +486,7 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
 	NVG_TRY(nvgraphExtractSubgraphByVertex(	nvg_handle,
 																					nvgraph_G,
 																					nv_result,
-																					vertices->data,
+																					(int*)vertices->data,
 																					vertices->size));
 
 	// Get the vertices and edges of the created subgraph to allocate memory:
@@ -499,7 +499,7 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
 		return GDF_C_ERROR;
 	int num_verts = topo.nvertices;
 	int num_edges = topo.nedges;
-	result->adjList = new gdf_edge_list;
+	result->adjList = new gdf_adj_list;
 	result->adjList->offsets = new gdf_column;
 	result->adjList->indices = new gdf_column;
 	result->adjList->ownership = 0;
@@ -518,8 +518,8 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
 	                GDF_INT32);
 
 	// Call nvgraphGetGraphStructure again to copy out the data
-	topo.source_offsets = result->adjList->offsets->data;
-	topo.destination_indices = result->adjList->indices->data;
+	topo.source_offsets = (int*)result->adjList->offsets->data;
+	topo.destination_indices = (int*)result->adjList->indices->data;
 	NVG_TRY(nvgraphGetGraphStructure(nvg_handle, nv_result, (void*)&topo, &TT));
 
 	return GDF_SUCCESS;
