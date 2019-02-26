@@ -320,7 +320,6 @@ gdf_error gdf_add_transpose(gdf_graph *graph)
 
 gdf_error gdf_delete_adj_list(gdf_graph *graph) {
   if (graph->adjList) {
-    graph->adjList->ownership = 1;
     delete graph->adjList;
   }
   graph->adjList = nullptr;
@@ -328,7 +327,6 @@ gdf_error gdf_delete_adj_list(gdf_graph *graph) {
 }
 gdf_error gdf_delete_edge_list(gdf_graph *graph) {
   if (graph->edgeList) {
-    graph->edgeList->ownership = 1;
     delete graph->edgeList;
   }
   graph->edgeList = nullptr;
@@ -336,7 +334,6 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph) {
 }
 gdf_error gdf_delete_transpose(gdf_graph *graph) {
   if (graph->transposedAdjList) {
-    graph->transposedAdjList->ownership = 1;
     delete graph->transposedAdjList;
   }
   graph->transposedAdjList = nullptr;

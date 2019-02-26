@@ -15,11 +15,7 @@ import cugraph
 import cudf
 import pytest
 import numpy as np
-import networkx as nx
 from scipy.io import mmread
-
-print ('Networkx version : {} '.format(nx.__version__))
-
 
 def ReadMtxFile(mmFile):
     print('Reading '+ str(mmFile) + '...')
@@ -45,7 +41,8 @@ def compareOffsets(cu, np):
             return False
     return True
 
-datasets = ['/datasets/networks/karate.mtx', '/datasets/golden_data/graphs/dblp.mtx']
+datasets = ['/datasets/networks/karate.mtx', '/datasets/networks/dolphins.mtx', '/datasets/networks/polbooks.mtx']
+#datasets = ['/datasets/networks/karate.mtx', '/datasets/golden_data/graphs/dblp.mtx']
 
 @pytest.mark.parametrize('graph_file', datasets)
 def test_add_edge_list_to_adj_list(graph_file):
@@ -89,7 +86,7 @@ def test_add_adj_list_to_edge_list(graph_file):
     # cugraph add_adj_list to_edge_list call
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
-    sources, destinations = G.to_edge_list()
+    sources, destinations = G.view_edge_list()
     sources_cu = np.array(sources)
     destinations_cu = np.array(destinations)
     assert compare_series(sources_cu, sources_exp)
@@ -124,20 +121,11 @@ def test_view_edge_list_from_adj_list(graph_file):
     assert compare_series(src1, src2)
     assert compare_series(dst1, dst2)
        
-'''
 @pytest.mark.parametrize('graph_file', datasets)
-
 def test_delete_edge_list_delete_adj_list(graph_file):
-
     M = ReadMtxFile(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
-
-    nnz_per_row = {r : 0 for r in range(M.get_shape()[0])}
-    for nnz in range(M.getnnz()):
-        nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
-    for nnz in range(M.getnnz()):
-        M.data[nnz] = 1.0/float(nnz_per_row[M.row[nnz]])
 
     M = M.tocsr()
     if M is None :  
@@ -147,20 +135,19 @@ def test_delete_edge_list_delete_adj_list(graph_file):
         
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
-    #values = cudf.Series(np.ones(len(sources), dtype = np.float64))
 
     # cugraph delete_adj_list delete_edge_list call
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     G.delete_edge_list()
     with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
-        G.to_adj_list()
+        G.view_adj_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
     G.add_adj_list(offsets, indices, None)
     G.delete_adj_list()
     with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
-        G.to_edge_list()
+        G.view_edge_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
-'''
+
