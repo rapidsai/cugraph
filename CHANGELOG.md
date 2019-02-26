@@ -18,6 +18,7 @@
 
 - PR #50 Reorganize directory structure to match cuDF
 - PR #85 Deleted setup.py and setup.cfg which had been replaced
+- PR #96 Relocated mmio.c and mmio.h (external files) to thirdparty/mmio
 
 ## Bug Fixes
 
