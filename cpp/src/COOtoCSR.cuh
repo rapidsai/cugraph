@@ -44,15 +44,7 @@ struct CSR_Result {
 	T* colIndices;
 
 	CSR_Result() : size(0), nnz(0), rowOffsets(nullptr), colIndices(nullptr){}
-    /*
-	~CSR_Result() {
-		if (rowOffsets)
-			cudaFree(rowOffsets);
-		if (colIndices)
-			cudaFree(colIndices);
-		//return GDF_SUCCESS;
-	}
-    */
+
 };
 
 template <typename T, typename W>
@@ -64,17 +56,7 @@ struct CSR_Result_Weighted {
 	W* edgeWeights;
 
 	CSR_Result_Weighted() : size(0), nnz(0), rowOffsets(nullptr), colIndices(nullptr), edgeWeights(nullptr){}
-    /*
-	~CSR_Result_Weighted() {
-		if (rowOffsets)
-			cudaFree(rowOffsets);
-		if (colIndices)
-			cudaFree(colIndices);
-		if (edgeWeights)
-			cudaFree(edgeWeights);
-		//return GDF_SUCCESS;
-	}
-    */
+
 };
 
 // Define kernel for copying run length encoded values into offset slots.
