@@ -1,3 +1,16 @@
+# Copyright (c) 2019, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import cugraph
 import cudf
 import time
@@ -30,7 +43,8 @@ def cugraph_Call(M, max_iter, tol, alpha):
 
     # Sort Pagerank values
     sorted_pr = []
-    for i, rank in enumerate(df['pagerank']):
+    pr_scores = df['pagerank'].to_array()
+    for i, rank in enumerate(pr_scores):
         sorted_pr.append((i, rank))
 
     return sorted(sorted_pr, key=lambda x: x[1], reverse=True)
@@ -81,7 +95,7 @@ def networkx_Call(M, max_iter, tol, alpha):
 
 datasets = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
-            '/datasets/golden_data/graphs/dblp.mtx']
+            '/datasets/networks/netscience.mtx']
 
 Max_Iterations = [500]
 tolerance = [1.0e-06]

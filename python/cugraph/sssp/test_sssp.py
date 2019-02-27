@@ -1,3 +1,16 @@
+# Copyright (c) 2019, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import cugraph
 import cudf
 import time
@@ -36,7 +49,8 @@ def cugraph_Call(M, source):
     print('Time : '+str(t2))
 
     distances = []
-    for i, d in enumerate(dist['distance']):
+    dist_np = dist['distance'].to_array()
+    for i, d in enumerate(dist_np):
         distances.append((i, d))
 
     return distances
@@ -50,11 +64,6 @@ def networkx_Call(M, source):
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
-
-    # should be autosorted, but check just to make sure
-    if not M.has_sorted_indices:
-        print('sort_indices ... ')
-        M.sort_indices()
 
     # Directed NetworkX graph
     Gnx = nx.DiGraph(M)
