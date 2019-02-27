@@ -49,7 +49,8 @@ def cugraph_Call(M, source):
     print('Time : '+str(t2))
 
     distances = []
-    for i, d in enumerate(dist['distance']):
+    dist_np = dist['distance'].to_array()
+    for i, d in enumerate(dist_np):
         distances.append((i, d))
 
     return distances
@@ -63,11 +64,6 @@ def networkx_Call(M, source):
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
-
-    # should be autosorted, but check just to make sure
-    if not M.has_sorted_indices:
-        print('sort_indices ... ')
-        M.sort_indices()
 
     # Directed NetworkX graph
     Gnx = nx.DiGraph(M)

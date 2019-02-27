@@ -43,7 +43,8 @@ def cugraph_Call(M, max_iter, tol, alpha):
 
     # Sort Pagerank values
     sorted_pr = []
-    for i, rank in enumerate(df['pagerank']):
+    pr_scores = df['pagerank'].to_array()
+    for i, rank in enumerate(pr_scores):
         sorted_pr.append((i, rank))
 
     return sorted(sorted_pr, key=lambda x: x[1], reverse=True)
@@ -94,7 +95,7 @@ def networkx_Call(M, max_iter, tol, alpha):
 
 datasets = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
-            '/datasets/golden_data/graphs/dblp.mtx']
+            '/datasets/networks/netscience.mtx']
 
 Max_Iterations = [500]
 tolerance = [1.0e-06]

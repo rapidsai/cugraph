@@ -40,7 +40,7 @@ def cugraph_Call(M, start_vertex):
     print('Time : '+str(t2))
 
     # Return distances as np.array()
-    return np.array(df['distance'])
+    return df['distance'].to_array()
 
 
 def base_Call(M, start_vertex):
@@ -68,6 +68,7 @@ def base_Call(M, start_vertex):
 
 datasets = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
+            '/datasets/networks/polbooks.mtx',
             '/datasets/golden_data/graphs/dblp.mtx']
 
 @pytest.mark.parametrize('graph_file', datasets)

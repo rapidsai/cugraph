@@ -41,8 +41,9 @@ def compareOffsets(cu, np):
             return False
     return True
 
-datasets = ['/datasets/networks/karate.mtx', '/datasets/networks/dolphins.mtx', '/datasets/networks/polbooks.mtx']
-#datasets = ['/datasets/networks/karate.mtx', '/datasets/golden_data/graphs/dblp.mtx']
+datasets = ['/datasets/networks/karate.mtx', 
+            '/datasets/networks/dolphins.mtx', 
+            '/datasets/networks/netscience.mtx']
 
 @pytest.mark.parametrize('graph_file', datasets)
 def test_add_edge_list_to_adj_list(graph_file):

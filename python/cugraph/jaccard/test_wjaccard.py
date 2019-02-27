@@ -30,13 +30,6 @@ def ReadMtxFile(mmFile):
     
 
 def cuGraph_Callw(M):
-   
-    nnz_per_row = {r : 0 for r in range(M.get_shape()[0])}
-    for nnz in range(M.getnnz()):
-        nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
-    for nnz in range(M.getnnz()):
-        M.data[nnz] = 1.0/float(nnz_per_row[M.row[nnz]])
-
     M = M.tocsr()
     if M is None :
         raise TypeError('Could not read the input graph')
