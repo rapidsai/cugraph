@@ -71,7 +71,7 @@ def networkx_Call(M, source):
     print('NX Solving... ')
     t1 = time.time()
 
-    path=nx.single_source_shortest_path(Gnx, source)
+    path = nx.single_source_shortest_path(Gnx, source)
 
     t2 = time.time() - t1
 
