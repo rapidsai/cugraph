@@ -36,7 +36,7 @@ TEST(MultiPagerank, imb32_32B_2ranks)
 
   // This input data was generated from PRbench code
   // ibm data set is plit between rank 0 and 1 so they have a similar number of edges
-  // Same destinations (keys) cannot be on 2 partitions not cut 
+  // Same destinations (keys) cannot be on 2 partitions
   // Here for instance 126/2 = 63, so for rank0 we cut at vertex 12 which correspond to 62 edges 
   if(rank == 0) {
     loc_v = 13;
@@ -84,6 +84,9 @@ TEST(MultiPagerank, imb32_32B_2ranks)
   std::vector<float> calculated_res(loc_v);
   CUDA_RT_CALL(cudaMemcpy(&calculated_res[0],   col_pagerank->data,   sizeof(float) * loc_v, cudaMemcpyDeviceToHost));
 
+  std::vector<int> calculated_idx(loc_v);
+  CUDA_RT_CALL(cudaMemcpy(&calculated_idx[0],   col_vidx->data,   sizeof(int) * loc_v, cudaMemcpyDeviceToHost));
+  
   float err;
   int n_err = 0;
   for (int i = 0; i < loc_v; i++)
