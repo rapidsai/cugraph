@@ -90,7 +90,6 @@ typedef struct {
 	int64_t	ned;
 } elist_t;
 
-static int avoid_read_cache = 0;
 
 static spmat_t *createSpmat(int n) {
 
@@ -277,7 +276,7 @@ static inline void cancelReqs(MPI_Request *request, int n) {
 
 static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 
-	double tr=0, tg=0, tdr=0;
+	double tg=0, tdr=0;
 
 	double	min_rt, max_rt;
 	double	min_rr, max_rr;
@@ -291,8 +290,6 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 
 	LOCINT	*lastrow_all=NULL;
 	LOCINT	*rowsToSend=NULL;
-
-	char	fname[MAX_LINE];
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &ntask);
@@ -711,7 +708,7 @@ gdf_error gdf_multi_coo2csr_t(size_t N, const gdf_column *src_indices, const gdf
 	elist_t * el = (elist_t *)Malloc(sizeof(*el));
 	GDF_TRY(load_gdf_input(dest_indices, src_indices, el));
 	coo2csr(N, m, el);
-	if (el) free(el); //just free the structure
+	if (el) free(el); //just first_rowee the structure
 	return GDF_SUCCESS;
 }
 
@@ -722,8 +719,8 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	GDF_REQUIRE((pagerank->dtype == GDF_FLOAT32), GDF_UNSUPPORTED_DTYPE );
 
     int	rank, ntask;
-	rhsv_t	rval = {RHS_CONSTANT, 1.0/global_v, NULL};
-	REAL a = (REALV(1.0)-damping_factor)/((REAL)global_v);
+	rhsv_t	rval = {RHS_CONSTANT, REAL(1.0)/REAL(global_v), NULL};
+	REAL a = (REALV(1.0)-REAL(damping_factor))/((REAL)global_v);
 	
 	//setup 
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
