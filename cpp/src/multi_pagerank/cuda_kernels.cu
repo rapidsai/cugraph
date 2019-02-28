@@ -23,6 +23,9 @@
 #include <stdlib.h>
 #include <mpi.h>
 #ifdef __cplusplus
+#ifdef __STDC_LIMIT_MACROS
+	#undef __STDC_LIMIT_MACROS
+#endif
 #define __STDC_LIMIT_MACROS 1
 #define __STDC_FORMAT_MACROS 1
 #endif
@@ -30,6 +33,9 @@
 #include <cuda.h>
 #include <curand_kernel.h>
 
+#ifdef NDEBUG
+	#undef NDEBUG
+#endif
 #define NDEBUG
 #include <assert.h>
 
@@ -418,7 +424,7 @@ __global__ void	fix_last_nl(char *lastch) {
 	lastch[1+threadIdx.x] = (0 == threadIdx.x) ? ((lastch[0] != '\n') ? '\n': -1) : -1;
 	return;
 }	
-
+/*
 template<typename OFFVTYPE>
 __global__ void find_nl(const uint4 * __restrict__ v, int64_t n, OFFVTYPE *__restrict__ bl_off) {
 
@@ -451,6 +457,7 @@ __global__ void find_nl(const uint4 * __restrict__ v, int64_t n, OFFVTYPE *__res
 	bl_off[tid] = offs;
 	return;
 }
+*/
 
 template<typename INT_T>
 __device__ const char *str2bin(const char *s, INT_T *v) {
@@ -628,6 +635,7 @@ size_t ASCIICouple2BinCuda(uint4 *d_data, size_t datalen, LOCINT **d_uout, LOCIN
 	return nstr;
 }
 
+/*
 size_t ASCIICouple2BinCuda_entry(uint4 *d_data, size_t datalen, LOCINT **d_uout, LOCINT **d_vout, int verbose) {
 
 	size_t rv;
@@ -635,7 +643,7 @@ size_t ASCIICouple2BinCuda_entry(uint4 *d_data, size_t datalen, LOCINT **d_uout,
 	else			     rv = ASCIICouple2BinCuda<unsigned long long, ulonglong4>(d_data, datalen, d_uout, d_vout, verbose);
 
 	return rv;
-}
+}*/
 
 template<typename INT_T>
 __device__ INT_T ilog10_ceil(INT_T x) {
@@ -1776,8 +1784,11 @@ void get_extdata_cuda(int ncsr, LOCINT *nnz, LOCINT **cols_d, LOCINT *lastrow_al
 
 	int	nrecv=0;
 	int	nsend=0;
-	int64_t groff=0;
-	int64_t gsoff=0;
+	// int64_t groff=0;
+	// int64_t gsoff=0;
+	size_t groff=0;
+	size_t gsoff=0;
+
 	int64_t *n_d=(int64_t *)tmp_get(bufpool, sizeof(*n_d));
 
 	roffs[0] = 0;
