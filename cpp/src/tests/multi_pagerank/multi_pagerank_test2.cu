@@ -36,7 +36,7 @@ TEST(MultiPagerank, imb32_32B_2ranks)
 
   // This input data was generated from PRbench code
   // ibm data set is plit between rank 0 and 1 so they have a similar number of edges
-  // Same destinations (keys) cannot be on 2 partitions not cut 
+  // Same destinations (keys) cannot be on 2 partitions
   // Here for instance 126/2 = 63, so for rank0 we cut at vertex 12 which correspond to 62 edges 
   if(rank == 0) {
     loc_v = 13;
@@ -60,6 +60,8 @@ TEST(MultiPagerank, imb32_32B_2ranks)
   ASSERT_EQ(src_h.size(),dest_h.size());
   ASSERT_EQ(src_h.size(),loc_e);
   ASSERT_EQ(nx_ref.size(),loc_v);
+  ASSERT_EQ(pagerank.size(),loc_v);
+  ASSERT_EQ(v_idx.size(),loc_v);
 
   gdf_column *col_src = new gdf_column, 
              *col_dest = new gdf_column, 
@@ -71,11 +73,20 @@ TEST(MultiPagerank, imb32_32B_2ranks)
   create_gdf_column(src_h, col_src);
   create_gdf_column(dest_h, col_dest);
 
+  //Check input col sizes
+  ASSERT_EQ(col_src->size,loc_e);
+  ASSERT_EQ(col_dest->size,loc_e);
+  ASSERT_EQ(col_pagerank->size,loc_v);
+  ASSERT_EQ(col_vidx->size,loc_v);
+
   ASSERT_EQ(gdf_multi_pagerank (global_v, col_src, col_dest, col_vidx, col_pagerank, damping_factor, max_iter),GDF_SUCCESS);
 
   std::vector<float> calculated_res(loc_v);
   CUDA_RT_CALL(cudaMemcpy(&calculated_res[0],   col_pagerank->data,   sizeof(float) * loc_v, cudaMemcpyDeviceToHost));
 
+  std::vector<int> calculated_idx(loc_v);
+  CUDA_RT_CALL(cudaMemcpy(&calculated_idx[0],   col_vidx->data,   sizeof(int) * loc_v, cudaMemcpyDeviceToHost));
+  
   float err;
   int n_err = 0;
   for (int i = 0; i < loc_v; i++)

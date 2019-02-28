@@ -76,7 +76,7 @@
 #endif
 char IOBUF[IOINT_NUM*(LOCINT_MAX_CHAR+1)];
 
-//#define MPR_VERBOSE 1
+#define MPR_VERBOSE 1
 
 typedef struct {
 	int	code;
@@ -654,10 +654,15 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 	if (r_h) free(r_h);
 	if (reqs) free(reqs);
 
-	cudaMemcpy(pr,   r_d[numIter&1],   sizeof(float) * m->intColsNum, cudaMemcpyDeviceToDevice);
+	CHECK_CUDA(cudaMemcpy(pr,   r_d[numIter&1],   sizeof(REAL) * m->intColsNum, cudaMemcpyDeviceToDevice));
 
 	if (r_d[0]) CHECK_CUDA(cudaFree(r_d[0]));
 	if (r_d[1]) CHECK_CUDA(cudaFree(r_d[1]));
+
+			int *dummy;
+	CHECK_CUDA(cudaMalloc(&dummy,m->intColsNum*sizeof(int)));
+	CHECK_CUDA(cudaFree(dummy));
+
 
 	cudaCheckError();
 	return;
@@ -690,31 +695,27 @@ gdf_error fill_gdf_output (spmat_t *m,
        					   gdf_column *gdf_v_idx, 
        					   gdf_column *gdf_pr) {
 
-if (gdf_v_idx->dtype == GDF_INT64)
- cugraph::sequence<int64_t>(m->intColsNum,(int64_t*)gdf_v_idx->data,(int64_t)m->firstRow);
-else
- cugraph::sequence<int>(m->intColsNum,(int*)gdf_v_idx->data,(int)m->firstRow);
-    int	rank;
-
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-std::cout<< rank<<" "<<m->intColsNum<<std::endl;
-  CHECK_CUDA(cudaMemcpy(gdf_pr->data, pr, m->intColsNum*sizeof(float), cudaMemcpyDeviceToDevice));
-
+//if (gdf_v_idx->dtype == GDF_INT64)
+// cugraph::sequence<int64_t>(m->intColsNum,(int64_t*)gdf_v_idx->data,(int64_t)m->firstRow);
+//else
+// cugraph::sequence<int>(m->intColsNum,(int*)gdf_v_idx->data,(int)m->firstRow);
+//cudaCheckError();
+  CHECK_CUDA(cudaMemcpy(gdf_pr->data, pr, m->intColsNum*sizeof(REAL), cudaMemcpyDeviceToDevice));
   return GDF_SUCCESS;
 }
 
 // coo to csr
 // spmat_t is a custom structure for distributed csr matriices in PRBench
-void gdf_multi_coo2csr_t(size_t N, const gdf_column *src_indices, const gdf_column *dest_indices, spmat_t *m) {
+gdf_error gdf_multi_coo2csr_t(size_t N, const gdf_column *src_indices, const gdf_column *dest_indices, spmat_t *m) {
 	elist_t * el = (elist_t *)Malloc(sizeof(*el));
-	load_gdf_input(dest_indices, src_indices, el);
+	GDF_TRY(load_gdf_input(dest_indices, src_indices, el));
 	coo2csr(N, m, el);
-	if (el) free(el); //just free the structure
+	if (el) free(el); //just first_rowee the structure
+	return GDF_SUCCESS;
 }
 
 
-
+ 
 //Build a CSR matrix and solve Pagerank
 gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_indices, const gdf_column *dest_indices, 
 	                         gdf_column *v_idx, gdf_column *pagerank, const float damping_factor, const int max_iter) {
@@ -734,19 +735,24 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
     REAL* pr = nullptr;
 
     //coo2csr transposed
-	gdf_multi_coo2csr_t(global_v, src_indices, dest_indices, m);
+	GDF_TRY(gdf_multi_coo2csr_t(global_v, src_indices, dest_indices, m));
 	cudaCheckError();
 	//allocate local result
-	cudaMalloc(&pr,m->intColsNum*sizeof(float));
+	CHECK_CUDA(cudaMalloc(&pr,m->intColsNum*sizeof(REAL)));
 	//solve
 	pagerank_solver(max_iter, damping_factor, a, rval, m, pr);
+	cudaCheckError();
 
 	//store the local result in gdf_columns
-	fill_gdf_output(m, pr, v_idx, pagerank);
+	GDF_TRY(fill_gdf_output(m, pr, v_idx, pagerank));
+	cudaCheckError();
 
 	//cleanup
 	if (rval.str) free(rval.str);
-	cudaFree(pr);
+		cudaCheckError();
+
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (pr) CHECK_CUDA(cudaFree(pr));
 	destroySpmat(m);
 	cleanup_cuda();
 
