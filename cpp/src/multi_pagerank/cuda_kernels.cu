@@ -772,7 +772,7 @@ static LOCINT	*d_vsamp[2]={NULL,NULL};
 void copy_sort_samples(LOCINT *h_u, LOCINT *h_v, LOCINT nsample, int64_t nsamplemax) {
 
 	if (nsample > nsamplemax) {
-		fprintf(stderr, "%s:%d: error nsample=%"PRILOC" > nsamplemax=%"PRId64"!\n", __FILE__, __LINE__, nsample, nsamplemax);
+		fprintf(stderr, "%s:%d: error nsample=%" PRILOC " > nsamplemax=%" PRId64 "!\n", __FILE__, __LINE__, nsample, nsamplemax);
 		exit(EXIT_FAILURE);
 	}
 
@@ -808,7 +808,7 @@ void limits_cuda(int n, LOCINT *smin, LOCINT *smax, int *bbit, int *ebit) {
 
 	if (!n) return;
 	if (n > nmax) {
-		fprintf(stderr, "%s:%s:%d: n(=%d) > nmax(=%"PRId64")\n", __FILE__, __func__, __LINE__, n, nmax);
+		fprintf(stderr, "%s:%s:%d: n(=%d) > nmax(=%" PRId64 ")\n", __FILE__, __func__, __LINE__, n, nmax);
 		exit(EXIT_FAILURE);
 	}
 
@@ -894,7 +894,7 @@ void sort_cuda(LOCINT *h_u, LOCINT *h_v, int n, int bbit, int ebit) {
 
 	if (!n) return;
 	if (n > nmax) {
-		fprintf(stderr, "%s:%s:%d: n(=%d) > nmax(=%"PRId64")\n", __FILE__, __func__, __LINE__, n, nmax);
+		fprintf(stderr, "%s:%s:%d: n(=%d) > nmax(=%" PRId64 ")\n", __FILE__, __func__, __LINE__, n, nmax);
 		exit(EXIT_FAILURE);
 	}
 	//printf("bbit=%d, ebit=%d\n", bbit, ebit);
@@ -922,7 +922,7 @@ void final_sort_cuda(LOCINT *h_u, LOCINT *h_v, int n) {
 
 	if (!n) return;
 	if (n > nmax) {
-		fprintf(stderr, "%s:%s:%d: n(=%d) > nmax(=%"PRId64")\n", __FILE__, __func__, __LINE__, n, nmax);
+		fprintf(stderr, "%s:%s:%d: n(=%d) > nmax(=%" PRId64 ")\n", __FILE__, __func__, __LINE__, n, nmax);
 		exit(EXIT_FAILURE);
 	}
 	//printf("bbit=%d, ebit=%d\n", bbit, ebit);
@@ -943,7 +943,7 @@ void getvals_cuda(LOCINT *h_u, LOCINT *h_v, int64_t n) {
 	
 	if (!n) return;
 	if (n > nmax) {
-		fprintf(stderr, "%s:%s:%d: n(=%"PRId64") > nmax(=%"PRId64")\n", __FILE__, __func__, __LINE__, n, nmax);
+		fprintf(stderr, "%s:%s:%d: n(=%" PRId64 ") > nmax(=%" PRId64 ")\n", __FILE__, __func__, __LINE__, n, nmax);
 		exit(EXIT_FAILURE);
 	}
 	CHECK_CUDA(cudaMemcpy(h_u, d_usamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToHost));
@@ -955,7 +955,7 @@ void setvals_cuda(LOCINT *h_u, LOCINT *h_v, int n) {
 	
 	if (!n) return;
 	if (n > nmax) {
-		fprintf(stderr, "%s:%s:%d: n(=%d) > nmax(=%"PRId64")\n", __FILE__, __func__, __LINE__, n, nmax);
+		fprintf(stderr, "%s:%s:%d: n(=%d) > nmax(=%" PRId64 ")\n", __FILE__, __func__, __LINE__, n, nmax);
 		exit(EXIT_FAILURE);
 	}
 	CHECK_CUDA(cudaMemcpy(d_usamp[currSamp], h_u, n*sizeof(LOCINT), cudaMemcpyHostToDevice));
@@ -1360,7 +1360,7 @@ void get_csr_multi_cuda(LOCINT *u_d, LOCINT *v_d, int64_t ned,
 		if (nuvuniq > LOCINT_MAX) {
 			int rank;
 			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-			fprintf(stderr, "Too many nonzeroes for processor %d: %"PRId64"!\n", rank, nuvuniq);
+			fprintf(stderr, "Too many nonzeroes for processor %d: %" PRId64 "!\n", rank, nuvuniq);
 			exit(EXIT_FAILURE);
 		}
 		nnz[i] = nuvuniq;
