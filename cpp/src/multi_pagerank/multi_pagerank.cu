@@ -662,11 +662,6 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 	if (r_d[0]) CHECK_CUDA(cudaFree(r_d[0]));
 	if (r_d[1]) CHECK_CUDA(cudaFree(r_d[1]));
 
-			int *dummy;
-	CHECK_CUDA(cudaMalloc(&dummy,m->intColsNum*sizeof(int)));
-	CHECK_CUDA(cudaFree(dummy));
-
-
 	cudaCheckError();
 	return;
 }
@@ -703,6 +698,9 @@ gdf_error fill_gdf_output (spmat_t *m,
 //else
 // cugraph::sequence<int>(m->intColsNum,(int*)gdf_v_idx->data,(int)m->firstRow);
 //cudaCheckError();
+
+  std::cout<< m->intColsNum<<" " << (int)m->firstRow<<std::endl;
+  
   CHECK_CUDA(cudaMemcpy(gdf_pr->data, pr, m->intColsNum*sizeof(REAL), cudaMemcpyDeviceToDevice));
   return GDF_SUCCESS;
 }
@@ -717,8 +715,6 @@ gdf_error gdf_multi_coo2csr_t(size_t N, const gdf_column *src_indices, const gdf
 	return GDF_SUCCESS;
 }
 
-
- 
 //Build a CSR matrix and solve Pagerank
 gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_indices, const gdf_column *dest_indices, 
 	                         gdf_column *v_idx, gdf_column *pagerank, const float damping_factor, const int max_iter) {

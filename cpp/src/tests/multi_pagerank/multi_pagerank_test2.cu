@@ -35,7 +35,7 @@ TEST(MultiPagerank, imb32_32B_2ranks)
 
 
   // This input data was generated from PRbench code
-  // ibm data set is plit between rank 0 and 1 so they have a similar number of edges
+  // ibm data set is split between rank 0 and 1 so they have a similar number of edges
   // Same destinations (keys) cannot be on 2 partitions
   // Here for instance 126/2 = 63, so for rank0 we cut at vertex 12 which correspond to 62 edges 
   if(rank == 0) {
