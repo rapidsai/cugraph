@@ -94,7 +94,7 @@ def networkx_Call(M, max_iter, tol, alpha):
 
 
 datasets = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
+            '/datasets/networks/karate.mtx' ,
             '/datasets/networks/netscience.mtx']
 
 Max_Iterations = [500]
@@ -115,7 +115,7 @@ def test_pagerank(graph_file, max_iter, tol, alpha):
     err = 0
     # assert len(sorted_pr) == len(items)
     for i in range(len(sorted_pr)):
-        if(abs(sorted_pr[i][1]-items[i][1]) > tol*1.1):
+        if(abs(sorted_pr[i][1]-items[i][1]) > tol*1.1 and sorted_pr[i][0] == items[i][0]):
             err = err + 1
     print(err)
     assert err < (0.01*len(sorted_pr))
