@@ -34,6 +34,9 @@
 #include <mpi.h>
 #include <vector_types.h>
 
+#ifdef NDEBUG
+	#undef NDEBUG
+#endif
 #define NDEBUG
 #include <assert.h>
 
