@@ -518,6 +518,7 @@ void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indice
   cudaCheckError();
 }
 
+
 template <typename IndexType>
 void sequence(IndexType n, IndexType *vec, IndexType init = 0)
 {

@@ -60,6 +60,8 @@ TEST(MultiPagerank, imb32_32B_2ranks)
   ASSERT_EQ(src_h.size(),dest_h.size());
   ASSERT_EQ(src_h.size(),loc_e);
   ASSERT_EQ(nx_ref.size(),loc_v);
+  ASSERT_EQ(pagerank.size(),loc_v);
+  ASSERT_EQ(v_idx.size(),loc_v);
 
   gdf_column *col_src = new gdf_column, 
              *col_dest = new gdf_column, 
@@ -70,6 +72,12 @@ TEST(MultiPagerank, imb32_32B_2ranks)
   create_gdf_column(v_idx, col_vidx);
   create_gdf_column(src_h, col_src);
   create_gdf_column(dest_h, col_dest);
+
+  //Check input col sizes
+  ASSERT_EQ(col_src->size,loc_e);
+  ASSERT_EQ(col_dest->size,loc_e);
+  ASSERT_EQ(col_pagerank->size,loc_v);
+  ASSERT_EQ(col_vidx->size,loc_v);
 
   ASSERT_EQ(gdf_multi_pagerank (global_v, col_src, col_dest, col_vidx, col_pagerank, damping_factor, max_iter),GDF_SUCCESS);
 
