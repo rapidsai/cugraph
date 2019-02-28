@@ -403,10 +403,6 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 #if	MPR_VERBOSE
 	//cudaProfilerStop();
 	if (0 == rank) {
-		if (!ein) {
-			printf("\tread  time: %.4lf secs, %.2lf Mbytes/sec\n", tr, rbytes/(1024.0*1024.0)/tr);
-			printf("\t\tmin/max disk read time: %.4lf/%.4lf secs, %.2lf/%.2lf Mbytes/sec\n", min_rt, max_rt, min_rr, max_rr);
-		}
 		printf("\tgen   time: %.4lf secs\n", tg);
 		fflush(stdout);
 	}
