@@ -11,12 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
-import time
-from scipy.io import mmread
 import pytest
+import queue
+import time
 import numpy as np
+from scipy.io import mmread
+import cudf
+import cugraph
+
 
 def ReadMtxFile(mmFile):
     print('Reading ' + str(mmFile) + '...')
@@ -24,16 +26,15 @@ def ReadMtxFile(mmFile):
 
 
 def cugraph_Call(M, start_vertex):
-
     # Device data
     M = M.tocsr()
     sources = cudf.Series(M.indptr)
     destinations = cudf.Series(M.indices)
     values = cudf.Series(M.data)
-    
+
     G = cugraph.Graph()
     G.add_adj_list(sources, destinations, values)
-    
+
     t1 = time.time()
     df = cugraph.bfs(G, start_vertex)
     t2 = time.time() - t1
@@ -44,40 +45,47 @@ def cugraph_Call(M, start_vertex):
 
 
 def base_Call(M, start_vertex):
-    intMax = 2147483647
+    int_max = 2**31 - 1
+
     M = M.tocsr()
+
     offsets = M.indptr
     indices = M.indices
     num_verts = len(offsets) - 1
     dist = np.zeros(num_verts, dtype=np.int32)
-    
+
     for i in range(num_verts):
-        dist[i] = intMax
-    import queue
+        dist[i] = int_max
+
     q = queue.Queue()
     q.put(start_vertex)
     dist[start_vertex] = 0
     while(not q.empty()):
         u = q.get()
-        for iCol in range(offsets[u],offsets[u + 1]):
+        for iCol in range(offsets[u], offsets[u + 1]):
             v = indices[iCol]
-            if (dist[v] == intMax):
+            if (dist[v] == int_max):
                 dist[v] = dist[u] + 1
                 q.put(v)
+
     return dist
+
 
 datasets = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
             '/datasets/networks/polbooks.mtx',
             '/datasets/golden_data/graphs/dblp.mtx']
 
+
 @pytest.mark.parametrize('graph_file', datasets)
 def test_bfs(graph_file):
-
     M = ReadMtxFile(graph_file)
+
     base_dist = base_Call(M, 0)
-    dist = cugraph_Call(M, 0)
-    
-    assert len(base_dist) == len(dist)
-    for i in range(len(dist)):
-        assert base_dist[i] == dist[i]
+    cugraph_dist = cugraph_Call(M, 0)
+
+    # Calculating mismatch
+
+    assert len(base_dist) == len(cugraph_dist)
+    for i in range(len(cugraph_dist)):
+        assert base_dist[i] == cugraph_dist[i]

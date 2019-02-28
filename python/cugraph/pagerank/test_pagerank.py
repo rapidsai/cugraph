@@ -11,12 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
-import time
-from scipy.io import mmread
-import networkx as nx
 import pytest
+import time
+import networkx as nx
+from scipy.io import mmread
+import cudf
+import cugraph
 
 print('Networkx version : {} '.format(nx.__version__))
 
@@ -27,12 +27,11 @@ def ReadMtxFile(mmFile):
 
 
 def cugraph_Call(M, max_iter, tol, alpha):
-
     # Device data
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
     # values = cudf.Series(np.ones(len(sources), dtype = np.float64))
-    
+
     # cugraph Pagerank Call
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
@@ -51,7 +50,6 @@ def cugraph_Call(M, max_iter, tol, alpha):
 
 
 def networkx_Call(M, max_iter, tol, alpha):
-
     nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
     for nnz in range(M.getnnz()):
         nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
@@ -97,25 +95,27 @@ datasets = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
             '/datasets/networks/netscience.mtx']
 
-Max_Iterations = [500]
+max_iterations = [500]
 tolerance = [1.0e-06]
 alpha = [0.85]
 
 
 @pytest.mark.parametrize('graph_file', datasets)
-@pytest.mark.parametrize('max_iter', Max_Iterations)
+@pytest.mark.parametrize('max_iter', max_iterations)
 @pytest.mark.parametrize('tol', tolerance)
 @pytest.mark.parametrize('alpha', alpha)
 def test_pagerank(graph_file, max_iter, tol, alpha):
-
     M = ReadMtxFile(graph_file)
-    sorted_pr = cugraph_Call(M, max_iter, tol, alpha)
-    items = networkx_Call(M, max_iter, tol, alpha)
+
+    networkx_pr = networkx_Call(M, max_iter, tol, alpha)
+    cugraph_pr = cugraph_Call(M, max_iter, tol, alpha)
+
     # Calculating mismatch
+
     err = 0
-    # assert len(sorted_pr) == len(items)
-    for i in range(len(sorted_pr)):
-        if(abs(sorted_pr[i][1]-items[i][1]) > tol*1.1):
+    assert len(cugraph_pr) == len(networkx_pr)
+    for i in range(len(cugraph_pr)):
+        if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*1.1):
             err = err + 1
     print(err)
-    assert err < (0.01*len(sorted_pr))
+    assert err < (0.01*len(cugraph_pr))
