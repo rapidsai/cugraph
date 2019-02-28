@@ -81,6 +81,18 @@ void verbose_diff(std::vector<T> & v1, std::vector<T> & v2) {
   }
 }
 
+template <typename T_in, typename T_out> 
+void unsafe_convert(std::vector<T_in> & v_in,std::vector<T_out> & v_out)
+{
+    if (v_in.size() == v_out.size())
+    {
+        for (int i = 0; i < v_in.size(); i++)
+            v_out[i]=static_cast<T_out>(v_in[i]);
+    }
+    else
+        std::cout<<"Convert error : sizes mismatch"<<std::endl;
+}
+
 template <typename T> 
 int eq(std::vector<T> & v1, std::vector<T> & v2) {
     if (v1 == v2)

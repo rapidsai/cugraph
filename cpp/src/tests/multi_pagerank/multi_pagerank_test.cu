@@ -19,6 +19,7 @@
 #include "cuda_profiler_api.h"
 #include "test_utils.h"
 
+
 typedef struct Pagerank_Usecase_t {
   std::string matrix_file;
   std::string result_file;
@@ -42,6 +43,7 @@ void print_top_ranking(std::vector <float>& pagerank, size_t top_k){
     for (size_t i = 0; i < std::min(pagerank.size(), top_k); ++i)
       std::cout << items[i].first << " "<< items[i].second <<std::endl;
 }
+
 
 class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
   public:
@@ -89,13 +91,18 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      // Read
      ASSERT_EQ( (mm_to_coo<int,float>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
      ASSERT_EQ(fclose(fpin),0);
-    
-    // gdf columns 
-    create_gdf_column(cooRowInd, col_src);
-    create_gdf_column(cooColInd, col_dest);
-    create_gdf_column(pagerank, col_pagerank);
-    create_gdf_column(vidx, col_vidx);
 
+    //cast
+    std::vector<idx_T> cooRowInd_(cooRowInd.size()), cooColInd_(cooColInd.size()), vidx_(vidx.size());
+    unsafe_convert<int,idx_T>(cooRowInd, cooRowInd_);
+    unsafe_convert<int,idx_T>(cooColInd, cooColInd_);
+    unsafe_convert<int,idx_T>(vidx, vidx_);
+
+    // gdf columns 
+    create_gdf_column(cooRowInd_, col_src);
+    create_gdf_column(cooColInd_, col_dest);
+    create_gdf_column(pagerank, col_pagerank);
+    create_gdf_column(vidx_, col_vidx);
 
 
     // solve
@@ -154,9 +161,13 @@ TEST_P(Tests_Pagerank, Check32) {
     run_current_test<int>(GetParam());
 }
 
+//TEST_P(Tests_Pagerank, Check64) {
+//    run_current_test<int64_t>(GetParam());
+//}
+
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Pagerank, 
-                        ::testing::Values(   Pagerank_Usecase("/datasets/golden_data/graphs/cit-Patents.mtx", "/datasets/golden_data/results/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                        ::testing::Values(   Pagerank_Usecase("/datasets/networks/ibm32.mtx", "")
                                             ,Pagerank_Usecase("/datasets/golden_data/graphs/ljournal-2008.mtx", "/datasets/golden_data/results/pagerank/ljournal-2008.pagerank_val_0.85.bin")
                                             ,Pagerank_Usecase("/datasets/golden_data/graphs/webbase-1M.mtx", "/datasets/golden_data/results/pagerank/webbase-1M.pagerank_val_0.85.bin")
                                             ,Pagerank_Usecase("/datasets/golden_data/graphs/web-BerkStan.mtx", "/datasets/golden_data/results/pagerank/web-BerkStan.pagerank_val_0.85.bin")
@@ -165,14 +176,14 @@ INSTANTIATE_TEST_CASE_P(simple_test, Tests_Pagerank,
                        );
 
 int main(int argc, char **argv)  {
-    MPI_Init(&argc, &argv);
 
-    srand(42);
-    ::testing::InitGoogleTest(&argc, argv);
+  srand(42);
+  ::testing::InitGoogleTest(&argc, argv);
+  MPI_Init(&argc, &argv);
 
-   int r = RUN_ALL_TESTS();
-   MPI_Finalize();
-   return r;
+  int r = RUN_ALL_TESTS();
+  MPI_Finalize();
+  return r;
 }
 
 

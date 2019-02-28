@@ -31,5 +31,7 @@ dependencies:
 - numpydoc
 - ipython
 - recommonmark
+- mpi4py
+- bokeh
 - pip:
   - sphinx-markdown-tables

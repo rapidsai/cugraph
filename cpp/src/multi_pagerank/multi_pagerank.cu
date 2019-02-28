@@ -336,7 +336,7 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 	// expand [m->firstRow, m->lastRow] ranges in order to partition [0, N-1]
 	// (empty rows outside any [m->firstRow, m->lastRow] range may appear as
 	// columns in other rows
-	adjust_row_range(N, &m->firstRow, &m->lastRow);
+	//adjust_row_range(N, &m->firstRow, &m->lastRow);
 	
 	m->intColsNum = m->lastRow - m->firstRow + 1;
 
@@ -602,7 +602,12 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 	tc = MPI_Wtime()-tc;
 	sum = reduce_cuda(r_d[numIter&1], m->intColsNum);
 	MPI_Reduce(rank?&sum:MPI_IN_PLACE, &sum, 1, REAL_MPI, MPI_SUM, 0, MPI_COMM_WORLD);
-	cugraph::scal(m->intColsNum, (float)1.0/cugraph::nrm1(m->intColsNum,r_d[numIter&1]), r_d[numIter&1]);
+
+	float loc_nrm_1, glob_nrm1;
+	loc_nrm_1= cugraph::nrm1(m->intColsNum,r_d[numIter&1]);
+	MPI_Allreduce(&loc_nrm_1, &glob_nrm1, 1, REAL_MPI, MPI_SUM, MPI_COMM_WORLD);
+
+	cugraph::scal(m->intColsNum, (float)1.0/glob_nrm1, r_d[numIter&1]);
 
 #if	MPR_VERBOSE
 	{
@@ -692,8 +697,11 @@ if (gdf_v_idx->dtype == GDF_INT64)
  cugraph::sequence<int64_t>(m->intColsNum,(int64_t*)gdf_v_idx->data,(int64_t)m->firstRow);
 else
  cugraph::sequence<int>(m->intColsNum,(int*)gdf_v_idx->data,(int)m->firstRow);
+    int	rank, ntask;
 
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+std::cout<< rank<<" "<<m->intColsNum<<std::endl;
   CHECK_CUDA(cudaMemcpy(gdf_pr->data, pr, m->intColsNum*sizeof(float), cudaMemcpyDeviceToDevice));
 
   return GDF_SUCCESS;
@@ -744,5 +752,6 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	cudaFree(pr);
 	destroySpmat(m);
 	cleanup_cuda();
+
 	return GDF_SUCCESS;
 }
