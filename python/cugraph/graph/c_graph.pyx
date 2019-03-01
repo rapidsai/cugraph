@@ -122,7 +122,9 @@ class Graph:
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
-        gdf_add_edge_list(g)
+        err = gdf_add_edge_list(g)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+
         col_size = g.edgeList.src_indices.size
 
         cdef uintptr_t src_col_data = < uintptr_t > g.edgeList.src_indices.data
@@ -171,10 +173,10 @@ class Graph:
         Compute the adjacency list from edge list and return offsets and indices as cudf Series.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_add_adj_list(< gdf_graph *> graph)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
-        
         cdef gdf_graph * g = < gdf_graph *> graph
+        err = gdf_add_adj_list(g)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+
         col_size_off = g.adjList.offsets.size
         col_size_ind = g.adjList.indices.size
 
