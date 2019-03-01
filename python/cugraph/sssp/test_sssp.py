@@ -11,23 +11,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
 import time
-from scipy.io import mmread
+
 import networkx as nx
 import numpy as np
 import pytest
+from scipy.io import mmread
+
+import cudf
+import cugraph
 
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
 
-def cugraph_Call(M, source):
+def cugraph_call(M, source):
 
     # Device data
     sources = cudf.Series(M.row)
@@ -56,7 +58,7 @@ def cugraph_Call(M, source):
     return distances
 
 
-def networkx_Call(M, source):
+def networkx_call(M, source):
 
     print('Format conversion ... ')
     M = M.tocsr()
@@ -80,20 +82,20 @@ def networkx_Call(M, source):
     return path
 
 
-datasets = ['/datasets/networks/dolphins.mtx',
+DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
             '/datasets/golden_data/graphs/dblp.mtx']
 
-source = [1]
+SOURCES = [1]
 
 
-@pytest.mark.parametrize('graph_file', datasets)
-@pytest.mark.parametrize('source', source)
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('source', SOURCES)
 def test_sssp(graph_file, source):
 
-    M = ReadMtxFile(graph_file)
-    cu_paths = cugraph_Call(M, source)
-    nx_paths = networkx_Call(M, source)
+    M = read_mtx_file(graph_file)
+    cu_paths = cugraph_call(M, source)
+    nx_paths = networkx_call(M, source)
 
     # Calculating mismatch
     err = 0

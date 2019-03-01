@@ -11,26 +11,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
-from scipy.io import mmread
-import pytest
 import random
 
+import pytest
+from scipy.io import mmread
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+import cudf
+import cugraph
 
 
-def cuGraph_Call(G, partitions):
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
+
+
+def cugraph_call(G, partitions):
     df = cugraph.spectralBalancedCutClustering(G, partitions,
                                                num_eigen_vects=partitions)
     score = cugraph.analyzeClustering_edge_cut(G, partitions, df['cluster'])
     return score
 
 
-def random_Call(G, partitions):
+def random_call(G, partitions):
     num_verts = G.num_vertices()
     assignment = []
     for i in range(num_verts):
@@ -40,18 +42,18 @@ def random_Call(G, partitions):
     return score
 
 
-datasets = [
+DATASETS = [
     '/datasets/networks/karate.mtx',
     '/datasets/networks/dolphins.mtx',
     '/datasets/golden_data/graphs/dblp.mtx']
-partitions = [2, 4, 8]
+PARTITIONS = [2, 4, 8]
 
 
-@pytest.mark.parametrize('graph_file', datasets)
-@pytest.mark.parametrize('partitions', partitions)
-def test_modularityClustering(graph_file, partitions):
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('partitions', PARTITIONS)
+def test_modularity_clustering(graph_file, partitions):
     # Read in the graph and get a cugraph object
-    M = ReadMtxFile(graph_file).tocsr()
+    M = read_mtx_file(graph_file).tocsr()
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     values = cudf.Series(M.data)
@@ -59,8 +61,8 @@ def test_modularityClustering(graph_file, partitions):
     G.add_adj_list(row_offsets, col_indices, values)
 
     # Get the modularity score for partitioning versus random assignment
-    cu_score = cuGraph_Call(G, partitions)
-    rand_score = random_Call(G, partitions)
+    cu_score = cugraph_call(G, partitions)
+    rand_score = random_call(G, partitions)
 
     # Assert that the partitioning has better modularity than the random
     # assignment

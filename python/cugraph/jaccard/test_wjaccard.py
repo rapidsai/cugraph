@@ -11,23 +11,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
-import numpy as np
 import time
-from scipy.io import mmread
+
 import networkx as nx
+import numpy as np
 import pytest
+from scipy.io import mmread
+
+import cudf
+import cugraph
+
 
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
 
-def cuGraph_Callw(M):
+def cugraph_call(M):
     M = M.tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
@@ -54,16 +57,16 @@ def cuGraph_Callw(M):
     return df['jaccard_coeff']
 
 
-datasets = ['/datasets/networks/dolphins.mtx',
+DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
             '/datasets/golden_data/graphs/dblp.mtx']
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_wjaccard(graph_file):
 
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
     # suppress F841 (local variable is assigned but never used) in flake8
     # no networkX equivalent to compare cu_coeff against...
-    cu_coeff = cuGraph_Callw(M)  # noqa: F841
+    cu_coeff = cugraph_call(M)  # noqa: F841
     # this test is incomplete...
