@@ -11,16 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
-import pytest
 import numpy as np
+import pytest
 from scipy.io import mmread
 
+import cugraph
+import cudf
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
 
 def compare_series(series_1, series_2):
@@ -35,27 +36,27 @@ def compare_series(series_1, series_2):
     return 1
 
 
-def compare_offsets(cu, np):
-    if not (len(cu) <= len(np)):
-        print("Mismatched length: " + str(len(cu)) + " != " + str(len(np)))
+def compare_offsets(offset0, offset1):
+    if not (len(offset0) <= len(offset1)):
+        print("Mismatched length: " + str(len(offset0)) + " != " + str(len(offset1)))
         return False
-    for i in range(len(cu)):
-        if cu[i] != np[i]:
-            print("Series[" + str(i) + "]: " + str(cu[i]) + " != "
-                  + str(np[i]))
+    for i in range(len(offset0)):
+        if offset0[i] != offset1[i]:
+            print("Series[" + str(i) + "]: " + str(offset0[i]) + " != "
+                  + str(offset1[i]))
             return False
     return True
 
 
-datasets = ['/datasets/networks/karate.mtx',
+DATASETS = ['/datasets/networks/karate.mtx',
             '/datasets/networks/dolphins.mtx',
             '/datasets/networks/netscience.mtx']
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_add_edge_list_to_adj_list(graph_file):
 
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 
@@ -76,9 +77,9 @@ def test_add_edge_list_to_adj_list(graph_file):
     assert compare_series(indices_cu, indices_exp)
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
     M = M.tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
@@ -102,9 +103,9 @@ def test_add_adj_list_to_edge_list(graph_file):
     assert compare_series(destinations_cu, destinations_exp)
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_transpose_from_adj_list(graph_file):
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
     M = M.tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
@@ -117,9 +118,9 @@ def test_transpose_from_adj_list(graph_file):
     assert compare_offsets(toff, Mt.indptr)
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_view_edge_list_from_adj_list(graph_file):
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
     M = M.tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
@@ -133,9 +134,9 @@ def test_view_edge_list_from_adj_list(graph_file):
     assert compare_series(dst1, dst2)
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_delete_edge_list_delete_adj_list(graph_file):
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 

@@ -11,23 +11,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
 import time
-from scipy.io import mmread
-import networkx as nx
+
 import community
+import networkx as nx
 import pytest
+from scipy.io import mmread
+
+import cudf
+import cugraph
+
 
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
 
-def cuGraph_Call(M):
+def cugraph_call(M):
     M = M.tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
@@ -51,7 +54,7 @@ def cuGraph_Call(M):
     return parts, mod
 
 
-def networkx_Call(M):
+def networkx_call(M):
     M = M.tocsr()
 
     # Directed NetworkX graph
@@ -69,16 +72,16 @@ def networkx_Call(M):
     return parts
 
 
-datasets = ['/datasets/networks/karate.mtx',
+DATASETS = ['/datasets/networks/karate.mtx',
             '/datasets/networks/dolphins.mtx',
             '/datasets/networks/netscience.mtx']
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_louvain(graph_file):
-    M = ReadMtxFile(graph_file)
-    cu_parts, cu_mod = cuGraph_Call(M)
-    nx_parts = networkx_Call(M)
+    M = read_mtx_file(graph_file)
+    cu_parts, cu_mod = cugraph_call(M)
+    nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison
     Gnx = nx.Graph(M)

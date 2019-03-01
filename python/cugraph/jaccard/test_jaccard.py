@@ -11,22 +11,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
 import time
-from scipy.io import mmread
+
 import networkx as nx
 import pytest
+from scipy.io import mmread
+
+import cudf
+import cugraph
+
 
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
 
-def cuGraph_Call(M):
+def cugraph_call(M):
     M = M.tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
@@ -50,7 +53,7 @@ def cuGraph_Call(M):
 
 
 
-def networkx_Call(M):
+def networkx_call(M):
 
     M = M.tocsr()
     M = M.tocoo()
@@ -84,17 +87,17 @@ def networkx_Call(M):
     return src, dst, coeff
 
 
-datasets = ['/datasets/networks/dolphins.mtx',
+DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
             '/datasets/networks/netscience.mtx']
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_jaccard(graph_file):
 
-    M = ReadMtxFile(graph_file)
-    cu_src, cu_dst, cu_coeff = cuGraph_Call(M)
-    nx_src, nx_dst, nx_coeff = networkx_Call(M)
+    M = read_mtx_file(graph_file)
+    cu_src, icu_dst, cu_coeff = cugraph_call(M)
+    nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
     err = 0

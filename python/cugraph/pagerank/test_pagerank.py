@@ -11,22 +11,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
 import time
+
 import networkx as nx
+import pytest
 from scipy.io import mmread
+
 import cudf
 import cugraph
+
 
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
 
-def cugraph_Call(M, max_iter, tol, alpha):
+def cugraph_call(M, max_iter, tol, alpha):
     # Device data
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
@@ -49,7 +52,7 @@ def cugraph_Call(M, max_iter, tol, alpha):
     return sorted(sorted_pr, key=lambda x: x[1], reverse=True)
 
 
-def networkx_Call(M, max_iter, tol, alpha):
+def networkx_call(M, max_iter, tol, alpha):
     nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
     for nnz in range(M.getnnz()):
         nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
@@ -91,24 +94,24 @@ def networkx_Call(M, max_iter, tol, alpha):
     return sorted(pr.items(), key=lambda x: x[1], reverse=True)
 
 
-datasets = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx' ,
+DATASETS = ['/datasets/networks/dolphins.mtx',
+            '/datasets/networks/karate.mtx',
             '/datasets/networks/netscience.mtx']
 
-max_iterations = [500]
-tolerance = [1.0e-06]
-alpha = [0.85]
+MAX_ITERATIONS = [500]
+TOLERANCE = [1.0e-06]
+ALPHA = [0.85]
 
 
-@pytest.mark.parametrize('graph_file', datasets)
-@pytest.mark.parametrize('max_iter', max_iterations)
-@pytest.mark.parametrize('tol', tolerance)
-@pytest.mark.parametrize('alpha', alpha)
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
+@pytest.mark.parametrize('tol', TOLERANCE)
+@pytest.mark.parametrize('alpha', ALPHA)
 def test_pagerank(graph_file, max_iter, tol, alpha):
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
 
-    networkx_pr = networkx_Call(M, max_iter, tol, alpha)
-    cugraph_pr = cugraph_Call(M, max_iter, tol, alpha)
+    networkx_pr = networkx_call(M, max_iter, tol, alpha)
+    cugraph_pr = cugraph_call(M, max_iter, tol, alpha)
 
     # Calculating mismatch
 

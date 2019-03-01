@@ -11,18 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
 import queue
 import time
+
 import numpy as np
+import pytest
 from scipy.io import mmread
+
 import cudf
 import cugraph
 
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
 
 def cugraph_call(M, start_vertex):
@@ -63,8 +65,8 @@ def base_call(M, start_vertex):
     dist[start_vertex] = 0
     while(not q.empty()):
         u = q.get()
-        for iCol in range(offsets[u], offsets[u + 1]):
-            v = indices[iCol]
+        for i_col in range(offsets[u], offsets[u + 1]):
+            v = indices[i_col]
             if (dist[v] == int_max):
                 dist[v] = dist[u] + 1
                 q.put(v)
@@ -72,17 +74,20 @@ def base_call(M, start_vertex):
     return vertex, dist
 
 
-datasets = ['/datasets/networks/dolphins.mtx',
+DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
             '/datasets/networks/polbooks.mtx',
             '/datasets/golden_data/graphs/dblp.mtx']
 
 
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_bfs(graph_file):
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
+
     base_vid, base_dist = base_call(M, 0)
     cugraph_vid, cugraph_dist = cugraph_call(M, 0)
+
+    # Calculating mismatch
 
     assert len(base_dist) == len(cugraph_dist)
     for i in range(len(cugraph_dist)):
