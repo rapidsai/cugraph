@@ -276,7 +276,7 @@ static inline void cancelReqs(MPI_Request *request, int n) {
 
 static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 
-	double tg=0, tdr=0;
+	double tr=0,tg=0, tdr=0;
 
 	double	min_rt, max_rt;
 	double	min_rr, max_rr;
