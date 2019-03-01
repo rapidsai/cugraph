@@ -91,7 +91,7 @@ TEST(MultiPagerank, imb32_32B_2ranks)
   int n_err = 0;
   for (int i = 0; i < loc_v; i++)
   {
-      std::cout<< rank<<" " << i<<" " <<nx_ref[i]<<" "<<calculated_res[i]<<std::endl;
+      std::cout<< rank<<" " << calculated_idx[i]<<" " <<nx_ref[i]<<" "<<calculated_res[i]<<std::endl;
 
       err = fabs(nx_ref[i] - calculated_res[i]);
       if (err> 1e-6f)

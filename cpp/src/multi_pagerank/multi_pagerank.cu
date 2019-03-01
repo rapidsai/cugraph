@@ -686,14 +686,16 @@ gdf_error fill_gdf_output (spmat_t *m,
        					   gdf_column *gdf_v_idx, 
        					   gdf_column *gdf_pr) {
 
-//if (gdf_v_idx->dtype == GDF_INT64)
-// cugraph::sequence<int64_t>(m->intColsNum,(int64_t*)gdf_v_idx->data,(int64_t)m->firstRow);
-//else
-// cugraph::sequence<int>(m->intColsNum,(int*)gdf_v_idx->data,(int)m->firstRow);
-//cudaCheckError();
+  // Generating the sequence directly in the gdf column fail
+  // this issue is bypassed by using a temporary array
+  // We then copy it into the column 
+  LOCINT* idx;
+  CHECK_CUDA(cudaMalloc(&idx,m->intColsNum*sizeof(LOCINT)));
+  cugraph::sequence<LOCINT>(m->intColsNum,idx,m->firstRow);
+  CHECK_CUDA(cudaMemcpy(gdf_v_idx->data, idx, m->intColsNum*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
+  if (idx) CHECK_CUDA(cudaFree(idx));
 
-  std::cout<< m->intColsNum<<" " << (int)m->firstRow<<std::endl;
-  
+  // Store the pagerank into the column
   CHECK_CUDA(cudaMemcpy(gdf_pr->data, pr, m->intColsNum*sizeof(REAL), cudaMemcpyDeviceToDevice));
   return GDF_SUCCESS;
 }
