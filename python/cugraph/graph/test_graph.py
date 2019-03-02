@@ -114,7 +114,7 @@ def test_transpose_from_adj_list(graph_file):
     G.add_transpose()
     Mt = M.transpose().tocsr()
     toff, tind = G.view_transpose_adj_list()
-    assert compare_series(Mt.indices, tind)
+    assert compare_series(tind, Mt.indices)
     assert compare_offsets(toff, Mt.indptr)
 
 

@@ -132,12 +132,13 @@ class Graph:
 
         src_data = rmm.device_array_from_ptr(src_col_data,
                                      nelem=col_size,
-                                     dtype=np.int32,
-                                     finalizer=rmm._make_finalizer(src_col_data, 0))
+                                     dtype=np.int32) # ,
+                                     # finalizer=rmm._make_finalizer(src_col_data, 0))
         dest_data = rmm.device_array_from_ptr(dest_col_data,
                                      nelem=col_size,
-                                     dtype=np.int32,
-                                     finalizer=rmm._make_finalizer(dest_col_data, 0))
+                                     dtype=np.int32) # ,
+                                     # finalizer=rmm._make_finalizer(dest_col_data, 0))
+        # gdf_graph g should be freed when g gets garbage collected.
 
         return cudf.Series(src_data), cudf.Series(dest_data)
 
@@ -185,12 +186,13 @@ class Graph:
 
         offsets_data = rmm.device_array_from_ptr(offsets_col_data,
                                      nelem=col_size_off,
-                                     dtype=np.int32,
-                                     finalizer=rmm._make_finalizer(offsets_col_data, 0))
+                                     dtype=np.int32) # ,
+                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
         indices_data = rmm.device_array_from_ptr(indices_col_data,
                                      nelem=col_size_ind,
-                                     dtype=np.int32,
-                                     finalizer=rmm._make_finalizer(indices_col_data, 0))
+                                     dtype=np.int32) # ,
+                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
+        # gdf_graph g should be freed when g gets garbage collected.
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
     
@@ -212,12 +214,13 @@ class Graph:
         
         offsets_data = rmm.device_array_from_ptr(offsets_col_data,
                                      nelem=off_size,
-                                     dtype=np.int32,
-                                     finalizer=rmm._make_finalizer(offsets_col_data, 0))
+                                     dtype=np.int32) # ,
+                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
         indices_data = rmm.device_array_from_ptr(indices_col_data,
                                      nelem=ind_size,
-                                     dtype=np.int32,
-                                     finalizer=rmm._make_finalizer(indices_col_data, 0))
+                                     dtype=np.int32) # ,
+                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
+        # gdf_graph g should be freed when g gets garbage collected.
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
         
