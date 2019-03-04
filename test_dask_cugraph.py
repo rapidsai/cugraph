@@ -46,11 +46,13 @@ y = np.asarray([0,0,0,0,0,0,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,6,6,6,6,
 input_df['src']=x
 input_df['dst']=y
 print(input_df)
-ddf = dask_cudf.from_cudf(input_df, chunksize=126).persist()
+ddf = dask_cudf.from_cudf(input_df, chunksize=64).persist()
 print("DASK CUDF: ", ddf)
 print("CALLING DASK MG PAGERANK")
-
+import os
+os.system("nvidia-smi")
 sdf = ddf.sort_values_binned(by='dst')
+print(sdf)
 pr = dcg.mg_pagerank(sdf)
 
 print(pr)
