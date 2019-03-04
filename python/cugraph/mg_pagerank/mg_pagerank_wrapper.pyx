@@ -2,8 +2,8 @@ from libc.stdint cimport uintptr_t
 from c_mg_pagerank cimport *
 
 def mg_pagerank(input_df, pr_col_length, global_v):
-    source_col = input_df[input_df.columns[0]]
-    dest_col = input_df[input_df.columns[1]]
+    source_col = input_df[input_df.columns[1]]
+    dest_col = input_df[input_df.columns[2]]
     pagerank_col = cudf.Series(np.ones(pr_col_length, dtype=np.float32))
     vertices_col = cudf.Series(np.ones(pr_col_length, dtype=np.int32))
 
