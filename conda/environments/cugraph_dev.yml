@@ -1,17 +1,20 @@
 name: cugraph_dev
 channels:
 - nvidia
-- rapidsai
+- rapidsai-nightly
 - numba
 - conda-forge
 - defaults
 dependencies:
-- cudf>=0.5.1
+- dask
+- cudf
+- openmpi
+- mpi4py
+- bokeh
 - nvgraph
 - scipy
 - networkx
 - python-louvain
-- openmpi
 - cudatoolkit
 - cmake>=3.12
 - python>=3.6,<3.8
@@ -31,7 +34,5 @@ dependencies:
 - numpydoc
 - ipython
 - recommonmark
-- mpi4py
-- bokeh
 - pip:
   - sphinx-markdown-tables
