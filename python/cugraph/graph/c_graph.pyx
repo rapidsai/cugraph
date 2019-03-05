@@ -162,7 +162,9 @@ class Graph:
                                      nelem=col_size,
                                      dtype=np.int32) # ,
                                      # finalizer=rmm._make_finalizer(dest_col_data, 0))
-        # gdf_graph g should be freed when g gets garbage collected.
+        # g.edgeList.src_indices.data and g.edgeList.dest_indices.data are not
+        # owned by this instance, so should not be freed here (this will lead
+        # to double free, and undefined behavior).
 
         return cudf.Series(src_data), cudf.Series(dest_data)
 
@@ -222,7 +224,9 @@ class Graph:
                                      nelem=col_size_ind,
                                      dtype=np.int32) # ,
                                      # finalizer=rmm._make_finalizer(indices_col_data, 0))
-        # gdf_graph g should be freed when g gets garbage collected.
+        # g.adjList.offsets.data and g.adjList.indices.data are not owned by
+        # this instance, so should not be freed here (this will lead to double
+        # free, and undefined behavior).
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
     
@@ -250,7 +254,9 @@ class Graph:
                                      nelem=ind_size,
                                      dtype=np.int32) # ,
                                      # finalizer=rmm._make_finalizer(indices_col_data, 0))
-        # gdf_graph g should be freed when g gets garbage collected.
+        # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
+        # are not owned by this instance, so should not be freed here (this
+        # will lead to double free, and undefined behavior).
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
         
