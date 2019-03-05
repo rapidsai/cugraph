@@ -725,6 +725,13 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	MPI_Comm_size(MPI_COMM_WORLD, &ntask);
 	MPI_Barrier(MPI_COMM_WORLD);
 	init_cuda();
+
+#if	MPR_VERBOSE
+	int dev = -1;
+	cudaGetDevice(&dev);
+    std::cout << "PID "<< getpid() << " - rank: " << rank << " - dev: "<< dev<< std::endl;
+#endif
+
 	spmat_t *m = createSpmat(ntask);
     REAL* pr = nullptr;
 
