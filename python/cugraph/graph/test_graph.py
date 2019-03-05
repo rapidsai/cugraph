@@ -38,7 +38,8 @@ def compare_series(series_1, series_2):
 
 def compare_offsets(offset0, offset1):
     if not (len(offset0) <= len(offset1)):
-        print("Mismatched length: " + str(len(offset0)) + " != " + str(len(offset1)))
+        print("Mismatched length: " + str(len(offset0)) + " != "
+              + str(len(offset1)))
         return False
     for i in range(len(offset0)):
         if offset0[i] != offset1[i]:
