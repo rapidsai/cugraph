@@ -61,7 +61,6 @@ class Graph:
         >>> import cuGraph
         >>> G = cuGraph.Graph()
         """
-        print("Invoking __init__")
         cdef gdf_graph * g
         g = < gdf_graph *> calloc(1, sizeof(gdf_graph))
 
@@ -69,7 +68,6 @@ class Graph:
         self.graph_ptr = graph_ptr
 
     def __del__(self):
-        print("Invoking __dealloc__")
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
         self.delete_edge_list()
