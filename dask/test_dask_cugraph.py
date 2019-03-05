@@ -6,7 +6,7 @@ from dask.distributed import Client, wait, default_client, futures_of
 
 #cluster = LocalCUDACluster(threads_per_worker=10)
 #client = Client(cluster)
-client = Client(scheduler_file = "/home/iroy/dask_cugraph/cluster.json", direct_to_workers = True)
+client = Client(scheduler_file = "cluster.json", direct_to_workers = True)
 devs = [0, 1, 2, 3]
 workers = list(client.has_what().keys())
 worker_devs = workers[0:min(len(devs), len(workers))]
