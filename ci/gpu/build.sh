@@ -29,6 +29,7 @@ nvidia-smi
 
 logger "Activate conda env..."
 source activate gdf
+conda install cudf>=0.5.1,<0.6.0 nvgraph
 
 logger "Check versions..."
 python --version
