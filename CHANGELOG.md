@@ -22,11 +22,13 @@
 - PR #96 Relocated mmio.c and mmio.h (external files) to thirdparty/mmio
 - PR #97 Updated python tests to speed them up
 - PR #100 Added testing for returned vertex and edge identifiers  
+- PR #105 Updated ptyhton code to follow PEP8 (fixed flake8 complaints)
 
 ## Bug Fixes
 
 - PR #48 ABI Fixes
 - PR #72 Bug fix for segfault issue getting transpose from adjacency list
+- PR #105 Bug fix for memory leaks and python test failures
 
 
 # cuGraph 0.5.0 (28 Jan 2019)
