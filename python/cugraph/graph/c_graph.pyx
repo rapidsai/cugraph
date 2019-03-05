@@ -19,11 +19,11 @@ import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
+
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
 
+
 cdef create_column(col):
-    
-    x = < gdf_column *> malloc(sizeof(gdf_column))
     cdef gdf_column * c_col = < gdf_column *> malloc(sizeof(gdf_column))
     cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
     # cdef uintptr_t valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
@@ -39,6 +39,14 @@ cdef create_column(col):
     cdef uintptr_t col_ptr = < uintptr_t > c_col
     return col_ptr
 
+
+cdef delete_column(col_ptr):
+    cdef uintptr_t col = col_ptr
+    cdef gdf_column * c_col = < gdf_column *> col
+    free(c_col)
+    return
+
+
 class Graph:
     """
     cuGraph graph class containing basic graph creation and transformation operations.
@@ -53,11 +61,21 @@ class Graph:
         >>> import cuGraph
         >>> G = cuGraph.Graph()
         """
-        cdef gdf_graph * graph
-        graph = < gdf_graph *> calloc(1, sizeof(gdf_graph))
+        print("Invoking __init__")
+        cdef gdf_graph * g
+        g = < gdf_graph *> calloc(1, sizeof(gdf_graph))
 
-        cdef uintptr_t graph_ptr = < uintptr_t > graph
+        cdef uintptr_t graph_ptr = < uintptr_t > g
         self.graph_ptr = graph_ptr
+
+    def __del__(self):
+        print("Invoking __dealloc__")
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = < gdf_graph *> graph
+        self.delete_edge_list()
+        self.delete_adj_list()
+        self.delete_transpose()
+        free(g)
 
     def add_edge_list(self, source_col, dest_col, value_col=None):
         """
@@ -100,18 +118,24 @@ class Graph:
         else:
             value = create_column(value_col)
 
-        err = gdf_edge_list_view(< gdf_graph *> graph,
-                                 < gdf_column *> source,
-                                 < gdf_column *> dest,
-                                 < gdf_column *> value)
-        cudf.bindings.cudf_cpp.check_gdf_error(err) 
-        
+        try:
+            err = gdf_edge_list_view(< gdf_graph *> graph,
+                                     < gdf_column *> source,
+                                     < gdf_column *> dest,
+                                     < gdf_column *> value)
+            cudf.bindings.cudf_cpp.check_gdf_error(err)
+        finally:
+            delete_column(source)
+            delete_column(dest)
+            if value is not 0:
+                delete_column(value)
+
     def num_vertices(self):
         """
         Get the number of vertices in the graph
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph* g = <gdf_graph*>graph
+        cdef gdf_graph* g = < gdf_graph *> graph
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         return g.adjList.offsets.size - 1   
@@ -162,12 +186,18 @@ class Graph:
             value = 0
         else:
             value = create_column(value_col)
-    
-        err = gdf_adj_list_view(< gdf_graph *> graph,
-                                < gdf_column *> offsets,
-                                < gdf_column *> indices,
-                                < gdf_column *> value)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        try:
+            err = gdf_adj_list_view(< gdf_graph *> graph,
+                                    < gdf_column *> offsets,
+                                    < gdf_column *> indices,
+                                    < gdf_column *> value)
+            cudf.bindings.cudf_cpp.check_gdf_error(err)
+        finally:
+            delete_column(offsets)
+            delete_column(indices)
+            if value is not 0:
+                delete_column(value)
         
     def view_adj_list(self):
         """
@@ -248,5 +278,3 @@ class Graph:
         cdef uintptr_t graph = self.graph_ptr
         err = gdf_delete_transpose(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-
-
