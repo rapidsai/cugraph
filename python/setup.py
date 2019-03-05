@@ -122,5 +122,4 @@ setup(name='cugraph',
       install_requires=INSTALL_REQUIRES,
       license="Apache",
       cmdclass=versioneer.get_cmdclass(),
-      zip_safe=False
-     )
+      zip_safe=False)
