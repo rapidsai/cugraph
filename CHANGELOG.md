@@ -22,7 +22,7 @@
 - PR #96 Relocated mmio.c and mmio.h (external files) to thirdparty/mmio
 - PR #97 Updated python tests to speed them up
 - PR #100 Added testing for returned vertex and edge identifiers  
-- PR #105 Updated ptyhton code to follow PEP8 (fixed flake8 complaints)
+- PR #105 Updated python code to follow PEP8 (fixed flake8 complaints)
 
 ## Bug Fixes
 

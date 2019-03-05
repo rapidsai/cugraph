@@ -58,8 +58,8 @@ def cugraph_call(M):
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
-    return df['source'].to_array(), df['destination'].to_array(), df['jaccard_coeff'].to_array()
-
+    return df['source'].to_array(), df['destination'].to_array(),\
+        df['jaccard_coeff'].to_array()
 
 
 def networkx_call(M):
@@ -105,7 +105,7 @@ DATASETS = ['/datasets/networks/dolphins.mtx',
 def test_jaccard(graph_file):
 
     M = read_mtx_file(graph_file)
-    cu_src, icu_dst, cu_coeff = cugraph_call(M)
+    cu_src, cu_dst, cu_coeff = cugraph_call(M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch

@@ -127,7 +127,8 @@ def test_pagerank(graph_file, max_iter, tol, alpha):
     err = 0
     assert len(cugraph_pr) == len(networkx_pr)
     for i in range(len(cugraph_pr)):
-        if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*1.1 and sorted_ptr[i][0] == networkx_pr[i][0]):
+        if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*1.1
+           and cugraph_pr[i][0] == networkx_pr[i][0]):
             err = err + 1
     print(err)
     assert err < (0.01*len(cugraph_pr))

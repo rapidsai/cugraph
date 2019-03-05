@@ -41,7 +41,7 @@ def random_call(G, partitions):
     assignment_cu = cudf.Series(assignment)
     score = cugraph.analyzeClustering_edge_cut(G, partitions, assignment_cu)
     return set(range(num_verts)), score
-   
+
 
 DATASETS = [
     '/datasets/networks/karate.mtx',
