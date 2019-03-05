@@ -34,6 +34,7 @@
 - PR #95 Code clean up
 - PR #96 Relocated mmio.c and mmio.h (external files) to thirdparty/mmio
 - PR #97 Updated python tests to speed them up
+- PR #100 Added testing for returned vertex and edge identifiers  
 
 ## Bug Fixes
 
