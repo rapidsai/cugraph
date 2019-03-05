@@ -62,6 +62,10 @@ def cugraph_call(M):
         df['jaccard_coeff'].to_array()
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> d29186ac62fd636ff3211a79f13690fca1a0c550
 def networkx_call(M):
 
     M = M.tocsr()
@@ -90,10 +94,15 @@ def networkx_call(M):
     dst = []
     coeff = []
     for u, v, p in preds:
+<<<<<<< HEAD
         src.append(u)
         dst.append(v)
         coeff.append(p)
     return src, dst, coeff
+=======
+        coeff.append(p)
+    return coeff
+>>>>>>> d29186ac62fd636ff3211a79f13690fca1a0c550
 
 
 DATASETS = ['/datasets/networks/dolphins.mtx',
@@ -105,18 +114,28 @@ DATASETS = ['/datasets/networks/dolphins.mtx',
 def test_jaccard(graph_file):
 
     M = read_mtx_file(graph_file)
+<<<<<<< HEAD
     cu_src, cu_dst, cu_coeff = cugraph_call(M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
+=======
+    cu_coeff = cugraph_call(M)
+    nx_coeff = networkx_call(M)
+>>>>>>> d29186ac62fd636ff3211a79f13690fca1a0c550
     # Calculating mismatch
     err = 0
     tol = 1.0e-06
 
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
+<<<<<<< HEAD
         if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and cu_src == nx_src
            and cu_dst == nx_dst):
             err += 1
 
+=======
+        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1):
+            err += 1
+>>>>>>> d29186ac62fd636ff3211a79f13690fca1a0c550
     print("Mismatches:  %d" % err)
     assert err == 0
