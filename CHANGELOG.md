@@ -32,6 +32,7 @@
 - PR #110 Bug fix for segfault calling Louvain with only edge list
 - PR #120 Bug fix for segfault calling spectral clustering with only edge list
 - PR #116 Added netscience.mtx dataset to datasets.tar.gz
+- PR #123 Fixed weighted Jaccard to assume the input weights are given as a cudf.Series
 
 
 # cuGraph 0.5.0 (28 Jan 2019)
