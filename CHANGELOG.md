@@ -22,6 +22,7 @@
 - PR #96 Relocated mmio.c and mmio.h (external files) to thirdparty/mmio
 - PR #97 Updated python tests to speed them up
 - PR #100 Added testing for returned vertex and edge identifiers  
+- PR #121 Cleaned up READEME file
 
 ## Bug Fixes
 
