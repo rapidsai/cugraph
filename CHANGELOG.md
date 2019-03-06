@@ -28,6 +28,7 @@
 - PR #48 ABI Fixes
 - PR #72 Bug fix for segfault issue getting transpose from adjacency list
 - PR #110 Bug fix for segfault calling Louvain with only edge list
+- PR #120 Bug fix for segfault calling spectral clustering with only edge list
 
 # cuGraph 0.5.0 (28 Jan 2019)
 
