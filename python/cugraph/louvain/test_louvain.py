@@ -80,13 +80,13 @@ datasets = ['/datasets/networks/karate.mtx',
 def test_louvain(graph_file):
     M = ReadMtxFile(graph_file)
     cu_parts, cu_mod = cuGraph_Call(M)
-    nx_parts = networkx_Call(M)
-    
+    nx_parts = networkx_Call(M)    
     # Calculating modularity scores for comparison
     Gnx = nx.Graph(M)
     cu_map = {0:0}
     for i in range(len(cu_parts)):
         cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
+    assert set(nx_parts.keys()) == set(cu_map.keys())    
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
     assert len(cu_parts) == len(nx_parts)

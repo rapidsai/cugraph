@@ -55,7 +55,7 @@ cpdef bfs(G, start, directed=True):
     
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
-    num_verts = g.adjList.offsets.size - 1
+    num_verts = G.num_vertices()
     
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))

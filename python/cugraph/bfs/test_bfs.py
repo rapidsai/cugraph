@@ -38,9 +38,9 @@ def cugraph_Call(M, start_vertex):
     df = cugraph.bfs(G, start_vertex)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-
+    
     # Return distances as np.array()
-    return df['distance'].to_array()
+    return df['vertex'].to_array(), df['distance'].to_array()
 
 
 def base_Call(M, start_vertex):
@@ -50,7 +50,8 @@ def base_Call(M, start_vertex):
     indices = M.indices
     num_verts = len(offsets) - 1
     dist = np.zeros(num_verts, dtype=np.int32)
-    
+    vertex = list(range(num_verts))
+
     for i in range(num_verts):
         dist[i] = intMax
     import queue
@@ -64,7 +65,7 @@ def base_Call(M, start_vertex):
             if (dist[v] == intMax):
                 dist[v] = dist[u] + 1
                 q.put(v)
-    return dist
+    return vertex, dist
 
 datasets = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
@@ -75,9 +76,10 @@ datasets = ['/datasets/networks/dolphins.mtx',
 def test_bfs(graph_file):
 
     M = ReadMtxFile(graph_file)
-    base_dist = base_Call(M, 0)
-    dist = cugraph_Call(M, 0)
+    base_v_id, base_dist = base_Call(M, 0)
+    v_id, dist = cugraph_Call(M, 0)
     
     assert len(base_dist) == len(dist)
     for i in range(len(dist)):
+        assert base_v_id[i] == v_id[i]
         assert base_dist[i] == dist[i]

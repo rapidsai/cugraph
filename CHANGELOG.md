@@ -19,14 +19,15 @@
 - PR #50 Reorganize directory structure to match cuDF
 - PR #85 Deleted setup.py and setup.cfg which had been replaced
 - PR #95 Code clean up
+- PR #96 Relocated mmio.c and mmio.h (external files) to thirdparty/mmio
 - PR #97 Updated python tests to speed them up
-
+- PR #100 Added testing for returned vertex and edge identifiers  
 
 ## Bug Fixes
 
 - PR #48 ABI Fixes
 - PR #72 Bug fix for segfault issue getting transpose from adjacency list
-
+- PR #110 Bug fix for segfault calling Louvain with only edge list
 
 # cuGraph 0.5.0 (28 Jan 2019)
 

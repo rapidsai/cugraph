@@ -30,7 +30,7 @@ def ReadMtxFile(mmFile):
 def cuGraph_Call(G, partitions):
     df = cugraph.spectralBalancedCutClustering(G, partitions, num_eigen_vects=partitions)
     score = cugraph.analyzeClustering_edge_cut(G, partitions, df['cluster'])
-    return score
+    return set(df['vertex'].to_array()), score
 
 def random_Call(G, partitions):
     num_verts = G.num_vertices()
@@ -39,7 +39,7 @@ def random_Call(G, partitions):
         assignment.append(random.randint(0,partitions-1))
     assignment_cu = cudf.Series(assignment)
     score = cugraph.analyzeClustering_edge_cut(G, partitions, assignment_cu)
-    return score
+    return set(range(num_verts)), score
    
 
 datasets = ['/datasets/networks/karate.mtx', '/datasets/networks/dolphins.mtx', '/datasets/golden_data/graphs/dblp.mtx']
@@ -56,8 +56,8 @@ def test_modularityClustering(graph_file, partitions):
     G.add_adj_list(row_offsets, col_indices, values)
     
     # Get the modularity score for partitioning versus random assignment
-    cu_score = cuGraph_Call(G, partitions)
-    rand_score = random_Call(G, partitions)
-    
+    cu_v_id, cu_score = cuGraph_Call(G, partitions)
+    v_id, rand_score = random_Call(G, partitions)
+    assert cu_v_id == v_id 
     # Assert that the partitioning has better modularity than the random assignment
     assert cu_score < rand_score

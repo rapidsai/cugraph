@@ -49,7 +49,7 @@ def cuGraph_Call(M):
     t2 =  time.time() - t1
     print('Time : '+str(t2))
 
-    return df['jaccard_coeff'].to_array()
+    return df['source'].to_array(), df['destination'].to_array(), df['jaccard_coeff'].to_array()
 
 def networkx_Call(M):
 
@@ -75,13 +75,17 @@ def networkx_Call(M):
 
     print('Time : '+str(t2))
     coeff = []
+    src = []
+    dst = []
     for u,v,p in preds:
+        src.append(u)
+        dst.append(v)
         coeff.append(p)
-    return coeff
+    return src, dst, coeff
    
 
 datasets = ['/datasets/networks/dolphins.mtx', 
-            '/datasets/networks/karate.mtx', 
+            '/datasets/networks/karate.mtx' , 
             '/datasets/networks/netscience.mtx']
 
 @pytest.mark.parametrize('graph_file', datasets)
@@ -89,14 +93,14 @@ datasets = ['/datasets/networks/dolphins.mtx',
 def test_jaccard(graph_file):
 
     M = ReadMtxFile(graph_file)
-    cu_coeff = cuGraph_Call(M)
-    nx_coeff = networkx_Call(M)
+    cu_src, cu_dst, cu_coeff = cuGraph_Call(M)
+    nx_src, nx_dst, nx_coeff = networkx_Call(M)
     # Calculating mismatch
     err = 0
     tol = 1.0e-06
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
-        if(abs(cu_coeff[i] -nx_coeff[i])>tol*1.1):
+        if(abs(cu_coeff[i] -nx_coeff[i])>tol*1.1 and cu_src == nx_src and cu_dst == nx_dst):
             err+=1 
     print("Mismatches:  %d" %err)
     assert err == 0
