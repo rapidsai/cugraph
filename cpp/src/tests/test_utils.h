@@ -663,8 +663,19 @@ void gdf_col_delete(gdf_column* col) {
     cudaStream_t stream{nullptr}; 
     if(col->data)
       ALLOC_FREE_TRY(col->data, stream);
+#if 1
+// If delete col is executed, the memory pointed by col is no longer valid and
+// can be used in another memory allocation, so executing col->data = nullptr
+// after delete col is dangerous, also, col = nullptr has no effect here (the
+// address is passed by value, for col = nullptr should work, the input
+// parameter should be gdf_column*& col (or alternatively, gdf_column** col and
+// *col = nullptr also work)
+    col->data = nullptr;
+    delete col;
+#else
     delete col;
     col->data = nullptr;
-    col = nullptr;  
+    col = nullptr;
+#endif
   }                                                       
 }

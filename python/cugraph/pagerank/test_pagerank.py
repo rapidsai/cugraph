@@ -11,28 +11,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
 import time
-from scipy.io import mmread
-import networkx as nx
+
 import pytest
+from scipy.io import mmread
+
+import cudf
+import cugraph
+
+# Temporarily suppress warnings till networkX fixes deprecation warnings
+# (Using or importing the ABCs from 'collections' instead of from
+# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
+# python 3.7.  Also, this import networkx needs to be relocated in the
+# third-party group once this gets fixed.
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import networkx as nx
+
 
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
 
-def cugraph_Call(M, max_iter, tol, alpha):
-
+def cugraph_call(M, max_iter, tol, alpha):
     # Device data
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
     # values = cudf.Series(np.ones(len(sources), dtype = np.float64))
-    
+
     # cugraph Pagerank Call
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
@@ -50,8 +61,7 @@ def cugraph_Call(M, max_iter, tol, alpha):
     return sorted(sorted_pr, key=lambda x: x[1], reverse=True)
 
 
-def networkx_Call(M, max_iter, tol, alpha):
-
+def networkx_call(M, max_iter, tol, alpha):
     nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
     for nnz in range(M.getnnz()):
         nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
@@ -93,29 +103,32 @@ def networkx_Call(M, max_iter, tol, alpha):
     return sorted(pr.items(), key=lambda x: x[1], reverse=True)
 
 
-datasets = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx' ,
+DATASETS = ['/datasets/networks/dolphins.mtx',
+            '/datasets/networks/karate.mtx',
             '/datasets/networks/netscience.mtx']
 
-Max_Iterations = [500]
-tolerance = [1.0e-06]
-alpha = [0.85]
+MAX_ITERATIONS = [500]
+TOLERANCE = [1.0e-06]
+ALPHA = [0.85]
 
 
-@pytest.mark.parametrize('graph_file', datasets)
-@pytest.mark.parametrize('max_iter', Max_Iterations)
-@pytest.mark.parametrize('tol', tolerance)
-@pytest.mark.parametrize('alpha', alpha)
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
+@pytest.mark.parametrize('tol', TOLERANCE)
+@pytest.mark.parametrize('alpha', ALPHA)
 def test_pagerank(graph_file, max_iter, tol, alpha):
+    M = read_mtx_file(graph_file)
 
-    M = ReadMtxFile(graph_file)
-    sorted_pr = cugraph_Call(M, max_iter, tol, alpha)
-    items = networkx_Call(M, max_iter, tol, alpha)
+    networkx_pr = networkx_call(M, max_iter, tol, alpha)
+    cugraph_pr = cugraph_call(M, max_iter, tol, alpha)
+
     # Calculating mismatch
+
     err = 0
-    # assert len(sorted_pr) == len(items)
-    for i in range(len(sorted_pr)):
-        if(abs(sorted_pr[i][1]-items[i][1]) > tol*1.1 and sorted_pr[i][0] == items[i][0]):
+    assert len(cugraph_pr) == len(networkx_pr)
+    for i in range(len(cugraph_pr)):
+        if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*1.1
+           and cugraph_pr[i][0] == networkx_pr[i][0]):
             err = err + 1
     print(err)
-    assert err < (0.01*len(sorted_pr))
+    assert err < (0.01*len(cugraph_pr))
