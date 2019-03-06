@@ -76,7 +76,8 @@
 #endif
 char IOBUF[IOINT_NUM*(LOCINT_MAX_CHAR+1)];
 
-#define MPR_VERBOSE 1
+//#define MPR_VERBOSE
+//#define MPR_BENCH
 
 typedef struct {
 	int	code;
@@ -204,7 +205,7 @@ static void check_row_overlap(LOCINT first_row, LOCINT last_row, int *exchup, in
 
 	return;
 }
-	
+
 void adjust_row_range(size_t N, LOCINT *first_row, LOCINT *last_row) {
 
 	int	rank, ntask;
@@ -276,7 +277,7 @@ static inline void cancelReqs(MPI_Request *request, int n) {
 
 static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 
-	double tr=0,tg=0, tdr=0;
+	double tg=0, tdr=0;
 
 	double	min_rt, max_rt;
 	double	min_rr, max_rr;
@@ -316,7 +317,7 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 	// temp data using pool
 	LOCINT	*u_d=NULL, *v_d=NULL; // alloc-ed in <remove/keep>_rows_cuda() and
 				                // dealloc-ed in get_csr_multi_cuda()
-
+ 
 	// remove rows smaller than 1
 	//ned = remove_rows_cuda(u, v, ned, &u_d, &v_d);
 	
@@ -400,12 +401,19 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 
 		MPI_Reduce(rank ? &rbytes : MPI_IN_PLACE, &rbytes, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 	}
-#if	MPR_VERBOSE
+#ifdef	MPR_VERBOSE
 	//cudaProfilerStop();
 	if (0 == rank) {
 		printf("\tgen   time: %.4lf secs\n", tg);
 		fflush(stdout);
 	}
+#endif
+
+#ifdef	MPR_BENCH
+  if (0 == rank) {
+  	std::cout<<tg<<",";
+  	fflush(stdout);
+  }
 #endif
 	// sanity check (untimed)
 	if (m->totToSend) {
@@ -602,7 +610,7 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 
 	cugraph::scal(m->intColsNum, (float)1.0/glob_nrm1, r_d[numIter&1]);
 
-#if	MPR_VERBOSE
+#ifdef	MPR_VERBOSE
 	{
 		char fname[256];
 		snprintf(fname, 256, "myresult_%d.txt", rank);
@@ -628,7 +636,7 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 	MPI_Reduce(tspmv, tspmv+1, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 	MPI_Reduce(rank?tspmv:MPI_IN_PLACE, tspmv, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
 
-#if	MPR_VERBOSE
+#ifdef	MPR_VERBOSE
 	if (0 == rank) {
 		printf("\tgen   time: %.4lf secs\n", tg);
 		printf("\tcomp  time: %.4lf secs\n", tc);
@@ -638,6 +646,17 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 		printf("\t\tmin/max spmv: %.4lf/%.4lf secs\n", tspmv[0], tspmv[1]);
 		printf("PageRank sum: %E\n", sum);
 	}
+#endif
+
+#ifdef MPR_BENCH
+  if (0 == rank) {
+  	std::cout<< tspmv[0] << ","<< tspmv[1] <<","
+	         << tmpi[0]  <<"," << tmpi[1] <<","
+	         << td2h[0] + th2d[0] <<","<< td2h[1] + th2d[1]<<","
+	         << tc <<",";
+             
+  	fflush(stdout);
+  }
 #endif
 
 	cancelReqs(reqs, m->recvNum);
@@ -717,16 +736,18 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	GDF_REQUIRE((pagerank->dtype == GDF_FLOAT32), GDF_UNSUPPORTED_DTYPE );
 
     int	rank, ntask;
+    double tg;
 	rhsv_t	rval = {RHS_CONSTANT, REAL(1.0)/REAL(global_v), NULL};
 	REAL a = (REALV(1.0)-REAL(damping_factor))/((REAL)global_v);
 	
 	//setup 
+	tg = MPI_Wtime();
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &ntask);
 	MPI_Barrier(MPI_COMM_WORLD);
 	init_cuda();
 
-#if	MPR_VERBOSE
+#ifdef	MPR_VERBOSE
 	int dev = -1;
 	cudaGetDevice(&dev);
     std::cout << "PID "<< getpid() << " - rank: " << rank << " - dev: "<< dev<< std::endl;
@@ -756,6 +777,14 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	if (pr) CHECK_CUDA(cudaFree(pr));
 	destroySpmat(m);
 	cleanup_cuda();
+
+	tg = MPI_Wtime()-tg;
+#ifdef	MPR_BENCH
+  if (0 == rank) {
+  		std::cout<<tg<< ",";
+  	fflush(stdout);
+  }
+#endif
 
 	return GDF_SUCCESS;
 }
