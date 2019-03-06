@@ -2,7 +2,22 @@ from libcpp cimport bool
 
 cdef extern from "cudf.h":
 
-    ctypedef enum gdf_error:
+    ctypedef size_t gdf_size_type
+
+    #cpdef get_column_data_ptr(obj)
+
+    ctypedef enum gdf_time_unit:
+        TIME_UNIT_NONE=0
+        TIME_UNIT_s,
+        TIME_UNIT_ms,
+        TIME_UNIT_us,
+        TIME_UNIT_ns
+
+    ctypedef struct gdf_dtype_extra_info:
+        gdf_time_unit time_unit
+
+    ctypedef enum gdf_error: 
+
         pass
 
     ctypedef enum gdf_dtype:
@@ -21,23 +36,25 @@ cdef extern from "cudf.h":
         N_GDF_TYPES
 
     ctypedef unsigned char gdf_valid_type
-    ctypedef size_t gdf_size_type
- 
-    struct gdf_column_:
+
+    ctypedef struct gdf_column:
         void *data
         gdf_valid_type *valid
         gdf_size_type size
         gdf_dtype dtype
         gdf_size_type null_count
-
-    ctypedef gdf_column_ gdf_column
+        gdf_dtype_extra_info dtype_info
+        char *col_name
 
     cdef gdf_error gdf_column_view_augmented(gdf_column *column,
-                              void *data,
-                              gdf_valid_type *valid,
-                              gdf_size_type size,
-                              gdf_dtype dtype,
-                              gdf_size_type null_count)
+                                             void *data,
+                                             gdf_valid_type *valid,
+                                             gdf_size_type size,
+                                             gdf_dtype dtype,
+                                             gdf_size_type null_count,
+                                             gdf_dtype_extra_info extra_info)
+
+
 
 
 cdef extern from "cugraph.h":
