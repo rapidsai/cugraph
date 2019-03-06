@@ -7,7 +7,14 @@ from dask.distributed import Client
 import dask_cudf
 
 
-# 2. Define Utility Functions
+# 2. Set the Number of GPU Devices and File Paths
+
+number_of_devices = 2
+scheduler_file_path = r"/home/seunghwak/cluster.json"
+input_data_path = r"/home/seunghwak/TMP/Input-small/edges"
+
+
+# 3. Define Utility Functions
 
 def set_visible(i, n):
     all_devices = list(range(n))
@@ -15,39 +22,39 @@ def set_visible(i, n):
     os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
 
 
-# 3. Create a Client
+# 4. Create a Client
 
 print("Initializing.")
 
 client = Client(scheduler_file="/home/seunghwak/cluster.json",
                 direct_to_workers=True)
 
-# 4. Map One Worker to One GPU
+# 5. Map One Worker to One GPU
 
-devices = [0, 1]
+devices = list(range(number_of_devices))
 device_workers = list(client.has_what().keys())
 assert len(devices) == len(device_workers)
 
 [client.submit(set_visible, device, len(devices), workers=[worker])
     for device, worker in zip(devices, device_workers)]
 
-# 5. Read Input Data
+# 6. Read Input Data
 
 print("Read Input Data.")
 
-dgdf = dask_cudf.read_csv("/home/seunghwak/TMP/Input-small/edges/part-*",
+dgdf = dask_cudf.read_csv(input_data_path + r"/part-*",
                           delimiter='\t', names=['src', 'dst'],
                           dtype=['int32', 'int32'])
 dgdf = client.persist(dgdf)
 
-# 6. Sort Data
+# 7. Sort Data
 
 print("Sort Input Data.")
 
 dgdf = dgdf.sort_values_binned(by='dst')
 dgdf = client.persist(dgdf)
 
-# 7. Validate Sorting Output
+# 8. Validate Sorting Output
 
 print("Validate Sorted Data.")
 
@@ -79,7 +86,7 @@ for p in range(dgdf.npartitions):
         prev_src = cur_src
         prev_dst = cur_dst
 
-# 8. Close the Client
+# 9. Close the Client
 
 print("Terminating.")
 
