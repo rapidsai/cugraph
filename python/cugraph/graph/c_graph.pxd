@@ -17,6 +17,7 @@ cdef extern from "cudf.h":
         gdf_time_unit time_unit
 
     ctypedef enum gdf_error: 
+
         pass
 
     ctypedef enum gdf_dtype:
@@ -27,9 +28,9 @@ cdef extern from "cudf.h":
         GDF_INT64,
         GDF_FLOAT32,
         GDF_FLOAT64,
-        GDF_DATE32,     
-        GDF_DATE64,     
-        GDF_TIMESTAMP,  
+        GDF_DATE32,
+        GDF_DATE64,
+        GDF_TIMESTAMP,
         GDF_CATEGORY,
         GDF_STRING,
         N_GDF_TYPES
@@ -54,6 +55,8 @@ cdef extern from "cudf.h":
                                              gdf_dtype_extra_info extra_info)
 
 
+
+
 cdef extern from "cugraph.h":
 
     struct gdf_edge_list:
@@ -74,13 +77,13 @@ cdef extern from "cugraph.h":
         gdf_adj_list *transposedAdjList
 
 
-    cdef gdf_error gdf_edge_list_view(gdf_graph *graph, 
+    cdef gdf_error gdf_edge_list_view(gdf_graph *graph,
                              const gdf_column *source_indices,
                              const gdf_column *destination_indices,
                              const gdf_column *edge_data)
     cdef gdf_error gdf_add_edge_list(gdf_graph *graph)
     cdef gdf_error gdf_delete_edge_list(gdf_graph *graph)
-    cdef gdf_error gdf_adj_list_view (gdf_graph *graph, 
+    cdef gdf_error gdf_adj_list_view (gdf_graph *graph,
                              const gdf_column *offsets,
                              const gdf_column *indices,
                              const gdf_column *edge_data)
