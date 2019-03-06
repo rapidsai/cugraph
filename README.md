@@ -133,10 +133,10 @@ conda env create --name cugraph_dev --file conda/environments/cugraph_dev.yml
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.yml
 
 # activate the environment
-source activate cugraph_dev 
+conda activate cugraph_dev 
 
 # to deactivate an environment
-source deactivate
+conda deactivate
 ```
 
 
@@ -276,7 +276,6 @@ vi ./etc/conda/deactivate.d/env_vars.sh
 unset PATH
 unset LD_LIBRARY_PATH
 ```
-
 
 
 
