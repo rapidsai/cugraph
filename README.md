@@ -119,6 +119,18 @@ conda env create --name cugraph_dev --file conda/environments/cugraph_dev.yml
 conda activate cugraph_dev 
 ```
 
+- Create the conda development environment `cugraph_nightly`
+
+If you wish to use nightly RAPIDS builds then you can use the following conda environment:
+
+```bash
+# create the conda environment (assuming in base `cugraph` directory)
+conda env create --name cugraph_nightly --file conda/environments/cugraph_nightly.yml
+
+# activate the environment
+conda activate cugraph_nightly 
+```
+
 
 
 The environment can be updated as development includes/changes the depedencies. To do so, run:
