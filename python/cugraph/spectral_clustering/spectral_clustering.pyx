@@ -67,6 +67,10 @@ cpdef spectralBalancedCutClustering(G,
 
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
+    
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     num_vert = g.adjList.offsets.size - 1
 
@@ -140,6 +144,10 @@ cpdef spectralModularityMaximizationClustering(G,
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
 
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
     num_vert = g.adjList.offsets.size - 1
 
     # Create the output dataframe
@@ -194,6 +202,11 @@ cpdef analyzeClustering_modularity(G, n_clusters, clustering):
     """
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
+    
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    
     cdef uintptr_t clustering_ptr = create_column(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_modularity_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
@@ -229,6 +242,11 @@ cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
     """
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
+    
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    
     cdef uintptr_t clustering_ptr = create_column(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_edge_cut_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
@@ -264,6 +282,11 @@ cpdef analyzeClustering_ratio_cut(G, n_clusters, clustering):
     """
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
+    
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    
     cdef uintptr_t clustering_ptr = create_column(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_ratio_cut_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
