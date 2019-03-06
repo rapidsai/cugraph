@@ -36,6 +36,9 @@
 - PR #97 Updated python tests to speed them up
 - PR #100 Added testing for returned vertex and edge identifiers  
 - PR #105 Updated python code to follow PEP8 (fixed flake8 complaints)
+- PR #121 Cleaned up READEME file
+
+
 
 ## Bug Fixes
 
