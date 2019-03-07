@@ -80,7 +80,7 @@ char IOBUF[IOINT_NUM*(LOCINT_MAX_CHAR+1)];
 
 //#define MPR_BENCH
 // prints the following times in csv :
-//coo2csr,min_pr_spmv,max_pr_spmv,min_pr_comms,max_pr_comms,min_pr_transfers,max_pr_transfers,total_csr_pagerank,total_cpp,
+//sort,coo2csr,min_pr_spmv,max_pr_spmv,min_pr_comms,max_pr_comms,min_pr_transfers,max_pr_transfers,total_csr_pagerank,total_cpp,
 
 typedef struct {
 	int	code;
@@ -307,9 +307,17 @@ static void sort_edge_list(elist_t *eio, elist_t *eio_sorted) {
 
   MPI_Reduce(rank ? &ned : MPI_IN_PLACE, &ned, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
+  #ifdef MPR_VERBOSE
   if (0 == rank) {
     printf("\tsort  time: %.4lf secs\n", ts);
   }
+  #endif
+  #ifdef MPR_BENCH
+  if (0 == rank) {
+  		std::cout<<ts<< ",";
+  	fflush(stdout);
+  }
+  #endif
   return;
 }
 
