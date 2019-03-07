@@ -36,12 +36,11 @@ python --version
 $CC --version
 $CXX --version
 conda list
+ldconfig
 
 ################################################################################
 # BUILD - Build libcugraph and cuGraph from source
 ################################################################################
-
-git submodule update --init --remote --recursive
 
 logger "Build libcugraph..."
 mkdir -p $WORKSPACE/cpp/build
