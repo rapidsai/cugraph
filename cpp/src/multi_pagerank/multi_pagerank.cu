@@ -805,20 +805,21 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	//Load data (+transpose el)
     elist_t * el = (elist_t *)Malloc(sizeof(*el));
     elist_t sorted_el;
-	GDF_TRY(load_gdf_input(dest_indices, src_indices, el));
+	GDF_TRY(load_gdf_input(dest_indices, src_indices, &sorted_el));
 
 	//TODO 
-	sort_edge_list (el, &sorted_el);
+	//sort_edge_list (el, &sorted_el);
 
     //coo2csr 
     coo2csr(global_v, m, &sorted_el);
 
     // free device data in sorted_el
+    /*
     {
         CHECK_CUDA(cudaFree(sorted_el.u));
         CHECK_CUDA(cudaFree(sorted_el.v));
     }
-
+	*/
     ////just free the structure
     if (el) free(el); 
 	cudaCheckError();
