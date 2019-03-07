@@ -27,13 +27,16 @@ cdef create_column(col):
     cdef gdf_column * c_col = < gdf_column *> malloc(sizeof(gdf_column))
     cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
     # cdef uintptr_t valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit = TIME_UNIT_NONE)
+
 
     err = gdf_column_view_augmented(< gdf_column *> c_col,
                                     < void *> data_ptr,
                                     < gdf_valid_type *> 0,
                                     < gdf_size_type > len(col),
                                     dtypes[col.dtype.type],
-                                    < gdf_size_type > col.null_count)
+                                    < gdf_size_type > col.null_count,
+                                    c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     cdef uintptr_t col_ptr = < uintptr_t > c_col
