@@ -45,7 +45,7 @@
 #include <inttypes.h>
 
 #include "global.h"
-#include "phsort.h"
+#include "phsort.cuh"
 #include "utils.h"
 #include "cuda_kernels.h"
 
@@ -301,9 +301,9 @@ static void sort_edge_list(elist_t *eio, elist_t *eio_sorted) {
   phsort(&u, &v, &ned, 1.0E-2, 0);
   ts = MPI_Wtime()-ts;
 
-  eio->u = u;
-  eio->v = v;
-  eio->ned = ned;
+  eio_sorted->u = u;
+  eio_sorted->v = v;
+  eio_sorted->ned = ned;
 
   MPI_Reduce(rank ? &ned : MPI_IN_PLACE, &ned, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
@@ -796,15 +796,20 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 
 	//Load data (+transpose el)
     elist_t * el = (elist_t *)Malloc(sizeof(*el));
+    elist_t sorted_el;
 	GDF_TRY(load_gdf_input(dest_indices, src_indices, el));
 
 	//TODO 
-	//sort_edge_list (el, sorted_el);
+	sort_edge_list (el, &sorted_el);
 
     //coo2csr 
-    coo2csr(global_v, m, el);
+    coo2csr(global_v, m, &sorted_el);
 
-    // TODO: free device data in sorted_el
+    // free device data in sorted_el
+    {
+        CHECK_CUDA(cudaFree(sorted_el.u));
+        CHECK_CUDA(cudaFree(sorted_el.v));
+    }
 
     ////just free the structure
     if (el) free(el); 

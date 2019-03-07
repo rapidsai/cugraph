@@ -226,7 +226,7 @@ add_library(cugraph SHARED
     src/multi_pagerank/cuda_kernels.cu
     src/multi_pagerank/multi_pagerank.cu
     src/multi_pagerank/adtp.c
-    src/multi_pagerank/phsort.c
+    src/multi_pagerank/phsort.cu
     src/multi_pagerank/tmp_pool.c
     src/multi_pagerank/utils.c
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
