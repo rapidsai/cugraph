@@ -77,7 +77,10 @@
 char IOBUF[IOINT_NUM*(LOCINT_MAX_CHAR+1)];
 
 //#define MPR_VERBOSE
+
 //#define MPR_BENCH
+// prints the following times in csv :
+//coo2csr,min_pr_spmv,max_pr_spmv,min_pr_comms,max_pr_comms,min_pr_transfers,max_pr_transfers,total_csr_pagerank,total_cpp,
 
 typedef struct {
 	int	code;
@@ -273,6 +276,41 @@ static inline void cancelReqs(MPI_Request *request, int n) {
 		}
 	}
         return;
+}
+
+static void sort_edge_list(elist_t *eio, elist_t *eio_sorted) {
+
+  double  ts=0;
+  
+  int64_t ned;
+  int rank, ntask;
+  LOCINT  *u=NULL, *v=NULL;
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &ntask);
+
+  u = eio->u;
+  v = eio->v;
+  ned = eio->ned;
+
+  ts = MPI_Wtime();
+
+  // simple parallel histogram-sort implementation
+  // returns u[] and v[] sorted first across u and
+  // then v
+  phsort(&u, &v, &ned, 1.0E-2, 0);
+  ts = MPI_Wtime()-ts;
+
+  eio->u = u;
+  eio->v = v;
+  eio->ned = ned;
+
+  MPI_Reduce(rank ? &ned : MPI_IN_PLACE, &ned, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  if (0 == rank) {
+    printf("\tsort  time: %.4lf secs\n", ts);
+  }
+  return;
 }
 
 static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
@@ -756,9 +794,22 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	spmat_t *m = createSpmat(ntask);
     REAL* pr = nullptr;
 
-    //coo2csr transposed
-	GDF_TRY(gdf_multi_coo2csr_t(global_v, src_indices, dest_indices, m));
+	//Load data (+transpose el)
+    elist_t * el = (elist_t *)Malloc(sizeof(*el));
+	GDF_TRY(load_gdf_input(dest_indices, src_indices, el));
+
+	//TODO 
+	//sort_edge_list (el, sorted_el);
+
+    //coo2csr 
+    coo2csr(global_v, m, el);
+
+    // TODO: free device data in sorted_el
+
+    ////just free the structure
+    if (el) free(el); 
 	cudaCheckError();
+	
 	//allocate local result
 	CHECK_CUDA(cudaMalloc(&pr,m->intColsNum*sizeof(REAL)));
 	//solve
