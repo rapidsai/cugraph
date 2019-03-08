@@ -792,8 +792,8 @@ void copy_sort_samples(LOCINT *h_u, LOCINT *h_v, LOCINT nsample, int64_t nsample
 	currSamp = 0;
 	nextSamp = 1; 
 
-	CHECK_CUDA(cudaMemcpy(d_usamp[currSamp], h_u, nsample*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
-	CHECK_CUDA(cudaMemcpy(d_vsamp[currSamp], h_v, nsample*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
+	CHECK_CUDA(cudaMemcpy(d_usamp[currSamp], h_u, nsample*sizeof(LOCINT), cudaMemcpyHostToDevice));
+	CHECK_CUDA(cudaMemcpy(d_vsamp[currSamp], h_v, nsample*sizeof(LOCINT), cudaMemcpyHostToDevice));
 
 	nmax = nsamplemax;
 	return;
@@ -935,14 +935,14 @@ void final_sort_cuda(LOCINT *h_u, LOCINT *h_v, int n) {
 	}
 	//printf("bbit=%d, ebit=%d\n", bbit, ebit);
 
-	CHECK_CUDA(cudaMemcpy(d_usamp[currSamp], h_u, n*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
-	CHECK_CUDA(cudaMemcpy(d_vsamp[currSamp], h_v, n*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
+	CHECK_CUDA(cudaMemcpy(d_usamp[currSamp], h_u, n*sizeof(LOCINT), cudaMemcpyHostToDevice));
+	CHECK_CUDA(cudaMemcpy(d_vsamp[currSamp], h_v, n*sizeof(LOCINT), cudaMemcpyHostToDevice));
 
 	cubSortPairs(d_vsamp[currSamp], d_vsamp[nextSamp], d_usamp[currSamp], d_usamp[nextSamp], n);
 	cubSortPairs(d_usamp[nextSamp], d_usamp[currSamp], d_vsamp[nextSamp], d_vsamp[currSamp], n);
 
-	CHECK_CUDA(cudaMemcpy(h_u, d_usamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
-	CHECK_CUDA(cudaMemcpy(h_v, d_vsamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
+	CHECK_CUDA(cudaMemcpy(h_u, d_usamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToHost));
+	CHECK_CUDA(cudaMemcpy(h_v, d_vsamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToHost));
 
 	return;
 }
@@ -954,8 +954,8 @@ void getvals_cuda(LOCINT *h_u, LOCINT *h_v, int64_t n) {
 		fprintf(stderr, "%s:%s:%d: n(=%" PRId64 ") > nmax(=%" PRId64 ")\n", __FILE__, __func__, __LINE__, n, nmax);
 		exit(EXIT_FAILURE);
 	}
-	CHECK_CUDA(cudaMemcpy(h_u, d_usamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
-	CHECK_CUDA(cudaMemcpy(h_v, d_vsamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
+	CHECK_CUDA(cudaMemcpy(h_u, d_usamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToHost));
+	CHECK_CUDA(cudaMemcpy(h_v, d_vsamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToHost));
 	return;
 }
 
@@ -2331,4 +2331,3 @@ void sequence(LOCINT n, LOCINT *vec, LOCINT init = 0)
 {
   thrust::sequence(thrust::device,thrust::device_pointer_cast(vec), thrust::device_pointer_cast(vec+n), init);
 }
-
