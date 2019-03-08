@@ -82,7 +82,7 @@ char IOBUF[IOINT_NUM*(LOCINT_MAX_CHAR+1)];
 
 //#define MPR_VERBOSE
 
-//#define MPR_BENCH
+#define MPR_BENCH
 // prints the following times in csv :
 //sort,coo2csr,min_pr_spmv,max_pr_spmv,min_pr_comms,max_pr_comms,min_pr_transfers,max_pr_transfers,total_csr_pagerank,total_cpp,
 
@@ -860,8 +860,9 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	tg = MPI_Wtime()-tg;
 #ifdef	MPR_BENCH
   if (0 == rank) {
-  		std::cout<<tg<< ",";
-  	fflush(stdout);
+  	std::ofstream mpr_bench_file("/tmp/mpr_bench.csv");
+    mpr_bench_file <<tg<< ",";
+    mpr_bench_file.close();
   }
 #endif
 
