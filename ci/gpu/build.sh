@@ -71,7 +71,7 @@ nvidia-smi
 
 logger "GoogleTest for libcugraph..."
 cd $WORKSPACE/cpp/build
-GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/gdfgraph_test
+GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
 
 logger "Python py.test for cuGraph..."
 cd $WORKSPACE
