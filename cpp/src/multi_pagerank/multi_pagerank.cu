@@ -29,6 +29,10 @@
 #include <limits.h>
 #include <float.h>
 #include <string.h>
+
+#include <fstream>
+#include <iostream>
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <unistd.h>
@@ -314,8 +318,9 @@ static void sort_edge_list(elist_t *eio, elist_t *eio_sorted) {
   #endif
   #ifdef MPR_BENCH
   if (0 == rank) {
-  		std::cout<<ts<< ",";
-  	fflush(stdout);
+    std::ofstream mpr_bench_file("/tmp/mpr_bench.csv");
+    mpr_bench_file << ts << ",";
+    mpr_bench_file.close();
   }
   #endif
   return;
@@ -457,8 +462,9 @@ static void coo2csr(size_t N, spmat_t *m, elist_t *ein) {
 
 #ifdef	MPR_BENCH
   if (0 == rank) {
-  	std::cout<<tg<<",";
-  	fflush(stdout);
+    std::ofstream mpr_bench_file("/tmp/mpr_bench.csv");
+    mpr_bench_file << tg << ",";
+    mpr_bench_file.close();
   }
 #endif
 	// sanity check (untimed)
@@ -696,12 +702,11 @@ static void pagerank_solver(int numIter, REAL c, REAL a, rhsv_t rval, spmat_t *m
 
 #ifdef MPR_BENCH
   if (0 == rank) {
-  	std::cout<< tspmv[0] << ","<< tspmv[1] <<","
-	         << tmpi[0]  <<"," << tmpi[1] <<","
-	         << td2h[0] + th2d[0] <<","<< td2h[1] + th2d[1]<<","
-	         << tc <<",";
-             
-  	fflush(stdout);
+    std::ofstream mpr_bench_file("/tmp/mpr_bench.csv");
+    mpr_bench_file << tspmv[0] << "," << tspmv[1] << "," << tmpi[0] << "," << tmpi[1]
+             << "," << td2h[0] + th2d[0] << "," << td2h[1] + th2d[1] << ","
+             << tc << ",";
+    mpr_bench_file.close();
   }
 #endif
 
