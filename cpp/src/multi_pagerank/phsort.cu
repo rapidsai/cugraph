@@ -34,9 +34,6 @@
 #include <mpi.h>
 #include <vector_types.h>
 
-#ifdef NDEBUG
-	#undef NDEBUG
-#endif
 #define NDEBUG
 #include <assert.h>
 
@@ -44,10 +41,6 @@
 #include "cuda_kernels.h"
 #include "utils.h"
 #include "phsort.cuh"
-
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-#include <thrust/binary_search.h>
 
 typedef struct {
 	int	n, rem;
@@ -87,7 +80,6 @@ static int cmpll(const void *p1, const void *p2) {
         return 0;
 }
 
-// TODO : Use thrust binary search to look for val
 // returns:
 // 	-1 if num == 0
 // 	else the smallest index i s.t. v[i] >= val, if all elements
@@ -338,7 +330,6 @@ static void print_splitters(split_t *s) {
 	return;
 }
 
-//TODO : replace rbuf + roff[p] and sbuf + soff[p] with variables copied from device
 static inline void exchange_vals(LOCINT *sbuf, int *soff, int *snum,
                                  LOCINT *rbuf, int *roff, int *rnum,
                                  MPI_Request *request, MPI_Status *status) {
@@ -349,28 +340,17 @@ static inline void exchange_vals(LOCINT *sbuf, int *soff, int *snum,
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &ntask);
 
-    thrust::host_vector<LOCINT> recv_val;
-    thrust::host_vector<LOCINT> send_val;
 	// move the Irecv-s at the beginning of the computations...
 	for(i = 1; i < ntask; i++) {
 		p = (rank+i)%ntask;
-        recv_val.resize(rnum[p]);
-		MPI_Irecv(
-                recv_val.data(),
-                rnum[p], LOCINT_MPI,
+		MPI_Irecv(rbuf + roff[p], rnum[p], LOCINT_MPI,
 			  p, TAG(p), MPI_COMM_WORLD, request+i-1);
-        cudaMemcpy(
-                rbuf + roff[p],
-                recv_val.data(),
-                rnum[p]*sizeof(LOCINT), cudaMemcpyHostToDevice);
 	}
-        cudaMemcpy(rbuf+roff[rank], sbuf+soff[rank], snum[rank]*sizeof(*sbuf), cudaMemcpyDeviceToDevice);
+        memcpy(rbuf+roff[rank], sbuf+soff[rank], snum[rank]*sizeof(*sbuf));
 	MPI_Barrier(MPI_COMM_WORLD);
         for(i = 1; i < ntask; i++) {
                 p = (rank+i)%ntask;
-                send_val.resize(snum[p]);
-                cudaMemcpy(send_val.data(), sbuf + soff[p], snum[p]*sizeof(LOCINT), cudaMemcpyDeviceToHost);
-                MPI_Send(send_val.data(), snum[p], LOCINT_MPI,
+                MPI_Send(sbuf + soff[p], snum[p], LOCINT_MPI,
                          p, TAG(rank), MPI_COMM_WORLD);
         }
         MPI_Waitall(ntask-1, request, status);
@@ -585,15 +565,8 @@ void phsort(LOCINT **u, LOCINT **v, int64_t *n, double perc, int verbose) {
 		soff[i] = (i) ? soff[i-1]+snum[i-1] : 0;
 
 		int eoff;
-        //replace with thrust::lower_bound
-		//if (i < ntask-1) eoff = bisect_left(u_in, nloc, spl.vals[i]);
-		//else		 eoff = nloc;
-		if (i < ntask-1) {
-            auto iter = thrust::lower_bound(thrust::device,
-                    u_in, u_in + nloc,
-                    spl.vals[i]);
-            eoff = iter - u_in;
-        } else { eoff = nloc; }
+		if (i < ntask-1) eoff = bisect_left(u_in, nloc, spl.vals[i]);
+		else		 eoff = nloc;
 
 		snum[i] = eoff - soff[i];
 	}
