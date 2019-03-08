@@ -174,6 +174,19 @@ The default installation  locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_
 
 
 
+***Note to Developers***
+
+If you are not on the master branch, then you will need to use a different python environment.  cuGraph developers uses the latest cuDF features that might not yet be in the master branch.  To work off of the latest development branch, which could be unstable, use the nightly build environment.  
+
+```bash
+conda env create --name cugraph_nightly --file conda/environments/cugraph_nightly.yml
+conda activate cugraph_nightly
+```
+
+
+
+
+
 #### Building and installing the Python package
 
 Install the Python package to your Python path:
