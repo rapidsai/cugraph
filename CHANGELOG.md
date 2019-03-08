@@ -13,6 +13,7 @@
 - PR #82 Spectral Clustering bindings
 - PR #82 Clustering metrics binding
 - PR #85 Helper functions on python Graph object
+- PR #106 Add gpu/build.sh file for gpuCI
 
 ## Improvements
 
