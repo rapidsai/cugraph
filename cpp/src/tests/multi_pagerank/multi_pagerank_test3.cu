@@ -33,7 +33,7 @@ TEST(MultiPagerank, imb32_32B_2ranks)
   std::vector<int> src_h, dest_h, v_idx;
   std::vector<float> pagerank, nx_ref;
 
-  CUDA_RT_CALL(cudaSetDevice(rank));
+
   // This input data was generated from PRbench code
   // ibm data set is split between rank 0,1,2 so they have a similar number of edges
   // Same destinations (keys) cannot be on 2 partitions 
@@ -74,10 +74,10 @@ TEST(MultiPagerank, imb32_32B_2ranks)
              *col_pagerank = new gdf_column, 
              *col_vidx = new gdf_column;
 
-  //create_gdf_column(pagerank, col_pagerank);
-  //create_gdf_column(v_idx, col_vidx);
-  create_gdf_column(src_h, col_src);
-  create_gdf_column(dest_h, col_dest);
+  create_gdf_column(pagerank, col_pagerank);
+  create_gdf_column(v_idx, col_vidx);
+  //create_gdf_column(src_h, col_src);
+  //create_gdf_column(dest_h, col_dest);
 
   //Check input col sizes
   ASSERT_EQ(col_src->size,loc_e);
