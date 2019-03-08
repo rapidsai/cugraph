@@ -9,8 +9,8 @@ def _mg_pagerank(data, global_v):
     
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    #print(data)
-    pr_col_length = data[data.columns[2]][len(data)-1] - data[data.columns[2]][0] + 1
+    print(data)
+    pr_col_length = data[data.columns[1]][len(data)-1] - data[data.columns[1]][0] + 1
     pr_df = cugraph.mg_pagerank(data, pr_col_length, global_v)
     return pr_df
 
@@ -78,9 +78,10 @@ def _get_mg_info(ddf):
         parts_to_worker_map.append((part, rank_to_worker_dict[i]))
 
 
-    max_node_src_col = ddf[ddf.columns[1]].max().compute()
-    max_node_dest_col = ddf[ddf.columns[2]].max().compute()
+    max_node_src_col = ddf[ddf.columns[0]].max().compute()
+    max_node_dest_col = ddf[ddf.columns[1]].max().compute()
     num_vertices = max(max_node_src_col,max_node_dest_col) + 1
+    print(num_vertices)
 
     gpu_futures = [client.submit(_mg_pagerank, part, num_vertices, workers=[worker]) for part, worker in parts_to_worker_map]
     wait(gpu_futures)
