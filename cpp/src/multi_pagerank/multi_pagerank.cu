@@ -293,11 +293,13 @@ static void sort_edge_list(elist_t *eio, elist_t *eio_sorted) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &ntask);
 
-  u = eio->u;
-  v = eio->v;
-  ned = eio->ned;
-
   ts = MPI_Wtime();
+
+  ned = eio->ned;
+  u = (LOCINT *)Malloc(ned*sizeof(LOCINT));
+  v = (LOCINT *)Malloc(ned*sizeof(LOCINT));
+  CHECK_CUDA(cudaMemcpy(u, eio->u, ned*sizeof(LOCINT), cudaMemcpyDeviceToHost));
+  CHECK_CUDA(cudaMemcpy(v, eio->v, ned*sizeof(LOCINT), cudaMemcpyDeviceToHost));
 
   // simple parallel histogram-sort implementation
   // returns u[] and v[] sorted first across u and
@@ -305,9 +307,15 @@ static void sort_edge_list(elist_t *eio, elist_t *eio_sorted) {
   phsort(&u, &v, &ned, 1.0E-2, 0);
   ts = MPI_Wtime()-ts;
 
-  eio_sorted->u = u;
-  eio_sorted->v = v;
+  //eio_sorted->u = u;
+  //eio_sorted->v = v;
   eio_sorted->ned = ned;
+  CHECK_CUDA(cudaMalloc(&eio_sorted->u, ned*sizeof(LOCINT)));
+  CHECK_CUDA(cudaMalloc(&eio_sorted->v, ned*sizeof(LOCINT)));
+  CHECK_CUDA(cudaMemcpy(eio_sorted->u, u, ned*sizeof(LOCINT), cudaMemcpyHostToDevice));
+  CHECK_CUDA(cudaMemcpy(eio_sorted->v, v, ned*sizeof(LOCINT), cudaMemcpyHostToDevice));
+  free(u);
+  free(v);
 
   MPI_Reduce(rank ? &ned : MPI_IN_PLACE, &ned, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
@@ -318,9 +326,9 @@ static void sort_edge_list(elist_t *eio, elist_t *eio_sorted) {
   #endif
   #ifdef MPR_BENCH
   if (0 == rank) {
-    std::ofstream mpr_bench_file("/tmp/mpr_bench.csv");
-    mpr_bench_file << ts << ",";
-    mpr_bench_file.close();
+     std::ofstream mpr_bench_file("/tmp/mpr_bench.csv");
+     mpr_bench_file << ts << ",";
+     mpr_bench_file.close();
   }
   #endif
   return;
@@ -811,21 +819,21 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 	//Load data (+transpose el)
     elist_t * el = (elist_t *)Malloc(sizeof(*el));
     elist_t sorted_el;
-	GDF_TRY(load_gdf_input(dest_indices, src_indices, &sorted_el));
+	GDF_TRY(load_gdf_input(dest_indices, src_indices, el));
 
 	//TODO 
-	//sort_edge_list (el, &sorted_el);
+	sort_edge_list (el, &sorted_el);
 
     //coo2csr 
     coo2csr(global_v, m, &sorted_el);
 
     // free device data in sorted_el
-    /*
+    
     {
         CHECK_CUDA(cudaFree(sorted_el.u));
         CHECK_CUDA(cudaFree(sorted_el.v));
     }
-	*/
+	
     ////just free the structure
     if (el) free(el); 
 	cudaCheckError();
