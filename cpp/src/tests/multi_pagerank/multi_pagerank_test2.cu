@@ -29,7 +29,10 @@ TEST(MultiPagerank, imb32_32B_2ranks)
   float damping_factor=0.85;
   int max_iter=30;
 
-
+  CUDA_RT_CALL(cudaSetDevice(rank));
+  //int dev = -1;
+  //cudaGetDevice(&dev);
+  //std::cout <<" - rank: " << rank << " - dev: "<< dev<< std::endl;
   std::vector<int> src_h, dest_h, v_idx;
   std::vector<float> pagerank, nx_ref;
 
