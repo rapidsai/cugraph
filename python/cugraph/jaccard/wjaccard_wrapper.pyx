@@ -56,23 +56,35 @@ class cudaDataType(Enum):
 np_to_cudaDataType = {np.int8:cudaDataType.CUDA_R_8I, np.int32:cudaDataType.CUDA_R_32I, np.float32:cudaDataType.CUDA_R_32F, np.float64:cudaDataType.CUDA_R_64F}
 gdf_to_cudaDataType = {libgdf.GDF_INT8:cudaDataType.CUDA_R_8I, libgdf.GDF_INT32:cudaDataType.CUDA_R_32I, libgdf.GDF_FLOAT32:cudaDataType.CUDA_R_32F, libgdf.GDF_FLOAT64:cudaDataType.CUDA_R_64F}
 
-def nvJaccard_w(input_graph, vect_weights_ptr):
+def nvJaccard_w(input_graph, weights):
     """
-    Compute the weighted Jaccard similarity between each pair of vertices connected by an edge. Jaccard similarity is defined between two sets as the ratio of the volume of their intersection divided by the volume of their union. In the context of graphs, the neighborhood of a vertex is seen as a set. The Jaccard similarity weight of each edge represents the strength of connection between vertices based on the relative similarity of their neighbors.
+    Compute the weighted Jaccard similarity between each pair of vertices 
+    connected by an edge. Jaccard similarity is defined between two sets as 
+    the ratio of the volume of their intersection divided by the volume of 
+    their union. In the context of graphs, the neighborhood of a vertex is seen 
+    as a set. The Jaccard similarity weight of each edge represents the strength 
+    of connection between vertices based on the relative similarity of their 
+    neighbors.
 
     Parameters
     ----------
     graph : cuGraph.Graph                 
-      cuGraph graph descriptor, should contain the connectivity information as an edge list (edge weights are not used for this algorithm).
-      The adjacency list will be computed if not already present.   
+      cuGraph graph descriptor, should contain the connectivity information as 
+      an edge list (edge weights are not used for this algorithm). The adjacency 
+      list will be computed if not already present.   
 
     vect_weights_ptr : vector (array) of weights of size n = |G| (#vertices)
 
     Returns
     -------
-    jaccard_weights  : cudf.Serie
-      GPU data frame of size E containing the Jaccard weights. The ordering is relative to the adjacency list.
- 
+    df  : cudf.DataFrame
+      GPU data frame of size E containing the Jaccard weights. The ordering is 
+          relative to the adjacency list.
+          
+      df['source']: The source vertex ID
+      df['destination']: The destination vertex ID
+      df['jaccard_coeff']: The computed weighted Jaccard coefficient between 
+          the source and destination vertices. 
     Examples
     --------
     >>> M = ReadMtxFile(graph_file)
@@ -94,6 +106,7 @@ def nvJaccard_w(input_graph, vect_weights_ptr):
     cdef uintptr_t offsets_ptr = <uintptr_t>g.adjList.offsets.data
     cdef uintptr_t indices_ptr = <uintptr_t>g.adjList.indices.data
     cdef uintptr_t edge_value_ptr = <uintptr_t>g.adjList.edge_data
+    
     cdef uintptr_t value_ptr
     val_type = gdf_to_cudaDataType[libgdf.GDF_FLOAT32].value
     if edge_value_ptr:
@@ -109,6 +122,8 @@ def nvJaccard_w(input_graph, vect_weights_ptr):
     weight_j = cudf.Series(np.ones(e,dtype=np.float32), nan_as_null=False)
     cdef uintptr_t weight_j_ptr = _get_column_data_ptr(weight_j)
     cdef float c_gamma = 1.0
+    
+    cdef uintptr_t weight_ptr = _get_column_data_ptr(weights)
 
     nvgraphJaccard(<cudaDataType_t>index_type,
                    <cudaDataType_t>val_type,
@@ -118,10 +133,9 @@ def nvJaccard_w(input_graph, vect_weights_ptr):
                    <void*>indices_ptr,
                    <void*>value_ptr,
                    <int>1,
-                   <void*>vect_weights_ptr,
+                   <void*>weight_ptr,
                    <void*>&c_gamma,
-                   <void*>weight_j_ptr
-                   )
+                   <void*>weight_j_ptr)
 
     dest_data = rmm.device_array_from_ptr(<uintptr_t>g.adjList.indices.data,
                                             nelem=e,
