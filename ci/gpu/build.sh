@@ -29,7 +29,11 @@ nvidia-smi
 
 logger "Activate conda env..."
 source activate gdf
-conda install -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda10.0 -c numba -c conda-forge -c defaults cudf=0.6 nvgraph
+
+if [ $CUDA_PKG_VERSION -eq "9-2" ]
+  conda install -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda9.2 -c numba -c conda-forge -c defaults cudf=0.6 nvgraph
+else if [ $CUDA_PKG_VERSION -eq "10-0"
+  conda install -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda10.0 -c numba -c conda-forge -c defaults cudf=0.6 nvgraph
 
 logger "Check versions..."
 python --version
