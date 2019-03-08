@@ -757,11 +757,12 @@ gdf_error fill_gdf_output (spmat_t *m,
   LOCINT* idx;
   CHECK_CUDA(cudaMalloc(&idx,m->intColsNum*sizeof(LOCINT)));
   cugraph::sequence<LOCINT>(m->intColsNum,idx,m->firstRow);
-  CHECK_CUDA(cudaMemcpy(gdf_v_idx->data, idx, m->intColsNum*sizeof(LOCINT), cudaMemcpyDeviceToDevice));
-  if (idx) CHECK_CUDA(cudaFree(idx));
+
+  gdf_column_view(gdf_v_idx, idx, nullptr, m->intColsNum, GDF_INT32);
 
   // Store the pagerank into the column
-  CHECK_CUDA(cudaMemcpy(gdf_pr->data, pr, m->intColsNum*sizeof(REAL), cudaMemcpyDeviceToDevice));
+  gdf_column_view(gdf_pr, pr, nullptr, m->intColsNum, GDF_FLOAT32);
+
   return GDF_SUCCESS;
 }
 
@@ -778,8 +779,8 @@ gdf_error gdf_multi_coo2csr_t(size_t N, const gdf_column *src_indices, const gdf
 //Build a CSR matrix and solve Pagerank
 gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_indices, const gdf_column *dest_indices, 
 	                         gdf_column *v_idx, gdf_column *pagerank, const float damping_factor, const int max_iter) {
-	GDF_REQUIRE( ((v_idx->dtype == GDF_INT32) || (v_idx->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
-	GDF_REQUIRE((pagerank->dtype == GDF_FLOAT32), GDF_UNSUPPORTED_DTYPE );
+	//GDF_REQUIRE( ((v_idx->dtype == GDF_INT32) || (v_idx->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
+	//GDF_REQUIRE((pagerank->dtype == GDF_FLOAT32), GDF_UNSUPPORTED_DTYPE );
 
     int	rank, ntask;
     double tg;
@@ -839,7 +840,7 @@ gdf_error gdf_multi_pagerank_impl (const size_t global_v, const gdf_column *src_
 		cudaCheckError();
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	if (pr) CHECK_CUDA(cudaFree(pr));
+	//if (pr) CHECK_CUDA(cudaFree(pr));
 	destroySpmat(m);
 	cleanup_cuda();
 

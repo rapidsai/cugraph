@@ -101,8 +101,8 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     // gdf columns 
     create_gdf_column(cooRowInd_, col_src);
     create_gdf_column(cooColInd_, col_dest);
-    create_gdf_column(pagerank, col_pagerank);
-    create_gdf_column(vidx_, col_vidx);
+    //create_gdf_column(pagerank, col_pagerank);
+    //create_gdf_column(vidx_, col_vidx);
 
 
     // solve
