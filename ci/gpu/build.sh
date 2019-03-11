@@ -31,7 +31,7 @@ nvidia-smi
 
 logger "Activate conda env..."
 source activate gdf
-conda install -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda$CUDA_VERSION_SHORT -c numba -c conda-forge -c defaults cudf=$CUDF_VERSION nvgraph networkx
+conda install -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda$CUDA_VERSION_SHORT -c numba -c conda-forge -c defaults cudf=$CUDF_VERSION nvgraph networkx python-louvain
 
 logger "Check versions..."
 python --version
