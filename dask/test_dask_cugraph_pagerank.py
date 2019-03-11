@@ -12,8 +12,8 @@ import dask_cugraph as dcg
 # 2. Set the Number of GPU Devices and File Paths
 
 number_of_devices = 2
-scheduler_file_path = r"/home/seunghwak/cluster.json"
-input_data_path = r"/home/seunghwak/TMP/Input-small/edges"
+scheduler_file_path = r"cluster.json"
+input_data_path = r"/datasets/pagerank_demo/2/Input-small/edges/"
 
 
 # 3. Define Utility Functions
@@ -30,7 +30,7 @@ print("Initializing.")
 
 start_time = time.time()  # start timing from here
 
-client = Client(scheduler_file="/home/seunghwak/cluster.json",
+client = Client(scheduler_file="cluster.json",
                 direct_to_workers=True)
 
 # 5. Map One Worker to One GPU
