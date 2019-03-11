@@ -137,6 +137,12 @@ set(MULTI_PAGERANK_TEST_SRCS3
 
 configure_test(MULTI_PAGERANK_TEST3 "${MULTI_PAGERANK_TEST_SRCS3}")
 
+set(MULTI_PAGERANK_TEST_FILE_SRCS
+        "${CMAKE_CURRENT_SOURCE_DIR}/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/multi_pagerank/multi_pagerank_test_file.cu")
+
+configure_test(MULTI_PAGERANK_FILE_TEST "${MULTI_PAGERANK_TEST_FILE_SRCS}")
+
 message(STATUS "******** Tests are ready ********")
 
 ###################################################################################################

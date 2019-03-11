@@ -41,6 +41,7 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
+#include <thrust/sort.h>
 
 #include "global.h"
 #include "phsort.cuh"
@@ -124,19 +125,25 @@ static inline void cubSortKeys(KeyT *d_keys_in, KeyT *d_keys_out, int num_items,
 			       int begin_bit=0, int end_bit=sizeof(KeyT)*8,
 			       cudaStream_t stream=0, bool debug_synchronous=false) {
 
-	void	*d_temp_storage = NULL;
-	size_t	temp_storage_bytes = 0;
-	
-	CHECK_CUDA(cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes,
-						  d_keys_in, d_keys_out, num_items,
-						  begin_bit, end_bit, stream,
-						  debug_synchronous));
-	d_temp_storage = tmp_get(bufpool, temp_storage_bytes);
-	CHECK_CUDA(cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes,
-						  d_keys_in, d_keys_out, num_items,
-						  begin_bit, end_bit, stream,
-						  debug_synchronous));
-	tmp_release(bufpool, d_temp_storage);
+	//void	*d_temp_storage = NULL;
+	//size_t	temp_storage_bytes = 0;
+	//
+	//CHECK_CUDA(cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes,
+	//					  d_keys_in, d_keys_out, num_items,
+	//					  begin_bit, end_bit, stream,
+	//					  debug_synchronous));
+	//d_temp_storage = tmp_get(bufpool, temp_storage_bytes);
+	//CHECK_CUDA(cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes,
+	//					  d_keys_in, d_keys_out, num_items,
+	//					  begin_bit, end_bit, stream,
+	//					  debug_synchronous));
+	//tmp_release(bufpool, d_temp_storage);
+
+    if (num_items == 0) { return ; }
+    thrust::sort(thrust::device,
+            d_keys_in, d_keys_in + num_items);
+    CHECK_CUDA(cudaPeekAtLastError());
+    CHECK_CUDA(cudaMemcpy(d_keys_out, d_keys_in, sizeof(KeyT)*num_items, cudaMemcpyDeviceToDevice));
 
 	return;
 }
@@ -147,19 +154,26 @@ static inline void cubSortPairs(KeyT *d_keys_in, KeyT *d_keys_out,
 				int num_items, int begin_bit=0, int end_bit=sizeof(KeyT)*8,
 				cudaStream_t stream=0, bool debug_synchronous=false) {
 
-	void	*d_temp_storage = NULL;
-	size_t	temp_storage_bytes = 0;
+	//void	*d_temp_storage = NULL;
+	//size_t	temp_storage_bytes = 0;
 	
-	CHECK_CUDA(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes,
-						   d_keys_in, d_keys_out, d_values_in,
-						   d_values_out, num_items, begin_bit,
-						   end_bit, stream, debug_synchronous));
-	d_temp_storage = tmp_get(bufpool, temp_storage_bytes);
-	CHECK_CUDA(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes,
-						   d_keys_in, d_keys_out, d_values_in,
-						   d_values_out, num_items, begin_bit,
-						   end_bit, stream, debug_synchronous));
-	tmp_release(bufpool, d_temp_storage);
+	//CHECK_CUDA(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes,
+	//					   d_keys_in, d_keys_out, d_values_in,
+	//					   d_values_out, num_items, begin_bit,
+	//					   end_bit, stream, debug_synchronous));
+	//d_temp_storage = tmp_get(bufpool, temp_storage_bytes);
+	//CHECK_CUDA(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes,
+	//					   d_keys_in, d_keys_out, d_values_in,
+	//					   d_values_out, num_items, begin_bit,
+	//					   end_bit, stream, debug_synchronous));
+	//tmp_release(bufpool, d_temp_storage);
+
+    if (num_items == 0) { return ; }
+    thrust::sort_by_key(thrust::device,
+            d_keys_in, d_keys_in + num_items, d_values_in);
+    CHECK_CUDA(cudaPeekAtLastError());
+    CHECK_CUDA(cudaMemcpy(d_keys_out, d_keys_in, sizeof(KeyT)*num_items, cudaMemcpyDeviceToDevice));
+    CHECK_CUDA(cudaMemcpy(d_values_out, d_values_in, sizeof(ValueT)*num_items, cudaMemcpyDeviceToDevice));
 
 	return;
 }
@@ -906,14 +920,15 @@ void sort_cuda(LOCINT *h_u, LOCINT *h_v, int n, int bbit, int ebit) {
 		exit(EXIT_FAILURE);
 	}
 	//printf("bbit=%d, ebit=%d\n", bbit, ebit);
-
 	if (h_u) {
 		CHECK_CUDA(cudaMemcpy(d_usamp[currSamp], h_u, n*sizeof(LOCINT), cudaMemcpyHostToDevice));
 		CHECK_CUDA(cudaMemcpy(d_vsamp[currSamp], h_v, n*sizeof(LOCINT), cudaMemcpyHostToDevice));
 	}
 
 	// does not work in-place with int64_t (returns a sorted array with duplicates not in the original array)
+	MPI_Barrier(MPI_COMM_WORLD);
 	cubSortPairs(d_usamp[currSamp], d_usamp[nextSamp], d_vsamp[currSamp], d_vsamp[nextSamp], n, bbit, ebit);
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	currSamp ^= 1;
 	nextSamp ^= 1;
@@ -938,8 +953,10 @@ void final_sort_cuda(LOCINT *h_u, LOCINT *h_v, int n) {
 	CHECK_CUDA(cudaMemcpy(d_usamp[currSamp], h_u, n*sizeof(LOCINT), cudaMemcpyHostToDevice));
 	CHECK_CUDA(cudaMemcpy(d_vsamp[currSamp], h_v, n*sizeof(LOCINT), cudaMemcpyHostToDevice));
 
+	MPI_Barrier(MPI_COMM_WORLD);
 	cubSortPairs(d_vsamp[currSamp], d_vsamp[nextSamp], d_usamp[currSamp], d_usamp[nextSamp], n);
 	cubSortPairs(d_usamp[nextSamp], d_usamp[currSamp], d_vsamp[nextSamp], d_vsamp[currSamp], n);
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	CHECK_CUDA(cudaMemcpy(h_u, d_usamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToHost));
 	CHECK_CUDA(cudaMemcpy(h_v, d_vsamp[currSamp], n*sizeof(LOCINT), cudaMemcpyDeviceToHost));
