@@ -1,69 +1,95 @@
-import cugraph
-import cudf
+# Copyright (c) 2019, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import queue
 import time
-from scipy.io import mmread
-import pytest
+
 import numpy as np
+import pytest
+from scipy.io import mmread
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+import cudf
+import cugraph
 
 
-def cugraph_Call(M, start_vertex):
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
 
+
+def cugraph_call(M, start_vertex):
     # Device data
     M = M.tocsr()
     sources = cudf.Series(M.indptr)
     destinations = cudf.Series(M.indices)
     values = cudf.Series(M.data)
-    
+
     G = cugraph.Graph()
     G.add_adj_list(sources, destinations, values)
-    
+
     t1 = time.time()
     df = cugraph.bfs(G, start_vertex)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
     # Return distances as np.array()
-    return np.array(df['distance'])
+    return df['vertex'].to_array(), df['distance'].to_array()
 
 
-def base_Call(M, start_vertex):
-    intMax = 2147483647
+def base_call(M, start_vertex):
+    int_max = 2**31 - 1
+
     M = M.tocsr()
+
     offsets = M.indptr
     indices = M.indices
     num_verts = len(offsets) - 1
     dist = np.zeros(num_verts, dtype=np.int32)
-    
+    vertex = list(range(num_verts))
+
     for i in range(num_verts):
-        dist[i] = intMax
-    import queue
+        dist[i] = int_max
+
     q = queue.Queue()
     q.put(start_vertex)
     dist[start_vertex] = 0
     while(not q.empty()):
         u = q.get()
-        for iCol in range(offsets[u],offsets[u + 1]):
-            v = indices[iCol]
-            if (dist[v] == intMax):
+        for i_col in range(offsets[u], offsets[u + 1]):
+            v = indices[i_col]
+            if (dist[v] == int_max):
                 dist[v] = dist[u] + 1
                 q.put(v)
-    return dist
 
-datasets = ['/datasets/networks/dolphins.mtx',
+    return vertex, dist
+
+
+DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
+            '/datasets/networks/polbooks.mtx',
             '/datasets/golden_data/graphs/dblp.mtx']
 
-@pytest.mark.parametrize('graph_file', datasets)
-def test_bfs(graph_file):
 
-    M = ReadMtxFile(graph_file)
-    base_dist = base_Call(M, 0)
-    dist = cugraph_Call(M, 0)
-    
-    assert len(base_dist) == len(dist)
-    for i in range(len(dist)):
-        assert base_dist[i] == dist[i]
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_bfs(graph_file):
+    M = read_mtx_file(graph_file)
+
+    base_vid, base_dist = base_call(M, 0)
+    cugraph_vid, cugraph_dist = cugraph_call(M, 0)
+
+    # Calculating mismatch
+
+    assert len(base_dist) == len(cugraph_dist)
+    for i in range(len(cugraph_dist)):
+        assert base_vid[i] == cugraph_vid[i]
+        assert base_dist[i] == cugraph_dist[i]
