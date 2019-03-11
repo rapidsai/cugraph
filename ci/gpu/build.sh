@@ -10,9 +10,10 @@ function logger() {
   echo -e "\n>>>> $@\n"
 }
 
-# Set path and build parallel level
+# Set path, build parallel level, and CUDA version
 export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
 export PARALLEL_LEVEL=4
+export CUDA_VERSION_SHORT=${CUDA_VERSION%.*}
 
 # Set home to the job's workspace
 export HOME=$WORKSPACE
@@ -29,8 +30,6 @@ nvidia-smi
 
 logger "Activate conda env..."
 source activate gdf
-
-export CUDA_VERSION_SHORT=${CUDA_VERSION%.*}
 conda install -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda$CUDA_VERSION_SHORT -c numba -c conda-forge -c defaults cudf=0.6 nvgraph
 
 logger "Check versions..."
