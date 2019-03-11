@@ -25,7 +25,7 @@
 - PR #100 Added testing for returned vertex and edge identifiers  
 - PR #105 Updated python code to follow PEP8 (fixed flake8 complaints)
 - PR #121 Cleaned up READEME file
-
+- PR #130 Update conda build recipes
 
 
 ## Bug Fixes
