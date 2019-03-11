@@ -1,4 +1,4 @@
-### Build cugraph
+### Build dask-cugraph
 - Get the latest version of `dask-cugraph` branch.
 
 ```bash
@@ -13,14 +13,7 @@ cd $CUGRAPH_HOME
 git submodule update --init --remote --recursive
 ```
 
-- Update the `cugraph_dev` conda env
-```bash
-# for CUDA 9.2
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev.yml
-
-conda activate cugraph_dev 
-```
-
+- Update or create `cugraph_dev` following the regular [README](README.md).
 - Clean **all** previous build files
 - Build cuGraph (C++ and Python) following the regular [README](README.md).
 
@@ -32,15 +25,20 @@ python setup.py install
 
 ### Run dask-cugraph test
 Open 3 different terminals in `cugraph/dask` and run :
-```
+```bash
 # dask scheduler in terminal 1 
 dask-scheduler --scheduler-file cluster.json
 ```
-```
+```bash
 # dask-mpi in terminal 2
 mpirun -np 2 dask-mpi --no-nanny --nthreads 2 --no-scheduler --scheduler-file cluster.json
 ```
-```
+```bash
 # dask-cugraph smoke test in terminal 3
 python test_dask_cugraph.py
+```
+
+### Run multi-GPU Pagerank on large files using the C++ API
+```bash
+mpirun -np <NUM_PARTS> ./gtests/MULTI_PAGERANK_FILE_TEST path_to_part0
 ```
