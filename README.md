@@ -2,7 +2,7 @@
 
 [![Build Status](http://18.191.94.64/buildStatus/icon?job=cugraph-master)](http://18.191.94.64/job/cugraph-master/)  [![Documentation Status](https://readthedocs.org/projects/cugraph/badge/?version=latest)](https://cugraph.readthedocs.io/en/latest/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process GPU Dataframe - see [cuDF](https://github.com/rapidsai/cudf). cuGraph aims at provides a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process data found in GPU Dataframe - see [cuDF](https://github.com/rapidsai/cudf).  cuGraph aims at provides a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
@@ -18,7 +18,7 @@ Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapids
 
 
 
-## Install cuGraph
+## Installing cuGraph
 
 ### Conda (Coming Soon)
 
@@ -35,6 +35,8 @@ conda install -c nvidia/label/cuda10.0 -c rapidsai/label/cuda10.0 -c numba -c co
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
+
+
 
 ### Pip (Coming Soon)
 
@@ -96,12 +98,21 @@ $ conda install -c conda-forge boost
 
 ## Building cuGraph from source
 
+The cuGraph package include both a C/C++ CUDA portion and a python portion.  Both libraries need to be installed in order for cuGraph to operate correctly.  
+
+
+
+#### Building and Install the C/C++ CUDA components
+
 To install cuGraph from source, ensure the dependencies are met and follow the steps below:
 
 - Clone the repository and submodules
 
 ```bash
-CUGRAPH_HOME=$(pwd)/cugraph
+# Set the localtion to cuGraph in an environment variable CUGRAPH_HOME 
+export CUGRAPH_HOME=$(pwd)/cugraph
+
+# Download the cuGraph repo
 git clone https://github.com/rapidsai/cugraph.git $CUGRAPH_HOME
 
 # Next load all the submodules
@@ -109,47 +120,119 @@ cd $CUGRAPH_HOME
 git submodule update --init --remote --recursive
 ```
 
-- Create the conda development environment `cugraph_dev`
+
+
+- Create the conda development environment `cugraph_dev` 
 
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
+# for CUDA 9.2
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev.yml
+
+# for CUDA 10
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.yml
 
 # activate the environment
 conda activate cugraph_dev 
+
+# to deactivate an environment
+conda deactivate
+```
+
+- Create the conda development environment `cugraph_nightly`
+
+If you wish to use nightly RAPIDS builds then you can use the following conda environment:
+
+```bash
+# create the conda environment (assuming in base `cugraph` directory)
+conda env create --name cugraph_nightly --file conda/environments/cugraph_nightly.yml
+
+# activate the environment
+conda activate cugraph_nightly 
 ```
 
 
 
-The environment can be updated as development includes/changes the depedencies. To do so, run:
+- The environment can be updated as development includes/changes the dependencies. To do so, run:
+
 
 ```bash
+# for CUDA 9.2
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev.yml
+
 conda activate cugraph_dev 
 ```
 
 
 
-This installs the required `cmake`, `cudf`, `pyarrow` and other
-dependencies into the `cugraph_dev` conda environment and activates it.
-
-Build and install `libcugraph`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
+- Build and install `libcugraph`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
 
 This project uses cmake for building the C/C++ library. To configure cmake,
 run:
 
 ```bash
-cd cpp	      # enter cpp directory
-mkdir build   # create build directory for out-of-source build
-cd build      # enter the build directory
+cd $CUGRAPH_HOME
+cd cpp	      		# enter cpp directory
+mkdir build   		# create build directory 
+cd build     		# enter the build directory
 cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX 
+
+# now build the code
+make -j				# "-j" starts multiple threads
+make install		# install the libraries 
 ```
 
-To build the C/C++ code
+The default installation  locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/cugraph` respectively.
+
+
+
+#### Building and installing the Python package
+
+Install the Python package to your Python path:
+
 ```bash
-make          #This should produce a shared library named `libcugraph.so`
-make install  #The default locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/cugraph` respectively.
+cd $CUGRAPH_HOME
+cd python
+python setup.py install    # install cugraph python bindings
 ```
+
+
+
+
+
+### Run tests
+
+**C++ stand alone tests** 
+
+From the build directory : `gtests/gdfgraph_test`
+
+```bash
+# Run the cugraph tests
+cd $CUGRAPH_HOME
+cd cpp/build
+gtests/GDFGRAPH_TEST		# this is an executable file
+```
+
+
+
+**Python tests with datasets** 
+
+
+
+```bash
+cd $CUGRAPH_HOME
+
+tar -zxvf src/tests/datasets.tar.gz -C /    # tests look for data under  '/'
+pytest
+```
+
+
+
+### Documentation
+
+Python API documentation can be generated from [docs](docs) directory.
+
+
 
 ### C++ ABI issues
 
@@ -166,33 +249,47 @@ If you must build cugraph with the old ABI, you can use the following command (i
 ```bash
 cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX -DCMAKE_CXX11_ABI=OFF
 ```
- 
 
-### Python package
 
-Install the Python package to your Python path:
+
+#### (OPTIONAL) Set environment variable on activation
+
+It is possible to configure the conda environment to set environmental variables on activation. Providing instructions to set PATH to include the CUDA toolkit bin directory and LD_LIBRARY_PATH to include the CUDA lib64 directory will be helpful.
+
+
 
 ```bash
-python setup.py install    # install cugraph python bindings
+cd  ~/anaconda3/envs/cugraph_dev
+
+mkdir -p ./etc/conda/activate.d
+mkdir -p ./etc/conda/deactivate.d
+touch ./etc/conda/activate.d/env_vars.sh
+touch ./etc/conda/deactivate.d/env_vars.sh
 ```
 
-### Run tests
-**C++ stand alone tests** 
-
-From the build directory : `gtests/gdfgraph_test`
 
 
-**Python tests with datasets** 
+Next the env_vars.sh file needs to be edited
 
-From cugraph's directory :
 ```bash
-tar -zxvf src/tests/datasets.tar.gz -C /    # tests will look for this 'datasets' folder in '/'
-pytest
+vi ./etc/conda/activate.d/env_vars.sh
+
+#!/bin/bash
+export PATH=/usr/local/cuda-10.0/bin:$PATH # or cuda-9.2 if using CUDA 9.2
+export LD_LIBRARY_PATH=/usr/local/cuda-10.0/lib64:$LD_LIBRARY_PATH # or cuda-9.2 if using CUDA 9.2
 ```
 
-### Documentation
 
-Python API documentation can be generated from [docs](docs) directory.
+
+```
+vi ./etc/conda/deactivate.d/env_vars.sh
+
+#!/bin/bash
+unset PATH
+unset LD_LIBRARY_PATH
+```
+
+
 
 
 
