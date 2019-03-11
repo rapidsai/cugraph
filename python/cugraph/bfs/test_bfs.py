@@ -45,6 +45,19 @@ def cugraph_call(M, start_vertex):
     # Return distances as np.array()
     return df['vertex'].to_array(), df['distance'].to_array()
 
+def cugraph_edge_call(M, start_vertex):
+    M = M.tocoo()
+    row = cudf.Series(M.row)
+    col = cudf.Series(M.col)
+    values = cudf.Series(M.data)
+    
+    G = cugraph.Graph()
+    G.add_edge_list(row, col, values)
+    
+    df = cugraph.bfs(G, start_vertex)
+    
+    return df['vertex'].to_array(), df['distance'].to_array()
+
 
 def base_call(M, start_vertex):
     int_max = 2**31 - 1
@@ -76,12 +89,12 @@ def base_call(M, start_vertex):
 
 DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
-            '/datasets/networks/polbooks.mtx',
+            '/datasets/networks/netscience.mtx',
             '/datasets/golden_data/graphs/dblp.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_bfs(graph_file):
+def test_bfs_adjacency(graph_file):
     M = read_mtx_file(graph_file)
 
     base_vid, base_dist = base_call(M, 0)
@@ -90,6 +103,20 @@ def test_bfs(graph_file):
     # Calculating mismatch
 
     assert len(base_dist) == len(cugraph_dist)
+    for i in range(len(cugraph_dist)):
+        assert base_vid[i] == cugraph_vid[i]
+        assert base_dist[i] == cugraph_dist[i]
+        
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_bfs_edge(graph_file):
+    M = read_mtx_file(graph_file)
+
+    base_vid, base_dist = base_call(M, 0)
+    cugraph_vid, cugraph_dist = cugraph_edge_call(M, 0)
+
+    # Calculating mismatch
+
+    assert len(base_dist) >= len(cugraph_dist)
     for i in range(len(cugraph_dist)):
         assert base_vid[i] == cugraph_vid[i]
         assert base_dist[i] == cugraph_dist[i]

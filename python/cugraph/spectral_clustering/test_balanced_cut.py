@@ -31,7 +31,6 @@ def cugraph_call(G, partitions):
     score = cugraph.analyzeClustering_edge_cut(G, partitions, df['cluster'])
     return set(df['vertex'].to_array()), score
 
-
 def random_call(G, partitions):
     random.seed(0)
     num_verts = G.num_vertices()
@@ -52,7 +51,7 @@ PARTITIONS = [2, 4, 8]
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
-def test_modularity_clustering(graph_file, partitions):
+def test_modularity_clustering_adjacency(graph_file, partitions):
     # Read in the graph and get a cugraph object
     M = read_mtx_file(graph_file).tocsr()
     row_offsets = cudf.Series(M.indptr)
@@ -68,3 +67,23 @@ def test_modularity_clustering(graph_file, partitions):
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score < rand_score
+    
+    
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('partitions', PARTITIONS)
+def test_modularity_clustering_adjacency_edge(graph_file, partitions):
+    # Read in the graph and get a cugraph object
+    M = read_mtx_file(graph_file).tocoo()
+    row = cudf.Series(M.row)
+    col = cudf.Series(M.col)
+    values = cudf.Series(M.data)
+    G = cugraph.Graph()
+    G.add_edge_list(row, col, values)
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G, partitions)
+    rand_vid, rand_score = random_call(G, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score    

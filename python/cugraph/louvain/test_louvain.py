@@ -62,6 +62,28 @@ def cugraph_call(M):
 
     return parts, mod
 
+def cugraph_edge_call(M):
+    M = M.tocoo()
+    if M is None:
+        raise TypeError('Could not read the input graph')
+    if M.shape[0] != M.shape[1]:
+        raise TypeError('Shape is not square')
+
+    # Device data
+    row = cudf.Series(M.row)
+    col = cudf.Series(M.col)
+    values = cudf.Series(M.data)
+
+    G = cugraph.Graph()
+    G.add_edge_list(row, col, values)
+
+    # cugraph Louvain Call
+    t1 = time.time()
+    parts, mod = cugraph.nvLouvain(G)
+    t2 = time.time() - t1
+    print('Time : '+str(t2))
+
+    return parts, mod
 
 def networkx_call(M):
     M = M.tocsr()
@@ -87,9 +109,28 @@ DATASETS = ['/datasets/networks/karate.mtx',
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_louvain(graph_file):
+def test_louvain_adjacency(graph_file):
     M = read_mtx_file(graph_file)
     cu_parts, cu_mod = cugraph_call(M)
+    nx_parts = networkx_call(M)
+
+    # Calculating modularity scores for comparison
+    Gnx = nx.Graph(M)
+    cu_map = {0: 0}
+    for i in range(len(cu_parts)):
+        cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
+    assert set(nx_parts.keys()) == set(cu_map.keys())
+    cu_mod_nx = community.modularity(cu_map, Gnx)
+    nx_mod = community.modularity(nx_parts, Gnx)
+    assert len(cu_parts) == len(nx_parts)
+    assert cu_mod > (.82 * nx_mod)
+    assert abs(cu_mod - cu_mod_nx) < .0001
+    
+    
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_louvain_edge(graph_file):
+    M = read_mtx_file(graph_file)
+    cu_parts, cu_mod = cugraph_edge_call(M)
     nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison

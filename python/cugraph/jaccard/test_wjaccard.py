@@ -56,6 +56,34 @@ def cugraph_call(M):
 
     return df['jaccard_coeff']
 
+def cugraph_edge_call(M):
+    M = M.tocoo()
+    if M is None:
+        raise TypeError('Could not read the input graph')
+    if M.shape[0] != M.shape[1]:
+        raise TypeError('Shape is not square')
+
+    # Device data
+    row = cudf.Series(M.row)
+    col = cudf.Series(M.col)
+    # values = cudf.Series(np.ones(len(col_indices), dtype=np.float32),
+    # nan_as_null=False)
+    
+
+    G = cugraph.Graph()
+    G.add_edge_list(row, col, None)
+    
+    weights_arr = cudf.Series(np.ones(G.num_vertices(), dtype=np.float32),
+                              nan_as_null=False)
+
+    # cugraph Jaccard Call
+    t1 = time.time()
+    df = cugraph.nvJaccard_w(G, weights_arr)
+    t2 = time.time() - t1
+    print('Time : '+str(t2))
+
+    return df['jaccard_coeff']
+
 
 DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
@@ -63,10 +91,19 @@ DATASETS = ['/datasets/networks/dolphins.mtx',
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_wjaccard(graph_file):
+def test_wjaccard_adjacency(graph_file):
 
     M = read_mtx_file(graph_file)
     # suppress F841 (local variable is assigned but never used) in flake8
     # no networkX equivalent to compare cu_coeff against...
     cu_coeff = cugraph_call(M)  # noqa: F841
+    # this test is incomplete...
+    
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_wjaccard_edge(graph_file):
+
+    M = read_mtx_file(graph_file)
+    # suppress F841 (local variable is assigned but never used) in flake8
+    # no networkX equivalent to compare cu_coeff against...
+    cu_coeff = cugraph_edge_call(M)  # noqa: F841
     # this test is incomplete...

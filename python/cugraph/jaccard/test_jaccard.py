@@ -60,6 +60,28 @@ def cugraph_call(M):
 
     return df['source'].to_array(), df['destination'].to_array(),\
         df['jaccard_coeff'].to_array()
+        
+def cugraph_edge_call(M):
+    M = M.tocoo()
+    if M is None:
+        raise TypeError('Could not read the input graph')
+    if M.shape[0] != M.shape[1]:
+        raise TypeError('Shape is not square')
+    
+    row = cudf.Series(M.row)
+    col = cudf.Series(M.col)
+    
+    G = cugraph.Graph()
+    G.add_edge_list(row, col, None)
+    
+    # cugraph Jaccard Call
+    t1 = time.time()
+    df = cugraph.nvJaccard(G)
+    t2 = time.time() - t1
+    print('Time : '+str(t2))
+
+    return df['source'].to_array(), df['destination'].to_array(),\
+        df['jaccard_coeff'].to_array()
 
 
 def networkx_call(M):
@@ -102,10 +124,30 @@ DATASETS = ['/datasets/networks/dolphins.mtx',
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_jaccard(graph_file):
+def test_jaccard_adjacency(graph_file):
 
     M = read_mtx_file(graph_file)
     cu_src, cu_dst, cu_coeff = cugraph_call(M)
+    nx_src, nx_dst, nx_coeff = networkx_call(M)
+
+    # Calculating mismatch
+    err = 0
+    tol = 1.0e-06
+
+    assert len(cu_coeff) == len(nx_coeff)
+    for i in range(len(cu_coeff)):
+        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and cu_src == nx_src
+           and cu_dst == nx_dst):
+            err += 1
+
+    print("Mismatches:  %d" % err)
+    assert err == 0
+    
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_jaccard_edge(graph_file):
+
+    M = read_mtx_file(graph_file)
+    cu_src, cu_dst, cu_coeff = cugraph_edge_call(M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
