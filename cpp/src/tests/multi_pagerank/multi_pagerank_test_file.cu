@@ -98,7 +98,7 @@ TEST(MultiPagerank, Generic)
   create_gdf_column(d, col_dest);
 
   float damping_factor=0.85;
-  int max_iter=30;
+  int max_iter=3;
 
   gdf_error err = gdf_multi_pagerank (global_v, col_src, col_dest, col_vidx, col_pagerank, damping_factor, max_iter);
   int err_count = (err != GDF_SUCCESS);
