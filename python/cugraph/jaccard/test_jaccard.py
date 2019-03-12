@@ -61,20 +61,20 @@ def cugraph_call(M):
     return df['source'].to_array(), df['destination'].to_array(),\
         df['jaccard_coeff'].to_array()
 
-    
+
 def cugraph_edge_call(M):
     M = M.tocoo()
     if M is None:
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
-    
+
     row = cudf.Series(M.row)
     col = cudf.Series(M.col)
-    
+
     G = cugraph.Graph()
     G.add_edge_list(row, col, None)
-    
+
     # cugraph Jaccard Call
     t1 = time.time()
     df = cugraph.nvJaccard(G)

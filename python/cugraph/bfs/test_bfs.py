@@ -51,12 +51,12 @@ def cugraph_edge_call(M, start_vertex):
     row = cudf.Series(M.row)
     col = cudf.Series(M.col)
     values = cudf.Series(M.data)
-    
+
     G = cugraph.Graph()
     G.add_edge_list(row, col, values)
-    
+
     df = cugraph.bfs(G, start_vertex)
-    
+
     return df['vertex'].to_array(), df['distance'].to_array()
 
 
@@ -108,7 +108,7 @@ def test_bfs_adjacency(graph_file):
         assert base_vid[i] == cugraph_vid[i]
         assert base_dist[i] == cugraph_dist[i]
 
-        
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_bfs_edge(graph_file):
     M = read_mtx_file(graph_file)

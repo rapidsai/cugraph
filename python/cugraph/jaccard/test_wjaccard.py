@@ -67,13 +67,10 @@ def cugraph_edge_call(M):
     # Device data
     row = cudf.Series(M.row)
     col = cudf.Series(M.col)
-    # values = cudf.Series(np.ones(len(col_indices), dtype=np.float32),
-    # nan_as_null=False)
-    
 
     G = cugraph.Graph()
     G.add_edge_list(row, col, None)
-    
+
     weights_arr = cudf.Series(np.ones(G.num_vertices(), dtype=np.float32),
                               nan_as_null=False)
 
