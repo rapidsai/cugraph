@@ -1,7 +1,7 @@
 name: cugraph_dev
 channels:
 - nvidia
-- rapidsai
+- rapidsai-nightly
 - numba
 - conda-forge
 - defaults
