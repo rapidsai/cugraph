@@ -56,6 +56,7 @@ def cugraph_call(M):
 
     return df['jaccard_coeff']
 
+
 def cugraph_edge_call(M):
     M = M.tocoo()
     if M is None:
@@ -98,7 +99,8 @@ def test_wjaccard_adjacency(graph_file):
     # no networkX equivalent to compare cu_coeff against...
     cu_coeff = cugraph_call(M)  # noqa: F841
     # this test is incomplete...
-    
+
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_wjaccard_edge(graph_file):
 

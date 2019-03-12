@@ -62,6 +62,7 @@ def cugraph_call(M):
 
     return parts, mod
 
+
 def cugraph_edge_call(M):
     M = M.tocoo()
     if M is None:
@@ -84,6 +85,7 @@ def cugraph_edge_call(M):
     print('Time : '+str(t2))
 
     return parts, mod
+
 
 def networkx_call(M):
     M = M.tocsr()
@@ -125,8 +127,8 @@ def test_louvain_adjacency(graph_file):
     assert len(cu_parts) == len(nx_parts)
     assert cu_mod > (.82 * nx_mod)
     assert abs(cu_mod - cu_mod_nx) < .0001
-    
-    
+
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_louvain_edge(graph_file):
     M = read_mtx_file(graph_file)

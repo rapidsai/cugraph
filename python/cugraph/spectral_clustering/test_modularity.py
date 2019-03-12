@@ -67,8 +67,8 @@ def test_modularity_clustering_adjacency(graph_file, partitions):
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score > rand_score
-    
-    
+
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_modularity_clustering_edge(graph_file, partitions):

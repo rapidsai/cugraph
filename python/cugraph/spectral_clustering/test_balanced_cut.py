@@ -31,6 +31,7 @@ def cugraph_call(G, partitions):
     score = cugraph.analyzeClustering_edge_cut(G, partitions, df['cluster'])
     return set(df['vertex'].to_array()), score
 
+
 def random_call(G, partitions):
     random.seed(0)
     num_verts = G.num_vertices()
@@ -67,8 +68,8 @@ def test_modularity_clustering_adjacency(graph_file, partitions):
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score < rand_score
-    
-    
+
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_modularity_clustering_adjacency_edge(graph_file, partitions):
@@ -86,4 +87,4 @@ def test_modularity_clustering_adjacency_edge(graph_file, partitions):
 
     # Assert that the partitioning has better modularity than the random
     # assignment
-    assert cu_score < rand_score    
+    assert cu_score < rand_score
