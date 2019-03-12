@@ -12,8 +12,8 @@ import dask_cugraph as dcg
 # 2. Set the Number of GPU Devices and File Paths
 
 number_of_devices = 2
-scheduler_file_path = r"cluster.json"
-input_data_path = r"/datasets/pagerank_demo/2/Input-small/edges/"
+scheduler_file_path = r"/home/USERID/cluster.json"
+input_data_path = r"/datasets/pagerank//Input-bigdata/edges/"
 
 
 # 3. Define Utility Functions
@@ -30,7 +30,7 @@ print("Initializing.")
 
 start_time = time.time()  # start timing from here
 
-client = Client(scheduler_file="cluster.json",
+client = Client(scheduler_file=scheduler_file_path,
                 direct_to_workers=True)
 
 # 5. Map One Worker to One GPU
@@ -49,16 +49,8 @@ print("Read Input Data.")
 dgdf = dask_cudf.read_csv(input_data_path + r"/part-*",
                           delimiter='\t', names=['src', 'dst'],
                           dtype=['int32', 'int32'])
-dgdf = client.persist(dgdf)
 
-# 7. Sort Data
-
-print("Sort Input Data.")
-
-dgdf = dgdf.sort_values_binned(by='dst')
-dgdf = client.persist(dgdf)
-
-# 8. Compute PageRank
+# 7. Compute PageRank
 
 print("Compute PageRank.")
 
