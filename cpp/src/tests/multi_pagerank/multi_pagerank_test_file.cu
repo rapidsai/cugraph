@@ -98,7 +98,7 @@ TEST(MultiPagerank, Generic)
   create_gdf_column(d, col_dest);
 
   float damping_factor=0.85;
-  int max_iter=3;
+  int max_iter=30;
 
   gdf_error err = gdf_multi_pagerank (global_v, col_src, col_dest, col_vidx, col_pagerank, damping_factor, max_iter);
   int err_count = (err != GDF_SUCCESS);
@@ -106,6 +106,17 @@ TEST(MultiPagerank, Generic)
   MPI_Allreduce(&err_count, &gl_err, 1, LOCINT_MPI, MPI_SUM, MPI_COMM_WORLD);
   ASSERT_EQ(gl_err, 0);
 
+  std::vector<int> calculated_idx(col_vidx->size);
+  CUDA_RT_CALL(cudaMemcpy(&calculated_idx[0],   col_vidx->data,   sizeof(int) * col_vidx->size, cudaMemcpyDeviceToHost));
+  
+
+  std::vector<float> calculated_res(col_pagerank->size);
+  CUDA_RT_CALL(cudaMemcpy(&calculated_res[0],   col_pagerank->data,   sizeof(float) * col_pagerank->size, cudaMemcpyDeviceToHost));
+  sleep(rank);
+  for (int i = 0; i < 10; i++)
+  {
+      std::cout<< rank<<" " << calculated_idx[i]<<" "<<calculated_res[i]<<std::endl;
+  }
   gdf_col_delete(col_src);
   gdf_col_delete(col_dest);
   gdf_col_delete(col_pagerank);
