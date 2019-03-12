@@ -2,16 +2,16 @@ import cugraph
 import cudf
 import dask_cudf as dc
 import dask.dataframe as dd
-
+import numpy as np
+import time 
 
 def _mg_pagerank(data, global_v):
     from mpi4py import MPI
-    
     comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    print(data)
-    pr_col_length = data[data.columns[1]][len(data)-1] - data[data.columns[1]][0] + 1
-    pr_df = cugraph.mg_pagerank(data, pr_col_length, global_v)
+    rank = comm.Get_rank()    
+    data = data.compute()
+    #print(data)
+    pr_df = cugraph.mg_pagerank(data, global_v)
     return pr_df
 
     
@@ -31,12 +31,13 @@ def _print_data(data):
     print("DATA:")
     print(data)
 
+    return 'done'
 
 def mg_pagerank(X_df):
     client = default_client()
     gpu_futures = _get_mg_info(X_df)
     ddf = dd.from_delayed(gpu_futures)
-    #gpu_futures = print_data(z)   
+    #gpu_futures = print_data(ddf)   
     return ddf
 
 
@@ -58,7 +59,9 @@ def _get_mg_info(ddf):
     client = default_client()
     if isinstance(ddf, dd.DataFrame):
         parts = ddf.to_delayed()
-        parts = client.compute(parts)
+        #print("persisting")
+        parts = client.persist(parts)
+        #print(parts)
         wait(parts)
 
     key_to_part_dict = dict([(str(part.key), part) for part in parts])
@@ -67,23 +70,31 @@ def _get_mg_info(ddf):
     x = list(client.has_what().keys())
     worker_map = []
     for key, workers in who_has.items():
-        worker = parse_host_port(first(workers))
+        worker = (first(workers))
         worker_map.append((worker, key_to_part_dict[key]))
-
-    ll=[1,1,1,1]
+    
+    worker_map_dict = dict(worker_map) 
+    
     worker_ranks = [(client.submit(get_rank, p,workers=[worker]).result(), worker) for p,worker in zip(parts,x)]
     rank_to_worker_dict = dict(worker_ranks)
+    '''
     parts_to_worker_map = []
     for i,part in enumerate(parts):
         parts_to_worker_map.append((part, rank_to_worker_dict[i]))
+    '''
 
-
+    parts_to_worker_map = []
+    for i in range(len(parts)):
+        parts_to_worker_map.append((worker_map_dict[rank_to_worker_dict[i]], rank_to_worker_dict[i]))
+   
     max_node_src_col = ddf[ddf.columns[0]].max().compute()
     max_node_dest_col = ddf[ddf.columns[1]].max().compute()
     num_vertices = max(max_node_src_col,max_node_dest_col) + 1
-    print(num_vertices)
-
+   
     gpu_futures = [client.submit(_mg_pagerank, part, num_vertices, workers=[worker]) for part, worker in parts_to_worker_map]
+    
+    #gpu_futures = [client.submit(_mg_pagerank, part, num_vertices, workers=[worker]) for worker, part in worker_map]
+    #gpu_futures = [client.submit(_mg_pagerank, part, num_vertices, workers=[worker]) for part, worker in zip(parts,workers)]
     wait(gpu_futures)
 
     return gpu_futures
