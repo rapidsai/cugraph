@@ -10,8 +10,8 @@ import dask_cudf
 # 2. Set the Number of GPU Devices and File Paths
 
 number_of_devices = 2
-scheduler_file_path = r"/home/seunghwak/cluster.json"
-input_data_path = r"/home/seunghwak/TMP/Input-small/edges"
+scheduler_file_path = r"/home/USERID/cluster.json"
+input_data_path = r"/datasets/pagerank/Input-bigdata/edges"
 
 
 # 3. Define Utility Functions
@@ -26,7 +26,7 @@ def set_visible(i, n):
 
 print("Initializing.")
 
-client = Client(scheduler_file="/home/seunghwak/cluster.json",
+client = Client(scheduler_file=scheduler_file_path,
                 direct_to_workers=True)
 
 # 5. Map One Worker to One GPU
