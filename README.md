@@ -248,7 +248,7 @@ python setup.py install    # install cugraph python bindings
 
     ```bash
     cd $CUGRAPH_HOME  
-    tar -zxvf src/tests/datasets.tar.gz -C /    # tests look for data under  '/'
+    tar -zxvf cpp/src/tests/datasets.tar.gz -C /    # tests look for data under  '/'
     pytest  
     ```
 
