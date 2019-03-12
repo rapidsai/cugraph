@@ -24,13 +24,47 @@ There are 4 ways to get cuGraph :
 
 
 
+Building from source is currently the only viable option. Once version 0.6 is release, the other options will be available.  
 
 
 
+## Quick Start (after v0.6 release) {#quick}
+
+Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
 
 
-As source is currently the only viable option, we'll be providing you with those instructions first.  We'll update the README when the other, easier options become available.
+### Conda (after v0.6 release){#conda}
+
+It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
+
+Install and update cuGraph using the conda command:
+
+```bash
+# CUDA 9.2
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph
+
+# CUDA 10.0
+conda install -c nvidia/label/cuda10.0 -c rapidsai/label/cuda10.0 -c numba -c conda-forge -c defaults cugraph
+```
+
+Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
+
+
+
+### Pip (after v0.6 release){#pip}
+
+It is easy to install cuGraph using pip. You must specify the CUDA version to ensure you install the right package.
+
+```bash
+# CUDA 9.2
+pip install cugraph-cuda92
+
+# CUDA 10.0.
+pip install cugraph-cuda100
+```
+
+
 
 
 
@@ -96,7 +130,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 
   # Next load all the submodules
   cd $CUGRAPH_HOME
-  git submodule update --init --remote --recursive
+  git submodule update --init --recursive
   ```
 
 
@@ -136,14 +170,23 @@ conda activate cugraph_nightly
 ```
 
 
+
+
   - The environment can be updated as development includes/changes the dependencies. To do so, run:  
 
-    ```bash
-    # for CUDA 9.2
-    conda env update --name cugraph_dev --file conda/environments/cugraph_dev.yml
-    
-    conda activate cugraph_dev 
-    ```
+
+
+```bash
+# for CUDA 9.2
+conda env update --name cugraph_dev --file conda/environments/cugraph_dev.yml
+
+# for CUDA 10
+conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.yml
+
+conda activate cugraph_dev 
+```
+
+
 
 
 
@@ -152,6 +195,9 @@ conda activate cugraph_nightly
   This project uses cmake for building the C/C++ library. To configure cmake, run:
 
   ```bash
+  # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME 
+  export CUGRAPH_HOME=$(pwd)/cugraph
+  
   cd $CUGRAPH_HOME
   cd cpp	      		# enter cpp directory
   mkdir build   		# create build directory 
@@ -186,12 +232,15 @@ python setup.py install    # install cugraph python bindings
 6. Run either the standalone tests or the Python tests with datasets
   - **C++ stand alone tests** 
 
-    From the build directory : `gtests/gdfgraph_test`
+    From the build directory : 
 
     ```bash
     # Run the cugraph tests
     cd $CUGRAPH_HOME
     cd cpp/build
+    make test
+    
+    # alternatively, you can run individual test
     gtests/GDFGRAPH_TEST		# this is an executable file
     ```
 
@@ -202,41 +251,11 @@ python setup.py install    # install cugraph python bindings
     tar -zxvf src/tests/datasets.tar.gz -C /    # tests look for data under  '/'
     pytest  
     ```
-   ```
 
-### Quick Start {#quick}
-
-Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
-
-### Conda Installation (Coming Soon) {#conda}
-
-It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
-
-Install and update cuGraph using the conda command:
-
-​```bash
-# CUDA 9.2
-conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph
-
-# CUDA 10.0
-conda install -c nvidia/label/cuda10.0 -c rapidsai/label/cuda10.0 -c numba -c conda-forge -c defaults cugraph
-   ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
 
-
-### Pip Installation (Coming Soon) {#pip}
-
-It is easy to install cuGraph using pip. You must specify the CUDA version to ensure you install the right package.
-
-```bash
-# CUDA 9.2
-pip install cugraph-cuda92
-
-# CUDA 10.0.
-pip install cugraph-cuda100
-```
 
 ## Documentation
 
