@@ -37,4 +37,8 @@ def mg_pagerank(input_df, global_v):
     pr_df = cudf.DataFrame()
     pr_df['vertex'] = vid_data
     pr_df['pagerank'] = pr_data
+
+    free(vid_ptr)
+    free(pr_ptr)
+
     return pr_df
