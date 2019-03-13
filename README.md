@@ -17,9 +17,9 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analyti
 ## Getting cuGraph
 ### Intro
 There are 4 ways to get cuGraph :
-1. [Quick start with Docker Demo Repo (Coming Soon)](#quick)
-1. [Conda Installation (Coming Soon)](#conda)
-1. [Pip Installation (Coming Soon)](#pip)
+1. [Quick start with Docker Demo Repo](#quick)
+1. [Conda Installation](#conda)
+1. [Pip Installation](#pip)
 1. [Build from Source](#source)
 
 
@@ -28,13 +28,13 @@ Building from source is currently the only viable option. Once version 0.6 is re
 
 
 
-## Quick Start (after v0.6 release) {#quick}
+## Quick Start {#quick}
 
 Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
 
 
-### Conda (after v0.6 release){#conda}
+### Conda{#conda}
 
 It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
 
@@ -52,7 +52,7 @@ Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
 
 
-### Pip (after v0.6 release){#pip}
+### Pip {#pip}
 
 It is easy to install cuGraph using pip. You must specify the CUDA version to ensure you install the right package.
 
