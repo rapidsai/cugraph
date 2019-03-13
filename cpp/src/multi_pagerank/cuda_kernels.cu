@@ -122,30 +122,18 @@ static inline void cubSum(InputIteratorT d_in, OutputIteratorT d_out,
 
 template <typename KeyT>
 static inline void cubSortKeys(KeyT *d_keys_in, KeyT *d_keys_out, int num_items,
-			       int begin_bit=0, int end_bit=sizeof(KeyT)*8,
-			       cudaStream_t stream=0, bool debug_synchronous=false) {
-
-	//void	*d_temp_storage = NULL;
-	//size_t	temp_storage_bytes = 0;
-	//
-	//CHECK_CUDA(cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes,
-	//					  d_keys_in, d_keys_out, num_items,
-	//					  begin_bit, end_bit, stream,
-	//					  debug_synchronous));
-	//d_temp_storage = tmp_get(bufpool, temp_storage_bytes);
-	//CHECK_CUDA(cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes,
-	//					  d_keys_in, d_keys_out, num_items,
-	//					  begin_bit, end_bit, stream,
-	//					  debug_synchronous));
-	//tmp_release(bufpool, d_temp_storage);
+                   int begin_bit=0, int end_bit=sizeof(KeyT)*8,
+                   cudaStream_t stream=0, bool debug_synchronous=false) {
 
     if (num_items == 0) { return ; }
-    thrust::sort(thrust::device,
-            d_keys_in, d_keys_in + num_items);
+    thrust::device_vector<KeyT> temp(num_items);
+    CHECK_CUDA(cudaMemcpy(temp.data().get(), d_keys_in, sizeof(KeyT)*num_items, cudaMemcpyDeviceToDevice));
+    thrust::sort(temp.begin(), temp.end());
     CHECK_CUDA(cudaPeekAtLastError());
-    CHECK_CUDA(cudaMemcpy(d_keys_out, d_keys_in, sizeof(KeyT)*num_items, cudaMemcpyDeviceToDevice));
+    CHECK_CUDA(cudaMemcpy(d_keys_out, temp.data().get(), sizeof(KeyT)*num_items, cudaMemcpyDeviceToDevice));
 
-	return;
+    return;
+
 }
 
 template<typename KeyT , typename ValueT >
