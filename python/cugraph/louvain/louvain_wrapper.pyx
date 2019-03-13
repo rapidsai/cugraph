@@ -1,3 +1,16 @@
+# Copyright (c) 2019, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from c_louvain cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -71,6 +84,9 @@ cpdef nvLouvain(input_graph):
     """
     cdef uintptr_t graph = input_graph.graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
+    
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     cdef uintptr_t offsets_ptr = <uintptr_t>g.adjList.offsets.data
     cdef uintptr_t indices_ptr = <uintptr_t>g.adjList.indices.data
@@ -85,6 +101,7 @@ cpdef nvLouvain(input_graph):
     df['vertex'] = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef uintptr_t identifier_ptr = create_column(df['vertex'])
     err = g.adjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
     
     df['partition'] = cudf.Series(np.zeros(n,dtype=np.int32))
     cdef uintptr_t louvain_parts_ptr = _get_column_data_ptr(df['partition'])

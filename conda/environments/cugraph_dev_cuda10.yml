@@ -1,17 +1,12 @@
-name: cugraph_0.6
+name: cugraph_dev
 channels:
-- nvidia
-- rapidsai-nightly
-- rapidsai
+- nvidia/labels/cuda10.0
+- rapidsai/labels/cuda10.0
 - numba
 - conda-forge
 - defaults
 dependencies:
-- dask
-- cudf=0.6
-- openmpi
-- mpi4py
-- bokeh
+- cudf>=0.5.1
 - nvgraph
 - scipy
 - networkx

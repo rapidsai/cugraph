@@ -172,9 +172,25 @@ find_library(CUDF_LIBRARY "cudf"
 
 add_library(cudf SHARED IMPORTED)
 if (CUDF_INCLUDE AND CUDF_LIBRARY)
-set_target_properties( cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
-message(STATUS "GDF found in ${CUDF_LIBRARY}")
+    set_target_properties( cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
+    message(STATUS "GDF found in ${CUDF_LIBRARY}")
 endif (CUDF_INCLUDE AND CUDF_LIBRARY)
+
+###################################################################################################
+# - add rmm --------------------------------------------------------------------------------------
+find_path(RMM_INCLUDE "rmm"
+          HINTS "$ENV{CUDF_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include")
+
+find_library(RMM_LIBRARY "rmm"
+             HINTS "$ENV{CUDF_ROOT}/lib"
+                   "$ENV{CONDA_PREFIX}/lib")
+
+add_library(rmm SHARED IMPORTED)
+if (RMM_INCLUDE AND RMM_LIBRARY)
+    set_target_properties( rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
+    message(STATUS "RMM found in ${RMM_LIBRARY}")
+endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
@@ -238,9 +254,6 @@ add_library(cugraph SHARED
 )
 
 option(BUILD_TESTS "Configure CMake to build tests" OFF)
-
-add_subdirectory(../thirdparty/rmm "${CMAKE_BINARY_DIR}/rmm")
-include_directories("${CMAKE_SOURCE_DIR}/../thirdparty/rmm/include")
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
