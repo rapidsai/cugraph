@@ -39,6 +39,7 @@
 - PR #105 Updated python code to follow PEP8 (fixed flake8 complaints)
 - PR #121 Cleaned up READEME file
 - PR #130 Update conda build recipes
+- PR #144 Documentation for top level functions
 
 
 ## Bug Fixes
