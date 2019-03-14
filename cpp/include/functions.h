@@ -18,6 +18,8 @@
 /**
  * @Synopsis   Wrap existing gdf columns representing an edge list in a gdf_graph.
  *             cuGRAPH does not own the memory used to represent this graph. This function does not allocate memory.
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
+ *
  * @Param[in] *source_indices        This gdf_column of size E (number of edges) contains the index of the source for each edge.
  *                                   Indices must be in the range [0, V-1].
  * @Param[in] *destination_indices   This gdf_column of size E (number of edges) contains the index of the destination for each edge.
@@ -38,6 +40,8 @@ gdf_error gdf_edge_list_view(gdf_graph *graph,
 /**
  * @Synopsis   Wrap existing gdf columns representing adjacency lists in a gdf_graph.
  *             cuGRAPH does not own the memory used to represent this graph. This function does not allocate memory.
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
+ *
  * @Param[in] *offsets               This gdf_column of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
  *                                   Offsets must be in the range [0, E] (number of edges).
  * @Param[in] *indices               This gdf_column of size E contains the index of the destination for each edge.
@@ -58,6 +62,7 @@ gdf_error gdf_adj_list_view (gdf_graph *graph,
 /**
  * @Synopsis   Create the adjacency lists of a gdf_graph from its edge list.
  *             cuGRAPH allocates and owns the memory required for storing the created adjacency list.
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
  * @Param[in, out] *graph            in  : graph descriptor containing a valid gdf_edge_list structure pointed by graph->edgeList
  *                                   out : graph->adjList is set to a gdf_adj_list structure containing the generated adjacency list
@@ -70,6 +75,7 @@ gdf_error gdf_add_adj_list(gdf_graph *graph);
 /**
  * @Synopsis   Create the transposed adjacency list from the edge list of a gdf_graph.
  *             cuGRAPH allocates and owns the memory required for storing the created transposed adjacency list.
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
  * @Param[in, out] *graph            in  : graph descriptor containing either a valid gdf_edge_list structure pointed by graph->edgeList
  *                                         or a valid gdf_adj_list structure pointed by graph->adjList
@@ -84,6 +90,7 @@ gdf_error gdf_add_transpose(gdf_graph *graph);
 /**
  * @Synopsis   Create the edge lists of a gdf_graph from its adjacency list.
  *             cuGRAPH allocates and owns the memory required for storing the created edge list.
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
  * @Param[in, out] *graph            in  : graph descriptor containing a valid gdf_adj_list structure pointed by graph->adjList
  *                                   out : graph->edgeList is set to a gdf_edge_list structure containing the generated edge list
@@ -95,7 +102,6 @@ gdf_error gdf_add_edge_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the adjacency list of a gdf_graph
- *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
  * @Param[in, out] *graph            in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
  *                                   out : graph descriptor with graph->adjList set to nullptr
@@ -107,7 +113,6 @@ gdf_error gdf_delete_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the edge list of a gdf_graph
- *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
  * @Param[in, out] *graph            in  : graph descriptor with graph->edgeList pointing to a gdf_edge_list structure
  *                                   out : graph descriptor with graph->edgeList set to nullptr
@@ -119,7 +124,6 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the transposed adjacency list of a gdf_graph
- *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
  * @Param[in, out] *graph            in  : graph descriptor with graph->transposedAdjList pointing to a gdf_adj_list structure
  *                                   out : graph descriptor with graph->transposedAdjList set to nullptr
