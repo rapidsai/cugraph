@@ -58,9 +58,9 @@ gdf_error gdf_adj_list_view (gdf_graph *graph,
 /**
  * @Synopsis   Create the adjacency lists of a gdf_graph from its edge list.
  *             cuGRAPH allocates and owns the memory required for storing the created adjacency list.
- *             The call expects a valid structure pointed by graph->edgeList. Upon successful completion of the call graph->adjList will point to a gdf_adj_list structure containing the generated adjacency list.
  *
- * @Param[out] *graph                cuGRAPH graph descriptor containing the newly added adjacency list.
+ * @Param[in, out] *graph            in  : graph descriptor containing a valid gdf_edge_list structure pointed by graph->edgeList
+ *                                   out : graph->adjList is set to a gdf_adj_list structure containing the generated adjacency list
  *
  * @Returns                          GDF_SUCCESS upon successful completion. If graph->edgeList is nullptr then GDF_INVALID_API_CALL is returned.
  */
@@ -70,21 +70,23 @@ gdf_error gdf_add_adj_list(gdf_graph *graph);
 /**
  * @Synopsis   Create the transposed adjacency list from the edge list of a gdf_graph.
  *             cuGRAPH allocates and owns the memory required for storing the created transposed adjacency list.
- *             The call expects a valid structure pointed by graph->edgeList and graph->transposedAdjList to be nullptr. Upon successful completion of the call graph->transposedAdjList will point to a gdf_adj_list structure containing the generated transposed adjacency list.
  *
- * @Param[out] *graph                cuGRAPH graph descriptor containing the newly added edge list.
+ * @Param[in, out] *graph            in  : graph descriptor containing either a valid gdf_edge_list structure pointed by graph->edgeList
+ *                                         or a valid gdf_adj_list structure pointed by graph->adjList
+ *                                   out : graph->transposedAdjList is set to a gdf_adj_list structure containing the generated transposed adjacency list
  *
- * @Returns                          GDF_SUCCESS upon successful completion. If graph->edgeList is nullptr then GDF_INVALID_API_CALL is returned.
+ * @Returns                          GDF_SUCCESS upon successful completion. If both graph->edgeList and graph->adjList are nullptr then GDF_INVALID_API_CALL is returned.
  */
 /* ----------------------------------------------------------------------------*/
+
 gdf_error gdf_add_transpose(gdf_graph *graph);
 
 /**
  * @Synopsis   Create the edge lists of a gdf_graph from its adjacency list.
  *             cuGRAPH allocates and owns the memory required for storing the created edge list.
- *             The call expects a valid structure pointed by graph->adjList and graph->edgeList to be nullptr. Upon successful completion of the call graph->edgeList will point to a gdf_edge_list structure containing the generated edge list.
  *
- * @Param[out] *graph                cuGRAPH graph descriptor containing the newly added edge list.
+ * @Param[in, out] *graph            in  : graph descriptor containing a valid gdf_adj_list structure pointed by graph->adjList
+ *                                   out : graph->edgeList is set to a gdf_edge_list structure containing the generated edge list
  *
  * @Returns                          GDF_SUCCESS upon successful completion. If graph->adjList is nullptr then GDF_INVALID_API_CALL is returned.
  */
@@ -93,9 +95,10 @@ gdf_error gdf_add_edge_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the adjacency list of a gdf_graph
- *             cuGRAPH sets graph->adjList to nullptr
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[out] *graph                cuGRAPH graph descriptor without an adjacency list.
+ * @Param[in, out] *graph            in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
+ *                                   out : graph descriptor with graph->adjList set to nullptr
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
@@ -104,9 +107,10 @@ gdf_error gdf_delete_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the edge list of a gdf_graph
- *             cuGRAPH sets graph->edgeList to nullptr
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[out] *graph                cuGRAPH graph descriptor without an edge list.
+ * @Param[in, out] *graph            in  : graph descriptor with graph->edgeList pointing to a gdf_edge_list structure
+ *                                   out : graph descriptor with graph->edgeList set to nullptr
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
@@ -115,9 +119,10 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the transposed adjacency list of a gdf_graph
- *             cuGRAPH sets graph->transposedAdjList to nullptr
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[out] *graph                cuGRAPH graph descriptor without a transposed adjacency list.
+ * @Param[in, out] *graph            in  : graph descriptor with graph->transposedAdjList pointing to a gdf_adj_list structure
+ *                                   out : graph descriptor with graph->transposedAdjList set to nullptr
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
@@ -151,7 +156,7 @@ gdf_error gdf_delete_transpose(gdf_graph *graph);
 gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess);
 
 /**
- * @Synopsis   Creates source, destination and value columns based on rmat input
+ * @Synopsis   Creates source, destination and value columns based on the specified R-MAT model
  *
  * @Param[in] *argv                  String that accepts the following arguments
  *                                   rmat (default: rmat_scale = 10, a = 0.57, b = c = 0.19)
@@ -167,7 +172,6 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, floa
  *                                       [--device=<device_index>] Set GPU(s) for testing (Default: 0).
  *                                       [--quiet]                 No output (unless --json is specified).
  *                                       [--random_seed]           This will enable usage of random seed, else it will use same seed
- *                                       [--normalized]\n
  *
  * @Param[out] &vertices             Number of vertices in the generated edge list
  *
@@ -189,7 +193,7 @@ gdf_error gdf_grmat_gen (const char* argv, size_t &vertices, size_t &edges, gdf_
  *
  * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
  *
- * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex is thr graph from the starting node
+ * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting node
  *
  * @Param[out] *predecessors         If set to a valid column, this is populated by bfs traversal predecessor of every vertex
  *
