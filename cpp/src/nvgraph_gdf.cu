@@ -20,6 +20,7 @@
  * ---------------------------------------------------------------------------**/
 
 #include <nvgraph_gdf.h>
+#include <nvgraph/nvgraph.h>
 #include <thrust/device_vector.h>
 #include <ctime>
 #include "utilities/error_utils.h"

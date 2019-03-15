@@ -209,3 +209,4 @@ gdf_error gdf_grmat_gen (const char* argv, size_t &vertices, size_t &edges, gdf_
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_node, bool directed);
+gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weight_j);

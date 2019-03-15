@@ -92,7 +92,7 @@ EXTENSIONS = [
               include_dirs=[NUMPY_INCLUDE,
                             CUDF_INCLUDE,
                             NVGRAPH['include'],
-                            CUDA['include'],
+                            #CUDA['include'],
                             '../cpp/src',
                             '../cpp/include',
                             '../cpp/build/gunrock',
