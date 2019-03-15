@@ -28,8 +28,6 @@ include(CTest)
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
-#option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
-
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_COMPILER $ENV{CC})
 set(CMAKE_CXX_COMPILER $ENV{CXX})
@@ -38,15 +36,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-#if(NOT CMAKE_CXX11_ABI)
-#		message(STATUS "CUDF: Disabling the GLIBCXX11 ABI")
-#		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-#		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-#		set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
-#elseif(CMAKE_CXX11_ABI)
-#		message(STATUS "CUDF: Enabling the GLIBCXX11 ABI")
-#endif(NOT CMAKE_CXX11_ABI)
-	
+###################################################################################################
+###   C++ ABI changes.
+###
+###   By default, cugraph builds with the new C++ ABI.  In order to insure that thirdparty
+###   applications build with the properly setting (specifically RMM) we need to set
+###   the CMAKE_CXX11_ABI flag appropriately.
+###
+###   If a user wants to build with the OLD ABI, then they need to define CMAKE_CXX11_ABI
+###   to be OFF (typically on the cmake command line).
+###
+###   This block of code will configure the old ABI if the flag is set to OFF and
+###   do nothing (the default behavior of the C++14 compiler).
+###
+option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
+
+if(CMAKE_CXX11_ABI)
+    message(STATUS "cuGraph: Enabling the GLIBCXX11 ABI")
+else()
+    message(STATUS "cuGraph: Disabling the GLIBCXX11 ABI")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
+endif(CMAKE_CXX11_ABI)
+
+###################################################################################################
+
 #set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
 
 #find_package(CUDA)
@@ -90,15 +105,6 @@ message(STATUS "CMAKE_MODULE_PATH:" "${CMAKE_MODULE_PATH}")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
-    if(CMAKE_CXX11_ABI)
-        message(STATUS "cuGraph: Enabling the GLIBCXX11 ABI")
-    else()
-        message(STATUS "cuGraph: Disabling the GLIBCXX11 ABI")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
-    endif(CMAKE_CXX11_ABI)
 endif(CMAKE_COMPILER_IS_GNUCXX)
 	
 # Keith testing space
@@ -117,7 +123,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
 	
 message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
-	
+
 
 ###################################################################################################
 # - cmake custom modules --------------------------------------------------------------------------
@@ -158,9 +164,25 @@ find_library(CUDF_LIBRARY "cudf"
 
 add_library(cudf SHARED IMPORTED)
 if (CUDF_INCLUDE AND CUDF_LIBRARY)
-set_target_properties( cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
-message(STATUS "GDF found in ${CUDF_LIBRARY}")
+    set_target_properties( cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
+    message(STATUS "GDF found in ${CUDF_LIBRARY}")
 endif (CUDF_INCLUDE AND CUDF_LIBRARY)
+
+###################################################################################################
+# - add rmm --------------------------------------------------------------------------------------
+find_path(RMM_INCLUDE "rmm"
+          HINTS "$ENV{CUDF_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include")
+
+find_library(RMM_LIBRARY "rmm"
+             HINTS "$ENV{CUDF_ROOT}/lib"
+                   "$ENV{CONDA_PREFIX}/lib")
+
+add_library(rmm SHARED IMPORTED)
+if (RMM_INCLUDE AND RMM_LIBRARY)
+    set_target_properties( rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
+    message(STATUS "RMM found in ${RMM_LIBRARY}")
+endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
@@ -216,9 +238,6 @@ add_library(cugraph SHARED
 )
 
 option(BUILD_TESTS "Configure CMake to build tests" OFF)
-
-add_subdirectory(../thirdparty/rmm "${CMAKE_BINARY_DIR}/rmm")
-include_directories("${CMAKE_SOURCE_DIR}/../thirdparty/rmm/include")
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------

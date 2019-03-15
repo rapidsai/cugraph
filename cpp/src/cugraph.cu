@@ -29,14 +29,25 @@ void gdf_col_delete(gdf_column* col) {
         {
         ALLOC_FREE_TRY(col->data, nullptr);
         }
+#if 1
+// If delete col is executed, the memory pointed by col is no longer valid and
+// can be used in another memory allocation, so executing col->data = nullptr
+// after delete col is dangerous, also, col = nullptr has no effect here (the
+// address is passed by value, for col = nullptr should work, the input
+// parameter should be gdf_column*& col (or alternatively, gdf_column** col and
+// *col = nullptr also work)
+    col->data = nullptr;
+    delete col;
+#else
     delete col;
     col->data = nullptr;
-    col = nullptr;  
-  }                                                       
+    col = nullptr;
+#endif
+  }
 }
 
 void gdf_col_release(gdf_column* col) {
-  delete col;                                                          
+  delete col;
 }
 
 void cpy_column_view(const gdf_column *in, gdf_column *out) {
@@ -284,6 +295,9 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
 
 gdf_error gdf_add_adj_list(gdf_graph *graph)
 { 
+  if (graph->adjList != nullptr)
+    return GDF_SUCCESS;
+
   GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
   GDF_REQUIRE( graph->adjList == nullptr , GDF_INVALID_API_CALL);
 
@@ -301,6 +315,8 @@ gdf_error gdf_add_adj_list(gdf_graph *graph)
 
 gdf_error gdf_add_transpose(gdf_graph *graph)
 {
+  if (graph->edgeList == nullptr)
+    gdf_add_edge_list(graph);
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
       case GDF_FLOAT32:   return gdf_add_transpose_impl<float>(graph);
@@ -315,7 +331,6 @@ gdf_error gdf_add_transpose(gdf_graph *graph)
 
 gdf_error gdf_delete_adj_list(gdf_graph *graph) {
   if (graph->adjList) {
-    graph->adjList->ownership = 1;
     delete graph->adjList;
   }
   graph->adjList = nullptr;
@@ -323,7 +338,6 @@ gdf_error gdf_delete_adj_list(gdf_graph *graph) {
 }
 gdf_error gdf_delete_edge_list(gdf_graph *graph) {
   if (graph->edgeList) {
-    graph->edgeList->ownership = 1;
     delete graph->edgeList;
   }
   graph->edgeList = nullptr;
@@ -331,7 +345,6 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph) {
 }
 gdf_error gdf_delete_transpose(gdf_graph *graph) {
   if (graph->transposedAdjList) {
-    graph->transposedAdjList->ownership = 1;
     delete graph->transposedAdjList;
   }
   graph->transposedAdjList = nullptr;
@@ -347,23 +360,26 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, floa
 }
 
 gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_node, bool directed) {
-	GDF_REQUIRE(graph->adjList != nullptr, GDF_VALIDITY_UNSUPPORTED);
-	GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-	GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-	GDF_REQUIRE(distances->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-	GDF_REQUIRE(predecessors->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
+  gdf_error err = gdf_add_adj_list(graph);
+  if (err != GDF_SUCCESS)
+    return err;
+  GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(distances->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(predecessors->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
 
-	int n = graph->adjList->offsets->size - 1;
-	int e = graph->adjList->indices->size;
-	int* offsets_ptr = (int*)graph->adjList->offsets->data;
-	int* indices_ptr = (int*)graph->adjList->indices->data;
-	int* distances_ptr = (int*)distances->data;
-	int* predecessors_ptr = (int*)predecessors->data;
-	int alpha = 15;
-	int beta = 18;
+  int n = graph->adjList->offsets->size - 1;
+  int e = graph->adjList->indices->size;
+  int* offsets_ptr = (int*)graph->adjList->offsets->data;
+  int* indices_ptr = (int*)graph->adjList->indices->data;
+  int* distances_ptr = (int*)distances->data;
+  int* predecessors_ptr = (int*)predecessors->data;
+  int alpha = 15;
+  int beta = 18;
 
-	cugraph::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
-	bfs.configure(distances_ptr, predecessors_ptr, nullptr);
-	bfs.traverse(start_node);
-	return GDF_SUCCESS;
+  cugraph::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
+  bfs.configure(distances_ptr, predecessors_ptr, nullptr);
+  bfs.traverse(start_node);
+  return GDF_SUCCESS;
 }
