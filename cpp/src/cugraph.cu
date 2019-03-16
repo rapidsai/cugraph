@@ -387,7 +387,7 @@ gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecess
   return GDF_SUCCESS;
 }
 
-gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weight_j) {
+gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weights, gdf_column *weight_j) {
   
   GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
   gdf_error err = gdf_add_adj_list(graph);
@@ -403,6 +403,12 @@ gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weight_j) {
   void* value_ptr = graph->adjList->edge_data? graph->adjList->edge_data->data: NULL;
   void* weight_j_ptr = weight_j->data;
 
+  void* weights_ptr;
+  if(weights == NULL)
+      weights_ptr = NULL;
+  else
+      weights_ptr = weights->data;
+
   auto gdf_to_cudadtype= [](gdf_column *col){
     cudaDataType_t cuda_dtype; 
     switch(col->dtype){
@@ -417,6 +423,6 @@ gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weight_j) {
   cudaDataType_t val_type = graph->adjList->edge_data? gdf_to_cudadtype(graph->adjList->edge_data): CUDA_R_32F;
 
   nvgraphJaccard(index_type, val_type, n, e, offsets_ptr, indices_ptr, value_ptr,
-                 0, NULL, c_gamma, weight_j_ptr);
+                 0, weights_ptr, c_gamma, weight_j_ptr);
   return GDF_SUCCESS;
 }
