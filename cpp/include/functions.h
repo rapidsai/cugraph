@@ -209,3 +209,15 @@ gdf_error gdf_grmat_gen (const char* argv, size_t &vertices, size_t &edges, gdf_
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_node, bool directed);
+
+/**
+ * @Synopsis Find pairs of vertices in the input graph such that each pair is connected by
+ *  a path that is two hops in length.
+ * @param graph The input graph
+ * @param first An uninitialized gdf_column which will be initialized to contain the
+ * first entry of each result pair.
+ * @param second An uninitialized gdf_column which will be initialized to contain the
+ * second entry of each result pair.
+ * @return GDF_SUCCESS upon successful completion. */
+gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
+
