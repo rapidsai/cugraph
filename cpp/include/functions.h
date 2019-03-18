@@ -15,21 +15,52 @@
  */
 #pragma once 
 
-/** 
- * @Synopsis   Warp existing gdf columns representing an edge list in a gdf_graph. 
- *             cuGRAPH does not own the memory used to represent this graph. This function does not allocate memory. 
- * @Param[in] *source_indices        This gdf_column of size E (number of edges) contains the index of the source for each edge.
- *                                   Indices must be in the range [0, V-1]. 
- * @Param[in] *destination_indices   This gdf_column of size E (number of edges) contains the index of the destination for each edge. 
- *                                   Indices must be in the range [0, V-1].
- * @Param[in] *edge_data (optional)  This pointer can be null_ptr. If not, this gdf_column of size E (number of edges) contains the weiht for each edge. 
- *                                   The type expected to be floating point.
- * 
- * @Param[out] *graph                cuGRAPH graph descriptor containing the newly added edge list (edge_data is optional).
- * 
- * @Returns                          GDF_SUCCESS upon successful completion. 
- */
 /* ----------------------------------------------------------------------------*/
+/**
+ * @brief Renumber source and destination indexes to be a dense numbering.
+ *
+ *    Assumptions:
+ *       * source and dest have same size and type
+ *       * source and dest are either GDF_INT32 or GDF_INT64
+ *       * source and dest have a size greater than 0
+ *
+ *    Note that this function allocates
+ *
+ *  @param[in]  src - the original source vertices
+ *  @param[in]  dst - the original dest vertices
+ *  @param[out] src_renumbered - the renumbered source vertices
+ *  @param[out] dst_renumbered - the renumbered dest vertices
+ *  @param[out] numbering_map - mapping of new vertex ids to old vertex ids
+ *
+ *  @return GDF_SUCCESS on success, an error code on failure.
+ */
+gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
+				gdf_column **src_renumbered, gdf_column **dst_renumbered,
+				gdf_column **numbering_map);
+
+/**
+ * @brief This function initializes the graph object with a set of edges specified in
+ *        COO format.
+ *
+ *    Note:
+ *       * This function does not allocate memory.
+ *
+ *    Assumptions:
+ *       * The graph object has not already been initialized with an edge list
+ *       * source and dest have same size and type
+ *       * source and dest are either GDF_INT32 or GDF_INT64
+ *       * source and dest have a size greater than 0
+ *
+ *  @param[in,out]  graph - the graph object to update
+ *  @param[in]      src_indices - Column containing the source vertex ids
+ *                  Indices are expected to be in the range [0, n-1].
+ *  @param[in]      dest_indices - Column containing the dest vertex ids.
+ *                  Indices are expected to be in the range [0, n-1].
+ *  @param[in]      edge_data - Column containing the edge weights (optional)
+ *                  Type is expected to be floating point.
+ *
+ *  @return GDF_SUCCESS on success, an error code on failure.
+ */
 gdf_error gdf_edge_list_view(gdf_graph *graph, 
                              const gdf_column *source_indices,
                              const gdf_column *destination_indices,

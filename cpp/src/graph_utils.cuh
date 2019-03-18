@@ -299,7 +299,7 @@ template <typename IndexType, typename ValueType>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 degree_coo ( const  IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
     for (int i=threadIdx.x+blockIdx.x*blockDim.x; i<e; i+=gridDim.x*blockDim.x) 
-        atomicAdd(&degree[ind[i]],1.0);
+        atomicAdd(&degree[ind[i]],IndexType{1});
 }
 template <typename IndexType, typename ValueType>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -386,10 +386,10 @@ void HT_matrix_csc_coo ( const  IndexType n, const IndexType e, const IndexType 
   cudaMemset(degree, 0, sizeof(IndexType) * n);
 
   dim3 nthreads, nblocks;
-  nthreads.x = min(e,CUDA_MAX_KERNEL_THREADS); 
+  nthreads.x = min((int) e, CUDA_MAX_KERNEL_THREADS); 
   nthreads.y = 1; 
   nthreads.z = 1;  
-  nblocks.x  = min((e + nthreads.x - 1)/nthreads.x,CUDA_MAX_BLOCKS); 
+  nblocks.x  = min((int) (e + nthreads.x - 1)/nthreads.x, CUDA_MAX_BLOCKS); 
   nblocks.y  = 1; 
   nblocks.z  = 1;
   degree_coo<IndexType,ValueType><<<nblocks,nthreads>>>(n,e,csrInd, degree);
@@ -401,7 +401,7 @@ void HT_matrix_csc_coo ( const  IndexType n, const IndexType e, const IndexType 
   nthreads.z = 8;
   nblocks.x  = 1;
   nblocks.y  = 1;
-  nblocks.z  = min((n + nthreads.z - 1)/nthreads.z,CUDA_MAX_BLOCKS); //1; 
+  nblocks.z  = min((int) (n + nthreads.z - 1)/nthreads.z, CUDA_MAX_BLOCKS); //1; 
   equi_prob3<IndexType,ValueType><<<nblocks,nthreads>>>(n,e,csrPtr,csrInd, val, degree);
   //printv(e, val , 0);
   cudaCheckError();
@@ -410,10 +410,10 @@ void HT_matrix_csc_coo ( const  IndexType n, const IndexType e, const IndexType 
   fill(n,bookmark,a);
   cudaCheckError();
 
-  nthreads.x = min(n,CUDA_MAX_KERNEL_THREADS); 
+  nthreads.x = min((int) n, CUDA_MAX_KERNEL_THREADS); 
   nthreads.y = 1; 
   nthreads.z = 1;  
-  nblocks.x  = min((n + nthreads.x - 1)/nthreads.x,CUDA_MAX_BLOCKS); 
+  nblocks.x  = min((int) (n + nthreads.x - 1)/nthreads.x,CUDA_MAX_BLOCKS); 
   nblocks.y  = 1; 
   nblocks.z  = 1;
   flag_leafs <IndexType,ValueType><<<nblocks,nthreads>>>(n, degree, bookmark);

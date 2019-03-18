@@ -21,6 +21,7 @@ import numpy as np
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
+dtypes_inv = {GDF_INT32: np.int32, GDF_INT64: np.int64, GDF_FLOAT32: np.float32, GDF_FLOAT64: np.float64}
 
 
 cdef create_column(col):
@@ -49,6 +50,24 @@ cdef delete_column(col_ptr):
     free(c_col)
     return
 
+#
+#  Really want something like this to clean up the code... but
+#  this can't work with the current interface.
+#
+#cdef wrap_column_not_working(col_ptr):
+#    cdef gdf_column * col = <gdf_column *> col_ptr
+#
+#    print("  size = ", col.size)
+#    print("  data = ", <uintptr_t> col.data)
+#    print("col.dtype = ", col.dtype)
+#    print("dtypes_inv = ", dtypes_inv)
+#    print("  inv = ", dtypes_inv[col.dtype])
+#
+#    return rmm.device_array_from_ptr(<uintptr_t> col.data,
+#                                     nelem=col.size,
+#                                     dtype=dtypes_inv[col.dtype],
+#                                     finalizer=rmm._make_finalizer(<uintptr_t> col_ptr, 0))
+#
 
 class Graph:
     """
@@ -77,6 +96,34 @@ class Graph:
         self.delete_adj_list()
         self.delete_transpose()
         free(g)
+
+    def renumber(self, source_col, dest_col):
+        cdef gdf_column * src_renumbered = NULL
+        cdef gdf_column * dst_renumbered = NULL
+        cdef gdf_column * numbering_map = NULL
+
+        cdef uintptr_t source = create_column(source_col)
+        cdef uintptr_t dest = create_column(dest_col)
+
+        err = gdf_renumber_vertices(< const gdf_column * > source,
+	      			    < const gdf_column * > dest,
+				    &src_renumbered,
+				    &dst_renumbered,
+				    &numbering_map)
+
+        cudf.bindings.cudf_cpp.check_gdf_error(err) 
+
+        src_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> src_renumbered.data,
+                                     nelem=src_renumbered.size,
+                                     dtype=dtypes_inv[src_renumbered.dtype])
+        dst_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> dst_renumbered.data,
+                                     nelem=dst_renumbered.size,
+                                     dtype=dtypes_inv[dst_renumbered.dtype])
+        numbering_map_array = rmm.device_array_from_ptr(<uintptr_t> numbering_map.data,
+                                     nelem=numbering_map.size,
+                                     dtype=dtypes_inv[numbering_map.dtype])
+
+        return cudf.Series(src_renumbered_array), cudf.Series(dst_renumbered_array), cudf.Series(numbering_map_array)
 
     def add_edge_list(self, source_col, dest_col, value_col=None):
         """
@@ -119,6 +166,11 @@ class Graph:
         else:
             value = create_column(value_col)
 
+        #src_renumbered, dst_renumbered, numbering_map = Graph.renumber(self, source, dest)
+
+	# NOTE:  numbering_map needs to be saved so we can fix
+	#        numbering on the way out
+
         try:
             err = gdf_edge_list_view(< gdf_graph *> graph,
                                      < gdf_column *> source,
@@ -157,12 +209,32 @@ class Graph:
 
         src_data = rmm.device_array_from_ptr(src_col_data,
                                      nelem=col_size,
-                                     dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(src_col_data, 0))
+                                     dtype=dtypes_inv[g.edgeList.src_indices.dtype])
         dest_data = rmm.device_array_from_ptr(dest_col_data,
                                      nelem=col_size,
-                                     dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(dest_col_data, 0))
+                                     dtype=dtypes_inv[g.edgeList.dest_indices.dtype])
+
+        return cudf.Series(src_data), cudf.Series(dest_data)
+
+    def to_edge_list(self):
+        """
+        Compute the edge list from adjacency list and return sources and destinations as cudf Series.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        err = gdf_add_edge_list(< gdf_graph *> graph)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        col_size = graph.edgeList.src_indices.size
+
+        cdef uintptr_t src_col_data = < uintptr_t > graph.edgeList.src_indices.data
+        cdef uintptr_t dest_col_data = < uintptr_t > graph.edgeList.dest_indices.data
+
+        src_data = rmm.device_array_from_ptr(src_col_data,
+                                     nelem=col_size,
+                                     dtype=np.int32)
+        dest_data = rmm.device_array_from_ptr(dest_col_data,
+                                     nelem=col_size,
+                                     dtype=np.int32)
         # g.edgeList.src_indices.data and g.edgeList.dest_indices.data are not
         # owned by this instance, so should not be freed here (this will lead
         # to double free, and undefined behavior).
@@ -219,12 +291,10 @@ class Graph:
 
         offsets_data = rmm.device_array_from_ptr(offsets_col_data,
                                      nelem=col_size_off,
-                                     dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
+                                     dtype=dtypes_inv[g.adjList.offsets.dtype])
         indices_data = rmm.device_array_from_ptr(indices_col_data,
                                      nelem=col_size_ind,
-                                     dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
+                                     dtype=dtypes_inv[g.adjList.indices.dtype])
         # g.adjList.offsets.data and g.adjList.indices.data are not owned by
         # this instance, so should not be freed here (this will lead to double
         # free, and undefined behavior).
@@ -249,12 +319,10 @@ class Graph:
         
         offsets_data = rmm.device_array_from_ptr(offsets_col_data,
                                      nelem=off_size,
-                                     dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
+                                     dtype=np.int32)
         indices_data = rmm.device_array_from_ptr(indices_col_data,
                                      nelem=ind_size,
-                                     dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
+                                     dtype=np.int32)
         # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
         # are not owned by this instance, so should not be freed here (this
         # will lead to double free, and undefined behavior).
