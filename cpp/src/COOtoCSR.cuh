@@ -67,6 +67,81 @@ __global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
 		offsets[unique[tid]] = counts[tid];
 }
 
+// Contruct CSR from COO without sorting
+template <typename T>
+gdf_error ConvertCOOtoCSR_unsorted(T *sources, T *destinations, int64_t nnz, CSR_Result<T> &result) {
+  //
+  //  Technique:
+  //      1 - Count how many edges are associated with each vertex
+  //      2 - Prefix sums to populate rowOffsets
+  //      3 - Copy prefix sums to temporary array to use to populate colIndices
+  //      4 - Populate colIndices
+  //
+  cudaStream_t stream{nullptr};
+  rmm_temp_allocator allocator(stream);
+
+  // Find max id (since this may be in the dests array but not the srcs array we need to check both)
+  T maxId1;
+  T maxId2;
+
+  auto maxId_it = thrust::max_element(thrust::cuda::par(allocator).on(stream), sources, sources + nnz);
+  CUDA_TRY(cudaMemcpy(&maxId1, maxId_it, sizeof(T), cudaMemcpyDefault));
+
+  maxId_it = thrust::max_element(thrust::cuda::par(allocator).on(stream), destinations, destinations + nnz);
+  CUDA_TRY(cudaMemcpy(&maxId2, maxId_it, sizeof(T), cudaMemcpyDefault));
+
+  result.size = max(maxId1, maxId2) + 1;
+  result.nnz = nnz;
+  ALLOC_MANAGED_TRY((void**)&result.rowOffsets, (1 + result.size) * sizeof(T), stream);
+  ALLOC_MANAGED_TRY((void**)&result.colIndices, nnz * sizeof(T), stream);
+
+  T *temp_array;
+  ALLOC_MANAGED_TRY((void**)&temp_array, (1 + result.size) * sizeof(T), stream);
+
+  CUDA_TRY(cudaMemset(temp_array, 0, (1 + result.size) * sizeof(T)));
+
+  //
+  //  Compute the degree of each source vertex
+  //
+  thrust::for_each(thrust::cuda::par(allocator).on(stream),
+                   sources, sources + nnz,
+                   [temp_array] __device__ (T &src) {
+                     atomicAdd(temp_array + src, T{1});
+		   });
+
+  //
+  //  Exclusive scan will create base offsets for each element.
+  //
+  thrust::exclusive_scan(thrust::cuda::par(allocator).on(stream),
+                         temp_array, temp_array + result.size + 1, temp_array);
+
+  //
+  //  Copy these results into the output, then we'll use the temp_array
+  //  for the next step
+  //
+  thrust::copy(thrust::cuda::par(allocator).on(stream),
+               temp_array, temp_array + result.size + 1, result.rowOffsets);
+
+  //
+  //  Now populate the colIndices array (non-deterministic)
+  //
+  thrust::for_each(thrust::cuda::par(allocator).on(stream),
+                   thrust::make_counting_iterator<int64_t>(0),
+                   thrust::make_counting_iterator<int64_t>(nnz),
+                   [temp_array, sources, destinations, result]
+                   __device__ (int64_t id) {
+                     T offset = atomicAdd(temp_array + sources[id], T{1});
+                     result.colIndices[offset] = destinations[id];
+                   });
+
+  //
+  //  Free temp space
+  //
+  ALLOC_FREE_TRY(temp_array, stream);
+
+  return GDF_SUCCESS;
+}
+
 // Method for constructing CSR from COO
 template <typename T>
 gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T>& result) {
