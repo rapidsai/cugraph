@@ -43,6 +43,7 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
 	void *cub_storage;
 	IndexType *first_pair;
 	IndexType *second_pair;
+	IndexType *block_bucket_offsets;
 
 	ALLOC_MANAGED_TRY(&exsum_degree, sizeof(IndexType) * (num_edges + 1), nullptr);
 
@@ -67,11 +68,22 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
 	IndexType output_size;
 	cudaMemcpy(&output_size, &exsum_degree[num_edges], sizeof(IndexType), cudaMemcpyDefault);
 
+	// Allocate memory for the scattered output
+	ALLOC_MANAGED_TRY(&second_pair, sizeof(IndexType) * output_size, nullptr);
+	ALLOC_MANAGED_TRY(&first_pair, sizeof(IndexType) * output_size, nullptr);
+
 	// Figure out number of blocks and allocate memory for block bucket offsets
 	IndexType num_blocks = (output_size + TWO_HOP_BLOCK_SIZE - 1) / TWO_HOP_BLOCK_SIZE;
+	ALLOC_MANAGED_TRY(&block_bucket_offsets, sizeof(IndexType) * (num_blocks + 1), nullptr);
 
+	// Compute the block bucket offsets
+	dim3 grid, block;
+	block.x = 512;
+	grid.x = min((IndexType)MAXBLOCKS, num_blocks);
+	compute_bucket_offsets_kernel<<<grid, block, 0, nullptr>>>(exsum_degree, block_bucket_offsets, num_edges, output_size);
 
 	// Scatter the expanded edge lists into temp space
+
 
 	// Remove duplicates and self pairings
 

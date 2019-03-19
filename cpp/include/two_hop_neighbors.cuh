@@ -21,6 +21,7 @@
 
 #include <cugraph.h>
 
+#define MAXBLOCKS 65535
 #define TWO_HOP_BLOCK_SIZE 512
 
 template <typename IndexType>
@@ -42,3 +43,24 @@ struct deref_functor {
 		return iterator[in];
 	}
 };
+
+template<typename IndexType>
+__global__ void compute_bucket_offsets_kernel(  const IndexType *frontier_degrees_exclusive_sum,
+                                                IndexType *bucket_offsets,
+                                                const IndexType frontier_size,
+                                                IndexType total_degree) {
+   IndexType end = ((total_degree - 1 + TWO_HOP_BLOCK_SIZE) / TWO_HOP_BLOCK_SIZE);
+
+   for (IndexType bid = blockIdx.x * blockDim.x + threadIdx.x;
+         bid <= end;
+         bid += gridDim.x * blockDim.x) {
+
+      IndexType eid = min(bid * TWO_HOP_BLOCK_SIZE, total_degree - 1);
+
+      bucket_offsets[bid] = binsearch_maxle( frontier_degrees_exclusive_sum,
+                                             eid,
+                                             (IndexType) 0,
+                                             frontier_size - 1);
+
+   }
+}
