@@ -53,7 +53,7 @@
 - PR #120 Bug fix for segfault calling spectral clustering with only edge list
 - PR #123 Fixed weighted Jaccard to assume the input weights are given as a cudf.Series
 - PR #152 Fix conda package version string
-
+- PR #169 Disable terminal output in sssp 
 
 # cuGraph 0.5.0 (28 Jan 2019)
 
