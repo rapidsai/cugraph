@@ -39,11 +39,10 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
 	cudaMemcpy(&num_edges, &offsets[num_verts], sizeof(IndexType), cudaMemcpyDefault);
 
 	// Allocate memory for temporary stuff
-	IndexType *exsum_degree;
-	void *cub_storage;
-	IndexType *first_pair;
-	IndexType *second_pair;
-	IndexType *block_bucket_offsets;
+	IndexType *exsum_degree = nullptr;
+	IndexType *first_pair = nullptr;
+	IndexType *second_pair = nullptr;
+	IndexType *block_bucket_offsets = nullptr;
 
 	ALLOC_MANAGED_TRY(&exsum_degree, sizeof(IndexType) * (num_edges + 1), nullptr);
 
@@ -60,9 +59,9 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
 
 	// Take the inclusive sum of the degrees
 	thrust::inclusive_scan(thrust::cuda::par(allocator).on(nullptr),
-	                       exsum_degree + 1,
-	                       exsum_degree + num_edges + 1,
-	                       exsum_degree + 1);
+													exsum_degree + 1,
+													exsum_degree + num_edges + 1,
+													exsum_degree + 1);
 
 	// Copy out the last value to get the size of scattered output
 	IndexType output_size;
@@ -79,15 +78,49 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
 	// Compute the block bucket offsets
 	dim3 grid, block;
 	block.x = 512;
-	grid.x = min((IndexType)MAXBLOCKS, num_blocks);
-	compute_bucket_offsets_kernel<<<grid, block, 0, nullptr>>>(exsum_degree, block_bucket_offsets, num_edges, output_size);
+	grid.x = min((IndexType) MAXBLOCKS, (num_blocks / 512) + 1);
+	compute_bucket_offsets_kernel<<<grid, block, 0, nullptr>>>(exsum_degree,
+																															block_bucket_offsets,
+																															num_edges,
+																															output_size);
+	cudaMemcpy(&block_bucket_offsets[num_blocks], &num_edges, sizeof(IndexType), cudaMemcpyDefault);
 
 	// Scatter the expanded edge lists into temp space
-
+	grid.x = min((IndexType) MAXBLOCKS, num_blocks);
+	scatter_expand_kernel<<<grid, block, 0, nullptr>>>(exsum_degree,
+																											indices,
+																											offsets,
+																											block_bucket_offsets,
+																											num_verts,
+																											output_size,
+																											num_blocks,
+																											first_pair,
+																											second_pair);
 
 	// Remove duplicates and self pairings
+	auto tuple_start = thrust::make_zip_iterator(thrust::make_tuple(first_pair, second_pair));
+	auto tuple_end = tuple_start + output_size;
+	thrust::sort(thrust::cuda::par(allocator).on(nullptr), tuple_start, tuple_end);
+	tuple_end = thrust::copy_if(thrust::cuda::par(allocator).on(nullptr),
+															tuple_start,
+															tuple_end,
+															tuple_start,
+															self_loop_flagger<IndexType>());
+	tuple_end = thrust::unique(thrust::cuda::par(allocator).on(nullptr), tuple_start, tuple_end);
 
 	// Get things ready to return
+	IndexType final_size = tuple_end - tuple_start;
+	ALLOC_MANAGED_TRY(first, sizeof(IndexType) * final_size, nullptr);
+	ALLOC_MANAGED_TRY(second, sizeof(IndexType) * final_size, nullptr);
+	cudaMemcpy(*first, first_pair, sizeof(IndexType) * final_size, cudaMemcpyDefault);
+	cudaMemcpy(*second, second_pair, sizeof(IndexType) * final_size, cudaMemcpyDefault);
+
+	// Free up temporary stuff
+	ALLOC_FREE_TRY(exsum_degree, nullptr);
+	ALLOC_FREE_TRY(first_pair, nullptr);
+	ALLOC_FREE_TRY(second_pair, nullptr);
+	ALLOC_FREE_TRY(block_bucket_offsets, nullptr);
+
 	return GDF_SUCCESS;
 }
 

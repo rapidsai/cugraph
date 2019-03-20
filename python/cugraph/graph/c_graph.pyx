@@ -27,7 +27,7 @@ cdef create_column(col):
     cdef gdf_column * c_col = < gdf_column *> malloc(sizeof(gdf_column))
     cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
     # cdef uintptr_t valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
-    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit = TIME_UNIT_NONE)
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
 
 
     err = gdf_column_view_augmented(< gdf_column *> c_col,
@@ -136,7 +136,7 @@ class Graph:
         Get the number of vertices in the graph
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph* g = < gdf_graph *> graph
+        cdef gdf_graph * g = < gdf_graph *> graph
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         return g.adjList.offsets.size - 1   
@@ -157,11 +157,11 @@ class Graph:
 
         src_data = rmm.device_array_from_ptr(src_col_data,
                                      nelem=col_size,
-                                     dtype=np.int32) # ,
+                                     dtype=np.int32)  # ,
                                      # finalizer=rmm._make_finalizer(src_col_data, 0))
         dest_data = rmm.device_array_from_ptr(dest_col_data,
                                      nelem=col_size,
-                                     dtype=np.int32) # ,
+                                     dtype=np.int32)  # ,
                                      # finalizer=rmm._make_finalizer(dest_col_data, 0))
         # g.edgeList.src_indices.data and g.edgeList.dest_indices.data are not
         # owned by this instance, so should not be freed here (this will lead
@@ -219,11 +219,11 @@ class Graph:
 
         offsets_data = rmm.device_array_from_ptr(offsets_col_data,
                                      nelem=col_size_off,
-                                     dtype=np.int32) # ,
+                                     dtype=np.int32)  # ,
                                      # finalizer=rmm._make_finalizer(offsets_col_data, 0))
         indices_data = rmm.device_array_from_ptr(indices_col_data,
                                      nelem=col_size_ind,
-                                     dtype=np.int32) # ,
+                                     dtype=np.int32)  # ,
                                      # finalizer=rmm._make_finalizer(indices_col_data, 0))
         # g.adjList.offsets.data and g.adjList.indices.data are not owned by
         # this instance, so should not be freed here (this will lead to double
@@ -249,19 +249,66 @@ class Graph:
         
         offsets_data = rmm.device_array_from_ptr(offsets_col_data,
                                      nelem=off_size,
-                                     dtype=np.int32) # ,
+                                     dtype=np.int32)  # ,
                                      # finalizer=rmm._make_finalizer(offsets_col_data, 0))
         indices_data = rmm.device_array_from_ptr(indices_col_data,
                                      nelem=ind_size,
-                                     dtype=np.int32) # ,
+                                     dtype=np.int32)  # ,
                                      # finalizer=rmm._make_finalizer(indices_col_data, 0))
         # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
         # are not owned by this instance, so should not be freed here (this
         # will lead to double free, and undefined behavior).
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
+
+    def get_two_hop_neighbors(self):
+        """
+        Return a dataframe containing vertex pairs such that each pair of vertices is 
+        connected by a path of two hops in the graph.
         
-    
+        Returns:
+        df : a cudf.DataFrame object
+        df['first'] the first vertex id of a pair
+        df['second'] the second vertex id of a pair
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = < gdf_graph *> graph
+        cdef gdf_column * first = < gdf_column *> malloc(sizeof(gdf_column))
+        cdef gdf_column * second = < gdf_column *> malloc(sizeof(gdf_column))
+        if first == <gdf_column*>0:
+            raise Exception("something bad happened")
+        if second == <gdf_column*>0:
+            raise Exception("something bad happened")
+        err = gdf_get_two_hop_neighbors(g, first, second)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+        df = cudf.DataFrame()
+        if first.dtype == GDF_INT32:
+            first_out = rmm.device_array_from_ptr(<uintptr_t>first.data, 
+                                                  nelem=first.size, 
+                                                  dtype=np.int32, 
+                                                  finalizer=rmm.make_finalizer(<uintptr_t>first.data, 0))
+            second_out = rmm.device_array_from_ptr(<uintptr_t>second.data, 
+                                                   nelem=second.size, 
+                                                   dtype=np.int32, 
+                                                   finalizer=rmm.make_finalizer(<uintptr_t>second.data, 0))
+            df['first'] = first_out
+            df['second'] = second_out
+        if first.dtype == GDF_INT64:
+            first_out = rmm.device_array_from_ptr(<uintptr_t>first.data, 
+                                                  nelem=first.size, 
+                                                  dtype=np.int64, 
+                                                  finalizer=rmm.make_finalizer(<uintptr_t>first.data, 0))
+            second_out = rmm.device_array_from_ptr(<uintptr_t>second.data, 
+                                                   nelem=second.size, 
+                                                   dtype=np.int64, 
+                                                   finalizer=rmm.make_finalizer(<uintptr_t>second.data, 0))
+            df['first'] = first_out
+            df['second'] = second_out
+
+        delete_column(<uintptr_t>first)
+        delete_column(<uintptr_t>second)
+        return df
+
     def delete_adj_list(self):
         """
         Delete the adjacency list.
