@@ -426,3 +426,37 @@ gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weights, gdf_
                  0, weights_ptr, c_gamma, weight_j_ptr);
   return GDF_SUCCESS;
 }
+
+gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
+
+  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
+  gdf_error err = gdf_add_adj_list(graph);
+  if (err != GDF_SUCCESS)
+    return err;
+
+  size_t n = graph->adjList->offsets->size - 1;
+  size_t e = graph->adjList->indices->size;
+
+  void* offsets_ptr = graph->adjList->offsets->data;
+  void* indices_ptr = graph->adjList->indices->data;
+  void* value_ptr = graph->adjList->edge_data? graph->adjList->edge_data->data: NULL;
+  void* louvain_parts_ptr = louvain_parts->data;
+
+  auto gdf_to_cudadtype= [](gdf_column *col){
+    cudaDataType_t cuda_dtype;
+    switch(col->dtype){
+      case GDF_INT8: cuda_dtype = CUDA_R_8I; break;
+      case GDF_INT32: cuda_dtype = CUDA_R_32I; break;
+      case GDF_FLOAT32: cuda_dtype = CUDA_R_32F; break;
+      case GDF_FLOAT64: cuda_dtype = CUDA_R_64F; break;
+      }return cuda_dtype;
+  };
+
+  cudaDataType_t index_type = gdf_to_cudadtype(graph->adjList->indices);
+  cudaDataType_t val_type = graph->adjList->edge_data? gdf_to_cudadtype(graph->adjList->edge_data): CUDA_R_32F;
+
+  nvgraphLouvain(index_type, val_type, n, e, offsets_ptr, indices_ptr, value_ptr, 1, 0, NULL, 
+                 final_modularity, louvain_parts_ptr, num_level);
+  return GDF_SUCCESS;
+}
+
