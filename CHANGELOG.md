@@ -9,8 +9,7 @@
 ...
 
 ## Bug Fixes
-
-...
+- PR #169 Disable terminal output in sssp 
 
 # cuGraph 0.6.0 (Date TBD)
 
@@ -54,7 +53,6 @@
 - PR #123 Fixed weighted Jaccard to assume the input weights are given as a cudf.Series
 - PR #152 Fix conda package version string
 - PR #160 Added additional link directory to support building on CentOS-7
-
 
 # cuGraph 0.5.0 (28 Jan 2019)
 
