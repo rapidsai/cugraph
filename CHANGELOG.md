@@ -5,8 +5,7 @@
 ...
 
 ## Improvements
-
-...
+- PR #157 Removed cudatoolkit dependency in setup.py
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
@@ -39,7 +38,6 @@
 - PR #121 Cleaned up READEME file
 - PR #130 Update conda build recipes
 - PR #144 Documentation for top level functions
-
 
 ## Bug Fixes
 
