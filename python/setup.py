@@ -25,6 +25,7 @@ def find_in_path(name, path):
             return os.path.abspath(binpath)
     return None
 
+
 def locate_nvgraph():
     if 'CONDA_PREFIX' in os.environ:
         nvgraph_found = find_in_path('lib/libnvgraph_st.so',
@@ -41,6 +42,7 @@ def locate_nvgraph():
 
     return nvgraph_config
 
+
 NVGRAPH = locate_nvgraph()
 
 try:
@@ -56,7 +58,7 @@ EXTENSIONS = [
               sources=CYTHON_FILES,
               include_dirs=[NUMPY_INCLUDE,
                             CUDF_INCLUDE,
-                            #NVGRAPH['include'],
+                            # NVGRAPH['include'],
                             '../cpp/src',
                             '../cpp/include',
                             '../cpp/build/gunrock',
