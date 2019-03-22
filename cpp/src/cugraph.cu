@@ -198,7 +198,7 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
 
 
 template <typename WT>
-gdf_error gdf_add_transpose_impl (gdf_graph *graph) {
+gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
     if (graph->transposedAdjList == nullptr ) {
       GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
       int nnz = graph->edgeList->src_indices->size, status = 0;
@@ -256,7 +256,7 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   WT *residual = &res;
 
   if (graph->transposedAdjList == nullptr) {
-    gdf_add_transpose(graph);
+    gdf_add_transposed_adj_list(graph);
   }
   cudaStream_t stream{nullptr};
   ALLOC_MANAGED_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
@@ -309,18 +309,18 @@ gdf_error gdf_add_adj_list(gdf_graph *graph) {
   }
 }
 
-gdf_error gdf_add_transpose(gdf_graph *graph) {
+gdf_error gdf_add_transposed_adj_list(gdf_graph *graph) {
   if (graph->edgeList == nullptr)
     gdf_add_edge_list(graph);
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return gdf_add_transpose_impl<float>(graph);
-      case GDF_FLOAT64:   return gdf_add_transpose_impl<double>(graph);
+      case GDF_FLOAT32:   return gdf_add_transposed_adj_list_impl<float>(graph);
+      case GDF_FLOAT64:   return gdf_add_transposed_adj_list_impl<double>(graph);
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
   else {
-    return gdf_add_transpose_impl<float>(graph);
+    return gdf_add_transposed_adj_list_impl<float>(graph);
   }
 }
 
@@ -340,7 +340,7 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph) {
   return GDF_SUCCESS;
 }
 
-gdf_error gdf_delete_transpose(gdf_graph *graph) {
+gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) {
   if (graph->transposedAdjList) {
     delete graph->transposedAdjList;
   }

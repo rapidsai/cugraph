@@ -75,7 +75,7 @@ class Graph:
         cdef gdf_graph * g = < gdf_graph *> graph
         self.delete_edge_list()
         self.delete_adj_list()
-        self.delete_transpose()
+        self.delete_transposed_adj_list()
         free(g)
 
     def add_edge_list(self, source_col, dest_col, value_col=None):
@@ -231,14 +231,14 @@ class Graph:
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
     
-    def view_transpose_adj_list(self):
+    def view_transposed_adj_list(self):
         """
         Return a view of the transposed adjacency list, computing it if it doesn't
         exist.
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
-        err = gdf_add_transpose(g)
+        err = gdf_add_transposed_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         
         off_size = g.transposedAdjList.offsets.size
@@ -270,18 +270,18 @@ class Graph:
         err = gdf_delete_adj_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    def add_transpose(self):
+    def add_transposed_adj_list(self):
         """
         Compute the transposed adjacency list from the edge list and add it to the existing graph.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_add_transpose(< gdf_graph *> graph)
+        err = gdf_add_transposed_adj_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    def delete_transpose(self):
+    def delete_transposed_adj_list(self):
         """
         Delete the transposed adjacency list.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_delete_transpose(< gdf_graph *> graph)
+        err = gdf_delete_transposed_adj_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)

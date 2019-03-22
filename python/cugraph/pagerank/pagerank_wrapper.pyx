@@ -59,7 +59,7 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
     """
 
     cdef uintptr_t graph = G.graph_ptr
-    err = gdf_add_transpose(<gdf_graph*>graph)
+    err = gdf_add_transposed_adj_list(<gdf_graph*>graph)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     
     cdef gdf_graph* g = <gdf_graph*>graph
