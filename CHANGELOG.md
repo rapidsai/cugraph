@@ -8,8 +8,7 @@
 - PR #157 Removed cudatoolkit dependency in setup.py
 
 ## Bug Fixes
-
-...
+- PR #181 Fixed crash/rmm free error when edge values provided
 
 # cuGraph 0.6.0 (Date TBD)
 
