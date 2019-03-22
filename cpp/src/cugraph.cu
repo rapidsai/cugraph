@@ -25,13 +25,11 @@
 #include <rmm_utils.h>
 
 void gdf_col_delete(gdf_column* col) {
-  if (col)
-  {
+  if (col) {
     col->size = 0; 
-    if(col->data)
-        {
-        ALLOC_FREE_TRY(col->data, nullptr);
-        }
+    if(col->data) {
+      ALLOC_FREE_TRY(col->data, nullptr);
+    }
 #if 1
 // If delete col is executed, the memory pointed by col is no longer valid and
 // can be used in another memory allocation, so executing col->data = nullptr
@@ -180,7 +178,6 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
       graph->edgeList->dest_indices = new gdf_column;
       graph->edgeList->ownership = 2;
 
-
       CUDA_TRY(cudaMallocManaged ((void**)&d_src, sizeof(int) * graph->adjList->indices->size));
 
       cugraph::offsets_to_indices<int>((int*)graph->adjList->offsets->data, 
@@ -243,8 +240,6 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
                       gdf_column *pagerank, float alpha = 0.85,
                       float tolerance = 1e-4, int max_iter = 200,
                       bool has_guess = false) {
-
-  
   GDF_REQUIRE( graph->edgeList != nullptr, GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( graph->edgeList->src_indices->size == graph->edgeList->dest_indices->size, GDF_COLUMN_SIZE_MISMATCH ); 
   GDF_REQUIRE( graph->edgeList->src_indices->dtype == graph->edgeList->dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );  
@@ -295,9 +290,7 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   return GDF_SUCCESS;
 }
 
-
-gdf_error gdf_add_adj_list(gdf_graph *graph)
-{ 
+gdf_error gdf_add_adj_list(gdf_graph *graph) {
   if (graph->adjList != nullptr)
     return GDF_SUCCESS;
 
@@ -316,8 +309,7 @@ gdf_error gdf_add_adj_list(gdf_graph *graph)
   }
 }
 
-gdf_error gdf_add_transpose(gdf_graph *graph)
-{
+gdf_error gdf_add_transpose(gdf_graph *graph) {
   if (graph->edgeList == nullptr)
     gdf_add_edge_list(graph);
   if (graph->edgeList->edge_data != nullptr) {
@@ -339,6 +331,7 @@ gdf_error gdf_delete_adj_list(gdf_graph *graph) {
   graph->adjList = nullptr;
   return GDF_SUCCESS;
 }
+
 gdf_error gdf_delete_edge_list(gdf_graph *graph) {
   if (graph->edgeList) {
     delete graph->edgeList;
@@ -346,6 +339,7 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph) {
   graph->edgeList = nullptr;
   return GDF_SUCCESS;
 }
+
 gdf_error gdf_delete_transpose(gdf_graph *graph) {
   if (graph->transposedAdjList) {
     delete graph->transposedAdjList;
@@ -388,7 +382,6 @@ gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecess
 }
 
 gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weights, gdf_column *weight_j) {
-  
   GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
@@ -428,7 +421,6 @@ gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weights, gdf_
 }
 
 gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
-
   GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
@@ -459,4 +451,3 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
                  final_modularity, louvain_parts_ptr, num_level);
   return GDF_SUCCESS;
 }
-
