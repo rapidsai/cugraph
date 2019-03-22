@@ -50,7 +50,7 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
 	degree_iterator<IndexType> deg_it(offsets);
 	deref_functor<degree_iterator<IndexType>, IndexType> deref(deg_it);
 	rmm_temp_allocator allocator(nullptr);
-	thrust::fill(exsum_degree, exsum_degree + 1, 0);
+	thrust::fill(thrust::cuda::par(allocator).on(nullptr), exsum_degree, exsum_degree + 1, 0);
 	thrust::transform(thrust::cuda::par(allocator).on(nullptr),
 										indices,
 										indices + num_edges,
@@ -109,11 +109,11 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
 	tuple_end = thrust::unique(thrust::cuda::par(allocator).on(nullptr), tuple_start, tuple_end);
 
 	// Get things ready to return
-	IndexType final_size = tuple_end - tuple_start;
-	ALLOC_MANAGED_TRY(first, sizeof(IndexType) * final_size, nullptr);
-	ALLOC_MANAGED_TRY(second, sizeof(IndexType) * final_size, nullptr);
-	cudaMemcpy(*first, first_pair, sizeof(IndexType) * final_size, cudaMemcpyDefault);
-	cudaMemcpy(*second, second_pair, sizeof(IndexType) * final_size, cudaMemcpyDefault);
+	outputSize = tuple_end - tuple_start;
+	ALLOC_MANAGED_TRY(first, sizeof(IndexType) * outputSize, nullptr);
+	ALLOC_MANAGED_TRY(second, sizeof(IndexType) * outputSize, nullptr);
+	cudaMemcpy(*first, first_pair, sizeof(IndexType) * outputSize, cudaMemcpyDefault);
+	cudaMemcpy(*second, second_pair, sizeof(IndexType) * outputSize, cudaMemcpyDefault);
 
 	// Free up temporary stuff
 	ALLOC_FREE_TRY(exsum_degree, nullptr);

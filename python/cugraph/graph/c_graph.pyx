@@ -275,33 +275,25 @@ class Graph:
         cdef gdf_graph * g = < gdf_graph *> graph
         cdef gdf_column * first = < gdf_column *> malloc(sizeof(gdf_column))
         cdef gdf_column * second = < gdf_column *> malloc(sizeof(gdf_column))
-        if first == <gdf_column*>0:
-            raise Exception("something bad happened")
-        if second == <gdf_column*>0:
-            raise Exception("something bad happened")
         err = gdf_get_two_hop_neighbors(g, first, second)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df = cudf.DataFrame()
         if first.dtype == GDF_INT32:
             first_out = rmm.device_array_from_ptr(<uintptr_t>first.data, 
                                                   nelem=first.size, 
-                                                  dtype=np.int32, 
-                                                  finalizer=rmm.make_finalizer(<uintptr_t>first.data, 0))
+                                                  dtype=np.int32)
             second_out = rmm.device_array_from_ptr(<uintptr_t>second.data, 
                                                    nelem=second.size, 
-                                                   dtype=np.int32, 
-                                                   finalizer=rmm.make_finalizer(<uintptr_t>second.data, 0))
+                                                   dtype=np.int32)
             df['first'] = first_out
             df['second'] = second_out
         if first.dtype == GDF_INT64:
             first_out = rmm.device_array_from_ptr(<uintptr_t>first.data, 
                                                   nelem=first.size, 
-                                                  dtype=np.int64, 
-                                                  finalizer=rmm.make_finalizer(<uintptr_t>first.data, 0))
+                                                  dtype=np.int64)
             second_out = rmm.device_array_from_ptr(<uintptr_t>second.data, 
                                                    nelem=second.size, 
-                                                   dtype=np.int64, 
-                                                   finalizer=rmm.make_finalizer(<uintptr_t>second.data, 0))
+                                                   dtype=np.int64)
             df['first'] = first_out
             df['second'] = second_out
 

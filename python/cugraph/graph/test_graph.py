@@ -49,6 +49,47 @@ def compare_offsets(offset0, offset1):
     return True
 
 
+def find_two_paths(df, M):
+    for i in range(len(df)):
+        start = df['first'][i]
+        end = df['second'][i]
+        foundPath = False;
+        for idx in range(M.indptr[start], M.indptr[start + 1]):
+            mid = M.indices[idx]
+            for innerIdx in range(M.indptr[mid], M.indptr[mid + 1]):
+                if M.indices[innerIdx] == end:
+                    foundPath = True
+                    break
+            if foundPath:
+                break
+        if not foundPath:
+            print("No path found between " + str(start) +
+                 " and " + str(end))
+        assert foundPath
+
+
+def has_pair(first_arr, second_arr, first, second):
+    for i in range(len(first_arr)):
+        firstMatch = first_arr[i] == first
+        secondMatch = second_arr[i] == second
+        if firstMatch and secondMatch:
+            return True
+    return False
+
+
+def check_all_two_hops(df, M):
+    num_verts = len(M.indptr) - 1
+    first_arr = df['first'].to_array()
+    second_arr = df['second'].to_array()
+    for start in range(num_verts):
+        for idx in range(M.indptr[start], M.indptr[start + 1]):
+            mid = M.indices[idx]
+            for innerIdx in range(M.indptr[mid], M.indptr[mid + 1]):
+                end = M.indices[innerIdx]
+                if start != end:
+                    #print("Checking for pair (" + str(start) + ", " + str(end) + ")")
+                    assert has_pair(first_arr, second_arr, start, end)
+
 DATASETS = ['/datasets/networks/karate.mtx',
             '/datasets/networks/dolphins.mtx',
             '/datasets/networks/netscience.mtx']
@@ -163,3 +204,19 @@ def test_delete_edge_list_delete_adj_list(graph_file):
     with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
         G.view_edge_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_two_hop_neighbors(graph_file):
+    M = read_mtx_file(graph_file)
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+    values = cudf.Series(M.data)
+
+    G = cugraph.Graph()
+    G.add_edge_list(sources, destinations, values)
+
+    df = G.get_two_hop_neighbors()
+    M = M.tocsr()
+    find_two_paths(df, M)
+    check_all_two_hops(df, M)
