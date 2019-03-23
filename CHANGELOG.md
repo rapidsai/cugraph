@@ -10,7 +10,7 @@
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
 
-# cuGraph 0.6.0 (Date TBD)
+# cuGraph 0.6.0 (22 Mar 2019)
 
 ## New Features
 
