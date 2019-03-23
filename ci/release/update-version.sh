@@ -53,3 +53,7 @@ sed_runner 's/'"cuGraph VERSION .* LANGUAGES C CXX CUDA)"'/'"cuGraph VERSION ${N
 # Conda recipe updates
 sed_runner 's/cudf=.*/cudf='"${NEXT_SHORT_TAG}*"'/g' conda/recipes/cugraph/meta.yaml
 sed_runner 's/libcudf=.*/libcudf='"${NEXT_SHORT_TAG}*"'/g' conda/recipes/libcugraph/meta.yaml
+
+# RTD update
+sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/source/conf.py
+sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/source/conf.py
