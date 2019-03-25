@@ -9,8 +9,8 @@
 - PR #185 Update docs version
 
 ## Bug Fixes
-- PR #181 Fixed crash/rmm free error when edge values provided
 - PR #169 Disable terminal output in sssp 
+- PR #181 Fixed crash/rmm free error when edge values provided
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
