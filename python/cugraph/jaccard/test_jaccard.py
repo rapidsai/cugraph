@@ -119,7 +119,7 @@ def test_jaccard(graph_file):
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
         if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and
-          cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
+           cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
             err += 1
 
     print("Mismatches:  %d" % err)
@@ -140,7 +140,7 @@ def test_jaccard_edgevals(graph_file):
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
         if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and
-          cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
+           cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
             err += 1
 
     print("Mismatches:  %d" % err)
