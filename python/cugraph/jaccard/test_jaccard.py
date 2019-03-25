@@ -83,8 +83,6 @@ def networkx_call(M):
     G = nx.DiGraph(M)
     Gnx = G.to_undirected()
 
-    #print(M.data)
-
     # Networkx Jaccard Call
     print('Solving... ')
     t1 = time.time()
@@ -96,7 +94,6 @@ def networkx_call(M):
     dst = []
     coeff = []
     for u, v, p in preds:
-        #print(Gnx[u][v]['weight'])
         src.append(u)
         dst.append(v)
         coeff.append(p)
@@ -121,12 +118,13 @@ def test_jaccard(graph_file):
 
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
-        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and 
-        cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
+        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and
+          cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
             err += 1
 
     print("Mismatches:  %d" % err)
     assert err == 0
+
 
 @pytest.mark.parametrize('graph_file', ['/datasets/networks/netscience.mtx'])
 def test_jaccard_edgevals(graph_file):
@@ -141,10 +139,9 @@ def test_jaccard_edgevals(graph_file):
 
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
-        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and 
-        cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
+        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and
+          cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
             err += 1
 
     print("Mismatches:  %d" % err)
     assert err == 0
-

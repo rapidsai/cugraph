@@ -60,7 +60,7 @@ def cugraph_call(M, source, edgevals=False):
     t1 = time.time()
 
     dist = cugraph.sssp(G, source)
-    print(dist)
+
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
@@ -147,6 +147,5 @@ def test_sssp_edgevals(graph_file, source):
         else:
             if (cu_paths[i][0] in nx_paths.keys()):
                 err = err + 1
-        
-    assert err == 0
 
+    assert err == 0
