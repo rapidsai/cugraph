@@ -32,7 +32,7 @@ elif [ "$RELEASE_TYPE" == "minor" ]; then
   NEXT_SHORT_TAG="${CURRENT_MAJOR}.${NEXT_MINOR}"
 elif [ "$RELEASE_TYPE" == "patch" ]; then
   NEXT_FULL_TAG="${CURRENT_MAJOR}.${CURRENT_MINOR}.${NEXT_PATCH}"
-  NEXT_SHORT_TAG="${CURRENT_MAJOR}.${NEXT_MINOR}"
+  NEXT_SHORT_TAG="${CURRENT_MAJOR}.${CURRENT_MINOR}"
 else
   echo "Incorrect release type; use 'major', 'minor', or 'patch' as an argument"
   exit 1
@@ -47,8 +47,13 @@ function sed_runner() {
     sed -i.bak ''"$1"'' $2 && rm -f ${2}.bak
 }
 
-# cpp update
-sed_runner 's/'"RMM VERSION ${CURRENT_TAG}"'/'"RMM VERSION ${NEXT_FULL_TAG}"'/g' CMakeLists.txt
+# CMakeLists update
+sed_runner 's/'"cuGraph VERSION .* LANGUAGES C CXX CUDA)"'/'"cuGraph VERSION ${NEXT_FULL_TAG} LANGUAGES C CXX CUDA)"'/g' cpp/CMakeLists.txt
 
-# libcugraph
-sed_runner 's/version=.*/version=\"'"${NEXT_FULL_TAG}"'\",/g' python/setup.py
+# Conda recipe updates
+sed_runner 's/cudf=.*/cudf='"${NEXT_SHORT_TAG}*"'/g' conda/recipes/cugraph/meta.yaml
+sed_runner 's/libcudf=.*/libcudf='"${NEXT_SHORT_TAG}*"'/g' conda/recipes/libcugraph/meta.yaml
+
+# RTD update
+sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/source/conf.py
+sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/source/conf.py
