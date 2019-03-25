@@ -39,24 +39,28 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M, source):
+def cugraph_call(M, source, edgevals=False):
 
     # Device data
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
+    if edgevals is False:
+        values = None
+    else:
+        values = cudf.Series(M.data)
 
     print('sources size = ' + str(len(sources)))
     print('destinations size = ' + str(len(destinations)))
 
     # cugraph Pagerank Call
     G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, None)
+    G.add_edge_list(sources, destinations, values)
 
     print('cugraph Solving... ')
     t1 = time.time()
 
     dist = cugraph.sssp(G, source)
-
+    print(dist)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
@@ -68,7 +72,7 @@ def cugraph_call(M, source):
     return distances
 
 
-def networkx_call(M, source):
+def networkx_call(M, source, edgevals=False):
 
     print('Format conversion ... ')
     M = M.tocsr()
@@ -78,12 +82,16 @@ def networkx_call(M, source):
         raise TypeError('Shape is not square')
 
     # Directed NetworkX graph
-    Gnx = nx.DiGraph(M)
+    G = nx.Graph(M)
+    Gnx = G.to_undirected()
 
     print('NX Solving... ')
     t1 = time.time()
 
-    path = nx.single_source_shortest_path(Gnx, source)
+    if edgevals is False:
+        path = nx.single_source_shortest_path_length(Gnx, source)
+    else:
+        path = nx.single_source_dijkstra_path_length(Gnx, source)
 
     t2 = time.time() - t1
 
@@ -112,10 +120,33 @@ def test_sssp(graph_file, source):
 
     for i in range(len(cu_paths)):
         if (cu_paths[i][1] != np.finfo(np.float32).max):
-            if(cu_paths[i][1] != (len(nx_paths[cu_paths[i][0]])-1)):
+            if(cu_paths[i][1] != nx_paths[cu_paths[i][0]]):
                 err = err + 1
         else:
             if (cu_paths[i][0] in nx_paths.keys()):
                 err = err + 1
 
     assert err == 0
+
+
+@pytest.mark.parametrize('graph_file', ['/datasets/networks/netscience.mtx'])
+@pytest.mark.parametrize('source', SOURCES)
+def test_sssp_edgevals(graph_file, source):
+
+    M = read_mtx_file(graph_file)
+    cu_paths = cugraph_call(M, source, edgevals=True)
+    nx_paths = networkx_call(M, source, edgevals=True)
+
+    # Calculating mismatch
+    err = 0
+
+    for i in range(len(cu_paths)):
+        if (cu_paths[i][1] != np.finfo(M.data.dtype).max):
+            if(cu_paths[i][1] != nx_paths[cu_paths[i][0]]):
+                err = err + 1
+        else:
+            if (cu_paths[i][0] in nx_paths.keys()):
+                err = err + 1
+        
+    assert err == 0
+
