@@ -74,8 +74,8 @@ class Graph:
         self.edge_list_dest_col = None
         self.edge_list_value_col = None
 
-        self.adj_list_offsets_col = None
-        self.adj_list_indices_col = None
+        self.adj_list_offset_col = None
+        self.adj_list_index_col = None
         self.adj_list_value_col = None
 
     def __del__(self):
@@ -204,27 +204,27 @@ class Graph:
         self.edge_list_dest_col = None
         self.edge_list_value_col = None
 
-    def add_adj_list(self, offsets_col, indices_col, value_col, copy=False):
+    def add_adj_list(self, offset_col, index_col, value_col, copy=False):
         """
         Warp existing gdf columns representing an adjacency list in a gdf_graph.
         """
         # If copy is False, increase the reference count of the Python objects
-        # referenced by the input arguments offsets_col, indices_col, and
+        # referenced by the input arguments offset_col, index_col, and
         # value_col (if not None) to avoid garbage collection while they are
         # still in use inside this class. If copy is set to True, deep-copy the
         # objects.
         if copy is False:
-            self.adj_list_offsets_col = offsets_col;
-            self.adj_list_indices_col = indices_col;
+            self.adj_list_offset_col = offset_col;
+            self.adj_list_index_col = index_col;
             self.adj_list_value_col = value_col;
         else:
-            self.adj_list_offsets_col = offsets_col.copy();
-            self.adj_list_indices_col = indices_col.copy();
+            self.adj_list_offset_col = offset_col.copy();
+            self.adj_list_index_col = index_col.copy();
             self_adj_list_value_col = value_col.copy();
 
         cdef uintptr_t graph = self.graph_ptr
-        cdef uintptr_t offsets = create_column(self.adj_list_offsets_col)
-        cdef uintptr_t indices = create_column(self.adj_list_indices_col)
+        cdef uintptr_t offsets = create_column(self.adj_list_offset_col)
+        cdef uintptr_t indices = create_column(self.adj_list_index_col)
         cdef uintptr_t value
         if value_col is None:
             value = 0
@@ -255,17 +255,17 @@ class Graph:
         col_size_off = g.adjList.offsets.size
         col_size_ind = g.adjList.indices.size
 
-        cdef uintptr_t offsets_col_data = < uintptr_t > g.adjList.offsets.data
-        cdef uintptr_t indices_col_data = < uintptr_t > g.adjList.indices.data
+        cdef uintptr_t offset_col_data = < uintptr_t > g.adjList.offsets.data
+        cdef uintptr_t index_col_data = < uintptr_t > g.adjList.indices.data
 
-        offsets_data = rmm.device_array_from_ptr(offsets_col_data,
+        offsets_data = rmm.device_array_from_ptr(offset_col_data,
                                      nelem=col_size_off,
                                      dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
-        indices_data = rmm.device_array_from_ptr(indices_col_data,
+                                     # finalizer=rmm._make_finalizer(offset_col_data, 0))
+        indices_data = rmm.device_array_from_ptr(index_col_data,
                                      nelem=col_size_ind,
                                      dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
+                                     # finalizer=rmm._make_finalizer(index_col_data, 0))
         # g.adjList.offsets.data and g.adjList.indices.data are not owned by
         # this instance, so should not be freed here (this will lead to double
         # free, and undefined behavior).
@@ -285,17 +285,17 @@ class Graph:
         off_size = g.transposedAdjList.offsets.size
         ind_size = g.transposedAdjList.indices.size
         
-        cdef uintptr_t offsets_col_data = < uintptr_t > g.transposedAdjList.offsets.data
-        cdef uintptr_t indices_col_data = < uintptr_t > g.transposedAdjList.indices.data
+        cdef uintptr_t offset_col_data = < uintptr_t > g.transposedAdjList.offsets.data
+        cdef uintptr_t index_col_data = < uintptr_t > g.transposedAdjList.indices.data
         
-        offsets_data = rmm.device_array_from_ptr(offsets_col_data,
+        offsets_data = rmm.device_array_from_ptr(offset_col_data,
                                      nelem=off_size,
                                      dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
-        indices_data = rmm.device_array_from_ptr(indices_col_data,
+                                     # finalizer=rmm._make_finalizer(offset_col_data, 0))
+        indices_data = rmm.device_array_from_ptr(index_col_data,
                                      nelem=ind_size,
                                      dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
+                                     # finalizer=rmm._make_finalizer(index_col_data, 0))
         # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
         # are not owned by this instance, so should not be freed here (this
         # will lead to double free, and undefined behavior).
@@ -312,8 +312,8 @@ class Graph:
 
         # decrease reference count to free memory if the referenced objects are
         # no longer used.
-        self.adj_list_offsets_col = None
-        self.adj_list_indices_col = None
+        self.adj_list_offset_col = None
+        self.adj_list_index_col = None
         self.adj_list_value_col = None
 
     def add_transposed_adj_list(self):
