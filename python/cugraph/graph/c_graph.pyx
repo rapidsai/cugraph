@@ -70,6 +70,14 @@ class Graph:
         cdef uintptr_t graph_ptr = < uintptr_t > g
         self.graph_ptr = graph_ptr
 
+        self.edge_list_source_col = None
+        self.edge_list_dest_col = None
+        self.edge_list_value_col = None
+
+        self.adj_list_offsets_col = None
+        self.adj_list_indices_col = None
+        self.adj_list_value_col = None
+
     def __del__(self):
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
@@ -78,7 +86,7 @@ class Graph:
         self.delete_transposed_adj_list()
         free(g)
 
-    def add_edge_list(self, source_col, dest_col, value_col=None):
+    def add_edge_list(self, source_col, dest_col, value_col=None, copy=False):
         """
         Wrap existing gdf columns representing an edge list in a gdf_graph. cuGraph 
         does not own the memory used to represent this graph. This function does not 
@@ -110,14 +118,27 @@ class Graph:
         >>> G = cuGraph.Graph()
         >>> G.add_edge_list(sources,destinations,none)
         """
+        # If copy is False, increase the reference count of the Python objects
+        # referenced by the input arguments source_col, dest_col, and value_col
+        # (if not None) to avoid garbage collection while they are still in use
+        # inside this class. If copy is set to True, deep-copy the objects.
+        if copy is False:
+            self.edge_list_source_col = source_col;
+            self.edge_list_dest_col = dest_col;
+            self.edge_list_value_col = value_col;
+        else:
+            self.edge_list_source_col = source_col.copy();
+            self.edge_list_dest_col = dest_col.copy();
+            self_edge_list_value_col = value_col.copy();
+
         cdef uintptr_t graph = self.graph_ptr
-        cdef uintptr_t source = create_column(source_col)
-        cdef uintptr_t dest = create_column(dest_col)
+        cdef uintptr_t source = create_column(self.edge_list_source_col)
+        cdef uintptr_t dest = create_column(self.edge_list_dest_col)
         cdef uintptr_t value
         if value_col is None:
             value = 0
         else:
-            value = create_column(value_col)
+            value = create_column(self.edge_list_value_col)
 
         try:
             err = gdf_edge_list_view(< gdf_graph *> graph,
@@ -177,18 +198,38 @@ class Graph:
         err = gdf_delete_edge_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    def add_adj_list(self, offsets_col, indices_col, value_col):
+        # decrease reference count to free memory if the referenced objects are
+        # no longer used.
+        self.edge_list_source_col = None
+        self.edge_list_dest_col = None
+        self.edge_list_value_col = None
+
+    def add_adj_list(self, offsets_col, indices_col, value_col, copy=False):
         """
         Warp existing gdf columns representing an adjacency list in a gdf_graph.
         """
+        # If copy is False, increase the reference count of the Python objects
+        # referenced by the input arguments offsets_col, indices_col, and
+        # value_col (if not None) to avoid garbage collection while they are
+        # still in use inside this class. If copy is set to True, deep-copy the
+        # objects.
+        if copy is False:
+            self.adj_list_offsets_col = offsets_col;
+            self.adj_list_indices_col = indices_col;
+            self.adj_list_value_col = value_col;
+        else:
+            self.adj_list_offsets_col = offsets_col.copy();
+            self.adj_list_indices_col = indices_col.copy();
+            self_adj_list_value_col = value_col.copy();
+
         cdef uintptr_t graph = self.graph_ptr
-        cdef uintptr_t offsets = create_column(offsets_col)
-        cdef uintptr_t indices = create_column(indices_col)
+        cdef uintptr_t offsets = create_column(self.adj_list_offsets_col)
+        cdef uintptr_t indices = create_column(self.adj_list_indices_col)
         cdef uintptr_t value
         if value_col is None:
             value = 0
         else:
-            value = create_column(value_col)
+            value = create_column(self.adj_list_value_col)
 
         try:
             err = gdf_adj_list_view(< gdf_graph *> graph,
@@ -261,7 +302,6 @@ class Graph:
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
         
-    
     def delete_adj_list(self):
         """
         Delete the adjacency list.
@@ -269,6 +309,12 @@ class Graph:
         cdef uintptr_t graph = self.graph_ptr
         err = gdf_delete_adj_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        # decrease reference count to free memory if the referenced objects are
+        # no longer used.
+        self.adj_list_offsets_col = None
+        self.adj_list_indices_col = None
+        self.adj_list_value_col = None
 
     def add_transposed_adj_list(self):
         """
