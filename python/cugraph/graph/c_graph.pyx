@@ -88,35 +88,50 @@ class Graph:
 
     def add_edge_list(self, source_col, dest_col, value_col=None, copy=False):
         """
-        Wrap existing gdf columns representing an edge list in a gdf_graph. cuGraph 
-        does not own the memory used to represent this graph. This function does not 
-        allocate memory. The cuGraph graph should not already contain the connectivity 
-        information as an edge list. If successful, the cuGraph graph descriptor 
-        contains the newly added edge list (edge_data is optional).
+        Create the edge list representation of a Graph. The passed source_col
+        and dest_col arguments wrap gdf_column objects that represent a graph
+        using the edge list format. If value_col is None, an unweighted graph
+        is created. If value_col is not None, an weighted graph is created. If
+        copy is False, this function stores references to the passed objects
+        pointed by source_col and dest_col. If copy is True, this funcion
+        stores references to the deep-copies of the passed objects pointed by
+        source_col and dest_col. If this class instance already stores a graph,
+        invoking this function raises an error.
         Parameters
         ----------
-        source_indices : gdf_column       
-            This gdf_column of size E (number of edges) contains the index of the 
-                source for each edge.
-            Indices must be in the range [0, V-1]. 
-        destination_indices   : gdf_column
-            This gdf_column of size E (number of edges) contains the index of the 
-                destination for each edge. 
-            Indices must be in the range [0, V-1].
-        edge_data (optional)  : gdf_column
-            This pointer can be ``none``. If not, this gdf_column of size E 
-                (number of edges) contains the weight for each edge. 
-            The type expected to be floating point.
+        source_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the source index for each edge.
+            Source indices must be in the range [0, V) (V: number of vertices).
+        dest_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices must be in the range [0, V) (V: number of
+            vertices).
+        value_col (optional) : cudf.Series
+            This pointer can be ``none``.
+            If not, this cudf.Series wraps a gdf_column of size E (E: number of
+            edges).
+            The gdf column contains the weight value for each edge.
+            The expected type of the gdf_column element is floating point
+            number.
         Examples
         --------
-        >>> import cuGraph
-        >>> import cudf
+        >>> import numpy as np
+        >>> import pytest
         >>> from scipy.io import mmread
-        >>> M = ReadMtxFile(graph_file)
+        >>> 
+        >>> import cudf
+        >>> import cugraph
+        >>> 
+        >>> 
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
         >>> sources = cudf.Series(M.row)
         >>> destinations = cudf.Series(M.col)
-        >>> G = cuGraph.Graph()
-        >>> G.add_edge_list(sources,destinations,none)
+        >>> 
+        >>> G = cugraph.Graph()
+        >>> G.add_edge_list(sources, destinations, None)
         """
         # If copy is False, increase the reference count of the Python objects
         # referenced by the input arguments source_col, dest_col, and value_col
@@ -206,7 +221,53 @@ class Graph:
 
     def add_adj_list(self, offset_col, index_col, value_col, copy=False):
         """
-        Warp existing gdf columns representing an adjacency list in a gdf_graph.
+        Create the adjacency list representation of a Graph. The passed
+        offset_col and index_col arguments wrap gdf_column objects that
+        represent a graph using the adjacency list format. If value_col is
+        None, an unweighted graph is created. If value_col is not None, an
+        weighted graph is created. If copy is False, this function stores
+        references to the passed objects pointed by offset_col and index_col.
+        If copy is True, this funcion stores references to the deep-copies of
+        the passed objects pointed by offset_col and index_col. If this class
+        instance already stores a graph, invoking this function raises an
+        error.
+        Parameters
+        ----------
+        offset_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size V + 1 (V: number of
+            vertices).
+            The gdf column contains the offsets for the vertices in this graph.
+            Offsets must be in the range [0, E] (E: number of edges).
+        index_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices must be in the range [0, V) (V: number of
+            vertices).
+        value_col (optional) : cudf.Series
+            This pointer can be ``none``.
+            If not, this cudf.Series wraps a gdf_column of size E (E: number of
+            edges).
+            The gdf column contains the weight value for each edge.
+            The expected type of the gdf_column element is floating point
+            number.
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import pytest
+        >>> from scipy.io import mmread
+        >>> 
+        >>> import cudf
+        >>> import cugraph
+        >>> 
+        >>> 
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> M = M.tocsr()
+        >>> offsets = cudf.Series(M.indptr)
+        >>> indices = cudf.Series(M.indices)
+        >>> 
+        >>> G = cugraph.Graph()
+        >>> G.add_adj_list(offsets, indices, None)
         """
         # If copy is False, increase the reference count of the Python objects
         # referenced by the input arguments offset_col, index_col, and
@@ -245,7 +306,7 @@ class Graph:
         
     def view_adj_list(self):
         """
-        Compute the adjacency list from edge list and return offsets and indices as cudf Series.
+        Display the adjacency list. Compute it if needed.
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
@@ -274,8 +335,7 @@ class Graph:
     
     def view_transposed_adj_list(self):
         """
-        Return a view of the transposed adjacency list, computing it if it doesn't
-        exist.
+        Display the transposed adjacency list. Compute it if needed.
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
@@ -318,7 +378,8 @@ class Graph:
 
     def add_transposed_adj_list(self):
         """
-        Compute the transposed adjacency list from the edge list and add it to the existing graph.
+        Compute the transposed adjacency list from the edge list and add it to
+        the existing graph.
         """
         cdef uintptr_t graph = self.graph_ptr
         err = gdf_add_transposed_adj_list(< gdf_graph *> graph)
