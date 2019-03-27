@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_graph cimport * 
+from c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -120,16 +120,16 @@ class Graph:
         >>> import numpy as np
         >>> import pytest
         >>> from scipy.io import mmread
-        >>> 
+        >>>
         >>> import cudf
         >>> import cugraph
-        >>> 
-        >>> 
+        >>>
+        >>>
         >>> mm_file = '/datasets/networks/karate.mtx'
         >>> M = mmread(mm_file).asfptype()
         >>> sources = cudf.Series(M.row)
         >>> destinations = cudf.Series(M.col)
-        >>> 
+        >>>
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         """
@@ -245,17 +245,17 @@ class Graph:
         >>> import numpy as np
         >>> import pytest
         >>> from scipy.io import mmread
-        >>> 
+        >>>
         >>> import cudf
         >>> import cugraph
-        >>> 
-        >>> 
+        >>>
+        >>>
         >>> mm_file = '/datasets/networks/karate.mtx'
         >>> M = mmread(mm_file).asfptype()
         >>> M = M.tocsr()
         >>> offsets = cudf.Series(M.indptr)
         >>> indices = cudf.Series(M.indices)
-        >>> 
+        >>>
         >>> G = cugraph.Graph()
         >>> G.add_adj_list(offsets, indices, None)
         """
@@ -293,7 +293,7 @@ class Graph:
             delete_column(indices)
             if value is not 0:
                 delete_column(value)
-        
+
     def view_adj_list(self):
         """
         Display the adjacency list. Compute it if needed.
@@ -322,7 +322,7 @@ class Graph:
         # free, and undefined behavior).
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
-    
+
     def delete_adj_list(self):
         """
         Delete the adjacency list.
@@ -354,13 +354,13 @@ class Graph:
         cdef gdf_graph * g = < gdf_graph *> graph
         err = gdf_add_transposed_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-        
+
         off_size = g.transposedAdjList.offsets.size
         ind_size = g.transposedAdjList.indices.size
-        
+
         cdef uintptr_t offset_col_data = < uintptr_t > g.transposedAdjList.offsets.data
         cdef uintptr_t index_col_data = < uintptr_t > g.transposedAdjList.indices.data
-        
+
         offsets_data = rmm.device_array_from_ptr(offset_col_data,
                                      nelem=off_size,
                                      dtype=np.int32) # ,
@@ -374,7 +374,7 @@ class Graph:
         # will lead to double free, and undefined behavior).
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
-        
+
     def delete_transposed_adj_list(self):
         """
         Delete the transposed adjacency list.
@@ -391,4 +391,4 @@ class Graph:
         cdef gdf_graph* g = < gdf_graph *> graph
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-        return g.adjList.offsets.size - 1   
+        return g.adjList.offsets.size - 1
