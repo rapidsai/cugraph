@@ -10,6 +10,7 @@
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
+- PR #191 Fix double upload bug
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
