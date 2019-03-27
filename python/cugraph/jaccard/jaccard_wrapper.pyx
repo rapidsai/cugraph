@@ -18,7 +18,7 @@ import cudf
 from libgdf_cffi import libgdf
 from librmm_cffi import librmm as rmm
 import numpy as np
-
+from cython cimport floating
 
 gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
 
@@ -49,24 +49,37 @@ cpdef nvJaccard(input_graph):
     cdef uintptr_t graph = input_graph.graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
+    data_type = np.float32
+
     if g.adjList:
         e = g.adjList.indices.size
+        if g.adjList.edge_data:
+            data_type =  gdf_to_np_dtypes[g.adjList.edge_data.dtype]
     else:
         e = g.edgeList.src_indices.size
+        if g.edgeList.edge_data:
+            data_type =  gdf_to_np_dtypes[g.edgeList.edge_data.dtype]
 
-    weight_j_col = cudf.Series(np.ones(e,dtype=np.float32), nan_as_null=False)
+    weight_j_col = cudf.Series(np.zeros(e,dtype=data_type))
+    cdef void* c_gamma
+    cdef float num_f = 1.0
+    cdef double num_d = 1.0
+    if data_type is np.float32:
+        c_gamma = <float*>&num_f
+    else:
+        c_gamma = <double*>&num_d
     cdef uintptr_t weight_j_col_ptr = create_column(weight_j_col)
-    cdef float c_gamma = 1.0
 
-    err = gdf_jaccard(<gdf_graph*>g, <void*>&c_gamma, <gdf_column*>NULL, <gdf_column*>weight_j_col_ptr)
+    err = gdf_jaccard(<gdf_graph*>g, <void*>c_gamma, <gdf_column*>NULL, <gdf_column*>weight_j_col_ptr)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     dest_data = rmm.device_array_from_ptr(<uintptr_t>g.adjList.indices.data,
                                             nelem=e,
-                                            dtype=gdf_to_np_dtypes[g.adjList.indices.dtype],
+                                            dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]
                                             )
     df = cudf.DataFrame()
-    df['source'] = cudf.Series(np.zeros(e,dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
+    source_col = cudf.Series(np.zeros(e,dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
+    df['source'] = source_col
     cdef uintptr_t src_indices_ptr = create_column(df['source']) 
     err = g.adjList.get_source_indices(<gdf_column*>src_indices_ptr);
     cudf.bindings.cudf_cpp.check_gdf_error(err)
