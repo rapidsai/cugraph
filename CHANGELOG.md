@@ -7,13 +7,13 @@
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
 - PR #185 Update docs version
-- PR #190 Added a copy optoin in graph creation
+- PR #190 Added a copy option in graph creation
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
 - PR #181 Fixed crash/rmm free error when edge values provided
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
-- PR #190 Fixed a langugae level warning (cython)
+- PR #190 Fixed a language level warning (cython)
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
