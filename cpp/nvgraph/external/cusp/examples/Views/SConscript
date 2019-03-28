@@ -1,0 +1,19 @@
+import os
+import inspect
+import SCons
+
+# try to import an environment first
+Import('env')
+
+# find all .cus & .cpps in the current and backend/ directories
+extensions = ['*.cu', '*.cpp']
+
+nvcc_required = ['array2d_raw.cu', 'cg_raw.cu', 'csr_raw.cu']
+
+for ext in extensions:
+  regexp = os.path.join('.', ext)
+  sources = env.Glob(regexp)
+
+  for source in sources:
+    if str(source) in nvcc_required : continue
+    env.Program(source)

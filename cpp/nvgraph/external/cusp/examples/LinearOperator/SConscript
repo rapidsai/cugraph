@@ -1,0 +1,21 @@
+import os
+import inspect
+import SCons
+
+# try to import an environment first
+Import('env')
+
+# find all .cus & .cpps in the current and backend/ directories
+extensions = ['*.cu', '*.cpp']
+
+for ext in extensions:
+  regexp = os.path.join('.', ext)
+  sources = env.Glob(regexp)
+
+  for source in sources:
+    if str(source) == 'block_matrix.cu':
+        continue
+    if (str(source) == 'stencil.cu') and (env['compiler'] != 'nvcc'):
+        continue
+
+    env.Program(source)

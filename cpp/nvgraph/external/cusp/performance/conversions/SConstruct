@@ -1,0 +1,25 @@
+import os
+import inspect
+import glob
+
+# try to import an environment first
+try:
+  Import('env')
+except:
+  exec open("../../build/build-env.py")
+  env = Environment()
+
+# find all .cus & .cpps in the current directory
+sources = []
+directories = ['.']
+extensions = ['*.cu', '*.cpp']
+for dir in directories:
+  for ext in extensions:
+    regexp = os.path.join(dir, ext)
+    #sources.extend(env.Glob(regexp, strings = True))
+    sources.extend(glob.glob(regexp))
+
+# compile examples
+for src in sources:
+  env.Program(src)
+

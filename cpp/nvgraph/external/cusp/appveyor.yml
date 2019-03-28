@@ -1,0 +1,20 @@
+version: 1.0.{build}
+branches:
+  only:
+  - develop
+image:
+- Visual Studio 2013
+- Visual Studio 2015
+configuration: Release
+platform: x64
+environment:
+  matrix:
+    - THRUST_VERSION: "1.8.3"
+    - THRUST_VERSION: "master"
+before_build:
+  - cmd: ECHO "%THRUST_VERSION%"
+  - cmd: git clone -b %THRUST_VERSION% https://github.com/sdalton1/thrust.git C:\projects\thrust
+build:
+  project: C:\projects\cusplibrary\testing\vs_tester\device_omp_tester\device_omp_tester.vcxproj
+  parallel: true
+  verbosity: minimal

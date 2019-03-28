@@ -1,0 +1,71 @@
+import os
+import glob
+from warnings import warn
+
+cusp_abspath = os.path.abspath("../../cusp/")
+
+# try to import an environment first
+Import('env')
+
+# this function builds a trivial source file from a Cusp header
+def trivial_source_from_header(source, target, env):
+  src_abspath = str(source[0])
+  src_relpath = os.path.relpath(src_abspath, cusp_abspath)
+  include = os.path.join('cusp', src_relpath)
+
+  target_filename = str(target[0])
+  fid = open(target_filename, 'w')
+  fid.write('#include <' + include + '>\n')
+  fid.close()
+
+
+# CUFile builds a trivial .cu file from a Cusp header
+cu_from_header_builder = Builder(action = trivial_source_from_header,
+                                 suffix = '.cu',
+                                 src_suffix = '.h')
+env.Append(BUILDERS = {'CUFile' : cu_from_header_builder})
+
+# CPPFile builds a trivial .cpp file from a Cusp header
+cpp_from_header_builder = Builder(action = trivial_source_from_header,
+                                  suffix = '.cpp',
+                                  src_suffix = '.h')
+env.Append(BUILDERS = {'CPPFile' : cpp_from_header_builder})
+
+
+# find all user-includable .h files in the cusp tree and generate trivial source files #including them
+extensions = ['.h']
+folders = ['',              # main folder
+           # 'eigen/',
+           'gallery/',
+           'graph/',
+           'io/',
+           'iterator/',
+           'krylov/',
+           'precond/',
+           'precond/aggregation/',
+           'precond/smoother/',
+           'relaxation/']
+
+sources  = []
+
+for folder in folders:
+  for ext in extensions:
+    pattern = os.path.join(os.path.join(cusp_abspath, folder), "*" + ext)
+    for fullpath in glob.glob(pattern):
+      headerfilename = os.path.basename(fullpath)
+
+      cu  = env.CUFile(headerfilename.replace('.h', '.cu'), fullpath)
+      cpp = env.CPPFile(headerfilename.replace('.h', '_cpp.cpp'), fullpath)
+
+      sources.append(cu)
+      #sources.append(cpp)  # TODO: re-enable this
+
+      # insure that all files #include <cusp/detail/config.h>
+      fid = open(fullpath)
+      if '#include <cusp/detail/config.h>' not in fid.read():
+        warn('Header <cusp/' + folder + headerfilename + '> does not include <cusp/detail/config.h>')
+
+# and the file with main()
+sources.append('main.cu')
+tester = env.Program('tester', sources)
+

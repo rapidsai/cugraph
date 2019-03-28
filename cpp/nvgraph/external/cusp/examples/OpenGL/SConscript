@@ -1,0 +1,33 @@
+import os
+import inspect
+import glob
+
+# try to import an environment first
+try:
+  Import('env')
+except:
+  exec open("../../build/build-env.py")
+  env = Environment()
+
+# OpenGl example not currently working on Windows
+if env['PLATFORM'] != "win32" and env['PLATFORM'] != "win64":
+
+  # clone the environment so we don't pollute the global instance
+  env = env.Clone()
+
+  # on mac we have to tell the linker to link against the C++ library
+  if env['PLATFORM'] == "darwin":
+    env.Append(LINKFLAGS = ["-framework", "GLUT", "-framework", "OpenGL"])
+  else :
+    env.Append(LIBS = ["glut","GL","GLU"])
+
+  # find all .cus & .cpps in the current directory
+  sources = []
+  extensions = ['*.cu', '*.cpp']
+  for ext in extensions:
+    sources.extend(glob.glob(ext))
+
+  # compile examples
+  for src in sources:
+    env.Program(src)
+

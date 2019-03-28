@@ -1,0 +1,260 @@
+#######################################
+#            Cusp v0.6.0              #
+#######################################
+
+Summary
+  TODO
+
+New Features
+  TODO
+
+Breaking API changes
+  TODO
+
+Bug Fixes
+  TODO
+
+#######################################
+#            Cusp v0.5.1              #
+#######################################
+
+Bug Fixes
+  Fixed coo_matrix_view conversion error
+  Fixed interface error in LAPACK routines
+  Fixed memory access error in counting_sort
+  Fixed memory access error in DIA generalized_spmv
+  Fixed smoothed_aggregation and polynomial smoother errors related to VS2013
+  Added cusp/blas.h for compatibility with v0.4.0
+  Added convergence, default and verbose monitors for compatibility with v0.4.0
+  Added missing header files for size_t defs
+  Updated multiply interface for tighter integration with policy-based dispatching
+
+#######################################
+#            Cusp v0.5.0              #
+#######################################
+
+Summary
+  Cusp v0.5.0 provides support for CUDA 7.0RC and Thrust 1.8. This release
+  reflects a major refactoring of the dispatch system and provides closer
+  integration with the internal structure of Thrust. This release also
+  marks a substantial improvement in the overall documentation of Cusp.
+
+New Features
+  Gauss-Seidel and SOR relaxation methods for CSR matrices
+  Implementation of robust Lanczos and LOBPCG eigensolvers (experimental)
+  Native implementation of BFS, imported from back40computing
+  Policy based interface to control execution and memory allocation of algorithms
+  Support for generalized SpMV operations on any sparse matrix
+  Unified verbose_monitor and convergence_monitor functionality into the default monitor class
+  New IO routines to read graphs or matrices stored in DIMACS or binary format
+  counting_sort implementation to improve the performance of host sorting routines
+  join_iterator used to combine separate iterators in an arbitrary order
+  random_iterator used to generate random numbers
+
+  Algorithms
+     cusp::graph::vertex_coloring
+     cusp::relaxation::gauss_seidel
+     cusp::relaxation::sor
+     cusp::relaxation::jacobi
+     cusp::io::dimacs
+     cusp::io::binary
+
+Bug Fixes
+  Resolved issues related to Thrust 1.7 & Thrust 1.8
+  Resolved issues related to CUDA 6.5 & CUDA 7.0
+  Silenced warnings concerning Thrust OMP backend
+
+#######################################
+#            Cusp v0.4.0              #
+#######################################
+
+Summary
+  Cusp v0.4.0 provides support for CUDA 5.5 and Thrust v1.7.  Version
+  0.4.0 includes several new graph algorithms based on backend integration
+  with back40computing, a refactored smoothed aggregation solver allowing
+  user-defined functions for core components and experimental work concerning
+  sparse matrix visualization.
+
+New Features
+  array2d formats allow access to row and column elements regardless of orientation
+  gallery method to generate grids
+  OpenGL implementation of spy to view sparse matrices
+  Generalized multilevel class
+  Added Sparse * Dense multiplication routine
+
+  Algorithms
+     cusp::graph::bfs
+     cusp::graph::connected_components
+     cusp::graph::hilbert_curve
+     cusp::graph::maximum_flow
+     cusp::graph::max_flow_to_min_cut
+     cusp::graph::pseudo_peripheral_vertex
+     cusp::graph::symmetric_rcm
+     cusp::krylov::cr
+
+Bug Fixes
+  Resolved issues related to Thrust 1.6 & Thrust 1.7
+  Resolved issues related to CUDA 5.5
+  Silenced warnings concerning uninitialized memory in generalized SpMV
+
+#######################################
+#            Cusp v0.3.1              #
+#######################################
+
+Summary
+  Minor compatibility fixes for Thrust 1.6.x
+
+#######################################
+#            Cusp v0.3.0              #
+#######################################
+
+Summary
+  Cusp v0.3.0 provides support for CUDA 4.1 and Thrust v1.5.  Version
+  0.3.0 includes incremental improvements to MatrixMarket I/O support
+  and array format conversions.
+
+New Features
+  MatrixMarket I/O routines support complex matrices
+  array1d is convertible to and from all other formats (e.g. array1d<->array2d)
+
+Bug Fixes
+  Resize final output of CSR * CSR to account for excluded zeros
+
+Acknowledgements
+  Justin Luitjens and Simon Layton for diagnosing CSR SpMM bug
+  Kashif Rasul for Thrust v1.6 support patch
+  Filipe Maia and Steven Dalton for general support and maintenance
+
+#######################################
+#            Cusp v0.2.0              #
+#######################################
+
+Summary
+  Cusp v0.2.0 provides support for CUDA 4.0 in addition to many new
+  features and performance enhancements.  Support for complex numbers
+  is now available through the cusp::complex class. Lightweight views
+  to dense arrays and sparse matrix formats are now provided, allowing
+  user-allocated data to be interfaced efficiently with Cusp algorithms.
+  The performance of sparse matrix format conversions has been improved
+  dramatically on the device. Preconditioners based on algebraic multigrid
+  (AMG) and approximate inverse (AINV) methods have been added to the library.
+
+New Features
+  Complex numbers
+    cusp::complex 
+    cusp/cmath.h
+    cusp/complex.h
+
+  Sparse Matrices
+    cusp::coo_matrix_view
+    cusp::csr_matrix_view
+    cusp::dia_matrix_view
+    cusp::ell_matrix_view
+    cusp::hyb_matrix_view
+  
+  Krylov methods
+    cusp::krylov::bicg
+    cusp::krylov::gmres
+    cusp::krylov::cg_m
+    cusp::krylov::bicgstab_m
+
+  Input/Output
+    cusp::io::read_matrix_market_stream
+
+  Algorithms
+    cusp::add
+    cusp::subtract
+    cusp::graph::maximal_independent_set
+    cusp::copy
+    cusp::convert
+    cusp::blas::nrm1
+    cusp::blas::nrmmax
+    cusp::relaxation::polynomial
+
+  Matrix Gallery
+    cusp::gallery::diffusion
+
+  Preconditioners
+    cusp::precond::scaled_bridson_ainv
+    cusp::precond::bridson_ainv
+    cusp::precond::nonsym_bridson_ainv
+    cusp::precond::smoothed_aggregation
+
+Bug Fixes
+  #12 MatrixMarket file reader fails on OSX	 
+  #18 ensure that IndexType=long is supported	 
+  #27 bicgstab can't solve Ix = b	 
+  #31 device::spmm_coo requires huge amount of memory	 
+  #37 cusp::graph::maximal_independent_set should return the size of the MIS	 
+  #45 silence compiler warnings	 
+  #66 thrust hg version no longer compatible with hg version of cusp	 
+  #71 Several cusp::blas calls cause unexpected results by converting the output to ScalarType
+
+Deprecations
+  cusp::print_matrix has been replaced by cusp::print
+  cusp::blas functions only accept arrays and array views
+
+Known Issues
+  Cusp is known to cause the nvcc compiler to issue warnings of the form:
+    warning: calling a host function ... from a __device__/__global__ function ... is not allowed
+
+Acknowledgements
+  Filipe Maia for general maintenance, testing, and implementations of cusp::complex and BiCG
+  Greg van Anders for CG-M and BiCGstab-M implementations
+  Joe Gordon for GMRES implementation
+  Jonathan Cohen for AINV preconditioners
+  Steven Dalton for improvements to conversion routines and smoothed aggregation preconditioner
+
+#######################################
+#            Cusp v0.1.1              #
+#######################################
+
+Summary
+  Small fixes for compatibility with CUDA 3.1
+
+#######################################
+#            Cusp v0.1.0              #
+#######################################
+
+Summary
+  Initial release
+
+Features
+  Sparse Matrix Support
+    cusp::coo_matrix
+    cusp::csr_matrix
+    cusp::dia_matrix
+    cusp::ell_matrix
+    cusp::hyb_matrix
+    conversion between all formats
+    host<->device transfers
+  Dense Matrix Support
+    cusp::array1d
+    cusp::array2d
+  Algorithms
+    cusp::multiply(A,x,y) : y = A*x
+    cusp::transpose(A,At) : A^T
+    cusp::blas::*
+  Gallery
+    cusp::gallery::stencil
+    cusp::gallery::poisson5pt
+  Solvers
+    cusp::krylov::cg
+    cusp::krylov::bicgstab
+  Monitors
+    cusp::default_monitor
+    cusp::verbose_monitor
+  Preconditioners
+    cusp::precond::diagonal
+  User-Defined Linear Operators
+    cusp::linear_operator
+  File I/O
+    cusp::io::read_matrix_market_file
+    cusp::io::write_matrix_market_file
+  Utilities
+    cusp::print_matrix
+    cusp::is_valid_matrix etc.
+
+Known Issues
+  Many routines assume that several arguments have the exact same type
+

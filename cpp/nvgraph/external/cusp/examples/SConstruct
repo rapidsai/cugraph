@@ -1,0 +1,20 @@
+import os
+import inspect
+
+# try to import an environment first
+try:
+  Import('env')
+except:
+  exec open("../build/build-env.py")
+  env = Environment()
+
+# on windows we have to do /bigobj
+if env['PLATFORM'] == "win32" or env['PLATFORM'] == "win64":
+  env.Append(CPPFLAGS = "/bigobj")
+
+directories = [name for name in os.listdir('.') if os.path.isdir(name)]
+
+for dir in directories:
+  # invoke trivial_tests SConscript
+  SConscript(dir + '/SConscript', exports='env', duplicate=False)
+

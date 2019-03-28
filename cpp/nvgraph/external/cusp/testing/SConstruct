@@ -1,0 +1,21 @@
+import os
+import inspect
+
+# try to import an environment first
+try:
+  Import('env')
+except:
+  exec open("../build/build-env.py")
+  env = Environment()
+
+# on windows we have to do /bigobj
+if env['PLATFORM'] == "win32" or env['PLATFORM'] == "win64":
+  env.Append(CPPFLAGS = "/bigobj")
+
+# assemble the name of this configuration's targets directory
+targets = 'device_{0}_{1}'.format(env['backend'], env['mode'])
+
+# invoke trivial_tests SConscript
+SConscript('SConscript', exports='env', variant_dir=targets, duplicate=False)
+Clean('.', targets)
+

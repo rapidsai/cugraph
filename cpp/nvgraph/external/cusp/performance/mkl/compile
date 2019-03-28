@@ -1,0 +1,13 @@
+# simple bash script to compile the MKL benchmark program on a 64-bit Linux system
+
+#source /opt/mkl/10.2.3.029/tools/environment/mklvarsem64t.sh
+
+export MKLROOT="/opt/intel/mkl"
+export MKLPATH="${MKLROOT}/lib/intel64/"
+
+nvcc -O3 -arch=sm_13 -c main.cu -I../../ -I $THRUST_PATH -I $MKLROOT/include
+g++ -O3 mkl.c main.o -o bench -I $MKLROOT/include \
+    -L/usr/local/cuda/lib64 -L$MKLPATH/libmkl_solver_lp64.a \
+    -Wl,--start-group $MKLPATH/libmkl_intel_lp64.a $MKLPATH/libmkl_gnu_thread.a $MKLPATH/libmkl_core.a -Wl,--end-group \
+    -fopenmp -lpthread -lcudart -lcuda
+
