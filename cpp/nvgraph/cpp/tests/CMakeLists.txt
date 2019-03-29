@@ -113,12 +113,13 @@ ConfigureTest(NVGRAPH_CAPI_TESTS_CLUSTERING "${NVGRAPH_CAPI_TESTS_CLUSTERING_SRC
 
 ###################################################################################################
 # - nvgraph_capi_tests_contraction ----------------------------------------------------------------
-
+if(NOT NVGRAPH_LIGHT)
 set(NVGRAPH_CAPI_TESTS_CONTRACTION_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_capi_tests_contraction.cpp"
    )
 
 ConfigureTest(NVGRAPH_CAPI_TESTS_CONTRACTION "${NVGRAPH_CAPI_TESTS_CONTRACTION_SRC}")
+endif(NOT NVGRAPH_LIGHT)
 
 ###################################################################################################
 # - nvgraph_capi_test_conversion ------------------------------------------------------------------

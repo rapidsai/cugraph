@@ -128,6 +128,10 @@ message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 ###################################################################################################
 # - cmake custom modules --------------------------------------------------------------------------
 include(ConfigureGoogleTest)
+
+# speedup build time by avoiding features that are not exposed
+set(NVGRAPH_LIGHT True)
+# build nvgraph
 include(ConfigureNvgraph)
 
 ###################################################################################################

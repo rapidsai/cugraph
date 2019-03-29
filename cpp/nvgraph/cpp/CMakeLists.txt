@@ -105,53 +105,87 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
-
-add_library(nvgraph_st SHARED
-            thirdparty/cnmem/src/cnmem.cpp
-            src/arnoldi.cu
-            src/bfs.cu
-            src/bfs2d.cu
-            src/bfs_kernels.cu
-            src/convert.cu
-            src/csrmv.cu
-            src/csrmv_cub.cu
-            src/csr_graph.cpp
-            src/graph_extractor.cu
-            src/jaccard_gpu.cu
-            src/kmeans.cu
-            src/lanczos.cu
-            src/lobpcg.cu
-            src/matrix.cu
-            src/modularity_maximization.cu
-            src/nvgraph.cu
-            src/nvgraph_cusparse.cpp
-            src/nvgraph_cublas.cpp
-            src/nvgraph_error.cu
-            src/nvgraph_lapack.cu
-            src/nvgraph_vector_kernels.cu
-            src/pagerank.cu
-            src/pagerank_kernels.cu
-            src/partition.cu
-            src/size2_selector.cu
-            src/sssp.cu
-            src/triangles_counting.cpp
-            src/triangles_counting_kernels.cu
-            src/valued_csr_graph.cpp
-            src/widest_path.cu
-            src/graph_contraction/contraction_csr_max.cu
-            src/graph_contraction/contraction_csr_sum.cu
-            src/graph_contraction/contraction_mv_double_mul.cu
-            src/graph_contraction/contraction_mv_float_min.cu
-            src/graph_contraction/contraction_csr_min.cu
-            src/graph_contraction/contraction_mv_double_max.cu
-            src/graph_contraction/contraction_mv_double_sum.cu
-            src/graph_contraction/contraction_mv_float_mul.cu
-            src/graph_contraction/contraction_csr_mul.cu
-            src/graph_contraction/contraction_mv_double_min.cu
-            src/graph_contraction/contraction_mv_float_max.cu
-            src/graph_contraction/contraction_mv_float_sum.cu
-           )
-
+if(NVGRAPH_LIGHT MATCHES True)
+    add_library(nvgraph_st SHARED
+                thirdparty/cnmem/src/cnmem.cpp
+                src/arnoldi.cu
+                src/bfs.cu
+                src/bfs2d.cu
+                src/bfs_kernels.cu
+                src/convert.cu
+                src/csrmv.cu
+                src/csrmv_cub.cu
+                src/csr_graph.cpp
+                src/graph_extractor.cu
+                src/jaccard_gpu.cu
+                src/kmeans.cu
+                src/lanczos.cu
+                src/lobpcg.cu
+                src/matrix.cu
+                src/modularity_maximization.cu
+                src/nvgraph.cu
+                src/nvgraph_cusparse.cpp
+                src/nvgraph_cublas.cpp
+                src/nvgraph_error.cu
+                src/nvgraph_lapack.cu
+                src/nvgraph_vector_kernels.cu
+                src/pagerank.cu
+                src/pagerank_kernels.cu
+                src/partition.cu
+                src/size2_selector.cu
+                src/sssp.cu
+                src/triangles_counting.cpp
+                src/triangles_counting_kernels.cu
+                src/valued_csr_graph.cpp
+                src/widest_path.cu
+               )
+else(NVGRAPH_LIGHT MATCHES True)
+        add_library(nvgraph_st SHARED
+                thirdparty/cnmem/src/cnmem.cpp
+                src/arnoldi.cu
+                src/bfs.cu
+                src/bfs2d.cu
+                src/bfs_kernels.cu
+                src/convert.cu
+                src/csrmv.cu
+                src/csrmv_cub.cu
+                src/csr_graph.cpp
+                src/graph_extractor.cu
+                src/jaccard_gpu.cu
+                src/kmeans.cu
+                src/lanczos.cu
+                src/lobpcg.cu
+                src/matrix.cu
+                src/modularity_maximization.cu
+                src/nvgraph.cu
+                src/nvgraph_cusparse.cpp
+                src/nvgraph_cublas.cpp
+                src/nvgraph_error.cu
+                src/nvgraph_lapack.cu
+                src/nvgraph_vector_kernels.cu
+                src/pagerank.cu
+                src/pagerank_kernels.cu
+                src/partition.cu
+                src/size2_selector.cu
+                src/sssp.cu
+                src/triangles_counting.cpp
+                src/triangles_counting_kernels.cu
+                src/valued_csr_graph.cpp
+                src/widest_path.cu
+                src/graph_contraction/contraction_csr_max.cu
+                src/graph_contraction/contraction_csr_sum.cu
+                src/graph_contraction/contraction_mv_double_mul.cu
+                src/graph_contraction/contraction_mv_float_min.cu
+                src/graph_contraction/contraction_csr_min.cu
+                src/graph_contraction/contraction_mv_double_max.cu
+                src/graph_contraction/contraction_mv_double_sum.cu
+                src/graph_contraction/contraction_mv_float_mul.cu
+                src/graph_contraction/contraction_csr_mul.cu
+                src/graph_contraction/contraction_mv_double_min.cu
+                src/graph_contraction/contraction_mv_float_max.cu
+                src/graph_contraction/contraction_mv_float_sum.cu
+               )
+endif(NVGRAPH_LIGHT MATCHES True)
 
 ###################################################################################################
 # - build options ---------------------------------------------------------------------------------
@@ -160,6 +194,11 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Building with debugging flags")
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G")
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
+
+if(NVGRAPH_LIGHT MATCHES True)
+    add_definitions( -DNVGRAPH_LIGHT=${NVGRAPH_LIGHT} )
+endif(NVGRAPH_LIGHT MATCHES True)
+
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------

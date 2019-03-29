@@ -149,29 +149,7 @@ namespace nvgraph
 																								size_t n,
 																								cudaStream_t stream);
 
-	/*extern CsrGraph<int>* contract_graph(CsrGraph<int>& graph,
-	 int* pV, size_t n,
-	 cudaStream_t stream,
-	 const int& VCombine,
-	 const int& VReduce,
-	 const int& ECombine,
-	 const int& EReduce);
-
-	 extern MultiValuedCsrGraph<int, float>* contract_graph(MultiValuedCsrGraph<int, float>& graph,
-	 int* pV, size_t n,
-	 cudaStream_t stream,
-	 const int& VCombine,
-	 const int& VReduce,
-	 const int& ECombine,
-	 const int& EReduce);
-
-	 extern  MultiValuedCsrGraph<int, double>* contract_graph(MultiValuedCsrGraph<int, double>& graph,
-	 int* pV, size_t n,
-	 cudaStream_t stream,
-	 const int& VCombine,
-	 const int& VReduce,
-	 const int& ECombine,
-	 const int& EReduce);*/
+#ifndef NVGRAPH_LIGHT
 
 	extern CsrGraph<int>* contract_graph_csr_mul(CsrGraph<int>& graph,
 																int* pV,
@@ -288,6 +266,7 @@ namespace nvgraph
 																									const int& VReduce,
 																									const int& ECombine,
 																									const int& EReduce);
+#endif
 
 	nvgraphStatus_t getCAPIStatusForError(NVGRAPH_ERROR err)
 														{
@@ -3217,7 +3196,7 @@ namespace nvgraph
 		NVGRAPH_CATCHES(rc)
 		return getCAPIStatusForError(rc);
 	}
-
+#ifndef NVGRAPH_LIGHT
 	nvgraphStatus_t NVGRAPH_API nvgraphContractGraph_impl(nvgraphHandle_t handle,
 																			nvgraphGraphDescr_t descrG,
 																			nvgraphGraphDescr_t contrdescrG,
@@ -3422,7 +3401,8 @@ namespace nvgraph
 
 		return getCAPIStatusForError(rc);
 	}
-
+#endif
+	
 	nvgraphStatus_t NVGRAPH_API nvgraphSpectralClustering_impl(nvgraphHandle_t handle, // nvGRAPH library handle.
 																					const nvgraphGraphDescr_t descrG, // nvGRAPH graph descriptor, should contain the connectivity information in NVGRAPH_CSR_32 or NVGRAPH_CSR_32 at least 1 edge set (weights)
 																					const size_t weight_index, // Index of the edge set for the weights.
@@ -4065,7 +4045,7 @@ nvgraphStatus_t NVGRAPH_API nvgraphAnalyzeModularityClustering(nvgraphHandle_t h
 																				clustering,
 																				modularity);
 }
-
+#ifndef NVGRAPH_LIGHT
 nvgraphStatus_t NVGRAPH_API nvgraphContractGraph(nvgraphHandle_t handle,
 																	nvgraphGraphDescr_t descrG,
 																	nvgraphGraphDescr_t contrdescrG,
@@ -4088,6 +4068,7 @@ nvgraphStatus_t NVGRAPH_API nvgraphContractGraph(nvgraphHandle_t handle,
 															EdgeReduceOp,
 															flag);
 }
+#endif 
 
 nvgraphStatus_t NVGRAPH_API nvgraphSpectralClustering(nvgraphHandle_t handle, // nvGRAPH library handle.
 																		const nvgraphGraphDescr_t descrG, // nvGRAPH graph descriptor, should contain the connectivity information in NVGRAPH_CSR_32 or NVGRAPH_CSR_32 at least 1 edge set (weights)
