@@ -194,7 +194,7 @@ endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 find_path(NVGRAPH_INCLUDE "nvgraph"
       HINTS "$ENV{CONDA_PREFIX}/include")
-find_library(NVGRAPH_LIBRARY "nvgraph_st"
+find_library(NVGRAPH_LIBRARY "nvgraph_rapids"
          HINTS "$ENV{CONDA_PREFIX}/lib")
 
 add_library( nvgraph SHARED IMPORTED)

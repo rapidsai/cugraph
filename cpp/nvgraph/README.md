@@ -66,7 +66,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
   git submodule update --init --recursive
   ```
 
-2) Build and install `libnvgraph_st.so`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
+2) Build and install `libnvgraph_rapids.so`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
 
   This project uses cmake for building the C/C++ library. To configure cmake, run:
 
@@ -85,7 +85,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 The default installation  locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/nvgraph` respectively.
 
 
-- Build and install `libnvgraph_st.so`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
+- Build and install `libnvgraph_rapids.so`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
 
 
 #### Run tests

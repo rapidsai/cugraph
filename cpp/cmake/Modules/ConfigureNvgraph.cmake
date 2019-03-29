@@ -61,5 +61,5 @@ endif(NVGRAPH_BUILD)
 
 message(STATUS "nvgraph installed under: " ${CMAKE_INSTALL_PREFIX})
 set(NVGRAPH_INCLUDE "${CMAKE_INSTALL_PREFIX}/include/nvgraph.h ${CMAKE_INSTALL_PREFIX}/include/test_opt_utils.cuh")
-set(NVGRAPH_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/libnvgraph_st.so")
+set(NVGRAPH_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/libnvgraph_rapids.so")
 set(NVGRAPH_FOUND TRUE)

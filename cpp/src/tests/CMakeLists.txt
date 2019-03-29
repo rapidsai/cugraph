@@ -34,24 +34,6 @@ else()
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
 endif(CMAKE_CXX11_ABI)
 
-
-###################################################################################################
-# - add nvgraph -----------------------------------------------------------------------------------
-#if(NOT TARGET NVGRAPH AND NVG_PLUGIN)
-#    find_path(NVGRAPH_INCLUDE "nvgraph"
-#          HINTS "$ENV{NVGRAPH_ROOT}/include"
-#                "$ENV{CONDA_PREFIX}/include")
-#    find_library(NVGRAPH_LIBRARY "nvgraph_st"
-#             HINTS "$ENV{NVGRAPH_ROOT}/lib"
-#                   "$ENV{CONDA_PREFIX}/lib")
-#
-#    add_library( nvgraph SHARED IMPORTED)
-#    if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
-#        set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
-#        message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
-#    endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
-#endif(NOT TARGET NVGRAPH AND NVG_PLUGIN)
-
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 function(configure_test TEST_NAME Tests_SRCS)
