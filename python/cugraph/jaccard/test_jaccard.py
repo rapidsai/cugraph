@@ -164,6 +164,7 @@ def test_jaccard_two_hop(graph_file):
     for u, v, p in preds:
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs['first'], pairs['second'])
+    assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
         assert diff < 1.0e-6
