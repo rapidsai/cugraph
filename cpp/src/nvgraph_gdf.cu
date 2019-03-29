@@ -20,6 +20,7 @@
  * ---------------------------------------------------------------------------**/
 
 #include <nvgraph_gdf.h>
+#include <nvgraph/nvgraph.h>
 #include <thrust/device_vector.h>
 #include <ctime>
 #include "utilities/error_utils.h"
@@ -202,7 +203,6 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 														const int *source_vert,
 														gdf_column *sssp_distances) {
 
-	std::clock_t start;
 	GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
 	GDF_REQUIRE(*source_vert >= 0, GDF_INVALID_API_CALL);
 	GDF_REQUIRE(*source_vert < sssp_distances->size, GDF_INVALID_API_CALL);
@@ -217,10 +217,8 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 	nvgraphGraphDescr_t nvgraph_G = 0;
 	cudaDataType_t settype;
 
-	start = std::clock();
 	NVG_TRY(nvgraphCreate(&nvg_handle));
 	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, true));
-	std::cout << (std::clock() - start) / (double) (CLOCKS_PER_SEC / 1000) << ","; // in ms
 
 	int sssp_index = 0;
 	int weight_index = 0;
@@ -230,7 +228,6 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 	//
 	cudaStream_t stream { nullptr };
 	rmm_temp_allocator allocator(stream);
-	start = std::clock();
 	if (gdf_G->transposedAdjList->edge_data == nullptr) {
 		// use a fp32 vector  [1,...,1]
 		settype = CUDA_R_32F;
@@ -256,16 +253,11 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 	}
 
 	NVG_TRY(nvgraphAttachVertexData(nvg_handle, nvgraph_G, 0, settype, sssp_distances->data));
-	std::cout << (std::clock() - start) / (double) (CLOCKS_PER_SEC / 1000) << ","; // in ms
-	start = std::clock();
 
 	NVG_TRY(nvgraphSssp(nvg_handle, nvgraph_G, weight_index, source_vert, sssp_index));
-	std::cout << (std::clock() - start) / (double) (CLOCKS_PER_SEC / 1000) << ","; // in ms
-	start = std::clock();
 
 	NVG_TRY(nvgraphDestroyGraphDescr(nvg_handle, nvgraph_G));
 	NVG_TRY(nvgraphDestroy(nvg_handle));
-	std::cout << (std::clock() - start) / (double) (CLOCKS_PER_SEC / 1000) << std::endl; // in ms
 
 	return GDF_SUCCESS;
 }

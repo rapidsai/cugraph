@@ -19,6 +19,7 @@ import cudf
 from libgdf_cffi import libgdf
 from librmm_cffi import librmm as rmm
 import numpy as np
+from cython cimport floating
 
 cpdef jaccard(input_graph, first=None, second=None):
     """
@@ -44,11 +45,9 @@ cpdef jaccard(input_graph, first=None, second=None):
     >>> G.add_edge_list(sources,destinations,None)
     >>> jaccard_weights = cuGraph.jaccard(G)
     """
-
     cdef uintptr_t graph = input_graph.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
 
-    cdef uintptr_t adjList_ptr = < uintptr_t > g.adjList
     err = gdf_add_adj_list(< gdf_graph *> graph)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 

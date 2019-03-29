@@ -5,14 +5,15 @@
 ...
 
 ## Improvements
-
-...
+- PR #157 Removed cudatoolkit dependency in setup.py
+- PR #185 Update docs version
 
 ## Bug Fixes
+- PR #169 Disable terminal output in sssp 
+- PR #191 Fix double upload bug
+- PR #181 Fixed crash/rmm free error when edge values provided
 
-...
-
-# cuGraph 0.6.0 (Date TBD)
+# cuGraph 0.6.0 (22 Mar 2019)
 
 ## New Features
 
@@ -41,7 +42,6 @@
 - PR #130 Update conda build recipes
 - PR #144 Documentation for top level functions
 
-
 ## Bug Fixes
 
 - PR #48 ABI Fixes
@@ -53,7 +53,7 @@
 - PR #120 Bug fix for segfault calling spectral clustering with only edge list
 - PR #123 Fixed weighted Jaccard to assume the input weights are given as a cudf.Series
 - PR #152 Fix conda package version string
-
+- PR #160 Added additional link directory to support building on CentOS-7
 
 # cuGraph 0.5.0 (28 Jan 2019)
 

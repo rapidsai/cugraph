@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <nvgraph/nvgraph.h>
+//#include <nvgraph/nvgraph.h>
 #include <cugraph.h>
 
 /**
@@ -32,10 +32,10 @@
  * @param use_transposed True if we are transposing the input graph while wrapping
  * @return Error code
  */
-gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-																	gdf_graph* gdf_G,
-																	nvgraphGraphDescr_t * nvgraph_G,
-																	bool use_transposed = false);
+//gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
+//																	gdf_graph* gdf_G,
+//																	nvgraphGraphDescr_t * nvgraph_G,
+//																	bool use_transposed = false);
 
 /**
  * Wrapper function for Nvgraph SSSP algorithm

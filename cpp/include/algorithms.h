@@ -39,7 +39,7 @@
  * @Returns                       GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_pagerank(	gdf_graph *graph,
+gdf_error gdf_pagerank(gdf_graph *graph,
 												gdf_column *pagerank,
 												float alpha,
 												float tolerance,
@@ -115,8 +115,8 @@ gdf_error gdf_bfs(gdf_graph *graph,
  * @return Error code
  */
 gdf_error gdf_jaccard(gdf_graph *graph,
-                      gdf_column *weights,
-                      gdf_column *result);
+											gdf_column *weights,
+											gdf_column *result);
 
 /**
  * Computes the Jaccard similarity coefficient for each pair of specified vertices.
@@ -129,7 +129,12 @@ gdf_error gdf_jaccard(gdf_graph *graph,
  * @return Error code
  */
 gdf_error gdf_jaccard_list(gdf_graph *graph,
-                           gdf_column *weights,
-                           gdf_column *first,
-                           gdf_column *second,
-                           gdf_column *result);
+														gdf_column *weights,
+														gdf_column *first,
+														gdf_column *second,
+														gdf_column *result);
+
+gdf_error gdf_louvain(gdf_graph *graph,
+											void *final_modularity,
+											void *num_level,
+											gdf_column *louvain_parts);

@@ -38,7 +38,7 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M):
+def cugraph_call(M, edgevals=False):
     M = M.tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
@@ -48,9 +48,13 @@ def cugraph_call(M):
     # Device data
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
+    if edgevals is False:
+        values = None
+    else:
+        values = cudf.Series(M.data)
 
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.add_adj_list(row_offsets, col_indices, values)
 
     # cugraph Jaccard Call
     t1 = time.time()
@@ -114,8 +118,29 @@ def test_jaccard(graph_file):
 
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
-        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and cu_src == nx_src
-           and cu_dst == nx_dst):
+        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and
+           cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
+            err += 1
+
+    print("Mismatches:  %d" % err)
+    assert err == 0
+
+
+@pytest.mark.parametrize('graph_file', ['/datasets/networks/netscience.mtx'])
+def test_jaccard_edgevals(graph_file):
+
+    M = read_mtx_file(graph_file)
+    cu_src, cu_dst, cu_coeff = cugraph_call(M, edgevals=True)
+    nx_src, nx_dst, nx_coeff = networkx_call(M)
+
+    # Calculating mismatch
+    err = 0
+    tol = 1.0e-06
+
+    assert len(cu_coeff) == len(nx_coeff)
+    for i in range(len(cu_coeff)):
+        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and
+           cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
             err += 1
 
     print("Mismatches:  %d" % err)

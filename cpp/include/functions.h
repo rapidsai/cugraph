@@ -144,3 +144,25 @@ gdf_error gdf_delete_transpose(gdf_graph *graph);
  * @return GDF_SUCCESS upon successful completion. */
 gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
 
+<<<<<<< HEAD
+=======
+/**
+ * @Synopsis   Performs a breadth first search traversal of a graph starting from a node.
+ *
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ *
+ * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting node
+ *
+ * @Param[out] *predecessors         If set to a valid column, this is populated by bfs traversal predecessor of every vertex
+ *
+ * @Param[in] start_node             The starting node for breadth first search traversal
+ *
+ * @Param[in] directed               Treat the input graph as directed
+ *
+ * @Returns                          GDF_SUCCESS upon successful completion.
+ */
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_node, bool directed);
+gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weights, gdf_column *weight_j);
+gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts);
+>>>>>>> master
