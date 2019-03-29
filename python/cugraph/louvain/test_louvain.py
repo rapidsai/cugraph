@@ -15,7 +15,6 @@ import time
 
 import pytest
 from scipy.io import mmread
-import numpy as np
 import cudf
 import cugraph
 
@@ -85,6 +84,7 @@ DATASETS = ['/datasets/networks/karate.mtx',
             '/datasets/networks/dolphins.mtx',
             '/datasets/networks/netscience.mtx']
 
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_louvain_with_edgevals(graph_file):
     M = read_mtx_file(graph_file)
@@ -106,10 +106,10 @@ def test_louvain_with_edgevals(graph_file):
     print(nx_mod)
     assert abs(cu_mod - cu_mod_nx) < .0001
 
-
-
 DATASETS = ['/datasets/networks/karate.mtx',
             '/datasets/networks/dolphins.mtx']
+
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_louvain(graph_file):
     M = read_mtx_file(graph_file)

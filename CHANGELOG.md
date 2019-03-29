@@ -11,6 +11,7 @@
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
 - PR #181 Fixed crash/rmm free error when edge values provided
+- PR #193 Fixed segfault when egde values not provided
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
