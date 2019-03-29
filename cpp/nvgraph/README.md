@@ -86,7 +86,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 
 The default installation  locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/nvgraph` respectively.
 
-#### C++ stand alone tests** 
+#### C++ stand alone tests
 
     ```bash
     # Run the cugraph tests
