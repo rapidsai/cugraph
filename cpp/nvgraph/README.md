@@ -88,12 +88,14 @@ The default installation  locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_
 
 #### C++ stand alone tests
 
-    ```bash
-    # Run the cugraph tests
-    cd $CUGRAPH_HOME
-    cd cpp/nvgraph/cpp/build
-    gtests/NVGRAPH_TEST		# this is an executable file, other test executable require specific datasets and will result in failure if they are not present.
-    ```
+```bash
+# Run the cugraph tests
+cd $CUGRAPH_HOME
+cd cpp/nvgraph/cpp/build
+gtests/NVGRAPH_TEST # this is an executable file
+```
+Other test executables require specific datasets and will result in failure if they are not present.
+
 ## Documentation
 
 The C API documentation can be found in the [CUDA Toolkit Documentation](https://docs.nvidia.com/cuda/nvgraph/index.html).
