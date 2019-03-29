@@ -1,4 +1,6 @@
-# <div align="left"><img src="img/rapids_logo.png" width="90px"/>&nbsp;nvgraph - NVIDIA graph library</div>
+# <div align="left"><img src="../../img/rapids_logo.png" width="90px"/>&nbsp;nvgraph - NVIDIA graph library</div>
+
+Data analytics is a growing application of high-performance computing. Many advanced data analytics problems can be couched as graph problems. In turn, many of the common graph problems today can be couched as sparse linear algebra. This is the motivation for nvGRAPH, which harnesses the power of GPUs for linear algebra to handle large graph analytics and big data analytics problems.
 
 ## Development Setup
 
@@ -84,13 +86,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 
 The default installation  locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/nvgraph` respectively.
 
-
-- Build and install `libnvgraph_st.so`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
-
-
-#### Run tests
-
-**C++ stand alone tests** 
+#### C++ stand alone tests** 
 
     ```bash
     # Run the cugraph tests
