@@ -106,6 +106,7 @@ def test_louvain_with_edgevals(graph_file):
     print(nx_mod)
     assert abs(cu_mod - cu_mod_nx) < .0001
 
+
 DATASETS = ['/datasets/networks/karate.mtx',
             '/datasets/networks/dolphins.mtx']
 
