@@ -54,7 +54,7 @@ def cugraph_call(M):
 
     # cugraph Jaccard Call
     t1 = time.time()
-    df = cugraph.nvJaccard(G)
+    df = cugraph.jaccard(G)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
@@ -120,3 +120,25 @@ def test_jaccard(graph_file):
 
     print("Mismatches:  %d" % err)
     assert err == 0
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_jaccard_two_hop(graph_file):
+    M = read_mtx_file(graph_file)
+    M = M.tocsr()
+    Gnx = nx.DiGraph(M).to_undirected()
+    G = cugraph.Graph()
+    row_offsets = cudf.Series(M.indptr)
+    col_indices = cudf.Series(M.indices)
+    G.add_adj_list(row_offsets, col_indices, None)
+    pairs = G.get_two_hop_neighbors()
+    nx_pairs = []
+    for i in range(len(pairs)):
+        nx_pairs.append((pairs['first'][i], pairs['second'][i]))
+    preds = nx.jaccard_coefficient(Gnx, nx_pairs)
+    nx_coeff = []
+    for u, v, p in preds:
+        nx_coeff.append(p)
+    df = cugraph.jaccard(G, pairs['first'], pairs['second'])
+    for i in range(len(df)):
+        diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
+        assert diff < 1.0e-6

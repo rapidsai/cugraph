@@ -228,6 +228,7 @@ add_library(cugraph SHARED
     src/cugraph.cu
     src/pagerank.cu
     src/bfs.cu
+    src/jaccard.cu
     src/nvgraph_gdf.cu
     src/two_hop_neighbors.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
