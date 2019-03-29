@@ -393,7 +393,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weights, gdf_
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
     return err;
-  GDF_REQUIRE(weight_j->dtype == GDF_FLOAT32, GDF_UNSUPPORTED_DTYPE);
+  //GDF_REQUIRE(weight_j->dtype == GDF_FLOAT32, GDF_UNSUPPORTED_DTYPE);
   
   size_t n = graph->adjList->offsets->size - 1;
   size_t e = graph->adjList->indices->size;
@@ -422,7 +422,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weights, gdf_
   cudaDataType_t index_type = gdf_to_cudadtype(graph->adjList->indices);
   cudaDataType_t val_type = graph->adjList->edge_data? gdf_to_cudadtype(graph->adjList->edge_data): CUDA_R_32F;
 
-  nvgraphJaccard(index_type, val_type, n, e, offsets_ptr, indices_ptr, value_ptr,
+  nvgraphJaccard(index_type, val_type, n, e, offsets_ptr, indices_ptr, NULL,
                  0, weights_ptr, c_gamma, weight_j_ptr);
   return GDF_SUCCESS;
 }
