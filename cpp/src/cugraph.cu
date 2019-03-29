@@ -445,7 +445,7 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
   void* indices_ptr = graph->adjList->indices->data;
   
   void* value_ptr;
-  Vector<double> d_values; 
+  Vector<float> d_values; 
   if(graph->adjList->edge_data) {
       value_ptr = graph->adjList->edge_data->data;
   }
