@@ -177,7 +177,7 @@ class Graph:
         err = gdf_delete_edge_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    def add_adj_list(self, offsets_col, indices_col, value_col):
+    def add_adj_list(self, offsets_col, indices_col, value_col=None):
         """
         Warp existing gdf columns representing an adjacency list in a gdf_graph.
         """
