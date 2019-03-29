@@ -7,7 +7,7 @@
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
 - PR #185 Update docs version
-
+- PR #194 Open source nvgraph in cugraph repository #194
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
 - PR #181 Fixed crash/rmm free error when edge values provided
