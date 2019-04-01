@@ -380,7 +380,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
     ASSERT_EQ(gdf_edge_list_view(G.get(), &col_sources, &col_destinations, nullptr),0);
     if (manual_tanspose)
-      ASSERT_EQ(gdf_add_transpose(G.get()),0);
+      ASSERT_EQ(gdf_add_transposed_adj_list(G.get()),0);
 
     int device = 0;
     (cudaGetDevice (&device));  
