@@ -204,7 +204,7 @@ namespace cugraph {
 							ValType *weight_s,
 							ValType *weight_j) {
 		IdxType j;
-		ValType Wi, Ws, Wu;
+		ValType Wi, Wu;
 
 		for (j = threadIdx.x + blockIdx.x * blockDim.x;
 				j < e;
