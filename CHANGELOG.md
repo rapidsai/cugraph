@@ -7,6 +7,7 @@
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
 - PR #185 Update docs version
+- PR #196 Fix typos in readme intro
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
