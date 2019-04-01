@@ -264,7 +264,8 @@ class Graph:
     def get_two_hop_neighbors(self):
         """
         Return a dataframe containing vertex pairs such that each pair of vertices is 
-        connected by a path of two hops in the graph.
+        connected by a path of two hops in the graph. The resulting pairs are 
+        returned in sorted order.
         
         Returns:
         df : a cudf.DataFrame object
