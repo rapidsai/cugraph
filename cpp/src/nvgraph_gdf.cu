@@ -123,7 +123,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 	if (use_transposed) {
 		// convert edgeList to transposedAdjList
 		if (gdf_G->transposedAdjList == nullptr) {
-			GDF_TRY(gdf_add_transpose(gdf_G));
+			GDF_TRY(gdf_add_transposed_adj_list(gdf_G));
 		}
 		// using exiting transposedAdjList if it exisits and if adjList is missing
 		TT = NVGRAPH_CSC_32;

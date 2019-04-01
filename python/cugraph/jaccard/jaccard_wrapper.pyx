@@ -23,18 +23,40 @@ from cython cimport floating
 
 cpdef jaccard(input_graph, first=None, second=None):
     """
-    Compute the Jaccard similarity between each pair of vertices connected by an edge. Jaccard similarity is defined between two sets as the ratio of the volume of their intersection divided by the volume of their union. In the context of graphs, the neighborhood of a vertex is seen as a set. The Jaccard similarity weight of each edge represents the strength of connection between vertices based on the relative similarity of their neighbors.
+    Compute the Jaccard similarity between each pair of vertices connected by an edge,
+    or between arbitrary pairs of vertices specified by the user. Jaccard similarity 
+    is defined between two sets as the ratio of the volume of their intersection divided 
+    by the volume of their union. In the context of graphs, the neighborhood of a vertex 
+    is seen as a set. The Jaccard similarity weight of each edge represents the strength 
+    of connection between vertices based on the relative similarity of their neighbors.
+    If first is specified but second is not, or vice versa, an exception will be thrown.
 
     Parameters
     ----------
     graph : cuGraph.Graph                 
-      cuGraph graph descriptor, should contain the connectivity information as an edge list (edge weights are not used for this algorithm).
-      The adjacency list will be computed if not already present.   
+      cuGraph graph descriptor, should contain the connectivity information as an edge list 
+      (edge weights are not used for this algorithm).
+      The adjacency list will be computed if not already present. 
+    
+    first : cudf.Series
+      Specifies the first vertices of each pair of vertices to compute for, must be specified
+      along with second.
+      
+    second : cudf.Series
+      Specifies the second vertices of each pair of vertices to compute for, must be specified
+      along with first.
 
     Returns
     -------
-    jaccard_weights  : cudf.Series
-      GPU data frame of size E containing the Jaccard weights. The ordering is relative to the adjacency list.
+    df  : cudf.DataFrame
+      GPU data frame of size E (the default) or the size of the given pairs (first, second) 
+      containing the Jaccard weights. The ordering is relative to the adjacency list, or that
+      given by the specified vertex pairs.
+      
+      df['source']: The source vertex ID (will be identical to first if specified)
+      df['destination']: The destination vertex ID (will be identical to second if specified)
+      df['jaccard_coeff']: The computed Jaccard coefficient between the source and destination
+        vertices
  
     Examples
     --------
@@ -43,7 +65,7 @@ cpdef jaccard(input_graph, first=None, second=None):
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,None)
-    >>> jaccard_weights = cuGraph.jaccard(G)
+    >>> jaccard_weights = cugraph.jaccard(G)
     """
     cdef uintptr_t graph = input_graph.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
