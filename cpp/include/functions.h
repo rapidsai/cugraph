@@ -85,7 +85,7 @@ gdf_error gdf_add_adj_list(gdf_graph *graph);
  */
 /* ----------------------------------------------------------------------------*/
 
-gdf_error gdf_add_transpose(gdf_graph *graph);
+gdf_error gdf_add_transposed_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Create the edge lists of a gdf_graph from its adjacency list.
@@ -131,7 +131,7 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph);
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_delete_transpose(gdf_graph *graph);
+gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis Find pairs of vertices in the input graph such that each pair is connected by
