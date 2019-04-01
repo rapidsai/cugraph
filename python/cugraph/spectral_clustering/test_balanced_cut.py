@@ -57,16 +57,32 @@ def test_modularity_clustering(graph_file, partitions):
     M = read_mtx_file(graph_file).tocsr()
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices)
+
+    M = M.tocoo()
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+
+    G_adj = cugraph.Graph()
+    G_adj.add_adj_list(row_offsets, col_indices)
+    G_edge = cugraph.Graph()
+    G_edge.add_edge_list(sources, destinations)
 
     # Get the modularity score for partitioning versus random assignment
-    cu_vid, cu_score = cugraph_call(G, partitions)
-    rand_vid, rand_score = random_call(G, partitions)
+    cu_vid, cu_score = cugraph_call(G_adj, partitions)
+    rand_vid, rand_score = random_call(G_adj, partitions)
 
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score < rand_score
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G_edge, partitions)
+    rand_vid, rand_score = random_call(G_edge, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score
+
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
@@ -76,14 +92,32 @@ def test_modularity_clustering_with_edgevals(graph_file, partitions):
     M = read_mtx_file(graph_file).tocsr()
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
+    val = cudf.Series(M.data)
+
+    G_adj = cugraph.Graph()
+    G_adj.add_adj_list(row_offsets, col_indices, val)
+
+    M = M.tocoo()
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
     values = cudf.Series(M.data)
-    G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, values)
+
+    G_edge = cugraph.Graph()
+    G_edge.add_edge_list(sources, destinations, values)
 
     # Get the modularity score for partitioning versus random assignment
-    cu_vid, cu_score = cugraph_call(G, partitions)
-    rand_vid, rand_score = random_call(G, partitions)
+    cu_vid, cu_score = cugraph_call(G_adj, partitions)
+    rand_vid, rand_score = random_call(G_adj, partitions)
 
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score < rand_score
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G_edge, partitions)
+    rand_vid, rand_score = random_call(G_edge, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score
+
