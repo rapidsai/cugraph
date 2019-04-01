@@ -8,9 +8,12 @@
 - PR #157 Removed cudatoolkit dependency in setup.py
 - PR #185 Update docs version
 - PR #190 Added a copy option in graph creation
+- PR #196 Fix typos in readme intro
+
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
+- PR #191 Fix double upload bug
 - PR #181 Fixed crash/rmm free error when edge values provided
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
