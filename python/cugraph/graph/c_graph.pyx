@@ -369,7 +369,7 @@ class Graph:
         ind_size = g.transposedAdjList.indices.size
 
         cdef uintptr_t offset_col_data = < uintptr_t > g.transposedAdjList.offsets.data
-        cdef uintptr_t index_col_data = < uintptr_t > g.transposedAdjList.indices.data
+        cdef uintptr_t indices_col_data = < uintptr_t > g.transposedAdjList.indices.data
 
         offsets_data = rmm.device_array_from_ptr(offset_col_data,
                                      nelem=off_size,
