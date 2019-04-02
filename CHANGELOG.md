@@ -17,6 +17,7 @@
 - PR #169 Disable terminal output in sssp 
 - PR #191 Fix double upload bug
 - PR #181 Fixed crash/rmm free error when edge values provided
+- PR #193 Fixed segfault when egde values not provided
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
 

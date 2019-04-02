@@ -219,7 +219,7 @@ class Graph:
         self.edge_list_dest_col = None
         self.edge_list_value_col = None
 
-    def add_adj_list(self, offset_col, index_col, value_col, copy=False):
+    def add_adj_list(self, offset_col, index_col, value_col=None, copy=False):
         """
         Create the adjacency list representation of a Graph. The passed
         offset_col and index_col arguments wrap gdf_column objects that
