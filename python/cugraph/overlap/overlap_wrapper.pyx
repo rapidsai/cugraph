@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_jaccard cimport * 
+from c_overlap cimport * 
 from c_graph cimport * 
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -21,13 +21,13 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 from cython cimport floating
 
-cpdef jaccard(input_graph, first=None, second=None):
+cpdef overlap(input_graph, first=None, second=None):
     """
-    Compute the Jaccard similarity between each pair of vertices connected by an edge,
-    or between arbitrary pairs of vertices specified by the user. Jaccard similarity 
+    Compute the Overlap Coefficient between each pair of vertices connected by an edge,
+    or between arbitrary pairs of vertices specified by the user. Overlap Coefficient 
     is defined between two sets as the ratio of the volume of their intersection divided 
-    by the volume of their union. In the context of graphs, the neighborhood of a vertex 
-    is seen as a set. The Jaccard similarity weight of each edge represents the strength 
+    by the smaller of their two volumes. In the context of graphs, the neighborhood of a vertex 
+    is seen as a set. The Overlap Coefficient weight of each edge represents the strength 
     of connection between vertices based on the relative similarity of their neighbors.
     If first is specified but second is not, or vice versa, an exception will be thrown.
 
@@ -55,7 +55,7 @@ cpdef jaccard(input_graph, first=None, second=None):
       
       df['source']: The source vertex ID (will be identical to first if specified)
       df['destination']: The destination vertex ID (will be identical to second if specified)
-      df['jaccard_coeff']: The computed Jaccard coefficient between the source and destination
+      df['overlap_coeff']: The computed Jaccard coefficient between the source and destination
         vertices
  
     Examples
@@ -65,7 +65,7 @@ cpdef jaccard(input_graph, first=None, second=None):
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,None)
-    >>> jaccard_weights = cugraph.jaccard(G)
+    >>> df = cugraph.overlap(G)
     """
     cdef uintptr_t graph = input_graph.graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
@@ -84,7 +84,7 @@ cpdef jaccard(input_graph, first=None, second=None):
         result_ptr = create_column(result)
         first_ptr = create_column(first)
         second_ptr = create_column(second)
-        err = gdf_jaccard_list(g,
+        err = gdf_overlap_list(g,
                                < gdf_column *> NULL,
                                < gdf_column *> first_ptr,
                                < gdf_column *> second_ptr,
@@ -93,7 +93,7 @@ cpdef jaccard(input_graph, first=None, second=None):
         df = cudf.DataFrame()
         df['source'] = first
         df['destination'] = second
-        df['jaccard_coeff'] = result
+        df['overlap_coeff'] = result
         return df
 
     elif first is None and second is None:
@@ -101,7 +101,7 @@ cpdef jaccard(input_graph, first=None, second=None):
         result = cudf.Series(np.ones(e, dtype=np.float32), nan_as_null=False)
         result_ptr = create_column(result)
 
-        err = gdf_jaccard(g, < gdf_column *> NULL, < gdf_column *> result_ptr)
+        err = gdf_overlap(g, < gdf_column *> NULL, < gdf_column *> result_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         dest_data = rmm.device_array_from_ptr(< uintptr_t > g.adjList.indices.data,
@@ -113,7 +113,7 @@ cpdef jaccard(input_graph, first=None, second=None):
         err = g.adjList.get_source_indices(< gdf_column *> src_indices_ptr);
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df['destination'] = cudf.Series(dest_data)
-        df['jaccard_coeff'] = result
+        df['overlap_coeff'] = result
 
         return df
     
