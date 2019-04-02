@@ -11,7 +11,7 @@
 - PR #185 Update docs version
 - PR #190 Added a copy option in graph creation
 - PR #196 Fix typos in readme intro
-
+- PR #203 Added small datasets directly in the repo 
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 

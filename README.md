@@ -238,17 +238,14 @@ python setup.py install    # install cugraph python bindings
     # Run the cugraph tests
     cd $CUGRAPH_HOME
     cd cpp/build
-    make test
-    
-    # alternatively, you can run individual test
     gtests/GDFGRAPH_TEST		# this is an executable file
     ```
 
   - **Python tests with datasets** 
 
     ```bash
-    cd $CUGRAPH_HOME  
-    tar -zxvf cpp/src/tests/datasets.tar.gz -C /    # tests look for data under  '/'
+    cd $CUGRAPH_HOME
+    cd python
     pytest  
     ```
 
