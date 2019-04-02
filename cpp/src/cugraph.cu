@@ -21,8 +21,12 @@
 
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
+#include <thrust/device_vector.h>
 
 #include <rmm_utils.h>
+
+template<typename T>
+using Vector = thrust::device_vector<T, rmm_allocator<T>>;
 
 void gdf_col_delete(gdf_column* col) {
   if (col) {
@@ -392,7 +396,20 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
 
   void* offsets_ptr = graph->adjList->offsets->data;
   void* indices_ptr = graph->adjList->indices->data;
-  void* value_ptr = graph->adjList->edge_data? graph->adjList->edge_data->data: NULL;
+  
+  void* value_ptr;
+  Vector<float> d_values; 
+  if(graph->adjList->edge_data) {
+      value_ptr = graph->adjList->edge_data->data;
+  }
+  else {
+      cudaStream_t stream { nullptr };
+      rmm_temp_allocator allocator(stream);
+      d_values.resize(graph->adjList->indices->size);
+      thrust::fill(thrust::cuda::par(allocator).on(stream), d_values.begin(), d_values.end(), 1.0);
+      value_ptr = (void * ) thrust::raw_pointer_cast(d_values.data());
+  }
+
   void* louvain_parts_ptr = louvain_parts->data;
 
   auto gdf_to_cudadtype= [](gdf_column *col){
