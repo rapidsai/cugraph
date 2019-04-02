@@ -6,3 +6,7 @@
 	path = cpp/nvgraph/cpp/thirdparty/cub
 	url = https://github.com/NVlabs/cub.git
 	branch = 1.8.0
+[submodule "cpp/nvgraph/external/cusp"]
+	path = cpp/nvgraph/external/cusp
+	url = https://github.com/cusplibrary/cusplibrary.git
+	branch = cuda9
