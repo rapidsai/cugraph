@@ -100,9 +100,9 @@ def networkx_call(M, source, edgevals=False):
     return path
 
 
-DATASETS = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
-            '/datasets/golden_data/graphs/dblp.mtx']
+DATASETS = ['../datasets/networks/dolphins.mtx',
+            '../datasets/networks/karate.mtx',
+            '../datasets/golden_data/graphs/dblp.mtx']
 
 SOURCES = [1]
 
@@ -129,7 +129,7 @@ def test_sssp(graph_file, source):
     assert err == 0
 
 
-@pytest.mark.parametrize('graph_file', ['/datasets/networks/netscience.mtx'])
+@pytest.mark.parametrize('graph_file', ['../datasets/networks/netscience.mtx'])
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp_edgevals(graph_file, source):
 

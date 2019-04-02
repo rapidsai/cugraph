@@ -81,9 +81,9 @@ def networkx_call(M):
     return parts
 
 
-DATASETS = ['/datasets/networks/karate.mtx',
-            '/datasets/networks/dolphins.mtx',
-            '/datasets/networks/netscience.mtx']
+DATASETS = ['../datasets/networks/karate.mtx',
+            '../datasets/networks/dolphins.mtx',
+            '../datasets/networks/netscience.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)

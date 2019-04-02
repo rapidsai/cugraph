@@ -74,10 +74,10 @@ def base_call(M, start_vertex):
     return vertex, dist
 
 
-DATASETS = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
-            '/datasets/networks/polbooks.mtx',
-            '/datasets/golden_data/graphs/dblp.mtx']
+DATASETS = ['../datasets/networks/dolphins.mtx',
+            '../datasets/networks/karate.mtx',
+            '../datasets/networks/polbooks.mtx',
+            '../datasets/golden_data/graphs/dblp.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)

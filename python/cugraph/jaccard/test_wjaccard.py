@@ -57,9 +57,9 @@ def cugraph_call(M):
     return df['jaccard_coeff']
 
 
-DATASETS = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
-            '/datasets/golden_data/graphs/dblp.mtx']
+DATASETS = ['../datasets/networks/dolphins.mtx',
+            '../datasets/networks/karate.mtx',
+            '../datasets/golden_data/graphs/dblp.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)

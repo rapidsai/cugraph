@@ -100,9 +100,9 @@ def networkx_call(M):
     return src, dst, coeff
 
 
-DATASETS = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
-            '/datasets/networks/netscience.mtx']
+DATASETS = ['../datasets/networks/dolphins.mtx',
+            '../datasets/networks/karate.mtx',
+            '../datasets/networks/netscience.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
@@ -126,7 +126,7 @@ def test_jaccard(graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize('graph_file', ['/datasets/networks/netscience.mtx'])
+@pytest.mark.parametrize('graph_file', ['../datasets/networks/netscience.mtx'])
 def test_jaccard_edgevals(graph_file):
 
     M = read_mtx_file(graph_file)
