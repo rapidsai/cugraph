@@ -92,9 +92,11 @@ def networkx_call(M):
         coeff.append(p)
     return coeff
 
+
 DATASETS = ['../datasets/dolphins.mtx',
             '../datasets/karate.mtx',
             '../datasets/netscience.mtx']
+
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_wjaccard(graph_file):
