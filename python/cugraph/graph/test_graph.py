@@ -53,7 +53,7 @@ def find_two_paths(df, M):
     for i in range(len(df)):
         start = df['first'][i]
         end = df['second'][i]
-        foundPath = False;
+        foundPath = False
         for idx in range(M.indptr[start], M.indptr[start + 1]):
             mid = M.indices[idx]
             for innerIdx in range(M.indptr[mid], M.indptr[mid + 1]):
@@ -64,7 +64,7 @@ def find_two_paths(df, M):
                 break
         if not foundPath:
             print("No path found between " + str(start) +
-                 " and " + str(end))
+                  " and " + str(end))
         assert foundPath
 
 
@@ -87,8 +87,8 @@ def check_all_two_hops(df, M):
             for innerIdx in range(M.indptr[mid], M.indptr[mid + 1]):
                 end = M.indices[innerIdx]
                 if start != end:
-                    #print("Checking for pair (" + str(start) + ", " + str(end) + ")")
                     assert has_pair(first_arr, second_arr, start, end)
+
 
 DATASETS = ['/datasets/networks/karate.mtx',
             '/datasets/networks/dolphins.mtx',
