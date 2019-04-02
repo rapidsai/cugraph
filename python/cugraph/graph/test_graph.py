@@ -112,9 +112,9 @@ def test_transpose_from_adj_list(graph_file):
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
-    G.add_transpose()
+    G.add_transposed_adj_list()
     Mt = M.transpose().tocsr()
-    toff, tind = G.view_transpose_adj_list()
+    toff, tind = G.view_transposed_adj_list()
     assert compare_series(tind, Mt.indices)
     assert compare_offsets(toff, Mt.indptr)
 
