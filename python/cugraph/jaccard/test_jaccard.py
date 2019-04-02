@@ -146,6 +146,7 @@ def test_jaccard_edgevals(graph_file):
     print("Mismatches:  %d" % err)
     assert err == 0
 
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_jaccard_two_hop(graph_file):
     M = read_mtx_file(graph_file)
@@ -168,7 +169,8 @@ def test_jaccard_two_hop(graph_file):
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
         assert diff < 1.0e-6
-        
+
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_jaccard_two_hop_edge_vals(graph_file):
     M = read_mtx_file(graph_file)
