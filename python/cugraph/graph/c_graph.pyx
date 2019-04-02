@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_graph cimport * 
+from c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -70,54 +70,90 @@ class Graph:
         cdef uintptr_t graph_ptr = < uintptr_t > g
         self.graph_ptr = graph_ptr
 
+        self.edge_list_source_col = None
+        self.edge_list_dest_col = None
+        self.edge_list_value_col = None
+
+        self.adj_list_offset_col = None
+        self.adj_list_index_col = None
+        self.adj_list_value_col = None
+
     def __del__(self):
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
         self.delete_edge_list()
         self.delete_adj_list()
-        self.delete_transpose()
+        self.delete_transposed_adj_list()
         free(g)
 
-    def add_edge_list(self, source_col, dest_col, value_col=None):
+    def add_edge_list(self, source_col, dest_col, value_col=None, copy=False):
         """
-        Wrap existing gdf columns representing an edge list in a gdf_graph. cuGraph 
-        does not own the memory used to represent this graph. This function does not 
-        allocate memory. The cuGraph graph should not already contain the connectivity 
-        information as an edge list. If successful, the cuGraph graph descriptor 
-        contains the newly added edge list (edge_data is optional).
+        Create the edge list representation of a Graph. The passed source_col
+        and dest_col arguments wrap gdf_column objects that represent a graph
+        using the edge list format. If value_col is None, an unweighted graph
+        is created. If value_col is not None, an weighted graph is created. If
+        copy is False, this function stores references to the passed objects
+        pointed by source_col and dest_col. If copy is True, this funcion
+        stores references to the deep-copies of the passed objects pointed by
+        source_col and dest_col. If this class instance already stores a graph,
+        invoking this function raises an error.
         Parameters
         ----------
-        source_indices : gdf_column       
-            This gdf_column of size E (number of edges) contains the index of the 
-                source for each edge.
-            Indices must be in the range [0, V-1]. 
-        destination_indices   : gdf_column
-            This gdf_column of size E (number of edges) contains the index of the 
-                destination for each edge. 
-            Indices must be in the range [0, V-1].
-        edge_data (optional)  : gdf_column
-            This pointer can be ``none``. If not, this gdf_column of size E 
-                (number of edges) contains the weight for each edge. 
-            The type expected to be floating point.
+        source_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the source index for each edge.
+            Source indices must be in the range [0, V) (V: number of vertices).
+        dest_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices must be in the range [0, V) (V: number of
+            vertices).
+        value_col (optional) : cudf.Series
+            This pointer can be ``none``.
+            If not, this cudf.Series wraps a gdf_column of size E (E: number of
+            edges).
+            The gdf column contains the weight value for each edge.
+            The expected type of the gdf_column element is floating point
+            number.
         Examples
         --------
-        >>> import cuGraph
-        >>> import cudf
+        >>> import numpy as np
+        >>> import pytest
         >>> from scipy.io import mmread
-        >>> M = ReadMtxFile(graph_file)
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>>
+        >>>
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
         >>> sources = cudf.Series(M.row)
         >>> destinations = cudf.Series(M.col)
-        >>> G = cuGraph.Graph()
-        >>> G.add_edge_list(sources,destinations,none)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_edge_list(sources, destinations, None)
         """
+        # If copy is False, increase the reference count of the Python objects
+        # referenced by the input arguments source_col, dest_col, and value_col
+        # (if not None) to avoid garbage collection while they are still in use
+        # inside this class. If copy is set to True, deep-copy the objects.
+        if copy is False:
+            self.edge_list_source_col = source_col;
+            self.edge_list_dest_col = dest_col;
+            self.edge_list_value_col = value_col;
+        else:
+            self.edge_list_source_col = source_col.copy();
+            self.edge_list_dest_col = dest_col.copy();
+            self_edge_list_value_col = value_col.copy();
+
         cdef uintptr_t graph = self.graph_ptr
-        cdef uintptr_t source = create_column(source_col)
-        cdef uintptr_t dest = create_column(dest_col)
+        cdef uintptr_t source = create_column(self.edge_list_source_col)
+        cdef uintptr_t dest = create_column(self.edge_list_dest_col)
         cdef uintptr_t value
         if value_col is None:
             value = 0
         else:
-            value = create_column(value_col)
+            value = create_column(self.edge_list_value_col)
 
         try:
             err = gdf_edge_list_view(< gdf_graph *> graph,
@@ -130,16 +166,6 @@ class Graph:
             delete_column(dest)
             if value is not 0:
                 delete_column(value)
-
-    def num_vertices(self):
-        """
-        Get the number of vertices in the graph
-        """
-        cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph* g = < gdf_graph *> graph
-        err = gdf_add_adj_list(g)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
-        return g.adjList.offsets.size - 1   
 
     def view_edge_list(self):
         """
@@ -177,18 +203,84 @@ class Graph:
         err = gdf_delete_edge_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    def add_adj_list(self, offsets_col, indices_col, value_col):
+        # decrease reference count to free memory if the referenced objects are
+        # no longer used.
+        self.edge_list_source_col = None
+        self.edge_list_dest_col = None
+        self.edge_list_value_col = None
+
+    def add_adj_list(self, offset_col, index_col, value_col, copy=False):
         """
-        Warp existing gdf columns representing an adjacency list in a gdf_graph.
+        Create the adjacency list representation of a Graph. The passed
+        offset_col and index_col arguments wrap gdf_column objects that
+        represent a graph using the adjacency list format. If value_col is
+        None, an unweighted graph is created. If value_col is not None, an
+        weighted graph is created. If copy is False, this function stores
+        references to the passed objects pointed by offset_col and index_col.
+        If copy is True, this funcion stores references to the deep-copies of
+        the passed objects pointed by offset_col and index_col. If this class
+        instance already stores a graph, invoking this function raises an
+        error.
+        Parameters
+        ----------
+        offset_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size V + 1 (V: number of
+            vertices).
+            The gdf column contains the offsets for the vertices in this graph.
+            Offsets must be in the range [0, E] (E: number of edges).
+        index_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices must be in the range [0, V) (V: number of
+            vertices).
+        value_col (optional) : cudf.Series
+            This pointer can be ``none``.
+            If not, this cudf.Series wraps a gdf_column of size E (E: number of
+            edges).
+            The gdf column contains the weight value for each edge.
+            The expected type of the gdf_column element is floating point
+            number.
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import pytest
+        >>> from scipy.io import mmread
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>>
+        >>>
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> M = M.tocsr()
+        >>> offsets = cudf.Series(M.indptr)
+        >>> indices = cudf.Series(M.indices)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_adj_list(offsets, indices, None)
         """
+        # If copy is False, increase the reference count of the Python objects
+        # referenced by the input arguments offset_col, index_col, and
+        # value_col (if not None) to avoid garbage collection while they are
+        # still in use inside this class. If copy is set to True, deep-copy the
+        # objects.
+        if copy is False:
+            self.adj_list_offset_col = offset_col;
+            self.adj_list_index_col = index_col;
+            self.adj_list_value_col = value_col;
+        else:
+            self.adj_list_offset_col = offset_col.copy();
+            self.adj_list_index_col = index_col.copy();
+            self_adj_list_value_col = value_col.copy();
+
         cdef uintptr_t graph = self.graph_ptr
-        cdef uintptr_t offsets = create_column(offsets_col)
-        cdef uintptr_t indices = create_column(indices_col)
+        cdef uintptr_t offsets = create_column(self.adj_list_offset_col)
+        cdef uintptr_t indices = create_column(self.adj_list_index_col)
         cdef uintptr_t value
         if value_col is None:
             value = 0
         else:
-            value = create_column(value_col)
+            value = create_column(self.adj_list_value_col)
 
         try:
             err = gdf_adj_list_view(< gdf_graph *> graph,
@@ -201,10 +293,10 @@ class Graph:
             delete_column(indices)
             if value is not 0:
                 delete_column(value)
-        
+
     def view_adj_list(self):
         """
-        Compute the adjacency list from edge list and return offsets and indices as cudf Series.
+        Display the adjacency list. Compute it if needed.
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
@@ -214,54 +306,23 @@ class Graph:
         col_size_off = g.adjList.offsets.size
         col_size_ind = g.adjList.indices.size
 
-        cdef uintptr_t offsets_col_data = < uintptr_t > g.adjList.offsets.data
-        cdef uintptr_t indices_col_data = < uintptr_t > g.adjList.indices.data
+        cdef uintptr_t offset_col_data = < uintptr_t > g.adjList.offsets.data
+        cdef uintptr_t index_col_data = < uintptr_t > g.adjList.indices.data
 
-        offsets_data = rmm.device_array_from_ptr(offsets_col_data,
+        offsets_data = rmm.device_array_from_ptr(offset_col_data,
                                      nelem=col_size_off,
                                      dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
-        indices_data = rmm.device_array_from_ptr(indices_col_data,
+                                     # finalizer=rmm._make_finalizer(offset_col_data, 0))
+        indices_data = rmm.device_array_from_ptr(index_col_data,
                                      nelem=col_size_ind,
                                      dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
+                                     # finalizer=rmm._make_finalizer(index_col_data, 0))
         # g.adjList.offsets.data and g.adjList.indices.data are not owned by
         # this instance, so should not be freed here (this will lead to double
         # free, and undefined behavior).
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
-    
-    def view_transpose_adj_list(self):
-        """
-        Return a view of the transposed adjacency list, computing it if it doesn't
-        exist.
-        """
-        cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph * g = < gdf_graph *> graph
-        err = gdf_add_transpose(g)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
-        
-        off_size = g.transposedAdjList.offsets.size
-        ind_size = g.transposedAdjList.indices.size
-        
-        cdef uintptr_t offsets_col_data = < uintptr_t > g.transposedAdjList.offsets.data
-        cdef uintptr_t indices_col_data = < uintptr_t > g.transposedAdjList.indices.data
-        
-        offsets_data = rmm.device_array_from_ptr(offsets_col_data,
-                                     nelem=off_size,
-                                     dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
-        indices_data = rmm.device_array_from_ptr(indices_col_data,
-                                     nelem=ind_size,
-                                     dtype=np.int32) # ,
-                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
-        # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
-        # are not owned by this instance, so should not be freed here (this
-        # will lead to double free, and undefined behavior).
 
-        return cudf.Series(offsets_data), cudf.Series(indices_data)
-        
-    
     def delete_adj_list(self):
         """
         Delete the adjacency list.
@@ -270,18 +331,64 @@ class Graph:
         err = gdf_delete_adj_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    def add_transpose(self):
+        # decrease reference count to free memory if the referenced objects are
+        # no longer used.
+        self.adj_list_offset_col = None
+        self.adj_list_index_col = None
+        self.adj_list_value_col = None
+
+    def add_transposed_adj_list(self):
         """
-        Compute the transposed adjacency list from the edge list and add it to the existing graph.
+        Compute the transposed adjacency list from the edge list and add it to
+        the existing graph.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_add_transpose(< gdf_graph *> graph)
+        err = gdf_add_transposed_adj_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    def delete_transpose(self):
+    def view_transposed_adj_list(self):
+        """
+        Display the transposed adjacency list. Compute it if needed.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = < gdf_graph *> graph
+        err = gdf_add_transposed_adj_list(g)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        off_size = g.transposedAdjList.offsets.size
+        ind_size = g.transposedAdjList.indices.size
+
+        cdef uintptr_t offset_col_data = < uintptr_t > g.transposedAdjList.offsets.data
+        cdef uintptr_t index_col_data = < uintptr_t > g.transposedAdjList.indices.data
+
+        offsets_data = rmm.device_array_from_ptr(offset_col_data,
+                                     nelem=off_size,
+                                     dtype=np.int32) # ,
+                                     # finalizer=rmm._make_finalizer(offset_col_data, 0))
+        indices_data = rmm.device_array_from_ptr(index_col_data,
+                                     nelem=ind_size,
+                                     dtype=np.int32) # ,
+                                     # finalizer=rmm._make_finalizer(index_col_data, 0))
+        # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
+        # are not owned by this instance, so should not be freed here (this
+        # will lead to double free, and undefined behavior).
+
+        return cudf.Series(offsets_data), cudf.Series(indices_data)
+
+    def delete_transposed_adj_list(self):
         """
         Delete the transposed adjacency list.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_delete_transpose(< gdf_graph *> graph)
+        err = gdf_delete_transposed_adj_list(< gdf_graph *> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    def num_vertices(self):
+        """
+        Get the number of vertices in the graph
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph* g = < gdf_graph *> graph
+        err = gdf_add_adj_list(g)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+        return g.adjList.offsets.size - 1
