@@ -19,6 +19,7 @@ from scipy.io import mmread
 import cudf
 import cugraph
 
+
 def read_mtx_file(mm_file):
     print('Reading ' + str(mm_file) + '...')
     return mmread(mm_file).asfptype()
@@ -50,6 +51,7 @@ def cugraph_call(M, first, second, edgevals=False):
 
     return df['overlap_coeff'].to_array()
 
+
 def intersection(a, b, M):
     count = 0
     for idx in range(M.indptr[a], M.indptr[a+1]):
@@ -60,8 +62,10 @@ def intersection(a, b, M):
                 count += 1
     return count
 
+
 def degree(a, M):
     return M.indptr[a+1] - M.indptr[a]
+
 
 def overlap(a, b, M):
     i = intersection(a, b, M)
@@ -70,12 +74,14 @@ def overlap(a, b, M):
     total = min(a_sum, b_sum)
     return i / total
 
+
 def cpu_call(M, first, second):
     M = M.tocsr()
     result = []
     for i in range(len(first)):
         result.append(overlap(first[i], second[i], M))
     return result
+
 
 DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
@@ -99,7 +105,8 @@ def test_overlap(graph_file):
     for i in range(len(cu_coeff)):
         diff = abs(cpu_coeff[i] - cu_coeff[i])
         assert diff < 1.0e-6
-        
+
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_overlap_edge_vals(graph_file):
     M = read_mtx_file(graph_file)
