@@ -112,6 +112,7 @@ gdf_error gdf_bfs(gdf_graph *graph,
  * @param graph The input graph object
  * @param weights The input vertex weights for weighted Jaccard, may be NULL for
  * unweighted Jaccard.
+ * @param result The result values are stored here, memory needs to be pre-allocated
  * @return Error code
  */
 gdf_error gdf_jaccard(gdf_graph *graph,
@@ -126,6 +127,7 @@ gdf_error gdf_jaccard(gdf_graph *graph,
  * unweighted Jaccard.
  * @param first A column containing the first vertex ID of each pair.
  * @param second A column containing the second vertex ID of each pair.
+ * @param result The result values are stored here, memory needs to be pre-allocated.
  * @return Error code
  */
 gdf_error gdf_jaccard_list(gdf_graph *graph,
@@ -133,6 +135,36 @@ gdf_error gdf_jaccard_list(gdf_graph *graph,
 														gdf_column *first,
 														gdf_column *second,
 														gdf_column *result);
+
+/**
+ * Computes the Overlap Coefficient for every pair of vertices in the graph which are
+ * connected by an edge.
+ * @param graph The input graph object
+ * @param weights The input vertex weights for weighted overlap, may be NULL for
+ * unweighted.
+ * @param result The result values are stored here, memory needs to be pre-allocated.
+ * @return Error code
+ */
+gdf_error gdf_overlap(gdf_graph *graph,
+                      gdf_column *weights,
+                      gdf_column *result);
+
+/**
+ * Computes the overlap coefficient for each pair of specified vertices.
+ * Vertices are specified as pairs where pair[n] = (first[n], second[n])
+ * @param graph The input graph object.
+ * @param weights The input vertex weights for weighted overlap, may be NULL for
+ * unweighted.
+ * @param first A column containing the first vertex Ids of each pair
+ * @param second A column containing the second vertex Ids of each pair
+ * @param result The result values are stored here, memory needs to be pre-allocated
+ * @return Error code
+ */
+gdf_error gdf_overlap_list(gdf_graph *graph,
+                           gdf_column *weights,
+                           gdf_column *first,
+                           gdf_column *second,
+                           gdf_column *result);
 
 gdf_error gdf_louvain(gdf_graph *graph,
 											void *final_modularity,
