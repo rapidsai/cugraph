@@ -44,9 +44,9 @@ def random_call(G, partitions):
 
 
 DATASETS = [
-    '../datasets/networks/karate.mtx',
-    '../datasets/networks/dolphins.mtx',
-    '../datasets/golden_data/graphs/dblp.mtx']
+    '../datasets/karate.mtx',
+    '../datasets/dolphins.mtx',
+    '../datasets/netscience.mtx']
 PARTITIONS = [2, 4, 8]
 
 
