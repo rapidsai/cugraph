@@ -12,8 +12,6 @@
 # limitations under the License.
 
 import time
-
-import networkx as nx
 import numpy as np
 import pytest
 from scipy.io import mmread
@@ -21,6 +19,15 @@ from scipy.io import mmread
 import cudf
 import cugraph
 
+# Temporarily suppress warnings till networkX fixes deprecation warnings
+# (Using or importing the ABCs from 'collections' instead of from
+# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
+# python 3.7.  Also, this import networkx needs to be relocated in the
+# third-party group once this gets fixed.
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import networkx as nx
 
 print('Networkx version : {} '.format(nx.__version__))
 
@@ -42,24 +49,53 @@ def cugraph_call(M):
     col_indices = cudf.Series(M.indices)
     # values = cudf.Series(np.ones(len(col_indices), dtype=np.float32),
     # nan_as_null=False)
-    weights_arr = cudf.Series(np.ones(len(row_offsets), dtype=np.float32),
-                              nan_as_null=False)
+    weights_arr = cudf.Series(np.ones(len(row_offsets) - 1, dtype=np.float32))
 
     G = cugraph.Graph()
     G.add_adj_list(row_offsets, col_indices, None)
 
     # cugraph Jaccard Call
     t1 = time.time()
-    df = cugraph.nvJaccard_w(G, weights_arr)
+    df = cugraph.jaccard_w(G, weights_arr)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
     return df['jaccard_coeff']
 
 
+def networkx_call(M):
+
+    M = M.tocsr()
+    M = M.tocoo()
+    sources = M.row
+    destinations = M.col
+    edges = []
+    for i in range(len(sources)):
+        edges.append((sources[i], destinations[i]))
+    # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this
+    # explicitly
+    print('Format conversion ... ')
+
+    # Directed NetworkX graph
+    G = nx.DiGraph(M)
+    Gnx = G.to_undirected()
+
+    # Networkx Jaccard Call
+    print('Solving... ')
+    t1 = time.time()
+    preds = nx.jaccard_coefficient(Gnx, edges)
+    t2 = time.time() - t1
+
+    print('Time : '+str(t2))
+    coeff = []
+    for u, v, p in preds:
+        coeff.append(p)
+    return coeff
+
+
 DATASETS = ['/datasets/networks/dolphins.mtx',
             '/datasets/networks/karate.mtx',
-            '/datasets/golden_data/graphs/dblp.mtx']
+            '/datasets/networks/netscience.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
@@ -69,4 +105,7 @@ def test_wjaccard(graph_file):
     # suppress F841 (local variable is assigned but never used) in flake8
     # no networkX equivalent to compare cu_coeff against...
     cu_coeff = cugraph_call(M)  # noqa: F841
-    # this test is incomplete...
+    nx_coeff = networkx_call(M)
+    for i in range(len(cu_coeff)):
+        diff = abs(nx_coeff[i] - cu_coeff[i])
+        assert diff < 1.0e-6
