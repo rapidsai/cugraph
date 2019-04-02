@@ -204,8 +204,9 @@ def test_delete_edge_list_delete_adj_list(graph_file):
         G.view_edge_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+DATASETS2 = ['../datasets/karate.mtx',
+            '../datasets/dolphins.mtx']
+@pytest.mark.parametrize('graph_file', DATASETS2)
 def test_two_hop_neighbors(graph_file):
     M = read_mtx_file(graph_file)
     sources = cudf.Series(M.row)
