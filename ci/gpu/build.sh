@@ -75,5 +75,4 @@ GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
 
 logger "Python py.test for cuGraph..."
 cd $WORKSPACE
-tar -zxvf cpp/src/tests/datasets.tar.gz -C /
 py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
