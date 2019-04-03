@@ -6,7 +6,7 @@ channels:
 - conda-forge
 - defaults
 dependencies:
-- cudf>=0.6.1
+- cudf>=0.6
 - nvgraph
 - scipy
 - networkx
