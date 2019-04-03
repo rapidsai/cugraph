@@ -20,6 +20,7 @@
 - PR #193 Fixed segfault when egde values not provided
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
+- PR #206 Updated versions in conda envs
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
