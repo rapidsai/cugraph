@@ -686,7 +686,7 @@ void gdf_col_delete(gdf_column* col) {
 // TODO: move this code to rapids-core
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef RAPIDS_DATASET_ROOT_DIR
-#define RAPIDS_DATASET_ROOT_DIR ""
+#define RAPIDS_DATASET_ROOT_DIR "FOOd"
 #endif
 
 static const std::string& get_rapids_dataset_root_dir(const std::string& defaultRdrd) {
