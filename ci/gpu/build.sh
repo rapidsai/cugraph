@@ -74,5 +74,5 @@ cd $WORKSPACE/cpp/build
 GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
 
 logger "Python py.test for cuGraph..."
-cd $WORKSPACE
+cd $WORKSPACE/python
 py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
