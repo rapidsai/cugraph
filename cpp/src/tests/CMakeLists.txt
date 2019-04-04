@@ -34,6 +34,11 @@ else()
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
 endif(CMAKE_CXX11_ABI)
 
+if(RAPIDS_DATASET_ROOT_DIR)
+    message(STATUS "setting default RAPIDS_DATASET_ROOT_DIR to: ${RAPIDS_DATASET_ROOT_DIR}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DRAPIDS_DATASET_ROOT_DIR=${RAPIDS_DATASET_ROOT_DIR}")
+endif(RAPIDS_DATASET_ROOT_DIR)
+
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
