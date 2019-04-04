@@ -14,7 +14,7 @@
 import numpy as np
 import pytest
 from scipy.io import mmread
-
+import networkx as nx
 import cugraph
 import cudf
 
@@ -220,3 +220,37 @@ def test_two_hop_neighbors(graph_file):
     M = M.tocsr()
     find_two_paths(df, M)
     check_all_two_hops(df, M)
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_degree_functionality(graph_file):
+    M = read_mtx_file(graph_file)
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+    values = cudf.Series(M.data)
+
+    G = cugraph.Graph()
+    G.add_edge_list(sources, destinations, values)
+
+    Gnx = nx.DiGraph(M)
+
+    df_in_degree = G.in_degree()
+    df_out_degree = G.out_degree()
+    df_degree = G.degree()
+
+    nx_in_degree = Gnx.in_degree()
+    nx_out_degree = Gnx.out_degree()
+    nx_degree = Gnx.degree()
+
+    err_in_degree = 0
+    err_out_degree = 0
+    err_degree = 0
+    for i in range(len(df_degree)):
+        if(df_in_degree['degree'][i] != nx_in_degree[i]):
+            err_in_degree = err_in_degree + 1
+        if(df_out_degree['degree'][i] != nx_out_degree[i]):
+            err_out_degree = err_out_degree + 1
+        if(df_degree['degree'][i] != nx_degree[i]):
+            err_degree = err_degree + 1
+    assert err_in_degree == 0
+    assert err_out_degree == 0
+    assert err_degree == 0

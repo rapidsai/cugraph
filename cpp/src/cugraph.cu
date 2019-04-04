@@ -239,6 +239,48 @@ gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
     return GDF_SUCCESS;
 }
 
+gdf_error  gdf_degree_coo (gdf_graph *graph, gdf_column *degree, int x) {
+  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
+  int n = 0;
+  int e;
+  if(graph->adjList != nullptr)
+    e = graph->adjList->indices->size;
+  else
+     e = graph->edgeList->src_indices->size;  
+
+  dim3 nthreads, nblocks;
+  nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
+  nthreads.y = 1;
+  nthreads.z = 1;
+  nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+  nblocks.y = 1;
+  nblocks.z = 1;
+
+  if(x!=1) {
+    gdf_error err = gdf_add_edge_list(graph);
+    if (err != GDF_SUCCESS)
+      return err;
+
+  switch (graph->edgeList->src_indices->dtype) {
+    case GDF_INT32:   cugraph::degree_coo<int, float> <<<nblocks, nthreads>>>(n, e, (int*)graph->edgeList->src_indices->data, (int*)degree->data);break;
+    //case GDF_FLOAT64:   degree_coo<int, float> <<<nblocks, nthreads>>>(n, e, src, degree);
+    default: return GDF_UNSUPPORTED_DTYPE;
+    }
+  }
+  if(x!=2) {
+    gdf_error err = gdf_add_edge_list(graph);
+    if (err != GDF_SUCCESS)
+      return err;
+  switch (graph->edgeList->src_indices->dtype) {
+    case GDF_INT32:   cugraph::degree_coo<int, float> <<<nblocks, nthreads>>>(n, e, (int*)graph->edgeList->dest_indices->data, (int*)degree->data);break;                 
+    //case GDF_FLOAT64:   degree_coo<int, float> <<<nblocks, nthreads>>>(n, e, src, degree);                      
+    default: return GDF_UNSUPPORTED_DTYPE;
+    }
+  }
+  return GDF_SUCCESS;
+}
+
+
 template <typename WT>
 gdf_error gdf_pagerank_impl (gdf_graph *graph,
                       gdf_column *pagerank, float alpha = 0.85,
