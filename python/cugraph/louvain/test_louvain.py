@@ -107,8 +107,8 @@ def test_louvain_with_edgevals(graph_file):
     assert abs(cu_mod - cu_mod_nx) < .0001
 
 
-DATASETS = ['/datasets/networks/karate.mtx',
-            '/datasets/networks/dolphins.mtx']
+DATASETS = ['../datasets/karate.mtx',
+            '../datasets/dolphins.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
