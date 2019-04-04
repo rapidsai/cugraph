@@ -34,3 +34,4 @@ dependencies:
 - pandoc=<2.0.0
 - pip:
   - sphinx-markdown-tables
+  
