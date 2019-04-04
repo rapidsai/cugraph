@@ -221,6 +221,7 @@ def test_two_hop_neighbors(graph_file):
     find_two_paths(df, M)
     check_all_two_hops(df, M)
 
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_degree_functionality(graph_file):
     M = read_mtx_file(graph_file)
