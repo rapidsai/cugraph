@@ -21,17 +21,19 @@
 
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
+#include <thrust/device_vector.h>
 
 #include <rmm_utils.h>
 
+template<typename T>
+using Vector = thrust::device_vector<T, rmm_allocator<T>>;
+
 void gdf_col_delete(gdf_column* col) {
-  if (col)
-  {
+  if (col) {
     col->size = 0; 
-    if(col->data)
-        {
-        ALLOC_FREE_TRY(col->data, nullptr);
-        }
+    if(col->data) {
+      ALLOC_FREE_TRY(col->data, nullptr);
+    }
 #if 1
 // If delete col is executed, the memory pointed by col is no longer valid and
 // can be used in another memory allocation, so executing col->data = nullptr
@@ -180,7 +182,6 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
       graph->edgeList->dest_indices = new gdf_column;
       graph->edgeList->ownership = 2;
 
-
       CUDA_TRY(cudaMallocManaged ((void**)&d_src, sizeof(int) * graph->adjList->indices->size));
 
       cugraph::offsets_to_indices<int>((int*)graph->adjList->offsets->data, 
@@ -201,7 +202,7 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
 
 
 template <typename WT>
-gdf_error gdf_add_transpose_impl (gdf_graph *graph) {
+gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
     if (graph->transposedAdjList == nullptr ) {
       GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
       int nnz = graph->edgeList->src_indices->size, status = 0;
@@ -243,8 +244,6 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
                       gdf_column *pagerank, float alpha = 0.85,
                       float tolerance = 1e-4, int max_iter = 200,
                       bool has_guess = false) {
-
-  
   GDF_REQUIRE( graph->edgeList != nullptr, GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( graph->edgeList->src_indices->size == graph->edgeList->dest_indices->size, GDF_COLUMN_SIZE_MISMATCH ); 
   GDF_REQUIRE( graph->edgeList->src_indices->dtype == graph->edgeList->dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );  
@@ -261,7 +260,7 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   WT *residual = &res;
 
   if (graph->transposedAdjList == nullptr) {
-    gdf_add_transpose(graph);
+    gdf_add_transposed_adj_list(graph);
   }
   cudaStream_t stream{nullptr};
   ALLOC_MANAGED_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
@@ -295,9 +294,7 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   return GDF_SUCCESS;
 }
 
-
-gdf_error gdf_add_adj_list(gdf_graph *graph)
-{ 
+gdf_error gdf_add_adj_list(gdf_graph *graph) {
   if (graph->adjList != nullptr)
     return GDF_SUCCESS;
 
@@ -316,19 +313,18 @@ gdf_error gdf_add_adj_list(gdf_graph *graph)
   }
 }
 
-gdf_error gdf_add_transpose(gdf_graph *graph)
-{
+gdf_error gdf_add_transposed_adj_list(gdf_graph *graph) {
   if (graph->edgeList == nullptr)
     gdf_add_edge_list(graph);
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return gdf_add_transpose_impl<float>(graph);
-      case GDF_FLOAT64:   return gdf_add_transpose_impl<double>(graph);
+      case GDF_FLOAT32:   return gdf_add_transposed_adj_list_impl<float>(graph);
+      case GDF_FLOAT64:   return gdf_add_transposed_adj_list_impl<double>(graph);
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
   else {
-    return gdf_add_transpose_impl<float>(graph);
+    return gdf_add_transposed_adj_list_impl<float>(graph);
   }
 }
 
@@ -339,6 +335,7 @@ gdf_error gdf_delete_adj_list(gdf_graph *graph) {
   graph->adjList = nullptr;
   return GDF_SUCCESS;
 }
+
 gdf_error gdf_delete_edge_list(gdf_graph *graph) {
   if (graph->edgeList) {
     delete graph->edgeList;
@@ -346,7 +343,8 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph) {
   graph->edgeList = nullptr;
   return GDF_SUCCESS;
 }
-gdf_error gdf_delete_transpose(gdf_graph *graph) {
+
+gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) {
   if (graph->transposedAdjList) {
     delete graph->transposedAdjList;
   }
@@ -387,48 +385,7 @@ gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecess
   return GDF_SUCCESS;
 }
 
-gdf_error gdf_jaccard(gdf_graph *graph, void *c_gamma, gdf_column *weights, gdf_column *weight_j) {
-  
-  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
-  //GDF_REQUIRE(weight_j->dtype == GDF_FLOAT32, GDF_UNSUPPORTED_DTYPE);
-  
-  size_t n = graph->adjList->offsets->size - 1;
-  size_t e = graph->adjList->indices->size;
-
-  void* offsets_ptr = graph->adjList->offsets->data;
-  void* indices_ptr = graph->adjList->indices->data;
-  void* value_ptr = graph->adjList->edge_data? graph->adjList->edge_data->data: NULL;
-  void* weight_j_ptr = weight_j->data;
-
-  void* weights_ptr;
-  if(weights == NULL)
-      weights_ptr = NULL;
-  else
-      weights_ptr = weights->data;
-
-  auto gdf_to_cudadtype= [](gdf_column *col){
-    cudaDataType_t cuda_dtype; 
-    switch(col->dtype){
-      case GDF_INT8: cuda_dtype = CUDA_R_8I; break;
-      case GDF_INT32: cuda_dtype = CUDA_R_32I; break;
-      case GDF_FLOAT32: cuda_dtype = CUDA_R_32F; break;
-      case GDF_FLOAT64: cuda_dtype = CUDA_R_64F; break;
-      }return cuda_dtype;
-  };
-
-  cudaDataType_t index_type = gdf_to_cudadtype(graph->adjList->indices);
-  cudaDataType_t val_type = graph->adjList->edge_data? gdf_to_cudadtype(graph->adjList->edge_data): CUDA_R_32F;
-
-  nvgraphJaccard(index_type, val_type, n, e, offsets_ptr, indices_ptr, NULL,
-                 0, weights_ptr, c_gamma, weight_j_ptr);
-  return GDF_SUCCESS;
-}
-
 gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
-
   GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
@@ -439,7 +396,20 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
 
   void* offsets_ptr = graph->adjList->offsets->data;
   void* indices_ptr = graph->adjList->indices->data;
-  void* value_ptr = graph->adjList->edge_data? graph->adjList->edge_data->data: NULL;
+  
+  void* value_ptr;
+  Vector<float> d_values; 
+  if(graph->adjList->edge_data) {
+      value_ptr = graph->adjList->edge_data->data;
+  }
+  else {
+      cudaStream_t stream { nullptr };
+      rmm_temp_allocator allocator(stream);
+      d_values.resize(graph->adjList->indices->size);
+      thrust::fill(thrust::cuda::par(allocator).on(stream), d_values.begin(), d_values.end(), 1.0);
+      value_ptr = (void * ) thrust::raw_pointer_cast(d_values.data());
+  }
+
   void* louvain_parts_ptr = louvain_parts->data;
 
   auto gdf_to_cudadtype= [](gdf_column *col){
@@ -459,4 +429,3 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
                  final_modularity, louvain_parts_ptr, num_level);
   return GDF_SUCCESS;
 }
-

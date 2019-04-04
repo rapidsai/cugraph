@@ -71,7 +71,7 @@ class Tests_Sssp : public ::testing::TestWithParam<Sssp_Usecase> {
     create_gdf_column(sssp_distances,&col_sssp_distances);
     
     if (manual_tanspose)
-          ASSERT_EQ(gdf_add_transpose(&G),0);
+          ASSERT_EQ(gdf_add_transposed_adj_list(&G),0);
 
     ASSERT_EQ(gdf_sssp_nvgraph(&G, &param.src, &col_sssp_distances),GDF_SUCCESS);
 
@@ -178,7 +178,7 @@ class Tests_Sssp2 : public ::testing::TestWithParam<Sssp2_Usecase> {
     ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, nullptr),0);
     
     if (manual_tanspose)
-      ASSERT_EQ(gdf_add_transpose(&G),0);
+      ASSERT_EQ(gdf_add_transposed_adj_list(&G),0);
 
 
     ASSERT_EQ(gdf_sssp_nvgraph(&G, &param.src, &col_sssp),0);

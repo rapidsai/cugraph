@@ -53,7 +53,7 @@ cpdef sssp(G, source):
     """
 
     cdef uintptr_t graph = G.graph_ptr
-    err = gdf_add_transpose(<gdf_graph*>graph)
+    err = gdf_add_transposed_adj_list(<gdf_graph*>graph)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     cdef gdf_graph* g = <gdf_graph*>graph

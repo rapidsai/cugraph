@@ -73,4 +73,6 @@ cpdef nvLouvain(input_graph):
     if g.adjList.edge_data:
         if g.adjList.edge_data.dtype == GDF_FLOAT32:
             fm = tmp
+    else:
+        fm = tmp
     return df, fm                                      

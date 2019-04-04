@@ -123,7 +123,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 	if (use_transposed) {
 		// convert edgeList to transposedAdjList
 		if (gdf_G->transposedAdjList == nullptr) {
-			GDF_TRY(gdf_add_transpose(gdf_G));
+			GDF_TRY(gdf_add_transposed_adj_list(gdf_G));
 		}
 		// using exiting transposedAdjList if it exisits and if adjList is missing
 		TT = NVGRAPH_CSC_32;
@@ -157,6 +157,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 					return GDF_UNSUPPORTED_DTYPE;
 			}
 		}
+
 	}
 	else {
 		// convert edgeList to adjList
@@ -168,8 +169,8 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 		topoData.nvertices = gdf_G->adjList->offsets->size - 1;
 		topoData.nedges = gdf_G->adjList->indices->size;
 		topoData.source_offsets = (int *) gdf_G->adjList->offsets->data;
-		topoData.destination_indices = (int *) gdf_G->adjList->indices->data;
-
+ 		topoData.destination_indices = (int *) gdf_G->adjList->indices->data;
+ 
 		// attach adj list
 		NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvgraph_G, (void * )&topoData, TT));
 		//attach edge values
@@ -225,7 +226,7 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 	Vector<float> d_val;
 
 	//RMM:
-	//
+	//        
 	cudaStream_t stream { nullptr };
 	rmm_temp_allocator allocator(stream);
 	if (gdf_G->transposedAdjList->edge_data == nullptr) {
@@ -278,14 +279,44 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
 
 	// Ensure that the input graph has values
 	GDF_TRY(gdf_add_adj_list(gdf_G));
-	GDF_REQUIRE(gdf_G->adjList->edge_data != nullptr, GDF_INVALID_API_CALL);
+	//GDF_REQUIRE(gdf_G->adjList->edge_data != nullptr, GDF_INVALID_API_CALL);
 
 	// Initialize Nvgraph and wrap the graph
 	nvgraphHandle_t nvg_handle = nullptr;
 	nvgraphGraphDescr_t nvgraph_G = nullptr;
+        cudaDataType_t settype;
+        Vector<double> d_val;
+
 	NVG_TRY(nvgraphCreate(&nvg_handle));
 	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
 	int weight_index = 0;
+
+        cudaStream_t stream { nullptr };
+        rmm_temp_allocator allocator(stream);
+        if (gdf_G->adjList->edge_data == nullptr) {
+                // use a fp64 vector  [1,...,1]
+                settype = CUDA_R_64F;
+                d_val.resize(gdf_G->adjList->indices->size);
+                thrust::fill(thrust::cuda::par(allocator).on(stream), d_val.begin(), d_val.end(), 1.0);
+                NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
+                                                                                                                                        nvgraph_G,
+                                                                                                                                        weight_index,
+                                                                                                                                        settype,
+                                                                                                                                        (void * ) thrust::raw_pointer_cast(d_val.data())));
+        }
+        else {
+                switch (gdf_G->adjList->edge_data->dtype) {
+                        case GDF_FLOAT32:
+                                settype = CUDA_R_32F;
+                                break;
+                        case GDF_FLOAT64:
+                                settype = CUDA_R_64F;
+                                break;
+                        default:
+                                return GDF_UNSUPPORTED_DTYPE;
+                }
+        }
+
 
 	// Pack parameters for call to Nvgraph
 	SpectralClusteringParameter param;
@@ -410,9 +441,38 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
 	// Initialize Nvgraph and wrap the graph
 	nvgraphHandle_t nvg_handle = nullptr;
 	nvgraphGraphDescr_t nvgraph_G = nullptr;
+        cudaDataType_t settype;
+        Vector<double> d_val;
+
 	NVG_TRY(nvgraphCreate(&nvg_handle));
 	GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
 	int weight_index = 0;
+
+        cudaStream_t stream { nullptr };
+        rmm_temp_allocator allocator(stream);
+        if (gdf_G->adjList->edge_data == nullptr) {
+                // use a fp64 vector  [1,...,1]
+                settype = CUDA_R_64F;
+                d_val.resize(gdf_G->adjList->indices->size);
+                thrust::fill(thrust::cuda::par(allocator).on(stream), d_val.begin(), d_val.end(), 1.0);
+                NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
+                                                                                                                                        nvgraph_G,
+                                                                                                                                        weight_index,
+                                                                                                                                        settype,
+                                                                                                                                        (void * ) thrust::raw_pointer_cast(d_val.data())));
+        }
+        else {
+                switch (gdf_G->adjList->edge_data->dtype) {
+                        case GDF_FLOAT32:
+                                settype = CUDA_R_32F;
+                                break;
+                        case GDF_FLOAT64:
+                                settype = CUDA_R_64F;
+                                break;
+                        default:
+                                return GDF_UNSUPPORTED_DTYPE;
+                }
+	}
 
 	// Make Nvgraph call
 

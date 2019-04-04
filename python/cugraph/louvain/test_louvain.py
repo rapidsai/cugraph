@@ -15,7 +15,6 @@ import time
 
 import pytest
 from scipy.io import mmread
-
 import cudf
 import cugraph
 
@@ -39,7 +38,7 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M):
+def cugraph_call(M, edgevals=False):
     M = M.tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
@@ -49,8 +48,10 @@ def cugraph_call(M):
     # Device data
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    values = cudf.Series(M.data)
-
+    if edgevals:
+        values = cudf.Series(M.data)
+    else:
+        values = None
     G = cugraph.Graph()
     G.add_adj_list(row_offsets, col_indices, values)
 
@@ -65,10 +66,8 @@ def cugraph_call(M):
 
 def networkx_call(M):
     M = M.tocsr()
-
     # Directed NetworkX graph
     Gnx = nx.Graph(M)
-
     # z = {k: 1.0/M.shape[0] for k in range(M.shape[0])}
 
     # Networkx Jaccard Call
@@ -87,6 +86,32 @@ DATASETS = ['/datasets/networks/karate.mtx',
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
+def test_louvain_with_edgevals(graph_file):
+    M = read_mtx_file(graph_file)
+    cu_parts, cu_mod = cugraph_call(M, edgevals=True)
+    nx_parts = networkx_call(M)
+
+    # Calculating modularity scores for comparison
+    Gnx = nx.Graph(M)
+    cu_map = {0: 0}
+    for i in range(len(cu_parts)):
+        cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
+    assert set(nx_parts.keys()) == set(cu_map.keys())
+    cu_mod_nx = community.modularity(cu_map, Gnx)
+    nx_mod = community.modularity(nx_parts, Gnx)
+    assert len(cu_parts) == len(nx_parts)
+    assert cu_mod > (.82 * nx_mod)
+    print(cu_mod)
+    print(cu_mod_nx)
+    print(nx_mod)
+    assert abs(cu_mod - cu_mod_nx) < .0001
+
+
+DATASETS = ['/datasets/networks/karate.mtx',
+            '/datasets/networks/dolphins.mtx']
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_louvain(graph_file):
     M = read_mtx_file(graph_file)
     cu_parts, cu_mod = cugraph_call(M)
@@ -102,4 +127,7 @@ def test_louvain(graph_file):
     nx_mod = community.modularity(nx_parts, Gnx)
     assert len(cu_parts) == len(nx_parts)
     assert cu_mod > (.82 * nx_mod)
+    print(cu_mod)
+    print(cu_mod_nx)
+    print(nx_mod)
     assert abs(cu_mod - cu_mod_nx) < .0001
