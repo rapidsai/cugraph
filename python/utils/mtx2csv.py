@@ -5,7 +5,7 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description='Convert the sparsity pattern \
-	                             of a MatrixMarket file into a CSV file. \
+                                 of a MatrixMarket file into a CSV file. \
                                  Each directed edge is explicitely stored, \
                                  edges are unsorted, IDs are 0-based.')
 parser.add_argument('file', type=str,
