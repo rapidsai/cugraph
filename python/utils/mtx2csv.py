@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='Convert the sparsity pattern \
 parser.add_argument('file', type=argparse.FileType(),
                     help='Path to the MatrixMarket file')
 parser.add_argument('--csv_separator_name', type=str, default="space",
-                    choices=["space","tab","comma"],
+                    choices=["space", "tab", "comma"],
                     help='csv separator can be : \
                     space, tab or comma. Default is space')
 args = parser.parse_args()
@@ -39,7 +39,8 @@ print('Writing CSV file: '
       + os.path.splitext(os.path.basename(args.file.name))[0] + '.csv ...')
 t1 = time.time()
 os.path.splitext(os.path.basename(args.file.name))[0] + '.csv'
-csv_file = open(os.path.splitext(os.path.basename(args.file.name))[0] + '.csv', "w")
+csv_file = open(os.path.splitext(os.path.basename(args.file.name))[0] 
+                + '.csv', "w")
 for item in range(M.getnnz()):
     csv_file.write("{}{}{}\n".format(M.row[item], separator, M.col[item]))
 csv_file.close()
