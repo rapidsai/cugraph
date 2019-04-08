@@ -39,7 +39,7 @@ print('Writing CSV file: '
       + os.path.splitext(os.path.basename(args.file.name))[0] + '.csv ...')
 t1 = time.time()
 os.path.splitext(os.path.basename(args.file.name))[0] + '.csv'
-csv_file = open(os.path.splitext(os.path.basename(args.file.name))[0] 
+csv_file = open(os.path.splitext(os.path.basename(args.file.name))[0]
                 + '.csv', "w")
 for item in range(M.getnnz()):
     csv_file.write("{}{}{}\n".format(M.row[item], separator, M.col[item]))
