@@ -40,8 +40,6 @@ if(RAPIDS_DATASET_ROOT_DIR)
     string(CONCAT CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
 endif(RAPIDS_DATASET_ROOT_DIR)
 
-
-###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
 #if(NOT TARGET NVGRAPH AND NVG_PLUGIN)
 #    find_path(NVGRAPH_INCLUDE "nvgraph"
@@ -58,7 +56,6 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 #    endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
 #endif(NOT TARGET NVGRAPH AND NVG_PLUGIN)
 
-###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 function(configure_test TEST_NAME Tests_SRCS)
 #    message(STATUS "${TEST_NAME} will link against: gdf, cugraph")

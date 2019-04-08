@@ -9,8 +9,10 @@
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
 - PR #185 Update docs version
+- PR #194 Open source nvgraph in cugraph repository #194
 - PR #190 Added a copy option in graph creation
 - PR #196 Fix typos in readme intro
+- PR #203 Added small datasets directly in the repo 
 
 
 ## Bug Fixes
@@ -21,6 +23,7 @@
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
 - PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
+- PR #206 Updated versions in conda envs
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
