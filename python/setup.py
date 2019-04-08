@@ -28,10 +28,10 @@ def find_in_path(name, path):
 
 def locate_nvgraph():
     if 'CONDA_PREFIX' in os.environ:
-        nvgraph_found = find_in_path('lib/libnvgraph_st.so',
+        nvgraph_found = find_in_path('lib/libnvgraph_rapids.so',
                                      os.environ['CONDA_PREFIX'])
     if nvgraph_found is None:
-        nvgraph_found = find_in_path('libnvgraph_st.so',
+        nvgraph_found = find_in_path('libnvgraph_rapids.so',
                                      os.environ['LD_LIBRARY_PATH'])
         if nvgraph_found is None:
             raise EnvironmentError('The nvgraph library could not be located')
@@ -65,7 +65,7 @@ EXTENSIONS = [
                             '../cpp/build/gunrock/externals/moderngpu/include',
                             '../cpp/build/gunrock/externals/cub'],
               library_dirs=[get_python_lib(), NVGRAPH['lib']],
-              libraries=['cugraph', 'cudf', 'nvgraph_st'],
+              libraries=['cugraph', 'cudf', 'nvgraph_rapids'],
               language='c++',
               extra_compile_args=['-std=c++14'])
 ]

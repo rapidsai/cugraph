@@ -125,7 +125,7 @@ class Graph:
         >>> import cugraph
         >>>
         >>>
-        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> mm_file = '../datasets/karate.mtx'
         >>> M = mmread(mm_file).asfptype()
         >>> sources = cudf.Series(M.row)
         >>> destinations = cudf.Series(M.col)
@@ -260,7 +260,7 @@ class Graph:
         >>> import cugraph
         >>>
         >>>
-        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> mm_file = '../datasets/karate.mtx'
         >>> M = mmread(mm_file).asfptype()
         >>> M = M.tocsr()
         >>> offsets = cudf.Series(M.indptr)
