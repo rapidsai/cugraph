@@ -83,9 +83,9 @@ def cpu_call(M, first, second):
     return result
 
 
-DATASETS = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
-            '/datasets/networks/netscience.mtx']
+DATASETS = ['../datasets/dolphins.mtx',
+            '../datasets/karate.mtx',
+            '../datasets/netscience.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)

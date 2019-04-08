@@ -129,6 +129,11 @@ message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 # - cmake custom modules --------------------------------------------------------------------------
 include(ConfigureGoogleTest)
 
+# speedup build time by avoiding features that are not exposed
+set(NVGRAPH_LIGHT True)
+# build nvgraph
+include(ConfigureNvgraph)
+
 ###################################################################################################
 # - Find and add different modules and supporting repos -------------------------------------------
 find_package(Boost 1.45.0 COMPONENTS system)
@@ -186,12 +191,11 @@ endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
+
 find_path(NVGRAPH_INCLUDE "nvgraph"
-      HINTS "$ENV{NVGRAPH_ROOT}/include"
-            "$ENV{CONDA_PREFIX}/include")
-find_library(NVGRAPH_LIBRARY "nvgraph_st"
-         HINTS "$ENV{NVGRAPH_ROOT}/lib"
-               "$ENV{CONDA_PREFIX}/lib")
+      HINTS "$ENV{CONDA_PREFIX}/include")
+find_library(NVGRAPH_LIBRARY "nvgraph_rapids"
+         HINTS "$ENV{CONDA_PREFIX}/lib")
 
 add_library( nvgraph SHARED IMPORTED)
 if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)

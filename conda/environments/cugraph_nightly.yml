@@ -8,7 +8,6 @@ channels:
 - defaults
 dependencies:
 - cudf>=0.7
-- nvgraph
 - scipy
 - networkx
 - python-louvain

@@ -103,9 +103,9 @@ def networkx_call(M, max_iter, tol, alpha):
     return sorted(pr.items(), key=lambda x: x[1], reverse=True)
 
 
-DATASETS = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
-            '/datasets/networks/netscience.mtx']
+DATASETS = ['../datasets/dolphins.mtx',
+            '../datasets/karate.mtx',
+            '../datasets/netscience.mtx']
 
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
