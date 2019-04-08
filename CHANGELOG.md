@@ -16,12 +16,13 @@
 - PR #203 Added small datasets directly in the repo 
 
 ## Bug Fixes
-- PR #169 Disable terminal output in sssp 
+- PR #169 Disable terminal output in sssp
 - PR #191 Fix double upload bug
 - PR #181 Fixed crash/rmm free error when edge values provided
 - PR #193 Fixed segfault when egde values not provided
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
+- PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
 - PR #206 Updated versions in conda envs
 
 # cuGraph 0.6.0 (22 Mar 2019)

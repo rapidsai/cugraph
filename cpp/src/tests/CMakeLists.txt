@@ -34,7 +34,28 @@ else()
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
 endif(CMAKE_CXX11_ABI)
 
-###################################################################################################
+if(RAPIDS_DATASET_ROOT_DIR)
+    message(STATUS "setting default RAPIDS_DATASET_ROOT_DIR to: ${RAPIDS_DATASET_ROOT_DIR}")
+    string(CONCAT CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
+    string(CONCAT CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
+endif(RAPIDS_DATASET_ROOT_DIR)
+
+# - add nvgraph -----------------------------------------------------------------------------------
+#if(NOT TARGET NVGRAPH AND NVG_PLUGIN)
+#    find_path(NVGRAPH_INCLUDE "nvgraph"
+#          HINTS "$ENV{NVGRAPH_ROOT}/include"
+#                "$ENV{CONDA_PREFIX}/include")
+#    find_library(NVGRAPH_LIBRARY "nvgraph_st"
+#             HINTS "$ENV{NVGRAPH_ROOT}/lib"
+#                   "$ENV{CONDA_PREFIX}/lib")
+#
+#    add_library( nvgraph SHARED IMPORTED)
+#    if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
+#        set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
+#        message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
+#    endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
+#endif(NOT TARGET NVGRAPH AND NVG_PLUGIN)
+
 # - compiler function -----------------------------------------------------------------------------
 function(configure_test TEST_NAME Tests_SRCS)
 #    message(STATUS "${TEST_NAME} will link against: gdf, cugraph")

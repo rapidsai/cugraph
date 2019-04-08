@@ -26,6 +26,7 @@
 #include <limits>
 #include <utility>
 #include <cstdint>
+#include <cstdlib>
 extern "C" {
 #include "mmio.h"
 }
@@ -678,4 +679,28 @@ void gdf_col_delete(gdf_column* col) {
     col = nullptr;
 #endif
   }                                                       
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// TODO: move this code to rapids-core
+////////////////////////////////////////////////////////////////////////////////
+#ifndef RAPIDS_DATASET_ROOT_DIR
+#define RAPIDS_DATASET_ROOT_DIR "FOOd"
+#endif
+
+static const std::string& get_rapids_dataset_root_dir(const std::string& defaultRdrd) {
+  static std::string rdrd("");
+  // order of precedence: env var, RAPIDS_DATASET_ROOT_DIR as defined
+  // by build, fallback default passed in
+  if (rdrd == "") {
+    const char* envVar = std::getenv("RAPIDS_DATASET_ROOT_DIR");
+    rdrd = (envVar != NULL) ? envVar : \
+      ((std::string(RAPIDS_DATASET_ROOT_DIR) != "") ? RAPIDS_DATASET_ROOT_DIR : defaultRdrd);
+  }
+  return rdrd;
+}
+
+static const std::string& get_rapids_dataset_root_dir() {
+  return get_rapids_dataset_root_dir("");
 }
