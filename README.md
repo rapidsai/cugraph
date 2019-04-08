@@ -192,7 +192,7 @@ conda activate cugraph_dev
 
 3) Build and install `libcugraph`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
 
-  This project uses cmake for building the C/C++ library. To configure cmake, run:
+  This project uses cmake for building the C/C++ library. CMake will also automatically build and install nvGraph library (`$CUGRAPH_HOME/cpp/nvgraph`) which may take a few minutes. To configure cmake, run:
 
   ```bash
   # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME 
@@ -238,17 +238,14 @@ python setup.py install    # install cugraph python bindings
     # Run the cugraph tests
     cd $CUGRAPH_HOME
     cd cpp/build
-    make test
-    
-    # alternatively, you can run individual test
     gtests/GDFGRAPH_TEST		# this is an executable file
     ```
 
   - **Python tests with datasets** 
 
     ```bash
-    cd $CUGRAPH_HOME  
-    tar -zxvf cpp/src/tests/datasets.tar.gz -C /    # tests look for data under  '/'
+    cd $CUGRAPH_HOME
+    cd python
     pytest  
     ```
 
@@ -320,8 +317,9 @@ unset LD_LIBRARY_PATH
 
 
 
+## nvGraph
 
-
+The nvGraph library is now open source and part of cuGraph. It can be build as a stand alone by following nvgraph's [readme](cpp/nvgraph/). 
 
 
 ------

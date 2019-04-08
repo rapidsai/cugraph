@@ -93,9 +93,9 @@ def networkx_call(M):
     return coeff
 
 
-DATASETS = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
-            '/datasets/networks/netscience.mtx']
+DATASETS = ['../datasets/dolphins.mtx',
+            '../datasets/karate.mtx',
+            '../datasets/netscience.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
