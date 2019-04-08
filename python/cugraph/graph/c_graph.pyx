@@ -465,19 +465,30 @@ class Graph:
     def _degree(self, x = 0):
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph* g = < gdf_graph *> graph
-        err = gdf_add_adj_list(g)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        n = g.adjList.offsets.size - 1
+        cdef gdf_adj_list* adj_ptr
+
+        if(g.adjList):
+            n = g.adjList.offsets.size - 1
+            adj_ptr = g.adjList
+        elif(g.transposedAdjList):
+            n = g.transposedAdjList.offsets.size - 1
+            adj_ptr = g.transposedAdjList
+        else:
+            err = gdf_add_adj_list(g)
+            cudf.bindings.cudf_cpp.check_gdf_error(err)
+            n = g.adjList.offsets.size - 1
+            adj_ptr = g.adjList
+
         df = cudf.DataFrame()
         df['vertex'] = cudf.Series(np.zeros(n, dtype=np.int32))
         cdef uintptr_t identifier_ptr = create_column(df['vertex'])
-        err = g.adjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+        err = adj_ptr.get_vertex_identifiers(<gdf_column*>identifier_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         
         df['degree'] = cudf.Series(np.zeros(n, dtype=np.int32))
         cdef uintptr_t degree_col_ptr = create_column(df['degree'])
-        err = gdf_degree_coo(g, <gdf_column*>degree_col_ptr, <int>x)
+        err = gdf_degree(g, <gdf_column*>degree_col_ptr, <int>x)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         return df
