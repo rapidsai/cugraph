@@ -12,6 +12,8 @@
 - PR #194 Open source nvgraph in cugraph repository #194
 - PR #190 Added a copy option in graph creation
 - PR #196 Fix typos in readme intro
+- PR #203 Added small datasets directly in the repo 
+
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp 
