@@ -17,6 +17,7 @@
 - PR #181 Fixed crash/rmm free error when edge values provided
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
+- PR #214 Removed throw exception from dtor in TC
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
