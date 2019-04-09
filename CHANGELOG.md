@@ -22,6 +22,7 @@
 - PR #193 Fixed segfault when egde values not provided
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
+- PR #214 Removed throw exception from dtor in TC
 - PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
 - PR #206 Updated versions in conda envs
 
