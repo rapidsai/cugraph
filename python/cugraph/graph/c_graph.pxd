@@ -89,6 +89,7 @@ cdef extern from "cugraph.h":
                              const gdf_column *edge_data)
     cdef gdf_error gdf_add_adj_list(gdf_graph *graph)
     cdef gdf_error gdf_delete_adj_list(gdf_graph *graph)
+    cdef gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second)
     cdef gdf_error gdf_add_transposed_adj_list(gdf_graph *graph)
     cdef gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph)
 

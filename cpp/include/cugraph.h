@@ -25,4 +25,6 @@
 
 #include "functions.h"
 
+#include "algorithms.h"
+
 

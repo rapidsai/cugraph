@@ -103,7 +103,24 @@ typedef struct Sssp2_Usecase_t {
   std::string matrix_file;
   std::string result_file;
   int src;
-  Sssp2_Usecase_t(const std::string& a, const std::string& b, int c ) : matrix_file(a), result_file(b), src(c){};
+  //Sssp2_Usecase_t(const std::string& a, const std::string& b, int c ) : matrix_file(a), result_file(b), src(c){};
+  Sssp2_Usecase_t(const std::string& a, const std::string& b, int c ) {
+    // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
+    // if RAPIDS_DATASET_ROOT_DIR not set, default to "/datasets"
+    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir("/datasets");
+    if ((a != "") && (a[0] != '/')) {
+      matrix_file = rapidsDatasetRootDir + "/" + a;
+    } else {
+      matrix_file = a;
+    }
+    if ((b != "") && (b[0] != '/')) {
+      result_file = rapidsDatasetRootDir + "/" + b;
+    } else {
+      result_file = b;
+    }
+    src = c;
+  }
+
   Sssp2_Usecase_t& operator=(const Sssp2_Usecase_t& rhs) {
     matrix_file = rhs.matrix_file;
     result_file = rhs.result_file;

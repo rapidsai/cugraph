@@ -1,0 +1,195 @@
+%%MatrixMarket matrix coordinate pattern symmetric
+%-------------------------------------------------------------------------------
+% UF Sparse Matrix Collection, Tim Davis
+% http://www.cise.ufl.edu/research/sparse/matrices/Newman/dolphins
+% name: Newman/dolphins
+% [social network of dolphins, Doubtful Sound, New Zealand]
+% id: 2396
+% date: 2003
+% author: D. Lusseau
+% ed: M. Newman
+% fields: name title A id date author kind notes aux ed
+% aux: nodename
+% kind: undirected graph
+%-------------------------------------------------------------------------------
+% notes:
+% Network collection from M. Newman                                          
+% http://www-personal.umich.edu/~mejn/netdata/                               
+%                                                                            
+% The graph dolphins contains an undirected social network of frequent       
+% associations between 62 dolphins in a community living off Doubtful Sound, 
+% New Zealand, as compiled by Lusseau et al. (2003).  Please cite            
+%                                                                            
+%   D. Lusseau, K. Schneider, O. J. Boisseau, P. Haase, E. Slooten, and      
+%   S. M. Dawson, The bottlenose dolphin community of Doubtful Sound features
+%   a large proportion of long-lasting associations, Behavioral Ecology and  
+%   Sociobiology 54, 396-405 (2003).                                         
+%                                                                            
+% Additional information on the network can be found in                      
+%                                                                            
+%   D. Lusseau, The emergent properties of a dolphin social network,         
+%   Proc. R. Soc. London B (suppl.) 270, S186-S188 (2003).                   
+%                                                                            
+%   D. Lusseau, Evidence for social role in a dolphin social network,        
+%   Preprint q-bio/0607048 (http://arxiv.org/abs/q-bio.PE/0607048)           
+%-------------------------------------------------------------------------------
+62 62 159
+11 1
+15 1
+16 1
+41 1
+43 1
+48 1
+18 2
+20 2
+27 2
+28 2
+29 2
+37 2
+42 2
+55 2
+11 3
+43 3
+45 3
+62 3
+9 4
+15 4
+60 4
+52 5
+10 6
+14 6
+57 6
+58 6
+10 7
+14 7
+18 7
+55 7
+57 7
+58 7
+20 8
+28 8
+31 8
+41 8
+55 8
+21 9
+29 9
+38 9
+46 9
+60 9
+14 10
+18 10
+33 10
+42 10
+58 10
+30 11
+43 11
+48 11
+52 12
+34 13
+18 14
+33 14
+42 14
+55 14
+58 14
+17 15
+25 15
+34 15
+35 15
+38 15
+39 15
+41 15
+44 15
+51 15
+53 15
+19 16
+25 16
+41 16
+46 16
+56 16
+60 16
+21 17
+34 17
+38 17
+39 17
+51 17
+23 18
+26 18
+28 18
+32 18
+58 18
+21 19
+22 19
+25 19
+30 19
+46 19
+52 19
+31 20
+55 20
+29 21
+37 21
+39 21
+45 21
+48 21
+51 21
+30 22
+34 22
+38 22
+46 22
+52 22
+37 24
+46 24
+52 24
+30 25
+46 25
+52 25
+27 26
+28 26
+28 27
+31 29
+48 29
+36 30
+44 30
+46 30
+52 30
+53 30
+43 31
+48 31
+61 33
+35 34
+38 34
+39 34
+41 34
+44 34
+51 34
+38 35
+45 35
+50 35
+38 37
+40 37
+41 37
+60 37
+41 38
+44 38
+46 38
+62 38
+44 39
+45 39
+53 39
+59 39
+58 40
+53 41
+55 42
+58 42
+48 43
+51 43
+47 44
+54 44
+51 46
+52 46
+60 46
+50 47
+58 49
+52 51
+56 52
+62 54
+58 55
