@@ -453,16 +453,115 @@ class Graph:
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         return g.adjList.offsets.size - 1
 
-    def in_degree(self):
-        return self._degree(x=1)
+    def in_degree(self, vertex_subset = None):
+        """
+        Calculates and returns the in-degree of nodes. Node in-degree 
+        is the number of edges pointing in to the node.
+        Parameters
+        ----------
+        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
+            A container of nodes for displaying corresponding in-degree
+        Returns
+        -------
+        df  : cudf.DataFrame
+        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset) 
+        containing the in_degree. The ordering is relative to the adjacency list, or that
+        given by the specified vertex_subset.
+      
+        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+        df['degree']: The computed in-degree of the corresponding vertex
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import pytest
+        >>> from scipy.io import mmread
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> sources = cudf.Series(M.row)
+        >>> destinations = cudf.Series(M.col)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_edge_list(sources, destinations)
+        >>> in_degree_df = G.in_degree([0,9,12])
+        """
+        return self._degree(vertex_subset , x=1)
 
-    def out_degree(self):
-        return self._degree(x=2)
+    def out_degree(self, vertex_subset = None):
+        """
+        Calculates and returns the out-degree of nodes. Node out-degree 
+        is the number of edges pointing out from the node.
+        Parameters
+        ----------
+        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
+            A container of nodes for displaying corresponding out-degree
+        Returns
+        -------
+        df  : cudf.DataFrame
+        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset)
+        containing the out_degree. The ordering is relative to the adjacency list, or that
+        given by the specified vertex_subset.
 
-    def degree(self):
-        return self._degree()
+        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+        df['degree']: The computed out-degree of the corresponding vertex                    
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import pytest
+        >>> from scipy.io import mmread
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> sources = cudf.Series(M.row)
+        >>> destinations = cudf.Series(M.col)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_edge_list(sources, destinations)
+        >>> out_degree_df = G.out_degree([0,9,12])
+        """
+        return self._degree(vertex_subset, x=2)
 
-    def _degree(self, x = 0):
+    def degree(self, vertex_subset = None):
+        """
+        Calculates and returns the degree of nodes. Node degree
+        is the number of edges adjacent to that node.
+        Parameters
+        ----------
+        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
+            A container of nodes for displaying corresponding degree
+        Returns
+        -------
+        df  : cudf.DataFrame
+        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset)
+        containing the degree. The ordering is relative to the adjacency list, or that
+        given by the specified vertex_subset.
+
+        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+        df['degree']: The computed degree of the corresponding vertex            
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import pytest
+        >>> from scipy.io import mmread
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> sources = cudf.Series(M.row)
+        >>> destinations = cudf.Series(M.col)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_edge_list(sources, destinations)
+        >>> degree_df = G.degree([0,9,12])
+        """
+        return self._degree(vertex_subset)
+
+    def _degree(self, vertex_subset, x = 0):
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph* g = < gdf_graph *> graph
 
@@ -481,15 +580,21 @@ class Graph:
             adj_ptr = g.adjList
 
         df = cudf.DataFrame()
-        df['vertex'] = cudf.Series(np.zeros(n, dtype=np.int32))
-        cdef uintptr_t identifier_ptr = create_column(df['vertex'])
+        vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
+        cdef uintptr_t identifier_ptr = create_column(vertex_col)
         err = adj_ptr.get_vertex_identifiers(<gdf_column*>identifier_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         
-        df['degree'] = cudf.Series(np.zeros(n, dtype=np.int32))
-        cdef uintptr_t degree_col_ptr = create_column(df['degree'])
+        degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
+        cdef uintptr_t degree_col_ptr = create_column(degree_col)
         err = gdf_degree(g, <gdf_column*>degree_col_ptr, <int>x)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        return df
+        if vertex_subset is None:
+            df['vertex'] = vertex_col
+            df['degree'] = degree_col
+        else:
+            df['vertex'] = cudf.Series(np.asarray(vertex_subset, dtype=np.int32))
+            df['degree'] = cudf.Series(np.asarray([degree_col[i] for i in vertex_subset], dtype=np.int32))
 
+        return df
