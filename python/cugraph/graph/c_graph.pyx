@@ -596,5 +596,7 @@ class Graph:
         else:
             df['vertex'] = cudf.Series(np.asarray(vertex_subset, dtype=np.int32))
             df['degree'] = cudf.Series(np.asarray([degree_col[i] for i in vertex_subset], dtype=np.int32))
+            del vertex_col
+            del degree_col
 
         return df

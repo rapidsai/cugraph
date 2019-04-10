@@ -330,7 +330,7 @@ namespace cugraph
         __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
         degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
                 for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
-                        atomicAdd(&degree[i], ind[i+1]-ind[i]);
+                        degree[i] += ind[i+1]-ind[i];
         }
 
 
