@@ -14,6 +14,7 @@
 - PR #196 Fix typos in readme intro
 - PR #207 mtx2csv script
 - PR #203 Added small datasets directly in the repo 
+- PR #215 Simplified get_rapids_dataset_root_dir(), set a default value for the root dir
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp
