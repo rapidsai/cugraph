@@ -685,22 +685,20 @@ void gdf_col_delete(gdf_column* col) {
 ////////////////////////////////////////////////////////////////////////////////
 // TODO: move this code to rapids-core
 ////////////////////////////////////////////////////////////////////////////////
+
+// Define RAPIDS_DATASET_ROOT_DIR using a preprocessor variable to
+// allow for a build to override the default. This is useful for
+// having different builds for specific default dataset locations.
 #ifndef RAPIDS_DATASET_ROOT_DIR
-#define RAPIDS_DATASET_ROOT_DIR ""
+#define RAPIDS_DATASET_ROOT_DIR "/datasets"
 #endif
 
-static const std::string& get_rapids_dataset_root_dir(const std::string& defaultRdrd) {
+static const std::string& get_rapids_dataset_root_dir() {
   static std::string rdrd("");
-  // order of precedence: env var, RAPIDS_DATASET_ROOT_DIR as defined
-  // by build, fallback default passed in
+  // Env var always overrides the value of RAPIDS_DATASET_ROOT_DIR
   if (rdrd == "") {
     const char* envVar = std::getenv("RAPIDS_DATASET_ROOT_DIR");
-    rdrd = (envVar != NULL) ? envVar : \
-      ((std::string(RAPIDS_DATASET_ROOT_DIR) != "") ? RAPIDS_DATASET_ROOT_DIR : defaultRdrd);
+    rdrd = (envVar != NULL) ? envVar : RAPIDS_DATASET_ROOT_DIR;
   }
   return rdrd;
-}
-
-static const std::string& get_rapids_dataset_root_dir() {
-  return get_rapids_dataset_root_dir("");
 }
