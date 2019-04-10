@@ -12,8 +12,8 @@
 - PR #194 Open source nvgraph in cugraph repository #194
 - PR #190 Added a copy option in graph creation
 - PR #196 Fix typos in readme intro
+- PR #207 mtx2csv script
 - PR #203 Added small datasets directly in the repo 
-
 
 ## Bug Fixes
 - PR #169 Disable terminal output in sssp
@@ -22,6 +22,7 @@
 - PR #193 Fixed segfault when egde values not provided
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
+- PR #214 Removed throw exception from dtor in TC
 - PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
 - PR #206 Updated versions in conda envs
 
