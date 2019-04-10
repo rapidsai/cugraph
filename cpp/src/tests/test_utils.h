@@ -16,7 +16,7 @@
 #pragma once
 
 #include <stdio.h>
-#include <stdlib.h>  
+#include <stdlib.h>
 #include <stddef.h>
 #include <string>
 #include <sstream>
@@ -57,13 +57,13 @@ extern "C" {
 #endif
 
 std::function<void(gdf_column*)> gdf_col_deleter = [](gdf_column* col){
-  if (col) { 
-    col->size = 0; 
+  if (col) {
+    col->size = 0;
     if(col->data){
       cudaStream_t stream{nullptr};
       ALLOC_FREE_TRY(col->data, stream);
     }
-    delete col;  
+    delete col;
   }
 };
 using gdf_column_ptr = typename std::unique_ptr<gdf_column, decltype(gdf_col_deleter)>;
@@ -86,7 +86,7 @@ std::string getFileName(const std::string& s) {
    return("");
 }
 
-template <typename T> 
+template <typename T>
 void verbose_diff(std::vector<T> & v1, std::vector<T> & v2) {
   for (unsigned int i = 0; i < v1.size(); ++i)
   {
@@ -97,10 +97,10 @@ void verbose_diff(std::vector<T> & v1, std::vector<T> & v2) {
   }
 }
 
-template <typename T> 
+template <typename T>
 int eq(std::vector<T> & v1, std::vector<T> & v2) {
     if (v1 == v2)
-        return 0; 
+        return 0;
     else  {
         verbose_diff(v1,v2);
         return 1;
@@ -159,32 +159,32 @@ void ref_csr2csc (int m, int n, int nnz, const T_ELEM *csrVals, const int *csrRo
     free(counters);
 }
 
-template <typename T> 
-int transition_matrix_cpu(int n, int e, int *csrRowPtrA, int *csrColIndA, T *weight, T* is_leaf) 
+template <typename T>
+int transition_matrix_cpu(int n, int e, int *csrRowPtrA, int *csrColIndA, T *weight, T* is_leaf)
 //omp_set_num_threads(4);
 //#pragma omp parallel
  {
     int j,row, row_size;
     //#pragma omp for
-    for (row=0; row<n; row++) 
-    {  
+    for (row=0; row<n; row++)
+    {
         row_size = csrRowPtrA[row+1] - csrRowPtrA[row];
         if (row_size == 0)
             is_leaf[row]=1.0;
         else
         {
             is_leaf[row]=0.0;
-            for (j=csrRowPtrA[row]; j<csrRowPtrA[row+1]; j++) 
-                weight[j] = 1.0/row_size; 
-        } 
+            for (j=csrRowPtrA[row]; j<csrRowPtrA[row+1]; j++)
+                weight[j] = 1.0/row_size;
+        }
     }
     return 0;
 }
-template <typename T> 
+template <typename T>
 void printCsrMatI(int m, int n, int nnz,std::vector<int> & csrRowPtr, std::vector<uint16_t> & csrColInd, std::vector<T> & csrVal) {
- 
-    std::vector<T> v(n);   
-    std::stringstream ss; 
+
+    std::vector<T> v(n);
+    std::stringstream ss;
     ss.str(std::string());
     ss << std::fixed; ss << std::setprecision(2);
     for (int i = 0; i < m; i++) {
@@ -258,7 +258,7 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
       // Read matrix entry
       IndexType_ row, col;
       double rval, ival;
-      if (mm_is_pattern(*t)) 
+      if (mm_is_pattern(*t))
           st = fscanf(f, "%d %d\n", &row, &col);
       else if (mm_is_real(*t) || mm_is_integer(*t))
           st = fscanf(f, "%d %d %lg\n", &row, &col, &rval);
@@ -302,9 +302,9 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
  */
 template <typename IndexType_, typename ValueType_>
 int mm_to_coo(FILE *f, int tg, IndexType_ nnz,
-	      IndexType_ * cooRowInd, IndexType_ * cooColInd, 
+	      IndexType_ * cooRowInd, IndexType_ * cooColInd,
 	      ValueType_ * cooRVal  , ValueType_ * cooIVal) {
-  
+
   // Read matrix properties from file
   MM_typecode t;
   int m, n, nnzOld;
@@ -388,7 +388,7 @@ int mm_to_coo(FILE *f, int tg, IndexType_ nnz,
       if(cooIVal != NULL)
 	cooIVal[j] = ival;
       ++j;
-      
+
     }
   }
   return 0;
@@ -408,7 +408,7 @@ public:
     case 1:  return (thrust::get<1>(t1) < thrust::get<1>(t2));
     default: return (thrust::get<0>(t1) < thrust::get<0>(t2));
     }
-    
+
   }
 };
 
@@ -428,7 +428,7 @@ public:
 template <typename IndexType_, typename ValueType_>
 void coo_sort(IndexType_ nnz, int sort_by_row,
 	      IndexType_ * cooRowInd,
-	      IndexType_ * cooColInd, 
+	      IndexType_ * cooColInd,
 	      ValueType_ * cooRVal,
 	      ValueType_ * cooIVal) {
 
@@ -477,11 +477,11 @@ void coo_compress(IndexType_ m, IndexType_ n, IndexType_ nnz,
 
   // Initialize everything to zero
   memset(compressedIndices, 0, (m+1)*sizeof(IndexType_));
-  
+
   // Count number of elements per row
   for(i=0; i<nnz; ++i)
     ++(compressedIndices[sortedIndices[i]+1]);
-  
+
   // Compute cumulative sum to obtain row offsets/pointers
   for(i=0; i<m; ++i)
     compressedIndices[i+1] += compressedIndices[i];
@@ -518,7 +518,7 @@ void coo_compress(IndexType_ m, IndexType_ n, IndexType_ nnz,
 template <typename IndexType_, typename ValueType_>
 int coo_to_csr(IndexType_ m, IndexType_ n, IndexType_ nnz,
 		IndexType_ * __restrict__ cooRowInd,
-		IndexType_ * __restrict__ cooColInd, 
+		IndexType_ * __restrict__ cooColInd,
 		ValueType_ * __restrict__ cooRVal,
 		ValueType_ * __restrict__ cooIVal,
 		IndexType_ * __restrict__ csrRowPtr,
@@ -543,13 +543,13 @@ int coo_to_csr(IndexType_ m, IndexType_ n, IndexType_ nnz,
 
 }
 
-int read_binary_vector ( FILE* fpin, 
-                    int n, 
+int read_binary_vector ( FILE* fpin,
+                    int n,
                     std::vector<float>& val
                     )
 {
     size_t is_read1;
-    
+
     double* t_storage = new double[n];
     is_read1 = fread(t_storage, sizeof(double), n, fpin);
     for (int i = 0; i < n; i++)
@@ -562,7 +562,7 @@ int read_binary_vector ( FILE* fpin,
             val[i] = static_cast<float>(t_storage[i]);
     }
     delete[] t_storage;
-    
+
     if (is_read1 != (size_t)n)
     {
         printf("%s", "I/O fail\n");
@@ -571,15 +571,15 @@ int read_binary_vector ( FILE* fpin,
     return 0;
 }
 
-int read_binary_vector ( FILE* fpin, 
-                    int n, 
+int read_binary_vector ( FILE* fpin,
+                    int n,
                     std::vector<double>& val
                     )
 {
     size_t is_read1;
-    
+
     is_read1 = fread(&val[0], sizeof(double), n, fpin);
-    
+
     if (is_read1 != (size_t)n)
     {
         printf("%s", "I/O fail\n");
@@ -661,7 +661,7 @@ void gdf_col_delete(gdf_column* col) {
   if (col)
   {
     col->size = 0;
-    cudaStream_t stream{nullptr}; 
+    cudaStream_t stream{nullptr};
     if(col->data)
       ALLOC_FREE_TRY(col->data, stream);
 #if 1
@@ -678,29 +678,27 @@ void gdf_col_delete(gdf_column* col) {
     col->data = nullptr;
     col = nullptr;
 #endif
-  }                                                       
+  }
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // TODO: move this code to rapids-core
 ////////////////////////////////////////////////////////////////////////////////
+
+// Define RAPIDS_DATASET_ROOT_DIR using a preprocessor variable to
+// allow for a build to override the default. This is useful for
+// having different builds for specific default dataset locations.
 #ifndef RAPIDS_DATASET_ROOT_DIR
-#define RAPIDS_DATASET_ROOT_DIR "FOOd"
+#define RAPIDS_DATASET_ROOT_DIR "/datasets"
 #endif
 
-static const std::string& get_rapids_dataset_root_dir(const std::string& defaultRdrd) {
+static const std::string& get_rapids_dataset_root_dir() {
   static std::string rdrd("");
-  // order of precedence: env var, RAPIDS_DATASET_ROOT_DIR as defined
-  // by build, fallback default passed in
+  // Env var always overrides the value of RAPIDS_DATASET_ROOT_DIR
   if (rdrd == "") {
     const char* envVar = std::getenv("RAPIDS_DATASET_ROOT_DIR");
-    rdrd = (envVar != NULL) ? envVar : \
-      ((std::string(RAPIDS_DATASET_ROOT_DIR) != "") ? RAPIDS_DATASET_ROOT_DIR : defaultRdrd);
+    rdrd = (envVar != NULL) ? envVar : RAPIDS_DATASET_ROOT_DIR;
   }
   return rdrd;
-}
-
-static const std::string& get_rapids_dataset_root_dir() {
-  return get_rapids_dataset_root_dir("");
 }

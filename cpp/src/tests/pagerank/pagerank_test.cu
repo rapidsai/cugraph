@@ -35,8 +35,7 @@ typedef struct Pagerank_Usecase_t {
   std::string result_file;
   Pagerank_Usecase_t(const std::string& a, const std::string& b) {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    // if RAPIDS_DATASET_ROOT_DIR not set, default to "/datasets"
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir("/datasets");
+    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
