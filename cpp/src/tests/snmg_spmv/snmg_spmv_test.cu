@@ -31,14 +31,14 @@ for (auto i = 0; i < off_h.size(); ++i)
     y[i] += val_h[j]*x[ind_h[j]];
 }
 
-template <typename idx_t,typename val_t>
-void csrmv   (gdf_column * off_h, 
-              gdf_column * ind_h, 
-              gdf_column * val_h,  
-              gdf_column * x,  
-              gdf_column * y) {
+//template <typename idx_t,typename val_t>
+void csrmv (gdf_column * off_h, 
+            gdf_column * ind_h, 
+            gdf_column * val_h,  
+            gdf_column * x,  
+            gdf_column * y) {
 
-
+ std::cout<< "todo" <<std::endl;
 }
 
 // global to local offsets by shifting all offsets by the first offset value
@@ -151,10 +151,81 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
 
   template <typename idx_t,typename val_t>
   void run_current_test(const MGSpmv_Usecase& param) {
+     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
+     std::stringstream ss; 
+     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
+     int m, k, nnz, n_gpus;
+     MM_typecode mc;
+     gdf_error status;
 
-    //
+     FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+     
+     ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
+     ASSERT_TRUE(mm_is_matrix(mc));
+     ASSERT_TRUE(mm_is_coordinate(mc));
+     ASSERT_FALSE(mm_is_complex(mc));
+     ASSERT_FALSE(mm_is_skew(mc));
+     
+     // Allocate memory on host
+     std::vector<idx_t> cooRowInd(nnz), cooColInd(nnz), csrColInd(nnz), csrRowPtr(m+1);
+     std::vector<val_t> cooVal(nnz), csrVal(nnz), x_h(m, 1.0), y_h(m, 0.0), y_ref(m, 0.0);
 
+     // Read
+     ASSERT_EQ( (mm_to_coo<int,val_t>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
+     ASSERT_EQ(fclose(fpin),0);
+     ASSERT_EQ( (coo_to_csr<int,val_t> (m, m, nnz, &cooRowInd[0],  &csrColInd[0], &csrVal[0], NULL, &csrRowPtr[0], NULL, NULL, NULL)), 0) << "could not covert COO to CSR "<< "\n";
+
+     CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
+     std::vector<idx_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
+     random_vals(csrVal);
+
+     //reference result
+     csrmv_h (csrRowPtr, csrColInd, csrVal, x_h, y_ref);
+
+     #pragma omp parallel num_threads(n_gpus)
+     {
+      //omp_set_num_threads(n_gpus);
+      auto i = omp_get_thread_num();
+      auto p = omp_get_num_threads(); 
+      #ifdef SNMG_VERBOSE 
+        #pragma omp master 
+        { 
+          std::cout << "Number of GPUs : "<< n_gpus <<std::endl;
+          std::cout << "Number of threads : "<< p <<std::endl;
+        }
+      #endif
+
+      gdf_column *col_off = new gdf_column, 
+                 *col_ind = new gdf_column, 
+                 *col_val = new gdf_column,
+                 *col_x = new gdf_column,
+                 *col_y = new gdf_column;
+
+      CUDA_RT_CALL(cudaSetDevice(i));
+
+      //load a chunck of the graph on each GPU 
+      load_csr_loc(csrRowPtr, csrColInd, csrVal, 
+                   v_loc, e_loc, part_offset,
+                   col_off, col_ind, col_val);
+
+      create_gdf_column(x_h, col_x);
+      create_gdf_column(y_h, col_y);
+
+      status = csrmv_gdf(col_off, col_ind, col_val, col_x, col_y);
+      EXPECT_EQ(status,0);
+      
+      CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_y->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
+
+      // for (auto j = 0; j < y_h.size(); ++j)
+      //  EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
+
+      gdf_col_delete(col_off);
+      gdf_col_delete(col_ind);
+      gdf_col_delete(col_val);
+      gdf_col_delete(col_x);
+      gdf_col_delete(col_y);
+    }
   }
 };
  
@@ -163,15 +234,15 @@ TEST_P(Tests_MGSpmv, CheckFP32) {
     run_current_test<int, float>(GetParam());
 }
 
-TEST_P(Tests_MGSpmv, CheckFP64) {
-    run_current_test<int,double>(GetParam());
-}
+//TEST_P(Tests_MGSpmv, CheckFP64) {
+//    run_current_test<int,double>(GetParam());
+//}
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_MGSpmv, 
                         ::testing::Values(  MGSpmv_Usecase("networks/karate.mtx")
-                                            //,MGSpmv_Usecase("golden_data/graphs/cit-Patents.mtx")
-                                            //,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
+                                            ,MGSpmv_Usecase("golden_data/graphs/cit-Patents.mtx")
+                                            ,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
                                             //,MGSpmv_Usecase("golden_data/graphs/webbase-1M.mtx")
                                             //,MGSpmv_Usecase("golden_data/graphs/web-BerkStan.mtx")
                                             //,MGSpmv_Usecase("golden_data/graphs/web-Google.mtx")
