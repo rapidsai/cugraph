@@ -216,7 +216,7 @@ def test_delete_edge_list_delete_adj_list(graph_file):
 
 
 DATASETS2 = ['../datasets/karate.mtx',
-            '../datasets/dolphins.mtx']
+             '../datasets/dolphins.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS2)
