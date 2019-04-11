@@ -173,9 +173,14 @@ class Graph:
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
-        err = gdf_add_adj_list(g)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
-        return g.adjList.offsets.size - 1   
+        if g.adjList:
+            return g.adjList.offsets.size - 1
+        elif g.transposedAdjList:
+            return g.transposedAdjList.offsets.size - 1
+        else:
+            err = gdf_add_adj_list(g)
+            cudf.bindings.cudf_cpp.check_gdf_error(err)
+            return g.adjList.offsets.size - 1   
 
     def view_edge_list(self):
         """
@@ -565,24 +570,15 @@ class Graph:
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph* g = < gdf_graph *> graph
 
-        cdef gdf_adj_list* adj_ptr
-
-        if(g.adjList):
-            n = g.adjList.offsets.size - 1
-            adj_ptr = g.adjList
-        elif(g.transposedAdjList):
-            n = g.transposedAdjList.offsets.size - 1
-            adj_ptr = g.transposedAdjList
-        else:
-            err = gdf_add_adj_list(g)
-            cudf.bindings.cudf_cpp.check_gdf_error(err)
-            n = g.adjList.offsets.size - 1
-            adj_ptr = g.adjList
+        n = self.num_vertices()
 
         df = cudf.DataFrame()
         vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
         cdef uintptr_t identifier_ptr = create_column(vertex_col)
-        err = adj_ptr.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+        if g.adjList:
+            err = g.adjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+        else:
+            err = g.transposedAdjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         
         degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -598,5 +594,7 @@ class Graph:
             df['degree'] = cudf.Series(np.asarray([degree_col[i] for i in vertex_subset], dtype=np.int32))
             del vertex_col
             del degree_col
-
+        
+        delete_column(identifier_ptr)
+        delete_column(degree_col_ptr)
         return df

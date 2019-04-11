@@ -14,9 +14,18 @@
 import numpy as np
 import pytest
 from scipy.io import mmread
-import networkx as nx
 import cugraph
 import cudf
+
+# Temporarily suppress warnings till networkX fixes deprecation warnings
+# (Using or importing the ABCs from 'collections' instead of from
+# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
+# python 3.7.  Also, this import networkx needs to be relocated in the
+# third-party group once this gets fixed.
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import networkx as nx
 
 
 def read_mtx_file(mm_file):
@@ -207,7 +216,7 @@ def test_delete_edge_list_delete_adj_list(graph_file):
 
 
 DATASETS2 = ['../datasets/karate.mtx',
-             '../datasets/dolphins.mtx']
+            '../datasets/dolphins.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS2)
