@@ -116,6 +116,13 @@ void printv(size_t n, T* vec, int offset) {
     std::cout << std::endl;
 }
 
+template <typename T>
+void random_vals(std::vector<T> & v) {
+  srand(42);
+  for (auto i = 0; i < v.size(); i++)
+    v[i]=static_cast<T>(std::rand()%10);
+}
+
 template <typename T_ELEM>
 void ref_csr2csc (int m, int n, int nnz, const T_ELEM *csrVals, const int *csrRowptr, const int *csrColInd, T_ELEM *cscVals, int *cscRowind, int *cscColptr, int base=0){
     int i,j, row, col, index;

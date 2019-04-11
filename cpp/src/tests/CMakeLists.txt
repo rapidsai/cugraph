@@ -40,34 +40,26 @@ if(RAPIDS_DATASET_ROOT_DIR)
     string(CONCAT CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
 endif(RAPIDS_DATASET_ROOT_DIR)
 
-# - add nvgraph -----------------------------------------------------------------------------------
-#if(NOT TARGET NVGRAPH AND NVG_PLUGIN)
-#    find_path(NVGRAPH_INCLUDE "nvgraph"
-#          HINTS "$ENV{NVGRAPH_ROOT}/include"
-#                "$ENV{CONDA_PREFIX}/include")
-#    find_library(NVGRAPH_LIBRARY "nvgraph_st"
-#             HINTS "$ENV{NVGRAPH_ROOT}/lib"
-#                   "$ENV{CONDA_PREFIX}/lib")
-#
-#    add_library( nvgraph SHARED IMPORTED)
-#    if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
-#        set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
-#        message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
-#    endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
-#endif(NOT TARGET NVGRAPH AND NVG_PLUGIN)
-
 # - compiler function -----------------------------------------------------------------------------
 function(configure_test TEST_NAME Tests_SRCS)
 #    message(STATUS "${TEST_NAME} will link against: gdf, cugraph")
 
     add_executable(${TEST_NAME} ${Tests_SRCS})
-    target_link_libraries(${TEST_NAME} gmock_main gmock GTest::GTest cudart cudf cugraph nvgraph)
+    target_link_libraries(${TEST_NAME} OpenMP::OpenMP_CXX gmock_main gmock GTest::GTest cudart cudf cugraph nvgraph)
     set_target_properties(${TEST_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/")
 
     #register the target as CMake test so we can use ctest for this executable
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 endfunction()
+
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler ${OpenMP_CXX_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
 
 # Configure unit tests with Google Test
 # ------------------
@@ -136,6 +128,13 @@ set(RENUMBERING_TEST_SRCS
         "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
 configure_test(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
+
+set(SNMG_SPMV_TEST_SRCS
+        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_spmv/snmg_spmv_test.cu")
+
+configure_test(SNMG_SPMV_TEST "${SNMG_SPMV_TEST_SRCS}")
+
 
 message(STATUS "******** Tests are ready ********")
 
