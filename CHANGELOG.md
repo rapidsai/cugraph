@@ -4,7 +4,7 @@
 - PR #195 Added Graph.get_two_hop_neighbors() method
 - PR #195 Updated Jaccard and Weighted Jaccard to accept lists of vertex pairs to compute for
 - PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
-...
+- PR #210 Expose degree calculation kernel via python API
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
