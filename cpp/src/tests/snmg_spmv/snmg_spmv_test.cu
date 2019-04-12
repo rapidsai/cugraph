@@ -31,16 +31,6 @@ for (auto i = 0; i < off_h.size(); ++i)
     y[i] += val_h[j]*x[ind_h[j]];
 }
 
-//template <typename idx_t,typename val_t>
-void csrmv (gdf_column * off_h, 
-            gdf_column * ind_h, 
-            gdf_column * val_h,  
-            gdf_column * x,  
-            gdf_column * y) {
-
- std::cout<< "todo" <<std::endl;
-}
-
 // global to local offsets by shifting all offsets by the first offset value
 template <typename T>
 void shift_offsets(std::vector<T> & off_loc) {
@@ -212,9 +202,9 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
       create_gdf_column(x_h, col_x);
       create_gdf_column(y_h, col_y);
 
-      status = csrmv_gdf(col_off, col_ind, col_val, col_x, col_y);
+      status = gdf_snmg_csrmv(col_off, col_ind, col_val, col_x, col_y);
       EXPECT_EQ(status,0);
-      
+
       CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_y->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
       // for (auto j = 0; j < y_h.size(); ++j)

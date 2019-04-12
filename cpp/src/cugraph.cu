@@ -18,7 +18,7 @@
 #include "COOtoCSR.cuh"
 #include "utilities/error_utils.h"
 #include "bfs.cuh"
-
+#include "snmg/spmv.cuh"
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
 #include <thrust/device_vector.h>
@@ -428,4 +428,20 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
   nvgraphLouvain(index_type, val_type, n, e, offsets_ptr, indices_ptr, value_ptr, 1, 0, NULL, 
                  final_modularity, louvain_parts_ptr, num_level);
   return GDF_SUCCESS;
+}
+
+gdf_error gdf_snmg_csrmv (gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column * x, gdf_column * y){
+  //TODO : input check
+
+  // set types
+  gdf_error status;
+  size_t v = off->size - 1;
+  size_t e = ind->size;
+  status = cugraph::snmg_csrmv_impl<int,float>(v, e,
+                                      static_cast<int*>(off->data), 
+                                      static_cast<int*>(ind->data), 
+                                      static_cast<float*>(val->data), 
+                                      static_cast<float*>(x->data), 
+                                      static_cast<float*>(y->data));
+  return status;
 }
