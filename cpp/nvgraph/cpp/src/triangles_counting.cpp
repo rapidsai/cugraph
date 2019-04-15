@@ -58,7 +58,7 @@ TrianglesCount<IndexType>::~TrianglesCount()
 template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_bsh()
 {
-    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
+//    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
     
     if (m_dev_props.sharedMemPerBlock*8 < (size_t)m_mat.nrows) 
     {
@@ -87,7 +87,7 @@ template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_b2b()
 {
 
-    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
+//    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
 
     // allocate a big enough array for output
 
@@ -135,7 +135,7 @@ void TrianglesCount<IndexType>::tcount_b2b()
 template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_wrp()
 {
-    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
+//    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
 
     // allocate a big enough array for output
     Vector<uint64_t> ocnt_d;
@@ -176,7 +176,7 @@ void TrianglesCount<IndexType>::tcount_wrp()
 template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_thr()
 {
-    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
+//    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
 
     int maxblocks = m_dev_props.multiProcessorCount * m_dev_props.maxThreadsPerMultiProcessor / THREADS;
 
