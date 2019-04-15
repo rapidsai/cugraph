@@ -53,7 +53,6 @@ template <typename IndexType>
 TrianglesCount<IndexType>::~TrianglesCount()
 {
     cudaSetDevice(m_dev_id);
-    cudaCheckError();
 }
 
 template <typename IndexType>

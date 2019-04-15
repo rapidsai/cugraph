@@ -33,7 +33,20 @@ void dumy(void* in, void* out ) {
 typedef struct Pagerank_Usecase_t {
   std::string matrix_file;
   std::string result_file;
-  Pagerank_Usecase_t(const std::string& a, const std::string& b) : matrix_file(a), result_file(b){};
+  Pagerank_Usecase_t(const std::string& a, const std::string& b) {
+    // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
+    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    if ((a != "") && (a[0] != '/')) {
+      matrix_file = rapidsDatasetRootDir + "/" + a;
+    } else {
+      matrix_file = a;
+    }
+    if ((b != "") && (b[0] != '/')) {
+      result_file = rapidsDatasetRootDir + "/" + b;
+    } else {
+      result_file = b;
+    }
+  }
   Pagerank_Usecase_t& operator=(const Pagerank_Usecase_t& rhs) {
     matrix_file = rhs.matrix_file;
     result_file = rhs.result_file;
@@ -185,24 +198,24 @@ TEST_P(Tests_Pagerank, CheckFP64) {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Pagerank, 
-                        ::testing::Values(  Pagerank_Usecase("/datasets/networks/karate.mtx", "")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/cit-Patents.mtx", "/datasets/golden_data/results/pagerank/cit-Patents.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/ljournal-2008.mtx", "/datasets/golden_data/results/pagerank/ljournal-2008.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/webbase-1M.mtx", "/datasets/golden_data/results/pagerank/webbase-1M.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/web-BerkStan.mtx", "/datasets/golden_data/results/pagerank/web-BerkStan.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/web-Google.mtx", "/datasets/golden_data/results/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/wiki-Talk.mtx", "/datasets/golden_data/results/pagerank/wiki-Talk.pagerank_val_0.85.bin")
-                                            //,Pagerank_Usecase("/datasets/bb_lt250m_4.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/bb_lt250m_3.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/caidaRouterLevel.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/citationCiteseer.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/coPapersDBLP.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/coPapersCiteseer.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/as-Skitter.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/hollywood.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/europe_osm.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/soc-LiveJournal1.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/twitter.mtx", "")
+                        ::testing::Values(  Pagerank_Usecase("networks/karate.mtx", "")
+                                            ,Pagerank_Usecase("golden_data/graphs/cit-Patents.mtx", "golden_data/results/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("golden_data/graphs/ljournal-2008.mtx", "golden_data/results/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("golden_data/graphs/webbase-1M.mtx", "golden_data/results/pagerank/webbase-1M.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("golden_data/graphs/web-BerkStan.mtx", "golden_data/results/pagerank/web-BerkStan.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("golden_data/graphs/web-Google.mtx", "golden_data/results/pagerank/web-Google.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("golden_data/graphs/wiki-Talk.mtx", "golden_data/results/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            //,Pagerank_Usecase("bb_lt250m_4.mtx", "")
+                                            //,Pagerank_Usecase("bb_lt250m_3.mtx", "")
+                                            //,Pagerank_Usecase("caidaRouterLevel.mtx", "")
+                                            //,Pagerank_Usecase("citationCiteseer.mtx", "")
+                                            //,Pagerank_Usecase("coPapersDBLP.mtx", "")
+                                            //,Pagerank_Usecase("coPapersCiteseer.mtx", "")
+                                            //,Pagerank_Usecase("as-Skitter.mtx", "")
+                                            //,Pagerank_Usecase("hollywood.mtx", "")
+                                            //,Pagerank_Usecase("europe_osm.mtx", "")
+                                            //,Pagerank_Usecase("soc-LiveJournal1.mtx", "")
+                                            //,Pagerank_Usecase("twitter.mtx", "")
                                          )
                        );
 
