@@ -194,7 +194,7 @@ void TrianglesCount<IndexType>::tcount_thr()
 template <typename IndexType>
 NVGRAPH_ERROR TrianglesCount<IndexType>::count(TrianglesCountAlgo algo)
 {
-  std::cout << "Starting TrianglesCount::count, Algo=" << algo << "\n";
+//  std::cout << "Starting TrianglesCount::count, Algo=" << algo << "\n";
     switch(algo)
     {
         case TCOUNT_BSH:
