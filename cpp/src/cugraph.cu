@@ -489,6 +489,7 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
       case GDF_INT32: cuda_dtype = CUDA_R_32I; break;
       case GDF_FLOAT32: cuda_dtype = CUDA_R_32F; break;
       case GDF_FLOAT64: cuda_dtype = CUDA_R_64F; break;
+      default: throw new std::invalid_argument("Cannot convert data type");
       }return cuda_dtype;
   };
 
