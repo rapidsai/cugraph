@@ -144,7 +144,7 @@ class Graph:
         else:
             self.edge_list_source_col = source_col.copy();
             self.edge_list_dest_col = dest_col.copy();
-            self_edge_list_value_col = value_col.copy();
+            self.edge_list_value_col = value_col.copy();
 
         cdef uintptr_t graph = self.graph_ptr
         cdef uintptr_t source = create_column(self.edge_list_source_col)

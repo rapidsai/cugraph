@@ -26,6 +26,7 @@
 - PR #214 Removed throw exception from dtor in TC
 - PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
 - PR #206 Updated versions in conda envs
+- PR #218 Update c_graph.pyx 
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
