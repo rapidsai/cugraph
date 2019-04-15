@@ -4,6 +4,7 @@
 - PR #195 Added Graph.get_two_hop_neighbors() method
 - PR #195 Updated Jaccard and Weighted Jaccard to accept lists of vertex pairs to compute for
 - PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
+- PR #220 Added bindings for Nvgraph triangle counting
 ...
 
 ## Improvements
@@ -23,6 +24,7 @@
 - PR #190 Fixed a memory reference counting error between cudf & cugraph
 - PR #190 Fixed a language level warning (cython)
 - PR #206 Updated versions in conda envs
+- PR #220 Fixed bugs in Nvgraph triangle counting
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
