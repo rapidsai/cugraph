@@ -937,7 +937,10 @@ namespace nvgraph
 
             if (c > -1)
               atomicOr(bmap + c / BITSOF(bmap), ((MAP_T) 1) << (c % BITSOF(bmap)));
+          }
 
+          for (OFF_T i = rbeg; i < rend; i+= 32) {
+            const ROW_T c = (i + threadIdx.x < rend) ? cols[i + threadIdx.x] : -1;
             sho[threadIdx.y][threadIdx.x] = (c > -1) ? roff[c] : 0;
             shc[threadIdx.y][threadIdx.x] = c;
 
