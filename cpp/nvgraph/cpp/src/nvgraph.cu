@@ -3514,7 +3514,7 @@ namespace nvgraph
 			if (descrG->TT != NVGRAPH_CSR_32 && descrG->TT != NVGRAPH_CSC_32) // supported topologies
 				return NVGRAPH_STATUS_INVALID_VALUE;
 
-			if (!(descrG->graphStatus & HAS_TOPOLOGY))
+			if (descrG->graphStatus != HAS_TOPOLOGY && descrG->graphStatus != HAS_VALUES)
 			{
 				return NVGRAPH_STATUS_INVALID_VALUE; // should have topology
 			}
