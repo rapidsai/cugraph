@@ -9,7 +9,7 @@
  *
  */
 
-// Pagerank solver
+// snmg spmv
 // Author: Alex Fender afender@nvidia.com
  
 #pragma once
@@ -30,22 +30,8 @@ gdf_error csrmv_allgather (size_t* part_off, val_t* y_loc, val_t ** x) {
   auto i = omp_get_thread_num();
   auto p = omp_get_num_threads();  
   size_t v_loc= part_off[i+1]-part_off[i];
-  /*
-  for (int j = 0; j < p; ++j) {
-    
-    if (i != j) {
-      int canAccessPeer = 0;
-      CUDA_TRY(cudaDeviceCanAccessPeer(&canAccessPeer, i, j));
-      if (canAccessPeer) {
-        CUDA_TRY(cudaDeviceEnablePeerAccess(j, 0));
-      }
-      else {
-        std::cout << "P2P access required from " << i << " to " << j << std::endl;
-      }
-    }
-  }
-  */
-
+  // send the local spmv output (y_loc) to all peers to reconstruct the global vector x 
+  // After this call each peer has a full, updated, copy of x
   for (int j = 0; j < p; ++j)
     CUDA_TRY(cudaMemcpy(x[j]+part_off[i], y_loc, v_loc*sizeof(val_t),cudaMemcpyDeviceToDevice));
   
@@ -56,28 +42,19 @@ gdf_error csrmv_allgather (size_t* part_off, val_t* y_loc, val_t ** x) {
 }
 
 template <typename idx_t,typename val_t>
-gdf_error snmg_csrmv (size_t* part_off, size_t v_glob, size_t e_loc, 
-                      idx_t * off, idx_t * ind, val_t * val, val_t ** x) {
+gdf_error snmg_csrmv (size_t* part_off, idx_t * off, idx_t * ind, val_t * val, val_t ** x) {
   sync_all();
-
   void* cub_d_temp_storage = NULL;
   size_t cub_temp_storage_bytes = 0;
   cudaStream_t stream{nullptr};
   auto i = omp_get_thread_num();
   auto p = omp_get_num_threads(); 
-  size_t v_loc= part_off[i+1]-part_off[i];
+  size_t v_glob = part_off[p];
+  size_t v_loc = part_off[i+1]-part_off[i];
+  idx_t tmp;
+  CUDA_TRY(cudaMemcpy(&tmp, &off[v_loc], sizeof(idx_t),cudaMemcpyDeviceToHost));
+  size_t e_loc = tmp;
   val_t* y_loc;
-  
-  #ifdef SNMG_DEBUG
-    #pragma omp master 
-    { 
-      std::cout << v_loc << std::endl;
-      std::cout << v_glob << std::endl;
-      std::cout << e_loc << std::endl;
-      std::cout << "Thread "<< i << ", Vector :"<< j << ", Address:"<< x[j] <<std::endl;
-    }
-    #pragma omp barrier 
-  #endif
 
   // Allocate the local result
   ALLOC_MANAGED_TRY ((void**)&y_loc, v_loc*sizeof(val_t), stream);
@@ -88,7 +65,7 @@ gdf_error snmg_csrmv (size_t* part_off, size_t v_glob, size_t e_loc,
   // Allocate CUB's temporary storage
   ALLOC_MANAGED_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
 
-  // SPMV
+  // Local SPMV
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
   	                              val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc));
   // Free CUB's temporary storage

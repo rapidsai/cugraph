@@ -17,7 +17,7 @@
 #include "test_utils.h"
 #include <unistd.h>
 
-#define SNMG_VERBOSE
+//#define SNMG_VERBOSE
 
 // ref SPMV on the host
 template <typename idx_t,typename val_t>
@@ -80,10 +80,15 @@ void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::v
   auto i = omp_get_thread_num();
   auto p = omp_get_num_threads(); 
   edge_partioning(off_h, part_offset, v_loc, e_loc);
-
+  
+  ASSERT_EQ(part_offset[i+1]-part_offset[i], v_loc[i]);
+  
   std::vector<idx_t> off_loc(off_h.begin()+part_offset[i],off_h.begin()+part_offset[i+1]+1), 
                      ind_loc(ind_h.begin()+off_h[part_offset[i]],ind_h.begin()+off_h[part_offset[i+1]]);
   std::vector<val_t> val_loc(val_h.begin()+off_h[part_offset[i]],val_h.begin()+off_h[part_offset[i+1]]);
+  ASSERT_EQ(off_loc.size(), v_loc[i]+1);
+  ASSERT_EQ(ind_loc.size(), e_loc[i]);
+  ASSERT_EQ(val_loc.size(), e_loc[i]);
 
   #ifdef SNMG_VERBOSE
   #pragma omp barrier 
@@ -107,7 +112,11 @@ void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::v
 
   shift_offsets(off_loc);
 
+  ASSERT_EQ(off_loc[part_offset[i+1]-part_offset[i]],e_loc[i]);
+
   create_gdf_column(off_loc, col_off);
+  ASSERT_EQ(off_loc.size(), col_off->size);
+
   create_gdf_column(ind_loc, col_ind);
   create_gdf_column(val_loc, col_val);
 }
@@ -204,7 +213,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
                    col_off, col_ind, col_val);
 
       //printv(col_val->size,(float*)col_val->data,0);
-      status = gdf_snmg_csrmv(&part_offset[0], m, col_off, col_ind, col_val, col_x);
+      status = gdf_snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
       EXPECT_EQ(status,0);
 
 
@@ -230,19 +239,19 @@ TEST_P(Tests_MGSpmv, CheckFP32) {
     run_current_test<int, float>(GetParam());
 }
 
-//TEST_P(Tests_MGSpmv, CheckFP64) {
-//    run_current_test<int,double>(GetParam());
-//}
+TEST_P(Tests_MGSpmv, CheckFP64) {
+    run_current_test<int,double>(GetParam());
+}
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_MGSpmv, 
                         ::testing::Values(  MGSpmv_Usecase("networks/karate.mtx")
-                                            //,MGSpmv_Usecase("golden_data/graphs/cit-Patents.mtx")
-                                            //,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
-                                            //,MGSpmv_Usecase("golden_data/graphs/webbase-1M.mtx")
-                                            //,MGSpmv_Usecase("networks/netscience.mtx")
+                                            ,MGSpmv_Usecase("golden_data/graphs/cit-Patents.mtx")
+                                            ,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
+                                            ,MGSpmv_Usecase("golden_data/graphs/webbase-1M.mtx")
+                                            ,MGSpmv_Usecase("networks/netscience.mtx")
                                             ,MGSpmv_Usecase("golden_data/graphs/web-Google.mtx")
-                                            //,MGSpmv_Usecase("golden_data/graphs/wiki-Talk.mtx")
+                                            ,MGSpmv_Usecase("golden_data/graphs/wiki-Talk.mtx")
                                          )
                        );
 
