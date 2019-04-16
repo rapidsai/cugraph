@@ -5,6 +5,8 @@
 - PR #195 Updated Jaccard and Weighted Jaccard to accept lists of vertex pairs to compute for
 - PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
 - PR #210 Expose degree calculation kernel via python API
+- PR #220 Added bindings for Nvgraph triangle counting
+...
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
@@ -27,6 +29,7 @@
 - PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
 - PR #206 Updated versions in conda envs
 - PR #218 Update c_graph.pyx 
+- PR #220 Fixed bugs in Nvgraph triangle counting
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
