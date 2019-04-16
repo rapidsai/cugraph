@@ -13,6 +13,7 @@
 
 from c_graph cimport *
 from libcpp cimport bool
+from libc.stdint cimport uint64_t
 
 cdef extern from "nvgraph_gdf.h":
 
@@ -51,4 +52,6 @@ cdef extern from "nvgraph_gdf.h":
     cdef gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
                                                             const int n_clusters,
                                                             gdf_column* clustering,
-                                                            float* score)                               
+                                                            float* score) 
+    
+    cdef gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result)                              
