@@ -78,12 +78,12 @@ cpdef spectralBalancedCutClustering(G,
     # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
-    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['cluster'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
-    cdef uintptr_t cluster_ptr = create_column(df['cluster'])
+    cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
     
     # Set the vertex identifiers
-    err = g.adjList.get_vertex_identifiers(< gdf_column *> identifier_ptr)
+    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     err = gdf_balancedCutClustering_nvgraph(g,
@@ -93,7 +93,7 @@ cpdef spectralBalancedCutClustering(G,
                                             evs_max_iter,
                                             kmean_tolerance,
                                             kmean_max_iter,
-                                            < gdf_column *> cluster_ptr)
+                                            &c_cluster_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
@@ -155,12 +155,12 @@ cpdef spectralModularityMaximizationClustering(G,
     # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
-    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['cluster'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
-    cdef uintptr_t cluster_ptr = create_column(df['cluster'])
+    cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
     
     # Set the vertex identifiers
-    err = g.adjList.get_vertex_identifiers(< gdf_column *> identifier_ptr)
+    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     err = gdf_spectralModularityMaximization_nvgraph(g,
@@ -170,7 +170,7 @@ cpdef spectralModularityMaximizationClustering(G,
                                                      evs_max_iter,
                                                      kmean_tolerance,
                                                      kmean_max_iter,
-                                                     < gdf_column *> cluster_ptr)
+                                                     &c_cluster_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
@@ -209,9 +209,9 @@ cpdef analyzeClustering_modularity(G, n_clusters, clustering):
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     
-    cdef uintptr_t clustering_ptr = create_column(clustering)
+    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_modularity_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
+    err = gdf_AnalyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
 
@@ -249,9 +249,9 @@ cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     
-    cdef uintptr_t clustering_ptr = create_column(clustering)
+    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_edge_cut_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
+    err = gdf_AnalyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
 
@@ -289,8 +289,8 @@ cpdef analyzeClustering_ratio_cut(G, n_clusters, clustering):
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     
-    cdef uintptr_t clustering_ptr = create_column(clustering)
+    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_ratio_cut_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
+    err = gdf_AnalyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score

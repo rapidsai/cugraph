@@ -64,16 +64,16 @@ cpdef sssp(G, source):
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=np.int32))
-    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['distance'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=data_type))
-    cdef uintptr_t distance_ptr = create_column(df['distance'])
+    cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
 
-    err = g.transposedAdjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+    err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     cdef int[1] sources
     sources[0] = source
-    err = gdf_sssp_nvgraph(<gdf_graph*>graph, sources, <gdf_column*>distance_ptr)
+    err = gdf_sssp_nvgraph(g, sources, &c_distance_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df

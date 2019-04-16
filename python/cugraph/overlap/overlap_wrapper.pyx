@@ -73,22 +73,22 @@ cpdef overlap(input_graph, first=None, second=None):
     err = gdf_add_adj_list(< gdf_graph *> graph)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    cdef uintptr_t result_ptr
-    cdef uintptr_t first_ptr
-    cdef uintptr_t second_ptr
-    cdef uintptr_t src_indices_ptr
+    cdef gdf_column c_result_col
+    cdef gdf_column c_first_col
+    cdef gdf_column c_second_col
+    cdef gdf_column c_src_index_col
 
     if type(first) == cudf.dataframe.series.Series and type(second) == cudf.dataframe.series.Series:
         resultSize = len(first)
         result = cudf.Series(np.ones(resultSize, dtype=np.float32))
-        result_ptr = create_column(result)
-        first_ptr = create_column(first)
-        second_ptr = create_column(second)
+        c_result_col = get_gdf_column_view(result)
+        c_first_col = get_gdf_column_view(first)
+        c_second_col = get_gdf_column_view(second)
         err = gdf_overlap_list(g,
                                < gdf_column *> NULL,
-                               < gdf_column *> first_ptr,
-                               < gdf_column *> second_ptr,
-                               < gdf_column *> result_ptr)
+                               &c_first_col,
+                               &c_second_col,
+                               &c_result_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df = cudf.DataFrame()
         df['source'] = first
@@ -99,9 +99,9 @@ cpdef overlap(input_graph, first=None, second=None):
     elif first is None and second is None:
         e = g.adjList.indices.size
         result = cudf.Series(np.ones(e, dtype=np.float32), nan_as_null=False)
-        result_ptr = create_column(result)
+        c_result_col = get_gdf_column_view(result)
 
-        err = gdf_overlap(g, < gdf_column *> NULL, < gdf_column *> result_ptr)
+        err = gdf_overlap(g, < gdf_column *> NULL, &c_result_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         dest_data = rmm.device_array_from_ptr(< uintptr_t > g.adjList.indices.data,
@@ -109,8 +109,8 @@ cpdef overlap(input_graph, first=None, second=None):
                                             dtype=gdf_to_np_dtypes[g.adjList.indices.dtype])
         df = cudf.DataFrame()
         df['source'] = cudf.Series(np.zeros(e, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
-        src_indices_ptr = create_column(df['source']) 
-        err = g.adjList.get_source_indices(< gdf_column *> src_indices_ptr);
+        c_src_index_col = get_gdf_column_view(df['source']) 
+        err = g.adjList.get_source_indices(&c_src_index_col);
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df['destination'] = cudf.Series(dest_data)
         df['overlap_coeff'] = result

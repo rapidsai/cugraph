@@ -56,16 +56,16 @@ cpdef nvLouvain(input_graph):
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(n, dtype=np.int32))
-    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
-    err = g.adjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+    cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
+    err = g.adjList.get_vertex_identifiers(&c_index_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     
     df['partition'] = cudf.Series(np.zeros(n,dtype=np.int32))
-    cdef uintptr_t louvain_parts_col_ptr = create_column(df['partition'])
+    cdef gdf_column c_louvain_parts_col = get_gdf_column_view(df['partition'])
     cdef double final_modularity = 1.0
     cdef int num_level
 
-    err = gdf_louvain(<gdf_graph*>g, <void*>&final_modularity, <void*>&num_level, <gdf_column*>louvain_parts_col_ptr)
+    err = gdf_louvain(<gdf_graph*>g, <void*>&final_modularity, <void*>&num_level, &c_louvain_parts_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     cdef double fm = final_modularity
@@ -75,4 +75,4 @@ cpdef nvLouvain(input_graph):
             fm = tmp
     else:
         fm = tmp
-    return df, fm                                      
+    return df, fm
