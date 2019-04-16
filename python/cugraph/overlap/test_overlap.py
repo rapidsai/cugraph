@@ -43,7 +43,7 @@ def cugraph_call(M, first, second, edgevals=False):
     G = cugraph.Graph()
     G.add_adj_list(row_offsets, col_indices, values)
 
-    # cugraph Jaccard Call
+    # cugraph Overlap Call
     t1 = time.time()
     df = cugraph.overlap(G, first, second)
     t2 = time.time() - t1

@@ -70,7 +70,7 @@ def networkx_call(M):
     Gnx = nx.Graph(M)
     # z = {k: 1.0/M.shape[0] for k in range(M.shape[0])}
 
-    # Networkx Jaccard Call
+    # Networkx louvain Call
     print('Solving... ')
     t1 = time.time()
     parts = community.best_partition(Gnx)

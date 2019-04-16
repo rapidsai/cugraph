@@ -29,6 +29,7 @@
 - PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
 - PR #206 Updated versions in conda envs
 - PR #218 Update c_graph.pyx 
+- PR #224 Update erroneous comments in overlap_wrapper.pyx, woverlap_wrapper.pyx, test_louvain.py, and spectral_clustering.pyx
 - PR #220 Fixed bugs in Nvgraph triangle counting
 
 # cuGraph 0.6.0 (22 Mar 2019)

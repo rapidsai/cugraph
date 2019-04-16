@@ -51,7 +51,8 @@ cpdef spectralBalancedCutClustering(G,
     
     Returns
     -------
-    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the corresponding SSSP distances.
+    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the 
+      corresponding cluster assignments.
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
         
@@ -127,7 +128,8 @@ cpdef spectralModularityMaximizationClustering(G,
     
     Returns
     -------
-    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the corresponding SSSP distances.
+    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and 
+      the corresponding cluster assignments.
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
         

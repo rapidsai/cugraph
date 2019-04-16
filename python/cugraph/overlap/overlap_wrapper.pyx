@@ -50,12 +50,12 @@ cpdef overlap(input_graph, first=None, second=None):
     -------
     df  : cudf.DataFrame
       GPU data frame of size E (the default) or the size of the given pairs (first, second) 
-      containing the Jaccard weights. The ordering is relative to the adjacency list, or that
+      containing the Overlap coefficients. The ordering is relative to the adjacency list, or that
       given by the specified vertex pairs.
       
       df['source']: The source vertex ID (will be identical to first if specified)
       df['destination']: The destination vertex ID (will be identical to second if specified)
-      df['overlap_coeff']: The computed Jaccard coefficient between the source and destination
+      df['overlap_coeff']: The computed Overlap coefficient between the source and destination
         vertices
  
     Examples

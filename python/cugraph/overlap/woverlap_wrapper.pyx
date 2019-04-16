@@ -56,12 +56,12 @@ cpdef overlap_w(input_graph, weights, first=None, second=None):
     -------
     df  : cudf.DataFrame
       GPU data frame of size E (the default) or the size of the given pairs (first, second) 
-      containing the Jaccard weights. The ordering is relative to the adjacency list, or that
+      containing the overlap coefficients. The ordering is relative to the adjacency list, or that
       given by the specified vertex pairs.
           
       df['source']: The source vertex ID
       df['destination']: The destination vertex ID
-      df['overlap_coeff']: The computed weighted Jaccard coefficient between 
+      df['overlap_coeff']: The computed weighted Overlap coefficient between 
           the source and destination vertices. 
     Examples
     --------
@@ -70,7 +70,7 @@ cpdef overlap_w(input_graph, weights, first=None, second=None):
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,None)
-    >>> jaccard_weights = cugraph.jaccard_w(G, weights)
+    >>> overlap = cugraph.overlap_w(G, weights)
     """
 
     cdef uintptr_t graph = input_graph.graph_ptr
