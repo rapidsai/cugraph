@@ -58,7 +58,7 @@ cpdef spectralBalancedCutClustering(G,
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -135,7 +135,7 @@ cpdef spectralModularityMaximizationClustering(G,
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -194,7 +194,7 @@ cpdef analyzeClustering_modularity(G, n_clusters, clustering):
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -234,7 +234,7 @@ cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -274,7 +274,7 @@ cpdef analyzeClustering_ratio_cut(G, n_clusters, clustering):
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()

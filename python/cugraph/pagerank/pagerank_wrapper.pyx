@@ -50,7 +50,7 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
 
     Examples
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
