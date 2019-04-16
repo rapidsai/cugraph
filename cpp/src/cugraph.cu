@@ -430,18 +430,25 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
   return GDF_SUCCESS;
 }
 
-gdf_error gdf_snmg_csrmv (gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column * x, gdf_column * y){
+template <typename idx_t,typename val_t>
+gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, size_t v_glob, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){
   //TODO : input check
 
   // set types
   gdf_error status;
-  size_t v = off->size - 1;
-  size_t e = ind->size;
-  status = cugraph::snmg_csrmv_impl<int,float>(v, e,
-                                      static_cast<int*>(off->data), 
-                                      static_cast<int*>(ind->data), 
-                                      static_cast<float*>(val->data), 
-                                      static_cast<float*>(x->data), 
-                                      static_cast<float*>(y->data));
+  size_t e_loc = ind->size; 
+  auto p = omp_get_num_threads(); 
+  val_t* x[p];
+  for (auto i = 0; i < p; ++i)
+    x[i]= static_cast<val_t*>(x_cols[i]->data);
+  status = cugraph::snmg_csrmv<idx_t,val_t>(part_offsets, v_glob, e_loc,
+                                      static_cast<idx_t*>(off->data), 
+                                      static_cast<idx_t*>(ind->data), 
+                                      static_cast<val_t*>(val->data), 
+                                      x);
   return status;
+}
+
+gdf_error gdf_snmg_csrmv (size_t * part_offsets, size_t v_glob, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){
+  return gdf_snmg_csrmv_impl<int,float>(part_offsets, v_glob, off, ind, val, x_cols);
 }

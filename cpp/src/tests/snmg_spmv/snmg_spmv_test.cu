@@ -15,10 +15,10 @@
 #include <cugraph.h>
 #include <omp.h>
 #include "test_utils.h"
-//#include "snmg_test_utils.h"
 
 #define SNMG_VERBOSE
 
+// ref SPMV on the host
 template <typename idx_t,typename val_t>
 void csrmv_h (std::vector<idx_t> & off_h, 
                       std::vector<idx_t> & ind_h, 
@@ -26,7 +26,7 @@ void csrmv_h (std::vector<idx_t> & off_h,
                       std::vector<val_t> & x,  
                       std::vector<val_t> & y) {
 #pragma omp for
-for (auto i = 0; i < off_h.size(); ++i) 
+for (auto i = 0; i < y.size(); ++i) 
   for (auto j = off_h[i]; j <  off_h[i+1]; ++j) 
     y[i] += val_h[j]*x[ind_h[j]];
 }
@@ -41,7 +41,7 @@ void shift_offsets(std::vector<T> & off_loc) {
 
 // 1D partitioning such as each GPU has about the same number of edges
 template <typename T>
-void edge_partioning(std::vector<T> & off_h, std::vector<T> & part_offset, std::vector<T> & v_loc, std::vector<T> & e_loc) {
+void edge_partioning(std::vector<T> & off_h, std::vector<size_t> & part_offset, std::vector<size_t> & v_loc, std::vector<size_t> & e_loc) {
   auto i = omp_get_thread_num();
   auto p = omp_get_num_threads();
 
@@ -72,7 +72,7 @@ void edge_partioning(std::vector<T> & off_h, std::vector<T> & part_offset, std::
 
 template <typename idx_t,typename val_t>
 void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::vector<val_t> & val_h, 
-                  std::vector<idx_t> & v_loc, std::vector<idx_t> & e_loc, std::vector<idx_t> & part_offset,
+                  std::vector<size_t> & v_loc, std::vector<size_t> & e_loc, std::vector<size_t> & part_offset,
                   gdf_column* col_off, gdf_column* col_ind, gdf_column* col_val)
 {
  
@@ -80,14 +80,16 @@ void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::v
   auto p = omp_get_num_threads(); 
   edge_partioning(off_h, part_offset, v_loc, e_loc);
 
-  std::vector<idx_t> off_loc(off_h.begin()+part_offset[i],off_h.begin()+part_offset[i+1]), 
-                     ind_loc(ind_h.begin()+part_offset[i],ind_h.begin()+part_offset[i+1]), 
-                     val_loc(val_h.begin()+part_offset[i],val_h.begin()+part_offset[i+1]);
+  std::vector<idx_t> off_loc(off_h.begin()+part_offset[i],off_h.begin()+part_offset[i+1]+1), 
+                     ind_loc(ind_h.begin()+off_h[part_offset[i]],ind_h.begin()+off_h[part_offset[i+1]]);
+  std::vector<val_t> val_loc(val_h.begin()+off_h[part_offset[i]],val_h.begin()+off_h[part_offset[i+1]]);
 
   #ifdef SNMG_VERBOSE
   #pragma omp barrier 
   #pragma omp master 
   { 
+    std::cout << off_h[part_offset[i]]<< std::endl;
+    std::cout << off_h[part_offset[i+1]]<< std::endl;
     for (auto j = part_offset.begin(); j != part_offset.end(); ++j)
       std::cout << *j << ' ';
     std::cout << std::endl;
@@ -108,7 +110,6 @@ void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::v
   create_gdf_column(ind_loc, col_ind);
   create_gdf_column(val_loc, col_val);
 }
-
 
 typedef struct MGSpmv_Usecase_t {
   std::string matrix_file;
@@ -162,16 +163,17 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
      std::vector<val_t> cooVal(nnz), csrVal(nnz), x_h(m, 1.0), y_h(m, 0.0), y_ref(m, 0.0);
 
      // Read
-     ASSERT_EQ( (mm_to_coo<int,val_t>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
+     ASSERT_EQ( (mm_to_coo<int,val_t>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], NULL, NULL)) , 0)<< "could not read matrix data"<< "\n";
      ASSERT_EQ(fclose(fpin),0);
-     ASSERT_EQ( (coo_to_csr<int,val_t> (m, m, nnz, &cooRowInd[0],  &csrColInd[0], &csrVal[0], NULL, &csrRowPtr[0], NULL, NULL, NULL)), 0) << "could not covert COO to CSR "<< "\n";
+     //ASSERT_EQ( (coo_to_csr<int,val_t> (m, m, nnz, &cooRowInd[0],  &cooColInd[0], NULL, NULL, &csrRowPtr[0], NULL, NULL, NULL)), 0) << "could not covert COO to CSR "<< "\n";
+     coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
 
      CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
-     std::vector<idx_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
+     std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
      random_vals(csrVal);
-
+     gdf_column *col_x[n_gpus];
      //reference result
-     csrmv_h (csrRowPtr, csrColInd, csrVal, x_h, y_ref);
+     csrmv_h (csrRowPtr, cooColInd, csrVal, x_h, y_ref);
 
      #pragma omp parallel num_threads(n_gpus)
      {
@@ -188,33 +190,30 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
 
       gdf_column *col_off = new gdf_column, 
                  *col_ind = new gdf_column, 
-                 *col_val = new gdf_column,
-                 *col_x = new gdf_column,
-                 *col_y = new gdf_column;
+                 *col_val = new gdf_column;
+      col_x[i] = new gdf_column;
 
       CUDA_RT_CALL(cudaSetDevice(i));
 
       //load a chunck of the graph on each GPU 
-      load_csr_loc(csrRowPtr, csrColInd, csrVal, 
+      load_csr_loc(csrRowPtr, cooColInd, csrVal, 
                    v_loc, e_loc, part_offset,
                    col_off, col_ind, col_val);
 
-      create_gdf_column(x_h, col_x);
-      create_gdf_column(y_h, col_y);
-
-      status = gdf_snmg_csrmv(col_off, col_ind, col_val, col_x, col_y);
+      create_gdf_column(x_h, col_x[i]);
+      //printv(col_val->size,(float*)col_val->data,0);
+      status = gdf_snmg_csrmv(&part_offset[0], m, col_off, col_ind, col_val, col_x);
       EXPECT_EQ(status,0);
-
-      CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_y->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
-
-      // for (auto j = 0; j < y_h.size(); ++j)
-      //  EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
+      #pragma omp master 
+      { 
+        for (auto j = 0; j < y_h.size(); ++j)
+          EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
+      }
 
       gdf_col_delete(col_off);
       gdf_col_delete(col_ind);
       gdf_col_delete(col_val);
-      gdf_col_delete(col_x);
-      gdf_col_delete(col_y);
+      gdf_col_delete(col_x[i]);
     }
   }
 };
@@ -231,10 +230,10 @@ TEST_P(Tests_MGSpmv, CheckFP32) {
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_MGSpmv, 
                         ::testing::Values(  MGSpmv_Usecase("networks/karate.mtx")
-                                            ,MGSpmv_Usecase("golden_data/graphs/cit-Patents.mtx")
-                                            ,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
+                                            //,MGSpmv_Usecase("golden_data/graphs/cit-Patents.mtx")
+                                            //,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
                                             //,MGSpmv_Usecase("golden_data/graphs/webbase-1M.mtx")
-                                            //,MGSpmv_Usecase("golden_data/graphs/web-BerkStan.mtx")
+                                            //,MGSpmv_Usecase("networks/netscience.mtx")
                                             //,MGSpmv_Usecase("golden_data/graphs/web-Google.mtx")
                                             //,MGSpmv_Usecase("golden_data/graphs/wiki-Talk.mtx")
                                          )

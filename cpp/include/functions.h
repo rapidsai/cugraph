@@ -144,5 +144,4 @@ gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph);
  * @return GDF_SUCCESS upon successful completion. */
 gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
 
-
-gdf_error gdf_snmg_csrmv (gdf_column * off_h, gdf_column * ind_h, gdf_column * val_h, gdf_column * x, gdf_column * y);
+gdf_error gdf_snmg_csrmv (size_t * part_offsets, size_t v_glob, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
