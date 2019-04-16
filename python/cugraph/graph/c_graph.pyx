@@ -36,12 +36,12 @@ cdef gdf_column get_gdf_column_view(col):
     # cdef uintptr_t valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
     cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
 
-    err = gdf_column_view_augmented(< gdf_column *> &c_col,
-                                    < void *> data_ptr,
-                                    < gdf_valid_type *> 0,
-                                    < gdf_size_type > len(col),
+    err = gdf_column_view_augmented(<gdf_column*> &c_col,
+                                    <void*> data_ptr,
+                                    <gdf_valid_type*> 0,
+                                    <gdf_size_type> len(col),
                                     dtypes[col.dtype.type],
-                                    < gdf_size_type > col.null_count,
+                                    <gdf_size_type> col.null_count,
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
@@ -63,9 +63,9 @@ class Graph:
         >>> G = cuGraph.Graph()
         """
         cdef gdf_graph * g
-        g = < gdf_graph *> calloc(1, sizeof(gdf_graph))
+        g = <gdf_graph*> calloc(1, sizeof(gdf_graph))
 
-        cdef uintptr_t graph_ptr = < uintptr_t > g
+        cdef uintptr_t graph_ptr = <uintptr_t> g
         self.graph_ptr = graph_ptr
 
         self.edge_list_source_col = None
@@ -78,7 +78,7 @@ class Graph:
 
     def __del__(self):
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph * g = < gdf_graph *> graph
+        cdef gdf_graph * g = <gdf_graph*> graph
         self.delete_edge_list()
         self.delete_adj_list()
         self.delete_transposed_adj_list()
@@ -155,7 +155,7 @@ class Graph:
             c_value_col = get_gdf_column_view(self.edge_list_value_col)
             c_value_col_ptr = &c_value_col
 
-        err = gdf_edge_list_view(< gdf_graph *> graph,
+        err = gdf_edge_list_view(<gdf_graph*> graph,
                                  &c_source_col,
                                  &c_dest_col,
                                  c_value_col_ptr)
@@ -166,7 +166,7 @@ class Graph:
         Get the number of vertices in the graph
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph * g = < gdf_graph *> graph
+        cdef gdf_graph * g = <gdf_graph*> graph
         if g.adjList:
             return g.adjList.offsets.size - 1
         elif g.transposedAdjList:
@@ -181,14 +181,14 @@ class Graph:
         Display the edge list. Compute it if needed.
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph * g = < gdf_graph *> graph
+        cdef gdf_graph * g = <gdf_graph*> graph
         err = gdf_add_edge_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         col_size = g.edgeList.src_indices.size
 
-        cdef uintptr_t src_col_data = < uintptr_t > g.edgeList.src_indices.data
-        cdef uintptr_t dest_col_data = < uintptr_t > g.edgeList.dest_indices.data
+        cdef uintptr_t src_col_data = <uintptr_t> g.edgeList.src_indices.data
+        cdef uintptr_t dest_col_data = <uintptr_t> g.edgeList.dest_indices.data
 
         src_data = rmm.device_array_from_ptr(src_col_data,
                                      nelem=col_size,
@@ -209,7 +209,7 @@ class Graph:
         Delete the edge list.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_delete_edge_list(< gdf_graph *> graph)
+        err = gdf_delete_edge_list(<gdf_graph*> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         # decrease reference count to free memory if the referenced objects are
@@ -293,7 +293,7 @@ class Graph:
             c_value_col = get_gdf_column_view(self.adj_list_value_col)
             c_value_col_ptr = &c_value_col
 
-        err = gdf_adj_list_view(< gdf_graph *> graph,
+        err = gdf_adj_list_view(<gdf_graph*> graph,
                                 &c_offset_col,
                                 &c_index_col,
                                 c_value_col_ptr)
@@ -304,15 +304,15 @@ class Graph:
         Display the adjacency list. Compute it if needed.
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph * g = < gdf_graph *> graph
+        cdef gdf_graph * g = <gdf_graph*> graph
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         col_size_off = g.adjList.offsets.size
         col_size_ind = g.adjList.indices.size
 
-        cdef uintptr_t offset_col_data = < uintptr_t > g.adjList.offsets.data
-        cdef uintptr_t index_col_data = < uintptr_t > g.adjList.indices.data
+        cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
+        cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices.data
 
         offsets_data = rmm.device_array_from_ptr(offset_col_data,
                                      nelem=col_size_off,
@@ -333,7 +333,7 @@ class Graph:
         Delete the adjacency list.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_delete_adj_list(< gdf_graph *> graph)
+        err = gdf_delete_adj_list(<gdf_graph*> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         # decrease reference count to free memory if the referenced objects are
@@ -348,7 +348,7 @@ class Graph:
         the existing graph.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_add_transposed_adj_list(< gdf_graph *> graph)
+        err = gdf_add_transposed_adj_list(<gdf_graph*> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     def view_transposed_adj_list(self):
@@ -356,15 +356,15 @@ class Graph:
         Display the transposed adjacency list. Compute it if needed.
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph * g = < gdf_graph *> graph
+        cdef gdf_graph * g = <gdf_graph*> graph
         err = gdf_add_transposed_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         off_size = g.transposedAdjList.offsets.size
         ind_size = g.transposedAdjList.indices.size
 
-        cdef uintptr_t offset_col_data = < uintptr_t > g.transposedAdjList.offsets.data
-        cdef uintptr_t indices_col_data = < uintptr_t > g.transposedAdjList.indices.data
+        cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data
+        cdef uintptr_t indices_col_data = <uintptr_t> g.transposedAdjList.indices.data
 
         offsets_data = rmm.device_array_from_ptr(offset_col_data,
                                      nelem=off_size,
@@ -393,7 +393,7 @@ class Graph:
         df['second'] the second vertex id of a pair
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph * g = < gdf_graph *> graph
+        cdef gdf_graph * g = <gdf_graph*> graph
         cdef gdf_column c_first_col
         cdef gdf_column c_second_col
         err = gdf_get_two_hop_neighbors(g, &c_first_col, &c_second_col)
@@ -425,7 +425,7 @@ class Graph:
         Delete the adjacency list.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_delete_adj_list(< gdf_graph *> graph)
+        err = gdf_delete_adj_list(<gdf_graph*> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     def delete_transposed_adj_list(self):
@@ -433,7 +433,7 @@ class Graph:
         Delete the transposed adjacency list.
         """
         cdef uintptr_t graph = self.graph_ptr
-        err = gdf_delete_transposed_adj_list(< gdf_graph *> graph)
+        err = gdf_delete_transposed_adj_list(<gdf_graph*> graph)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     def num_vertices(self):
@@ -441,7 +441,7 @@ class Graph:
         Get the number of vertices in the graph
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph* g = < gdf_graph *> graph
+        cdef gdf_graph* g = <gdf_graph*> graph
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         return g.adjList.offsets.size - 1
@@ -556,7 +556,7 @@ class Graph:
 
     def _degree(self, vertex_subset, x = 0):
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph* g = < gdf_graph *> graph
+        cdef gdf_graph* g = <gdf_graph*> graph
 
         n = self.num_vertices()
 

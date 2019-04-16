@@ -68,9 +68,9 @@ cpdef jaccard(input_graph, first=None, second=None):
     >>> jaccard_weights = cugraph.jaccard(G)
     """
     cdef uintptr_t graph = input_graph.graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
+    cdef gdf_graph * g = <gdf_graph*> graph
 
-    err = gdf_add_adj_list(< gdf_graph *> graph)
+    err = gdf_add_adj_list(<gdf_graph*> graph)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     cdef gdf_column c_result_col
@@ -85,7 +85,7 @@ cpdef jaccard(input_graph, first=None, second=None):
         c_first_col = get_gdf_column_view(first)
         c_second_col = get_gdf_column_view(second)
         err = gdf_jaccard_list(g,
-                               < gdf_column *> NULL,
+                               <gdf_column*> NULL,
                                &c_first_col,
                                &c_second_col,
                                &c_result_col)
@@ -101,10 +101,10 @@ cpdef jaccard(input_graph, first=None, second=None):
         result = cudf.Series(np.ones(e, dtype=np.float32), nan_as_null=False)
         c_result_col = get_gdf_column_view(result)
 
-        err = gdf_jaccard(g, < gdf_column *> NULL, &c_result_col)
+        err = gdf_jaccard(g, <gdf_column*> NULL, &c_result_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        dest_data = rmm.device_array_from_ptr(< uintptr_t > g.adjList.indices.data,
+        dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
                                             nelem=e,
                                             dtype=gdf_to_np_dtypes[g.adjList.indices.dtype])
         df = cudf.DataFrame()

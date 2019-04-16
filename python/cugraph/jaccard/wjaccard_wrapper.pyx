@@ -74,7 +74,7 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
     """
 
     cdef uintptr_t graph = input_graph.graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
+    cdef gdf_graph * g = <gdf_graph*> graph
     
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
@@ -113,7 +113,7 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
         err = gdf_jaccard(g, &c_weight_col, &c_result_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        dest_data = rmm.device_array_from_ptr(< uintptr_t > g.adjList.indices.data,
+        dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
                                             nelem=resultSize,
                                             dtype=gdf_to_np_dtypes[g.adjList.indices.dtype])
         df = cudf.DataFrame()
