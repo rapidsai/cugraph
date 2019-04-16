@@ -23,6 +23,31 @@ import numpy as np
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
 
 
+cdef gdf_column get_gdf_column_view(col):
+    """
+    This function returns a C++ gdf_column object from the Python cudf Series
+    object by shallow copying. The returned C++ object is expected to be used
+    as a temporary variable to pass the column data encapsulated in the Python
+    cudf Series object to C++ functions expecting (pointers to) C++ gdf_column
+    objects.
+    """
+    cdef gdf_column c_col
+    cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
+    # cdef uintptr_t valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
+
+    err = gdf_column_view_augmented(< gdf_column *> &c_col,
+                                    < void *> data_ptr,
+                                    < gdf_valid_type *> 0,
+                                    < gdf_size_type > len(col),
+                                    dtypes[col.dtype.type],
+                                    < gdf_size_type > col.null_count,
+                                    c_extra_dtype_info)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    return c_col
+
+
 cdef create_column(col):
     cdef gdf_column * c_col = < gdf_column *> malloc(sizeof(gdf_column))
     cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
@@ -41,13 +66,6 @@ cdef create_column(col):
 
     cdef uintptr_t col_ptr = < uintptr_t > c_col
     return col_ptr
-
-
-cdef delete_column(col_ptr):
-    cdef uintptr_t col = col_ptr
-    cdef gdf_column * c_col = < gdf_column *> col
-    free(c_col)
-    return
 
 
 class Graph:
@@ -138,34 +156,30 @@ class Graph:
         # (if not None) to avoid garbage collection while they are still in use
         # inside this class. If copy is set to True, deep-copy the objects.
         if copy is False:
-            self.edge_list_source_col = source_col;
-            self.edge_list_dest_col = dest_col;
-            self.edge_list_value_col = value_col;
+            self.edge_list_source_col = source_col
+            self.edge_list_dest_col = dest_col
+            self.edge_list_value_col = value_col
         else:
-            self.edge_list_source_col = source_col.copy();
-            self.edge_list_dest_col = dest_col.copy();
-            self.edge_list_value_col = value_col.copy();
+            self.edge_list_source_col = source_col.copy()
+            self.edge_list_dest_col = dest_col.copy()
+            self.edge_list_value_col = value_col.copy()
 
         cdef uintptr_t graph = self.graph_ptr
-        cdef uintptr_t source = create_column(self.edge_list_source_col)
-        cdef uintptr_t dest = create_column(self.edge_list_dest_col)
-        cdef uintptr_t value
+        cdef gdf_column c_source_col = get_gdf_column_view(self.edge_list_source_col)
+        cdef gdf_column c_dest_col = get_gdf_column_view(self.edge_list_dest_col)
+        cdef gdf_column c_value_col
+        cdef gdf_column * c_value_col_ptr
         if value_col is None:
-            value = 0
+            c_value_col_ptr = NULL
         else:
-            value = create_column(self.edge_list_value_col)
+            c_value_col = get_gdf_column_view(self.edge_list_value_col)
+            c_value_col_ptr = &c_value_col
 
-        try:
-            err = gdf_edge_list_view(< gdf_graph *> graph,
-                                     < gdf_column *> source,
-                                     < gdf_column *> dest,
-                                     < gdf_column *> value)
-            cudf.bindings.cudf_cpp.check_gdf_error(err)
-        finally:
-            delete_column(source)
-            delete_column(dest)
-            if value is not 0:
-                delete_column(value)
+        err = gdf_edge_list_view(< gdf_graph *> graph,
+                                 &c_source_col,
+                                 &c_dest_col,
+                                 c_value_col_ptr)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     def num_vertices(self):
         """
@@ -280,34 +294,30 @@ class Graph:
         # still in use inside this class. If copy is set to True, deep-copy the
         # objects.
         if copy is False:
-            self.adj_list_offset_col = offset_col;
-            self.adj_list_index_col = index_col;
-            self.adj_list_value_col = value_col;
+            self.adj_list_offset_col = offset_col
+            self.adj_list_index_col = index_col
+            self.adj_list_value_col = value_col
         else:
-            self.adj_list_offset_col = offset_col.copy();
-            self.adj_list_index_col = index_col.copy();
-            self_adj_list_value_col = value_col.copy();
+            self.adj_list_offset_col = offset_col.copy()
+            self.adj_list_index_col = index_col.copy()
+            self_adj_list_value_col = value_col.copy()
 
         cdef uintptr_t graph = self.graph_ptr
-        cdef uintptr_t offsets = create_column(self.adj_list_offset_col)
-        cdef uintptr_t indices = create_column(self.adj_list_index_col)
-        cdef uintptr_t value
+        cdef gdf_column c_offset_col = get_gdf_column_view(self.adj_list_offset_col)
+        cdef gdf_column c_index_col = get_gdf_column_view(self.adj_list_index_col)
+        cdef gdf_column c_value_col
+        cdef gdf_column * c_value_col_ptr
         if value_col is None:
-            value = 0
+            c_value_col_ptr = NULL
         else:
-            value = create_column(self.adj_list_value_col)
+            c_value_col = get_gdf_column_view(self.adj_list_value_col)
+            c_value_col_ptr = &c_value_col
 
-        try:
-            err = gdf_adj_list_view(< gdf_graph *> graph,
-                                    < gdf_column *> offsets,
-                                    < gdf_column *> indices,
-                                    < gdf_column *> value)
-            cudf.bindings.cudf_cpp.check_gdf_error(err)
-        finally:
-            delete_column(offsets)
-            delete_column(indices)
-            if value is not 0:
-                delete_column(value)
+        err = gdf_adj_list_view(< gdf_graph *> graph,
+                                &c_offset_col,
+                                &c_index_col,
+                                c_value_col_ptr)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     def view_adj_list(self):
         """
@@ -404,32 +414,30 @@ class Graph:
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = < gdf_graph *> graph
-        cdef gdf_column * first = < gdf_column *> malloc(sizeof(gdf_column))
-        cdef gdf_column * second = < gdf_column *> malloc(sizeof(gdf_column))
-        err = gdf_get_two_hop_neighbors(g, first, second)
+        cdef gdf_column c_first_col
+        cdef gdf_column c_second_col
+        err = gdf_get_two_hop_neighbors(g, &c_first_col, &c_second_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df = cudf.DataFrame()
-        if first.dtype == GDF_INT32:
-            first_out = rmm.device_array_from_ptr(<uintptr_t>first.data, 
-                                                  nelem=first.size, 
+        if c_first_col.dtype == GDF_INT32:
+            first_out = rmm.device_array_from_ptr(<uintptr_t>c_first_col.data,
+                                                  nelem=c_first_col.size,
                                                   dtype=np.int32)
-            second_out = rmm.device_array_from_ptr(<uintptr_t>second.data, 
-                                                   nelem=second.size, 
+            second_out = rmm.device_array_from_ptr(<uintptr_t>c_second_col.data,
+                                                   nelem=c_second_col.size,
                                                    dtype=np.int32)
             df['first'] = first_out
             df['second'] = second_out
-        if first.dtype == GDF_INT64:
-            first_out = rmm.device_array_from_ptr(<uintptr_t>first.data, 
-                                                  nelem=first.size, 
+        if c_first_col.dtype == GDF_INT64:
+            first_out = rmm.device_array_from_ptr(<uintptr_t>c_first_col.data,
+                                                  nelem=c_first_col.size,
                                                   dtype=np.int64)
-            second_out = rmm.device_array_from_ptr(<uintptr_t>second.data, 
-                                                   nelem=second.size, 
+            second_out = rmm.device_array_from_ptr(<uintptr_t>c_second_col.data,
+                                                   nelem=c_second_col.size,
                                                    dtype=np.int64)
             df['first'] = first_out
             df['second'] = second_out
 
-        delete_column(<uintptr_t>first)
-        delete_column(<uintptr_t>second)
         return df
 
     def delete_adj_list(self):
@@ -510,7 +518,7 @@ class Graph:
         given by the specified vertex_subset.
 
         df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
-        df['degree']: The computed out-degree of the corresponding vertex                    
+        df['degree']: The computed out-degree of the corresponding vertex
         Examples
         --------
         >>> import numpy as np
@@ -546,7 +554,7 @@ class Graph:
         given by the specified vertex_subset.
 
         df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
-        df['degree']: The computed degree of the corresponding vertex            
+        df['degree']: The computed degree of the corresponding vertex
         Examples
         --------
         >>> import numpy as np
@@ -574,16 +582,16 @@ class Graph:
 
         df = cudf.DataFrame()
         vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
-        cdef uintptr_t identifier_ptr = create_column(vertex_col)
+        c_vertex_col = get_gdf_column_view(vertex_col)
         if g.adjList:
-            err = g.adjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+            err = g.adjList.get_vertex_identifiers(&c_vertex_col)
         else:
-            err = g.transposedAdjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+            err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         
         degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
-        cdef uintptr_t degree_col_ptr = create_column(degree_col)
-        err = gdf_degree(g, <gdf_column*>degree_col_ptr, <int>x)
+        cdef gdf_column c_degree_col = get_gdf_column_view(degree_col)
+        err = gdf_degree(g, &c_degree_col, <int>x)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         if vertex_subset is None:
@@ -595,6 +603,4 @@ class Graph:
             del vertex_col
             del degree_col
         
-        delete_column(identifier_ptr)
-        delete_column(degree_col_ptr)
         return df
