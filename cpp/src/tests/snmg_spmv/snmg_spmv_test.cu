@@ -15,6 +15,7 @@
 #include <cugraph.h>
 #include <omp.h>
 #include "test_utils.h"
+#include <unistd.h>
 
 #define SNMG_VERBOSE
 
@@ -180,6 +181,8 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
       //omp_set_num_threads(n_gpus);
       auto i = omp_get_thread_num();
       auto p = omp_get_num_threads(); 
+      CUDA_RT_CALL(cudaSetDevice(i));
+
       #ifdef SNMG_VERBOSE 
         #pragma omp master 
         { 
@@ -192,20 +195,24 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
                  *col_ind = new gdf_column, 
                  *col_val = new gdf_column;
       col_x[i] = new gdf_column;
-
-      CUDA_RT_CALL(cudaSetDevice(i));
+      create_gdf_column(x_h, col_x[i]);
+      #pragma omp barrier
 
       //load a chunck of the graph on each GPU 
       load_csr_loc(csrRowPtr, cooColInd, csrVal, 
                    v_loc, e_loc, part_offset,
                    col_off, col_ind, col_val);
 
-      create_gdf_column(x_h, col_x[i]);
       //printv(col_val->size,(float*)col_val->data,0);
       status = gdf_snmg_csrmv(&part_offset[0], m, col_off, col_ind, col_val, col_x);
       EXPECT_EQ(status,0);
+
+
       #pragma omp master 
       { 
+        //printv(m, (val_t *)col_x[0]->data, 0);
+        CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
+
         for (auto j = 0; j < y_h.size(); ++j)
           EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
       }
@@ -234,7 +241,7 @@ INSTANTIATE_TEST_CASE_P(simple_test, Tests_MGSpmv,
                                             //,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
                                             //,MGSpmv_Usecase("golden_data/graphs/webbase-1M.mtx")
                                             //,MGSpmv_Usecase("networks/netscience.mtx")
-                                            //,MGSpmv_Usecase("golden_data/graphs/web-Google.mtx")
+                                            ,MGSpmv_Usecase("golden_data/graphs/web-Google.mtx")
                                             //,MGSpmv_Usecase("golden_data/graphs/wiki-Talk.mtx")
                                          )
                        );
