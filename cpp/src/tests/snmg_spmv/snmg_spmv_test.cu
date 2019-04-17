@@ -159,6 +159,10 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
 
     if (n_gpus > 1)
     {
+      // Only using the 4 fully connected GPUs on DGX1
+      if (n_gpus == 8)
+        n_gpus = 4;
+
       #pragma omp parallel num_threads(n_gpus)
        {
         //omp_set_num_threads(n_gpus);
@@ -213,16 +217,14 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
 };
  
 
-TEST_P(Tests_MGSpmv, CheckFP32) {
+TEST_P(Tests_MGSpmv, CheckFP32_mtx) {
     run_current_test<int, float>(GetParam());
 }
+TEST_P(Tests_MGSpmv, CheckFP64) {
+    run_current_test<int,double>(GetParam());
+}
 
-//TEST_P(Tests_MGSpmv, CheckFP64) {
-//    run_current_test<int,double>(GetParam());
-//}
-
-// --gtest_filter=*simple_test*
-INSTANTIATE_TEST_CASE_P(simple_test, Tests_MGSpmv, 
+INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv, 
                         ::testing::Values(  MGSpmv_Usecase("networks/karate.mtx")
                                             ,MGSpmv_Usecase("golden_data/graphs/cit-Patents.mtx")
                                             ,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
@@ -231,6 +233,167 @@ INSTANTIATE_TEST_CASE_P(simple_test, Tests_MGSpmv,
                                             ,MGSpmv_Usecase("golden_data/graphs/web-Google.mtx")
                                             ,MGSpmv_Usecase("golden_data/graphs/wiki-Talk.mtx")
                                             //,MGSpmv_Usecase("networks/twitter.mtx")
+                                         )
+                       );
+
+
+class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
+  public:
+  Tests_MGSpmv_hibench() {  }
+  static void SetupTestCase() {  }
+  static void TearDownTestCase() { }
+  virtual void SetUp() {  }
+  virtual void TearDown() {  }
+
+  static std::vector<double> mgspmv_time;   
+
+  template <typename idx_t,typename val_t>
+  void run_current_test(const MGSpmv_Usecase& param) {
+     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
+     std::stringstream ss; 
+     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
+
+     int m, nnz, n_gpus;
+     gdf_error status;
+     std::vector<idx_t> cooRowInd, cooColInd;
+     double t;
+
+     ASSERT_EQ(read_single_file(param.matrix_file.c_str(),cooRowInd,cooColInd),0);
+     nnz = cooRowInd.size();
+     m = std::max( *(std::max_element(cooRowInd.begin(), cooRowInd.end())),
+                   *(std::max_element(cooColInd.begin(), cooColInd.end())));
+
+     // Allocate memory on host
+     std::vector<idx_t> csrColInd(nnz), csrRowPtr(m+1);
+     std::vector<val_t> cooVal(nnz), csrVal(nnz), x_h(m, 1.0), y_h(m, 0.0), y_ref(m, 0.0);
+     coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
+     CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
+     std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
+     random_vals(csrVal);
+     gdf_column *col_x[n_gpus];
+     //reference result
+     t = omp_get_wtime();
+     csrmv_h (csrRowPtr, cooColInd, csrVal, x_h, y_ref);
+     std::cout <<  omp_get_wtime() - t << " ";
+
+     #pragma omp parallel num_threads(1)
+     {
+      //omp_set_num_threads(n_gpus);
+      auto i = omp_get_thread_num();
+      auto p = omp_get_num_threads(); 
+      CUDA_RT_CALL(cudaSetDevice(i));
+
+      #ifdef SNMG_VERBOSE 
+        #pragma omp master 
+        { 
+          std::cout << "Number of GPUs : "<< n_gpus <<std::endl;
+          std::cout << "Number of threads : "<< p <<std::endl;
+        }
+      #endif
+
+      gdf_column *col_off = new gdf_column, 
+                 *col_ind = new gdf_column, 
+                 *col_val = new gdf_column;
+      col_x[i] = new gdf_column;
+      create_gdf_column(x_h, col_x[i]);
+      #pragma omp barrier
+
+      //load a chunck of the graph on each GPU 
+      load_csr_loc(csrRowPtr, cooColInd, csrVal, 
+                   v_loc, e_loc, part_offset,
+                   col_off, col_ind, col_val);
+      //printv(col_val->size,(float*)col_val->data,0);
+      t = omp_get_wtime();
+      status = gdf_snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+      EXPECT_EQ(status,0);
+      #pragma omp master 
+        {std::cout <<  omp_get_wtime() - t << " ";}
+
+
+      #pragma omp master 
+      { 
+        //printv(m, (val_t *)col_x[0]->data, 0);
+        CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
+
+        for (auto j = 0; j < y_h.size(); ++j)
+          EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
+      }
+
+      gdf_col_delete(col_off);
+      gdf_col_delete(col_ind);
+      gdf_col_delete(col_val);
+      gdf_col_delete(col_x[i]);
+    }
+
+    if (n_gpus > 1)
+    {
+      // Only using the 4 fully connected GPUs on DGX1
+      if (n_gpus == 8)
+        n_gpus = 4;
+
+      #pragma omp parallel num_threads(n_gpus)
+       {
+        //omp_set_num_threads(n_gpus);
+        auto i = omp_get_thread_num();
+        auto p = omp_get_num_threads(); 
+        CUDA_RT_CALL(cudaSetDevice(i));
+
+        #ifdef SNMG_VERBOSE 
+          #pragma omp master 
+          { 
+            std::cout << "Number of GPUs : "<< n_gpus <<std::endl;
+            std::cout << "Number of threads : "<< p <<std::endl;
+          }
+        #endif
+
+        gdf_column *col_off = new gdf_column, 
+                   *col_ind = new gdf_column, 
+                   *col_val = new gdf_column;
+        col_x[i] = new gdf_column;
+        create_gdf_column(x_h, col_x[i]);
+        #pragma omp barrier
+
+        //load a chunck of the graph on each GPU 
+        load_csr_loc(csrRowPtr, cooColInd, csrVal, 
+                     v_loc, e_loc, part_offset,
+                     col_off, col_ind, col_val);
+        //printv(col_val->size,(float*)col_val->data,0);
+        t = omp_get_wtime();
+        status = gdf_snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+        EXPECT_EQ(status,0);
+        #pragma omp master 
+          {std::cout <<  omp_get_wtime() - t << " ";}
+
+
+        #pragma omp master 
+        { 
+          //printv(m, (val_t *)col_x[0]->data, 0);
+          CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
+
+          for (auto j = 0; j < y_h.size(); ++j)
+            EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
+        }
+
+        gdf_col_delete(col_off);
+        gdf_col_delete(col_ind);
+        gdf_col_delete(col_val);
+        gdf_col_delete(col_x[i]);
+      }
+    }
+    std::cout << std::endl;
+  }
+};
+
+TEST_P(Tests_MGSpmv_hibench, CheckFP32_hibench) {
+    run_current_test<int, float>(GetParam());
+}
+
+INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGSpmv_hibench, 
+                        ::testing::Values(  MGSpmv_Usecase("1/Input-small/edges/part-00000")
+                                            ,MGSpmv_Usecase("1/Input-large/edges/part-00000")
+                                            ,MGSpmv_Usecase("1/Input-huge/edges/part-00000")
+                                            ,MGSpmv_Usecase("1/Input-gigantic/edges/part-00000")
+                                            //,MGSpmv_Usecase("1/Input-bigdata/edges/part-00000")
                                          )
                        );
 
