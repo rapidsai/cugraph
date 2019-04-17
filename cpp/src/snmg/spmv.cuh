@@ -41,12 +41,11 @@ gdf_error snmg_csrmv (size_t* part_off, idx_t * off, idx_t * ind, val_t * val, v
   CUDA_TRY(cudaMemcpy(&tmp, &off[v_loc], sizeof(idx_t),cudaMemcpyDeviceToHost));
   size_t e_loc = tmp;
   val_t* y_loc;
-
+  //double t = omp_get_wtime();
+  
   // Allocate the local result
   ALLOC_MANAGED_TRY ((void**)&y_loc, v_loc*sizeof(val_t), stream);
 
-  double t = omp_get_wtime();
-  
   // get temporary storage size for CUB
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
   	                              val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc));
@@ -58,14 +57,14 @@ gdf_error snmg_csrmv (size_t* part_off, idx_t * off, idx_t * ind, val_t * val, v
   	                              val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc));
   // Free CUB's temporary storage
   ALLOC_FREE_TRY(cub_d_temp_storage, stream);
-  #pragma omp master 
-  {std::cout <<  omp_get_wtime() - t << " ";}
+  //#pragma omp master 
+  //{std::cout <<  omp_get_wtime() - t << " ";}
 
   // Wait for all local spmv
-  t = omp_get_wtime();
+  //t = omp_get_wtime();
   sync_all();
-  #pragma omp master 
-  {std::cout <<  omp_get_wtime() - t << " ";}
+  //#pragma omp master 
+  //{std::cout <<  omp_get_wtime() - t << " ";}
 
   //Update the output vector
   allgather (part_off, y_loc, x);

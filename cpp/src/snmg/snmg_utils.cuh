@@ -60,11 +60,14 @@ gdf_error allgather (size_t* offset, val_t* x_loc, val_t ** x_glob) {
   auto p = omp_get_num_threads();  
   size_t n_loc= offset[i+1]-offset[i];
 
-  GDF_TRY(setup_peer_access());
+  //GDF_TRY(setup_peer_access()); 
+  // this causes issues with CUB. TODO :  verify the impact on performance.
+
   // send the local spmv output (x_loc) to all peers to reconstruct the global vector x_glob 
   // After this call each peer has a full, updated, copy of x_glob
   for (int j = 0; j < p; ++j)
-    CUDA_TRY(cudaMemcpy(x_glob[j]+offset[i], x_loc, n_loc*sizeof(val_t),cudaMemcpyDeviceToDevice));
+    CUDA_TRY(cudaMemcpyPeer(x_glob[j]+offset[i],j, x_loc,i, n_loc*sizeof(val_t)));
+    //CUDA_TRY(cudaMemcpy(x_glob[j]+offset[i], x_loc, n_loc*sizeof(val_t),cudaMemcpyDeviceToDevice));
   
   //Make sure everyone has finished copying before returning
   sync_all();
