@@ -93,4 +93,4 @@ cdef extern from "cugraph.h":
     cdef gdf_error gdf_add_transposed_adj_list(gdf_graph *graph)
     cdef gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph)
 
-    
+    cdef gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x)    

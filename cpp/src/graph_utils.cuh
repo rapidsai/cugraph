@@ -325,6 +325,15 @@ namespace cugraph
 			if (degree[i] == 0)
 				bookmark[i] = 1.0;
 	}
+
+        template<typename IndexType, typename ValueType>
+        __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+        degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
+                for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
+                        degree[i] += ind[i+1]-ind[i];
+        }
+
+
 //notice that in the transposed matrix/csc a dangling node is a node without incomming edges
 //just swap coo src and dest arrays after that to interpret it as HT
 	template<typename IndexType, typename ValueType>
