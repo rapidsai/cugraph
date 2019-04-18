@@ -29,16 +29,26 @@ cdef gdf_column get_gdf_column_view(col):
     object by shallow copying. The returned C++ object is expected to be used
     as a temporary variable to pass the column data encapsulated in the Python
     cudf Series object to C++ functions expecting (pointers to) C++ gdf_column
-    objects.
+    objects. It is the caller's responsibility to insure that col out-lives the
+    returned view object. cudf has column_view_from_column and using this is,
+    in general, better design than creating our own, but we will keep this as
+    cudf is planning to remove the function. cudf plans to redesign
+    cudf::column to fundamentally solve this problem, so once they finished the
+    redesign, we need to update this code to use their new features. Until that
+    time, we may rely on this as a temporary solution.
     """
     cdef gdf_column c_col
     cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
-    # cdef uintptr_t valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
+    cdef uintptr_t valid_ptr
+    if col._column._mask is None:
+        valid_ptr = 0
+    else:
+        valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
     cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
 
     err = gdf_column_view_augmented(<gdf_column*> &c_col,
                                     <void*> data_ptr,
-                                    <gdf_valid_type*> 0,
+                                    <gdf_valid_type*> valid_ptr,
                                     <gdf_size_type> len(col),
                                     dtypes[col.dtype.type],
                                     <gdf_size_type> col.null_count,
