@@ -22,7 +22,11 @@
 #ifndef RENUMBER_H
 #define RENUMBER_H
 
+#define CUB_STDERR
+
 #include <chrono>
+
+#include <cub/cub.cuh>
 
 #include <thrust/scan.h>
 #include <thrust/binary_search.h>
@@ -38,7 +42,8 @@ namespace cugraph {
 
   namespace detail {
     typedef uint32_t               hash_type;
-    typedef unsigned long long     index_type;
+    //typedef unsigned long long     index_type;
+    typedef uint32_t index_type;
     
     template <typename VertexIdType>
     class HashFunctionObject {
@@ -46,40 +51,13 @@ namespace cugraph {
       HashFunctionObject(hash_type hash_size): hash_size_(hash_size) {}
 
       __device__ __host__
-      hash_type operator()(const VertexIdType &vertex_id) {
+      hash_type operator()(const VertexIdType &vertex_id) const {
 	return (vertex_id % hash_size_);
       }
 
     private:
       hash_type hash_size_;
     };
-
-    template<typename T, typename F>
-    __global__ void CountHash(const T *vertex_ids, size_t size, index_type *counts, F hashing_function) {
-
-      int first = blockIdx.x * blockDim.x + threadIdx.x;
-      int stride = blockDim.x * gridDim.x;
- 
-      for (int i = first ; i < size ; i += stride) {
-        atomicAdd(&counts[hashing_function(vertex_ids[i])], index_type{1});
-      }
-    }
-
-    template<typename T, typename F>
-    __global__ void PopulateHash(const T *vertex_ids, size_t size, T *hash_data,
-                                 index_type *hash_bins_start,
-				 index_type *hash_bins_end,
-                                 F hashing_function ) {
-
-      uint32_t first = blockIdx.x * blockDim.x + threadIdx.x;
-      uint32_t stride = blockDim.x * gridDim.x;
-
-      for (uint32_t i = first ; i < size ; i += stride) {
-        uint32_t hash_index = hashing_function(vertex_ids[i]);
-        index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
-        hash_data[hash_offset] = vertex_ids[i];
-      }
-    }
 
     template<typename T>
     __global__ void DedupeHash(index_type hash_size, T *hash_data, index_type *hash_bins_start,
@@ -156,40 +134,6 @@ namespace cugraph {
 
     }
 
-    template<typename T_in, typename T_out, typename F>
-    __global__ void Renumber(const T_in *vertex_ids, size_t size,
-                             T_out *renumbered_ids, const T_in *hash_data,
-                             const index_type *hash_bins_start,
-			     const index_type *hash_bins_end,
-                             const index_type *hash_bins_base,
-			     F hashing_function ) {
-      //
-      //  For each vertex, look up in the hash table the vertex id
-      //
-      int first = blockIdx.x * blockDim.x + threadIdx.x;
-      int stride = blockDim.x * gridDim.x;
-
-      for (int i = first ; i < size ; i += stride) {
-        hash_type hash = hashing_function(vertex_ids[i]);
-        const T_in *id = thrust::lower_bound(thrust::seq, hash_data + hash_bins_start[hash], hash_data + hash_bins_end[hash], vertex_ids[i]);
-        renumbered_ids[i] = hash_bins_base[hash] + (id - (hash_data + hash_bins_start[hash]));
-      }
-    }
-
-    template<typename T>
-    __global__ void CompactNumbers(T *numbering_map, hash_type hash_size, const T *hash_data, const index_type *hash_bins_start,
-                                   const index_type *hash_bins_end, const index_type *hash_bins_base) {
-
-      int first = blockIdx.x * blockDim.x + threadIdx.x;
-      int stride = blockDim.x * gridDim.x;
-
-      for (int i = first ; i < hash_size ; i += stride) {
-        for (int j = hash_bins_start[i] ; j < hash_bins_end[i] ; ++j) {
-          numbering_map[hash_bins_base[i] + (j - hash_bins_start[i])] = hash_data[j];
-        }
-      }
-    }
-
     __global__ void SetupHash(hash_type hash_size, index_type *hash_bins_start, index_type *hash_bins_end) {
       hash_bins_end[0] = 0;
       for (hash_type i = 0 ; i < hash_size ; ++i) {
@@ -211,6 +155,15 @@ namespace cugraph {
       for (hash_type i = hash_size ; i > 0 ; --i) {
         hash_bins_base[i-1] = hash_bins_base[i] - hash_bins_base[i-1];
       }
+    }
+  }
+
+  void checkError() {
+    cudaError_t e=cudaGetLastError();
+    if(e!=cudaSuccess) {
+      std::cerr << "Cuda failure: "
+		<< cudaGetErrorString(e)
+		<< std::endl;
     }
   }
 
@@ -258,6 +211,9 @@ namespace cugraph {
     //
     // We need 3 for hashing, and one array for data
     //
+    cudaStream_t stream{nullptr};
+    rmm_temp_allocator allocator(stream);
+    
     T_in *hash_data;
 
     detail::HashFunctionObject<T_in>  hash(hash_size);
@@ -280,21 +236,109 @@ namespace cugraph {
     //  Pass 1: count how many vertex ids end up in each hash bin
     //
     CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::index_type)));
-    detail::CountHash<<<thread_blocks, threads_per_block>>>(src, size, hash_bins_start, hash);
-    detail::CountHash<<<thread_blocks, threads_per_block>>>(dst, size, hash_bins_start, hash);
+
+    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+		     src, src + size,
+		     [hash_bins_start, hash] __device__ (T_in vid) {
+		       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
+		     });
+    
+    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+		     dst, dst + size,
+		     [hash_bins_start, hash] __device__ (T_in vid) {
+		       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
+		     });
+    
+
+#if 1
+    cudaDeviceSynchronize();
+    
+    printf("before populate hash\n");
+
+    {
+      detail::index_type xxxx[hash_size + 1];
+      CUDA_TRY(cudaMemcpy(xxxx, hash_bins_start, (hash_size + 1) * sizeof(detail::index_type), cudaMemcpyDeviceToHost));
+
+      for (int i = 0 ; i < 20 ; ++i) {
+	printf("  %d - %ld\n", i, xxxx[i]);
+      }
+    }
 
     //
     //  Need to compute the partial sums and copy them into hash_bins_end
     //
+    cudaDeviceSynchronize();
+    void    *d_temp_storage = nullptr;
+    size_t   temp_storage_bytes = 0;
+    
+    cub::DeviceScan::ExclusiveSum(d_temp_storage,
+				  temp_storage_bytes,
+				  hash_bins_start,
+				  hash_bins_end,
+				  hash_size + 1);
+
+    printf("temp storage = %ld\n", temp_storage_bytes);
+    //ALLOC_MANAGED_TRY((void **) &d_temp_storage, temp_storage_bytes, stream);
+    //ALLOC_TRY((void **) &d_temp_storage, temp_storage_bytes, stream);
+    cudaMalloc(&d_temp_storage, temp_storage_bytes);
+    cudaMemset(d_temp_storage, 0, temp_storage_bytes);
+
+    cub::DeviceScan::ExclusiveSum(d_temp_storage,
+				  temp_storage_bytes,
+				  hash_bins_start,
+				  hash_bins_end,
+				  hash_size + 1);
+
+    cudaDeviceSynchronize();
+    checkError();
+
+    {
+      detail::index_type xxxx[hash_size + 1];
+      detail::index_type yyyy[hash_size + 1];
+      CUDA_TRY(cudaMemcpy(xxxx, hash_bins_start, (hash_size + 1) * sizeof(detail::index_type), cudaMemcpyDeviceToHost));
+      CUDA_TRY(cudaMemcpy(yyyy, hash_bins_end, (hash_size + 1) * sizeof(detail::index_type), cudaMemcpyDeviceToHost));
+
+      int cnt = 0;
+      for (int i = 0 ; i < hash_size ; ++i) {
+	if ((yyyy[i+1] - yyyy[i]) != xxxx[i]) {
+	  if (cnt < 5)
+	    printf("  %d - %ld : (%ld, %ld)\n", i, xxxx[i], yyyy[i], yyyy[i+1]);
+	  ++cnt;
+	}
+      }
+
+      printf("hash size = %ld, errors = %d\n", hash_size, cnt);
+    }
+
+    ALLOC_FREE_TRY(d_temp_storage, stream);
+
+    printf("copy result\n");
+    CUDA_TRY(cudaMemcpy(hash_bins_start, hash_bins_end, (hash_size + 1) * sizeof(detail::index_type), cudaMemcpyDeviceToDevice));
+#else
+    
     detail::SetupHash<<<1,1>>>(hash_size, hash_bins_start, hash_bins_end);
+#endif
 
     //
     //  Pass 2: Populate hash_data with data from the hash bins.  This implementation
     //    will do some partial deduplication, but we'll need to fully dedupe later.
     //
-    detail::PopulateHash<<<thread_blocks, threads_per_block>>>(src, size, hash_data, hash_bins_start, hash_bins_end, hash);
-    detail::PopulateHash<<<thread_blocks, threads_per_block>>>(dst, size, hash_data, hash_bins_start, hash_bins_end, hash);
-
+    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+		     src, src + size,
+		     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
+		       uint32_t hash_index = hash(vid);
+		       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+		       hash_data[hash_offset] = vid;
+		     });
+		     
+    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+		     dst, dst + size,
+		     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
+		       uint32_t hash_index = hash(vid);
+		       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+		       hash_data[hash_offset] = vid;
+		     });
+		     
     //
     //  Now we need to dedupe the hash bins
     //
@@ -309,16 +353,46 @@ namespace cugraph {
     //  Finally, we'll iterate over src and dst and populate src_renumbered
     //  and dst_renumbered.
     //
-    detail::Renumber<<<thread_blocks, threads_per_block>>>(src, size, src_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
-    detail::Renumber<<<thread_blocks, threads_per_block>>>(dst, size, dst_renumbered, hash_data, hash_bins_start, hash_bins_end, hash_bins_base, hash);
+    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+		     thrust::make_counting_iterator<detail::index_type>(0),
+		     thrust::make_counting_iterator<detail::index_type>(size),
+		     [hash_data, hash_bins_start, hash_bins_end,
+		      hash_bins_base, hash, src, src_renumbered]
+		     __device__ (detail::index_type idx) {
+		       detail::hash_type tmp = hash(src[idx]);
+		       const T_in *id = thrust::lower_bound(thrust::seq, hash_data + hash_bins_start[tmp], hash_data + hash_bins_end[tmp], src[idx]);
+		       src_renumbered[idx] = hash_bins_base[tmp] + (id - (hash_data + hash_bins_start[tmp]));
+		     });
+
+    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+		     thrust::make_counting_iterator<detail::index_type>(0),
+		     thrust::make_counting_iterator<detail::index_type>(size),
+		     [hash_data, hash_bins_start, hash_bins_end,
+		      hash_bins_base, hash, dst, dst_renumbered]
+		     __device__ (detail::index_type idx) {
+		       detail::hash_type tmp = hash(dst[idx]);
+		       const T_in *id = thrust::lower_bound(thrust::seq, hash_data + hash_bins_start[tmp], hash_data + hash_bins_end[tmp], dst[idx]);
+		       dst_renumbered[idx] = hash_bins_base[tmp] + (id - (hash_data + hash_bins_start[tmp]));
+		     });
 
     detail::index_type temp{0};
     CUDA_TRY(cudaMemcpy(&temp, hash_bins_base + hash_size, sizeof(detail::index_type), cudaMemcpyDeviceToHost));
     *new_size = temp;
 
     ALLOC_TRY(numbering_map, (*new_size) * sizeof(T_in), nullptr);
+    
+    T_in * local_numbering_map = *numbering_map;
 
-    detail::CompactNumbers<<<hash_thread_blocks, hash_threads_per_block>>>(*numbering_map, hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
+    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+		     thrust::make_counting_iterator<detail::index_type>(0),
+		     thrust::make_counting_iterator<detail::index_type>(hash_size),
+		     [hash_data, hash_bins_start, hash_bins_end,
+		      hash_bins_base, local_numbering_map]
+		     __device__ (detail::index_type idx) {
+		       for (int j = hash_bins_start[idx] ; j < hash_bins_end[idx] ; ++j) {
+			 local_numbering_map[hash_bins_base[idx] + (j - hash_bins_start[idx])] = hash_data[j];
+		       }
+		     });
 
     ALLOC_FREE_TRY(hash_data, nullptr);
     ALLOC_FREE_TRY(hash_bins_start, nullptr);

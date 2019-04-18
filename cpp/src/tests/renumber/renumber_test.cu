@@ -266,18 +266,33 @@ TEST_F(RenumberingTest, Random100KVertexSet)
   size_t min_id = unique_verts;
   size_t max_id = 0;
 
+  size_t cnt = 0;
   for (size_t i = 0 ; i < num_verts ; ++i) {
     min_id = min(min_id, tmp_results[i]);
     max_id = max(max_id, tmp_results[i]);
-    EXPECT_EQ(tmp_map[tmp_results[i]], src_data[i]);
+    if (tmp_map[tmp_results[i]] != src_data[i])
+      ++cnt;
+
+    if (cnt < 20)
+      EXPECT_EQ(tmp_map[tmp_results[i]], src_data[i]);
   }
+
+  if (cnt > 0)
+    printf("  src error count = %ld out of %d\n", cnt, num_verts);
 
   EXPECT_EQ(cudaMemcpy(tmp_results, dst_d, sizeof(uint64_t) * num_verts, cudaMemcpyDeviceToHost), cudaSuccess);
   for (size_t i = 0 ; i < num_verts ; ++i) {
     min_id = min(min_id, tmp_results[i]);
     max_id = max(max_id, tmp_results[i]);
-    EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
+    if (tmp_map[tmp_results[i]] != dst_data[i])
+      ++cnt;
+
+    if (cnt < 20)
+      EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
+
+  if (cnt > 0)
+    printf("  src error count = %ld out of %d\n", cnt, num_verts);
 
   EXPECT_EQ(min_id, 0);
   EXPECT_EQ(max_id, (unique_verts - 1));
