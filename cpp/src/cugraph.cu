@@ -29,26 +29,27 @@
 template<typename T>
 using Vector = thrust::device_vector<T, rmm_allocator<T>>;
 
+/*
+ * cudf has gdf_column_free and using this is, in general, better design than
+ * creating our own, but we will keep this as cudf is planning to remove the
+ * function. cudf plans to redesign cudf::column to fundamentally solve this
+ * problem, so once they finished the redesign, we need to update this code to
+ * use their new features. Until that time, we may rely on this as a temporary
+ * solution.
+ */
 void gdf_col_delete(gdf_column* col) {
-  if (col) {
-    col->size = 0;
-    if(col->data) {
-      ALLOC_FREE_TRY(col->data, nullptr);
+  if (col != nullptr) {
+    auto stream = cudaStream_t{nullptr};
+    if (col->data != nullptr) {
+      ALLOC_FREE_TRY(col->data, stream);
     }
-#if 1
-// If delete col is executed, the memory pointed by col is no longer valid and
-// can be used in another memory allocation, so executing col->data = nullptr
-// after delete col is dangerous, also, col = nullptr has no effect here (the
-// address is passed by value, for col = nullptr should work, the input
-// parameter should be gdf_column*& col (or alternatively, gdf_column** col and
-// *col = nullptr also work)
-    col->data = nullptr;
+    if (col->valid != nullptr) {
+      ALLOC_FREE_TRY(col->valid, stream);
+    }
+    if (col->col_name != nullptr) {
+      free(col->col_name);
+    }
     delete col;
-#else
-    delete col;
-    col->data = nullptr;
-    col = nullptr;
-#endif
   }
 }
 
