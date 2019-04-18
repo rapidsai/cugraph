@@ -38,7 +38,8 @@ gdf_error setup_peer_access() {
       int canAccessPeer = 0;
       CUDA_TRY(cudaDeviceCanAccessPeer(&canAccessPeer, i, j));
       if (canAccessPeer) {
-		    cudaError_t status = cudaDeviceEnablePeerAccess(j, 0);
+		    cudaDeviceEnablePeerAccess(j, 0);
+        cudaError_t status = cudaGetLastError();
         if (!(status == cudaSuccess || status == cudaErrorPeerAccessAlreadyEnabled)) {
         	std::cerr << "Could not Enable Peer Access from" << i << " to " << j << std::endl;
         	return GDF_CUDA_ERROR;
@@ -60,7 +61,7 @@ gdf_error allgather (size_t* offset, val_t* x_loc, val_t ** x_glob) {
   auto p = omp_get_num_threads();  
   size_t n_loc= offset[i+1]-offset[i];
 
-  //GDF_TRY(setup_peer_access()); 
+  GDF_TRY(setup_peer_access()); 
   // this causes issues with CUB. TODO :  verify the impact on performance.
 
   // send the local spmv output (x_loc) to all peers to reconstruct the global vector x_glob 
@@ -73,6 +74,13 @@ gdf_error allgather (size_t* offset, val_t* x_loc, val_t ** x_glob) {
   sync_all();
 
   return GDF_SUCCESS;
+}
+
+void print_mem_usage()
+{
+  size_t free,total;
+  cudaMemGetInfo(&free, &total);  
+  std::cout<< std::endl<< "Mem used: "<<total-free<<std::endl;
 }
 
 } //namespace cugraph
