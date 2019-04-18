@@ -19,6 +19,7 @@
 - PR #215 Simplified get_rapids_dataset_root_dir(), set a default value for the root dir
 
 ## Bug Fixes
+- PR #226 Bump cudf dependencies to 0.7
 - PR #169 Disable terminal output in sssp
 - PR #191 Fix double upload bug
 - PR #181 Fixed crash/rmm free error when edge values provided
