@@ -22,6 +22,8 @@ from librmm_cffi import librmm as rmm
 #from pygdf import Column
 import numpy as np
 
+gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
+
 cpdef sssp(G, source):
     """
     Compute the distance from the specified source to all vertices in the connected component.  The distances column will
@@ -51,15 +53,19 @@ cpdef sssp(G, source):
     """
 
     cdef uintptr_t graph = G.graph_ptr
-    err = gdf_add_transpose(<gdf_graph*>graph)
+    err = gdf_add_transposed_adj_list(<gdf_graph*>graph)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-    
+
     cdef gdf_graph* g = <gdf_graph*>graph
+
+    data_type = np.float32
+    if g.transposedAdjList.edge_data:
+        data_type = gdf_to_np_dtypes[g.transposedAdjList.edge_data.dtype]
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=np.int32))
     cdef uintptr_t identifier_ptr = create_column(df['vertex'])
-    df['distance'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=np.float32))
+    df['distance'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=data_type))
     cdef uintptr_t distance_ptr = create_column(df['distance'])
 
     err = g.transposedAdjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)

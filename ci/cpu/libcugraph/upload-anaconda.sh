@@ -4,26 +4,23 @@
 
 set -e
 
-if [ "$BUILD_LIBCUGRAPH" == "1" ]; then
-  if [ "$BUILD_ABI" == "1" ]; then
-    export UPLOADFILE=`conda build conda/recipes/libcugraph -c rapidsai -c nvidia -c numba -c conda-forge -c defaults --python=$PYTHON --output`
-  else
-    export UPLOADFILE=`conda build conda/recipes/libcugraph -c rapidsai/label/cf201901 -c nvidia/label/cf201901 -c numba -c conda-forge/label/cf201901 -c defaults --python=$PYTHON --output`
+if [ "$UPLOAD_LIBCUGRAPH" == "1" ]; then
+  CUDA_REL=${CUDA:0:3}
+  if [ "${CUDA:0:2}" == '10' ]; then
+    # CUDA 10 release
+    CUDA_REL=${CUDA:0:4}
   fi
+  
+  export UPLOADFILE=`conda build conda/recipes/libcugraph -c rapidsai -c nvidia -c numba -c conda-forge -c defaults --python=$PYTHON --output`
 
   SOURCE_BRANCH=master
 
-  # Have to label all CUDA versions due to the compatibility to work with any CUDA
-  if [ "$LABEL_MAIN" == "1" -a "$BUILD_ABI" == "1" ]; then
-    LABEL_OPTION="--label main --label cuda9.2 --label cuda10.0"
-  elif [ "$LABEL_MAIN" == "0" -a "$BUILD_ABI" == "1" ]; then
-    LABEL_OPTION="--label dev --label cuda9.2 --label cuda10.0"
-  elif [ "$LABEL_MAIN" == "1" -a "$BUILD_ABI" == "0" ]; then
-    LABEL_OPTION="--label cf201901 --label cf201901-cuda9.2 --label cf201901-cuda10.0"
-  elif [ "$LABEL_MAIN" == "0" -a "$BUILD_ABI" == "0" ]; then
-    LABEL_OPTION="--label cf201901-dev --label cf201901-cuda9.2 --label cf201901-cuda10.0"
+  if [ "$LABEL_MAIN" == "1" ]; then
+    LABEL_OPTION="--label main --label cuda${CUDA_REL}"
+  elif [ "$LABEL_MAIN" == "0" ]; then
+    LABEL_OPTION="--label dev --label cuda${CUDA_REL}"
   else
-    echo "Unknown label configuration LABEL_MAIN='$LABEL_MAIN' BUILD_ABI='$BUILD_ABI'"
+    echo "Unknown label configuration LABEL_MAIN='$LABEL_MAIN'"
     exit 1
   fi
   echo "LABEL_OPTION=${LABEL_OPTION}"
@@ -44,4 +41,6 @@ if [ "$BUILD_LIBCUGRAPH" == "1" ]; then
   echo "Upload"
   echo ${UPLOADFILE}
   anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --force ${UPLOADFILE}
+else
+    echo "Skipping libcugraph upload"
 fi

@@ -14,9 +14,18 @@
 import numpy as np
 import pytest
 from scipy.io import mmread
-
 import cugraph
 import cudf
+
+# Temporarily suppress warnings till networkX fixes deprecation warnings
+# (Using or importing the ABCs from 'collections' instead of from
+# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
+# python 3.7.  Also, this import networkx needs to be relocated in the
+# third-party group once this gets fixed.
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import networkx as nx
 
 
 def read_mtx_file(mm_file):
@@ -49,9 +58,50 @@ def compare_offsets(offset0, offset1):
     return True
 
 
-DATASETS = ['/datasets/networks/karate.mtx',
-            '/datasets/networks/dolphins.mtx',
-            '/datasets/networks/netscience.mtx']
+def find_two_paths(df, M):
+    for i in range(len(df)):
+        start = df['first'][i]
+        end = df['second'][i]
+        foundPath = False
+        for idx in range(M.indptr[start], M.indptr[start + 1]):
+            mid = M.indices[idx]
+            for innerIdx in range(M.indptr[mid], M.indptr[mid + 1]):
+                if M.indices[innerIdx] == end:
+                    foundPath = True
+                    break
+            if foundPath:
+                break
+        if not foundPath:
+            print("No path found between " + str(start) +
+                  " and " + str(end))
+        assert foundPath
+
+
+def has_pair(first_arr, second_arr, first, second):
+    for i in range(len(first_arr)):
+        firstMatch = first_arr[i] == first
+        secondMatch = second_arr[i] == second
+        if firstMatch and secondMatch:
+            return True
+    return False
+
+
+def check_all_two_hops(df, M):
+    num_verts = len(M.indptr) - 1
+    first_arr = df['first'].to_array()
+    second_arr = df['second'].to_array()
+    for start in range(num_verts):
+        for idx in range(M.indptr[start], M.indptr[start + 1]):
+            mid = M.indices[idx]
+            for innerIdx in range(M.indptr[mid], M.indptr[mid + 1]):
+                end = M.indices[innerIdx]
+                if start != end:
+                    assert has_pair(first_arr, second_arr, start, end)
+
+
+DATASETS = ['../datasets/karate.mtx',
+            '../datasets/dolphins.mtx',
+            '../datasets/netscience.mtx']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
@@ -112,9 +162,9 @@ def test_transpose_from_adj_list(graph_file):
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
-    G.add_transpose()
+    G.add_transposed_adj_list()
     Mt = M.transpose().tocsr()
-    toff, tind = G.view_transpose_adj_list()
+    toff, tind = G.view_transposed_adj_list()
     assert compare_series(tind, Mt.indices)
     assert compare_offsets(toff, Mt.indptr)
 
@@ -163,3 +213,58 @@ def test_delete_edge_list_delete_adj_list(graph_file):
     with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
         G.view_edge_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
+
+
+DATASETS2 = ['../datasets/karate.mtx',
+             '../datasets/dolphins.mtx']
+
+
+@pytest.mark.parametrize('graph_file', DATASETS2)
+def test_two_hop_neighbors(graph_file):
+    M = read_mtx_file(graph_file)
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+    values = cudf.Series(M.data)
+
+    G = cugraph.Graph()
+    G.add_edge_list(sources, destinations, values)
+
+    df = G.get_two_hop_neighbors()
+    M = M.tocsr()
+    find_two_paths(df, M)
+    check_all_two_hops(df, M)
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_degree_functionality(graph_file):
+    M = read_mtx_file(graph_file)
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+    values = cudf.Series(M.data)
+
+    G = cugraph.Graph()
+    G.add_edge_list(sources, destinations, values)
+
+    Gnx = nx.DiGraph(M)
+
+    df_in_degree = G.in_degree()
+    df_out_degree = G.out_degree()
+    df_degree = G.degree()
+
+    nx_in_degree = Gnx.in_degree()
+    nx_out_degree = Gnx.out_degree()
+    nx_degree = Gnx.degree()
+
+    err_in_degree = 0
+    err_out_degree = 0
+    err_degree = 0
+    for i in range(len(df_degree)):
+        if(df_in_degree['degree'][i] != nx_in_degree[i]):
+            err_in_degree = err_in_degree + 1
+        if(df_out_degree['degree'][i] != nx_out_degree[i]):
+            err_out_degree = err_out_degree + 1
+        if(df_degree['degree'][i] != nx_degree[i]):
+            err_degree = err_degree + 1
+    assert err_in_degree == 0
+    assert err_out_degree == 0
+    assert err_degree == 0

@@ -1,18 +1,38 @@
 # cuGraph 0.7.0 (Date TBD)
 
 ## New Features
-
+- PR #195 Added Graph.get_two_hop_neighbors() method
+- PR #195 Updated Jaccard and Weighted Jaccard to accept lists of vertex pairs to compute for
+- PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
+- PR #210 Expose degree calculation kernel via python API
+- PR #220 Added bindings for Nvgraph triangle counting
 ...
 
 ## Improvements
-
-...
+- PR #157 Removed cudatoolkit dependency in setup.py
+- PR #185 Update docs version
+- PR #194 Open source nvgraph in cugraph repository #194
+- PR #190 Added a copy option in graph creation
+- PR #196 Fix typos in readme intro
+- PR #207 mtx2csv script
+- PR #203 Added small datasets directly in the repo 
+- PR #215 Simplified get_rapids_dataset_root_dir(), set a default value for the root dir
 
 ## Bug Fixes
+- PR #169 Disable terminal output in sssp
+- PR #191 Fix double upload bug
+- PR #181 Fixed crash/rmm free error when edge values provided
+- PR #193 Fixed segfault when egde values not provided
+- PR #190 Fixed a memory reference counting error between cudf & cugraph
+- PR #190 Fixed a language level warning (cython)
+- PR #214 Removed throw exception from dtor in TC
+- PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
+- PR #206 Updated versions in conda envs
+- PR #218 Update c_graph.pyx 
+- PR #224 Update erroneous comments in overlap_wrapper.pyx, woverlap_wrapper.pyx, test_louvain.py, and spectral_clustering.pyx
+- PR #220 Fixed bugs in Nvgraph triangle counting
 
-...
-
-# cuGraph 0.6.0 (Date TBD)
+# cuGraph 0.6.0 (22 Mar 2019)
 
 ## New Features
 
@@ -26,6 +46,7 @@
 - PR #82 Spectral Clustering bindings
 - PR #82 Clustering metrics binding
 - PR #85 Helper functions on python Graph object
+- PR #106 Add gpu/build.sh file for gpuCI
 
 ## Improvements
 
@@ -37,8 +58,8 @@
 - PR #100 Added testing for returned vertex and edge identifiers  
 - PR #105 Updated python code to follow PEP8 (fixed flake8 complaints)
 - PR #121 Cleaned up READEME file
-
-
+- PR #130 Update conda build recipes
+- PR #144 Documentation for top level functions
 
 ## Bug Fixes
 
@@ -50,7 +71,10 @@
 - PR #116 Added netscience.mtx dataset to datasets.tar.gz
 - PR #120 Bug fix for segfault calling spectral clustering with only edge list
 - PR #123 Fixed weighted Jaccard to assume the input weights are given as a cudf.Series
-
+- PR #152 Fix conda package version string
+- PR #160 Added additional link directory to support building on CentOS-7
+- PR #221 Moved two_hop_neighbors.cuh to src folder to prevent it being installed
+- PR #223 Fixed compiler warning in cpp/src/cugraph.cu
 
 
 # cuGraph 0.5.0 (28 Jan 2019)
