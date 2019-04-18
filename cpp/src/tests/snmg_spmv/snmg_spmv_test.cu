@@ -45,7 +45,7 @@ typedef struct MGSpmv_Usecase_t {
   MGSpmv_Usecase_t(const std::string& a) {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // if RAPIDS_DATASET_ROOT_DIR not set, default to "/datasets"
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir("/datasets");
+    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
@@ -396,7 +396,9 @@ INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGSpmv_hibench,
                                             //,MGSpmv_Usecase("1/Input-large/edges/part-00000")
                                             //,MGSpmv_Usecase("1/Input-huge/edges/part-00000")
                                             //,MGSpmv_Usecase("1/Input-gigantic/edges/part-00000")
-                                            ,MGSpmv_Usecase("1/Input-bigdata/edges/part-00000")
+                                            ,MGSpmv_Usecase("1/Input-bigdatax2/edges/part-00000")
+                                            ,MGSpmv_Usecase("1/Input-bigdatax4/edges/part-00000")
+                                            //,MGSpmv_Usecase("1/Input-bigdata/edges/part-00000")
                                          )
                        );
 
