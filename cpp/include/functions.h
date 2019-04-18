@@ -141,7 +141,9 @@ gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph);
  * first entry of each result pair.
  * @param second An uninitialized gdf_column which will be initialized to contain the
  * second entry of each result pair.
- * @return GDF_SUCCESS upon successful completion. */
+ * @return GDF_SUCCESS upon successful completion. 
+ */
+/* ----------------------------------------------------------------------------*/
 gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
 
 /**
@@ -164,3 +166,20 @@ gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_col
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
+
+/**
+ * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a gdf_graph
+ *
+ * @Param[in] *graph                 graph descriptor with graph->transposedAdjList or graph->adjList present
+ * @Param[in] x                      integer value indicating type of degree calculation
+ *                                   0 : in+out degree
+ *                                   1 : in-degree
+ *                                   2 : out-degree
+ * @Param[out] *degree               gdf_column of size V (V is number of vertices) initialized to zeros.
+ *                                   Contains the computed degree of every vertex.
+ *
+ * @Returns                          GDF_SUCCESS upon successful completion.
+ */
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x);
+

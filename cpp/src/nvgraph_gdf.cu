@@ -515,3 +515,19 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
 	return GDF_SUCCESS;
 }
 
+gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
+  GDF_REQUIRE(G != nullptr, GDF_INVALID_API_CALL);
+  GDF_REQUIRE((G->adjList != nullptr) || (G->edgeList != nullptr), GDF_INVALID_API_CALL);
+  GDF_TRY(gdf_add_adj_list(G));
+  GDF_REQUIRE(G->adjList != nullptr, GDF_INVALID_API_CALL);
+
+  // Initialize Nvgraph and wrap the graph
+  nvgraphHandle_t nvg_handle = nullptr;
+  nvgraphGraphDescr_t nvgraph_G = nullptr;
+  NVG_TRY(nvgraphCreate(&nvg_handle));
+  GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, G, &nvgraph_G, false));
+
+  // Make Nvgraph call
+  NVG_TRY(nvgraphTriangleCount(nvg_handle, nvgraph_G, result));
+  return GDF_SUCCESS;
+}
