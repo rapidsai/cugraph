@@ -375,6 +375,13 @@ class Graph:
 
         return cudf.Series(offsets_data), cudf.Series(indices_data)
 
+    def delete_transposed_adj_list(self):
+        """
+        Delete the transposed adjacency list.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        err = gdf_delete_transposed_adj_list(<gdf_graph*> graph)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     def get_two_hop_neighbors(self):
         """
@@ -414,22 +421,6 @@ class Graph:
             df['second'] = second_out
 
         return df
-
-    def delete_adj_list(self):
-        """
-        Delete the adjacency list.
-        """
-        cdef uintptr_t graph = self.graph_ptr
-        err = gdf_delete_adj_list(<gdf_graph*> graph)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
-
-    def delete_transposed_adj_list(self):
-        """
-        Delete the transposed adjacency list.
-        """
-        cdef uintptr_t graph = self.graph_ptr
-        err = gdf_delete_transposed_adj_list(<gdf_graph*> graph)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     def num_vertices(self):
         """
