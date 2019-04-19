@@ -250,74 +250,11 @@ namespace cugraph {
 		     });
     
 
-#if 1
-    cudaDeviceSynchronize();
-    
-    printf("before populate hash\n");
-
-    {
-      detail::index_type xxxx[hash_size + 1];
-      CUDA_TRY(cudaMemcpy(xxxx, hash_bins_start, (hash_size + 1) * sizeof(detail::index_type), cudaMemcpyDeviceToHost));
-
-      for (int i = 0 ; i < 20 ; ++i) {
-	printf("  %d - %ld\n", i, xxxx[i]);
-      }
-    }
-
     //
-    //  Need to compute the partial sums and copy them into hash_bins_end
+    //  Compute exclusive sum and copy it into both hash_bins_start and
+    //  hash bins end.
     //
-    cudaDeviceSynchronize();
-    void    *d_temp_storage = nullptr;
-    size_t   temp_storage_bytes = 0;
-    
-    cub::DeviceScan::ExclusiveSum(d_temp_storage,
-				  temp_storage_bytes,
-				  hash_bins_start,
-				  hash_bins_end,
-				  hash_size + 1);
-
-    printf("temp storage = %ld\n", temp_storage_bytes);
-    //ALLOC_MANAGED_TRY((void **) &d_temp_storage, temp_storage_bytes, stream);
-    //ALLOC_TRY((void **) &d_temp_storage, temp_storage_bytes, stream);
-    cudaMalloc(&d_temp_storage, temp_storage_bytes);
-    cudaMemset(d_temp_storage, 0, temp_storage_bytes);
-
-    cub::DeviceScan::ExclusiveSum(d_temp_storage,
-				  temp_storage_bytes,
-				  hash_bins_start,
-				  hash_bins_end,
-				  hash_size + 1);
-
-    cudaDeviceSynchronize();
-    checkError();
-
-    {
-      detail::index_type xxxx[hash_size + 1];
-      detail::index_type yyyy[hash_size + 1];
-      CUDA_TRY(cudaMemcpy(xxxx, hash_bins_start, (hash_size + 1) * sizeof(detail::index_type), cudaMemcpyDeviceToHost));
-      CUDA_TRY(cudaMemcpy(yyyy, hash_bins_end, (hash_size + 1) * sizeof(detail::index_type), cudaMemcpyDeviceToHost));
-
-      int cnt = 0;
-      for (int i = 0 ; i < hash_size ; ++i) {
-	if ((yyyy[i+1] - yyyy[i]) != xxxx[i]) {
-	  if (cnt < 5)
-	    printf("  %d - %ld : (%ld, %ld)\n", i, xxxx[i], yyyy[i], yyyy[i+1]);
-	  ++cnt;
-	}
-      }
-
-      printf("hash size = %ld, errors = %d\n", hash_size, cnt);
-    }
-
-    ALLOC_FREE_TRY(d_temp_storage, stream);
-
-    printf("copy result\n");
-    CUDA_TRY(cudaMemcpy(hash_bins_start, hash_bins_end, (hash_size + 1) * sizeof(detail::index_type), cudaMemcpyDeviceToDevice));
-#else
-    
     detail::SetupHash<<<1,1>>>(hash_size, hash_bins_start, hash_bins_end);
-#endif
 
     //
     //  Pass 2: Populate hash_data with data from the hash bins.  This implementation
