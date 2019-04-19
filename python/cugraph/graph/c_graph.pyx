@@ -318,7 +318,7 @@ class Graph:
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        col_size_off = g.adjList.offsets.size
+        col_size_off = self.num_vertices() + 1
         col_size_ind = g.adjList.indices.size
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
@@ -370,7 +370,7 @@ class Graph:
         err = gdf_add_transposed_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        off_size = g.transposedAdjList.offsets.size
+        off_size = self.num_vertices() + 1
         ind_size = g.transposedAdjList.indices.size
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data

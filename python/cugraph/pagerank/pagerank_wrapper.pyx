@@ -59,14 +59,17 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
     """
 
     cdef uintptr_t graph = G.graph_ptr
-    err = gdf_add_transposed_adj_list(<gdf_graph*>graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
-    
     cdef gdf_graph* g = <gdf_graph*>graph
+
+    err = gdf_add_transposed_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    num_vert = G.num_vertices()
+
     df = cudf.DataFrame()  
-    df['vertex'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex']) 
-    df['pagerank'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=np.float32))
+    df['pagerank'] = cudf.Series(np.zeros(num_vert, dtype=np.float32))
     cdef gdf_column c_pagerank_col = get_gdf_column_view(df['pagerank'])    
 
     err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)

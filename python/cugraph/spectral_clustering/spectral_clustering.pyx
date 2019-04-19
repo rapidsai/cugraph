@@ -73,7 +73,7 @@ cpdef spectralBalancedCutClustering(G,
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_vert = g.adjList.offsets.size - 1
+    num_vert = G.num_vertices()
 
     # Create the output dataframe
     df = cudf.DataFrame()
@@ -150,7 +150,7 @@ cpdef spectralModularityMaximizationClustering(G,
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_vert = g.adjList.offsets.size - 1
+    num_vert = G.num_vertices()
 
     # Create the output dataframe
     df = cudf.DataFrame()
