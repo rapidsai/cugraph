@@ -303,18 +303,18 @@ class Graph:
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        col_size_off = self.num_vertices() + 1
-        col_size_ind = g.adjList.indices.size
+        offset_col_size = self.num_vertices() + 1
+        index_col_size = g.adjList.indices.size
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
         cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices.data
 
         offsets_data = rmm.device_array_from_ptr(offset_col_data,
-                                     nelem=col_size_off,
+                                     nelem=offset_col_size,
                                      dtype=np.int32) # ,
                                      # finalizer=rmm._make_finalizer(offset_col_data, 0))
         indices_data = rmm.device_array_from_ptr(index_col_data,
-                                     nelem=col_size_ind,
+                                     nelem=index_col_size,
                                      dtype=np.int32) # ,
                                      # finalizer=rmm._make_finalizer(index_col_data, 0))
         # g.adjList.offsets.data and g.adjList.indices.data are not owned by
@@ -355,20 +355,20 @@ class Graph:
         err = gdf_add_transposed_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        off_size = self.num_vertices() + 1
-        ind_size = g.transposedAdjList.indices.size
+        offset_col_size = self.num_vertices() + 1
+        inex_col_size = g.transposedAdjList.indices.size
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data
-        cdef uintptr_t indices_col_data = <uintptr_t> g.transposedAdjList.indices.data
+        cdef uintptr_t index_col_data = <uintptr_t> g.transposedAdjList.indices.data
 
         offsets_data = rmm.device_array_from_ptr(offset_col_data,
-                                     nelem=off_size,
+                                     nelem=offset_col_size,
                                      dtype=np.int32)  # ,
-                                     # finalizer=rmm._make_finalizer(offsets_col_data, 0))
-        indices_data = rmm.device_array_from_ptr(indices_col_data,
-                                     nelem=ind_size,
+                                     # finalizer=rmm._make_finalizer(offset_col_data, 0))
+        indices_data = rmm.device_array_from_ptr(index_col_data,
+                                     nelem=inex_col_size,
                                      dtype=np.int32)  # ,
-                                     # finalizer=rmm._make_finalizer(indices_col_data, 0))
+                                     # finalizer=rmm._make_finalizer(index_col_data, 0))
         # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
         # are not owned by this instance, so should not be freed here (this
         # will lead to double free, and undefined behavior).
