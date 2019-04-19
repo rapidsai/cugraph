@@ -39,15 +39,20 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M, source, edgevals=False):
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ', dtype = ['int32', 'int32', 'float32'], header=None)
+
+
+def cugraph_call(cu_M, source, edgevals=False):
 
     # Device data
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
+    sources = cu_M['0']
+    destinations = cu_M['1']
     if edgevals is False:
         values = None
     else:
-        values = cudf.Series(M.data)
+        values = cu_M['2']
 
     print('sources size = ' + str(len(sources)))
     print('destinations size = ' + str(len(destinations)))
@@ -100,9 +105,9 @@ def networkx_call(M, source, edgevals=False):
     return path
 
 
-DATASETS = ['../datasets/dolphins.mtx',
-            '../datasets/karate.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/dolphins',
+            '../datasets/karate',
+            '../datasets/netscience']
 
 SOURCES = [1]
 
@@ -111,8 +116,9 @@ SOURCES = [1]
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp(graph_file, source):
 
-    M = read_mtx_file(graph_file)
-    cu_paths = cugraph_call(M, source)
+    M = read_mtx_file(graph_file+'.mtx')
+    cu_M = read_csv_file(graph_file+'.csv')
+    cu_paths = cugraph_call(cu_M, source)
     nx_paths = networkx_call(M, source)
 
     # Calculating mismatch
@@ -129,19 +135,22 @@ def test_sssp(graph_file, source):
     assert err == 0
 
 
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience.mtx'])
+@pytest.mark.parametrize('graph_file', ['datasets/netscience'])
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp_edgevals(graph_file, source):
 
-    M = read_mtx_file(graph_file)
-    cu_paths = cugraph_call(M, source, edgevals=True)
+    M = read_mtx_file(graph_file+'.mtx')
+    cu_M = read_csv_file(graph_file+'.csv')
+    cu_paths = cugraph_call(cu_M, source, edgevals=True)
     nx_paths = networkx_call(M, source, edgevals=True)
 
     # Calculating mismatch
     err = 0
-
+    print(cu_paths)
+    print(nx_paths)
+    print(len(cu_paths))
     for i in range(len(cu_paths)):
-        if (cu_paths[i][1] != np.finfo(M.data.dtype).max):
+        if (cu_paths[i][1] != np.finfo(np.float32).max):
             if(cu_paths[i][1] != nx_paths[cu_paths[i][0]]):
                 err = err + 1
         else:

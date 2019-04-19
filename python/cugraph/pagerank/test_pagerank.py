@@ -37,11 +37,14 @@ def read_mtx_file(mm_file):
     print('Reading ' + str(mm_file) + '...')
     return mmread(mm_file).asfptype()
 
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ', dtype = ['int32', 'int32', 'float32'], header=None)
 
-def cugraph_call(M, max_iter, tol, alpha):
+def cugraph_call(cu_M, max_iter, tol, alpha):
     # Device data
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
+    sources = cu_M['0']
+    destinations = cu_M['1']
     # values = cudf.Series(np.ones(len(sources), dtype = np.float64))
 
     # cugraph Pagerank Call
@@ -103,9 +106,9 @@ def networkx_call(M, max_iter, tol, alpha):
     return sorted(pr.items(), key=lambda x: x[1], reverse=True)
 
 
-DATASETS = ['../datasets/dolphins.mtx',
-            '../datasets/karate.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/dolphins',
+            '../datasets/karate',
+            '../datasets/netscience']
 
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
@@ -117,10 +120,11 @@ ALPHA = [0.85]
 @pytest.mark.parametrize('tol', TOLERANCE)
 @pytest.mark.parametrize('alpha', ALPHA)
 def test_pagerank(graph_file, max_iter, tol, alpha):
-    M = read_mtx_file(graph_file)
-
+    M = read_mtx_file(graph_file+'.mtx')
     networkx_pr = networkx_call(M, max_iter, tol, alpha)
-    cugraph_pr = cugraph_call(M, max_iter, tol, alpha)
+
+    cu_M = read_csv_file(graph_file+'.csv')
+    cugraph_pr = cugraph_call(cu_M, max_iter, tol, alpha)
 
     # Calculating mismatch
 
@@ -130,5 +134,5 @@ def test_pagerank(graph_file, max_iter, tol, alpha):
         if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*1.1
            and cugraph_pr[i][0] == networkx_pr[i][0]):
             err = err + 1
-    print(err)
+    print("Mismatches:", err)
     assert err < (0.01*len(cugraph_pr))

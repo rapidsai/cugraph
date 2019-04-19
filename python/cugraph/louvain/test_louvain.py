@@ -38,22 +38,22 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M, edgevals=False):
-    M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ', dtype = ['int32', 'int32', 'float32'], header=None)
+
+
+def cugraph_call(cu_M, edgevals=False):
 
     # Device data
-    row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
+    sources = cu_M['0']
+    destinations = cu_M['1']
     if edgevals:
-        values = cudf.Series(M.data)
+        values = cu_M['2']
     else:
         values = None
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, values)
+    G.add_edge_list(sources, destinations, values)
 
     # cugraph Louvain Call
     t1 = time.time()
@@ -80,15 +80,16 @@ def networkx_call(M):
     return parts
 
 
-DATASETS = ['../datasets/karate.mtx',
-            '../datasets/dolphins.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/karate',
+            '../datasets/dolphins',
+            '../datasets/netscience']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_louvain_with_edgevals(graph_file):
-    M = read_mtx_file(graph_file)
-    cu_parts, cu_mod = cugraph_call(M, edgevals=True)
+    M = read_mtx_file(graph_file+'.mtx')
+    cu_M = read_csv_file(graph_file+'.csv')
+    cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
     nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison
@@ -107,14 +108,15 @@ def test_louvain_with_edgevals(graph_file):
     assert abs(cu_mod - cu_mod_nx) < .0001
 
 
-DATASETS = ['../datasets/karate.mtx',
-            '../datasets/dolphins.mtx']
+DATASETS = ['../datasets/karate',
+            '../datasets/dolphins']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_louvain(graph_file):
-    M = read_mtx_file(graph_file)
-    cu_parts, cu_mod = cugraph_call(M)
+    M = read_mtx_file(graph_file+'.mtx')
+    cu_M = read_csv_file(graph_file+'.csv')
+    cu_parts, cu_mod = cugraph_call(cu_M)
     nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison

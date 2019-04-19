@@ -27,15 +27,19 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M, start_vertex):
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ', dtype = ['int32', 'int32', 'float32'], header=None)
+
+
+def cugraph_call(cu_M, start_vertex):
     # Device data
-    M = M.tocsr()
-    sources = cudf.Series(M.indptr)
-    destinations = cudf.Series(M.indices)
-    values = cudf.Series(M.data)
+    sources = cu_M['0']
+    destinations = cu_M['1']
+    values = cu_M['2']
 
     G = cugraph.Graph()
-    G.add_adj_list(sources, destinations, values)
+    G.add_edge_list(sources, destinations, values)
 
     t1 = time.time()
     df = cugraph.bfs(G, start_vertex)
@@ -74,18 +78,19 @@ def base_call(M, start_vertex):
     return vertex, dist
 
 
-DATASETS = ['../datasets/dolphins.mtx',
-            '../datasets/karate.mtx',
-            '../datasets/polbooks.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/dolphins',
+            '../datasets/karate',
+            '../datasets/polbooks',
+            '../datasets/netscience']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_bfs(graph_file):
-    M = read_mtx_file(graph_file)
+    M = read_mtx_file(graph_file+'.mtx')
+    cu_M = read_csv_file(graph_file+'.csv')
 
     base_vid, base_dist = base_call(M, 0)
-    cugraph_vid, cugraph_dist = cugraph_call(M, 0)
+    cugraph_vid, cugraph_dist = cugraph_call(cu_M, 0)
 
     # Calculating mismatch
 
