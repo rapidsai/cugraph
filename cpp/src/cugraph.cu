@@ -162,7 +162,7 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
     if (err != GDF_SUCCESS)
       return err;
 
-    gdf_column_view((*numbering_map), tmp, nullptr, new_size, GDF_INT32);
+    gdf_column_view((*numbering_map), tmp, nullptr, new_size, src->dtype);
   } else if (src->dtype == GDF_INT64) {
 
     //
@@ -202,7 +202,7 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       return GDF_COLUMN_SIZE_TOO_BIG;
     }
 
-    gdf_column_view((*numbering_map), tmp, nullptr, new_size, GDF_INT32);
+    gdf_column_view((*numbering_map), tmp, nullptr, new_size, src->dtype);
 
     printf("done with renumbering, data types: %d, %d, %d\n", (*src_renumbered)->dtype, (*dst_renumbered)->dtype, (*numbering_map)->dtype);
   } else {
