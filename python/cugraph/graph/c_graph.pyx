@@ -356,7 +356,7 @@ class Graph:
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         offset_col_size = self.num_vertices() + 1
-        inex_col_size = g.transposedAdjList.indices.size
+        index_col_size = g.transposedAdjList.indices.size
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data
         cdef uintptr_t index_col_data = <uintptr_t> g.transposedAdjList.indices.data
@@ -366,7 +366,7 @@ class Graph:
                                      dtype=np.int32)  # ,
                                      # finalizer=rmm._make_finalizer(offset_col_data, 0))
         indices_data = rmm.device_array_from_ptr(index_col_data,
-                                     nelem=inex_col_size,
+                                     nelem=index_col_size,
                                      dtype=np.int32)  # ,
                                      # finalizer=rmm._make_finalizer(index_col_data, 0))
         # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
