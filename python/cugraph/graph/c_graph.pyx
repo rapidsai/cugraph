@@ -171,21 +171,6 @@ class Graph:
                                  c_value_col_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    def num_vertices(self):
-        """
-        Get the number of vertices in the graph
-        """
-        cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph * g = <gdf_graph*> graph
-        if g.adjList:
-            return g.adjList.offsets.size - 1
-        elif g.transposedAdjList:
-            return g.transposedAdjList.offsets.size - 1
-        else:
-            err = gdf_add_adj_list(g)
-            cudf.bindings.cudf_cpp.check_gdf_error(err)
-            return g.adjList.offsets.size - 1   
-
     def view_edge_list(self):
         """
         Display the edge list. Compute it if needed.
@@ -451,10 +436,15 @@ class Graph:
         Get the number of vertices in the graph
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph* g = <gdf_graph*> graph
-        err = gdf_add_adj_list(g)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
-        return g.adjList.offsets.size - 1
+        cdef gdf_graph * g = <gdf_graph*> graph
+        if g.adjList:
+            return g.adjList.offsets.size - 1
+        elif g.transposedAdjList:
+            return g.transposedAdjList.offsets.size - 1
+        else:
+            err = gdf_add_adj_list(g)
+            cudf.bindings.cudf_cpp.check_gdf_error(err)
+            return g.adjList.offsets.size - 1   
 
     def in_degree(self, vertex_subset = None):
         """
