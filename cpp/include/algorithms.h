@@ -40,11 +40,11 @@
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_pagerank(gdf_graph *graph,
-												gdf_column *pagerank,
-												float alpha,
-												float tolerance,
-												int max_iter,
-												bool has_guess);
+                       gdf_column *pagerank,
+                       float alpha,
+                       float tolerance,
+                       int max_iter,
+                       bool has_guess);
 
 /**
  * @Synopsis   Creates source, destination and value columns based on the specified R-MAT model
@@ -78,11 +78,11 @@ gdf_error gdf_pagerank(gdf_graph *graph,
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_grmat_gen(const char* argv,
-												size_t &vertices,
-												size_t &edges,
-												gdf_column* src,
-												gdf_column* dest,
-												gdf_column* val);
+                        size_t &vertices,
+                        size_t &edges,
+                        gdf_column* src,
+                        gdf_column* dest,
+                        gdf_column* val);
 
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a node.
@@ -101,10 +101,10 @@ gdf_error gdf_grmat_gen(const char* argv,
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_bfs(gdf_graph *graph,
-									gdf_column *distances,
-									gdf_column *predecessors,
-									int start_node,
-									bool directed);
+                  gdf_column *distances,
+                  gdf_column *predecessors,
+                  int start_node,
+                  bool directed);
 
 /**
  * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
@@ -116,8 +116,8 @@ gdf_error gdf_bfs(gdf_graph *graph,
  * @return Error code
  */
 gdf_error gdf_jaccard(gdf_graph *graph,
-											gdf_column *weights,
-											gdf_column *result);
+                      gdf_column *weights,
+                      gdf_column *result);
 
 /**
  * Computes the Jaccard similarity coefficient for each pair of specified vertices.
@@ -131,10 +131,10 @@ gdf_error gdf_jaccard(gdf_graph *graph,
  * @return Error code
  */
 gdf_error gdf_jaccard_list(gdf_graph *graph,
-														gdf_column *weights,
-														gdf_column *first,
-														gdf_column *second,
-														gdf_column *result);
+                           gdf_column *weights,
+                           gdf_column *first,
+                           gdf_column *second,
+                           gdf_column *result);
 
 /**
  * Computes the Overlap Coefficient for every pair of vertices in the graph which are
@@ -167,6 +167,6 @@ gdf_error gdf_overlap_list(gdf_graph *graph,
                            gdf_column *result);
 
 gdf_error gdf_louvain(gdf_graph *graph,
-											void *final_modularity,
-											void *num_level,
-											gdf_column *louvain_parts);
+                      void *final_modularity,
+                      void *num_level,
+                      gdf_column *louvain_parts);
