@@ -46,9 +46,14 @@ void gdf_col_delete(gdf_column* col) {
     if (col->valid != nullptr) {
       ALLOC_FREE_TRY(col->valid, stream);
     }
+#if 0/* Currently, gdf_column_view does not set col_name, and col_name can have
+        an arbitrary value, so freeing col_name can lead to freeing a ranodom
+        address. This problem should be cleaned up once cudf finishes
+        redesigning cudf::column. */
     if (col->col_name != nullptr) {
       free(col->col_name);
     }
+#endif
     delete col;
   }
 }
