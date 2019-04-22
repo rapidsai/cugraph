@@ -83,7 +83,7 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
     cdef gdf_column c_weight_col
     cdef gdf_column c_first_col
     cdef gdf_column c_second_col
-    cdef gdf_column c_indices_col
+    cdef gdf_column c_index_col
 
     if type(first) == cudf.dataframe.series.Series and type(second) == cudf.dataframe.series.Series:
         resultSize = len(first)
