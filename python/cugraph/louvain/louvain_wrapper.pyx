@@ -25,9 +25,9 @@ cpdef nvLouvain(input_graph):
 
     Parameters
     ----------
-    graph : cuGraph.Graph                 
+    input_graph : cuGraph.Graph
       cuGraph graph descriptor, should contain the connectivity information as an edge list (edge weights are not used for this algorithm).
-      The adjacency list will be computed if not already present.   
+      The adjacency list will be computed if not already present.
 
     Returns
     -------
@@ -38,12 +38,12 @@ cpdef nvLouvain(input_graph):
  
     Examples
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,None)
-    >>> louvain_parts = cuGraph.louvain(G)
+    >>> louvain_parts, modularity_score = cuGraph.louvain(G)
     """
 
     cdef uintptr_t graph = input_graph.graph_ptr
@@ -52,27 +52,47 @@ cpdef nvLouvain(input_graph):
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    n = g.adjList.offsets.size - 1
+    num_vert = input_graph.num_vertices()
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(n, dtype=np.int32))
-    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
-    err = g.adjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+    df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
+    cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
+    err = g.adjList.get_vertex_identifiers(&c_index_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     
-    df['partition'] = cudf.Series(np.zeros(n,dtype=np.int32))
-    cdef uintptr_t louvain_parts_col_ptr = create_column(df['partition'])
-    cdef double final_modularity = 1.0
-    cdef int num_level
+    df['partition'] = cudf.Series(np.zeros(num_vert,dtype=np.int32))
+    cdef gdf_column c_louvain_parts_col = get_gdf_column_view(df['partition'])
 
-    err = gdf_louvain(<gdf_graph*>g, <void*>&final_modularity, <void*>&num_level, <gdf_column*>louvain_parts_col_ptr)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
-
-    cdef double fm = final_modularity
-    cdef float tmp = (<float*>(<void*>&final_modularity))[0]
+    cdef bool single_precision = False
+    # this implementation is tied to cugraph.cu line 503
+    # cudaDataType_t val_type = graph->adjList->edge_data?
+    #     gdf_to_cudadtype(graph->adjList->edge_data): CUDA_R_32F;
+    # this is tied to the low-level implementation detail of the lower level
+    # function, and very vulnerable to low level changes. Better be
+    # reimplemented, but we are planning to eventually remove nvgraph, so I may
+    # leave as is right at this moment.
     if g.adjList.edge_data:
         if g.adjList.edge_data.dtype == GDF_FLOAT32:
-            fm = tmp
+            single_precision = True;
     else:
-        fm = tmp
-    return df, fm                                      
+        single_precision = True;
+
+    cdef float final_modularity_single_precision = 1.0
+    cdef double final_modularity_double_precision = 1.0
+    cdef int num_level = 0
+    cdef gdf_error error
+
+    if single_precision:
+        err = gdf_louvain(<gdf_graph*>g,
+                          <void*>&final_modularity_single_precision,
+                          <void*>&num_level, &c_louvain_parts_col)
+    else:
+        err = gdf_louvain(<gdf_graph*>g,
+                          <void*>&final_modularity_double_precision,
+                          <void*>&num_level, &c_louvain_parts_col)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    if single_precision:
+        return df, <double>final_modularity_single_precision
+    else:
+        return df, final_modularity_double_precision
