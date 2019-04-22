@@ -133,7 +133,7 @@ def test_jaccard(graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize('graph_file', ['datasets/netscience'])
+@pytest.mark.parametrize('graph_file', ['../datasets/netscience'])
 def test_jaccard_edgevals(graph_file):
 
     M = read_mtx_file(graph_file)

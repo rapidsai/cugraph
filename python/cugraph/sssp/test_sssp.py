@@ -136,7 +136,7 @@ def test_sssp(graph_file, source):
     assert err == 0
 
 
-@pytest.mark.parametrize('graph_file', ['datasets/netscience'])
+@pytest.mark.parametrize('graph_file', ['../datasets/netscience'])
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp_edgevals(graph_file, source):
 
