@@ -1,6 +1,6 @@
 # <div align="left"><img src="img/rapids_logo.png" width="90px"/>&nbsp;cuGraph - GPU Graph Analytics</div>
 
-[![Build Status](http://18.191.94.64/buildStatus/icon?job=cugraph-master)](http://18.191.94.64/job/cugraph-master/)  [![Documentation Status](https://readthedocs.org/projects/cugraph/badge/?version=latest)](https://cugraph.readthedocs.io/en/latest/)
+[![Build Status](http://18.191.94.64/buildStatus/icon?job=cugraph-master)](http://18.191.94.64/job/cugraph-master/)  [![Documentation Status](https://readthedocs.org/projects/cugraph/badge/?version=latest)](https://docs.rapids.ai/api/cugraph/nightly/)
 
 The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process data found in GPU Dataframes - see [cuDF](https://github.com/rapidsai/cudf).  cuGraph aims to provide a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
 
@@ -19,7 +19,6 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analyti
 There are 4 ways to get cuGraph :
 1. [Quick start with Docker Demo Repo](#quick)
 1. [Conda Installation](#conda)
-1. [Pip Installation](#pip)
 1. [Build from Source](#source)
 
 
@@ -49,22 +48,6 @@ conda install -c nvidia/label/cuda10.0 -c rapidsai/label/cuda10.0 -c numba -c co
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
-
-
-
-### Pip {#pip}
-
-It is easy to install cuGraph using pip. You must specify the CUDA version to ensure you install the right package.
-
-```bash
-# CUDA 9.2
-pip install cugraph-cuda92
-
-# CUDA 10.0.
-pip install cugraph-cuda100
-```
-
-
 
 
 
@@ -320,7 +303,6 @@ unset LD_LIBRARY_PATH
 ## nvGraph
 
 The nvGraph library is now open source and part of cuGraph. It can be build as a stand alone by following nvgraph's [readme](cpp/nvgraph/). 
-
 
 ------
 
