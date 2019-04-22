@@ -4,9 +4,9 @@
 - PR #195 Added Graph.get_two_hop_neighbors() method
 - PR #195 Updated Jaccard and Weighted Jaccard to accept lists of vertex pairs to compute for
 - PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
+- PR #230 SNMG SPMV and helpers functions 
 - PR #210 Expose degree calculation kernel via python API
 - PR #220 Added bindings for Nvgraph triangle counting
-...
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py

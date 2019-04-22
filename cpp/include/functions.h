@@ -147,6 +147,27 @@ gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph);
 gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
 
 /**
+ * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
+ 			   Should be called in an omp parallel section with one thread per device.
+ 			   Each device is expected to have a part of the matrix and a copy of the vector
+               This function is designed for 1D decomposition. Each partition should have local offsets.
+ *
+ * @Param[in] *part_offsets   Vertex offsets for each partition. This information should be available on all threads/devices 
+ 							  part_off[device_id] contains the global ID of the first vertex of the partion owned by device_id. 
+                              part_off[num_devices] contains the global number of vertices
+                              
+ * @Param[in] off             Local adjacency list offsets. Starting at 0. The last element contains the local number of edges owned by the partition.
+ * @Param[in] ind             Local adjacency list indices. Indices are between 0 and the global number of edges. 
+ * @Param[in] val             Local adjacency list values. Type should be float or double.
+ * @Param[in][out] **x_col    x[device_id] contains the input vector of the spmv for a device_id. The input should be duplicated on all devices.
+                              Overwritten on output by the result of x = A*x, on all devices.
+ *
+ * @Returns               GDF_SUCCESS upon successful completion.
+ */
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
+
+/**
  * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a gdf_graph
  *
  * @Param[in] *graph                 graph descriptor with graph->transposedAdjList or graph->adjList present
@@ -161,3 +182,4 @@ gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_col
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x);
+
