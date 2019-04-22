@@ -4,10 +4,11 @@
 - PR #195 Added Graph.get_two_hop_neighbors() method
 - PR #195 Updated Jaccard and Weighted Jaccard to accept lists of vertex pairs to compute for
 - PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
+- PR #230 SNMG SPMV and helpers functions 
 - PR #210 Expose degree calculation kernel via python API
 - PR #220 Added bindings for Nvgraph triangle counting
 - PR #234 Added bindings for renumbering, modify renumbering to use RMM
-...
+
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
@@ -20,6 +21,7 @@
 - PR #215 Simplified get_rapids_dataset_root_dir(), set a default value for the root dir
 
 ## Bug Fixes
+- PR #226 Bump cudf dependencies to 0.7
 - PR #169 Disable terminal output in sssp
 - PR #191 Fix double upload bug
 - PR #181 Fixed crash/rmm free error when edge values provided

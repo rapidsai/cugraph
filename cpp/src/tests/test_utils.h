@@ -27,6 +27,7 @@
 #include <utility>
 #include <cstdint>
 #include <cstdlib>
+#include <map>
 extern "C" {
 #include "mmio.h"
 }
@@ -114,6 +115,13 @@ void printv(size_t n, T* vec, int offset) {
     std::cout << "sample size = "<< n << ", offset = "<< offset << std::endl;
     thrust::copy(dev_ptr+offset,dev_ptr+offset+n, std::ostream_iterator<T>(std::cout, " "));//Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
     std::cout << std::endl;
+}
+
+template <typename T>
+void random_vals(std::vector<T> & v) {
+  srand(42);
+  for (auto i = 0; i < v.size(); i++)
+    v[i]=static_cast<T>(std::rand()%10);
 }
 
 template <typename T_ELEM>
@@ -460,6 +468,31 @@ void coo_sort(IndexType_ nnz, int sort_by_row,
 		lesser_tuple(i));
 }
 
+template <typename IndexT>
+void coo2csr(std::vector<IndexT>& cooRowInd, //in: I[] (overwrite)
+             const std::vector<IndexT>& cooColInd, //in: J[]
+             std::vector<IndexT>& csrRowPtr, //out 
+             std::vector<IndexT>& csrColInd) //out
+{
+    std::vector<std::pair<IndexT,IndexT> > items;
+    for (auto i = 0; i < cooRowInd.size(); ++i)
+        items.push_back(std::make_pair( cooRowInd[i], cooColInd[i]));
+    //sort pairs
+    std::sort(items.begin(), items.end(),[](const std::pair<IndexT,IndexT> &left, const std::pair<IndexT,IndexT> &right) 
+                                             {return left.first < right.first; });
+    for (auto i = 0; i < cooRowInd.size(); ++i) {
+      cooRowInd[i]=items[i].first; // save the sorted rows to compress them later
+      csrColInd[i]=items[i].second; // save the col idx, not sure if they are sorted for each row
+    }
+    // Count number of elements per row
+    for(auto i=0; i<cooRowInd.size(); ++i)
+      ++(csrRowPtr[cooRowInd[i]+1]);
+  
+    // Compute cumulative sum to obtain row offsets/pointers
+    for(auto i=0; i<csrRowPtr.size()-1; ++i)
+      csrRowPtr[i+1] += csrRowPtr[i];
+}
+
 /// Compress sorted list of indices
 /** For use in converting COO format matrix to CSR or CSC format.
  *
@@ -471,8 +504,8 @@ void coo_sort(IndexType_ nnz, int sort_by_row,
  */
 template <typename IndexType_>
 void coo_compress(IndexType_ m, IndexType_ n, IndexType_ nnz,
-		  const IndexType_ * __restrict__ sortedIndices,
-		  IndexType_ * __restrict__ compressedIndices) {
+      const IndexType_ * __restrict__ sortedIndices,
+      IndexType_ * __restrict__ compressedIndices) {
   IndexType_ i;
 
   // Initialize everything to zero
@@ -517,18 +550,19 @@ void coo_compress(IndexType_ m, IndexType_ n, IndexType_ nnz,
  */
 template <typename IndexType_, typename ValueType_>
 int coo_to_csr(IndexType_ m, IndexType_ n, IndexType_ nnz,
-		IndexType_ * __restrict__ cooRowInd,
-		IndexType_ * __restrict__ cooColInd,
-		ValueType_ * __restrict__ cooRVal,
-		ValueType_ * __restrict__ cooIVal,
-		IndexType_ * __restrict__ csrRowPtr,
-		IndexType_ * __restrict__ csrColInd,
-		ValueType_ * __restrict__ csrRVal,
-		ValueType_ * __restrict__ csrIVal) {
+    IndexType_ * __restrict__ cooRowInd,
+    IndexType_ * __restrict__ cooColInd, 
+    ValueType_ * __restrict__ cooRVal,
+    ValueType_ * __restrict__ cooIVal,
+    IndexType_ * __restrict__ csrRowPtr,
+    IndexType_ * __restrict__ csrColInd,
+    ValueType_ * __restrict__ csrRVal,
+    ValueType_ * __restrict__ csrIVal) {
 
   // Convert COO to CSR matrix
   coo_sort(nnz, 0, cooRowInd, cooColInd, cooRVal, cooIVal);
   coo_sort(nnz, 1, cooRowInd, cooColInd, cooRVal, cooIVal);
+  //coo_sort2<int,float>(m, nnz, cooRowInd, cooColInd);
   coo_compress(m, n, nnz, cooRowInd, csrRowPtr);
 
   // Copy arrays
