@@ -35,7 +35,9 @@ Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapids
 
 
 
-### Conda{#conda}
+<a name="conda"></a>
+
+### Conda
 
 It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
 
@@ -53,7 +55,9 @@ Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
 
 
-### Build from Source {#source}
+<a name="source"></a>
+
+### Build from Source 
 
 The following instructions are for developers and contributors to cuGraph OSS development. These instructions are tested on Linux Ubuntu 16.04 & 18.04. Use these instructions to build cuGraph from source and contribute to its development.  Other operating systems may be compatible, but are not currently tested.
 
