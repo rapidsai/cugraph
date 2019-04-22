@@ -272,12 +272,22 @@ def test_degree_functionality(graph_file):
     assert err_out_degree == 0
     assert err_degree == 0
 
-def test_renumber():
 
-    source_list = [ '192.168.1.1', '172.217.5.238', '216.228.121.209', '192.16.31.23' ]
-    dest_list = [ '172.217.5.238', '216.228.121.209', '192.16.31.23', '192.168.1.1' ]
-    source_as_int = [ struct.unpack('!L', socket.inet_aton(x))[0] for x in source_list ]
-    dest_as_int = [ struct.unpack('!L', socket.inet_aton(x))[0] for x in dest_list ]
+def test_renumber():
+    source_list = ['192.168.1.1',
+                   '172.217.5.238',
+                   '216.228.121.209',
+                   '192.16.31.23']
+    dest_list = ['172.217.5.238',
+                 '216.228.121.209',
+                 '192.16.31.23',
+                 '192.168.1.1']
+    source_as_int = [
+        struct.unpack('!L', socket.inet_aton(x))[0] for x in source_list
+    ]
+    dest_as_int = [
+        struct.unpack('!L', socket.inet_aton(x))[0] for x in dest_list
+    ]
 
     df = pd.DataFrame({
             'source_list': source_list,
@@ -295,4 +305,3 @@ def test_renumber():
     for i in range(len(source_as_int)):
         assert source_as_int[i] == numbering[src[i]]
         assert dest_as_int[i] == numbering[dst[i]]
-
