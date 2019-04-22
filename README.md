@@ -27,7 +27,9 @@ Building from source is currently the only viable option. Once version 0.6 is re
 
 
 
-## Quick Start {#quick}
+<a name="quick"></a>
+
+## Quick Start  
 
 Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
