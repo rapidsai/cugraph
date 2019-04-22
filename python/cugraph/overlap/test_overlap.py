@@ -27,7 +27,8 @@ def read_mtx_file(mm_file):
 
 def read_csv_file(mm_file):
     print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ', dtype = ['int32', 'int32', 'float32'], header=None)
+    return cudf.read_csv(mm_file, delimiter=' ',
+           dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def cugraph_call(cu_M, first, second, edgevals=False):
@@ -118,7 +119,8 @@ def test_overlap_edge_vals(graph_file):
     G.add_adj_list(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
-    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'], edgevals=True)
+    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'],
+               edgevals=True)
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
 
     assert len(cu_coeff) == len(cpu_coeff)
