@@ -40,7 +40,7 @@ def read_mtx_file(mm_file):
 def read_csv_file(mm_file):
     print('Reading ' + str(mm_file) + '...')
     return cudf.read_csv(mm_file, delimiter=' ',
-           dtype=['int32', 'int32', 'float32'], header=None)
+                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def cugraph_call(cu_M):
@@ -49,8 +49,8 @@ def cugraph_call(cu_M):
     destinations = cu_M['1']
     # values = cudf.Series(np.ones(len(col_indices), dtype=np.float32),
     # nan_as_null=False)
-    weights_arr = cudf.Series(np.ones(max(sources.max(), 
-                  destinations.max())+1, dtype=np.float32))
+    weights_arr = cudf.Series(np.ones(max(sources.max(),
+                              destinations.max())+1, dtype=np.float32))
 
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)

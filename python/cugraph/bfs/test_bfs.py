@@ -29,8 +29,8 @@ def read_mtx_file(mm_file):
 
 def read_csv_file(mm_file):
     print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ', 
-           dtype=['int32', 'int32', 'float32'], header=None)
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def cugraph_call(cu_M, start_vertex):
