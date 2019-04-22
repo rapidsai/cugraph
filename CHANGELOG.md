@@ -6,6 +6,7 @@
 - PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
 - PR #210 Expose degree calculation kernel via python API
 - PR #220 Added bindings for Nvgraph triangle counting
+- PR #234 Added bindings for renumbering, modify renumbering to use RMM
 ...
 
 ## Improvements
