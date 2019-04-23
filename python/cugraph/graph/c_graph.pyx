@@ -180,7 +180,7 @@ class Graph:
         err = gdf_add_edge_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        col_size = g.edgeList.src_indices.size
+        col_size = self.number_of_edges()
 
         cdef uintptr_t src_col_data = <uintptr_t> g.edgeList.src_indices.data
         cdef uintptr_t dest_col_data = <uintptr_t> g.edgeList.dest_indices.data
@@ -304,7 +304,7 @@ class Graph:
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         offset_col_size = self.number_of_vertices() + 1
-        index_col_size = g.adjList.indices.size
+        index_col_size = self.number_of_edges()
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
         cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices.data
@@ -356,7 +356,7 @@ class Graph:
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         offset_col_size = self.number_of_vertices() + 1
-        index_col_size = g.transposedAdjList.indices.size
+        index_col_size = self.number_of_edges()
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data
         cdef uintptr_t index_col_data = <uintptr_t> g.transposedAdjList.indices.data
@@ -441,6 +441,22 @@ class Graph:
             err = gdf_add_adj_list(g)
             cudf.bindings.cudf_cpp.check_gdf_error(err)
             return g.adjList.offsets.size - 1
+        else:
+            # An empty graph
+            return 0
+
+    def number_of_edges(self):
+        """
+        Get the number of edges in the graph
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = <gdf_graph*> graph
+        if g.adjList:
+            return g.adjList.indices.size
+        elif g.transposedAdjList:
+            return g.transposedAdjList.indices.size
+        elif g.edgeList:
+            return g.edgeList.src_indices.size
         else:
             # An empty graph
             return 0

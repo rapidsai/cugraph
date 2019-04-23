@@ -105,8 +105,8 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
         return df
 
     elif first is None and second is None:
-        resultSize = g.adjList.indices.size
-        result = cudf.Series(np.ones(resultSize, dtype=np.float32))
+        num_edges = input_graph.number_of_edges()
+        result = cudf.Series(np.ones(num_edges, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
         c_weight_col = get_gdf_column_view(weights)
 
@@ -114,10 +114,10 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
-                                            nelem=resultSize,
+                                            nelem=num_edges,
                                             dtype=gdf_to_np_dtypes[g.adjList.indices.dtype])
         df = cudf.DataFrame()
-        df['source'] = cudf.Series(np.zeros(resultSize, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
+        df['source'] = cudf.Series(np.zeros(num_edges, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
         c_index_col = get_gdf_column_view(df['source']) 
         err = g.adjList.get_source_indices(&c_index_col);
         cudf.bindings.cudf_cpp.check_gdf_error(err)
