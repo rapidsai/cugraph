@@ -18,6 +18,7 @@ from libc.stdlib cimport calloc, malloc, free
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
+from cudf.bindings.GDFError import GDFError
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
@@ -141,35 +142,42 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         """
-        # If copy is False, increase the reference count of the Python objects
-        # referenced by the input arguments source_col, dest_col, and value_col
-        # (if not None) to avoid garbage collection while they are still in use
-        # inside this class. If copy is set to True, deep-copy the objects.
-        if copy is False:
-            self.edge_list_source_col = source_col
-            self.edge_list_dest_col = dest_col
-            self.edge_list_value_col = value_col
-        else:
-            self.edge_list_source_col = source_col.copy()
-            self.edge_list_dest_col = dest_col.copy()
-            self.edge_list_value_col = value_col.copy()
-
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_column c_source_col = get_gdf_column_view(self.edge_list_source_col)
-        cdef gdf_column c_dest_col = get_gdf_column_view(self.edge_list_dest_col)
+        cdef gdf_graph * g = <gdf_graph*> graph
+
+        # Create temporary references first as the member variables should not
+        # be updated on failure.
+        if copy is False:
+            tmp_source_col = source_col
+            tmp_dest_col = dest_col
+            tmp_value_col = value_col
+        else:
+            tmp_source_col = source_col.copy()
+            tmp_dest_col = dest_col.copy()
+            tmp_value_col = value_col.copy()
+
+        cdef gdf_column c_source_col = get_gdf_column_view(tmp_source_col)
+        cdef gdf_column c_dest_col = get_gdf_column_view(tmp_dest_col)
         cdef gdf_column c_value_col
         cdef gdf_column * c_value_col_ptr
         if value_col is None:
             c_value_col_ptr = NULL
         else:
-            c_value_col = get_gdf_column_view(self.edge_list_value_col)
+            c_value_col = get_gdf_column_view(tmp_value_col)
             c_value_col_ptr = &c_value_col
 
-        err = gdf_edge_list_view(<gdf_graph*> graph,
+        err = gdf_edge_list_view(g,
                                  &c_source_col,
                                  &c_dest_col,
                                  c_value_col_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        # Increase the reference count of the Python objects to avoid premature
+        # garbage collection while they are still in use inside the gdf_graph
+        # object.
+        self.edge_list_source_col = tmp_source_col
+        self.edge_list_dest_col = tmp_dest_col
+        self.edge_list_value_col = tmp_value_col
 
     def view_edge_list(self):
         """
@@ -263,36 +271,42 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_adj_list(offsets, indices, None)
         """
-        # If copy is False, increase the reference count of the Python objects
-        # referenced by the input arguments offset_col, index_col, and
-        # value_col (if not None) to avoid garbage collection while they are
-        # still in use inside this class. If copy is set to True, deep-copy the
-        # objects.
-        if copy is False:
-            self.adj_list_offset_col = offset_col
-            self.adj_list_index_col = index_col
-            self.adj_list_value_col = value_col
-        else:
-            self.adj_list_offset_col = offset_col.copy()
-            self.adj_list_index_col = index_col.copy()
-            self_adj_list_value_col = value_col.copy()
-
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_column c_offset_col = get_gdf_column_view(self.adj_list_offset_col)
-        cdef gdf_column c_index_col = get_gdf_column_view(self.adj_list_index_col)
+        cdef gdf_graph * g = <gdf_graph*> graph
+
+        # Create temporary references first as the member variables should not
+        # be updated on failure.
+        if copy is False:
+            tmp_offset_col = offset_col
+            tmp_index_col = index_col
+            tmp_value_col = value_col
+        else:
+            tmp_offset_col = offset_col.copy()
+            tmp_index_col = index_col.copy()
+            tmp_value_col = value_col.copy()
+
+        cdef gdf_column c_offset_col = get_gdf_column_view(tmp_offset_col)
+        cdef gdf_column c_index_col = get_gdf_column_view(tmp_index_col)
         cdef gdf_column c_value_col
         cdef gdf_column * c_value_col_ptr
         if value_col is None:
             c_value_col_ptr = NULL
         else:
-            c_value_col = get_gdf_column_view(self.adj_list_value_col)
+            c_value_col = get_gdf_column_view(tmp_value_col)
             c_value_col_ptr = &c_value_col
 
-        err = gdf_adj_list_view(<gdf_graph*> graph,
+        err = gdf_adj_list_view(g,
                                 &c_offset_col,
                                 &c_index_col,
                                 c_value_col_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        # Increase the reference count of the Python objects to avoid premature
+        # garbage collection while they are still in use inside the gdf_graph
+        # object.
+        self.adj_list_offset_col = tmp_offset_col
+        self.adj_list_index_col = tmp_index_col
+        self_adj_list_value_col = tmp_value_col
 
     def view_adj_list(self):
         """
