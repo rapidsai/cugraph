@@ -18,7 +18,6 @@ from libc.stdlib cimport calloc, malloc, free
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
-from cudf.bindings.GDFError import GDFError
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
