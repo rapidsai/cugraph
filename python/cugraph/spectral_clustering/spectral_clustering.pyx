@@ -73,13 +73,13 @@ cpdef spectralBalancedCutClustering(G,
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_vert = G.num_vertices()
+    num_verts = G.number_of_vertices()
 
     # Create the output dataframe
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
-    df['cluster'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
+    df['cluster'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
     
     # Set the vertex identifiers
@@ -150,13 +150,13 @@ cpdef spectralModularityMaximizationClustering(G,
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_vert = G.num_vertices()
+    num_verts = G.number_of_vertices()
 
     # Create the output dataframe
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
-    df['cluster'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
+    df['cluster'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
     
     # Set the vertex identifiers

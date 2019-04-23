@@ -33,7 +33,8 @@ def cugraph_call(G, partitions):
 
 
 def random_call(G, partitions):
-    num_verts = G.num_vertices()
+    random.seed(0)
+    num_verts = G.number_of_vertices()
     assignment = []
     for i in range(num_verts):
         assignment.append(random.randint(0, partitions-1))

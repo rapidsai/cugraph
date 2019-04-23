@@ -52,15 +52,15 @@ cpdef nvLouvain(input_graph):
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_vert = input_graph.num_vertices()
+    num_verts = input_graph.number_of_vertices()
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
     err = g.adjList.get_vertex_identifiers(&c_index_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     
-    df['partition'] = cudf.Series(np.zeros(num_vert,dtype=np.int32))
+    df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))
     cdef gdf_column c_louvain_parts_col = get_gdf_column_view(df['partition'])
 
     cdef bool single_precision = False

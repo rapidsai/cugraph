@@ -58,16 +58,16 @@ cpdef sssp(G, source):
     err = gdf_add_transposed_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_vert = G.num_vertices()
+    num_verts = G.number_of_vertices()
 
     data_type = np.float32
     if g.transposedAdjList.edge_data:
         data_type = gdf_to_np_dtypes[g.transposedAdjList.edge_data.dtype]
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
-    df['distance'] = cudf.Series(np.zeros(num_vert, dtype=data_type))
+    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
     cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
 
     err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)

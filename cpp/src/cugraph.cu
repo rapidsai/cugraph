@@ -280,7 +280,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
 
 
 gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x) {
-  // Calculates the degree of all nodes of the graph
+  // Calculates the degree of all vertices of the graph
   // x = 0: in+out degree
   // x = 1: in-degree
   // x = 2: out-degree
@@ -436,7 +436,7 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, floa
   }
 }
 
-gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_node, bool directed) {
+gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
   GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
@@ -457,7 +457,7 @@ gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecess
 
   cugraph::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
   bfs.configure(distances_ptr, predecessors_ptr, nullptr);
-  bfs.traverse(start_node);
+  bfs.traverse(start_vertex);
   return GDF_SUCCESS;
 }
 

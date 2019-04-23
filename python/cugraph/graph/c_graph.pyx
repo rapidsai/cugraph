@@ -303,7 +303,7 @@ class Graph:
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        offset_col_size = self.num_vertices() + 1
+        offset_col_size = self.number_of_vertices() + 1
         index_col_size = g.adjList.indices.size
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
@@ -355,7 +355,7 @@ class Graph:
         err = gdf_add_transposed_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        offset_col_size = self.num_vertices() + 1
+        offset_col_size = self.number_of_vertices() + 1
         index_col_size = g.transposedAdjList.indices.size
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data
@@ -385,10 +385,10 @@ class Graph:
 
     def get_two_hop_neighbors(self):
         """
-        Return a dataframe containing vertex pairs such that each pair of vertices is 
-        connected by a path of two hops in the graph. The resulting pairs are 
+        Return a dataframe containing vertex pairs such that each pair of vertices is
+        connected by a path of two hops in the graph. The resulting pairs are
         returned in sorted order.
-        
+
         Returns:
         df : a cudf.DataFrame object
         df['first'] the first vertex id of a pair
@@ -422,7 +422,7 @@ class Graph:
 
         return df
 
-    def num_vertices(self):
+    def number_of_vertices(self):
         """
         Get the number of vertices in the graph
         """
@@ -435,24 +435,24 @@ class Graph:
         else:
             err = gdf_add_adj_list(g)
             cudf.bindings.cudf_cpp.check_gdf_error(err)
-            return g.adjList.offsets.size - 1   
+            return g.adjList.offsets.size - 1
 
     def in_degree(self, vertex_subset = None):
         """
-        Calculates and returns the in-degree of nodes. Node in-degree 
-        is the number of edges pointing in to the node.
+        Calculates and returns the in-degree of vertices. Vertex in-degree
+        is the number of edges pointing in to the vertex.
         Parameters
         ----------
-        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
-            A container of nodes for displaying corresponding in-degree
+        vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
+            A container of vertices for displaying corresponding in-degree
         Returns
         -------
         df  : cudf.DataFrame
-        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset) 
+        GPU data frame of size N (the default) or the size of the given vertices (vertex_subset)
         containing the in_degree. The ordering is relative to the adjacency list, or that
         given by the specified vertex_subset.
-      
-        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+
+        df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed in-degree of the corresponding vertex
         Examples
         --------
@@ -475,20 +475,20 @@ class Graph:
 
     def out_degree(self, vertex_subset = None):
         """
-        Calculates and returns the out-degree of nodes. Node out-degree 
-        is the number of edges pointing out from the node.
+        Calculates and returns the out-degree of vertices. Vertex out-degree
+        is the number of edges pointing out from the vertex.
         Parameters
         ----------
-        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
-            A container of nodes for displaying corresponding out-degree
+        vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
+            A container of vertices for displaying corresponding out-degree
         Returns
         -------
         df  : cudf.DataFrame
-        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset)
+        GPU data frame of size N (the default) or the size of the given vertices (vertex_subset)
         containing the out_degree. The ordering is relative to the adjacency list, or that
         given by the specified vertex_subset.
 
-        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+        df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed out-degree of the corresponding vertex
         Examples
         --------
@@ -511,20 +511,20 @@ class Graph:
 
     def degree(self, vertex_subset = None):
         """
-        Calculates and returns the degree of nodes. Node degree
-        is the number of edges adjacent to that node.
+        Calculates and returns the degree of vertices. Vertex degree
+        is the number of edges adjacent to that vertex.
         Parameters
         ----------
-        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
-            A container of nodes for displaying corresponding degree
+        vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
+            A container of vertices for displaying corresponding degree
         Returns
         -------
         df  : cudf.DataFrame
-        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset)
+        GPU data frame of size N (the default) or the size of the given vertices (vertex_subset)
         containing the degree. The ordering is relative to the adjacency list, or that
         given by the specified vertex_subset.
 
-        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+        df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed degree of the corresponding vertex
         Examples
         --------
@@ -549,7 +549,7 @@ class Graph:
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph* g = <gdf_graph*> graph
 
-        n = self.num_vertices()
+        n = self.number_of_vertices()
 
         df = cudf.DataFrame()
         vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -559,7 +559,7 @@ class Graph:
         else:
             err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-        
+
         degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
         cdef gdf_column c_degree_col = get_gdf_column_view(degree_col)
         err = gdf_degree(g, &c_degree_col, <int>x)
@@ -573,5 +573,5 @@ class Graph:
             df['degree'] = cudf.Series(np.asarray([degree_col[i] for i in vertex_subset], dtype=np.int32))
             del vertex_col
             del degree_col
-        
+
         return df
