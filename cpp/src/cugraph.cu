@@ -74,7 +74,6 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
   //representation to prevent a single object storing two different graphs.
   GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
-  GDF_REQUIRE( (graph->transposedAdjList == nullptr) , GDF_INVALID_API_CALL);
   GDF_REQUIRE( offsets->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( (offsets->dtype == indices->dtype), GDF_UNSUPPORTED_DTYPE );
