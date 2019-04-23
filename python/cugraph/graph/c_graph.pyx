@@ -432,10 +432,18 @@ class Graph:
             return g.adjList.offsets.size - 1
         elif g.transposedAdjList:
             return g.transposedAdjList.offsets.size - 1
-        else:
+        elif g.edgeList:
+            # This code needs to be revisited when updating gdf_graph. Users
+            # may expect numbrer_of_vertcies() as a cheap query but this
+            # function can run for a while and also requires a significant
+            # amount of additional memory. It is better to update the number
+            # of vertices when creating an edge list representation.
             err = gdf_add_adj_list(g)
             cudf.bindings.cudf_cpp.check_gdf_error(err)
             return g.adjList.offsets.size - 1
+        else:
+            # An empty graph
+            return 0
 
     def in_degree(self, vertex_subset = None):
         """
