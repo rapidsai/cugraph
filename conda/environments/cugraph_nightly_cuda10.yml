@@ -7,7 +7,7 @@ channels:
 - conda-forge
 - defaults
 dependencies:
-- cudf>=0.7
+- cudf=0.7.*
 - scipy
 - networkx
 - python-louvain
