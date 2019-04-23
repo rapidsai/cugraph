@@ -65,7 +65,7 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
           the source and destination vertices. 
     Examples
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -74,29 +74,29 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
     """
 
     cdef uintptr_t graph = input_graph.graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
+    cdef gdf_graph * g = <gdf_graph*> graph
     
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    cdef uintptr_t result_ptr
-    cdef uintptr_t weight_ptr
-    cdef uintptr_t first_ptr
-    cdef uintptr_t second_ptr
-    cdef uintptr_t indices_ptr
+    cdef gdf_column c_result_col
+    cdef gdf_column c_weight_col
+    cdef gdf_column c_first_col
+    cdef gdf_column c_second_col
+    cdef gdf_column c_index_col
 
     if type(first) == cudf.dataframe.series.Series and type(second) == cudf.dataframe.series.Series:
         resultSize = len(first)
         result = cudf.Series(np.ones(resultSize, dtype=np.float32))
-        result_ptr = create_column(result)
-        weight_ptr = create_column(weights)
-        first_ptr = create_column(first)
-        second_ptr = create_column(second)
+        c_result_col = get_gdf_column_view(result)
+        c_weight_col = get_gdf_column_view(weights)
+        c_first_col = get_gdf_column_view(first)
+        c_second_col = get_gdf_column_view(second)
         err = gdf_jaccard_list(g,
-                               < gdf_column *> weight_ptr,
-                               < gdf_column *> first_ptr,
-                               < gdf_column *> second_ptr,
-                               < gdf_column *> result_ptr)
+                               &c_weight_col,
+                               &c_first_col,
+                               &c_second_col,
+                               &c_result_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df = cudf.DataFrame()
         df['source'] = first
@@ -107,19 +107,19 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
     elif first is None and second is None:
         resultSize = g.adjList.indices.size
         result = cudf.Series(np.ones(resultSize, dtype=np.float32))
-        result_ptr = create_column(result)
-        weight_ptr = create_column(weights)
+        c_result_col = get_gdf_column_view(result)
+        c_weight_col = get_gdf_column_view(weights)
 
-        err = gdf_jaccard(g, < gdf_column *> weight_ptr, < gdf_column *> result_ptr)
+        err = gdf_jaccard(g, &c_weight_col, &c_result_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        dest_data = rmm.device_array_from_ptr(< uintptr_t > g.adjList.indices.data,
+        dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
                                             nelem=resultSize,
                                             dtype=gdf_to_np_dtypes[g.adjList.indices.dtype])
         df = cudf.DataFrame()
         df['source'] = cudf.Series(np.zeros(resultSize, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
-        indices_ptr = create_column(df['source']) 
-        err = g.adjList.get_source_indices(< gdf_column *> indices_ptr);
+        c_index_col = get_gdf_column_view(df['source']) 
+        err = g.adjList.get_source_indices(&c_index_col);
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df['destination'] = cudf.Series(dest_data)
         df['jaccard_coeff'] = result
@@ -127,4 +127,3 @@ cpdef jaccard_w(input_graph, weights, first=None, second=None):
         return df
 
     raise ValueError("Specify first and second or neither")
-
