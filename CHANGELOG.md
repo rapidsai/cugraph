@@ -33,6 +33,7 @@
 - PR #224 Update erroneous comments in overlap_wrapper.pyx, woverlap_wrapper.pyx, test_louvain.py, and spectral_clustering.pyx
 - PR #220 Fixed bugs in Nvgraph triangle counting
 - PR #232 Fixed memory leaks in managing cudf columns.
+- PR #239 Added a check to prevent a cugraph object to store two different graphs.
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
