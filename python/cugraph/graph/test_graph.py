@@ -305,3 +305,23 @@ def test_renumber():
     for i in range(len(source_as_int)):
         assert source_as_int[i] == numbering[src[i]]
         assert dest_as_int[i] == numbering[dst[i]]
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_renumber_files(graph_file):
+    M = read_mtx_file(graph_file)
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+
+    translate = 1000
+
+    source_translated = cudf.Series([x + translate for x in sources])
+    dest_translated = cudf.Series([x + translate for x in destinations])
+
+    G = cugraph.Graph()
+
+    src, dst, numbering = G.renumber(source_translated, dest_translated)
+
+    for i in range(len(sources)):
+        assert sources[i] == (numbering[src[i]] - translate)
+        assert destinations[i] == (numbering[dst[i]] - translate)
