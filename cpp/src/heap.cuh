@@ -134,15 +134,6 @@ namespace cugraph {
 	for (S i = size - 1 ; i > 0 ; --i) {
 	  S p = detail::parent(i);
 
-	  {
-	    S lc = detail::left_child(p);
-	    S rc = detail::right_child(p);
-	    if (i == lc) {
-	    } else if (i == rc) {
-	    } else {
-	      printf("in heapify... i = %ld, p = %ld, lc = %ld, rc = %ld\n", i, p, lc, rc);
-	    }
-	  }
 	  if (compare(array[i], array[p])) {
 	    thrust::swap(array[i], array[p]);
 	    ++count_swaps;
@@ -202,22 +193,6 @@ namespace cugraph {
       }
       
       return array[size];
-    }
-
-    template <typename T, typename S, typename C>
-    inline void __host__ __device__ check_heap(T *array, S size, C compare) {
-      static_assert(std::is_integral<S>::value, "Index must be of an integral type");
-
-      for (S i = 0 ; i < size ; ++i) {
-	S lc = detail::left_child(i);
-	S rc = detail::right_child(i);
-
-	if ((rc < size) && (compare(array[rc], array[i]))) {
-	  printf("error... array[%ld] = %ld, array[%ld] = %ld, size = %ld\n", rc, array[rc], i, array[i], size);
-	} else if ((lc < size) && (compare(array[lc], array[i]))) {
-	  printf("error... array[%ld] = %ld, array[%ld] = %ld, size = %ld\n", lc, array[lc], i, array[i], size);
-	}
-      }
     }
   }
 }

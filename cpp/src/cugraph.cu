@@ -252,7 +252,7 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
     if (graph->edgeList->edge_data!= nullptr) {
       graph->adjList->edge_data = new gdf_column;
 
-      CSR_Result_Weighted<int,WT> adj_list;
+      CSR_Result_Weighted<int32_t,WT> adj_list;
       status = ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
 
       gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets,
@@ -318,7 +318,7 @@ gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
 
       if (graph->edgeList->edge_data) {
         graph->transposedAdjList->edge_data = new gdf_column;
-        CSR_Result_Weighted<int,WT> adj_list;
+        CSR_Result_Weighted<int32_t,WT> adj_list;
         status = ConvertCOOtoCSR_weighted( (int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
         gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets,
                               nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
@@ -355,7 +355,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
     nblocks.z = 1;
 
     switch (col_ptr->dtype) {
-      case GDF_INT32:   cugraph::degree_offsets<int, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
+      case GDF_INT32:   cugraph::degree_offsets<int32_t, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
@@ -369,7 +369,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
     nblocks.z = 1;
 
     switch (col_ptr->dtype) {
-      case GDF_INT32:   cugraph::degree_coo<int, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
+      case GDF_INT32:   cugraph::degree_coo<int32_t, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
@@ -450,7 +450,7 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
     cugraph::copy<WT>(m, (WT*)pagerank->data, d_pr);
   }
 
-  status = cugraph::pagerank<int,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data,
+  status = cugraph::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data,
     d_val, alpha, d_leaf_vector, false, tolerance, max_iter, d_pr, residual);
 
   if (status !=0)
@@ -478,13 +478,13 @@ gdf_error gdf_add_adj_list(gdf_graph *graph) {
 
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return gdf_add_adj_list_impl<int, float>(graph);
-      case GDF_FLOAT64:   return gdf_add_adj_list_impl<int, double>(graph);
+      case GDF_FLOAT32:   return gdf_add_adj_list_impl<int32_t, float>(graph);
+      case GDF_FLOAT64:   return gdf_add_adj_list_impl<int32_t, double>(graph);
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
   else {
-    return gdf_add_adj_list_impl<int, float>(graph);
+    return gdf_add_adj_list_impl<int32_t, float>(graph);
   }
 }
 
@@ -658,8 +658,8 @@ gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_colu
 
 gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){
     switch (val->dtype) {
-      case GDF_FLOAT32:   return gdf_snmg_csrmv_impl<int,float>(part_offsets, off, ind, val, x_cols);
-      case GDF_FLOAT64:   return gdf_snmg_csrmv_impl<int,double>(part_offsets, off, ind, val, x_cols);
+      case GDF_FLOAT32:   return gdf_snmg_csrmv_impl<int32_t,float>(part_offsets, off, ind, val, x_cols);
+      case GDF_FLOAT64:   return gdf_snmg_csrmv_impl<int32_t,double>(part_offsets, off, ind, val, x_cols);
       default: return GDF_UNSUPPORTED_DTYPE;
     }
 }
