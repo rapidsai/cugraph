@@ -260,6 +260,10 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     G.delete_adj_list()
 
 
+DATASETS2 = ['../datasets/karate',
+             '../datasets/dolphins']
+
+
 @pytest.mark.parametrize('graph_file', DATASETS2)
 def test_two_hop_neighbors(graph_file):
     cu_M = read_csv_file(graph_file+'.csv')
