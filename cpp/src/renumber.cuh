@@ -158,15 +158,6 @@ namespace cugraph {
     }
   }
 
-  void checkError() {
-    cudaError_t e=cudaGetLastError();
-    if(e!=cudaSuccess) {
-      std::cerr << "Cuda failure: "
-		<< cudaGetErrorString(e)
-		<< std::endl;
-    }
-  }
-
   /**
    * @brief Renumber vertices to a dense numbering (0..vertex_size-1)
    *
@@ -236,6 +227,7 @@ namespace cugraph {
     //  Pass 1: count how many vertex ids end up in each hash bin
     //
     CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::index_type)));
+    CUDA_TRY(cudaMemset(hash_bins_base, 0, (1 + hash_size) * sizeof(detail::index_type)));
 
     thrust::for_each(thrust::cuda::par(allocator).on(stream),
 		     src, src + size,
