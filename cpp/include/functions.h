@@ -18,7 +18,8 @@
 /* ----------------------------------------------------------------------------*/
 
 /**
- * @Synopsis Renumber source and destination indexes to be a dense numbering.
+ * @Synopsis Renumber source and destination indexes to be a dense numbering
+ *           between 0 and number of vertices minus 1.
  *
  *    Assumptions:
  *       * source and dest have same size and type
@@ -30,11 +31,15 @@
  *
  *  @Param[in]  src - the original source vertices
  *  @Param[in]  dst - the original dest vertices
- *  @Param[out] src_renumbered - the renumbered source vertices
- *  @Param[out] dst_renumbered - the renumbered dest vertices
- *  @Param[out] numbering_map - mapping of new vertex ids to old vertex ids
+ *  @Param[out] src_renumbered - the renumbered source vertices.  This array
+ *                               will be a GDF_INT32 array.
+ *  @Param[out] dst_renumbered - the renumbered dest vertices.  This array
+ *                               will be a GDF_INT32 array.
+ *  @Param[out] numbering_map - mapping of new vertex ids to old vertex ids.
+ *                              This array will match the type of src/dst input.
  *
  *  @Returns    GDF_SUCCESS on success, an error code on failure.
+ *              GDF_COLUMN_SIZE_TOO_BIG if the number of unique vertices is > 2^31-1.
  */
 gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
 				gdf_column **src_renumbered, gdf_column **dst_renumbered,

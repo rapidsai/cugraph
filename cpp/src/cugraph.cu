@@ -152,7 +152,6 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
   if (src->dtype == GDF_INT32) {
     int32_t *tmp;
 
-    printf("in renumber, 32-bit\n");
     ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view((*src_renumbered), tmp, src->valid, src->size, src->dtype);
   
@@ -181,7 +180,6 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
     //        so we can run this with int64_t output if desired...
     //        but none of the algorithms support that.
     //
-    printf("in renumber, 64-bit, src->dtype = %d\n", src->dtype);
     int64_t *tmp;
     ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view((*src_renumbered), tmp, src->valid, src->size, GDF_INT32);
@@ -209,8 +207,6 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
     }
 
     gdf_column_view((*numbering_map), tmp, nullptr, new_size, src->dtype);
-
-    printf("done with renumbering, data types: %d, %d, %d\n", (*src_renumbered)->dtype, (*dst_renumbered)->dtype, (*numbering_map)->dtype);
   } else {
     return GDF_UNSUPPORTED_DTYPE;
   }
