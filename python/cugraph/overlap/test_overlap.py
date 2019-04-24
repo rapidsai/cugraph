@@ -25,23 +25,23 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M, first, second, edgevals=False):
-    M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float32'], header=None)
 
+
+def cugraph_call(cu_M, first, second, edgevals=False):
     # Device data
-    row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
+    sources = cu_M['0']
+    destinations = cu_M['1']
     if edgevals is False:
         values = None
     else:
-        values = cudf.Series(M.data)
+        values = cu_M['2']
 
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, values)
+    G.add_edge_list(sources, destinations, values)
 
     # cugraph Overlap Call
     t1 = time.time()
@@ -83,22 +83,23 @@ def cpu_call(M, first, second):
     return result
 
 
-DATASETS = ['../datasets/dolphins.mtx',
-            '../datasets/karate.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/dolphins',
+            '../datasets/karate',
+            '../datasets/netscience']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_overlap(graph_file):
-    M = read_mtx_file(graph_file)
+    M = read_mtx_file(graph_file+'.mtx')
     M = M.tocsr()
+    cu_M = read_csv_file(graph_file+'.csv')
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
     G.add_adj_list(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
-    cu_coeff = cugraph_call(M, pairs['first'], pairs['second'])
+    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'])
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
 
     assert len(cu_coeff) == len(cpu_coeff)
@@ -111,13 +112,15 @@ def test_overlap(graph_file):
 def test_overlap_edge_vals(graph_file):
     M = read_mtx_file(graph_file)
     M = M.tocsr()
+    cu_M = read_csv_file(graph_file+'.csv')
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
     G.add_adj_list(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
-    cu_coeff = cugraph_call(M, pairs['first'], pairs['second'], edgevals=True)
+    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'],
+                            edgevals=True)
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
 
     assert len(cu_coeff) == len(cpu_coeff)

@@ -33,6 +33,12 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float32'], header=None)
+
+
 def compare_series(series_1, series_2):
     if (len(series_1) != len(series_2)):
         print("Series do not match in length")
@@ -99,19 +105,19 @@ def check_all_two_hops(df, M):
                     assert has_pair(first_arr, second_arr, start, end)
 
 
-DATASETS = ['../datasets/karate.mtx',
-            '../datasets/dolphins.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/karate',
+            '../datasets/dolphins',
+            '../datasets/netscience']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_add_edge_list_to_adj_list(graph_file):
 
-    M = read_mtx_file(graph_file)
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
+    cu_M = read_csv_file(graph_file+'.csv')
+    sources = cu_M['0']
+    destinations = cu_M['1']
 
-    M = M.tocsr()
+    M = read_mtx_file(graph_file+'.mtx').tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
@@ -130,8 +136,7 @@ def test_add_edge_list_to_adj_list(graph_file):
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
-    M = read_mtx_file(graph_file)
-    M = M.tocsr()
+    M = read_mtx_file(graph_file+'.mtx').tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
@@ -156,8 +161,7 @@ def test_add_adj_list_to_edge_list(graph_file):
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_transpose_from_adj_list(graph_file):
-    M = read_mtx_file(graph_file)
-    M = M.tocsr()
+    M = read_mtx_file(graph_file+'.mtx').tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
@@ -171,8 +175,7 @@ def test_transpose_from_adj_list(graph_file):
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_view_edge_list_from_adj_list(graph_file):
-    M = read_mtx_file(graph_file)
-    M = M.tocsr()
+    M = read_mtx_file(graph_file+'.mtx').tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
@@ -187,7 +190,7 @@ def test_view_edge_list_from_adj_list(graph_file):
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_delete_edge_list_delete_adj_list(graph_file):
-    M = read_mtx_file(graph_file)
+    M = read_mtx_file(graph_file+'.mtx')
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 
@@ -257,32 +260,33 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     G.delete_adj_list()
 
 
-DATASETS2 = ['../datasets/karate.mtx',
-             '../datasets/dolphins.mtx']
+DATASETS2 = ['../datasets/karate',
+             '../datasets/dolphins']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS2)
 def test_two_hop_neighbors(graph_file):
-    M = read_mtx_file(graph_file)
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
-    values = cudf.Series(M.data)
+    cu_M = read_csv_file(graph_file+'.csv')
+    sources = cu_M['0']
+    destinations = cu_M['1']
+    values = cu_M['2']
 
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, values)
 
     df = G.get_two_hop_neighbors()
-    M = M.tocsr()
+    M = read_mtx_file(graph_file+'.mtx').tocsr()
     find_two_paths(df, M)
     check_all_two_hops(df, M)
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_degree_functionality(graph_file):
-    M = read_mtx_file(graph_file)
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
-    values = cudf.Series(M.data)
+    M = read_mtx_file(graph_file+'.mtx')
+    cu_M = read_csv_file(graph_file+'.csv')
+    sources = cu_M['0']
+    destinations = cu_M['1']
+    values = cu_M['2']
 
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, values)
