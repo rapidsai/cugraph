@@ -114,20 +114,13 @@ class Graph:
         free(g)
 
     def renumber(self, source_col, dest_col):
-        cdef gdf_column * src_renumbered = NULL
-        cdef gdf_column * dst_renumbered = NULL
-        cdef gdf_column * numbering_map = NULL
+        cdef gdf_column src_renumbered
+        cdef gdf_column dst_renumbered
+        cdef gdf_column numbering_map
 
         cdef gdf_column source = get_gdf_column_view(source_col)
         cdef gdf_column dest = get_gdf_column_view(dest_col)
 
-        """
-        cdef uintptr_t source = create_column(source_col)
-        cdef uintptr_t dest = create_column(dest_col)
-
-        err = gdf_renumber_vertices(< const gdf_column * > source,
-	      			    < const gdf_column * > dest,
-        """
         err = gdf_renumber_vertices(&source,
 	      			    &dest,
 				    &src_renumbered,

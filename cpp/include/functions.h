@@ -42,8 +42,8 @@
  *              GDF_COLUMN_SIZE_TOO_BIG if the number of unique vertices is > 2^31-1.
  */
 gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
-				gdf_column **src_renumbered, gdf_column **dst_renumbered,
-				gdf_column **numbering_map);
+				gdf_column *src_renumbered, gdf_column *dst_renumbered,
+				gdf_column *numbering_map);
 
 /**
  * @Synopsis   Wrap existing gdf columns representing an edge list in a gdf_graph.

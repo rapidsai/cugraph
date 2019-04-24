@@ -79,9 +79,9 @@ cdef extern from "cugraph.h":
 
     cdef gdf_error gdf_renumber_vertices(const gdf_column *src,
     	 	   			 const gdf_column *dst,
-				         gdf_column **src_renumbered,
-					 gdf_column **dst_renumbered,
-				         gdf_column **numbering_map)
+				         gdf_column *src_renumbered,
+					 gdf_column *dst_renumbered,
+				         gdf_column *numbering_map)
 
     cdef gdf_error gdf_edge_list_view(gdf_graph *graph,
                              const gdf_column *source_indices,
