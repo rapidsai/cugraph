@@ -70,12 +70,15 @@ void cpy_column_view(const gdf_column *in, gdf_column *out) {
 
 gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
                                  const gdf_column *indices, const gdf_column *edge_data) {
+  //This function returns an error if this graph object has at least one graph
+  //representation to prevent a single object storing two different graphs.
+  GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
+    (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
   GDF_REQUIRE( offsets->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( (offsets->dtype == indices->dtype), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((offsets->dtype == GDF_INT32) || (offsets->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( (offsets->size > 0), GDF_DATASET_EMPTY );
-  GDF_REQUIRE( (graph->adjList == nullptr) , GDF_INVALID_API_CALL);
 
   graph->adjList = new gdf_adj_list;
   graph->adjList->offsets = new gdf_column;
@@ -115,13 +118,16 @@ gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
 
 gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
                                  const gdf_column *dest_indices, const gdf_column *edge_data) {
+  //This function returns an error if this graph object has at least one graph
+  //representation to prevent a single object storing two different graphs.
+  GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
+    (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
   GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( src_indices->dtype == dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((src_indices->dtype == GDF_INT32) || (src_indices->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY );
   GDF_REQUIRE( src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( graph->edgeList == nullptr , GDF_INVALID_API_CALL);
 
   graph->edgeList = new gdf_edge_list;
   graph->edgeList->src_indices = new gdf_column;
@@ -280,7 +286,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
 
 
 gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x) {
-  // Calculates the degree of all nodes of the graph
+  // Calculates the degree of all vertices of the graph
   // x = 0: in+out degree
   // x = 1: in-degree
   // x = 2: out-degree
@@ -436,7 +442,7 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, floa
   }
 }
 
-gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_node, bool directed) {
+gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
   GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
@@ -457,7 +463,7 @@ gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecess
 
   cugraph::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
   bfs.configure(distances_ptr, predecessors_ptr, nullptr);
-  bfs.traverse(start_node);
+  bfs.traverse(start_vertex);
   return GDF_SUCCESS;
 }
 

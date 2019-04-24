@@ -34,6 +34,8 @@
 - PR #220 Fixed bugs in Nvgraph triangle counting
 - PR #232 Fixed memory leaks in managing cudf columns.
 - PR #236 Fixed issue with v0.7 nightly yml environment file.  Also updated the README to remove pip
+- PR #239 Added a check to prevent a cugraph object to store two different graphs.
+
 
 # cuGraph 0.6.0 (22 Mar 2019)
 

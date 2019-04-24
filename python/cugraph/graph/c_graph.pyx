@@ -141,35 +141,42 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         """
-        # If copy is False, increase the reference count of the Python objects
-        # referenced by the input arguments source_col, dest_col, and value_col
-        # (if not None) to avoid garbage collection while they are still in use
-        # inside this class. If copy is set to True, deep-copy the objects.
-        if copy is False:
-            self.edge_list_source_col = source_col
-            self.edge_list_dest_col = dest_col
-            self.edge_list_value_col = value_col
-        else:
-            self.edge_list_source_col = source_col.copy()
-            self.edge_list_dest_col = dest_col.copy()
-            self.edge_list_value_col = value_col.copy()
-
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_column c_source_col = get_gdf_column_view(self.edge_list_source_col)
-        cdef gdf_column c_dest_col = get_gdf_column_view(self.edge_list_dest_col)
+        cdef gdf_graph * g = <gdf_graph*> graph
+
+        # Create temporary references first as the member variables should not
+        # be updated on failure.
+        if copy is False:
+            tmp_source_col = source_col
+            tmp_dest_col = dest_col
+            tmp_value_col = value_col
+        else:
+            tmp_source_col = source_col.copy()
+            tmp_dest_col = dest_col.copy()
+            tmp_value_col = value_col.copy()
+
+        cdef gdf_column c_source_col = get_gdf_column_view(tmp_source_col)
+        cdef gdf_column c_dest_col = get_gdf_column_view(tmp_dest_col)
         cdef gdf_column c_value_col
         cdef gdf_column * c_value_col_ptr
         if value_col is None:
             c_value_col_ptr = NULL
         else:
-            c_value_col = get_gdf_column_view(self.edge_list_value_col)
+            c_value_col = get_gdf_column_view(tmp_value_col)
             c_value_col_ptr = &c_value_col
 
-        err = gdf_edge_list_view(<gdf_graph*> graph,
+        err = gdf_edge_list_view(g,
                                  &c_source_col,
                                  &c_dest_col,
                                  c_value_col_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        # Increase the reference count of the Python objects to avoid premature
+        # garbage collection while they are still in use inside the gdf_graph
+        # object.
+        self.edge_list_source_col = tmp_source_col
+        self.edge_list_dest_col = tmp_dest_col
+        self.edge_list_value_col = tmp_value_col
 
     def view_edge_list(self):
         """
@@ -180,7 +187,7 @@ class Graph:
         err = gdf_add_edge_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        col_size = g.edgeList.src_indices.size
+        col_size = self.number_of_edges()
 
         cdef uintptr_t src_col_data = <uintptr_t> g.edgeList.src_indices.data
         cdef uintptr_t dest_col_data = <uintptr_t> g.edgeList.dest_indices.data
@@ -263,36 +270,42 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_adj_list(offsets, indices, None)
         """
-        # If copy is False, increase the reference count of the Python objects
-        # referenced by the input arguments offset_col, index_col, and
-        # value_col (if not None) to avoid garbage collection while they are
-        # still in use inside this class. If copy is set to True, deep-copy the
-        # objects.
-        if copy is False:
-            self.adj_list_offset_col = offset_col
-            self.adj_list_index_col = index_col
-            self.adj_list_value_col = value_col
-        else:
-            self.adj_list_offset_col = offset_col.copy()
-            self.adj_list_index_col = index_col.copy()
-            self_adj_list_value_col = value_col.copy()
-
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_column c_offset_col = get_gdf_column_view(self.adj_list_offset_col)
-        cdef gdf_column c_index_col = get_gdf_column_view(self.adj_list_index_col)
+        cdef gdf_graph * g = <gdf_graph*> graph
+
+        # Create temporary references first as the member variables should not
+        # be updated on failure.
+        if copy is False:
+            tmp_offset_col = offset_col
+            tmp_index_col = index_col
+            tmp_value_col = value_col
+        else:
+            tmp_offset_col = offset_col.copy()
+            tmp_index_col = index_col.copy()
+            tmp_value_col = value_col.copy()
+
+        cdef gdf_column c_offset_col = get_gdf_column_view(tmp_offset_col)
+        cdef gdf_column c_index_col = get_gdf_column_view(tmp_index_col)
         cdef gdf_column c_value_col
         cdef gdf_column * c_value_col_ptr
         if value_col is None:
             c_value_col_ptr = NULL
         else:
-            c_value_col = get_gdf_column_view(self.adj_list_value_col)
+            c_value_col = get_gdf_column_view(tmp_value_col)
             c_value_col_ptr = &c_value_col
 
-        err = gdf_adj_list_view(<gdf_graph*> graph,
+        err = gdf_adj_list_view(g,
                                 &c_offset_col,
                                 &c_index_col,
                                 c_value_col_ptr)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        # Increase the reference count of the Python objects to avoid premature
+        # garbage collection while they are still in use inside the gdf_graph
+        # object.
+        self.adj_list_offset_col = tmp_offset_col
+        self.adj_list_index_col = tmp_index_col
+        self_adj_list_value_col = tmp_value_col
 
     def view_adj_list(self):
         """
@@ -303,8 +316,8 @@ class Graph:
         err = gdf_add_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        offset_col_size = self.num_vertices() + 1
-        index_col_size = g.adjList.indices.size
+        offset_col_size = self.number_of_vertices() + 1
+        index_col_size = self.number_of_edges()
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
         cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices.data
@@ -355,8 +368,8 @@ class Graph:
         err = gdf_add_transposed_adj_list(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-        offset_col_size = self.num_vertices() + 1
-        index_col_size = g.transposedAdjList.indices.size
+        offset_col_size = self.number_of_vertices() + 1
+        index_col_size = self.number_of_edges()
 
         cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data
         cdef uintptr_t index_col_data = <uintptr_t> g.transposedAdjList.indices.data
@@ -385,10 +398,10 @@ class Graph:
 
     def get_two_hop_neighbors(self):
         """
-        Return a dataframe containing vertex pairs such that each pair of vertices is 
-        connected by a path of two hops in the graph. The resulting pairs are 
+        Return a dataframe containing vertex pairs such that each pair of vertices is
+        connected by a path of two hops in the graph. The resulting pairs are
         returned in sorted order.
-        
+
         Returns:
         df : a cudf.DataFrame object
         df['first'] the first vertex id of a pair
@@ -422,7 +435,7 @@ class Graph:
 
         return df
 
-    def num_vertices(self):
+    def number_of_vertices(self):
         """
         Get the number of vertices in the graph
         """
@@ -432,27 +445,51 @@ class Graph:
             return g.adjList.offsets.size - 1
         elif g.transposedAdjList:
             return g.transposedAdjList.offsets.size - 1
-        else:
+        elif g.edgeList:
+            # This code needs to be revisited when updating gdf_graph. Users
+            # may expect numbrer_of_vertcies() as a cheap query but this
+            # function can run for a while and also requires a significant
+            # amount of additional memory. It is better to update the number
+            # of vertices when creating an edge list representation.
             err = gdf_add_adj_list(g)
             cudf.bindings.cudf_cpp.check_gdf_error(err)
-            return g.adjList.offsets.size - 1   
+            return g.adjList.offsets.size - 1
+        else:
+            # An empty graph
+            return 0
+
+    def number_of_edges(self):
+        """
+        Get the number of edges in the graph
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = <gdf_graph*> graph
+        if g.adjList:
+            return g.adjList.indices.size
+        elif g.transposedAdjList:
+            return g.transposedAdjList.indices.size
+        elif g.edgeList:
+            return g.edgeList.src_indices.size
+        else:
+            # An empty graph
+            return 0
 
     def in_degree(self, vertex_subset = None):
         """
-        Calculates and returns the in-degree of nodes. Node in-degree 
-        is the number of edges pointing in to the node.
+        Calculates and returns the in-degree of vertices. Vertex in-degree
+        is the number of edges pointing in to the vertex.
         Parameters
         ----------
-        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
-            A container of nodes for displaying corresponding in-degree
+        vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
+            A container of vertices for displaying corresponding in-degree
         Returns
         -------
         df  : cudf.DataFrame
-        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset) 
+        GPU data frame of size N (the default) or the size of the given vertices (vertex_subset)
         containing the in_degree. The ordering is relative to the adjacency list, or that
         given by the specified vertex_subset.
-      
-        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+
+        df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed in-degree of the corresponding vertex
         Examples
         --------
@@ -475,20 +512,20 @@ class Graph:
 
     def out_degree(self, vertex_subset = None):
         """
-        Calculates and returns the out-degree of nodes. Node out-degree 
-        is the number of edges pointing out from the node.
+        Calculates and returns the out-degree of vertices. Vertex out-degree
+        is the number of edges pointing out from the vertex.
         Parameters
         ----------
-        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
-            A container of nodes for displaying corresponding out-degree
+        vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
+            A container of vertices for displaying corresponding out-degree
         Returns
         -------
         df  : cudf.DataFrame
-        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset)
+        GPU data frame of size N (the default) or the size of the given vertices (vertex_subset)
         containing the out_degree. The ordering is relative to the adjacency list, or that
         given by the specified vertex_subset.
 
-        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+        df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed out-degree of the corresponding vertex
         Examples
         --------
@@ -511,20 +548,20 @@ class Graph:
 
     def degree(self, vertex_subset = None):
         """
-        Calculates and returns the degree of nodes. Node degree
-        is the number of edges adjacent to that node.
+        Calculates and returns the degree of vertices. Vertex degree
+        is the number of edges adjacent to that vertex.
         Parameters
         ----------
-        vertex_subset(optional, default=all nodes) : cudf.Series or iterable container
-            A container of nodes for displaying corresponding degree
+        vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
+            A container of vertices for displaying corresponding degree
         Returns
         -------
         df  : cudf.DataFrame
-        GPU data frame of size N (the default) or the size of the given nodes (vertex_subset)
+        GPU data frame of size N (the default) or the size of the given vertices (vertex_subset)
         containing the degree. The ordering is relative to the adjacency list, or that
         given by the specified vertex_subset.
 
-        df['vertex']: The vertex ID of node (will be identical to vertex_subset if specified)
+        df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed degree of the corresponding vertex
         Examples
         --------
@@ -549,7 +586,7 @@ class Graph:
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph* g = <gdf_graph*> graph
 
-        n = self.num_vertices()
+        n = self.number_of_vertices()
 
         df = cudf.DataFrame()
         vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -559,7 +596,7 @@ class Graph:
         else:
             err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-        
+
         degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
         cdef gdf_column c_degree_col = get_gdf_column_view(degree_col)
         err = gdf_degree(g, &c_degree_col, <int>x)
@@ -573,5 +610,5 @@ class Graph:
             df['degree'] = cudf.Series(np.asarray([degree_col[i] for i in vertex_subset], dtype=np.int32))
             del vertex_col
             del degree_col
-        
+
         return df
