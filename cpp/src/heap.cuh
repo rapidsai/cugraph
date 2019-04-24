@@ -63,12 +63,14 @@ namespace cugraph {
        *   See the above documentation for a picture to describe
        *   the tree.
        *
+       *   IndexT is a templated integer type of the index
+       *
        * @param[in]  index - the current array index
        * @return     the index of the parent of the current index
        */
-      template <typename S>
-      inline S __host__ __device__ parent(S index) {
-	static_assert(std::is_integral<S>::value, "Index must be of an integral type");
+      template <typename IndexT>
+      inline IndexT __host__ __device__ parent(IndexT index) {
+	static_assert(std::is_integral<IndexT>::value, "Index must be of an integral type");
       
 	return ((index + 1) / 2) - 1;
       }
@@ -81,12 +83,14 @@ namespace cugraph {
        *   See the above documentation for a picture to describe
        *   the tree.
        *
+       *   IndexT is a templated integer type of the index
+       *
        * @param[in]  index - the current array index
        * @return     the index of the left child of the current index
        */
-      template <typename S>
-      inline S __host__ __device__ left_child(S index) {
-	static_assert(std::is_integral<S>::value, "Index must be of an integral type");
+      template <typename IndexT>
+      inline IndexT __host__ __device__ left_child(IndexT index) {
+	static_assert(std::is_integral<IndexT>::value, "Index must be of an integral type");
       
 	return ((index + 1) * 2 - 1);
       }
@@ -99,12 +103,14 @@ namespace cugraph {
        *   See the above documentation for a picture to describe
        *   the tree.
        *
+       *   IndexT is a templated integer type of the index
+       *
        * @param[in]  index - the current array index
        * @return     the index of the right child of the current index
        */
-      template <typename S>
-      inline S __host__ __device__ right_child(S index) {
-	static_assert(std::is_integral<S>::value, "Index must be of an integral type");
+      template <typename IndexT>
+      inline IndexT __host__ __device__ right_child(IndexT index) {
+	static_assert(std::is_integral<IndexT>::value, "Index must be of an integral type");
       
 	return (index + 1) * 2;
       }
@@ -113,14 +119,18 @@ namespace cugraph {
     /**
      * @brief Reorder an existing array of elements into a heap
      *
+     *   ArrayT is a templated type of the array elements
+     *   IndexT is a templated integer type of the index
+     *   CompareT is a templated compare function
+     *
      * @param[in, out]   array   - the existing array
      * @param[in]        size    - the number of elements in the existing array
      * @param[in]        compare - the comparison function to use
      *
      */
-    template <typename T, typename S, typename C>
-    inline void __host__ __device__ heapify(T *array, S size, C compare) {
-      static_assert(std::is_integral<S>::value, "Index must be of an integral type");
+    template <typename ArrayT, typename IndexT, typename CompareT>
+    inline void __host__ __device__ heapify(ArrayT *array, IndexT size, CompareT compare) {
+      static_assert(std::is_integral<IndexT>::value, "Index must be of an integral type");
 
       //
       // We want to order ourselves as a heap.  This is accomplished by starting
@@ -128,11 +138,11 @@ namespace cugraph {
       // swap if necessary.  We repeat this until there are no more swaps
       // (should take no more than log2(size) iterations).
       //
-      S count_swaps = 1;
+      IndexT count_swaps = 1;
       while (count_swaps > 0) {
 	count_swaps = 0;
-	for (S i = size - 1 ; i > 0 ; --i) {
-	  S p = detail::parent(i);
+	for (IndexT i = size - 1 ; i > 0 ; --i) {
+	  IndexT p = detail::parent(i);
 
 	  if (compare(array[i], array[p])) {
 	    thrust::swap(array[i], array[p]);
@@ -147,11 +157,15 @@ namespace cugraph {
      *        should decrement the size - the last element in the
      *        array is no longer used.
      *
+     *   ArrayT is a templated type of the array elements
+     *   IndexT is a templated integer type of the index
+     *   CompareT is a templated compare function
+     *
      * @return - the top of the heap.
      */
-    template <typename T, typename S, typename C>
-    inline T __host__ __device__ heap_pop(T *array, S size, C compare) {
-      static_assert(std::is_integral<S>::value, "Index must be of an integral type");
+    template <typename ArrayT, typename IndexT, typename CompareT>
+    inline ArrayT __host__ __device__ heap_pop(ArrayT *array, IndexT size, CompareT compare) {
+      static_assert(std::is_integral<IndexT>::value, "Index must be of an integral type");
 
       //
       //  Swap the top of the array with the last element
@@ -163,10 +177,10 @@ namespace cugraph {
       //  Now top element is no longer the smallest (largest), so we need
       //  to sift it down to the proper location.
       //
-      for (S i = 0 ; i < size ; ) {
-	S lc = detail::left_child(i);
-	S rc = detail::right_child(i);
-	S smaller = i;
+      for (IndexT i = 0 ; i < size ; ) {
+	IndexT lc = detail::left_child(i);
+	IndexT rc = detail::right_child(i);
+	IndexT smaller = i;
 
 	//
 	//  We can go out of bounds, let's check the simple cases
