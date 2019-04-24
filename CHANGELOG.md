@@ -4,7 +4,9 @@
 - PR #195 Added Graph.get_two_hop_neighbors() method
 - PR #195 Updated Jaccard and Weighted Jaccard to accept lists of vertex pairs to compute for
 - PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
+- PR #230 SNMG SPMV and helpers functions 
 - PR #210 Expose degree calculation kernel via python API
+- PR #220 Added bindings for Nvgraph triangle counting
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
@@ -18,6 +20,7 @@
 - PR #233 Added csv datasets and edited test to use cudf for reading graphs
 
 ## Bug Fixes
+- PR #226 Bump cudf dependencies to 0.7
 - PR #169 Disable terminal output in sssp
 - PR #191 Fix double upload bug
 - PR #181 Fixed crash/rmm free error when edge values provided
@@ -28,6 +31,12 @@
 - PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
 - PR #206 Updated versions in conda envs
 - PR #218 Update c_graph.pyx 
+- PR #224 Update erroneous comments in overlap_wrapper.pyx, woverlap_wrapper.pyx, test_louvain.py, and spectral_clustering.pyx
+- PR #220 Fixed bugs in Nvgraph triangle counting
+- PR #232 Fixed memory leaks in managing cudf columns.
+- PR #236 Fixed issue with v0.7 nightly yml environment file.  Also updated the README to remove pip
+- PR #239 Added a check to prevent a cugraph object to store two different graphs.
+
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
@@ -70,6 +79,9 @@
 - PR #123 Fixed weighted Jaccard to assume the input weights are given as a cudf.Series
 - PR #152 Fix conda package version string
 - PR #160 Added additional link directory to support building on CentOS-7
+- PR #221 Moved two_hop_neighbors.cuh to src folder to prevent it being installed
+- PR #223 Fixed compiler warning in cpp/src/cugraph.cu
+
 
 # cuGraph 0.5.0 (28 Jan 2019)
 

@@ -23,7 +23,7 @@
  * @Param[in] graph               cuGRAPH graph descriptor, should contain the connectivity information as an edge list (edge weights are not used for this algorithm).
  *                                The transposed adjacency list will be computed if not already present.
  * @Param[in] alpha               The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
- Thus, 1.0-alpha is the probability to “teleport” to a random node. Alpha should be greater than 0.0 and strictly lower than 1.0.
+ Thus, 1.0-alpha is the probability to “teleport” to a random vertex. Alpha should be greater than 0.0 and strictly lower than 1.0.
  * @Param[in] has_guess           This parameter is used to notify cuGRAPH if it should use a user-provided initial guess. False means the user doesn't have a guess, in this case cuGRAPH will use a uniform vector set to 1/V.
  *                                If the value is True, cuGRAPH will read the pagerank parameter and use this as an initial guess.
  *                                The initial guess must not be the vector of 0s. Any value other than 1 or 0 is treated as an invalid value.
@@ -40,11 +40,11 @@
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_pagerank(gdf_graph *graph,
-												gdf_column *pagerank,
-												float alpha,
-												float tolerance,
-												int max_iter,
-												bool has_guess);
+                       gdf_column *pagerank,
+                       float alpha,
+                       float tolerance,
+                       int max_iter,
+                       bool has_guess);
 
 /**
  * @Synopsis   Creates source, destination and value columns based on the specified R-MAT model
@@ -78,22 +78,22 @@ gdf_error gdf_pagerank(gdf_graph *graph,
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_grmat_gen(const char* argv,
-												size_t &vertices,
-												size_t &edges,
-												gdf_column* src,
-												gdf_column* dest,
-												gdf_column* val);
+                        size_t &vertices,
+                        size_t &edges,
+                        gdf_column* src,
+                        gdf_column* dest,
+                        gdf_column* val);
 
 /**
- * @Synopsis   Performs a breadth first search traversal of a graph starting from a node.
+ * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
  *
  * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
  *
- * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting node
+ * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
  *
  * @Param[out] *predecessors         If set to a valid column, this is populated by bfs traversal predecessor of every vertex
  *
- * @Param[in] start_node             The starting node for breadth first search traversal
+ * @Param[in] start_vertex           The starting vertex for breadth first search traversal
  *
  * @Param[in] directed               Treat the input graph as directed
  *
@@ -101,10 +101,10 @@ gdf_error gdf_grmat_gen(const char* argv,
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_bfs(gdf_graph *graph,
-									gdf_column *distances,
-									gdf_column *predecessors,
-									int start_node,
-									bool directed);
+                  gdf_column *distances,
+                  gdf_column *predecessors,
+                  int start_vertex,
+                  bool directed);
 
 /**
  * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
@@ -116,8 +116,8 @@ gdf_error gdf_bfs(gdf_graph *graph,
  * @return Error code
  */
 gdf_error gdf_jaccard(gdf_graph *graph,
-											gdf_column *weights,
-											gdf_column *result);
+                      gdf_column *weights,
+                      gdf_column *result);
 
 /**
  * Computes the Jaccard similarity coefficient for each pair of specified vertices.
@@ -131,10 +131,10 @@ gdf_error gdf_jaccard(gdf_graph *graph,
  * @return Error code
  */
 gdf_error gdf_jaccard_list(gdf_graph *graph,
-														gdf_column *weights,
-														gdf_column *first,
-														gdf_column *second,
-														gdf_column *result);
+                           gdf_column *weights,
+                           gdf_column *first,
+                           gdf_column *second,
+                           gdf_column *result);
 
 /**
  * Computes the Overlap Coefficient for every pair of vertices in the graph which are
@@ -167,6 +167,6 @@ gdf_error gdf_overlap_list(gdf_graph *graph,
                            gdf_column *result);
 
 gdf_error gdf_louvain(gdf_graph *graph,
-											void *final_modularity,
-											void *num_level,
-											gdf_column *louvain_parts);
+                      void *final_modularity,
+                      void *num_level,
+                      gdf_column *louvain_parts);

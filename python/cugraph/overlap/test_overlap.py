@@ -43,7 +43,7 @@ def cugraph_call(cu_M, first, second, edgevals=False):
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, values)
 
-    # cugraph Jaccard Call
+    # cugraph Overlap Call
     t1 = time.time()
     df = cugraph.overlap(G, first, second)
     t2 = time.time() - t1
@@ -55,10 +55,10 @@ def cugraph_call(cu_M, first, second, edgevals=False):
 def intersection(a, b, M):
     count = 0
     for idx in range(M.indptr[a], M.indptr[a+1]):
-        a_node = M.indices[idx]
+        a_vertex = M.indices[idx]
         for inner_idx in range(M.indptr[b], M.indptr[b+1]):
-            b_node = M.indices[inner_idx]
-            if a_node == b_node:
+            b_vertex = M.indices[inner_idx]
+            if a_vertex == b_vertex:
                 count += 1
     return count
 

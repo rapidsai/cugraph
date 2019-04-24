@@ -218,8 +218,46 @@ def test_delete_edge_list_delete_adj_list(graph_file):
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
 
-DATASETS2 = ['../datasets/karate',
-             '../datasets/dolphins']
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
+    M = read_mtx_file(graph_file)
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+
+    M = M.tocsr()
+    if M is None:
+        raise TypeError('Could not read the input graph')
+    if M.shape[0] != M.shape[1]:
+        raise TypeError('Shape is not square')
+
+    offsets = cudf.Series(M.indptr)
+    indices = cudf.Series(M.indices)
+
+    G = cugraph.Graph()
+
+    # If cugraph has at least one graph representation, adding a new graph
+    # should fail to prevent a single graph object storing two different
+    # graphs.
+
+    # If cugraph has a graph edge list, adding a new graph should fail.
+    G.add_edge_list(sources, destinations, None)
+    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+        G.add_edge_list(sources, destinations, None)
+    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
+    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+        G.add_adj_list(offsets, indices, None)
+    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
+    G.delete_edge_list()
+
+    # If cugraph has a graph adjacency list, adding a new graph should fail.
+    G.add_adj_list(sources, destinations, None)
+    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+        G.add_edge_list(sources, destinations, None)
+    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
+    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+        G.add_adj_list(offsets, indices, None)
+    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
+    G.delete_adj_list()
 
 
 @pytest.mark.parametrize('graph_file', DATASETS2)

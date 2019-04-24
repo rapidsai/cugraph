@@ -131,3 +131,11 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
                                                    const int n_clusters,
                                                    gdf_column* clustering,
                                                    float* score);
+
+/**
+ * Wrapper function for Nvgraph triangle counting
+ * @param G Pointer to GDF graph object
+ * @param result Pointer to a uint64_t in which the result will be written
+ * @return Error code
+ */
+gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result);
