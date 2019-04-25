@@ -1,4 +1,19 @@
 /*
+ * Copyright (c) 2019, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/*
  * COOtoCSR_kernels.cuh
  *
  *  Created on: Mar 8, 2018
@@ -29,15 +44,7 @@ struct CSR_Result {
 	T* colIndices;
 
 	CSR_Result() : size(0), nnz(0), rowOffsets(nullptr), colIndices(nullptr){}
-    /*
-	~CSR_Result() {
-		if (rowOffsets)
-			cudaFree(rowOffsets);
-		if (colIndices)
-			cudaFree(colIndices);
-		//return GDF_SUCCESS;
-	}
-    */
+
 };
 
 template <typename T, typename W>
@@ -49,17 +56,7 @@ struct CSR_Result_Weighted {
 	W* edgeWeights;
 
 	CSR_Result_Weighted() : size(0), nnz(0), rowOffsets(nullptr), colIndices(nullptr), edgeWeights(nullptr){}
-    /*
-	~CSR_Result_Weighted() {
-		if (rowOffsets)
-			cudaFree(rowOffsets);
-		if (colIndices)
-			cudaFree(colIndices);
-		if (edgeWeights)
-			cudaFree(edgeWeights);
-		//return GDF_SUCCESS;
-	}
-    */
+
 };
 
 // Define kernel for copying run length encoded values into offset slots.

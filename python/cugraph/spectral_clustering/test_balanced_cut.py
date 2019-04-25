@@ -11,53 +11,119 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
-import numpy as np
-import sys
-import time
-from scipy.io import mmread
-import community
-import os
-import pytest
 import random
 
-def ReadMtxFile(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
+import pytest
+from scipy.io import mmread
 
-    
-def cuGraph_Call(G, partitions):
-    df = cugraph.spectralBalancedCutClustering(G, partitions, num_eigen_vects=partitions)
+import cudf
+import cugraph
+
+
+def read_mtx_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return mmread(mm_file).asfptype()
+
+
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float64'], header=None)
+
+
+def cugraph_call(G, partitions):
+    df = cugraph.spectralBalancedCutClustering(G, partitions,
+                                               num_eigen_vects=partitions)
     score = cugraph.analyzeClustering_edge_cut(G, partitions, df['cluster'])
-    return score
+    return set(df['vertex'].to_array()), score
 
-def random_Call(G, partitions):
-    num_verts = G.num_vertices()
+
+def random_call(G, partitions):
+    random.seed(0)
+    num_verts = G.number_of_vertices()
     assignment = []
     for i in range(num_verts):
-        assignment.append(random.randint(0,partitions-1))
+        assignment.append(random.randint(0, partitions-1))
     assignment_cu = cudf.Series(assignment)
     score = cugraph.analyzeClustering_edge_cut(G, partitions, assignment_cu)
-    return score
-   
+    return set(range(num_verts)), score
 
-datasets = ['/datasets/networks/karate.mtx', '/datasets/networks/dolphins.mtx', '/datasets/golden_data/graphs/dblp.mtx']
-partitions = [2, 4, 8]
-@pytest.mark.parametrize('graph_file', datasets)
-@pytest.mark.parametrize('partitions', partitions)
-def test_modularityClustering(graph_file, partitions):
+
+DATASETS = [
+    '../datasets/karate',
+    '../datasets/dolphins',
+    '../datasets/netscience']
+PARTITIONS = [2, 4, 8]
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('partitions', PARTITIONS)
+def test_modularity_clustering(graph_file, partitions):
     # Read in the graph and get a cugraph object
-    M = ReadMtxFile(graph_file).tocsr()
+    M = read_mtx_file(graph_file+'.mtx').tocsr()
+    cu_M = read_csv_file(graph_file+'.csv')
+
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    values = cudf.Series(M.data)
-    G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, values)
-    
+
+    sources = cu_M['0']
+    destinations = cu_M['1']
+
+    G_adj = cugraph.Graph()
+    G_adj.add_adj_list(row_offsets, col_indices)
+    G_edge = cugraph.Graph()
+    G_edge.add_edge_list(sources, destinations)
+
     # Get the modularity score for partitioning versus random assignment
-    cu_score = cuGraph_Call(G, partitions)
-    rand_score = random_Call(G, partitions)
-    
-    # Assert that the partitioning has better modularity than the random assignment
+    cu_vid, cu_score = cugraph_call(G_adj, partitions)
+    rand_vid, rand_score = random_call(G_adj, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G_edge, partitions)
+    rand_vid, rand_score = random_call(G_edge, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('partitions', PARTITIONS)
+def test_modularity_clustering_with_edgevals(graph_file, partitions):
+    # Read in the graph and get a cugraph object
+    M = read_mtx_file(graph_file).tocsr()
+    cu_M = read_csv_file(graph_file+'.csv')
+
+    row_offsets = cudf.Series(M.indptr)
+    col_indices = cudf.Series(M.indices)
+    val = cudf.Series(M.data)
+
+    G_adj = cugraph.Graph()
+    G_adj.add_adj_list(row_offsets, col_indices, val)
+
+    sources = cu_M['0']
+    destinations = cu_M['1']
+    values = cu_M['2']
+
+    G_edge = cugraph.Graph()
+    G_edge.add_edge_list(sources, destinations, values)
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G_adj, partitions)
+    rand_vid, rand_score = random_call(G_adj, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G_edge, partitions)
+    rand_vid, rand_score = random_call(G_edge, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
     assert cu_score < rand_score

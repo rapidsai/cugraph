@@ -11,14 +11,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
 include "graph/c_graph.pyx"
 include "nvgraph/c_nvgraph.pyx"
 include "pagerank/pagerank_wrapper.pyx"
 include "sssp/sssp_wrapper.pyx"
 include "jaccard/jaccard_wrapper.pyx"
 include "jaccard/wjaccard_wrapper.pyx"
+include "overlap/overlap_wrapper.pyx"
+include "overlap/woverlap_wrapper.pyx"
 include "grmat/grmat_wrapper.pyx"
 include "louvain/louvain_wrapper.pyx"
 include "bfs/bfs_wrapper.pyx"
 include "spectral_clustering/spectral_clustering.pyx"
 include "subgraph_extraction/subgraph_extraction.pyx"
+include "triangle_count/triangle_count_wrapper.pyx"

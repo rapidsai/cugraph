@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <nvgraph/nvgraph.h>
+//#include <nvgraph/nvgraph.h>
 #include <cugraph.h>
 
 /**
@@ -32,10 +32,10 @@
  * @param use_transposed True if we are transposing the input graph while wrapping
  * @return Error code
  */
-gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-																	gdf_graph* gdf_G,
-																	nvgraphGraphDescr_t * nvgraph_G,
-																	bool use_transposed = false);
+//gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
+//																	gdf_graph* gdf_G,
+//																	nvgraphGraphDescr_t * nvgraph_G,
+//																	bool use_transposed = false);
 
 /**
  * Wrapper function for Nvgraph SSSP algorithm
@@ -142,3 +142,10 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
 gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
                                               gdf_graph* result,
                                               gdf_column* vertices);
+/**
+ * Wrapper function for Nvgraph triangle counting
+ * @param G Pointer to GDF graph object
+ * @param result Pointer to a uint64_t in which the result will be written
+ * @return Error code
+ */
+gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result);
