@@ -1,6 +1,20 @@
+/*
+ * Copyright (c) 2019, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
-
-#define DEBUG_NO_RMM
+///#define DEBUG_NO_RMM
 
 #include <sstream>
 #include <stdexcept>
@@ -31,7 +45,7 @@ class rmm_allocator : public thrust::device_malloc_allocator<T>
     ~rmm_allocator() {}
 
 private:
-  	cudaStream_t stream;
+    cudaStream_t stream;
 };
 
 using rmm_temp_allocator = rmm_allocator<char>; // Use this alias for thrust::cuda::par(allocator).on(stream)
@@ -53,6 +67,11 @@ using rmm_temp_allocator = rmm_allocator<char>; // Use this alias for thrust::cu
     cudaFree( (ptr) );                              \
 }
 #else
+
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
+using rmm_temp_allocator = rmm_allocator<char>;
 
 #define ALLOC_TRY( ptr, sz, stream ){                   \
       RMM_TRY_THROW( RMM_ALLOC((ptr), (sz), (stream)) ) \
