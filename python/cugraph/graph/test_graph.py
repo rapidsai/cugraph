@@ -16,6 +16,9 @@ import pytest
 from scipy.io import mmread
 import cugraph
 import cudf
+import socket
+import struct
+import pandas as pd
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -314,3 +317,57 @@ def test_degree_functionality(graph_file):
     assert err_in_degree == 0
     assert err_out_degree == 0
     assert err_degree == 0
+
+
+def test_renumber():
+    source_list = ['192.168.1.1',
+                   '172.217.5.238',
+                   '216.228.121.209',
+                   '192.16.31.23']
+    dest_list = ['172.217.5.238',
+                 '216.228.121.209',
+                 '192.16.31.23',
+                 '192.168.1.1']
+    source_as_int = [
+        struct.unpack('!L', socket.inet_aton(x))[0] for x in source_list
+    ]
+    dest_as_int = [
+        struct.unpack('!L', socket.inet_aton(x))[0] for x in dest_list
+    ]
+
+    df = pd.DataFrame({
+            'source_list': source_list,
+            'dest_list': dest_list,
+            'source_as_int': source_as_int,
+            'dest_as_int': dest_as_int
+            })
+
+    G = cugraph.Graph()
+
+    gdf = cudf.DataFrame.from_pandas(df[['source_as_int', 'dest_as_int']])
+
+    src, dst, numbering = G.renumber(gdf['source_as_int'], gdf['dest_as_int'])
+
+    for i in range(len(source_as_int)):
+        assert source_as_int[i] == numbering[src[i]]
+        assert dest_as_int[i] == numbering[dst[i]]
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_renumber_files(graph_file):
+    M = read_mtx_file(graph_file)
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+
+    translate = 1000
+
+    source_translated = cudf.Series([x + translate for x in sources])
+    dest_translated = cudf.Series([x + translate for x in destinations])
+
+    G = cugraph.Graph()
+
+    src, dst, numbering = G.renumber(source_translated, dest_translated)
+
+    for i in range(len(sources)):
+        assert sources[i] == (numbering[src[i]] - translate)
+        assert destinations[i] == (numbering[dst[i]] - translate)

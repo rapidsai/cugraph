@@ -7,6 +7,8 @@
 - PR #230 SNMG SPMV and helpers functions 
 - PR #210 Expose degree calculation kernel via python API
 - PR #220 Added bindings for Nvgraph triangle counting
+- PR #234 Added bindings for renumbering, modify renumbering to use RMM
+
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py

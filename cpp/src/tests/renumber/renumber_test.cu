@@ -22,6 +22,7 @@
 #include "cuda_profiler_api.h"
 
 #include "renumber.cuh"
+#include "rmm_utils.h"
 
 #include <chrono>
 
@@ -70,6 +71,11 @@ __global__ void generate_destinations(curandState *state, int n, const uint32_t 
   state[first] = local_state;
 }
 
+cudaError_t test_free(void *ptr) {
+  ALLOC_FREE_TRY(ptr, nullptr);
+  return cudaSuccess;
+}
+
 TEST_F(RenumberingTest, SmallFixedVertexList)
 {
   uint32_t src_data[] = { 4U,  6U,  8U, 20U,  1U };
@@ -112,7 +118,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList)
 
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
@@ -157,7 +163,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
 
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
@@ -206,7 +212,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
 
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
 TEST_F(RenumberingTest, Random100KVertexSet)
@@ -260,24 +266,39 @@ TEST_F(RenumberingTest, Random100KVertexSet)
   size_t min_id = unique_verts;
   size_t max_id = 0;
 
+  size_t cnt = 0;
   for (size_t i = 0 ; i < num_verts ; ++i) {
     min_id = min(min_id, tmp_results[i]);
     max_id = max(max_id, tmp_results[i]);
-    EXPECT_EQ(tmp_map[tmp_results[i]], src_data[i]);
+    if (tmp_map[tmp_results[i]] != src_data[i])
+      ++cnt;
+
+    if (cnt < 20)
+      EXPECT_EQ(tmp_map[tmp_results[i]], src_data[i]);
   }
+
+  if (cnt > 0)
+    printf("  src error count = %ld out of %d\n", cnt, num_verts);
 
   EXPECT_EQ(cudaMemcpy(tmp_results, dst_d, sizeof(uint64_t) * num_verts, cudaMemcpyDeviceToHost), cudaSuccess);
   for (size_t i = 0 ; i < num_verts ; ++i) {
     min_id = min(min_id, tmp_results[i]);
     max_id = max(max_id, tmp_results[i]);
-    EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
+    if (tmp_map[tmp_results[i]] != dst_data[i])
+      ++cnt;
+
+    if (cnt < 20)
+      EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
+
+  if (cnt > 0)
+    printf("  src error count = %ld out of %d\n", cnt, num_verts);
 
   EXPECT_EQ(min_id, 0);
   EXPECT_EQ(max_id, (unique_verts - 1));
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
   free(src_data);
   free(dst_data);
   free(tmp_results);
@@ -288,12 +309,9 @@ TEST_F(RenumberingTest, Random10MVertexSet)
 {
   const int num_verts = 10000000;
 
-  //  A sampling of performance on aschaffer-DGX-Station
-  //const int hash_size =  33554467;  // 907 ms
-  //const int hash_size =  3355453;   // 743 ms
-  //const int hash_size =  335557;    // 719 ms
-  const int hash_size =  32767;       // 515 ms
-  //const int hash_size =  8191;      // 633 ms
+  //  A sampling of performance on single Quadro GV100
+  //const int hash_size =  32767;       // 238 ms
+  const int hash_size =  8191;      // 224 ms
 
   uint32_t *src_d;
   uint32_t *dst_d;
@@ -320,7 +338,7 @@ TEST_F(RenumberingTest, Random10MVertexSet)
   //
   size_t unique_verts = 0;
   auto start = std::chrono::system_clock::now();
-  EXPECT_EQ(cugraph::renumber_vertices(num_verts, src_d, dst_d, src_d, dst_d, &unique_verts, &number_map_d, 64, 64, hash_size), GDF_SUCCESS);
+  EXPECT_EQ(cugraph::renumber_vertices(num_verts, src_d, dst_d, src_d, dst_d, &unique_verts, &number_map_d, CUDA_MAX_KERNEL_THREADS, CUDA_MAX_BLOCKS, hash_size), GDF_SUCCESS);
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end-start;
 
@@ -330,5 +348,52 @@ TEST_F(RenumberingTest, Random10MVertexSet)
 
   EXPECT_EQ(cudaFree(src_d), cudaSuccess);
   EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
-  EXPECT_EQ(cudaFree(number_map_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
+}
+
+TEST_F(RenumberingTest, Random100MVertexSet)
+{
+  const int num_verts = 100000000;
+
+  //  A sampling of performance on single Quadro GV100
+  const int hash_size =  8192;      // 2833 ms
+  //const int hash_size =  16384;      // 2796 ms
+  //const int hash_size =  32768;      // 3255 ms
+
+  uint32_t *src_d;
+  uint32_t *dst_d;
+  uint32_t *number_map_d;
+
+  EXPECT_EQ(cudaMalloc(&src_d, sizeof(uint32_t) * num_verts), cudaSuccess);
+  EXPECT_EQ(cudaMalloc(&dst_d, sizeof(uint32_t) * num_verts), cudaSuccess);
+
+  //
+  //  Init the random number generate
+  //
+  const int num_threads{64};
+  curandState *state;
+
+  EXPECT_EQ(cudaMalloc(&state, sizeof(curandState) * num_threads), cudaSuccess);
+  setup_generator<<<num_threads,1>>>(state);
+  generate_sources<<<num_threads,1>>>(state, num_verts, src_d);
+  generate_destinations<<<num_threads,1>>>(state, num_verts, src_d, dst_d);
+
+  std::cout << "done with initialization" << std::endl;
+
+  //
+  //  Renumber everything
+  //
+  size_t unique_verts = 0;
+  auto start = std::chrono::system_clock::now();
+  EXPECT_EQ(cugraph::renumber_vertices(num_verts, src_d, dst_d, src_d, dst_d, &unique_verts, &number_map_d, CUDA_MAX_KERNEL_THREADS, CUDA_MAX_BLOCKS, hash_size), GDF_SUCCESS);
+  auto end = std::chrono::system_clock::now();
+  std::chrono::duration<double> elapsed_seconds = end-start;
+
+  std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count()*1000 << std::endl;
+  std::cout << "  unique verts = " << unique_verts << std::endl;
+  std::cout << "  hash size = " << hash_size << std::endl;
+
+  EXPECT_EQ(cudaFree(src_d), cudaSuccess);
+  EXPECT_EQ(cudaFree(dst_d), cudaSuccess);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
