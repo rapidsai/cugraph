@@ -355,6 +355,118 @@ protected:
 	std::vector<float> graph_evals1;
 };
 
+class NvgraphCAPITests_SubgCSR_Isolated: public ::testing::Test {
+public:
+	NvgraphCAPITests_SubgCSR_Isolated() :
+			nvgraph_handle(NULL), initial_graph(NULL) {
+	}
+
+protected:
+	static void SetupTestCase()
+	{
+	}
+	static void TearDownTestCase()
+	{
+	}
+	virtual void SetUp()
+	{
+		if (nvgraph_handle == NULL) {
+			status = nvgraphCreate(&nvgraph_handle);
+			ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+		}
+		// set up graph
+		status = nvgraphCreateGraphDescr(nvgraph_handle, &initial_graph);
+		ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+
+		/*
+		 *  here is the graph we'll test with:
+		 *     0 -> 2
+		 *     1 -> 3
+		 *
+		 *  Extracting the subgraph that uses vertices 0, 1, 3 will get
+		 *  a graph with 3 vertices and 1 edge... and that edge won't
+		 *  use vertex id 0.  Pre bug fix the resulting graph is a single
+		 *  edge:  0 -> 3  which does not even exist in the original graph.
+		 */
+		nvgraphCSRTopology32I_st topoData;
+		std::vector<int> v_neighborhood { 0, 1, 2, 2, 2 };
+		std::vector<int> v_edgedest{ 2, 3 };
+
+		topoData.nvertices = v_neighborhood.size();
+		topoData.nedges = v_edgedest.size();
+
+		topoData.source_offsets = v_neighborhood.data();
+		topoData.destination_indices = v_edgedest.data();
+		status = nvgraphSetGraphStructure(	nvgraph_handle,
+														initial_graph,
+														(void*) &topoData,
+														NVGRAPH_CSR_32);
+		ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+
+		graph_neigh = v_neighborhood;
+		graph_edged = v_edgedest;
+	}
+	virtual void TearDown()
+	{
+		// destroy graph
+		status = nvgraphDestroyGraphDescr(nvgraph_handle, initial_graph);
+		ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+		// release library
+		if (nvgraph_handle != NULL) {
+			status = nvgraphDestroy(nvgraph_handle);
+			ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+			nvgraph_handle = NULL;
+		}
+	}
+	nvgraphStatus_t status;
+	nvgraphHandle_t nvgraph_handle;
+	nvgraphGraphDescr_t initial_graph;
+
+	std::vector<int> graph_neigh;
+	std::vector<int> graph_edged;
+};
+
+TEST_F(NvgraphCAPITests_SubgCSR_Isolated, CSRSubgraphVertices_Bug60)
+{
+  nvgraphStatus_t status;
+  nvgraphGraphDescr_t temp_graph2 = NULL;
+
+  {
+    status = nvgraphCreateGraphDescr(nvgraph_handle, &temp_graph2);
+    ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+
+    //int vertices[] = { 0, 1, 17 };
+    int vertices[] = { 0, 1, 3 };
+    status = nvgraphExtractSubgraphByVertex(nvgraph_handle,
+                                initial_graph,
+                                temp_graph2,
+                              	vertices,
+                                sizeof(vertices) / sizeof(vertices[0]));
+    ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+
+    nvgraphCSRTopology32I_st tData;
+    int tData_source_offsets[3], tData_destination_indices[3];
+    tData.source_offsets = tData_source_offsets;
+    tData.destination_indices = tData_destination_indices;
+    nvgraphTopologyType_t TT;
+    status = nvgraphGetGraphStructure(nvgraph_handle, temp_graph2, (void*) &tData, &TT);
+    ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+    ASSERT_EQ(TT, NVGRAPH_CSR_32);
+    ASSERT_EQ(tData.nvertices, 3);
+    ASSERT_EQ(tData.nedges, 1);
+
+    // check structure
+    ASSERT_EQ(tData.source_offsets[0], 0);
+    ASSERT_EQ(tData.source_offsets[1], 0);
+    ASSERT_EQ(tData.source_offsets[2], 1);
+    ASSERT_EQ(tData.source_offsets[3], 1);
+    ASSERT_EQ(tData.destination_indices[0], 2);
+
+    status = nvgraphDestroyGraphDescr(nvgraph_handle, temp_graph2);
+    ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, status);
+  }
+}
+
 TEST_F(NvgraphCAPITests_SubgraphCSR, CSRSubgraphVertices_Sanity)
 {
 	nvgraphStatus_t status;

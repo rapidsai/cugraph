@@ -571,7 +571,22 @@ namespace nvgraph
 
 
   //#####  Change 2: subg row_ptr extraction failed on missing indices #####
-  //
+
+  /**
+   * @brief Compute the CSR row indices of the extracted graph.
+   *
+   *    Note that source is an array of row indices that are
+   *    part of the subgraph.  If a vertex appears a source multiple
+   *    times in the subgraph it appears multiple times in the source
+   *    vector.
+   *
+   *  @param[in] actual_nnz      Number of non-zeros in the subgraph matrix
+   *                              (aka the number of edges)
+   *  @param[in] nrows           Number of vertices in the subgraph
+   *  @param[in] source          Array of row indices that the source of an edge
+   *                              (NOTE: this array is assumed to be sorted)
+   *  @param[out] subg_row_ptr   The computed subgraph row pointer
+   */
   template<typename VectorI>
   void make_subg_row_ptr(size_t actual_nnz,     //in: # non-zeros in subgraph matrix
 			 size_t nrows,          //in: |vSub|
@@ -581,26 +596,48 @@ namespace nvgraph
   {
     typedef typename VectorI::value_type IndexT;
 
+    //
+    //  Nothing to do here.
+    //
     if( actual_nnz == 0 )
-      return;//nothing to do...
+      return;
   
-    IndexT start = source.front();//cannot call this on an empty source[]
-
     VectorI counts(nrows, 0);
 
+    //
+    //  We want to count how many times the element occurs.  We
+    //  do this (based on the assumption that the list is sorted)
+    //  by computing the upper bound of the range for each row id,
+    //  and the lower bound for the range of each row id and
+    //  computing the difference.
+    //
     VectorI ub(nrows), lb(nrows);
     thrust::upper_bound(source.begin(), source.end(),
-			thrust::make_counting_iterator(static_cast<size_t>(start)),
-			thrust::make_counting_iterator(nrows+static_cast<size_t>(start)),
+			thrust::make_counting_iterator(size_t{0}),
+			thrust::make_counting_iterator(nrows),
 			ub.begin());
 
+    //
+    //  At this point ub[i] is the offset of the end of the string
+    //  of occurrences for row id i.
+    //
+
     thrust::lower_bound(source.begin(), source.end(),
-			thrust::make_counting_iterator(static_cast<size_t>(start)),
-			thrust::make_counting_iterator(nrows+static_cast<size_t>(start)),
+			thrust::make_counting_iterator(size_t{0}),
+			thrust::make_counting_iterator(nrows),
 			lb.begin());
+
+    //
+    //  At this point lb[i] is the offset of the beginning of the string
+    //  of occurrences for row id i.
+    //
 
     thrust::transform(ub.begin(), ub.end(), lb.begin(), counts.begin(), thrust::minus<int>());
 
+    //
+    //  Counts is now the number of times each index occurs in the data.  So we
+    //  can compute prefix sums to create our new row index array.
+    //
     thrust::exclusive_scan(counts.begin(), counts.end(),
 			   subg_row_ptr.begin());
 
