@@ -59,10 +59,10 @@ cpdef subgraph(G, vertices):
     resultGraph = Graph()
     cdef uintptr_t rGraph = resultGraph.graph_ptr
     cdef gdf_graph* rg = <gdf_graph*>rGraph
-    
-    cdef uintptr_t vert_ptr = create_column(vertices)
 
-    err = gdf_extract_subgraph_vertex_nvgraph(g, rg, <gdf_column*>vert_ptr)
+    cdef gdf_column vert_col = get_gdf_column_view(vertices)
+
+    err = gdf_extract_subgraph_vertex_nvgraph(g, rg, &vert_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return resultGraph
