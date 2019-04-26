@@ -307,16 +307,6 @@ namespace cugraph
 		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
 			atomicAdd(&degree[ind[i]], 1.0);
 	}
-	template<typename IndexType, typename ValueType>
-	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	equi_prob(const IndexType n,
-						const IndexType e,
-						const IndexType *ind,
-						ValueType *val,
-						IndexType *degree) {
-		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
-			val[i] = 1.0 / degree[ind[i]];
-	}
 
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -326,13 +316,12 @@ namespace cugraph
 				bookmark[i] = 1.0;
 	}
 
-        template<typename IndexType, typename ValueType>
-        __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-        degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
-                for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
-                        degree[i] += ind[i+1]-ind[i];
-        }
-
+    template<typename IndexType, typename ValueType>
+    __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+    degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
+            for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
+                    degree[i] += ind[i+1]-ind[i];
+    }
 
 //notice that in the transposed matrix/csc a dangling node is a node without incomming edges
 //just swap coo src and dest arrays after that to interpret it as HT
@@ -356,7 +345,7 @@ namespace cugraph
 		nblocks.y = 1;
 		nblocks.z = 1;
 		degree_coo<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, src, degree);
-		equi_prob<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, src, cooVal, degree);
+		//equi_prob<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, src, cooVal, degree);
 		ValueType val = 0.0;
 		fill(n, bookmark, val);
 		nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);

@@ -654,7 +654,8 @@ gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_colu
     GDF_REQUIRE( x_cols[i]->size > 0, GDF_INVALID_API_CALL );
     x[i]= static_cast<val_t*>(x_cols[i]->data);
   }
-  status = cugraph::snmg_csrmv<idx_t,val_t>(part_offsets,
+  cugraph::SNMGinfo snmg_env;
+  status = cugraph::snmg_csrmv<idx_t,val_t>(snmg_env, part_offsets,
                                       static_cast<idx_t*>(off->data), 
                                       static_cast<idx_t*>(ind->data), 
                                       static_cast<val_t*>(val->data), 

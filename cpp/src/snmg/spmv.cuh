@@ -28,13 +28,13 @@ namespace cugraph
 {
 
 template <typename idx_t,typename val_t>
-gdf_error snmg_csrmv (size_t* part_off, idx_t * off, idx_t * ind, val_t * val, val_t ** x) {
+gdf_error snmg_csrmv (SNMGinfo & env, size_t* part_off, idx_t * off, idx_t * ind, val_t * val, val_t ** x) {
   sync_all();
   void* cub_d_temp_storage = NULL;
   size_t cub_temp_storage_bytes = 0;
   cudaStream_t stream{nullptr};
-  auto i = omp_get_thread_num();
-  auto p = omp_get_num_threads(); 
+  auto i = env.get_thread_num();
+  auto p = env.get_num_threads(); 
   size_t v_glob = part_off[p];
   size_t v_loc = part_off[i+1]-part_off[i];
   idx_t tmp;
@@ -68,7 +68,7 @@ gdf_error snmg_csrmv (size_t* part_off, idx_t * off, idx_t * ind, val_t * val, v
   //{std::cout <<  omp_get_wtime() - t << " ";}
 
   //Update the output vector
-  allgather (part_off, y_loc, x);
+  allgather (env, part_off, y_loc, x);
 
   return GDF_SUCCESS;
 }
