@@ -64,3 +64,5 @@ set(GTEST_ROOT ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/thirdparty/googletest
 message(STATUS "GTEST_ROOT: " ${GTEST_ROOT})
 
 link_directories(${GTEST_ROOT}/lib/)
+# FIXME: lib64 also needs to be added for CentOS-7. This might be a code smell - investigate.
+link_directories(${GTEST_ROOT}/lib64/)

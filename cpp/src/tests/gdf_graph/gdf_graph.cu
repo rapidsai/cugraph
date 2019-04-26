@@ -243,21 +243,21 @@ TEST(gdf_delete_adjacency_list, success1)
       
   gdf_graph G;
   gdf_column col_off, col_ind, col_w;
-  size_t free, free2, total;  
-  cudaMemGetInfo(&free, &total);
+  //size_t free, free2, total;  
+  //cudaMemGetInfo(&free, &total);
   create_gdf_column(off_h, &col_off);
   create_gdf_column(ind_h, &col_ind);
   create_gdf_column(w_h, &col_w);
 
   ASSERT_EQ(gdf_adj_list_view(&G, &col_off, &col_ind, &col_w),GDF_SUCCESS);
   
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_NE(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_NE(free,free2);
   
   ASSERT_EQ(gdf_delete_adj_list(&G),GDF_SUCCESS);
 
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_EQ(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_EQ(free,free2);
 }
 
 TEST(gdf_delete_adjacency_list, success2)
@@ -277,21 +277,21 @@ TEST(gdf_delete_adjacency_list, success2)
       
   gdf_graph *G = new gdf_graph;
   gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_w = new gdf_column;
-  size_t free, free2, total;  
-  cudaMemGetInfo(&free, &total);
+  //size_t free, free2, total;  
+  //cudaMemGetInfo(&free, &total);
   create_gdf_column(off_h, col_off);
   create_gdf_column(ind_h, col_ind);
   create_gdf_column(w_h, col_w);
 
   ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, col_w),GDF_SUCCESS);
   
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_NE(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_NE(free,free2);
   
   ASSERT_EQ(gdf_delete_adj_list(G),GDF_SUCCESS);
 
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_EQ(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_EQ(free,free2);
 
   delete G;
   delete col_off;
@@ -307,21 +307,21 @@ TEST(gdf_delete_edge_list, success1)
 
   gdf_graph G ;
   gdf_column col_src, col_dest, col_w;
-  size_t free, free2, total;  
-  cudaMemGetInfo(&free, &total);
+  //size_t free, free2, total;  
+  //cudaMemGetInfo(&free, &total);
   create_gdf_column(src_h, &col_src);
   create_gdf_column(dest_h, &col_dest);
   create_gdf_column(w_h, &col_w);
 
   ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_w),GDF_SUCCESS);
   
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_NE(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_NE(free,free2);
   
   ASSERT_EQ(gdf_delete_edge_list(&G),GDF_SUCCESS);
 
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_EQ(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_EQ(free,free2);
 }
 
 TEST(gdf_delete_edge_list, success2)
@@ -331,21 +331,21 @@ TEST(gdf_delete_edge_list, success2)
 
   gdf_graph *G = new gdf_graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column, *col_w = new gdf_column;
-  size_t free, free2, total;  
-  cudaMemGetInfo(&free, &total);
+  //size_t free, free2, total;  
+  //cudaMemGetInfo(&free, &total);
   create_gdf_column(src_h, col_src);
   create_gdf_column(dest_h, col_dest);
   create_gdf_column(w_h, col_w);
 
   ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, col_w),GDF_SUCCESS);
   
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_NE(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_NE(free,free2);
   
   ASSERT_EQ(gdf_delete_edge_list(G),GDF_SUCCESS);
 
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_EQ(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_EQ(free,free2);
 
   delete G;
   delete col_src;
@@ -353,30 +353,30 @@ TEST(gdf_delete_edge_list, success2)
   delete col_w;
 }
 
-TEST(gdf_graph, gdf_add_transpose)
+TEST(gdf_graph, gdf_add_transposed_adj_list)
 {
   std::vector<int> src_h={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
   std::vector<int> dest_h={1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
   
   gdf_graph *G = new gdf_graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column;
-  size_t free, free2, free3, free4, total;  
+  //size_t free, free2, free3, free4, total;  
   
-  cudaMemGetInfo(&free, &total);
+  //cudaMemGetInfo(&free, &total);
   
   create_gdf_column(src_h, col_src);
   create_gdf_column(dest_h, col_dest);
 
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_NE(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_NE(free,free2);
 
   ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, nullptr),GDF_SUCCESS);
   
-  cudaMemGetInfo(&free3, &total);
-  EXPECT_EQ(free2,free3);
-  EXPECT_NE(free,free3);
+  //cudaMemGetInfo(&free3, &total);
+  //EXPECT_EQ(free2,free3);
+  //EXPECT_NE(free,free3);
 
-  ASSERT_EQ(gdf_add_transpose(G),GDF_SUCCESS);
+  ASSERT_EQ(gdf_add_transposed_adj_list(G),GDF_SUCCESS);
 
   //this check doen't work on small case (false positive)
   //cudaMemGetInfo(&free3, &total);
@@ -399,15 +399,15 @@ TEST(gdf_graph, gdf_add_transpose)
 
   delete G;
 
-  cudaMemGetInfo(&free4, &total);
-  EXPECT_EQ(free4,free2);
-  EXPECT_NE(free4,free);
+  //cudaMemGetInfo(&free4, &total);
+  //EXPECT_EQ(free4,free2);
+  //EXPECT_NE(free4,free);
 
   gdf_col_delete(col_src);
   gdf_col_delete(col_dest);
 
-  cudaMemGetInfo(&free4, &total);
-  EXPECT_EQ(free4,free);
+  //cudaMemGetInfo(&free4, &total);
+  //EXPECT_EQ(free4,free);
 }
 
 TEST(gdf_graph, gdf_add_adjList)
@@ -418,21 +418,22 @@ TEST(gdf_graph, gdf_add_adjList)
 
   gdf_graph *G = new gdf_graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column;
-  size_t free, free2, free3, free4, total;  
+
+  //size_t free, free2, free3, free4, total;  
   
-  cudaMemGetInfo(&free, &total);
+  //cudaMemGetInfo(&free, &total);
   
   create_gdf_column(src_h, col_src);
   create_gdf_column(dest_h, col_dest);
 
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_NE(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_NE(free,free2);
 
   ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, nullptr),GDF_SUCCESS);
   
-  cudaMemGetInfo(&free3, &total);
-  EXPECT_EQ(free2,free3);
-  EXPECT_NE(free,free3);
+  //cudaMemGetInfo(&free3, &total);
+  //EXPECT_EQ(free2,free3);
+  //EXPECT_NE(free,free3);
 
   ASSERT_EQ(gdf_add_adj_list(G),GDF_SUCCESS);
 
@@ -458,15 +459,15 @@ TEST(gdf_graph, gdf_add_adjList)
 
   delete G;
 
-  cudaMemGetInfo(&free4, &total);
-  EXPECT_EQ(free4,free2);
-  EXPECT_NE(free4,free);
+  //cudaMemGetInfo(&free4, &total);
+  //EXPECT_EQ(free4,free2);
+  //EXPECT_NE(free4,free);
 
   gdf_col_delete(col_src);
   gdf_col_delete(col_dest);
 
-  cudaMemGetInfo(&free4, &total);
-  EXPECT_EQ(free4,free);
+  //cudaMemGetInfo(&free4, &total);
+  //EXPECT_EQ(free4,free);
 }
 void offsets2indices(std::vector<int> &offsets, std::vector<int> &indices) {
   for (int i = 0; i < (int)offsets.size()-1; ++i) 
@@ -606,48 +607,48 @@ TEST(gdf_graph, memory)
   col_src.null_count = 0;
   col_dest.null_count = 0;
 
-  size_t free, free2, free3, free4_, free4, total;  
+  //size_t free, free2, free3, free4_, free4, total;  
   
-  cudaMemGetInfo(&free, &total);
+  //cudaMemGetInfo(&free, &total);
 
   size_t vertices = 0, edges = 0;
   char argv[1024] = "grmat --rmat_scale=23 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
 
   ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
 
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_NE(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_NE(free,free2);
 
   ASSERT_EQ(gdf_edge_list_view(G, &col_src, &col_dest, nullptr),GDF_SUCCESS);
   
-  cudaMemGetInfo(&free3, &total);
-  EXPECT_EQ(free2,free3);
-  EXPECT_NE(free,free3);
+  //cudaMemGetInfo(&free3, &total);
+  //EXPECT_EQ(free2,free3);
+  //EXPECT_NE(free,free3);
 
-  ASSERT_EQ(gdf_add_transpose(G),GDF_SUCCESS);
+  ASSERT_EQ(gdf_add_transposed_adj_list(G),GDF_SUCCESS);
   //this check doen't work on small case (false positive)
-  cudaMemGetInfo(&free4_, &total);
-  EXPECT_NE(free4_,free2);
+  //cudaMemGetInfo(&free4_, &total);
+  //EXPECT_NE(free4_,free2);
 
   ASSERT_EQ(gdf_add_adj_list(G),GDF_SUCCESS);
   ASSERT_EQ(gdf_delete_adj_list(G),GDF_SUCCESS);
 
-  cudaMemGetInfo(&free4, &total);
-  EXPECT_EQ(free4,free4_);
-  EXPECT_NE(free4,free2);
+  //cudaMemGetInfo(&free4, &total);
+  //EXPECT_EQ(free4,free4_);
+  //EXPECT_NE(free4,free2);
 
   delete G;
 
-  cudaMemGetInfo(&free4, &total);
-  EXPECT_EQ(free4,free3);
-  EXPECT_NE(free4,free);
+  //cudaMemGetInfo(&free4, &total);
+  //EXPECT_EQ(free4,free3);
+  //EXPECT_NE(free4,free);
 
   cudaStream_t stream{nullptr};
   ALLOC_FREE_TRY(col_src.data, stream);
   ALLOC_FREE_TRY(col_dest.data, stream);
   
-  cudaMemGetInfo(&free4, &total);
-  EXPECT_EQ(free4,free);
+  //cudaMemGetInfo(&free4, &total);
+  //EXPECT_EQ(free4,free);
 }
 
 TEST(gdf_graph, gdf_column_overhead)
@@ -656,8 +657,8 @@ TEST(gdf_graph, gdf_column_overhead)
   std::vector<int> src_h(sz,1);
   std::vector<int> dest_h(sz,1);
 
-  size_t free, free2, free3, total;  
-  cudaMemGetInfo(&free, &total);
+  //size_t free, free2, free3, total;  
+  //cudaMemGetInfo(&free, &total);
 
   gdf_graph *G = new gdf_graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column;
@@ -665,17 +666,17 @@ TEST(gdf_graph, gdf_column_overhead)
   create_gdf_column(src_h, col_src);
   create_gdf_column(dest_h, col_dest);
 
-  cudaMemGetInfo(&free2, &total);
-  EXPECT_NE(free,free2);
+  //cudaMemGetInfo(&free2, &total);
+  //EXPECT_NE(free,free2);
 
   // check that gdf_column_overhead < 5 per cent
-  EXPECT_LT(free-free2, 2*sz*sizeof(int)*1.05);
+  //EXPECT_LT(free-free2, 2*sz*sizeof(int)*1.05);
 
   ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, nullptr),GDF_SUCCESS);
 
-  cudaMemGetInfo(&free3, &total);
-  EXPECT_EQ(free2,free3);
-  EXPECT_NE(free,free3);
+  //cudaMemGetInfo(&free3, &total);
+  //EXPECT_EQ(free2,free3);
+  //EXPECT_NE(free,free3);
 
   delete G;
   gdf_col_delete(col_src);

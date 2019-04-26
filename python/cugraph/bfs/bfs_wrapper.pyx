@@ -14,9 +14,7 @@
 from c_bfs cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 import cudf
-from librmm_cffi import librmm as rmm
 #from pygdf import Column
 import numpy as np
 
@@ -45,28 +43,29 @@ cpdef bfs(G, start, directed=True):
         
     Examples
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,none)
     >>> dist, pred = cuGraph.bfs(G, 0, false)
     """
-    
+
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
-    num_verts = g.adjList.offsets.size - 1
-    
+
+    num_verts = G.number_of_vertices()
+
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef uintptr_t vertex_ptr = create_column(df['vertex'])
+    cdef gdf_column c_vertex_col = get_gdf_column_view(df['vertex'])
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef uintptr_t distances_ptr = create_column(df['distance'])
+    cdef gdf_column c_distances_col = get_gdf_column_view(df['distance'])
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef uintptr_t predecessors_ptr = create_column(df['predecessor'])
-    
-    err = g.adjList.get_vertex_identifiers(<gdf_column*>vertex_ptr)
+    cdef gdf_column c_predecessors_col = get_gdf_column_view(df['predecessor'])
+
+    err = g.adjList.get_vertex_identifiers(&c_vertex_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-    
-    gdf_bfs(<gdf_graph*>g, <gdf_column*>distances_ptr, <gdf_column*>predecessors_ptr, <int>start, <bool>directed)
+
+    gdf_bfs(g, &c_distances_col, &c_predecessors_col, <int>start, <bool>directed)
     return df

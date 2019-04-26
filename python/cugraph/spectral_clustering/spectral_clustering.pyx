@@ -51,13 +51,14 @@ cpdef spectralBalancedCutClustering(G,
     
     Returns
     -------
-    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the corresponding SSSP distances.
+    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the 
+      corresponding cluster assignments.
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -66,19 +67,23 @@ cpdef spectralBalancedCutClustering(G,
     """
 
     cdef uintptr_t graph = G.graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
+    cdef gdf_graph * g = <gdf_graph*> graph
+    
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_vert = g.adjList.offsets.size - 1
+    num_verts = G.number_of_vertices()
 
     # Create the output dataframe
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
-    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
-    df['cluster'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
-    cdef uintptr_t cluster_ptr = create_column(df['cluster'])
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
+    df['cluster'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
     
     # Set the vertex identifiers
-    err = g.adjList.get_vertex_identifiers(< gdf_column *> identifier_ptr)
+    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     err = gdf_balancedCutClustering_nvgraph(g,
@@ -88,7 +93,7 @@ cpdef spectralBalancedCutClustering(G,
                                             evs_max_iter,
                                             kmean_tolerance,
                                             kmean_max_iter,
-                                            < gdf_column *> cluster_ptr)
+                                            &c_cluster_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
@@ -123,13 +128,14 @@ cpdef spectralModularityMaximizationClustering(G,
     
     Returns
     -------
-    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the corresponding SSSP distances.
+    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and 
+      the corresponding cluster assignments.
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -138,19 +144,23 @@ cpdef spectralModularityMaximizationClustering(G,
     """
 
     cdef uintptr_t graph = G.graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
+    cdef gdf_graph * g = <gdf_graph*> graph
 
-    num_vert = g.adjList.offsets.size - 1
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    num_verts = G.number_of_vertices()
 
     # Create the output dataframe
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
-    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
-    df['cluster'] = cudf.Series(np.zeros(num_vert, dtype=np.int32))
-    cdef uintptr_t cluster_ptr = create_column(df['cluster'])
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
+    df['cluster'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
     
     # Set the vertex identifiers
-    err = g.adjList.get_vertex_identifiers(< gdf_column *> identifier_ptr)
+    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     err = gdf_spectralModularityMaximization_nvgraph(g,
@@ -160,7 +170,7 @@ cpdef spectralModularityMaximizationClustering(G,
                                                      evs_max_iter,
                                                      kmean_tolerance,
                                                      kmean_max_iter,
-                                                     < gdf_column *> cluster_ptr)
+                                                     &c_cluster_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
@@ -184,7 +194,7 @@ cpdef analyzeClustering_modularity(G, n_clusters, clustering):
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -193,10 +203,15 @@ cpdef analyzeClustering_modularity(G, n_clusters, clustering):
     >>> score = cuGraph.analyzeClustering_modularity(G, 5, DF['cluster'])
     """
     cdef uintptr_t graph = G.graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
-    cdef uintptr_t clustering_ptr = create_column(clustering)
+    cdef gdf_graph * g = <gdf_graph*> graph
+    
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    
+    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_modularity_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
+    err = gdf_AnalyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
 
@@ -219,7 +234,7 @@ cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -228,10 +243,15 @@ cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
     >>> score = cuGraph.analyzeClustering_edge_cut(G, 5, DF['cluster'])
     """
     cdef uintptr_t graph = G.graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
-    cdef uintptr_t clustering_ptr = create_column(clustering)
+    cdef gdf_graph * g = <gdf_graph*> graph
+    
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    
+    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_edge_cut_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
+    err = gdf_AnalyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
 
@@ -254,7 +274,7 @@ cpdef analyzeClustering_ratio_cut(G, n_clusters, clustering):
         
     Example:
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -263,9 +283,14 @@ cpdef analyzeClustering_ratio_cut(G, n_clusters, clustering):
     >>> score = cuGraph.analyzeClustering_ratio_cut(G, 5, DF['cluster'])
     """
     cdef uintptr_t graph = G.graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
-    cdef uintptr_t clustering_ptr = create_column(clustering)
+    cdef gdf_graph * g = <gdf_graph*> graph
+    
+    # Ensure that the graph has CSR adjacency list
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    
+    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_ratio_cut_nvgraph(g, n_clusters, <gdf_column*>clustering_ptr, &score)
+    err = gdf_AnalyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
