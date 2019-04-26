@@ -37,8 +37,8 @@ class SNMGinfo
       cudaGetDevice(&tmp_i);
 
       //get info from omp 
-      auto i = omp_get_thread_num();
-      auto p = omp_get_num_threads();
+      i = omp_get_thread_num();
+      p = omp_get_num_threads();
 
       // check that thread_num and num_threads are compatible with the device ID and the number of device 
       if (tmp_i != i) {
