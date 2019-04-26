@@ -55,7 +55,7 @@ gdf_error snmg_csrmv (SNMGinfo & env, size_t* part_off, idx_t * off, idx_t * ind
   // Local SPMV
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
   	                              val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc));
-  print_mem_usage();	
+  //print_mem_usage();	
   // Free CUB's temporary storage
   ALLOC_FREE_TRY(cub_d_temp_storage, stream);
   //#pragma omp master 
