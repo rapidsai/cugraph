@@ -31,7 +31,7 @@ nvidia-smi
 
 logger "Activate conda env..."
 source activate gdf
-conda install -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda$CUDA_VERSION_SHORT -c numba -c conda-forge -c defaults cudf=$CUDF_VERSION nvgraph networkx python-louvain
+conda install -c nvidia/label/cuda$CUDA_VERSION_SHORT -c rapidsai/label/cuda$CUDA_VERSION_SHORT -c rapidsai-nightly/label/cuda$CUDA_VERSION_SHORT -c numba -c conda-forge -c defaults cudf=$CUDF_VERSION nvgraph networkx python-louvain
 
 logger "Check versions..."
 python --version
@@ -74,6 +74,5 @@ cd $WORKSPACE/cpp/build
 GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
 
 logger "Python py.test for cuGraph..."
-cd $WORKSPACE
-tar -zxvf cpp/src/tests/datasets.tar.gz -C /
+cd $WORKSPACE/python
 py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v

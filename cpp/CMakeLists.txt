@@ -16,7 +16,7 @@
 #=============================================================================
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(cuGraph VERSION 0.1.0 LANGUAGES C CXX CUDA)
+project(cuGraph VERSION 0.6.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
@@ -129,6 +129,11 @@ message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 # - cmake custom modules --------------------------------------------------------------------------
 include(ConfigureGoogleTest)
 
+# speedup build time by avoiding features that are not exposed
+set(NVGRAPH_LIGHT True)
+# build nvgraph
+include(ConfigureNvgraph)
+
 ###################################################################################################
 # - Find and add different modules and supporting repos -------------------------------------------
 find_package(Boost 1.45.0 COMPONENTS system)
@@ -137,6 +142,7 @@ find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler ${OpenMP_CXX_FLAGS}")
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
@@ -186,12 +192,11 @@ endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
+
 find_path(NVGRAPH_INCLUDE "nvgraph"
-      HINTS "$ENV{NVGRAPH_ROOT}/include"
-            "$ENV{CONDA_PREFIX}/include")
-find_library(NVGRAPH_LIBRARY "nvgraph_st"
-         HINTS "$ENV{NVGRAPH_ROOT}/lib"
-               "$ENV{CONDA_PREFIX}/lib")
+      HINTS "$ENV{CONDA_PREFIX}/include")
+find_library(NVGRAPH_LIBRARY "nvgraph_rapids"
+         HINTS "$ENV{CONDA_PREFIX}/lib")
 
 add_library( nvgraph SHARED IMPORTED)
 if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
@@ -228,7 +233,10 @@ add_library(cugraph SHARED
     src/cugraph.cu
     src/pagerank.cu
     src/bfs.cu
+    src/jaccard.cu
+    src/overlap.cu
     src/nvgraph_gdf.cu
+    src/two_hop_neighbors.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu

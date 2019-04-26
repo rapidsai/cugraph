@@ -1,8 +1,8 @@
 # <div align="left"><img src="img/rapids_logo.png" width="90px"/>&nbsp;cuGraph - GPU Graph Analytics</div>
 
-[![Build Status](http://18.191.94.64/buildStatus/icon?job=cugraph-master)](http://18.191.94.64/job/cugraph-master/)  [![Documentation Status](https://readthedocs.org/projects/cugraph/badge/?version=latest)](https://cugraph.readthedocs.io/en/latest/)
+[![Build Status](http://18.191.94.64/buildStatus/icon?job=cugraph-master)](http://18.191.94.64/job/cugraph-master/)  [![Documentation Status](https://readthedocs.org/projects/cugraph/badge/?version=latest)](https://docs.rapids.ai/api/cugraph/nightly/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process data found in GPU Dataframe - see [cuDF](https://github.com/rapidsai/cudf).  cuGraph aims at provides a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process data found in GPU Dataframes - see [cuDF](https://github.com/rapidsai/cudf).  cuGraph aims to provide a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
@@ -19,7 +19,6 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analyti
 There are 4 ways to get cuGraph :
 1. [Quick start with Docker Demo Repo](#quick)
 1. [Conda Installation](#conda)
-1. [Pip Installation](#pip)
 1. [Build from Source](#source)
 
 
@@ -28,13 +27,17 @@ Building from source is currently the only viable option. Once version 0.6 is re
 
 
 
-## Quick Start {#quick}
+<a name="quick"></a>
+
+## Quick Start  
 
 Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
 
 
-### Conda{#conda}
+<a name="conda"></a>
+
+### Conda
 
 It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
 
@@ -52,23 +55,9 @@ Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
 
 
-### Pip {#pip}
+<a name="source"></a>
 
-It is easy to install cuGraph using pip. You must specify the CUDA version to ensure you install the right package.
-
-```bash
-# CUDA 9.2
-pip install cugraph-cuda92
-
-# CUDA 10.0.
-pip install cugraph-cuda100
-```
-
-
-
-
-
-### Build from Source {#source}
+### Build from Source 
 
 The following instructions are for developers and contributors to cuGraph OSS development. These instructions are tested on Linux Ubuntu 16.04 & 18.04. Use these instructions to build cuGraph from source and contribute to its development.  Other operating systems may be compatible, but are not currently tested.
 
@@ -192,7 +181,7 @@ conda activate cugraph_dev
 
 3) Build and install `libcugraph`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
 
-  This project uses cmake for building the C/C++ library. To configure cmake, run:
+  This project uses cmake for building the C/C++ library. CMake will also automatically build and install nvGraph library (`$CUGRAPH_HOME/cpp/nvgraph`) which may take a few minutes. To configure cmake, run:
 
   ```bash
   # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME 
@@ -238,17 +227,14 @@ python setup.py install    # install cugraph python bindings
     # Run the cugraph tests
     cd $CUGRAPH_HOME
     cd cpp/build
-    make test
-    
-    # alternatively, you can run individual test
     gtests/GDFGRAPH_TEST		# this is an executable file
     ```
 
   - **Python tests with datasets** 
 
     ```bash
-    cd $CUGRAPH_HOME  
-    tar -zxvf cpp/src/tests/datasets.tar.gz -C /    # tests look for data under  '/'
+    cd $CUGRAPH_HOME
+    cd python
     pytest  
     ```
 
@@ -320,9 +306,9 @@ unset LD_LIBRARY_PATH
 
 
 
+## nvGraph
 
-
-
+The nvGraph library is now open source and part of cuGraph. It can be build as a stand alone by following nvgraph's [readme](cpp/nvgraph/). 
 
 ------
 
