@@ -3,18 +3,18 @@
 echo Downloading ...
 mkdir tmp
 cd tmp
-wget https://s3.us-east-2.amazonaws.com/gpuci/cugraph/test/datasets.tgz
-wget https://s3.us-east-2.amazonaws.com/gpuci/cugraph/test/ref/pagerank.tgz
-wget https://s3.us-east-2.amazonaws.com/gpuci/cugraph/test/ref/sssp.tgz
+wget https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/datasets.tgz
+wget https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/pagerank.tgz
+wget https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/sssp.tgz
 cd ..
 
 mkdir test
 mkdir test/ref
 
 echo Decompressing ...
-tar xvzf tmp/datasets.tar.gz -C test
-tar xvzf tmp/pagerank.tar.gz -C test/ref
-tar xvzf tmp/sssp.tar.gz -C test/ref
+tar xvzf tmp/datasets.tgz -C test
+tar xvzf tmp/pagerank.tgz -C test/ref
+tar xvzf tmp/sssp.tgz -C test/ref
 
 rm -rf tmp
 
