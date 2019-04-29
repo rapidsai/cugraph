@@ -37,22 +37,23 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M):
-    M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float32'], header=None)
 
+
+def cugraph_call(cu_M):
     # Device data
-    row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
+    sources = cu_M['0']
+    destinations = cu_M['1']
     # values = cudf.Series(np.ones(len(col_indices), dtype=np.float32),
     # nan_as_null=False)
-    weights_arr = cudf.Series(np.ones(len(row_offsets) - 1, dtype=np.float32))
+    weights_arr = cudf.Series(np.ones(max(sources.max(),
+                              destinations.max())+1, dtype=np.float32))
 
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.add_edge_list(sources, destinations, None)
 
     # cugraph Jaccard Call
     t1 = time.time()
@@ -93,18 +94,19 @@ def networkx_call(M):
     return coeff
 
 
-DATASETS = ['../datasets/dolphins.mtx',
-            '../datasets/karate.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/dolphins',
+            '../datasets/karate',
+            '../datasets/netscience']
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_wjaccard(graph_file):
 
-    M = read_mtx_file(graph_file)
+    M = read_mtx_file(graph_file+'.mtx')
+    cu_M = read_csv_file(graph_file+'.csv')
     # suppress F841 (local variable is assigned but never used) in flake8
     # no networkX equivalent to compare cu_coeff against...
-    cu_coeff = cugraph_call(M)  # noqa: F841
+    cu_coeff = cugraph_call(cu_M)  # noqa: F841
     nx_coeff = networkx_call(M)
     for i in range(len(cu_coeff)):
         diff = abs(nx_coeff[i] - cu_coeff[i])

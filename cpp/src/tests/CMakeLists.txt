@@ -24,6 +24,7 @@ cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(CUGRAPH_TESTS LANGUAGES C CXX CUDA)
 
 set(CMAKE_CUDA_FLAGS "-shared -cudart shared")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda -Xcompiler -rdynamic -lineinfo")
 
 if(CMAKE_CXX11_ABI)
     message(STATUS "cuGraph test: Enabling the GLIBCXX11 ABI")

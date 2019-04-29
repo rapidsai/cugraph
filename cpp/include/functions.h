@@ -15,6 +15,36 @@
  */
 #pragma once 
 
+/* ----------------------------------------------------------------------------*/
+
+/**
+ * @Synopsis Renumber source and destination indexes to be a dense numbering,
+ *           using contiguous values between 0 and number of vertices minus 1.
+ *
+ *    Assumptions:
+ *       * source and dest have same size and type
+ *       * source and dest are either GDF_INT32 or GDF_INT64
+ *       * source and dest have a size greater than 0
+ *
+ *    Note that this function allocates memory for the src_renumbered,
+ *    dst_renumbered and numbering_map arrays.
+ *
+ *  @Param[in]  src - the original source vertices
+ *  @Param[in]  dst - the original dest vertices
+ *  @Param[out] src_renumbered - the renumbered source vertices.  This array
+ *                               will be a GDF_INT32 array.
+ *  @Param[out] dst_renumbered - the renumbered dest vertices.  This array
+ *                               will be a GDF_INT32 array.
+ *  @Param[out] numbering_map - mapping of new vertex ids to old vertex ids.
+ *                              This array will match the type of src/dst input.
+ *
+ *  @Returns    GDF_SUCCESS on success, an error code on failure.
+ *              GDF_COLUMN_SIZE_TOO_BIG if the number of unique vertices is > 2^31-1.
+ */
+gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
+				gdf_column *src_renumbered, gdf_column *dst_renumbered,
+				gdf_column *numbering_map);
+
 /**
  * @Synopsis   Wrap existing gdf columns representing an edge list in a gdf_graph.
  *             cuGRAPH does not own the memory used to represent this graph. This function does not allocate memory.

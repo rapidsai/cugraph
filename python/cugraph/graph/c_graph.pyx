@@ -21,6 +21,7 @@ import numpy as np
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
+dtypes_inv = {GDF_INT32: np.int32, GDF_INT64: np.int64, GDF_FLOAT32: np.float32, GDF_FLOAT64: np.float64}
 
 
 cdef gdf_column get_gdf_column_view(col):
@@ -57,6 +58,24 @@ cdef gdf_column get_gdf_column_view(col):
 
     return c_col
 
+#
+#  Really want something like this to clean up the code... but
+#  this can't work with the current interface.
+#
+#cdef wrap_column_not_working(col_ptr):
+#    cdef gdf_column * col = <gdf_column *> col_ptr
+#
+#    print("  size = ", col.size)
+#    print("  data = ", <uintptr_t> col.data)
+#    print("col.dtype = ", col.dtype)
+#    print("dtypes_inv = ", dtypes_inv)
+#    print("  inv = ", dtypes_inv[col.dtype])
+#
+#    return rmm.device_array_from_ptr(<uintptr_t> col.data,
+#                                     nelem=col.size,
+#                                     dtype=dtypes_inv[col.dtype],
+#                                     finalizer=rmm._make_finalizer(<uintptr_t> col_ptr, 0))
+#
 
 class Graph:
     """
@@ -93,6 +112,79 @@ class Graph:
         self.delete_adj_list()
         self.delete_transposed_adj_list()
         free(g)
+
+    def renumber(self, source_col, dest_col):
+        """
+        Take a (potentially sparse) set of source and destination vertex
+        ids and renumber the vertices to create a dense set of vertex ids
+        using all values contiguously from 0 to the number of unique vertices
+        - 1.
+
+        Input columns can be either int64 or int32.  The output will be mapped
+        to int32, since many of the cugraph functions are limited to int32.
+        If the number of unique values in source_col and dest_col > 2^31-1
+        then this function will return an error.
+
+        Return from this call will be three cudf Series - the renumbered
+        source_col, the renumbered dest_col and a numbering map that maps the
+        new ids to the original ids.
+
+        Parameters
+        ----------
+        source_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the source index for each edge.
+            Source indices must be an integer type.
+        dest_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices must be an integer type.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import pytest
+        >>> from scipy.io import mmread
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>>
+        >>>
+        >>> mm_file = '../datasets/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> sources = cudf.Series(M.row)
+        >>> destinations = cudf.Series(M.col)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> src_r, dst_r, numbering = G.renumber(sources, destinations)
+        """
+
+        cdef gdf_column src_renumbered
+        cdef gdf_column dst_renumbered
+        cdef gdf_column numbering_map
+
+        cdef gdf_column source = get_gdf_column_view(source_col)
+        cdef gdf_column dest = get_gdf_column_view(dest_col)
+
+        err = gdf_renumber_vertices(&source,
+	      			    &dest,
+				    &src_renumbered,
+				    &dst_renumbered,
+				    &numbering_map)
+
+        cudf.bindings.cudf_cpp.check_gdf_error(err) 
+
+        src_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> src_renumbered.data,
+                                     nelem=src_renumbered.size,
+                                     dtype=dtypes_inv[src_renumbered.dtype])
+        dst_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> dst_renumbered.data,
+                                     nelem=dst_renumbered.size,
+                                     dtype=dtypes_inv[dst_renumbered.dtype])
+        numbering_map_array = rmm.device_array_from_ptr(<uintptr_t> numbering_map.data,
+                                     nelem=numbering_map.size,
+                                     dtype=dtypes_inv[numbering_map.dtype])
+
+        return cudf.Series(src_renumbered_array), cudf.Series(dst_renumbered_array), cudf.Series(numbering_map_array)
 
     def add_edge_list(self, source_col, dest_col, value_col=None, copy=False):
         """

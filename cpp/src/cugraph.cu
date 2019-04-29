@@ -1,3 +1,4 @@
+// -*-c++-*-
 
  /*
  * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
@@ -19,6 +20,7 @@
 #include "COOtoCSR.cuh"
 #include "utilities/error_utils.h"
 #include "bfs.cuh"
+#include "renumber.cuh"
 #include "snmg/spmv.cuh"
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
@@ -116,6 +118,101 @@ gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
   return GDF_SUCCESS;
 }
 
+gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
+				gdf_column *src_renumbered, gdf_column *dst_renumbered,
+				gdf_column *numbering_map) {
+
+  GDF_REQUIRE( src->size == dst->size, GDF_COLUMN_SIZE_MISMATCH );
+  GDF_REQUIRE( src->dtype == dst->dtype, GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( src->size > 0, GDF_DATASET_EMPTY ); 
+
+  //
+  //  TODO: we're currently renumbering without using valid.  We need to
+  //        worry about that at some point, but for now we'll just
+  //        copy the valid pointers to the new columns and go from there.
+  //
+  cudaStream_t stream{nullptr};
+
+  size_t src_size = src->size;
+  size_t new_size;
+
+  //
+  // TODO:  I assume int64_t for output.  A few thoughts:
+  //
+  //    * I could match src->dtype - since if the raw values fit in an int32_t,
+  //      then the renumbered values must fit within an int32_t
+  //    * If new_size < (2^31 - 1) then I could allocate 32-bit integers
+  //      and copy them in order to make the final footprint smaller.
+  //
+  //
+  //  NOTE:  Forcing match right now - it appears that cugraph is artficially
+  //         forcing the type to be 32
+  if (src->dtype == GDF_INT32) {
+    int32_t *tmp;
+
+    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    gdf_column_view(src_renumbered, tmp, src->valid, src->size, src->dtype);
+  
+    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, dst->dtype);
+
+    gdf_error err = cugraph::renumber_vertices(src_size,
+					       (const int32_t *) src->data,
+					       (const int32_t *) dst->data,
+					       (int32_t *) src_renumbered->data,
+					       (int32_t *) dst_renumbered->data,
+					       &new_size, &tmp);
+    if (err != GDF_SUCCESS)
+      return err;
+
+    gdf_column_view(numbering_map, tmp, nullptr, new_size, src->dtype);
+  } else if (src->dtype == GDF_INT64) {
+
+    //
+    //  NOTE: At the moment, we force the renumbered graph to use
+    //        32-bit integer ids.  Since renumbering is going to make
+    //        the vertex range dense, this limits us to 2 billion
+    //        vertices.
+    //
+    //        The renumbering code supports 64-bit integer generation
+    //        so we can run this with int64_t output if desired...
+    //        but none of the algorithms support that.
+    //
+    int64_t *tmp;
+    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    gdf_column_view(src_renumbered, tmp, src->valid, src->size, GDF_INT32);
+  
+    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, GDF_INT32);
+
+    gdf_error err = cugraph::renumber_vertices(src_size,
+					       (const int64_t *) src->data,
+					       (const int64_t *) dst->data,
+					       (int32_t *) src_renumbered->data,
+					       (int32_t *) dst_renumbered->data,
+					       &new_size, &tmp);
+    if (err != GDF_SUCCESS)
+      return err;
+
+    //
+    //  If there are too many vertices then the renumbering overflows so we'll
+    //  return an error.
+    //
+    if (new_size > 0x7fffffff) {
+      ALLOC_FREE_TRY(src_renumbered, stream);
+      ALLOC_FREE_TRY(dst_renumbered, stream);
+      return GDF_COLUMN_SIZE_TOO_BIG;
+    }
+
+    gdf_column_view(numbering_map, tmp, nullptr, new_size, src->dtype);
+  } else {
+    return GDF_UNSUPPORTED_DTYPE;
+  }
+
+  return GDF_SUCCESS;
+}
+
 gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
                                  const gdf_column *dest_indices, const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
@@ -144,10 +241,11 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
   else {
     graph->edgeList->edge_data = nullptr;
   }
+
   return GDF_SUCCESS;
 }
 
-template <typename WT>
+template <typename T, typename WT>
 gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
     if (graph->adjList == nullptr) {
       GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
@@ -160,7 +258,7 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
     if (graph->edgeList->edge_data!= nullptr) {
       graph->adjList->edge_data = new gdf_column;
 
-      CSR_Result_Weighted<int,WT> adj_list;
+      CSR_Result_Weighted<int32_t,WT> adj_list;
       status = ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
 
       gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets,
@@ -226,7 +324,7 @@ gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
 
       if (graph->edgeList->edge_data) {
         graph->transposedAdjList->edge_data = new gdf_column;
-        CSR_Result_Weighted<int,WT> adj_list;
+        CSR_Result_Weighted<int32_t,WT> adj_list;
         status = ConvertCOOtoCSR_weighted( (int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
         gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets,
                               nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
@@ -263,7 +361,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
     nblocks.z = 1;
 
     switch (col_ptr->dtype) {
-      case GDF_INT32:   cugraph::degree_offsets<int, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
+      case GDF_INT32:   cugraph::degree_offsets<int32_t, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
@@ -277,7 +375,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
     nblocks.z = 1;
 
     switch (col_ptr->dtype) {
-      case GDF_INT32:   cugraph::degree_coo<int, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
+      case GDF_INT32:   cugraph::degree_coo<int32_t, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
@@ -349,7 +447,8 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   ALLOC_MANAGED_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
   ALLOC_MANAGED_TRY((void**)&d_pr,    sizeof(WT) * m, stream);
 
-  cugraph::HT_matrix_csc_coo(m, nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
+  //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
+  cugraph::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
 
   if (has_guess)
   {
@@ -357,7 +456,7 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
     cugraph::copy<WT>(m, (WT*)pagerank->data, d_pr);
   }
 
-  status = cugraph::pagerank<int,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data,
+  status = cugraph::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data,
     d_val, alpha, d_leaf_vector, false, tolerance, max_iter, d_pr, residual);
 
   if (status !=0)
@@ -381,23 +480,27 @@ gdf_error gdf_add_adj_list(gdf_graph *graph) {
     return GDF_SUCCESS;
 
   GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
-  GDF_REQUIRE( graph->adjList == nullptr , GDF_INVALID_API_CALL);
+  GDF_REQUIRE( graph->edgeList->src_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE );
 
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return gdf_add_adj_list_impl<float>(graph);
-      case GDF_FLOAT64:   return gdf_add_adj_list_impl<double>(graph);
+      case GDF_FLOAT32:   return gdf_add_adj_list_impl<int32_t, float>(graph);
+      case GDF_FLOAT64:   return gdf_add_adj_list_impl<int32_t, double>(graph);
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
   else {
-    return gdf_add_adj_list_impl<float>(graph);
+    return gdf_add_adj_list_impl<int32_t, float>(graph);
   }
 }
 
 gdf_error gdf_add_transposed_adj_list(gdf_graph *graph) {
   if (graph->edgeList == nullptr)
     gdf_add_edge_list(graph);
+
+  GDF_REQUIRE(graph->edgeList->src_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(graph->edgeList->dest_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
       case GDF_FLOAT32:   return gdf_add_transposed_adj_list_impl<float>(graph);
@@ -435,6 +538,19 @@ gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) {
 }
 
 gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess) {
+  //
+  //  page rank operates on CSR and can't currently support 64-bit integers.
+  //
+  //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
+  //
+  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
+  gdf_error err = gdf_add_adj_list(graph);
+  if (err != GDF_SUCCESS)
+    return err;
+
+  GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+
   switch (pagerank->dtype) {
     case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank, alpha, tolerance, max_iter, has_guess);
     case GDF_FLOAT64:   return gdf_pagerank_impl<double>(graph, pagerank, alpha, tolerance, max_iter, has_guess);
@@ -548,8 +664,8 @@ gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_colu
 
 gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){
     switch (val->dtype) {
-      case GDF_FLOAT32:   return gdf_snmg_csrmv_impl<int,float>(part_offsets, off, ind, val, x_cols);
-      case GDF_FLOAT64:   return gdf_snmg_csrmv_impl<int,double>(part_offsets, off, ind, val, x_cols);
+      case GDF_FLOAT32:   return gdf_snmg_csrmv_impl<int32_t,float>(part_offsets, off, ind, val, x_cols);
+      case GDF_FLOAT64:   return gdf_snmg_csrmv_impl<int32_t,double>(part_offsets, off, ind, val, x_cols);
       default: return GDF_UNSUPPORTED_DTYPE;
     }
 }
