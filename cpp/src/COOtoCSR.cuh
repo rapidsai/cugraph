@@ -1,3 +1,5 @@
+// -*-c++-*-
+
 /*
  * Copyright (c) 2019, NVIDIA CORPORATION.
  *
@@ -33,7 +35,9 @@
 #include <cub/device/device_run_length_encode.cuh>
 
 #include "utilities/error_utils.h"
-
+#include "heap.cuh"
+#include "lrb_sort.cuh"
+#include "graph_utils.cuh"
 #include <rmm_utils.h>
 
 template <typename T>
@@ -67,15 +71,16 @@ __global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
 		offsets[unique[tid]] = counts[tid];
 }
 
-// Contruct CSR from COO without sorting
+// Contruct CSR from COO without sorting first
 template <typename T>
-gdf_error ConvertCOOtoCSR_unsorted(T *sources, T *destinations, int64_t nnz, CSR_Result<T> &result) {
+gdf_error ConvertCOOtoCSR_segmented_sort(T *sources, T *destinations, int64_t nnz, CSR_Result<T> &result) {
   //
   //  Technique:
   //      1 - Count how many edges are associated with each vertex
   //      2 - Prefix sums to populate rowOffsets
   //      3 - Copy prefix sums to temporary array to use to populate colIndices
   //      4 - Populate colIndices
+  //      5 - Segmented sort of colIndices
   //
   cudaStream_t stream{nullptr};
   rmm_temp_allocator allocator(stream);
@@ -92,11 +97,12 @@ gdf_error ConvertCOOtoCSR_unsorted(T *sources, T *destinations, int64_t nnz, CSR
 
   result.size = max(maxId1, maxId2) + 1;
   result.nnz = nnz;
-  ALLOC_MANAGED_TRY((void**)&result.rowOffsets, (1 + result.size) * sizeof(T), stream);
-  ALLOC_MANAGED_TRY((void**)&result.colIndices, nnz * sizeof(T), stream);
+
+  ALLOC_TRY((void**)&result.rowOffsets, (1 + result.size) * sizeof(T), stream);
+  ALLOC_TRY((void**)&result.colIndices, nnz * sizeof(T), stream);
 
   T *temp_array;
-  ALLOC_MANAGED_TRY((void**)&temp_array, (1 + result.size) * sizeof(T), stream);
+  ALLOC_TRY((void**)&temp_array, (1 + result.size) * sizeof(T), stream);
 
   CUDA_TRY(cudaMemset(temp_array, 0, (1 + result.size) * sizeof(T)));
 
@@ -108,12 +114,24 @@ gdf_error ConvertCOOtoCSR_unsorted(T *sources, T *destinations, int64_t nnz, CSR
                    [temp_array] __device__ (T &src) {
                      atomicAdd(temp_array + src, T{1});
 		   });
+  cudaCheckError();
 
   //
   //  Exclusive scan will create base offsets for each element.
   //
+  // TODO:  For now, I'm putting DeviceSynchronize around the
+  //        call to exclusive_scan.  Either I'm doing something
+  //        wrong or there's a bug in thrust.  The exclusive
+  //        scan usually works but sometimes it does not
+  //        generate correct output without an error message.
+  //        Doing the device synchronize here reduces the frequency
+  //        of these errors.
+  //
+  cudaDeviceSynchronize();
   thrust::exclusive_scan(thrust::cuda::par(allocator).on(stream),
                          temp_array, temp_array + result.size + 1, temp_array);
+  cudaCheckError();
+  cudaDeviceSynchronize();
 
   //
   //  Copy these results into the output, then we'll use the temp_array
@@ -121,6 +139,7 @@ gdf_error ConvertCOOtoCSR_unsorted(T *sources, T *destinations, int64_t nnz, CSR
   //
   thrust::copy(thrust::cuda::par(allocator).on(stream),
                temp_array, temp_array + result.size + 1, result.rowOffsets);
+  cudaCheckError();
 
   //
   //  Now populate the colIndices array (non-deterministic)
@@ -133,7 +152,26 @@ gdf_error ConvertCOOtoCSR_unsorted(T *sources, T *destinations, int64_t nnz, CSR
                      T offset = atomicAdd(temp_array + sources[id], T{1});
                      result.colIndices[offset] = destinations[id];
                    });
+  cudaCheckError();
 
+#if 0
+  //
+  //  Not sure if this is necessary, still struggling with
+  //  consistency on some of the thrust calls.
+  //
+  cudaDeviceSynchronize();
+
+  //
+  //  This needs more work, leaving call in for now, but it's
+  //  ifdef'ed out so it won't get executed.
+  //
+  cugraph::segmentedSort((T) result.size,
+			 result.rowOffsets,
+			 result.rowOffsets + 1,
+			 result.colIndices);
+  cudaCheckError();
+#endif
+  
   //
   //  Free temp space
   //

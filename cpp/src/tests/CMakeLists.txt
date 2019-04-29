@@ -123,6 +123,15 @@ set(JACCARD_TEST_SRCS
 configure_test(JACCARD_TEST "${JACCARD_TEST_SRCS}")
 
 ###################################################################################################
+#- coo2csr tests -- ---------------------------------------------------------------------------------
+set(COO2CSR_TEST_SRCS
+	"${CMAKE_CURRENT_SOURCE_DIR}/coo2csr/coo2csr_test.cu"
+	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c")
+
+configure_test(COO2CSR_TEST "${COO2CSR_TEST_SRCS}")
+
+
+###################################################################################################
 #-RENUMBERING  tests -- ---------------------------------------------------------------------------------
 set(RENUMBERING_TEST_SRCS
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
