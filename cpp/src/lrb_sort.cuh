@@ -37,7 +37,6 @@
 #include <cub/cub.cuh>
 #include "utilities/error_utils.h"
 #include "graph_utils.cuh"
-#include "timer.h"
 
 template <typename T>
 __global__ void binCountKernel(const T *offset, int32_t *bins, int N){
@@ -253,8 +252,6 @@ namespace cugraph {
     T *d_start;
     T *d_stop;
 
-    cugraph::timer::Timer timer;
-
     ALLOC_TRY(&d_bins, 33 * sizeof(int32_t), stream);
     ALLOC_TRY(&d_binsPrefix, 34 * sizeof(int32_t), stream);
     ALLOC_TRY(&d_binsPrefixTemp, 34 * sizeof(int32_t), stream);
@@ -306,8 +303,6 @@ namespace cugraph {
     cudaDeviceSynchronize();
 
     if (pos > 0) {
-      timer.start();
-
       printf("calling SortKeys\n");
       cub::DeviceSegmentedRadixSort::SortKeys(d_temp_storage, temp_storage_bytes, extra_storage, data, nnz, pos, d_start, d_stop);
 
@@ -318,9 +313,6 @@ namespace cugraph {
       ALLOC_FREE_TRY(d_temp_storage, stream);
       cudaCheckError();
       printf("done calling SortKeys\n");
-
-      timer.end();
-      timer.print("cub radix sort");
     }
 
     cudaStream_t streams[9];
@@ -328,8 +320,6 @@ namespace cugraph {
       cudaStreamCreate ( &(streams[i]));
 
     cudaMemcpy(h_binsPrefix,d_binsPrefix,sizeof(int32_t)*34, cudaMemcpyDeviceToHost);
-
-    timer.start();
 
     if (h_binsPrefix[21] - h_binsPrefix[20] > 0)
       sortOneSize<T, 128,32,4096>  <<<h_binsPrefix[21]-h_binsPrefix[20],128, 0, streams[8]>>>    (h_binsPrefix[20],d_reOrg, startOffset, extra_storage, data,d_start,d_stop);
@@ -352,11 +342,6 @@ namespace cugraph {
       int blocks = (h_binsPrefix[31]-posSmall)/32 + (((h_binsPrefix[31]-posSmall)%32)?1:0);
       sortSmallKernel<T> <<<blocks,32, 0, streams[0]>>>(extra_storage, data, d_reOrg, startOffset, posSmall,h_binsPrefix[31]-posSmall);
     }
-
-    timer.end();
-    timer.print("CUB Device Radix");
-
-    fflush(stdout);
 
     ALLOC_FREE_TRY(extra_storage, stream);
     ALLOC_FREE_TRY(d_start, stream);
