@@ -18,6 +18,7 @@ import numpy as np
 import networkx as nx
 from scipy.io import mmread
 
+
 def compareEdges(cg, nxg, verts):
     src, dest = cg.view_edge_list()
     if (len(src) != nxg.size()):
@@ -27,9 +28,11 @@ def compareEdges(cg, nxg, verts):
             assert False
     return True
 
+
 def ReadMtxFile(mmFile):
-    print('Reading '+ str(mmFile) + '...')
+    print('Reading ' + str(mmFile) + '...')
     return mmread(mmFile).asfptype()
+
 
 def cugraph_call(M, verts):
     G = cugraph.Graph()
@@ -40,14 +43,17 @@ def cugraph_call(M, verts):
     Sg = cugraph.subgraph(G, cu_verts)
     return Sg
 
+
 def nx_call(M, verts):
     G = nx.DiGraph(M)
     Sg = nx.subgraph(G, verts)
     return Sg
 
-datasets = ['/datasets/networks/karate.mtx', 
-            '/datasets/networks/dolphins.mtx', 
+
+datasets = ['/datasets/networks/karate.mtx',
+            '/datasets/networks/dolphins.mtx',
             '/datasets/networks/netscience.mtx']
+
 
 @pytest.mark.parametrize('graph_file', datasets)
 def test_subgraph_extraction(graph_file):
@@ -59,7 +65,3 @@ def test_subgraph_extraction(graph_file):
     cu_Sg = cugraph_call(M, verts)
     nx_Sg = nx_call(M, verts)
     assert compareEdges(cu_Sg, nx_Sg, verts)
-    
-    
-    
-            
