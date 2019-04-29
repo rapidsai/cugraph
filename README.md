@@ -218,7 +218,15 @@ python setup.py install    # install cugraph python bindings
 
 #### Run tests
 
-6. Run either the standalone tests or the Python tests with datasets
+6. Run either the C++ or the Python tests with datasets
+
+  - **Python tests with datasets** 
+
+    ```bash
+    cd $CUGRAPH_HOME
+    cd python
+    pytest  
+    ```
   - **C++ stand alone tests** 
 
     From the build directory : 
@@ -229,15 +237,29 @@ python setup.py install    # install cugraph python bindings
     cd cpp/build
     gtests/GDFGRAPH_TEST		# this is an executable file
     ```
-
-  - **Python tests with datasets** 
-
-    ```bash
-    cd $CUGRAPH_HOME
-    cd python
-    pytest  
-    ```
-
+ - **C++ tests with larger datasets**
+   
+   If you already have the datasets:
+  
+   ```bash
+   export RAPIDS_DATASET_ROOT_DIR=<path_to_ccp_test_and_reference_data>
+   ```
+   If you do not have the datasets:
+   
+   ```bash
+   cd $CUGRAPH_HOME/datasets
+   source get_test_data.sh #This takes about 10 minutes and download 1GB data (>5 GB uncompressed)
+   ```
+   
+   Run the C++ tests on large input:
+  
+   ```bash
+   cd $CUGRAPH_HOME/cpp/build
+   #test one particular analytics (eg. pagerank)
+   gtests/PAGERANK_TEST
+   #test everything
+   make test
+   ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
