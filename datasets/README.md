@@ -20,13 +20,15 @@ This directory contains small public datasets in `mtx` and `csv` format used by 
 
 
 ## C++
-Cugraph's C++ analytics tests need larger datasets (>5GB uncompressed) and reference results (>125MB uncompressed). They can be downloaded in this directory using the provided script.
+Cugraph's C++ analytics tests need larger datasets (>5GB uncompressed) and reference results (>125MB uncompressed). They can be downloaded using the provided script.
 ```
-sh get_test_data.sh
+source get_test_data.sh
 ``` 
-You may run this script from elsewhere and store C++ test input to another location. In this case, you need to let cuGraph know by using:
+You may run this script from elsewhere and store C++ test input to another location. 
+
+Before running the tests, you should let cuGraph know where to find the test input by using:
 ```
-export RAPIDS_DATASET_ROOT_DIR=<path_to_test_input>
+export RAPIDS_DATASET_ROOT_DIR=<path_to_ccp_test_and_reference_data>
 ```
 ## Refence
 The SuiteSparse Matrix Collection (formerly the University of Florida Sparse Matrix Collection) : https://sparse.tamu.edu/
