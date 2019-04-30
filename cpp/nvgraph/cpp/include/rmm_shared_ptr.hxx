@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 #pragma once
 
 #include <cstring>
 #include <iostream>
 #include <memory>
 
-#include <cnmem.h>
+#include "rmm/rmm.h"
 
 #include "nvgraph_error.hxx"
 
@@ -28,16 +28,15 @@ namespace nvgraph
 {
 
 template< typename T >
-class DeviceDeleter 
+class DeviceDeleter
 {
     cudaStream_t mStream;
 public:
     DeviceDeleter(cudaStream_t stream) : mStream(stream) {}
-    void operator()(T *ptr) 
+    void operator()(T *ptr)
     {
-        cnmemStatus_t status = cnmemFree(ptr, mStream);
-        if( status != CNMEM_STATUS_SUCCESS ) 
-        {
+        auto status = RMM_FREE(ptr, mStream);
+        if (status != RMM_SUCCESS) {
             FatalError("Memory manager internal error (free)", NVGRAPH_ERR_UNKNOWN);
         }
     }
@@ -45,35 +44,33 @@ public:
 
 
 template< typename T >
-inline std::shared_ptr<T> allocateDevice(size_t n, cudaStream_t stream) 
+inline std::shared_ptr<T> allocateDevice(size_t n, cudaStream_t stream)
 {
     T *ptr = NULL;
-    cnmemStatus_t status = cnmemMalloc((void**) &ptr, n*sizeof(T), stream);
-    if( status == CNMEM_STATUS_OUT_OF_MEMORY) 
-    {
+    auto status = RMM_ALLOC(&ptr, n * sizeof(T), stream);
+    if (status == RMM_ERROR_OUT_OF_MEMORY) {
         FatalError("Not enough memory", NVGRAPH_ERR_NO_MEMORY);
     }
-    else if (status != CNMEM_STATUS_SUCCESS)
-    {
-        FatalError("Memory manager internal error (alloc)", NVGRAPH_ERR_UNKNOWN);        
+    else if (status != RMM_SUCCESS) {
+        FatalError("Memory manager internal error (alloc)", NVGRAPH_ERR_UNKNOWN);
     }
     return std::shared_ptr<T>(ptr, DeviceDeleter<T>(stream));
 }
 
 template< typename T >
-class DeviceReleaser 
+class DeviceReleaser
 {
     cudaStream_t mStream;
 public:
     DeviceReleaser(cudaStream_t stream) : mStream(stream) {}
-    void operator()(T *ptr) 
+    void operator()(T *ptr)
     {
 
     }
 };
 
 template< typename T >
-inline std::shared_ptr<T> attachDevicePtr(T * ptr_in, cudaStream_t stream) 
+inline std::shared_ptr<T> attachDevicePtr(T * ptr_in, cudaStream_t stream)
 {
     T *ptr = ptr_in;
     return std::shared_ptr<T>(ptr, DeviceReleaser<T>(stream));
