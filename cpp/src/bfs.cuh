@@ -13,8 +13,6 @@
 
 #include <climits> 
 
-//Used in nvgraph.h
-
 #define TRAVERSAL_DEFAULT_ALPHA 15
 
 #define TRAVERSAL_DEFAULT_BETA 18
@@ -97,5 +95,5 @@ namespace cugraph {
 
 		void traverse(IndexType source_vertex);
 	};
-} // end namespace nvgraph
+} // end namespace cugraph
 
