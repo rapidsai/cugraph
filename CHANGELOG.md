@@ -8,7 +8,7 @@
 - PR #210 Expose degree calculation kernel via python API
 - PR #220 Added bindings for Nvgraph triangle counting
 - PR #234 Added bindings for renumbering, modify renumbering to use RMM
-
+- PR #250 Add local build script to mimic gpuCI
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
