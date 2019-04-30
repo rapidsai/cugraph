@@ -16,23 +16,12 @@
  
 #pragma once
 
-#include <cnmem.h>
 #include <cstring>
-
-
-// 
-
-#if __cplusplus > 199711L
-#include <memory>
-#define SHARED_PREFIX std
-
-#else
-#include <boost/shared_ptr.hpp>
-#define SHARED_PREFIX boost
-
-#endif
-
 #include <iostream>
+#include <memory>
+
+#include <cnmem.h>
+
 #include "nvgraph_error.hxx"
 
 namespace nvgraph
@@ -56,7 +45,7 @@ public:
 
 
 template< typename T >
-inline SHARED_PREFIX::shared_ptr<T> allocateDevice(size_t n, cudaStream_t stream) 
+inline std::shared_ptr<T> allocateDevice(size_t n, cudaStream_t stream) 
 {
     T *ptr = NULL;
     cnmemStatus_t status = cnmemMalloc((void**) &ptr, n*sizeof(T), stream);
@@ -68,7 +57,7 @@ inline SHARED_PREFIX::shared_ptr<T> allocateDevice(size_t n, cudaStream_t stream
     {
         FatalError("Memory manager internal error (alloc)", NVGRAPH_ERR_UNKNOWN);        
     }
-    return SHARED_PREFIX::shared_ptr<T>(ptr, DeviceDeleter<T>(stream));
+    return std::shared_ptr<T>(ptr, DeviceDeleter<T>(stream));
 }
 
 template< typename T >
@@ -84,10 +73,10 @@ public:
 };
 
 template< typename T >
-inline SHARED_PREFIX::shared_ptr<T> attachDevicePtr(T * ptr_in, cudaStream_t stream) 
+inline std::shared_ptr<T> attachDevicePtr(T * ptr_in, cudaStream_t stream) 
 {
     T *ptr = ptr_in;
-    return SHARED_PREFIX::shared_ptr<T>(ptr, DeviceReleaser<T>(stream));
+    return std::shared_ptr<T>(ptr, DeviceReleaser<T>(stream));
 }
 
 

@@ -36,7 +36,7 @@ public:
 protected:
     /*! Storage for the values.
      */
-    SHARED_PREFIX::shared_ptr<ValueType> values;
+    std::shared_ptr<ValueType> values;
 
     /*! Size of the array
      */

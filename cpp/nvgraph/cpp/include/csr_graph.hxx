@@ -41,11 +41,11 @@ protected:
 
     /*! Storage for the row offsets of the CSR data structure.  Also called the "row pointer" array.
      */
-    SHARED_PREFIX::shared_ptr<IndexType> row_offsets;
+    std::shared_ptr<IndexType> row_offsets;
 
     /*! Storage for the column indices of the CSR data structure.
      */
-    SHARED_PREFIX::shared_ptr<IndexType> column_indices;
+    std::shared_ptr<IndexType> column_indices;
 
 public:
         

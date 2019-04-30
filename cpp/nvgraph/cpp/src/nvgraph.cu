@@ -1593,7 +1593,7 @@ namespace nvgraph
 
             int nvertices, nedges;
             int *srcOffsets = NULL, *srcIndices = NULL, *dstOffsets = NULL, *dstIndices = NULL;
-            SHARED_PREFIX::shared_ptr<int> permutation, offsets, indices;
+            std::shared_ptr<int> permutation, offsets, indices;
 
             // Step 1: get source graph structure
             nvgraph::CsrGraph<int> *CSRG =
@@ -1669,7 +1669,7 @@ namespace nvgraph
                     // Step 4.2: allocate and set vertex data
                     if (edgesDim > 0) {
                         void *dstEdgeData = NULL;
-                        SHARED_PREFIX::shared_ptr<float> dstEdgeDataSP;
+                        std::shared_ptr<float> dstEdgeDataSP;
 
                         std::vector<cudaDataType_t> edgeDataType(edgesDim);
                         std::fill(edgeDataType.begin(), edgeDataType.end(), srcDescrG->T);
@@ -1727,7 +1727,7 @@ namespace nvgraph
                     // Step 4.2: allocate and set vertex data
                     if (edgesDim > 0) {
                         void *dstEdgeData = NULL;
-                        SHARED_PREFIX::shared_ptr<double> dstEdgeDataSP;
+                        std::shared_ptr<double> dstEdgeDataSP;
 
                         std::vector<cudaDataType_t> edgeDataType(edgesDim);
                         std::fill(edgeDataType.begin(), edgeDataType.end(), srcDescrG->T);

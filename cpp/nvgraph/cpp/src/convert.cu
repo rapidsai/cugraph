@@ -61,7 +61,7 @@
                  int *cscRowInd, int *cscColPtr, int *p,
                  cusparseIndexBase_t idxBase){
 
-      SHARED_PREFIX::shared_ptr<char> pBuffer;
+      std::shared_ptr<char> pBuffer;
 
       // Step 1: Allocate buffer
       size_t pBufferSizeInBytes = 0;
@@ -79,8 +79,8 @@
                 void *dstVal, int *dstRowInd, int *dstColInd,
                 cusparseIndexBase_t idxBase, cudaDataType_t *dataType){
       size_t pBufferSizeInBytes = 0;
-      SHARED_PREFIX::shared_ptr<char> pBuffer;
-      SHARED_PREFIX::shared_ptr<int> P; // permutation array
+      std::shared_ptr<char> pBuffer;
+      std::shared_ptr<int> P; // permutation array
 
       // step 0: copy src to dst
       if(dstRowInd!=srcRowInd)
@@ -103,8 +103,8 @@
                 void *dstVal, int *dstRowInd, int *dstColInd,
                 cusparseIndexBase_t idxBase, cudaDataType_t *dataType){
       size_t pBufferSizeInBytes = 0;
-      SHARED_PREFIX::shared_ptr<char> pBuffer;
-      SHARED_PREFIX::shared_ptr<int> P; // permutation array
+      std::shared_ptr<char> pBuffer;
+      std::shared_ptr<int> P; // permutation array
 
       // step 0: copy src to dst
       CHECK_CUDA( cudaMemcpy(dstRowInd, srcRowInd, nnz*sizeof(int), cudaMemcpyDefault) );
@@ -126,7 +126,7 @@
               void *dstVal, int *dstRowInd, int *dstColPtr,
               cusparseIndexBase_t idxBase, cudaDataType_t *dataType){
       // coos -> cood -> csc
-      SHARED_PREFIX::shared_ptr<int> tmp = allocateDevice<int>(nnz, NULL);
+      std::shared_ptr<int> tmp = allocateDevice<int>(nnz, NULL);
       cooSortByDestination(m, n, nnz, srcVal, srcRowInd, srcColInd, dstVal, dstRowInd, tmp.get(), idxBase, dataType);
       coo2csr(tmp.get(), nnz, m, dstColPtr, idxBase);
     }
@@ -135,7 +135,7 @@
               void *dstVal, int *dstRowPtr, int *dstColInd,
               cusparseIndexBase_t idxBase, cudaDataType_t *dataType){
       // cood -> coos -> csr
-      SHARED_PREFIX::shared_ptr<int> tmp = allocateDevice<int>(nnz, NULL);
+      std::shared_ptr<int> tmp = allocateDevice<int>(nnz, NULL);
       cooSortBySource(m, n, nnz, srcVal, srcRowInd, srcColInd, dstVal, tmp.get(), dstColInd, idxBase, dataType);
       coo2csr(tmp.get(), nnz, m, dstRowPtr, idxBase);
     }
