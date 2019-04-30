@@ -23,6 +23,7 @@
 - PR #247 Added some documentation for renumbering
 
 ## Bug Fixes
+- PR #253 Add rmm to conda configuration
 - PR #226 Bump cudf dependencies to 0.7
 - PR #169 Disable terminal output in sssp
 - PR #191 Fix double upload bug
