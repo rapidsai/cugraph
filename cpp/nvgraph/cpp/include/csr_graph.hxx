@@ -109,8 +109,30 @@ public:
     }
     inline IndexType* get_raw_row_offsets() { return row_offsets.get(); }
     inline IndexType* get_raw_column_indices() { return column_indices.get(); }
-    inline void set_raw_row_offsets(IndexType* ptr) { row_offsets = attachDevicePtr<IndexType>(ptr, stream_); }
-    inline void set_raw_column_indices(IndexType* ptr) {column_indices = attachDevicePtr<IndexType>(ptr, stream_); }
+
+    inline void set_raw_row_offsets(IndexType* ptr) {
+        // This abuses std::shared_ptr. In this context, row_offsets does not
+        // participate in ownership (attachDevicePtr returns std::shared_ptr
+        // with a dummy deleter). row_offsets just work as a raw pointer, and
+        // this can be very misleading. However, to properly fix this, we need
+        // to modify gdf_column and gdf_graph as well, and we do not know yet
+        // how cudf people will modify gdf_column to address currently broken
+        // memory ownership model. So, we may leave this as is, but htis needs
+        // to be revisited, later.
+        row_offsets = attachDevicePtr<IndexType>(ptr, stream_);
+    }
+
+    inline void set_raw_column_indices(IndexType* ptr) {
+        // This abuses std::shared_ptr. In this context, column_indices does not
+        // participate in ownership (attachDevicePtr returns std::shared_ptr
+        // with a dummy deleter). column_indices just work as a raw pointer, and
+        // this can be very misleading. However, to properly fix this, we need
+        // to modify gdf_column and gdf_graph as well, and we do not know yet
+        // how cudf people will modify gdf_column to address currently broken
+        // memory ownership model. So, we may leave this as is, but htis needs
+        column_indices = attachDevicePtr<IndexType>(ptr, stream_);
+    }
+
     inline const IndexType* get_raw_row_offsets()  const { return row_offsets.get(); }
     inline const IndexType* get_raw_column_indices()  const { return column_indices.get(); }
     inline cudaStream_t get_stream() const { return stream_; }
