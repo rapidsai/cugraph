@@ -8,6 +8,7 @@ channels:
 - defaults
 dependencies:
 - cudf=0.7.*
+- rmm=0.7.*
 - scipy
 - networkx
 - python-louvain

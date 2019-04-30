@@ -24,6 +24,7 @@
 - PR #252 cpp test upgrades for more convenient testing on large input
 
 ## Bug Fixes
+- PR #253 Add rmm to conda configuration
 - PR #226 Bump cudf dependencies to 0.7
 - PR #169 Disable terminal output in sssp
 - PR #191 Fix double upload bug
