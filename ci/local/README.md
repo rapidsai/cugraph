@@ -23,13 +23,13 @@ where:
 ```
 
 Example Usage:
-`bash build.sh -r ~/rapids/cugraph -i gpuci/cuda9.2-ubuntu16.04-gcc5-py3.6`
+`bash build.sh -r ~/rapids/cugraph -i gpuci/rapidsai-base:cuda9.2-ubuntu16.04-gcc5-py3.6`
 
 For a full list of available gpuCI docker images, visit our [DockerHub](https://hub.docker.com/r/gpuci/rapidsai-base/tags) page.
 
 Style Check:
 ```bash
-$ bash ci/local/build.sh -r ~/rapids/cugraph -s
+$ bash ci/local/build.sh -r ~/rapids/cuml -s
 $ source activate gdf    #Activate gpuCI conda environment
 $ cd rapids
 $ flake8 python
