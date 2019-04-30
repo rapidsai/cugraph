@@ -22,6 +22,7 @@
 #include "bfs.cuh"
 #include "renumber.cuh"
 #include "snmg/spmv.cuh"
+#include "snmg/pagerank.cuh"
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
 #include <thrust/device_vector.h>
