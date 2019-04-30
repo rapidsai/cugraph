@@ -27,7 +27,9 @@
 
 namespace cugraph
 {
-  class SNMGpagerank 
+
+template <typename IndexType, typename ValueType>
+class SNMGpagerank 
 { 
   private:
     size_t v_glob;
@@ -43,6 +45,7 @@ namespace cugraph
     ValueType * tmp;
     bool converged;
     bool is_setup;
+    cudaStream_t stream;
 
   public: 
     SNMGpagerank(SNMGinfo & env_, size_t* part_off_, 
@@ -53,15 +56,45 @@ namespace cugraph
       IndexType tmp;
       CUDA_TRY(cudaMemcpy(&tmp, &off[v_loc], sizeof(idx_t),cudaMemcpyDeviceToHost));
       e_loc = tmp;
+      stream = nullptr;
+      ALLOC_MANAGED_TRY ((void**)&b,    sizeof(ValueType) * v_glob, stream);
+      ALLOC_MANAGED_TRY ((void**)&tmp,    sizeof(ValueType) * v_glob, stream);
+      ALLOC_MANAGED_TRY ((void**)&val,    sizeof(ValueType) * e_loc, stream);
     } 
     ~SNMGpagerank() { 
-      // TODO free _val, _a, _b, tmp
+      ALLOC_FREE_TRY(b, stream);  
+      ALLOC_FREE_TRY(tmp, stream);
+      ALLOC_FREE_TRY(val, stream);
+    }
+
+    template<typename IndexType, typename ValueType>
+  __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+  transition_kernel(const IndexType e,
+                    const IndexType *ind,
+                    IndexType *degree,
+                    ValueType *val) {
+    for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
+      val[i] = 1.0 / degree[ind[i]];
+  }
+
+    void transition_vals(const IndexType *degree) {
+      int threads min(e_loc, 256);
+      int blocks min(32*env.get_num_sm(), CUDA_MAX_BLOCKS);
+      transition_kernel<IndexType, ValueType> <<<blocks, threads>>> (e_loc, off, degree, val);
+      cudaCheckError();
     }
     // compute degree and tansition matrix 
     // allocate and set _val, _a, _b, tmp.
     bool setup(ValueType alpha) {
+      ValueType randomProbability =  static_cast<ValueType>( 1.0/v_glob);
+      int id = env.get_thread_num()
+      fill(v_glob, pagerank[id], randomProbability);
+      fill(v_glob, tmp, randomProbability);
+      fill(v_glob, b, randomProbability);
       
-      //todo
+      // TODO degree
+      
+      //transition_vals(degree);
       is_setup=true;
       return true;
     }
@@ -75,9 +108,10 @@ namespace cugraph
     int id = env.get_thread_num()
     ValueType pr = pagerank[id];
     int iter;
+    SNMGcsrmv<idx_t,val_t> spmv_solver(env, part_off, off, ind, val, pagerank);
 
     for (iter = 0; iter < max_iter; ++iter) {
-      snmg_csrmv (env, part_off, off, ind, val, pagerank);
+      spmv_solver.run(x);
       scal(v_glob, alpha, pr);
       dot_res = dot( v_glob, a, tmp);
       axpy(v_glob, dot_res,  b,  pr);
@@ -100,36 +134,5 @@ namespace cugraph
     }
   }
 };
-
-
-    template<typename IndexType, typename ValueType>
-  __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  transition_kernel(const IndexType e,
-                    const IndexType *ind,
-                    IndexType *degree,
-                    ValueType *val) {
-    for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
-      val[i] = 1.0 / degree[ind[i]];
-  }
-
-  void transition_vals( SNMGinfo & env,
-                        const IndexType e,
-                        const IndexType *csrInd,
-                        const IndexType *degree,
-                        ValueType *val) {
-    int threads min(e, 256);
-    int blocks min(32*env.get_num_sm(), CUDA_MAX_BLOCKS);
-    transition_kernel<IndexType, ValueType> <<<blocks, threads>>> (e, csrInd, degree, val);
-    cudaCheckError();
-  }
-
-  template <typename IndexType, typename ValueType>
-  bool  pagerankIteration( IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd,ValueType *cscVal,
-                           ValueType alpha, ValueType *a, ValueType *b, float tolerance, int iter, int max_iter, 
-                           ValueType * &tmp, ValueType * &pr, ValueType *residual) {
-    
-
-
-
 
 } //namespace cugraph

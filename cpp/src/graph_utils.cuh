@@ -26,6 +26,7 @@
 #include <thrust/sort.h>
 
 #include <rmm_utils.h>
+#include "utilities/error_utils.h"
 
 #define USE_CG 1
 //#define DEBUG 1
@@ -38,24 +39,12 @@ namespace cugraph
 #define DEFAULT_MASK 0xffffffff
 #define US
 
-//error check
-#ifdef DEBUG
-#define WHERE " at: " << __FILE__ << ':' << __LINE__
-#define cudaCheckError() {                                              \
-    cudaError_t e=cudaGetLastError();                                     \
-    if(e!=cudaSuccess) {                                                  \
-      std::cerr << "Cuda failure: "  << cudaGetErrorString(e) << WHERE << std::endl;        \
-    }                                                                     \
-  }
-#else 
-#define cudaCheckError()
-#define WHERE ""
-#endif 
 
-	template<typename T>
-	static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, int mask =
-																									DEFAULT_MASK)
-																							{
+
+template<typename T>
+static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, int mask =
+																								DEFAULT_MASK)
+																						{
 #if __CUDA_ARCH__ >= 300
 #if USE_CG
 		return __shfl_up_sync( mask, r, offset, bound );

@@ -92,7 +92,7 @@ void sync_all() {
 
 // Each GPU copies its x_loc to x_glob[offset[device]] on all GPU
 template <typename val_t>
-gdf_error allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
+void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
   auto i = env.get_thread_num();
   auto p = env.get_num_threads();  
   size_t n_loc= offset[i+1]-offset[i];
@@ -102,14 +102,15 @@ gdf_error allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_gl
 
   // send the local spmv output (x_loc) to all peers to reconstruct the global vector x_glob 
   // After this call each peer has a full, updated, copy of x_glob
-  for (int j = 0; j < p; ++j)
-    CUDA_TRY(cudaMemcpyPeer(x_glob[j]+offset[i],j, x_loc,i, n_loc*sizeof(val_t)));
-    //CUDA_TRY(cudaMemcpy(x_glob[j]+offset[i], x_loc, n_loc*sizeof(val_t),cudaMemcpyDeviceToDevice));
+  for (int j = 0; j < p; ++j) {
+    cudaMemcpyPeer(x_glob[j]+offset[i],j, x_loc,i, n_loc*sizeof(val_t));
+    cudaCheckError();
+  }
+  //cudaMemcpy(x_glob[j]+offset[i], x_loc, n_loc*sizeof(val_t),cudaMemcpyDeviceToDevice);
   
   //Make sure everyone has finished copying before returning
   sync_all();
 
-  return GDF_SUCCESS;
 }
 
 void print_mem_usage()

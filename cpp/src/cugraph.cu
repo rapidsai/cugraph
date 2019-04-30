@@ -644,7 +644,6 @@ gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_colu
   GDF_REQUIRE( off->dtype == ind->dtype, GDF_UNSUPPORTED_DTYPE );  
   GDF_REQUIRE( off->null_count + ind->null_count + val->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );                 
 
-  gdf_error status;
   auto p = omp_get_num_threads();
 
   val_t* x[p];
@@ -655,12 +654,13 @@ gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_colu
     x[i]= static_cast<val_t*>(x_cols[i]->data);
   }
   cugraph::SNMGinfo snmg_env;
-  status = cugraph::snmg_csrmv<idx_t,val_t>(snmg_env, part_offsets,
+  cugraph::SNMGcsrmv<idx_t,val_t> spmv_solver(snmg_env, part_offsets,
                                       static_cast<idx_t*>(off->data), 
                                       static_cast<idx_t*>(ind->data), 
                                       static_cast<val_t*>(val->data), 
                                       x);
-  return status;
+  spmv_solver.run(x);
+  return GDF_SUCCESS;
 }
 
 gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){

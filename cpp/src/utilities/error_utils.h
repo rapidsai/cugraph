@@ -26,6 +26,14 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
+
+#define cudaCheckError() {                                              \
+    cudaError_t e=cudaGetLastError();                                     \
+    if(e!=cudaSuccess) {                                                  \
+      std::cerr << "Cuda failure: "  << cudaGetErrorString(e) << " at: " << __FILE__ << ':' << __LINE__ << std::endl;        \
+    }                                                                     \
+  }
+
 #define CUDA_TRY( call ) 									                            \
 {                                                                     \
     cudaError_t cudaStatus = call;                                    \
