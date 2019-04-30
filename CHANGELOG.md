@@ -21,6 +21,7 @@
 - PR #215 Simplified get_rapids_dataset_root_dir(), set a default value for the root dir
 - PR #233 Added csv datasets and edited test to use cudf for reading graphs
 - PR #247 Added some documentation for renumbering
+- PR #252 cpp test upgrades for more convenient testing on large input
 
 ## Bug Fixes
 - PR #226 Bump cudf dependencies to 0.7
