@@ -299,10 +299,10 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
                 d_val.resize(gdf_G->adjList->indices->size);
                 thrust::fill(thrust::cuda::par(allocator).on(stream), d_val.begin(), d_val.end(), 1.0);
                 NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
-                                                                                                                                        nvgraph_G,
-                                                                                                                                        weight_index,
-                                                                                                                                        settype,
-                                                                                                                                        (void * ) thrust::raw_pointer_cast(d_val.data())));
+                                              nvgraph_G,
+                                              weight_index,
+                                              settype,
+                                              (void * ) thrust::raw_pointer_cast(d_val.data())));
         }
         else {
                 switch (gdf_G->adjList->edge_data->dtype) {
@@ -456,10 +456,10 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
                 d_val.resize(gdf_G->adjList->indices->size);
                 thrust::fill(thrust::cuda::par(allocator).on(stream), d_val.begin(), d_val.end(), 1.0);
                 NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
-                                                                                                                                        nvgraph_G,
-                                                                                                                                        weight_index,
-                                                                                                                                        settype,
-                                                                                                                                        (void * ) thrust::raw_pointer_cast(d_val.data())));
+                                              nvgraph_G,
+                                              weight_index,
+                                              settype,
+                                              (void * ) thrust::raw_pointer_cast(d_val.data())));
         }
         else {
                 switch (gdf_G->adjList->edge_data->dtype) {
