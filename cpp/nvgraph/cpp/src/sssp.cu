@@ -30,10 +30,7 @@
 #include "cub_semiring/cub.cuh"
 #endif
 #include <cfloat>
-#include "debug_macros.h"
-#ifdef DEBUG
-  #define SP_VERBOSE 0
-#endif
+
 namespace nvgraph
 {
 template <typename IndexType_, typename ValueType_>
@@ -136,41 +133,12 @@ NVGRAPH_ERROR Sssp<IndexType_, ValueType_>::solve(IndexType source_index, Vector
     bool converged = false;
     int max_it = static_cast<int>(m_network.get_num_edges()), i = 0;
 
-
-    #ifdef SP_VERBOSE
-        //int n = static_cast<int>(m_network.get_num_vertices()), nnz =  static_cast<int>(m_network.get_num_edges());
-        //dump_raw_vec(m_network.get_raw_row_offsets(), n, 0);
-        //dump_raw_vec(m_network.get_raw_column_indices(),n, 0);
-        //dump_raw_vec(m_network.get_raw_values(), nnz, 0);
-
-        std::stringstream ss;
-        ss.str(std::string());
-        size_t used_mem, free_mem, total_mem;
-        ss <<" --------------------Sssp--------------------"<< std::endl;
-        ss <<" --------------------------------------------"<< std::endl;
-        ss << std::setw(10) << "Iteration" << std::setw(20) << " Mem Usage (MB)" << std::setw(15) << "Residual" << std::endl;
-        ss <<" --------------------------------------------"<< std::endl;
-        COUT()<<ss.str();
-    #endif
     while (!converged && i < max_it)
     {
         converged = solve_it();
         i++;
-         #ifdef SP_VERBOSE
-            ss.str(std::string());
-            cnmemMemGetInfo(&free_mem, &total_mem, NULL);
-            used_mem=total_mem-free_mem;
-            ss << std::setw(10) << i ;
-            ss.precision(3);
-            ss << std::setw(20) << std::fixed << used_mem/1024.0/1024.0;
-            ss << std::setw(15) << std::scientific << m_residual  << std::endl;
-            COUT()<<ss.str();
-        #endif
     }
     m_iterations = i;
-    #ifdef SP_VERBOSE
-        COUT() <<" --------------------------------------------"<< std::endl;
-    #endif
     return converged ? NVGRAPH_OK : NVGRAPH_ERR_NOT_CONVERGED;
 }
 template class Sssp<int, double>;
