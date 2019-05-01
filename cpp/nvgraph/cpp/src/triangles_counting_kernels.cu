@@ -58,29 +58,25 @@ namespace nvgraph
 
   namespace triangles_counting
   {
-
-// hide behind 
-    void* tmp_get(size_t size, cudaStream_t stream)
-                  {
-      void *t = NULL;
-      cnmemStatus_t status = cnmemMalloc(&t, size, stream);
-      if (status == CNMEM_STATUS_OUT_OF_MEMORY)
-          {
+    // Better return std::unique_ptr than a raw pointer, but we haven't decide
+    // whether to create our own unique_ptr with RMM's deleter or to implement
+    // this in librmm. So, we may wait till this decision is made.
+    void* get_temp_storage(size_t size, cudaStream_t stream) {
+      auto t = static_cast<void*>(nullptr);
+      auto status = RMM_ALLOC(&t, size, stream);
+      if (status == RMM_ERROR_OUT_OF_MEMORY) {
         FatalError("Not enough memory", NVGRAPH_ERR_NO_MEMORY);
       }
-      else if (status != CNMEM_STATUS_SUCCESS)
-          {
+      else if (status != RMM_SUCCESS) {
         FatalError("Memory manager internal error (alloc)", NVGRAPH_ERR_UNKNOWN);
       }
 
       return t;
     }
 
-    void tmp_release(void* ptr, cudaStream_t stream)
-                     {
-      cnmemStatus_t status = cnmemFree(ptr, stream);
-      if (status != CNMEM_STATUS_SUCCESS)
-          {
+    void free_temp_storage(void* ptr, cudaStream_t stream) {
+      auto status = RMM_FREE(ptr, stream);
+      if (status != RMM_SUCCESS) {
         FatalError("Memory manager internal error (release)", NVGRAPH_ERR_UNKNOWN);
       }
     }
@@ -107,7 +103,7 @@ namespace nvgraph
                                 stream, debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceReduce::Reduce(d_temp_storage, temp_storage_bytes,
                                 d_in,
                                 d_out, num_items, reduction_op,
@@ -115,7 +111,7 @@ namespace nvgraph
                                 stream, debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -135,14 +131,14 @@ namespace nvgraph
                              debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceReduce::Sum(d_temp_storage, temp_storage_bytes,
                              d_in,
                              d_out, num_items, stream,
                              debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -165,7 +161,7 @@ namespace nvgraph
                                      debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes,
                                      d_keys_in,
                                      d_keys_out, num_items,
@@ -174,7 +170,7 @@ namespace nvgraph
                                      debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -200,7 +196,7 @@ namespace nvgraph
                                       stream, debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes,
                                       d_keys_in,
                                       d_keys_out, d_values_in,
@@ -210,7 +206,7 @@ namespace nvgraph
                                       stream, debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -235,7 +231,7 @@ namespace nvgraph
                                                 stream, debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceRadixSort::SortPairsDescending(d_temp_storage, temp_storage_bytes,
                                                 d_keys_in,
                                                 d_keys_out, d_values_in,
@@ -243,7 +239,7 @@ namespace nvgraph
                                                 num_items, begin_bit,
                                                 end_bit,
                                                 stream, debug_synchronous);
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -267,7 +263,7 @@ namespace nvgraph
                                 stream, debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceSelect::Unique(d_temp_storage, temp_storage_bytes,
                                 d_in,
                                 d_out, d_num_selected_out,
@@ -275,7 +271,7 @@ namespace nvgraph
                                 stream, debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -301,7 +297,7 @@ namespace nvgraph
                                          debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceRunLengthEncode::Encode(d_temp_storage, temp_storage_bytes,
                                          d_in,
                                          d_unique_out, d_counts_out,
@@ -310,7 +306,7 @@ namespace nvgraph
                                          debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -331,14 +327,14 @@ namespace nvgraph
                              debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceReduce::Min(d_temp_storage, temp_storage_bytes,
                              d_in,
                              d_out, num_items, stream,
                              debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -359,14 +355,14 @@ namespace nvgraph
                              debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes,
                              d_in,
                              d_out, num_items, stream,
                              debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -392,7 +388,7 @@ namespace nvgraph
                             debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes,
                             d_in,
                             d_out, d_num_selected_out,
@@ -401,7 +397,7 @@ namespace nvgraph
                             debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -427,7 +423,7 @@ namespace nvgraph
                                  stream, debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceSelect::Flagged(d_temp_storage, temp_storage_bytes,
                                  d_in,
                                  d_flags, d_out, d_num_selected_out,
@@ -435,7 +431,7 @@ namespace nvgraph
                                  stream, debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -456,14 +452,14 @@ namespace nvgraph
                                     debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes,
                                     d_in,
                                     d_out, num_items, stream,
                                     debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -484,14 +480,14 @@ namespace nvgraph
                                     debug_synchronous);
       cudaCheckError()
       ;
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes,
                                     d_in,
                                     d_out, num_items, stream,
                                     debug_synchronous);
       cudaCheckError()
       ;
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -525,7 +521,7 @@ namespace nvgraph
                                      num_items,
                                      stream, debug_synchronous);
       cudaCheckError();
-      d_temp_storage = tmp_get(temp_storage_bytes, stream);
+      d_temp_storage = get_temp_storage(temp_storage_bytes, stream);
       cub::DeviceReduce::ReduceByKey(d_temp_storage, temp_storage_bytes,
                                      d_keys_in,
                                      d_unique_out,
@@ -536,7 +532,7 @@ namespace nvgraph
                                      num_items,
                                      stream, debug_synchronous);
       cudaCheckError();
-      tmp_release(d_temp_storage, stream);
+      free_temp_storage(d_temp_storage, stream);
 
       return;
     }
@@ -1175,12 +1171,12 @@ namespace nvgraph
         return;
       thrust::counting_iterator<T> it(0);
       NonEmptyRow<T> temp_func(roff);
-      T* d_out_num = (T*) tmp_get(sizeof(*n_nonempty), stream);
+      T* d_out_num = (T*) get_temp_storage(sizeof(*n_nonempty), stream);
 
       cubIf(it, p_nonempty, d_out_num, n, temp_func, stream);
       cudaMemcpy(n_nonempty, d_out_num, sizeof(*n_nonempty), cudaMemcpyDeviceToHost);
       cudaCheckError();
-      tmp_release(d_out_num, stream);
+      free_temp_storage(d_out_num, stream);
       cudaCheckError();
     }
 
@@ -1188,13 +1184,13 @@ namespace nvgraph
     uint64_t reduce(uint64_t *v_d, T n, cudaStream_t stream) {
 
       uint64_t n_h;
-      uint64_t *n_d = (uint64_t *) tmp_get(sizeof(*n_d), stream);
+      uint64_t *n_d = (uint64_t *) get_temp_storage(sizeof(*n_d), stream);
 
       cubSum(v_d, n_d, n, stream);
       cudaCheckError();
       cudaMemcpy(&n_h, n_d, sizeof(*n_d), cudaMemcpyDeviceToHost);
       cudaCheckError();
-      tmp_release(n_d, stream);
+      free_temp_storage(n_d, stream);
 
       return n_h;
     }
