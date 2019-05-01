@@ -9,6 +9,7 @@
 - PR #220 Added bindings for Nvgraph triangle counting
 - PR #234 Added bindings for renumbering, modify renumbering to use RMM
 - PR #250 Add local build script to mimic gpuCI
+- PR #261 Add docs build script to cuGraph
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
