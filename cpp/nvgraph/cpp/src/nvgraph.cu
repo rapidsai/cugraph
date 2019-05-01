@@ -24,7 +24,7 @@
 #include <cusolverDn.h>
 
 #include <nvgraph_error.hxx>
-#include <cnmem_shared_ptr.hxx>
+#include <rmm_shared_ptr.hxx>
 #include <valued_csr_graph.hxx>
 #include <multi_valued_csr_graph.hxx>
 #include <nvgraph_vector.hxx>

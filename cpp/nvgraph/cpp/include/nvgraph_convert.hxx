@@ -17,7 +17,6 @@
 
 #include <nvgraph.h>
 #include <nvgraph_cusparse.hxx>
-#include <cnmem_shared_ptr.hxx>
 
 namespace nvgraph{
   void csr2coo( const int *csrSortedRowPtr,

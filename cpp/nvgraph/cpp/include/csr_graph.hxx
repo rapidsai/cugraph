@@ -17,7 +17,7 @@
 #pragma once
 
 #include "graph.hxx"
-#include <cnmem_shared_ptr.hxx> // interface with CuMem (memory pool lib) for shared ptr
+#include "rmm_shared_ptr.hxx"
 
 namespace nvgraph
 {

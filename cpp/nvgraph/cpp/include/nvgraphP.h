@@ -24,7 +24,7 @@
 
 #pragma once
 #include "nvgraph.h"
-#include "cnmem.h"
+#include "rmm/rmm.h"
 
 #if defined(__cplusplus) 
   extern "C" {

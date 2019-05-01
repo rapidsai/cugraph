@@ -33,7 +33,7 @@
 #include "sm_utils.h"
 using namespace cub;
 
-#include "cnmem.h"
+#include "rmm/rmm.h"
 
 #define TH_CENT_K_LOCLEN (34)
 #define WP_LEN_TH1 (24)
