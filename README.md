@@ -126,7 +126,6 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 
 2) Create the conda development environment 
 
-​	A)   Building the `master` branch uses the `cugraph_dev` environment
 
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
@@ -142,22 +141,6 @@ conda activate cugraph_dev
 # to deactivate an environment
 conda deactivate
 ```
-
-
-
-​	B) Create the conda development environment `cugraph_nightly`  
-
-If you are  on the latest development branch then you must use the `cugraph_nightly` environment.  The latest cuGraph code uses the latest cuDF features that might not yet be in the master branch.  To work off of the latest development branch, which could be unstable, use the nightly build environment.  
-
-```bash
-# create the conda environment (assuming in base `cugraph` directory)
-conda env create --name cugraph_nightly --file conda/environments/cugraph_nightly.yml
-
-# activate the environment
-conda activate cugraph_nightly 
-
-```
-
 
 
 
