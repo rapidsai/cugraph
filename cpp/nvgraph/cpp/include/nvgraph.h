@@ -449,36 +449,36 @@ extern "C" {
                                                      const nvgraphGraphDescr_t graph_descr,
                                                      uint64_t* result);
 
-        /* nvGRAPH Louvain implementation
-        */
-        nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, 
-                                                    cudaDataType_t val_type, 
-                                                    const size_t num_vertex, 
-                                                    const size_t num_edges,
-                                                    void* csr_ptr, 
-                                                    void* csr_ind, 
-                                                    void* csr_val, 
-                                                    int weighted, 
-                                                    int has_init_cluster, 
-                                                    void* init_cluster,
-                                                    void* final_modularity, 
-                                                    void* best_cluster_vec, 
-                                                    void* num_level);
+    /* nvGRAPH Louvain implementation
+     */
+    nvgraphStatus_t NVGRAPH_API nvgraphLouvain(cudaDataType_t index_type,
+                                               cudaDataType_t val_type,
+                                               const size_t num_vertex,
+                                               const size_t num_edges,
+                                               void* csr_ptr,
+                                               void* csr_ind,
+                                               void* csr_val,
+                                               int weighted,
+                                               int has_init_cluster,
+                                               void* init_cluster,
+                                               void* final_modularity,
+                                               void* best_cluster_vec,
+                                               void* num_level);
 
 
-       /* nvGRAPH Jaccard implementation
-       */
-       nvgraphStatus_t NVGRAPH_API nvgraphJaccard (cudaDataType_t index_type, 
-                                                   cudaDataType_t val_type, 
-                                                   const size_t n,
-                                                   const size_t e, 
-                                                   void* csr_ptr, 
-                                                   void *csr_ind, 
-                                                   void* csr_val, 
-                                                   int weighted, 
-                                                   void* v, 
-                                                   void* gamma, 
-                                                   void* weight_j);
+    /* nvGRAPH Jaccard implementation
+     */
+    nvgraphStatus_t NVGRAPH_API nvgraphJaccard(cudaDataType_t index_type,
+                                               cudaDataType_t val_type,
+                                               const size_t n,
+                                               const size_t e,
+                                               void* csr_ptr,
+                                               void *csr_ind,
+                                               void* csr_val,
+                                               int weighted,
+                                               void* v,
+                                               void* gamma,
+                                               void* weight_j);
 
     /* nvGRAPH attach structure
      * Warp external device data into a nvgraphGraphDescr_t
@@ -514,4 +514,3 @@ extern "C" {
 #endif
 
 #endif /* _NVGRAPH_H_ */
-

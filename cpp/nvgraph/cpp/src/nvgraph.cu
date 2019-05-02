@@ -3305,7 +3305,7 @@ namespace nvgraph
         return getCAPIStatusForError(rc);
     }
 #endif
-    
+
     nvgraphStatus_t NVGRAPH_API nvgraphSpectralClustering_impl(nvgraphHandle_t handle, // nvGRAPH library handle.
                                                                const nvgraphGraphDescr_t descrG, // nvGRAPH graph descriptor, should contain the connectivity information in NVGRAPH_CSR_32 or NVGRAPH_CSR_32 at least 1 edge set (weights)
                                                                const size_t weight_index, // Index of the edge set for the weights.
@@ -3944,7 +3944,7 @@ nvgraphStatus_t NVGRAPH_API nvgraphContractGraph(nvgraphHandle_t handle,
                                               EdgeReduceOp,
                                               flag);
 }
-#endif 
+#endif
 
 nvgraphStatus_t NVGRAPH_API nvgraphSpectralClustering(nvgraphHandle_t handle, // nvGRAPH library handle.
                                                       const nvgraphGraphDescr_t descrG, // nvGRAPH graph descriptor, should contain the connectivity information in NVGRAPH_CSR_32 or NVGRAPH_CSR_32 at least 1 edge set (weights)
@@ -3988,12 +3988,12 @@ nvgraphStatus_t NVGRAPH_API nvgraphTriangleCount(nvgraphHandle_t handle,
 }
 
 
-nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataType_t val_type, const size_t num_vertex, const size_t num_edges, 
-                            void* csr_ptr, void* csr_ind, void* csr_val, int weighted, int has_init_cluster, void* init_cluster, 
+nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataType_t val_type, const size_t num_vertex, const size_t num_edges,
+                            void* csr_ptr, void* csr_ind, void* csr_val, int weighted, int has_init_cluster, void* init_cluster,
                             void* final_modularity, void* best_cluster_vec, void* num_level)
 {
     NVLOUVAIN_STATUS status = NVLOUVAIN_OK;
-    if ((csr_ptr == NULL) || (csr_ind == NULL) || ((csr_val == NULL) && (weighted == 1)) || 
+    if ((csr_ptr == NULL) || (csr_ind == NULL) || ((csr_val == NULL) && (weighted == 1)) ||
         ((init_cluster == NULL) && (has_init_cluster == 1)) || (final_modularity == NULL) || (best_cluster_vec == NULL) || (num_level == NULL))
        return NVGRAPH_STATUS_INVALID_VALUE;
 
@@ -4001,35 +4001,35 @@ nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataT
     bool weighted_b = weighted;
     bool has_init_cluster_b = has_init_cluster;
     if (val_type == CUDA_R_32F)
-        status = nvlouvain::louvain ((int*)csr_ptr, (int*)csr_ind, (float*)csr_val, num_vertex, num_edges, 
-               weighted_b, has_init_cluster_b, (int*)init_cluster, *((float*)final_modularity), 
+        status = nvlouvain::louvain ((int*)csr_ptr, (int*)csr_ind, (float*)csr_val, num_vertex, num_edges,
+               weighted_b, has_init_cluster_b, (int*)init_cluster, *((float*)final_modularity),
               (int*)best_cluster_vec,*((int*)num_level), log);
     else
-        status = nvlouvain::louvain ((int*)csr_ptr, (int*)csr_ind, (double*)csr_val, num_vertex, num_edges, 
-                weighted_b, has_init_cluster_b, (int*)init_cluster, *((double*)final_modularity), 
+        status = nvlouvain::louvain ((int*)csr_ptr, (int*)csr_ind, (double*)csr_val, num_vertex, num_edges,
+                weighted_b, has_init_cluster_b, (int*)init_cluster, *((double*)final_modularity),
                 (int*)best_cluster_vec,*((int*)num_level), log);
 
     if (status != NVLOUVAIN_OK)
         return NVGRAPH_STATUS_INTERNAL_ERROR;
 
-    return NVGRAPH_STATUS_SUCCESS; 
+    return NVGRAPH_STATUS_SUCCESS;
 }
 
-nvgraphStatus_t NVGRAPH_API nvgraphJaccard (cudaDataType_t index_type, cudaDataType_t val_type, const size_t n, 
+nvgraphStatus_t NVGRAPH_API nvgraphJaccard (cudaDataType_t index_type, cudaDataType_t val_type, const size_t n,
                             const size_t e, void* csr_ptr, void* csr_ind, void* csr_val, int weighted, void* v, void* gamma, void* weight_j)
 {
     int status = 0;
 
-    if ((csr_ptr == NULL) || (csr_ind == NULL) || ((csr_val == NULL) && (weighted == 1)) || (gamma == NULL) || (weight_j == NULL)) 
+    if ((csr_ptr == NULL) || (csr_ind == NULL) || ((csr_val == NULL) && (weighted == 1)) || (gamma == NULL) || (weight_j == NULL))
         return NVGRAPH_STATUS_INVALID_VALUE;
 
     bool weighted_b = weighted;
 
     if (val_type == CUDA_R_32F)
     {
-        float* weight_i = NULL, *weight_s = NULL, *work = NULL;    
+        float* weight_i = NULL, *weight_s = NULL, *work = NULL;
         NVG_CUDA_TRY(cudaMalloc ((void**)&weight_i, sizeof(float) * e));
-        NVG_CUDA_TRY(cudaMalloc ((void**)&weight_s, sizeof(float) * e)); 
+        NVG_CUDA_TRY(cudaMalloc ((void**)&weight_s, sizeof(float) * e));
         if (weighted_b == true)
         {
             NVG_CUDA_TRY(cudaMalloc ((void**)&work, sizeof(float) * n));
@@ -4048,7 +4048,7 @@ nvgraphStatus_t NVGRAPH_API nvgraphJaccard (cudaDataType_t index_type, cudaDataT
     }
     else
     {
-        double* weight_i = NULL, *weight_s = NULL, *work = NULL;    
+        double* weight_i = NULL, *weight_s = NULL, *work = NULL;
         NVG_CUDA_TRY(cudaMalloc ((void**)&weight_i, sizeof(double) * e));
         NVG_CUDA_TRY(cudaMalloc ((void**)&weight_s, sizeof(double) * e));
         if (weighted_b == true)
@@ -4074,7 +4074,6 @@ nvgraphStatus_t NVGRAPH_API nvgraphJaccard (cudaDataType_t index_type, cudaDataT
     return NVGRAPH_STATUS_SUCCESS;
 }
 
-
 nvgraphStatus_t NVGRAPH_API nvgraphAttachGraphStructure(nvgraphHandle_t handle,
                                                         nvgraphGraphDescr_t descrG,
                                                         void* topologyData,
@@ -4097,4 +4096,3 @@ nvgraphStatus_t NVGRAPH_API nvgraphAttachEdgeData(nvgraphHandle_t handle,
                                                   void *edgeData) {
     return nvgraph::nvgraphAttachEdgeData_impl( handle, descrG, setnum, settype, edgeData);
 }
-
