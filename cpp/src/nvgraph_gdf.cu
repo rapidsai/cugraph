@@ -32,9 +32,6 @@
 
 #include <rmm_utils.h>
 
-template<typename T>
-using Vector = thrust::device_vector<T, rmm_allocator<T>>;
-
 gdf_error nvgraph2gdf_error(nvgraphStatus_t nvg_stat) {
   switch (nvg_stat) {
     case NVGRAPH_STATUS_SUCCESS:
@@ -201,9 +198,8 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 }
 
 gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
-                            const int *source_vert,
-                            gdf_column *sssp_distances) {
-
+                           const int *source_vert,
+                           gdf_column *sssp_distances) {
   GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(*source_vert >= 0, GDF_INVALID_API_CALL);
   GDF_REQUIRE(*source_vert < sssp_distances->size, GDF_INVALID_API_CALL);
@@ -223,26 +219,14 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
 
   int sssp_index = 0;
   int weight_index = 0;
-  Vector<float> d_val;
+  rmm::device_vector<float> d_val;
 
   //RMM:
   //        
   cudaStream_t stream { nullptr };
   rmm_temp_allocator allocator(stream);
   if (gdf_G->transposedAdjList->edge_data == nullptr) {
-    // use a fp32 vector  [1,...,1]
-    settype = CUDA_R_32F;
-    d_val.resize(gdf_G->transposedAdjList->indices->size);
-    thrust::fill(thrust::cuda::par(allocator).on(stream), d_val.begin(), d_val.end(), 1.0);
-    NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
-                                  nvgraph_G,
-                                  weight_index,
-                                  settype,
-                                  (void * ) thrust::raw_pointer_cast(d_val.data())));
-  }
-  else {
-    switch (gdf_G->transposedAdjList->edge_data->dtype) {
-      case GDF_FLOAT32:
+      // use a fp32 vector  [1,...,1]
         settype = CUDA_R_32F;
         break;
       case GDF_FLOAT64:
@@ -285,7 +269,7 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
         cudaDataType_t settype;
-        Vector<double> d_val;
+        rmm::device_vector<double> d_val;
 
   NVG_TRY(nvgraphCreate(&nvg_handle));
   GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
@@ -442,7 +426,7 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
         cudaDataType_t settype;
-        Vector<double> d_val;
+        rmm::device_vector<double> d_val;
 
   NVG_TRY(nvgraphCreate(&nvg_handle));
   GDF_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));

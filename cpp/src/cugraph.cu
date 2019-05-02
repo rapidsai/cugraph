@@ -29,9 +29,6 @@
 
 #include <rmm_utils.h>
 
-template<typename T>
-using Vector = thrust::device_vector<T, rmm_allocator<T>>;
-
 /*
  * cudf has gdf_column_free and using this is, in general, better design than
  * creating our own, but we will keep this as cudf is planning to remove the
@@ -597,7 +594,7 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
   void* indices_ptr = graph->adjList->indices->data;
 
   void* value_ptr;
-  Vector<float> d_values;
+  rmm::device_vector<float> d_values;
   if(graph->adjList->edge_data) {
       value_ptr = graph->adjList->edge_data->data;
   }
