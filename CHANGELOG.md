@@ -23,6 +23,7 @@
 - PR #247 Added some documentation for renumbering
 - PR #252 cpp test upgrades for more convenient testing on large input
 - PR #264 Add cudatoolkit conda dependency
+- PR #267 Use latest release version in update-version CI script
 
 ## Bug Fixes
 - PR #256 Add pip to the install, clean up conda instructions
