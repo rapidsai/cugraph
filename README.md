@@ -22,11 +22,6 @@ There are 4 ways to get cuGraph :
 1. [Build from Source](#source)
 
 
-
-Building from source is currently the only viable option. Once version 0.6 is release, the other options will be available.  
-
-
-
 <a name="quick"></a>
 
 ## Quick Start  
