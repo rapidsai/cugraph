@@ -335,51 +335,34 @@ namespace nvgraph
         NVGRAPH_ERROR rc = NVGRAPH_OK;
         try
         {
-            int device;
+            // First, initialize NVGraph's context
 
-            CHECK_CUDA(cudaFree((void * )0));
-            CHECK_CUDA(cudaGetDevice(&device));
-            struct nvgraphContext *ctx = NULL;
-            ctx = (struct nvgraphContext *) malloc(sizeof(*ctx));
-            if (!ctx) {
+            auto ctx = static_cast<struct nvgraphContext*>(calloc(sizeof(struct nvgraphContext)));
+            if (ctx == nullptr) {
                 FatalError("Cannot allocate NVGRAPH context.", NVGRAPH_ERR_UNKNOWN);
             }
 
-            //cnmem
-            memset(&ctx->cnmem_device, 0, sizeof(ctx->cnmem_device)); // init all to 0
-            ctx->cnmem_device.device = device; // cnmem runs on the device set by cudaSetDevice
-
-            size_t init_alloc = 1; // Initial allocation tentative, it is currently 1 so this feature is basically disabeled.
-
-            // Warning : Should uncomment that if using init_alloc > 1
-            //size_t freeMem, totalMem;
-            //cudaMemGetInfo(&freeMem, &totalMem);
-            //if (freeMem < init_alloc) // Couldn't find enough memory to do the initial alloc
-            //    init_alloc = 1; // (0 is used as default parameter in cnmem)
-
-            ctx->cnmem_device.size = init_alloc;
-            cnmemDevice_t* devices = (cnmemDevice_t*) malloc(sizeof(cnmemDevice_t) * numDevices);
-            memset(devices, 0, sizeof(cnmemDevice_t) * numDevices);
-            for (int i = 0; i < numDevices; i++) {
-                devices[i].device = _devices[i];
-                devices[i].size = 1;
+            // Now NVGraph assumes that RMM is initialized outside NVGraph
+            auto option = rmmOptions_t{};
+            if (rmmIsInitialized(&option) == false) {
+                FatalError("RMM uninitialized.", NVGRAPH_ERR_UNKNOWN);
             }
-            cnmemStatus_t cm_status = cnmemInit(numDevices, devices, CNMEM_FLAGS_DEFAULT);
-            free(devices);
-            if (cm_status != CNMEM_STATUS_SUCCESS)
-                FatalError("Cannot initialize memory manager.", NVGRAPH_ERR_UNKNOWN);
+            else if ((option.allocation_mode & PoolAllocation) != 0) {
+                FatalError("RMM does not support multi-GPUs with pool allocation, yet.", NVGRAPH_ERR_UNKNOWN);
+            }
 
-            //Cublas and Cusparse
-            nvgraph::Cusparse::get_handle();
-            nvgraph::Cublas::get_handle();
-
-            //others
-            ctx->stream = 0;
+            ctx->stream = nullptr;
             ctx->nvgraphIsInitialized = true;
 
-            if (outCtx) {
-                *outCtx = ctx;
-            }
+             if (outCtx != nullptr) {
+                 *outCtx = ctx;
+             }
+
+            // Second, initialize Cublas and Cusparse (get_handle() creates a new handle
+            // if there is no existing handle).
+
+            nvgraph::Cusparse::get_handle();
+            nvgraph::Cublas::get_handle();
         }
         NVGRAPH_CATCHES(rc)
 
@@ -390,45 +373,30 @@ namespace nvgraph
         NVGRAPH_ERROR rc = NVGRAPH_OK;
         try
         {
-            int device;
+            // First, initialize NVGraph's context
 
-            CHECK_CUDA(cudaFree((void * )0));
-            CHECK_CUDA(cudaGetDevice(&device));
-            struct nvgraphContext *ctx = NULL;
-            ctx = (struct nvgraphContext *) malloc(sizeof(*ctx));
-            if (!ctx) {
+            auto ctx = static_cast<struct nvgraphContext*>(calloc(sizeof(struct nvgraphContext)));
+            if (ctx == nullptr) {
                 FatalError("Cannot allocate NVGRAPH context.", NVGRAPH_ERR_UNKNOWN);
             }
 
-            //cnmem
-            memset(&ctx->cnmem_device, 0, sizeof(ctx->cnmem_device)); // init all to 0
-            ctx->cnmem_device.device = device; // cnmem runs on the device set by cudaSetDevice
+            // Now NVGraph assumes that RMM is initialized outside NVGraph
+            if (rmmIsInitialized(nullptr) == false) {
+                FatalError("RMM uninitialized.", NVGRAPH_ERR_UNKNOWN);
+            }
 
-            size_t init_alloc = 1; // Initial allocation tentative, it is currently 1 so this feature is basically disabeled.
-
-            // Warning : Should uncomment that if using init_alloc > 1
-            //size_t freeMem, totalMem;
-            //cudaMemGetInfo(&freeMem, &totalMem);
-            //if (freeMem < init_alloc) // Couldn't find enough memory to do the initial alloc
-            //    init_alloc = 1; // (0 is used as default parameter in cnmem)
-
-            ctx->cnmem_device.size = init_alloc;
-
-            cnmemStatus_t cm_status = cnmemInit(1, &ctx->cnmem_device, CNMEM_FLAGS_DEFAULT);
-            if (cm_status != CNMEM_STATUS_SUCCESS)
-                FatalError("Cannot initialize memory manager.", NVGRAPH_ERR_UNKNOWN);
-
-            //Cublas and Cusparse
-            nvgraph::Cusparse::get_handle();
-            nvgraph::Cublas::get_handle();
-
-            //others
-            ctx->stream = 0;
+            ctx->stream = nullptr;
             ctx->nvgraphIsInitialized = true;
 
-            if (outCtx) {
-                *outCtx = ctx;
-            }
+             if (outCtx != nullptr) {
+                 *outCtx = ctx;
+             }
+
+            // Second, initialize Cublas and Cusparse (get_handle() creates a new handle
+            // if there is no existing handle).
+
+            nvgraph::Cusparse::get_handle();
+            nvgraph::Cublas::get_handle();
         }
         NVGRAPH_CATCHES(rc)
 
@@ -442,21 +410,13 @@ namespace nvgraph
             if (check_context(handle))
                 FatalError("Cannot initialize memory manager.", NVGRAPH_ERR_NO_MEMORY);
 
-            //Cublas and Cusparse
+            // First, destroy Cublas and Cusparse
+
             nvgraph::Cusparse::destroy_handle();
             nvgraph::Cublas::destroy_handle();
-            //cnmem
 
-//     compiler is complaining, cm_status is not used in release build
-#ifdef DEBUG
-            cnmemStatus_t cm_status = cnmemFinalize();
-            if( cm_status != CNMEM_STATUS_SUCCESS ) {
-                CERR() << "Warning: " << cnmemGetErrorString(cm_status) << std::endl;
-            }
-#else
-            cnmemFinalize();
-#endif
-            //others
+            // Second, destroy NVGraph's context
+
             free(handle);
         }
         NVGRAPH_CATCHES(rc)
