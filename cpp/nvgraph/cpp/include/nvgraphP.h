@@ -41,7 +41,6 @@ typedef enum
 
 struct nvgraphContext {
    cudaStream_t stream;
-   cnmemDevice_t cnmem_device;  
    int nvgraphIsInitialized;  
 };
 
