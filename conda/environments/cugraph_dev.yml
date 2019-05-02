@@ -12,7 +12,7 @@ dependencies:
 - networkx
 - python-louvain
 - nccl
-- cudatoolkit
+- cudatoolkit=9.2
 - cmake>=3.12
 - python>=3.6,<3.8
 - numba>=0.41
