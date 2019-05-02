@@ -46,7 +46,7 @@
 - PR #244 Fixed issue with nvgraph's subgraph extraction if the first vertex in the vertex list is not incident on an edge in the extracted graph
 - PR #249 Fix oudated cuDF version in gpu/build.sh
 - PR #262 Removed networkx conda dependency for both build and runtime
-
+- PR #268 Removed outdated statment in readme
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
