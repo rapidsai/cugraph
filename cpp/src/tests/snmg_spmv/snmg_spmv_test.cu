@@ -226,14 +226,14 @@ TEST_P(Tests_MGSpmv, CheckFP64) {
 }
 
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv, 
-                        ::testing::Values(  MGSpmv_Usecase("networks/karate.mtx")
-                                            ,MGSpmv_Usecase("golden_data/graphs/cit-Patents.mtx")
-                                            ,MGSpmv_Usecase("golden_data/graphs/ljournal-2008.mtx")
-                                            ,MGSpmv_Usecase("golden_data/graphs/webbase-1M.mtx")
-                                            ,MGSpmv_Usecase("networks/netscience.mtx")
-                                            ,MGSpmv_Usecase("golden_data/graphs/web-Google.mtx")
-                                            ,MGSpmv_Usecase("golden_data/graphs/wiki-Talk.mtx")
-                                            //,MGSpmv_Usecase("networks/twitter.mtx")
+                        ::testing::Values(   MGSpmv_Usecase("test/datasets/karate.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/netscience.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/cit-Patents.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/webbase-1M.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/web-Google.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/wiki-Talk.mtx")
+                                            //,MGSpmv_Usecase("test/datasets/ljournal-2008.mtx")
+                                            //,MGSpmv_Usecase("test/datasets/twitter.mtx")
                                          )
                        );
 
@@ -391,14 +391,15 @@ TEST_P(Tests_MGSpmv_hibench, CheckFP32_hibench) {
     run_current_test<int, float>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGSpmv_hibench, 
-                        ::testing::Values(  MGSpmv_Usecase("1/Input-small/edges/part-00000")
-                                            //,MGSpmv_Usecase("1/Input-large/edges/part-00000")
-                                            //,MGSpmv_Usecase("1/Input-huge/edges/part-00000")
-                                            //,MGSpmv_Usecase("1/Input-gigantic/edges/part-00000")
-                                            ,MGSpmv_Usecase("1/Input-bigdatax2/edges/part-00000")
-                                            ,MGSpmv_Usecase("1/Input-bigdatax4/edges/part-00000")
-                                            //,MGSpmv_Usecase("1/Input-bigdata/edges/part-00000")
+
+INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGSpmv_hibench,  
+                        ::testing::Values(   MGSpmv_Usecase("benchmark/hibench/1/Input-small/edges/part-00000")
+                                            ,MGSpmv_Usecase("benchmark/hibench/1/Input-large/edges/part-00000")
+                                            ,MGSpmv_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")
+                                            //,MGSpmv_Usecase("benchmark/hibench/1/Input-gigantic/edges/part-00000")
+                                            //,MGSpmv_Usecase("benchmark/hibench/1/Input-bigdata/edges/part-00000")
+                                            //,MGSpmv_Usecase("benchmark/hibench/1/Input-bigdatax2/edges/part-00000")
+                                            //,MGSpmv_Usecase("benchmark/hibench/1/Input-bigdatax4/edges/part-00000")
                                          )
                        );
 
