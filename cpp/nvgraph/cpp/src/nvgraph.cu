@@ -521,10 +521,6 @@ namespace nvgraph
         {
             if (check_context(handle))
                 FatalError("Incorrect parameters.", NVGRAPH_ERR_BAD_PARAMETERS);
-            //CnMem
-            cnmemStatus_t cm_status = cnmemRegisterStream(stream);
-            if (cm_status != CNMEM_STATUS_SUCCESS)
-                return NVGRAPH_STATUS_INTERNAL_ERROR;
             // nvgraph handle
             handle->stream = stream;
             //Cublas and Cusparse
