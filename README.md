@@ -4,37 +4,7 @@
 
 The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process data found in GPU Dataframes - see [cuDF](https://github.com/rapidsai/cudf).  cuGraph aims to provide a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
 
-For example, the following snippet downloads a CSV file containing the friendship information of students in a karate dojo, it uses the GPU to parse the information into rows and columns and creates a graph. This graph is used to run cuGraph's pagerank algorithm to find the student/students who are the most popular.
-```python
-import cugraph, cudf, requests
-from collections import OrderedDict
-from io import StringIO
-
-# read the data into a cuDF DataFrame
-url = "https://raw.githubusercontent.com/rapidsai/cugraph/branch-0.7/datasets/karate.csv"
-content = requests.get(url).content.decode('utf-8')
-gdf = cudf.read_csv(StringIO(content), names=["subject", "friend"],
-                    delimiter=' ', dtype=['int32', 'int32'])
-
-# create graph with nodes being unique students and edges representing friendship
-G = cugraph.Graph()
-G.add_edge_list(gdf["subject"], gdf["friend"])
-# apply the pagerank algorithm to the graph
-results = cugraph.pagerank(G)
-
-# Find the most connected student(s) using the scores from the pagerank algorithm:
-max_score = results['pagerank'].max()
-popular_subject = [i for i in range(len(results))
-                   if results['pagerank'][i] == max_score]
-print("Most connected student(s): " + str(popular_subject) + " have a score of: " + str(max_score))
-```
-
-Output:
-```
-Most connected student(s): [33] have a score of: 0.10091735
-```
-
-For additional examples, browse our complete [API documentation](https://docs.rapids.ai/api/cugraph/stable/), or check out our more detailed [notebooks](https://github.com/rapidsai/notebooks-extended).
+For examples on how to use cuGraph browse our complete [API documentation](https://docs.rapids.ai/api/cugraph/stable/), or check out our detailed [notebooks]( https://github.com/rapidsai/notebooks/tree/master/cugraph).
 
 **NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/master/README.md) ensure you are on the `master` branch.
 
