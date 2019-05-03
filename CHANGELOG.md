@@ -22,6 +22,7 @@
 - PR #233 Added csv datasets and edited test to use cudf for reading graphs
 - PR #247 Added some documentation for renumbering
 - PR #252 cpp test upgrades for more convenient testing on large input
+- PR #270 Updated the README.md and CONTRIBUTING.md files
 
 ## Bug Fixes
 - PR #256 Add pip to the install, clean up conda instructions
