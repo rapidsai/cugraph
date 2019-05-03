@@ -13,8 +13,9 @@ function logger() {
 # Set path, build parallel level, and CUDA version
 export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
 export PARALLEL_LEVEL=4
-export CUDA_VERSION_SHORT=${CUDA_VERSION%.*}
-export CUDF_VERSION=0.6
+export CUDA_REL=${CUDA_VERSION%.*}
+export CUDF_VERSION=0.7.*
+export RMM_VERSION=0.7.*
 
 # Set home to the job's workspace
 export HOME=$WORKSPACE
@@ -31,7 +32,8 @@ nvidia-smi
 
 logger "Activate conda env..."
 source activate gdf
-conda install -c nvidia/label/cuda$CUDA_VERSION_SHORT -c rapidsai/label/cuda$CUDA_VERSION_SHORT -c rapidsai-nightly/label/cuda$CUDA_VERSION_SHORT -c numba -c conda-forge -c defaults cudf=$CUDF_VERSION nvgraph networkx python-louvain
+conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c rapidsai-nightly/label/cuda$CUDA_REL -c numba -c conda-forge \
+    cudf=$CUDF_VERSION rmm=$RMM_VERSION nvgraph networkx python-louvain
 
 logger "Check versions..."
 python --version

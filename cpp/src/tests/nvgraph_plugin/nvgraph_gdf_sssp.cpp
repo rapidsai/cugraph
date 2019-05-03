@@ -225,11 +225,11 @@ TEST_P(Tests_Sssp2, CheckFP32) {
 
 // --gtest_filter=*golden_test*
 INSTANTIATE_TEST_CASE_P(golden_test, Tests_Sssp2, 
-                        ::testing::Values(  Sssp2_Usecase("/datasets/networks/karate.mtx" , "", 1)
-                                           ,Sssp2_Usecase("/datasets/golden_data/graphs/dblp.mtx" , "/datasets/golden_data/results/sssp/dblp_T.sssp_100000.bin", 100000)
-                                           ,Sssp2_Usecase("/datasets/golden_data/graphs/dblp.mtx" , "/datasets/golden_data/results/sssp/dblp_T.sssp_100.bin", 100)
-                                           ,Sssp2_Usecase("/datasets/golden_data/graphs/wiki2003.mtx" , "/datasets/golden_data/results/sssp/wiki2003_T.sssp_100000.bin",100000 )
-                                           ,Sssp2_Usecase("/datasets/golden_data/graphs/wiki2003.mtx" , "/datasets/golden_data/results/sssp/wiki2003_T.sssp_100.bin", 100)
+                        ::testing::Values(  Sssp2_Usecase("test/datasets/karate.mtx" , "", 1)
+                                           ,Sssp2_Usecase("test/datasets/dblp.mtx" ,     "test/ref/sssp/dblp_T.sssp_100000.bin", 100000)
+                                           ,Sssp2_Usecase("test/datasets/dblp.mtx" ,     "test/ref/sssp/dblp_T.sssp_100.bin", 100)
+                                           ,Sssp2_Usecase("test/datasets/wiki2003.mtx" , "test/ref/sssp/wiki2003_T.sssp_100000.bin",100000 )
+                                           ,Sssp2_Usecase("test/datasets/wiki2003.mtx" , "test/ref/sssp/wiki2003_T.sssp_100.bin", 100)
                                          )
                        );
 int main(int argc, char **argv)  {
