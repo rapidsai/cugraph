@@ -337,19 +337,18 @@ namespace nvgraph
         {
             // First, initialize NVGraph's context
 
-            auto ctx = static_cast<struct nvgraphContext*>(calloc(sizeof(struct nvgraphContext)));
+            auto ctx = static_cast<struct nvgraphContext*>(calloc(1, sizeof(struct nvgraphContext)));
             if (ctx == nullptr) {
                 FatalError("Cannot allocate NVGRAPH context.", NVGRAPH_ERR_UNKNOWN);
             }
 
-            // Now NVGraph assumes that RMM is initialized outside NVGraph
             auto option = rmmOptions_t{};
-            if (rmmIsInitialized(&option) == false) {
-                FatalError("RMM uninitialized.", NVGRAPH_ERR_UNKNOWN);
+            if (rmmIsInitialized(&option) == true) {
+                if ((option.allocation_mode & PoolAllocation) != 0) {
+                    FatalError("RMM does not support multi-GPUs with pool allocation, yet.", NVGRAPH_ERR_UNKNOWN);
+                }
             }
-            else if ((option.allocation_mode & PoolAllocation) != 0) {
-                FatalError("RMM does not support multi-GPUs with pool allocation, yet.", NVGRAPH_ERR_UNKNOWN);
-            }
+            // if RMM is unintialized, RMM_ALLOC/RMM_FREE are just aliases for cudaMalloc/cudaFree
 
             ctx->stream = nullptr;
             ctx->nvgraphIsInitialized = true;
@@ -375,15 +374,13 @@ namespace nvgraph
         {
             // First, initialize NVGraph's context
 
-            auto ctx = static_cast<struct nvgraphContext*>(calloc(sizeof(struct nvgraphContext)));
+            auto ctx = static_cast<struct nvgraphContext*>(calloc(1, sizeof(struct nvgraphContext)));
             if (ctx == nullptr) {
                 FatalError("Cannot allocate NVGRAPH context.", NVGRAPH_ERR_UNKNOWN);
             }
 
             // Now NVGraph assumes that RMM is initialized outside NVGraph
-            if (rmmIsInitialized(nullptr) == false) {
-                FatalError("RMM uninitialized.", NVGRAPH_ERR_UNKNOWN);
-            }
+            // if RMM is unintialized, RMM_ALLOC/RMM_FREE are just aliases for cudaMalloc/cudaFree
 
             ctx->stream = nullptr;
             ctx->nvgraphIsInitialized = true;
