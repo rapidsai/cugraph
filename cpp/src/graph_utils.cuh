@@ -217,6 +217,22 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 	}
 
 	template<typename T>
+	void addv(size_t n, T val, T* x) {
+		//RMM:
+		//
+		cudaStream_t stream { nullptr };
+		rmm_temp_allocator allocator(stream);
+
+		thrust::transform(thrust::cuda::par(allocator).on(stream),
+											thrust::device_pointer_cast(x),
+											thrust::device_pointer_cast(x + n),
+											thrust::make_constant_iterator(val),
+											thrust::device_pointer_cast(x),
+											thrust::plus<T>());
+		cudaCheckError();
+	}
+
+	template<typename T>
 	void fill(size_t n, T* x, T value) {
 		//RMM:
 		//
@@ -299,7 +315,7 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	flag_leafs(const IndexType n, IndexType *degree, ValueType *bookmark) {
+	flag_leafs_kernel(const IndexType n, IndexType *degree, ValueType *bookmark) {
 		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
 			if (degree[i] == 0)
 				bookmark[i] = 1.0;
@@ -339,7 +355,7 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 		fill(n, bookmark, val);
 		nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
 		nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-		flag_leafs<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
+		flag_leafs_kernel<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
 
 		//printv(n, degree , 0);
 		//printv(n, bookmark , 0);
@@ -433,7 +449,7 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 		nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
 		nblocks.y = 1;
 		nblocks.z = 1;
-		flag_leafs<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
+		flag_leafs_kernel<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
 		cudaCheckError();
 
 		//this was missing! TODO: check if okay.

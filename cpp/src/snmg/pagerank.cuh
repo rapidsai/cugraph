@@ -34,7 +34,9 @@ transition_kernel(const IndexType e,
                   const IndexType *ind,
                   IndexType *degree,
                   ValueType *val) {
-  for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
+  for (int i = threadIdx.x + blockIdx.x * blockDim.x; 
+       i < e; 
+       i += gridDim.x * blockDim.x)
     val[i] = 1.0 / degree[ind[i]];
 }
 
@@ -42,23 +44,36 @@ template <typename IndexType, typename ValueType>
 class SNMGpagerank 
 { 
   private:
-    size_t v_glob;
-    size_t v_loc;
-    size_t e_loc;
-    SNMGinfo env;
-    size_t* part_off;
+    size_t v_glob; //global number of vertices
+    size_t v_loc;  //local number of vertices
+    size_t e_loc;  //local number of edges
+    int id; // thread id
+    int np; // number of threads
+    SNMGinfo env;  //info about the snmg env setup
+    cudaStream_t stream;  
+    
+    //Vertex offsets for each partition. 
+    //This information should be available on all threads/devices
+    //part_offsets[device_id] contains the global ID 
+    //of the first vertex of the partion owned by device_id. 
+    //part_offsets[num_devices] contains the global number of vertices
+    size_t* part_off; 
+    
+    // local CSR matrix
     IndexType * off;
     IndexType * ind;
     ValueType * val;
-    ValueType * a;
-    ValueType * b;
-    ValueType * tmp;
-    ValueType alpha;
+
+    // vectors of size v_glob 
+    ValueType * bookmark; // constant vector with dangling node info
+    ValueType alpha; // damping factor
+
+    // internal status info
     bool converged;
     bool is_setup;
-    cudaStream_t stream;
-    int id;
-    int np;
+
+
+
 
   public: 
     SNMGpagerank(SNMGinfo & env_, size_t* part_off_, 
@@ -73,15 +88,11 @@ class SNMGpagerank
       cudaCheckError();
       e_loc = tmp_e;
       stream = nullptr;
-      ALLOC_MANAGED_TRY ((void**)&a,   sizeof(ValueType) * v_glob, stream);
-      ALLOC_MANAGED_TRY ((void**)&b,   sizeof(ValueType) * v_glob, stream);
-      ALLOC_MANAGED_TRY ((void**)&tmp, sizeof(ValueType) * v_glob, stream);
+      ALLOC_MANAGED_TRY ((void**)&bookmark,   sizeof(ValueType) * v_glob, stream);
       ALLOC_MANAGED_TRY ((void**)&val, sizeof(ValueType) * e_loc, stream);
     } 
     ~SNMGpagerank() { 
-      ALLOC_FREE_TRY(a, stream); 
-      ALLOC_FREE_TRY(b, stream);  
-      ALLOC_FREE_TRY(tmp, stream);
+      ALLOC_FREE_TRY(bookmark, stream); 
       ALLOC_FREE_TRY(val, stream);
     }
 
@@ -92,19 +103,32 @@ class SNMGpagerank
       cudaCheckError();
     }
 
-    // compute degree and tansition matrix 
-    // set _val, _a, _b, tmp.
-    bool setup(ValueType _alpha) {
+    void flag_leafs(const IndexType *degree) {
+      int threads = min(static_cast<IndexType>(v_glob), 256);
+      int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
+      flag_leafs_kernel<IndexType, ValueType> <<<blocks, threads>>> (v_glob, degree, bookmark);
+      cudaCheckError();
+    }    // compute degree and tansition matrix 
+    
+    // set val and bookmark
+    void setup(ValueType _alpha) {
       alpha=_alpha;
       ValueType randomProbability =  static_cast<ValueType>( 1.0/v_glob);
-      fill(v_glob, tmp, randomProbability);
-      fill(v_glob, b, randomProbability);
+      IndexType *degree;
+      ALLOC_MANAGED_TRY ((void**)&degree,   sizeof(ValueType) * v_glob, stream);
       
       // TODO degree
-      
-      //transition_vals(degree);
+
+      // Update dangling nodes
+      ValueType zero = 0.0;
+      fill(v_glob, bookmark, zero);
+      flag_leafs(degree);
+      update_dangling_nodes(v_glob, bookmark, alpha);
+
+      // Transition matrix
+      transition_vals(degree);
+
       is_setup=true;
-      return true;
     }
 
     // run the power iteration
@@ -112,32 +136,20 @@ class SNMGpagerank
     converged = false;
     ValueType  dot_res;
     ValueType residual;
-    ValueType pr = pagerank[id];
+    ValueType one = 1.0;
+    ValueType *pr = pagerank[id];
     int iter;
-    fill(v_glob, pagerank[id], static_cast<ValueType>( 1.0/v_glob));
+    fill(v_glob, pagerank[id], one/v_glob);
+    dot_res = dot( v_glob, bookmark, pr);
     SNMGcsrmv<IndexType,ValueType> spmv_solver(env, part_off, off, ind, val, pagerank);
     for (iter = 0; iter < max_iter; ++iter) {
       spmv_solver.run(pagerank);
       scal(v_glob, alpha, pr);
-      dot_res = dot( v_glob, a, tmp);
-      axpy(v_glob, dot_res,  b,  pr);
-      scal(v_glob, (ValueType)1.0/nrm2(v_glob, pr) , pr);
-      axpy(v_glob, (ValueType)-1.0,  pr,  tmp);
-      residual = nrm2(v_glob, tmp);
-      if (residual < tolerance) {
-          scal(v_glob, (ValueType)1.0/nrm1(v_glob,pr), pr);
-          converged = true;
-          break;
-      }
-      else {
-          if (iter< max_iter) {
-              std::swap(pr, tmp);
-          }
-          else {
-             scal(v_glob, (ValueType)1.0/nrm1(v_glob,pr), pr);
-          }
-      }
+      addv(v_glob, dot_res * (one/v_glob) , pr);
+      dot_res = dot( v_glob, bookmark, pr);
+      scal(v_glob, one/nrm2(v_glob, pr) , pr);
     }
+    scal(v_glob, one/nrm1(v_glob,pr), pr);
   }
 };
 
