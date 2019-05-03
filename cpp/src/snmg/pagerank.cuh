@@ -48,7 +48,7 @@ class SNMGpagerank
     size_t v_loc;  //local number of vertices
     size_t e_loc;  //local number of edges
     int id; // thread id
-    int np; // number of threads
+    int nt; // number of threads
     SNMGinfo env;  //info about the snmg env setup
     cudaStream_t stream;  
     
@@ -70,16 +70,13 @@ class SNMGpagerank
 
     bool is_setup;
 
-
-
-
   public: 
     SNMGpagerank(SNMGinfo & env_, size_t* part_off_, 
                  IndexType * off_, IndexType * ind_) : 
                  env(env_), part_off(part_off_), off(off_), ind(ind_) { 
       id = env.get_thread_num();
-      np = env.get_num_threads(); 
-      v_glob = part_off[np];
+      nt = env.get_num_threads(); 
+      v_glob = part_off[nt];
       v_loc = part_off[id+1]-part_off[id];
       IndexType tmp_e;
       cudaMemcpy(&tmp_e, &off[v_loc], sizeof(IndexType),cudaMemcpyDeviceToHost);
@@ -128,8 +125,12 @@ class SNMGpagerank
         // Transition matrix
         transition_vals(degree);
 
+        ALLOC_FREE_TRY(degree, stream);
+
         is_setup = true;
       }
+      else
+        throw std::string("Setup can be called only once");
     }
 
     // run the power iteration on the google matrix
@@ -149,6 +150,9 @@ class SNMGpagerank
           scal(v_glob, one/nrm2(v_glob, pr) , pr);
         }
         scal(v_glob, one/nrm1(v_glob,pr), pr);
+      }
+      else {
+          throw std::string("Solve was called before setup");
       }
     }
 };
