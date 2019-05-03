@@ -4,7 +4,7 @@
 
 The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process data found in GPU Dataframes - see [cuDF](https://github.com/rapidsai/cudf).  cuGraph aims to provide a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
 
-For example, the following snippet downloads a CSV file containing friendship information of students in a karate dojo, then uses the GPU to parse it into rows and columns and greate a graph. This graph is then used to run cugraph's pagerank algorithm to find the student/students who are the most popular.
+For example, the following snippet downloads a CSV file containing the friendship information of students in a karate dojo, it uses the GPU to parse the information into rows and columns and creates a graph. This graph is used to run cuGraph's pagerank algorithm to find the student/students who are the most popular.
 ```python
 import cugraph, cudf, requests
 from collections import OrderedDict
