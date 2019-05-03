@@ -40,6 +40,8 @@ def locate_nvgraph():
                          'include', 'nvgraph'),
         'lib': os.path.dirname(nvgraph_found)}
 
+    print('nvgraph_config = ' + str(nvgraph_config))
+
     return nvgraph_config
 
 

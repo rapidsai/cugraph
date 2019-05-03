@@ -13,7 +13,7 @@ set -e
 RELEASE_TYPE=$1
 
 # Get current version and calculate next versions
-CURRENT_TAG=`git describe --abbrev=0 --tags | tr -d 'v'`
+CURRENT_TAG=`git tag | grep -xE 'v[0-9\.]+' | sort --version-sort | tail -n 1 | tr -d 'v'`
 CURRENT_MAJOR=`echo $CURRENT_TAG | awk '{split($0, a, "."); print a[1]}'`
 CURRENT_MINOR=`echo $CURRENT_TAG | awk '{split($0, a, "."); print a[2]}'`
 CURRENT_PATCH=`echo $CURRENT_TAG | awk '{split($0, a, "."); print a[3]}'`
@@ -38,8 +38,6 @@ else
   exit 1
 fi
 
-# Move to root of repo
-cd ../..
 echo "Preparing '$RELEASE_TYPE' release [$CURRENT_TAG -> $NEXT_FULL_TAG]"
 
 # Inplace sed replace; workaround for Linux and Mac
@@ -49,10 +47,7 @@ function sed_runner() {
 
 # CMakeLists update
 sed_runner 's/'"cuGraph VERSION .* LANGUAGES C CXX CUDA)"'/'"cuGraph VERSION ${NEXT_FULL_TAG} LANGUAGES C CXX CUDA)"'/g' cpp/CMakeLists.txt
-
-# Conda recipe updates
-sed_runner 's/cudf=.*/cudf='"${NEXT_SHORT_TAG}*"'/g' conda/recipes/cugraph/meta.yaml
-sed_runner 's/libcudf=.*/libcudf='"${NEXT_SHORT_TAG}*"'/g' conda/recipes/libcugraph/meta.yaml
+sed_runner 's/'"NV_GRAPH VERSION .* LANGUAGES C CXX CUDA)"'/'"NV_GRAPH VERSION ${NEXT_FULL_TAG} LANGUAGES C CXX CUDA)"'/g' cpp/nvgraph/cpp/CMakeLists.txt
 
 # RTD update
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/source/conf.py
