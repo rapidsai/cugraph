@@ -33,9 +33,9 @@
  * @return Error code
  */
 //gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-//																	gdf_graph* gdf_G,
-//																	nvgraphGraphDescr_t * nvgraph_G,
-//																	bool use_transposed = false);
+//                                  gdf_graph* gdf_G,
+//                                  nvgraphGraphDescr_t * nvgraph_G,
+//                                  bool use_transposed = false);
 
 /**
  * Wrapper function for Nvgraph SSSP algorithm
@@ -62,13 +62,13 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G, const int *source_vert, gdf_column 
  * @return Error code
  */
 gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
-																						const int num_clusters,
-																						const int num_eigen_vects,
-																						const float evs_tolerance,
-																						const int evs_max_iter,
-																						const float kmean_tolerance,
-																						const int kmean_max_iter,
-																						gdf_column* clustering);
+					    const int num_clusters,
+					    const int num_eigen_vects,
+					    const float evs_tolerance,
+					    const int evs_max_iter,
+					    const float kmean_tolerance,
+					    const int kmean_max_iter,
+					    gdf_column* clustering);
 
 /**
  * Wrapper function for Nvgraph spectral modularity maximization algorithm
@@ -84,14 +84,14 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
  * @return
  */
-gdf_error gdf_spectralModularityMaximization_nvgraph(	gdf_graph* gdf_G,
-																											const int n_clusters,
-																											const int n_eig_vects,
-																											const float evs_tolerance,
-																											const int evs_max_iter,
-																											const float kmean_tolerance,
-																											const int kmean_max_iter,
-																											gdf_column* clustering);
+gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
+						     const int n_clusters,
+						     const int n_eig_vects,
+						     const float evs_tolerance,
+						     const int evs_max_iter,
+						     const float kmean_tolerance,
+						     const int kmean_max_iter,
+						     gdf_column* clustering);
 
 /**
  * Wrapper function for Nvgraph clustering modularity metric
@@ -115,9 +115,9 @@ gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
  * @return Error code
  */
 gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
-                                                   const int n_clusters,
-                                                   gdf_column* clustering,
-                                                   float* score);
+						 const int n_clusters,
+						 gdf_column* clustering,
+						 float* score);
 
 /**
  * Wrapper function for Nvgraph clustering ratio cut metric
@@ -128,20 +128,20 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
  * @return Error code
  */
 gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
-                                                   const int n_clusters,
-                                                   gdf_column* clustering,
-                                                   float* score);
+						  const int n_clusters,
+						  gdf_column* clustering,
+						  float* score);
 
 /**
  * Wrapper function for Nvgraph extract subgraph by vertices
  * @param gdf_G Pointer to GDF graph object, this is the input graph
- * @param result Pointer to GDF graph object, this is the output must be a valid pointer
  * @param vertices Pointer to GDF column object which contains the list of vertices to extract
+ * @param result Pointer to GDF graph object, this is the output must be a valid pointer
  * @return Error code
  */
 gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
-                                              gdf_graph* result,
-                                              gdf_column* vertices);
+                                              gdf_column* vertices,
+                                              gdf_graph* result);
 /**
  * Wrapper function for Nvgraph triangle counting
  * @param G Pointer to GDF graph object

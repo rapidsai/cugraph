@@ -64,7 +64,7 @@ cpdef subgraph(G, vertices):
 
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
-    err = gdf_extract_subgraph_vertex_nvgraph(g, rg, &vert_col)
+    err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return resultGraph
