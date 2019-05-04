@@ -128,11 +128,8 @@ namespace cugraph
 //dot
     template<typename T>
     T dot(size_t n, T* x, T* y) {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
-        T result = thrust::inner_product(thrust::cuda::par(allocator).on(stream),
+        auto stream = cudaStream_t{nullptr};
+        T result = thrust::inner_product(rmm::exec_policy(stream)->on(stream),
                                          thrust::device_pointer_cast(x),
                                          thrust::device_pointer_cast(x + n),
                                          thrust::device_pointer_cast(y),
@@ -156,11 +153,8 @@ namespace cugraph
 
     template<typename T>
     void axpy(size_t n, T a, T* x, T* y) {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
-        thrust::transform(thrust::cuda::par(allocator).on(stream),
+        auto stream = cudaStream_t{nullptr};
+        thrust::transform(rmm::exec_policy(stream)->on(stream),
                           thrust::device_pointer_cast(x),
                           thrust::device_pointer_cast(x + n),
                           thrust::device_pointer_cast(y),
@@ -180,12 +174,9 @@ namespace cugraph
 
     template<typename T>
     T nrm2(size_t n, T* x) {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
+        auto stream = cudaStream_t{nullptr};
         T init = 0;
-        T result = std::sqrt(thrust::transform_reduce(thrust::cuda::par(allocator).on(stream),
+        T result = std::sqrt(thrust::transform_reduce(rmm::exec_policy(stream)->on(stream),
                                                       thrust::device_pointer_cast(x),
                                                       thrust::device_pointer_cast(x + n),
                                                       square<T>(),
@@ -197,12 +188,8 @@ namespace cugraph
 
     template<typename T>
     T nrm1(size_t n, T* x) {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
-
-        T result = thrust::reduce(thrust::cuda::par(allocator).on(stream),
+        auto stream = cudaStream_t{nullptr};
+        T result = thrust::reduce(rmm::exec_policy(stream)->on(stream),
                                   thrust::device_pointer_cast(x),
                                   thrust::device_pointer_cast(x + n));
         cudaCheckError();
@@ -211,12 +198,8 @@ namespace cugraph
 
     template<typename T>
     void scal(size_t n, T val, T* x) {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
-
-        thrust::transform(thrust::cuda::par(allocator).on(stream),
+        auto stream = cudaStream_t{nullptr};
+        thrust::transform(rmm::exec_policy(stream)->on(stream),
                           thrust::device_pointer_cast(x),
                           thrust::device_pointer_cast(x + n),
                           thrust::make_constant_iterator(val),
@@ -227,12 +210,8 @@ namespace cugraph
 
     template<typename T>
     void fill(size_t n, T* x, T value) {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
-
-        thrust::fill(thrust::cuda::par(allocator).on(stream),
+        auto stream = cudaStream_t{nullptr};
+        thrust::fill(rmm::exec_policy(stream)->on(stream),
                      thrust::device_pointer_cast(x),
                      thrust::device_pointer_cast(x + n), value);
         cudaCheckError();
@@ -250,14 +229,10 @@ namespace cugraph
 
     template<typename T>
     void copy(size_t n, T *x, T *res) {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
-
         thrust::device_ptr<T> dev_ptr(x);
         thrust::device_ptr<T> res_ptr(res);
-        thrust::copy_n(thrust::cuda::par(allocator).on(stream), dev_ptr, n, res_ptr);
+        auto stream = cudaStream_t{nullptr};
+        thrust::copy_n(rmm::exec_policy(stream)->on(stream), dev_ptr, n, res_ptr);
         cudaCheckError();
     }
 
@@ -283,12 +258,8 @@ namespace cugraph
 
     template<typename T>
     void update_dangling_nodes(size_t n, T* dangling_nodes, T damping_factor) {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
-
-        thrust::transform_if(thrust::cuda::par(allocator).on(stream),
+        auto stream = cudaStream_t{nullptr};
+        thrust::transform_if(rmm::exec_policy(stream)->on(stream),
                              thrust::device_pointer_cast(dangling_nodes),
                              thrust::device_pointer_cast(dangling_nodes + n),
                              thrust::device_pointer_cast(dangling_nodes),
@@ -434,25 +405,20 @@ namespace cugraph
 // This will remove duplicate along with sorting
 // This will sort the COO Matrix, row will be sorted and each column of same row will be sorted. 
     template<typename IndexType, typename ValueType, typename SizeT>
-    void remove_duplicate(IndexType* src, IndexType* dest, ValueType* val, SizeT &nnz)
-                                                {
-        //RMM:
-        //
-        cudaStream_t stream { nullptr };
-        rmm_temp_allocator allocator(stream);
-        if (val != NULL)
-                {
-            thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream),
+    void remove_duplicate(IndexType* src, IndexType* dest, ValueType* val, SizeT &nnz) {
+        auto stream = cudaStream_t{nullptr};
+        if (val != NULL) {
+            thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
                                        thrust::raw_pointer_cast(val),
                                        thrust::raw_pointer_cast(val) + nnz,
                                        thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src),
                                        thrust::raw_pointer_cast(dest))));
-            thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream),
+            thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
                                        thrust::raw_pointer_cast(dest),
                                        thrust::raw_pointer_cast(dest + nnz),
                                        thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src),
                                        thrust::raw_pointer_cast(val))));
-            thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream),
+            thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
                                        thrust::raw_pointer_cast(src),
                                        thrust::raw_pointer_cast(src + nnz),
                                        thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(dest),
@@ -464,7 +430,7 @@ namespace cugraph
             typedef thrust::zip_iterator<ZipIteratorTuple> ZipZipIterator;
 
             ZipZipIterator newEnd =
-                    thrust::unique(thrust::cuda::par(allocator).on(stream),
+                    thrust::unique(rmm::exec_policy(stream)->on(stream),
                                    thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src),
                                    thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(dest),
                                    thrust::raw_pointer_cast(val))))),
@@ -479,11 +445,11 @@ namespace cugraph
         }
         else
         {
-            thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream),
+            thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
                                        thrust::raw_pointer_cast(dest),
                                        thrust::raw_pointer_cast(dest + nnz),
                                        thrust::raw_pointer_cast(src));
-            thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream),
+            thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
                                        thrust::raw_pointer_cast(src),
                                        thrust::raw_pointer_cast(src + nnz),
                                        thrust::raw_pointer_cast(dest));
@@ -492,7 +458,7 @@ namespace cugraph
             typedef thrust::zip_iterator<IteratorTuple> ZipIterator;
 
             ZipIterator newEnd =
-                    thrust::unique(thrust::cuda::par(allocator).on(stream),
+                    thrust::unique(rmm::exec_policy(stream)->on(stream),
                                    thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src),
                                    thrust::raw_pointer_cast(dest))),
                                    thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src + nnz),

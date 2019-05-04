@@ -73,10 +73,8 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     // Sort source and destination columns by source
     //   Allocate local memory for operating on
     T* srcs{nullptr}, *dests{nullptr};
-    //RMM
-    //
-    cudaStream_t stream{nullptr};
-    rmm_temp_allocator allocator(stream);
+
+    auto stream = cudaStream_t{nullptr};
     
     ALLOC_MANAGED_TRY((void**)&srcs, sizeof(T) * nnz, stream);
     ALLOC_MANAGED_TRY((void**)&dests, sizeof(T) * nnz, stream);
@@ -88,14 +86,14 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     void* tmpStorage = nullptr;
     size_t tmpBytes = 0;
 
-    thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), dests, dests + nnz, srcs);
-    thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), srcs, srcs + nnz, dests);
+    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), dests, dests + nnz, srcs);
+    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), srcs, srcs + nnz, dests);
 
 	// Find max id (since this may be in the dests array but not the srcs array we need to check both)
     T maxId = -1;
     //   Max from srcs after sorting is just the last element
     CUDA_TRY(cudaMemcpy(&maxId, &(srcs[nnz-1]), sizeof(T), cudaMemcpyDefault));
-    auto maxId_it = thrust::max_element(thrust::cuda::par(allocator).on(stream), dests, dests + nnz);
+    auto maxId_it = thrust::max_element(rmm::exec_policy(stream)->on(stream), dests, dests + nnz);
     T maxId2;
     CUDA_TRY(cudaMemcpy(&maxId2, maxId_it, sizeof(T), cudaMemcpyDefault));
     maxId = maxId > maxId2 ? maxId : maxId2;
@@ -128,7 +126,7 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, result.rowOffsets);
 
     // Scan offsets to get final offsets
-    thrust::exclusive_scan(thrust::cuda::par(allocator).on(stream), result.rowOffsets, result.rowOffsets + maxId + 2, result.rowOffsets);
+    thrust::exclusive_scan(rmm::exec_policy(stream)->on(stream), result.rowOffsets, result.rowOffsets + maxId + 2, result.rowOffsets);
 
     // Clean up temporary allocations
     result.nnz = nnz;
@@ -149,10 +147,8 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     T* dests{nullptr};
     W* weights{nullptr};
     
-    //RMM:
-    //
-    cudaStream_t stream{nullptr};
-    rmm_temp_allocator allocator(stream);
+    auto stream = cudaStream_t{nullptr};
+
     ALLOC_MANAGED_TRY((void**)&srcs, sizeof(T) * nnz, stream);
     ALLOC_MANAGED_TRY((void**)&dests, sizeof(T) * nnz, stream);
     ALLOC_MANAGED_TRY((void**)&weights, sizeof(W) * nnz, stream);
@@ -161,14 +157,14 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     CUDA_TRY(cudaMemcpy(weights, edgeWeights, sizeof(W) * nnz, cudaMemcpyDefault));
 
     // Call Thrust::sort_by_key to sort the arrays with srcs as keys:
-    thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), dests, dests + nnz, thrust::make_zip_iterator(thrust::make_tuple(srcs, weights)));
-    thrust::stable_sort_by_key(thrust::cuda::par(allocator).on(stream), srcs, srcs + nnz, thrust::make_zip_iterator(thrust::make_tuple(dests, weights)));
+    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), dests, dests + nnz, thrust::make_zip_iterator(thrust::make_tuple(srcs, weights)));
+    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), srcs, srcs + nnz, thrust::make_zip_iterator(thrust::make_tuple(dests, weights)));
 
 	// Find max id (since this may be in the dests array but not the srcs array we need to check both)
     T maxId = -1;
     //   Max from srcs after sorting is just the last element
     CUDA_TRY(cudaMemcpy(&maxId, &(srcs[nnz-1]), sizeof(T), cudaMemcpyDefault));
-    auto maxId_it = thrust::max_element(thrust::cuda::par(allocator).on(stream), dests, dests + nnz);
+    auto maxId_it = thrust::max_element(rmm::exec_policy(stream)->on(stream), dests, dests + nnz);
     //   Max from dests requires a scan to find
     T maxId2;
     CUDA_TRY(cudaMemcpy(&maxId2, maxId_it, sizeof(T), cudaMemcpyDefault));
@@ -206,7 +202,7 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, result.rowOffsets);
 
     // Scan offsets to get final offsets
-    thrust::exclusive_scan(thrust::cuda::par(allocator).on(stream), result.rowOffsets, result.rowOffsets + maxId + 2, result.rowOffsets);
+    thrust::exclusive_scan(rmm::exec_policy(stream)->on(stream), result.rowOffsets, result.rowOffsets + maxId + 2, result.rowOffsets);
 
     // Clean up temporary allocations
     result.nnz = nnz;

@@ -599,10 +599,9 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
       value_ptr = graph->adjList->edge_data->data;
   }
   else {
-      cudaStream_t stream { nullptr };
-      rmm_temp_allocator allocator(stream);
+      auto stream = cudaStream_t{nullptr};
       d_values.resize(graph->adjList->indices->size);
-      thrust::fill(thrust::cuda::par(allocator).on(stream), d_values.begin(), d_values.end(), 1.0);
+      thrust::fill(rmm::exec_policy(stream)->on(stream), d_values.begin(), d_values.end(), 1.0);
       value_ptr = (void * ) thrust::raw_pointer_cast(d_values.data());
   }
 
