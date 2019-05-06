@@ -52,7 +52,7 @@
 - PR #249 Fix oudated cuDF version in gpu/build.shi
 - PR #262 Removed networkx conda dependency for both build and runtime
 - PR #271 Removed nvgraph conda dependency
-
+- PR #276 Removed libgdf_cffi import from bindings
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
