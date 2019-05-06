@@ -27,12 +27,10 @@ requirements:
     - cmake>=3.12.4
     - libcudf=0.7*
     - cython
-    - nvgraph
     - cudatoolkit {{ cuda_version }}.*
   run:
     - libcudf=0.7*
     - cython
-    - nvgraph
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
 
 #test:
