@@ -28,7 +28,6 @@
 - PR #267 Use latest release version in update-version CI script
 - PR #270 Updated the README.md and CONTRIBUTING.md files
 
-
 ## Bug Fixes
 - PR #256 Add pip to the install, clean up conda instructions
 - PR #253 Add rmm to conda configuration
@@ -53,6 +52,7 @@
 - PR #262 Removed networkx conda dependency for both build and runtime
 - PR #271 Removed nvgraph conda dependency
 - PR #276 Removed libgdf_cffi import from bindings
+- PR #279 Drop nvgraph info in readme
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
