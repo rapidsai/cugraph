@@ -50,10 +50,6 @@ The RAPIDS suite of open source software libraries aim to enable execution of en
 
 <p align="center"><img src="img/rapids_arrow.png" width="80%"/></p>
 
-## nvGraph
-
-The nvGraph library is now open source and part of cuGraph. It can be build as a stand alone by following nvgraph's [readme](cpp/nvgraph/). 
-
 ### Apache Arrow on GPU
 
 The GPU version of [Apache Arrow](https://arrow.apache.org/) is a common API that enables efficient interchange of tabular data between processes running on the GPU. End-to-end computation on the GPU avoids unnecessary copying and converting of data off the GPU, reducing compute time and cost for high-performance analytics common in artificial intelligence workloads. As the name implies, cuDF uses the Apache Arrow columnar data format on the GPU. Currently, a subset of the features in Apache Arrow are supported.
