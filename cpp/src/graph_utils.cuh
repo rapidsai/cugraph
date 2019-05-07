@@ -308,15 +308,15 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 //google matrix kernels
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	degree_coo(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
+	degree_coo(const size_t n, const size_t e, const IndexType *ind, IndexType *degree) {
 		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
 			atomicAdd(&degree[ind[i]], 1.0);
 	}
 
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	flag_leafs_kernel(const IndexType n, IndexType *degree, ValueType *bookmark) {
-		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
+	flag_leafs_kernel(const size_t n, const IndexType *degree, ValueType *bookmark) {
+		for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
 			if (degree[i] == 0)
 				bookmark[i] = 1.0;
 	}

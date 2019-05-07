@@ -26,9 +26,11 @@
 //#define SNMG_VERBOSE
 
 
-typedef struct MGSpmv_Usecase_t {
+typedef struct MGPagerank_Usecase_t {
   std::string matrix_file;
-  MGSpmv_Usecase_t(const std::string& a) {
+  std::string result_file;
+
+  MGPagerank_Usecase_t(const std::string& a, const std::string& b) {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // if RAPIDS_DATASET_ROOT_DIR not set, default to "/datasets"
     const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
@@ -37,26 +39,66 @@ typedef struct MGSpmv_Usecase_t {
     } else {
       matrix_file = a;
     }
+    if ((b != "") && (b[0] != '/')) {
+      result_file = rapidsDatasetRootDir + "/" + b;
+    } else {
+      result_file = b;
+    }
   }
-  MGSpmv_Usecase_t& operator=(const MGSpmv_Usecase_t& rhs) {
+  MGPagerank_Usecase_t& operator=(const MGPagerank_Usecase_t& rhs) {
     matrix_file = rhs.matrix_file;
+    result_file = rhs.result_file;
     return *this;
   }
-} MGSpmv_Usecase;
+} MGPagerank_Usecase;
 
-class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
+class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
   public:
-  Tests_MGSpmv() {  }
+  Tests_MGPagerank() {  }
   static void SetupTestCase() {  }
   static void TearDownTestCase() { }
   virtual void SetUp() {  }
   virtual void TearDown() {  }
 
-  static std::vector<double> mgspmv_time;   
-
-
+  static std::vector<double> mgpr_time;   
+  template <typename val_t>
+  void verify_pr(gdf_column* col_pagerank, const MGPagerank_Usecase& param){
+    // Check vs golden data
+    if (param.result_file.length()>0)
+    {
+      int m = col_pagerank->size;
+      std::vector<val_t> calculated_res(m);
+      CUDA_RT_CALL(cudaMemcpy(&calculated_res[0],   col_pagerank->data, sizeof(val_t) * m, cudaMemcpyDeviceToHost));
+      std::sort(calculated_res.begin(), calculated_res.end());
+      FILE* fpin = fopen(param.result_file.c_str(),"rb");
+      ASSERT_TRUE(fpin != NULL) << " Cannot read file with reference data: " << param.result_file << std::endl;
+      std::vector<val_t> expected_res(m);
+      ASSERT_EQ(read_binary_vector(fpin, m, expected_res), 0);
+      fclose(fpin);
+      val_t err;
+      int n_err = 0;
+      for (int i = 0; i < m; i++) {
+          //if(i > (m-10))
+          //  std::cout << expected_res[i] << " " << calculated_res[i] <<std::endl;
+          err = fabs(expected_res[i] - calculated_res[i]);
+          if (err> 1e-6*1.1)
+          {
+              n_err++;
+          }
+      }
+      if (n_err) {
+          //EXPECT_NEAR(tot_err/n_err, cugraph_Const<T>::tol, cugraph_Const<T>::tol*9.99); // Network x used n*1e-10 for precision
+          EXPECT_LE(n_err, 0.001*m); // we tolerate 0.1% of values with a litte difference
+          //printf("number of incorrect entries: %d\n", n_err);
+          //if (n_err > 0.001*m)
+          //{
+          //  eq(calculated_res,expected_res);
+          //}
+      }
+    }
+  }
   template <typename idx_t,typename val_t>
-  void run_current_test(const MGSpmv_Usecase& param) {
+  void run_current_test(const MGPagerank_Usecase& param) {
      const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
@@ -124,21 +166,20 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
                      col_off, col_ind, col_val);
         //printv(col_val->size,(float*)col_val->data,0);
         t = omp_get_wtime();
-        SNMGpagerank pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
+        cugraph::SNMGinfo env;
+        cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
         pr_solver.setup(alpha);
-        pr_solver.solve(static_cast<val_t*>col_pagerank->data);
+
+        val_t* pagerank[p];
+        for (auto i = 0; i < p; ++i)
+          pagerank[i]= static_cast<val_t*>(col_pagerank[i]->data);
+
+        pr_solver.solve(max_iter, pagerank);
         EXPECT_EQ(status,0);
         #pragma omp master 
-          {std::cout <<  omp_get_wtime() - t << " ";}
+        {std::cout <<  omp_get_wtime() - t << " ";}
 
-        #pragma omp master 
-        { 
-          //printv(m, (val_t *)col_pagerank[0]->data, 0);
-          CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_pagerank[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
-
-          for (auto j = 0; j < y_h.size(); ++j)
-            EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
-        }
+        verify_pr<val_t>(col_pagerank[i], param);
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -153,22 +194,21 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
 };
  
 
-TEST_P(Tests_MGSpmv, CheckFP32_mtx) {
+TEST_P(Tests_MGPagerank, CheckFP32_mtx) {
     run_current_test<int, float>(GetParam());
 }
-TEST_P(Tests_MGSpmv, CheckFP64) {
+TEST_P(Tests_MGPagerank, CheckFP64) {
     run_current_test<int,double>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv, 
-                        ::testing::Values(   MGSpmv_Usecase("test/datasets/karate.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/netscience.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/cit-Patents.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/webbase-1M.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/web-Google.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/wiki-Talk.mtx")
-                                            //,MGSpmv_Usecase("test/datasets/ljournal-2008.mtx")
-                                            //,MGSpmv_Usecase("test/datasets/twitter.mtx")
+INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
+                        ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
+                                            ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
                                          )
                        );
 

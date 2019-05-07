@@ -30,11 +30,11 @@ namespace cugraph
 
   template<typename IndexType, typename ValueType>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-transition_kernel(const IndexType e,
+transition_kernel(const size_t e,
                   const IndexType *ind,
-                  IndexType *degree,
+                  const IndexType *degree,
                   ValueType *val) {
-  for (int i = threadIdx.x + blockIdx.x * blockDim.x; 
+  for (auto i = threadIdx.x + blockIdx.x * blockDim.x; 
        i < e; 
        i += gridDim.x * blockDim.x)
     val[i] = 1.0 / degree[ind[i]];
@@ -104,19 +104,23 @@ class SNMGpagerank
       int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
       flag_leafs_kernel<IndexType, ValueType> <<<blocks, threads>>> (v_glob, degree, bookmark);
       cudaCheckError();
-    }    // compute degree and tansition matrix 
-    
+    }    
+
+
     // set val and bookmark
     void setup(ValueType _alpha) {
       if (!is_setup) {
         alpha=_alpha;
-        ValueType zero = 0.0, one = 1.0;
-        ValueType randomProbability =  one/v_glob;
+        ValueType zero = 0.0; //, one = 1.0;
+        //ValueType randomProbability =  one/v_glob;
         IndexType *degree;
-        ALLOC_MANAGED_TRY ((void**)&degree,   sizeof(ValueType) * v_glob, stream);
+        ALLOC_MANAGED_TRY ((void**)&degree,   sizeof(IndexType) * v_glob, stream);
         
-        // TODO degree
-
+        // TODO snmg degree
+        int nthreads = min(static_cast<IndexType>(e_loc), 256);
+        int nblocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
+        degree_coo<IndexType, ValueType><<<nblocks, nthreads>>>(v_glob, e_loc, ind, degree);
+        
         // Update dangling node vector
         fill(v_glob, bookmark, zero);
         flag_leafs(degree);
@@ -142,7 +146,7 @@ class SNMGpagerank
         fill(v_glob, pagerank[id], one/v_glob);
         dot_res = dot( v_glob, bookmark, pr);
         SNMGcsrmv<IndexType,ValueType> spmv_solver(env, part_off, off, ind, val, pagerank);
-        for (int i = 0; i < max_iter; ++i) {
+        for (auto i = 0; i < max_iter; ++i) {
           spmv_solver.run(pagerank);
           scal(v_glob, alpha, pr);
           addv(v_glob, dot_res * (one/v_glob) , pr);
