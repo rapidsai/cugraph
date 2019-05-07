@@ -16,7 +16,6 @@ from c_graph cimport *
 from libc.stdint cimport uintptr_t
 
 import cudf
-from libgdf_cffi import libgdf
 from librmm_cffi import librmm as rmm
 
 cpdef triangles(input_graph):
