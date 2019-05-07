@@ -134,7 +134,7 @@ class SNMGpagerank
     }
 
     // run the power iteration on the google matrix
-    void solve (float tolerance, int max_iter, ValueType ** pagerank) {
+    void solve (int max_iter, ValueType ** pagerank) {
       if (is_setup) {
         ValueType  dot_res;
         ValueType one = 1.0;
