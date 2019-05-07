@@ -19,6 +19,9 @@
  
 #pragma once
 #include <omp.h>
+#include <rmm_utils.h>
+#include <thrust/transform.h>
+#include <thrust/execution_policy.h>
 
 namespace cugraph
 {
@@ -74,6 +77,44 @@ gdf_error allgather (size_t* offset, val_t* x_loc, val_t ** x_glob) {
   sync_all();
 
   return GDF_SUCCESS;
+}
+
+/**
+ * @tparam val_t The value type
+ * @tparam func_t The reduce functor type
+ * @param length The length of each array being combined
+ * @param x_loc Pointer to the local array
+ * @param x_glob Pointer to global array pointers
+ * @return Error code
+ */
+template <typename val_t, typename func_t>
+gdf_error binaryReduce(size_t length, val_t* x_loc, val_t** x_glob){
+  auto i = omp_get_thread_num();
+  auto p = omp_get_num_threads();
+  GDF_TRY(setup_peer_access());
+  int rank = 1;
+  while(rank * 2 < p * 2){
+    // Copy local data to the receiver's global buffer
+    if((i - rank) % (rank * 2) == 0){
+      int receiver = i - rank;
+      cudaMemcpyPeer(x_glob[receiver], receiver, x_loc, i, length*sizeof(val_t));
+    }
+    // cudaMemcpyPeer synchronizes with all work on both devices so no sync required here
+    // Reduce the data from the receiver's global buffer with its local one
+    if(i % (rank * 2) == 0 && i + rank < size){
+      rmm_temp_allocator allocator(nullptr);
+      func_t op;
+      thrust::transform(thrust::cuda::par(allocator).on(nullptr),
+                        x_glob[i],
+                        x_glob[i] + length,
+                        x_loc,
+                        x_loc,
+                        op);
+    }
+    rank *= 2;
+  }
+  // Sync everything before returning
+  sync_all();
 }
 
 void print_mem_usage()
