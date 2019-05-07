@@ -114,6 +114,51 @@ class Graph:
         free(g)
 
     def renumber(self, source_col, dest_col):
+        """
+        Take a (potentially sparse) set of source and destination vertex
+        ids and renumber the vertices to create a dense set of vertex ids
+        using all values contiguously from 0 to the number of unique vertices
+        - 1.
+
+        Input columns can be either int64 or int32.  The output will be mapped
+        to int32, since many of the cugraph functions are limited to int32.
+        If the number of unique values in source_col and dest_col > 2^31-1
+        then this function will return an error.
+
+        Return from this call will be three cudf Series - the renumbered
+        source_col, the renumbered dest_col and a numbering map that maps the
+        new ids to the original ids.
+
+        Parameters
+        ----------
+        source_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the source index for each edge.
+            Source indices must be an integer type.
+        dest_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices must be an integer type.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import pytest
+        >>> from scipy.io import mmread
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>>
+        >>>
+        >>> mm_file = '../datasets/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> sources = cudf.Series(M.row)
+        >>> destinations = cudf.Series(M.col)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> src_r, dst_r, numbering = G.renumber(sources, destinations)
+        """
+
         cdef gdf_column src_renumbered
         cdef gdf_column dst_renumbered
         cdef gdf_column numbering_map
