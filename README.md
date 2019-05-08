@@ -75,10 +75,6 @@ There are 4 ways to get cuGraph :
 
 
 
-Building from source is currently the only viable option. Once version 0.6 is release, the other options will be available.  
-
-
-
 <a name="quick"></a>
 
 ## Quick Start  
