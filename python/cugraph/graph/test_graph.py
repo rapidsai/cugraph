@@ -16,9 +16,11 @@ import pytest
 from scipy.io import mmread
 import cugraph
 import cudf
+'''
 import socket
 import struct
 import pandas as pd
+'''
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
