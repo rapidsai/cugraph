@@ -237,6 +237,7 @@ add_library(cugraph SHARED
     src/overlap.cu
     src/nvgraph_gdf.cu
     src/two_hop_neighbors.cu
+    src/structure/cugraph.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
