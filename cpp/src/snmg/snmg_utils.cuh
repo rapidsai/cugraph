@@ -88,18 +88,21 @@ gdf_error allgather (size_t* offset, val_t* x_loc, val_t ** x_glob) {
  * @return Error code
  */
 template <typename val_t, typename func_t>
-gdf_error binaryReduce(size_t length, val_t* x_loc, val_t** x_glob){
+gdf_error treeReduce(size_t length, val_t* x_loc, val_t** x_glob){
   auto i = omp_get_thread_num();
   auto p = omp_get_num_threads();
   GDF_TRY(setup_peer_access());
   int rank = 1;
-  while(rank * 2 < p * 2){
+  while(rank < p){
     // Copy local data to the receiver's global buffer
     if((i - rank) % (rank * 2) == 0){
       int receiver = i - rank;
       cudaMemcpyPeer(x_glob[receiver], receiver, x_loc, i, length*sizeof(val_t));
     }
-    // cudaMemcpyPeer synchronizes with all work on both devices so no sync required here
+    // cudaMemcpyPeer synchronizes with all work on both devices but we do need to ensure that
+    // none of the reduction transforms are issued before copies are:
+    #pragma omp_barrier
+
     // Reduce the data from the receiver's global buffer with its local one
     if(i % (rank * 2) == 0 && i + rank < size){
       rmm_temp_allocator allocator(nullptr);
@@ -113,8 +116,43 @@ gdf_error binaryReduce(size_t length, val_t* x_loc, val_t** x_glob){
     }
     rank *= 2;
   }
+
+  // Thread 0 copies it's local result into it's global space
+  if (i == 0)
+    cudaMemcpy(x_glob[i], x_loc, sizeof(val_t) * length, cudaMemcpyDefault);
+
   // Sync everything before returning
   sync_all();
+
+  return GDF_SUCCESS;
+}
+
+/**
+ * @tparam val_t The value type
+ * @param length The length of the array being broadcast
+ * @param x_loc The local array for each node
+ * @param x_glob Pointer to the global array pointers
+ * @return Error code
+ */
+template <typename val_t>
+gdf_error treeBroadcast(size_t length, val_t* x_loc, val_t** x_glob){
+  auto i = omp_get_thread_num();
+  auto p = omp_get_num_threads();
+  GDF_TRY(setup_peer_access());
+  int rank = 1;
+  while(rank * 2 < p)
+    rank *= 2;
+  for(; rank >= 1; rank /= 2){
+    if(i % (rank * 2) == 0 and i + rank < size){
+      int receiver = i + rank;
+      cudaMemcpyPeer(x_glob[receiver], receiver, x_glob[i], i, sizeof(val_t) * length);
+    }
+  }
+
+  // Sync everything before returning
+  sync_all();
+
+  return GDF_SUCCESS;
 }
 
 void print_mem_usage()
