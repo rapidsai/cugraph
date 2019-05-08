@@ -81,7 +81,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
           //if(i > (m-10))
           //  std::cout << expected_res[i] << " " << calculated_res[i] <<std::endl;
           err = fabs(expected_res[i] - calculated_res[i]);
-          if (err> 1e-6*1.1)
+          if (err> 1e-5)
           {
               n_err++;
           }
@@ -125,15 +125,14 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
      ASSERT_EQ( (mm_to_coo<int,val_t>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], NULL, NULL)) , 0)<< "could not read matrix data"<< "\n";
      ASSERT_EQ(fclose(fpin),0);
      //ASSERT_EQ( (coo_to_csr<int,val_t> (m, m, nnz, &cooRowInd[0],  &cooColInd[0], NULL, NULL, &csrRowPtr[0], NULL, NULL, NULL)), 0) << "could not covert COO to CSR "<< "\n";
-     coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
+     
+     // WARNING transpose happening here
+     coo2csr(cooColInd, cooRowInd, csrRowPtr, csrColInd);
 
      CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
      std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
      random_vals(csrVal);
      gdf_column *col_pagerank[n_gpus];
-     //reference result
-     t = omp_get_wtime();
-     std::cout <<  omp_get_wtime() - t << " ";
 
      if (nnz<1200000000)
      {
@@ -160,7 +159,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
         #pragma omp barrier
 
         //load a chunck of the graph on each GPU 
-        load_csr_loc(csrRowPtr, cooColInd, csrVal, 
+        load_csr_loc(csrRowPtr, csrColInd, csrVal, 
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         //printv(col_val->size,(float*)col_val->data,0);
@@ -202,11 +201,11 @@ TEST_P(Tests_MGPagerank, CheckFP64) {
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
                         ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
                                          )
                        );
 

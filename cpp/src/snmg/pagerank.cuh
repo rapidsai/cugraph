@@ -128,7 +128,7 @@ class SNMGpagerank
 
         // Transition matrix
         transition_vals(degree);
-
+//printv(v_glob,degree,0);
         ALLOC_FREE_TRY(degree, stream);
 
         is_setup = true;
@@ -140,6 +140,11 @@ class SNMGpagerank
     // run the power iteration on the google matrix
     void solve (int max_iter, ValueType ** pagerank) {
       if (is_setup) {
+
+//printv(e_loc,val,0);
+//printv(v_glob,bookmark,0);
+   
+
         ValueType  dot_res;
         ValueType one = 1.0;
         ValueType *pr = pagerank[id];
