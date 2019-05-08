@@ -8,7 +8,7 @@
 - PR #210 Expose degree calculation kernel via python API
 - PR #220 Added bindings for Nvgraph triangle counting
 - PR #234 Added bindings for renumbering, modify renumbering to use RMM
-
+- PR #250 Add local build script to mimic gpuCI
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
@@ -20,8 +20,12 @@
 - PR #203 Added small datasets directly in the repo 
 - PR #215 Simplified get_rapids_dataset_root_dir(), set a default value for the root dir
 - PR #233 Added csv datasets and edited test to use cudf for reading graphs
+- PR #247 Added some documentation for renumbering
+- PR #252 cpp test upgrades for more convenient testing on large input
 
 ## Bug Fixes
+- PR #256 Add pip to the install, clean up conda instructions
+- PR #253 Add rmm to conda configuration
 - PR #226 Bump cudf dependencies to 0.7
 - PR #169 Disable terminal output in sssp
 - PR #191 Fix double upload bug
@@ -39,6 +43,7 @@
 - PR #236 Fixed issue with v0.7 nightly yml environment file.  Also updated the README to remove pip
 - PR #239 Added a check to prevent a cugraph object to store two different graphs.
 - PR #244 Fixed issue with nvgraph's subgraph extraction if the first vertex in the vertex list is not incident on an edge in the extracted graph
+- PR #249 Fix oudated cuDF version in gpu/build.sh
 
 
 # cuGraph 0.6.0 (22 Mar 2019)

@@ -25,12 +25,12 @@ build:
 requirements:
   build:
     - cmake>=3.12.4
-    - libcudf=0.7*
+    - libcudf=0.8*
     - networkx
     - cython
     - nvgraph
   run:
-    - libcudf=0.7*
+    - libcudf=0.8*
     - networkx
     - cython
     - nvgraph

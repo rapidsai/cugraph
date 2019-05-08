@@ -18,8 +18,8 @@
 /* ----------------------------------------------------------------------------*/
 
 /**
- * @Synopsis Renumber source and destination indexes to be a dense numbering
- *           between 0 and number of vertices minus 1.
+ * @Synopsis Renumber source and destination indexes to be a dense numbering,
+ *           using contiguous values between 0 and number of vertices minus 1.
  *
  *    Assumptions:
  *       * source and dest have same size and type

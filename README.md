@@ -45,10 +45,10 @@ Install and update cuGraph using the conda command:
 
 ```bash
 # CUDA 9.2
-conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=9.2
 
 # CUDA 10.0
-conda install -c nvidia/label/cuda10.0 -c rapidsai/label/cuda10.0 -c numba -c conda-forge -c defaults cugraph
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.0
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
@@ -126,7 +126,6 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 
 2) Create the conda development environment 
 
-​	A)   Building the `master` branch uses the `cugraph_dev` environment
 
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
@@ -142,22 +141,6 @@ conda activate cugraph_dev
 # to deactivate an environment
 conda deactivate
 ```
-
-
-
-​	B) Create the conda development environment `cugraph_nightly`  
-
-If you are  on the latest development branch then you must use the `cugraph_nightly` environment.  The latest cuGraph code uses the latest cuDF features that might not yet be in the master branch.  To work off of the latest development branch, which could be unstable, use the nightly build environment.  
-
-```bash
-# create the conda environment (assuming in base `cugraph` directory)
-conda env create --name cugraph_nightly --file conda/environments/cugraph_nightly.yml
-
-# activate the environment
-conda activate cugraph_nightly 
-
-```
-
 
 
 
@@ -218,7 +201,15 @@ python setup.py install    # install cugraph python bindings
 
 #### Run tests
 
-6. Run either the standalone tests or the Python tests with datasets
+6. Run either the C++ or the Python tests with datasets
+
+  - **Python tests with datasets** 
+
+    ```bash
+    cd $CUGRAPH_HOME
+    cd python
+    pytest  
+    ```
   - **C++ stand alone tests** 
 
     From the build directory : 
@@ -229,15 +220,29 @@ python setup.py install    # install cugraph python bindings
     cd cpp/build
     gtests/GDFGRAPH_TEST		# this is an executable file
     ```
-
-  - **Python tests with datasets** 
-
-    ```bash
-    cd $CUGRAPH_HOME
-    cd python
-    pytest  
-    ```
-
+ - **C++ tests with larger datasets**
+   
+   If you already have the datasets:
+  
+   ```bash
+   export RAPIDS_DATASET_ROOT_DIR=<path_to_ccp_test_and_reference_data>
+   ```
+   If you do not have the datasets:
+   
+   ```bash
+   cd $CUGRAPH_HOME/datasets
+   source get_test_data.sh #This takes about 10 minutes and download 1GB data (>5 GB uncompressed)
+   ```
+   
+   Run the C++ tests on large input:
+  
+   ```bash
+   cd $CUGRAPH_HOME/cpp/build
+   #test one particular analytics (eg. pagerank)
+   gtests/PAGERANK_TEST
+   #test everything
+   make test
+   ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
@@ -323,3 +328,4 @@ The RAPIDS suite of open source software libraries aim to enable execution of en
 ### Apache Arrow on GPU
 
 The GPU version of [Apache Arrow](https://arrow.apache.org/) is a common API that enables efficient interchange of tabular data between processes running on the GPU. End-to-end computation on the GPU avoids unnecessary copying and converting of data off the GPU, reducing compute time and cost for high-performance analytics common in artificial intelligence workloads. As the name implies, cuDF uses the Apache Arrow columnar data format on the GPU. Currently, a subset of the features in Apache Arrow are supported.
+
