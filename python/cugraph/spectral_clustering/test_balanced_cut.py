@@ -25,6 +25,12 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float64'], header=None)
+
+
 def cugraph_call(G, partitions):
     df = cugraph.spectralBalancedCutClustering(G, partitions,
                                                num_eigen_vects=partitions)
@@ -34,7 +40,7 @@ def cugraph_call(G, partitions):
 
 def random_call(G, partitions):
     random.seed(0)
-    num_verts = G.num_vertices()
+    num_verts = G.number_of_vertices()
     assignment = []
     for i in range(num_verts):
         assignment.append(random.randint(0, partitions-1))
@@ -44,9 +50,9 @@ def random_call(G, partitions):
 
 
 DATASETS = [
-    '../datasets/karate.mtx',
-    '../datasets/dolphins.mtx',
-    '../datasets/netscience.mtx']
+    '../datasets/karate',
+    '../datasets/dolphins',
+    '../datasets/netscience']
 PARTITIONS = [2, 4, 8]
 
 
@@ -54,13 +60,14 @@ PARTITIONS = [2, 4, 8]
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):
     # Read in the graph and get a cugraph object
-    M = read_mtx_file(graph_file).tocsr()
+    M = read_mtx_file(graph_file+'.mtx').tocsr()
+    cu_M = read_csv_file(graph_file+'.csv')
+
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
 
-    M = M.tocoo()
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
+    sources = cu_M['0']
+    destinations = cu_M['1']
 
     G_adj = cugraph.Graph()
     G_adj.add_adj_list(row_offsets, col_indices)
@@ -89,6 +96,8 @@ def test_modularity_clustering(graph_file, partitions):
 def test_modularity_clustering_with_edgevals(graph_file, partitions):
     # Read in the graph and get a cugraph object
     M = read_mtx_file(graph_file).tocsr()
+    cu_M = read_csv_file(graph_file+'.csv')
+
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     val = cudf.Series(M.data)
@@ -96,10 +105,9 @@ def test_modularity_clustering_with_edgevals(graph_file, partitions):
     G_adj = cugraph.Graph()
     G_adj.add_adj_list(row_offsets, col_indices, val)
 
-    M = M.tocoo()
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
-    values = cudf.Series(M.data)
+    sources = cu_M['0']
+    destinations = cu_M['1']
+    values = cu_M['2']
 
     G_edge = cugraph.Graph()
     G_edge.add_edge_list(sources, destinations, values)

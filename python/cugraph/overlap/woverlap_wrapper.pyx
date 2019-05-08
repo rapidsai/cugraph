@@ -16,7 +16,6 @@ from c_graph cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 import cudf
-from libgdf_cffi import libgdf
 from librmm_cffi import librmm as rmm
 import numpy as np
 from numpy.core.numeric import result_type
@@ -86,8 +85,8 @@ cpdef overlap_w(input_graph, weights, first=None, second=None):
     cdef gdf_column c_index_col
 
     if type(first) == cudf.dataframe.series.Series and type(second) == cudf.dataframe.series.Series:
-        resultSize = len(first)
-        result = cudf.Series(np.ones(resultSize, dtype=np.float32))
+        result_size = len(first)
+        result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
         c_weight_col = get_gdf_column_view(weights)
         c_first_col = get_gdf_column_view(first)
@@ -105,8 +104,8 @@ cpdef overlap_w(input_graph, weights, first=None, second=None):
         return df
 
     elif first is None and second is None:
-        resultSize = g.adjList.indices.size
-        result = cudf.Series(np.ones(resultSize, dtype=np.float32))
+        num_edges = input_graph.number_of_edges()
+        result = cudf.Series(np.ones(num_edges, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
         c_weight_col = get_gdf_column_view(weights)
 
@@ -114,10 +113,10 @@ cpdef overlap_w(input_graph, weights, first=None, second=None):
         cudf.bindings.cudf_cpp.check_gdf_error(err)
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
-                                            nelem=resultSize,
+                                            nelem=num_edges,
                                             dtype=gdf_to_np_dtypes[g.adjList.indices.dtype])
         df = cudf.DataFrame()
-        df['source'] = cudf.Series(np.zeros(resultSize, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
+        df['source'] = cudf.Series(np.zeros(num_edges, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
         c_index_col = get_gdf_column_view(df['source']) 
         err = g.adjList.get_source_indices(&c_index_col);
         cudf.bindings.cudf_cpp.check_gdf_error(err)

@@ -15,6 +15,36 @@
  */
 #pragma once 
 
+/* ----------------------------------------------------------------------------*/
+
+/**
+ * @Synopsis Renumber source and destination indexes to be a dense numbering,
+ *           using contiguous values between 0 and number of vertices minus 1.
+ *
+ *    Assumptions:
+ *       * source and dest have same size and type
+ *       * source and dest are either GDF_INT32 or GDF_INT64
+ *       * source and dest have a size greater than 0
+ *
+ *    Note that this function allocates memory for the src_renumbered,
+ *    dst_renumbered and numbering_map arrays.
+ *
+ *  @Param[in]  src - the original source vertices
+ *  @Param[in]  dst - the original dest vertices
+ *  @Param[out] src_renumbered - the renumbered source vertices.  This array
+ *                               will be a GDF_INT32 array.
+ *  @Param[out] dst_renumbered - the renumbered dest vertices.  This array
+ *                               will be a GDF_INT32 array.
+ *  @Param[out] numbering_map - mapping of new vertex ids to old vertex ids.
+ *                              This array will match the type of src/dst input.
+ *
+ *  @Returns    GDF_SUCCESS on success, an error code on failure.
+ *              GDF_COLUMN_SIZE_TOO_BIG if the number of unique vertices is > 2^31-1.
+ */
+gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
+				gdf_column *src_renumbered, gdf_column *dst_renumbered,
+				gdf_column *numbering_map);
+
 /**
  * @Synopsis   Wrap existing gdf columns representing an edge list in a gdf_graph.
  *             cuGRAPH does not own the memory used to represent this graph. This function does not allocate memory.
@@ -134,35 +164,38 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph);
 gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph);
 
 /**
- * @Synopsis Find pairs of vertices in the input graph such that each pair is connected by
- *  a path that is two hops in length.
- * @param graph The input graph
- * @param first An uninitialized gdf_column which will be initialized to contain the
- * first entry of each result pair.
- * @param second An uninitialized gdf_column which will be initialized to contain the
- * second entry of each result pair.
- * @return GDF_SUCCESS upon successful completion. 
+ * @Synopsis   Find pairs of vertices in the input graph such that each pair is connected by
+ *             a path that is two hops in length.
+ *
+ * @param[in] *graph                 in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
+ *
+ * @param[out] first                 out : An uninitialized gdf_column which will be initialized to contain the
+ *                                         first entry of each result pair.
+ * @param[out] second                out : An uninitialized gdf_column which will be initialized to contain the
+ *                                         second entry of each result pair.
+ *
+ * @return                           GDF_SUCCESS upon successful completion. 
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
 
 /**
  * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
- 			   Should be called in an omp parallel section with one thread per device.
- 			   Each device is expected to have a part of the matrix and a copy of the vector
-               This function is designed for 1D decomposition. Each partition should have local offsets.
+ *             Should be called in an omp parallel section with one thread per device.
+ *             Each device is expected to have a part of the matrix and a copy of the vector
+ *             This function is designed for 1D decomposition. Each partition should have local offsets.
  *
- * @Param[in] *part_offsets   Vertex offsets for each partition. This information should be available on all threads/devices 
- 							  part_off[device_id] contains the global ID of the first vertex of the partion owned by device_id. 
-                              part_off[num_devices] contains the global number of vertices
-                              
- * @Param[in] off             Local adjacency list offsets. Starting at 0. The last element contains the local number of edges owned by the partition.
- * @Param[in] ind             Local adjacency list indices. Indices are between 0 and the global number of edges. 
- * @Param[in] val             Local adjacency list values. Type should be float or double.
- * @Param[in][out] **x_col    x[device_id] contains the input vector of the spmv for a device_id. The input should be duplicated on all devices.
-                              Overwritten on output by the result of x = A*x, on all devices.
+ * @Param[in] *part_offsets          in  : Vertex offsets for each partition. This information should be available on all threads/devices
+ *                                         part_offsets[device_id] contains the global ID of the first vertex of the partion owned by device_id. 
+ *                                         part_offsets[num_devices] contains the global number of vertices
+ * @Param[in] off                    in  : Local adjacency list offsets. Starting at 0. The last element contains the local number of edges owned by the partition.
+ * @Param[in] ind                    in  : Local adjacency list indices. Indices are between 0 and the global number of edges. 
+ * @Param[in] val                    in  : Local adjacency list values. Type should be float or double.
  *
- * @Returns               GDF_SUCCESS upon successful completion.
+ * @Param[in, out] **x_col           in  : x[device_id] contains the input vector of the spmv for a device_id. The input should be duplicated on all devices.
+ *                                   out : Overwritten on output by the result of x = A*x, on all devices.
+ *
+ * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
@@ -170,16 +203,16 @@ gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * 
 /**
  * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a gdf_graph
  *
- * @Param[in] *graph                 graph descriptor with graph->transposedAdjList or graph->adjList present
- * @Param[in] x                      integer value indicating type of degree calculation
- *                                   0 : in+out degree
- *                                   1 : in-degree
- *                                   2 : out-degree
- * @Param[out] *degree               gdf_column of size V (V is number of vertices) initialized to zeros.
- *                                   Contains the computed degree of every vertex.
+ * @Param[in] *graph                 in  : graph descriptor with graph->transposedAdjList or graph->adjList present
+ * @Param[in] x                      in  : integer value indicating type of degree calculation
+ *                                         0 : in+out degree
+ *                                         1 : in-degree
+ *                                         2 : out-degree
+ *
+ * @Param[out] *degree               out : gdf_column of size V (V is number of vertices) initialized to zeros.
+ *                                         Contains the computed degree of every vertex.
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x);
-
