@@ -117,61 +117,6 @@ Python API documentation can be generated from [docs](docs) directory.
 
 
 
-## C++ ABI issues
-
-cuGraph builds with C++14 features.  By default, we build cuGraph with the latest ABI (the ABI changed with C++11).  The version of cuDF pointed to in the conda installation above is build with the new ABI.
-
-If you see link errors indicating trouble finding functions that use C++ strings when trying to build cuGraph you may have an ABI incompatibility.
-
-There are a couple of complications that may make this a problem:
-* if you need to link in a library built with the old ABI, you may need to build the entire tool chain from source using the old ABI.
-* if you build cudf from source (for whatever reason), the default behavior for cudf (at least through version 0.5.x) is to build using the old ABI.  You can build with the new ABI, but you need to follow the instructions in CUDF to explicitly turn that on.
-
-If you must build cugraph with the old ABI, you can use the following command (instead of the cmake call above):
-
-```bash
-cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX -DCMAKE_CXX11_ABI=OFF
-```
-
-
-
-### (OPTIONAL) Set environment variable on activation
-
-It is possible to configure the conda environment to set environmental variables on activation. Providing instructions to set PATH to include the CUDA toolkit bin directory and LD_LIBRARY_PATH to include the CUDA lib64 directory will be helpful.
-
-
-
-```bash
-cd  ~/anaconda3/envs/cugraph_dev
-
-mkdir -p ./etc/conda/activate.d
-mkdir -p ./etc/conda/deactivate.d
-touch ./etc/conda/activate.d/env_vars.sh
-touch ./etc/conda/deactivate.d/env_vars.sh
-```
-
-
-
-Next the env_vars.sh file needs to be edited
-
-```bash
-vi ./etc/conda/activate.d/env_vars.sh
-
-#!/bin/bash
-export PATH=/usr/local/cuda-10.0/bin:$PATH # or cuda-9.2 if using CUDA 9.2
-export LD_LIBRARY_PATH=/usr/local/cuda-10.0/lib64:$LD_LIBRARY_PATH # or cuda-9.2 if using CUDA 9.2
-```
-
-
-
-```
-vi ./etc/conda/deactivate.d/env_vars.sh
-
-#!/bin/bash
-unset PATH
-unset LD_LIBRARY_PATH
-```
-
 
 
 
