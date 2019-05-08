@@ -68,7 +68,7 @@ These limitations are being addressed and will be fixed future versions.
 
 ## Getting cuGraph
 ### Intro
-There are 4 ways to get cuGraph :
+There are 3 ways to get cuGraph :
 1. [Quick start with Docker Demo Repo](#quick)
 1. [Conda Installation](#conda)
 1. [Build from Source](#source)
@@ -134,4 +134,3 @@ The RAPIDS suite of open source software libraries aim to enable execution of en
 ### Apache Arrow on GPU
 
 The GPU version of [Apache Arrow](https://arrow.apache.org/) is a common API that enables efficient interchange of tabular data between processes running on the GPU. End-to-end computation on the GPU avoids unnecessary copying and converting of data off the GPU, reducing compute time and cost for high-performance analytics common in artificial intelligence workloads. As the name implies, cuDF uses the Apache Arrow columnar data format on the GPU. Currently, a subset of the features in Apache Arrow are supported.
-
