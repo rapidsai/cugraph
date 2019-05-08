@@ -98,6 +98,7 @@
 - PR #160 Added additional link directory to support building on CentOS-7
 - PR #221 Moved two_hop_neighbors.cuh to src folder to prevent it being installed
 - PR #223 Fixed compiler warning in cpp/src/cugraph.cu
+- PR #284 Commented out unit test code that fails due to a cudf bug
 
 
 # cuGraph 0.5.0 (28 Jan 2019)
