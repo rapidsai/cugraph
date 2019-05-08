@@ -95,7 +95,7 @@ class SNMGpagerank
     void transition_vals(const IndexType *degree) {
       int threads = min(static_cast<IndexType>(e_loc), 256);
       int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
-      transition_kernel<IndexType, ValueType> <<<blocks, threads>>> (e_loc, off, degree, val);
+      transition_kernel<IndexType, ValueType> <<<blocks, threads>>> (e_loc, ind, degree, val);
       cudaCheckError();
     }
 

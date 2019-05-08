@@ -103,10 +103,9 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
-     int m, k, nnz, n_gpus, max_iter=30;
+     int m, k, nnz, n_gpus, max_iter=50;
      val_t alpha = 0.85;
      MM_typecode mc;
-     gdf_error status;
 
      double t;
 
@@ -175,7 +174,6 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
           pagerank[i]= static_cast<val_t*>(col_pagerank[i]->data);
 
         pr_solver.solve(max_iter, pagerank);
-        EXPECT_EQ(status,0);
         #pragma omp master 
         {std::cout <<  omp_get_wtime() - t << " ";}
 
@@ -204,11 +202,11 @@ TEST_P(Tests_MGPagerank, CheckFP64) {
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
                         ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
                                          )
                        );
 
