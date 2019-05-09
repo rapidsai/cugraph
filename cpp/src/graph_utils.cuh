@@ -328,61 +328,24 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
                     degree[i] += ind[i+1]-ind[i];
     }
 
-//notice that in the transposed matrix/csc a dangling node is a node without incomming edges
-//just swap coo src and dest arrays after that to interpret it as HT
-	template<typename IndexType, typename ValueType>
-	void HT_matrix_coo(	const IndexType n,
-											const IndexType e,
-											const IndexType *src,
-											ValueType *cooVal,
-											ValueType *bookmark) {
-		IndexType *degree { nullptr };
-		cudaStream_t stream { nullptr };
-		ALLOC_MANAGED_TRY((void** )&degree, sizeof(IndexType) * n, stream);
-
-		cudaMemset(degree, 0, sizeof(IndexType) * n);
-
-		dim3 nthreads, nblocks;
-		nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
-		nthreads.y = 1;
-		nthreads.z = 1;
-		nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-		nblocks.y = 1;
-		nblocks.z = 1;
-		degree_coo<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, src, degree);
-		//equi_prob<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, src, cooVal, degree);
-		ValueType val = 0.0;
-		fill(n, bookmark, val);
-		nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
-		nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-		flag_leafs_kernel<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
-
-		//printv(n, degree , 0);
-		//printv(n, bookmark , 0);
-		//printv(e, cooVal , 0);
-
-		//this was missing: TODO: check if okay
-		ALLOC_FREE_TRY(degree, stream);
-	}
-
-	template<typename IndexType, typename ValueType>
-	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	equi_prob3(	const IndexType n,
-							const IndexType e,
-							const IndexType *csrPtr,
-							const IndexType *csrInd,
-							ValueType *val,
-							IndexType *degree) {
-		int j, row, col;
-		for (row = threadIdx.z + blockIdx.z * blockDim.z; row < n; row += gridDim.z * blockDim.z) {
-			for (j = csrPtr[row] + threadIdx.y + blockIdx.y * blockDim.y; j < csrPtr[row + 1];
-					j += gridDim.y * blockDim.y) {
-				col = csrInd[j];
-				val[j] = 1.0 / degree[col];
-				//val[j] = 999;
-			}
+    template<typename IndexType, typename ValueType>
+    __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+    equi_prob3(	const IndexType n,
+		const IndexType e,
+		const IndexType *csrPtr,
+		const IndexType *csrInd,
+		ValueType *val,
+		IndexType *degree) {
+	int j, row, col;
+	for (row = threadIdx.z + blockIdx.z * blockDim.z; row < n; row += gridDim.z * blockDim.z) {
+		for (j = csrPtr[row] + threadIdx.y + blockIdx.y * blockDim.y; j < csrPtr[row + 1];
+				j += gridDim.y * blockDim.y) {
+			col = csrInd[j];
+			val[j] = 1.0 / degree[col];
+			//val[j] = 999;
 		}
 	}
+     }
 
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -436,7 +399,6 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 		nblocks.y = 1;
 		nblocks.z = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS); //1;
 		equi_prob3<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, csrPtr, csrInd, val, degree);
-		//printv(e, val , 0);
 		cudaCheckError();
 
 		ValueType a = 0.0;
@@ -451,8 +413,6 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 		nblocks.z = 1;
 		flag_leafs_kernel<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
 		cudaCheckError();
-
-		//this was missing! TODO: check if okay.
 		ALLOC_FREE_TRY(degree, stream);
 	}
 
@@ -468,9 +428,6 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 		int nthreads = min(e, CUDA_MAX_KERNEL_THREADS);
 		int nblocks = min((e + nthreads - 1) / nthreads, CUDA_MAX_BLOCKS);
 		permute_vals_kernel<<<nblocks, nthreads>>>(e, perm, in, out);
-		//printv(e, in , 0);
-		//printv(e, perm , 0);
-		//printv(e, out , 0);
 	}
 
 // This will remove duplicate along with sorting
