@@ -1,3 +1,15 @@
+# cuGraph 0.8.0 (Date TBD)
+
+## New Features
+
+
+## Improvements
+
+
+## Bug Fixes
+- PR #283 Automerge fix
+
+
 # cuGraph 0.7.0 (Date TBD)
 
 ## New Features
@@ -8,7 +20,9 @@
 - PR #210 Expose degree calculation kernel via python API
 - PR #220 Added bindings for Nvgraph triangle counting
 - PR #234 Added bindings for renumbering, modify renumbering to use RMM
+- PR #246 Added bindings for subgraph extraction
 - PR #250 Add local build script to mimic gpuCI
+- PR #261 Add docs build script to cuGraph
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
@@ -22,6 +36,11 @@
 - PR #233 Added csv datasets and edited test to use cudf for reading graphs
 - PR #247 Added some documentation for renumbering
 - PR #252 cpp test upgrades for more convenient testing on large input
+- PR #264 Add cudatoolkit conda dependency
+- PR #267 Use latest release version in update-version CI script
+- PR #270 Updated the README.md and CONTRIBUTING.md files
+- PR #281 Updated README with algorithm list
+
 
 ## Bug Fixes
 - PR #256 Add pip to the install, clean up conda instructions
@@ -36,15 +55,17 @@
 - PR #214 Removed throw exception from dtor in TC
 - PR #211 Remove hardcoded dataset paths, replace with build var that can be overridden with an env var
 - PR #206 Updated versions in conda envs
-- PR #218 Update c_graph.pyx 
+- PR #218 Update c_graph.pyx
 - PR #224 Update erroneous comments in overlap_wrapper.pyx, woverlap_wrapper.pyx, test_louvain.py, and spectral_clustering.pyx
 - PR #220 Fixed bugs in Nvgraph triangle counting
 - PR #232 Fixed memory leaks in managing cudf columns.
 - PR #236 Fixed issue with v0.7 nightly yml environment file.  Also updated the README to remove pip
 - PR #239 Added a check to prevent a cugraph object to store two different graphs.
 - PR #244 Fixed issue with nvgraph's subgraph extraction if the first vertex in the vertex list is not incident on an edge in the extracted graph
-- PR #249 Fix oudated cuDF version in gpu/build.sh
-
+- PR #249 Fix oudated cuDF version in gpu/build.shi
+- PR #262 Removed networkx conda dependency for both build and runtime
+- PR #271 Removed nvgraph conda dependency
+- PR #276 Removed libgdf_cffi import from bindings
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
@@ -69,7 +90,7 @@
 - PR #95 Code clean up
 - PR #96 Relocated mmio.c and mmio.h (external files) to thirdparty/mmio
 - PR #97 Updated python tests to speed them up
-- PR #100 Added testing for returned vertex and edge identifiers  
+- PR #100 Added testing for returned vertex and edge identifiers
 - PR #105 Updated python code to follow PEP8 (fixed flake8 complaints)
 - PR #121 Cleaned up READEME file
 - PR #130 Update conda build recipes
