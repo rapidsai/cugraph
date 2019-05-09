@@ -23,6 +23,7 @@
 #include <nvgraph/nvgraph.h>
 #include <thrust/device_vector.h>
 #include "utilities/error_utils.h"
+#include "converters/nvgraph.cuh"
 #include <rmm_utils.h>
 
 template<typename T>

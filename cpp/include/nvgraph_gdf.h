@@ -21,21 +21,7 @@
 
 #pragma once
 
-#include <nvgraph/nvgraph.h>
 #include <cugraph.h>
-
-/**
- * Takes a GDF graph and wraps its data with an Nvgraph graph object.
- * @param nvg_handle The Nvgraph handle
- * @param gdf_G Pointer to GDF graph object
- * @param nvgraph_G Pointer to the Nvgraph graph descriptor
- * @param use_transposed True if we are transposing the input graph while wrapping
- * @return Error code
- */
-gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  gdf_graph* gdf_G,
-                                  nvgraphGraphDescr_t * nvgraph_G,
-                                  bool use_transposed = false);
 
 /**
  * Wrapper function for Nvgraph SSSP algorithm

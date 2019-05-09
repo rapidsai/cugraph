@@ -13,6 +13,7 @@
 #include <nvgraph_gdf.h>
 #include <nvgraph/nvgraph.h>
 #include "utilities/error_utils.h"
+#include "converters/nvgraph.cuh"
 #include <rmm_utils.h>
 
 template<typename T>

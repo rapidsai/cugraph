@@ -22,6 +22,7 @@
 #include <nvgraph_gdf.h>
 #include <ctime>
 #include "utilities/error_utils.h"
+#include "converters/nvgraph.cuh"
 
 gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                   gdf_graph* gdf_G,
