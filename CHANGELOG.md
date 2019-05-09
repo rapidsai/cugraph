@@ -4,6 +4,7 @@
 
 
 ## Improvements
+- PR #286 Reorganized cugraph source directory
 
 
 ## Bug Fixes
