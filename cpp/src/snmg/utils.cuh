@@ -106,7 +106,6 @@ void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
     cudaMemcpyPeer(x_glob[j]+offset[i],j, x_loc,i, n_loc*sizeof(val_t));
     cudaCheckError();
   }
-  //cudaMemcpy(x_glob[j]+offset[i], x_loc, n_loc*sizeof(val_t),cudaMemcpyDeviceToDevice);
   
   //Make sure everyone has finished copying before returning
   sync_all();

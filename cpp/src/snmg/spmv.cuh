@@ -86,15 +86,20 @@ class SNMGcsrmv
     cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
                                     val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc);
     cudaCheckError()
-    //print_mem_usage();  
-    //#pragma omp master 
-    //{std::cout <<  omp_get_wtime() - t << " ";}
-    // Wait for all local spmv
-    //t = omp_get_wtime();
     sync_all();
-    //#pragma omp master 
-    //{std::cout <<  omp_get_wtime() - t << " ";}
-    //Update the output vector
+     
+ #ifdef SNMG_DEBUG
+    print_mem_usage();  
+    #pragma omp master 
+    {std::cout <<  omp_get_wtime() - t << " ";}
+     Wait for all local spmv
+    t = omp_get_wtime();
+    sync_all();
+    #pragma omp master 
+    {std::cout <<  omp_get_wtime() - t << " ";}
+    Update the output vector
+#endif
+     
     allgather (env, part_off, y_loc, x);
   }
 };

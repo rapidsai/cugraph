@@ -15,7 +15,6 @@ from c_louvain cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 import cudf
-from libgdf_cffi import libgdf
 from librmm_cffi import librmm as rmm
 import numpy as np
 

@@ -33,7 +33,10 @@ nvidia-smi
 logger "Activate conda env..."
 source activate gdf
 conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c rapidsai-nightly/label/cuda$CUDA_REL -c numba -c conda-forge \
-    cudf=$CUDF_VERSION rmm=$RMM_VERSION networkx python-louvain cudatoolkit=$CUDA_REL
+    cudf=$CUDF_VERSION rmm=$RMM_VERSION nvgraph networkx python-louvain sphinx sphinx_rtd_theme \
+    numpydoc sphinxcontrib-websupport nbsphinx ipython pandoc=\<2.0.0 recommonmark
+
+pip install sphinx-markdown-tables
 
 logger "Check versions..."
 python --version
@@ -65,16 +68,12 @@ cd $WORKSPACE/python
 python setup.py install
 
 ################################################################################
-# TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
+# BUILD - Build docs
 ################################################################################
 
-logger "Check GPU usage..."
-nvidia-smi
+logger "Build docs..."
+cd $WORKSPACE/docs
+make html
 
-logger "GoogleTest for libcugraph..."
-cd $WORKSPACE/cpp/build
-GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
-
-logger "Python py.test for cuGraph..."
-cd $WORKSPACE/python
-py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
+rm -rf /data/docs/html/*
+mv build/html/* /data/docs/html
