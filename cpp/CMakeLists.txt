@@ -229,7 +229,6 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 add_library(cugraph SHARED
-    src/cugraph.cu
     src/traversal/bfs.cu
     src/traversal/nvgraph_sssp.cu
     src/traversal/two_hop_neighbors.cu
