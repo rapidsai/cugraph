@@ -290,7 +290,8 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
       graph->edgeList->dest_indices = new gdf_column;
       graph->edgeList->ownership = 2;
 
-      CUDA_TRY(cudaMallocManaged ((void**)&d_src, sizeof(int) * graph->adjList->indices->size));
+      cudaStream_t stream{nullptr};
+      ALLOC_TRY((void**)&d_src, sizeof(int) * graph->adjList->indices->size, stream);
 
       cugraph::offsets_to_indices<int>((int*)graph->adjList->offsets->data,
                                   graph->adjList->offsets->size-1,

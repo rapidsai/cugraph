@@ -35,7 +35,7 @@ namespace cugraph {
     ALLOC_TRY(&frontier, n * sizeof(IndexType), nullptr);
 
     //We will update frontier during the execution
-    //We need the orig to reset frontier, or cudaFree
+    //We need the orig to reset frontier, or ALLOC_FREE_TRY
     original_frontier = frontier;
 
     //size of bitmaps for vertices
