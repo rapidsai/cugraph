@@ -25,8 +25,9 @@
 #include <iostream>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include "nvgraph_error_utils.h"
 
-#define CUDA_TRY( call ) 									                            \
+#define CUDA_TRY( call ) 									          \
 {                                                                     \
     cudaError_t cudaStatus = call;                                    \
     if ( cudaSuccess != cudaStatus )                                  \

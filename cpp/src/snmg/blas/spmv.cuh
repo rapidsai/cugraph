@@ -20,8 +20,8 @@
 #pragma once
 #include "cub/cub.cuh"
 #include <omp.h>
-#include "graph_utils.cuh"
-#include "snmg_utils.cuh"
+#include "utilities/graph_utils.cuh"
+#include "snmg/utilities/snmg_utils.cuh"
 //#define SNMG_DEBUG
 
 namespace cugraph

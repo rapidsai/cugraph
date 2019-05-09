@@ -229,15 +229,21 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 add_library(cugraph SHARED
-    src/grmat.cu
     src/cugraph.cu
-    src/pagerank.cu
-    src/bfs.cu
-    src/jaccard.cu
-    src/overlap.cu
-    src/nvgraph_gdf.cu
-    src/two_hop_neighbors.cu
+    src/traversal/bfs.cu
+    src/traversal/nvgraph_sssp.cu
+    src/traversal/two_hop_neighbors.cu
+    src/link_analysis/pagerank.cu
+    src/link_prediction/jaccard.cu
+    src/link_prediction/overlap.cu
     src/structure/cugraph.cu
+    src/snmg/blas/snmg_csrmv.cu
+    src/community/louvain.cu
+    src/community/nvgraph_community.cu
+    src/converters/nvgraph.cu
+    src/converters/renumber.cu
+    src/utilities/degree.cu
+    src/utilities/grmat.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu

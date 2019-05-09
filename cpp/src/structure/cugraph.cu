@@ -13,8 +13,8 @@
 // Author: Alex Fender afender@nvidia.com
 
 #include <cugraph.h>
-#include "graph_utils.cuh"
-#include "COOtoCSR.cuh"
+#include "utilities/graph_utils.cuh"
+#include "converters/COOtoCSR.cuh"
 #include "utilities/error_utils.h"
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
@@ -273,4 +273,29 @@ gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) {
   }
   graph->transposedAdjList = nullptr;
   return GDF_SUCCESS;
+}
+
+void gdf_col_delete(gdf_column* col) {
+  if (col != nullptr) {
+    auto stream = cudaStream_t{nullptr};
+    if (col->data != nullptr) {
+      ALLOC_FREE_TRY(col->data, stream);
+    }
+    if (col->valid != nullptr) {
+      ALLOC_FREE_TRY(col->valid, stream);
+    }
+#if 0/* Currently, gdf_column_view does not set col_name, and col_name can have
+        an arbitrary value, so freeing col_name can lead to freeing a ranodom
+        address. This problem should be cleaned up once cudf finishes
+        redesigning cudf::column. */
+    if (col->col_name != nullptr) {
+      free(col->col_name);
+    }
+#endif
+    delete col;
+  }
+}
+
+void gdf_col_release(gdf_column* col) {
+  delete col;
 }
