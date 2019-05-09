@@ -54,6 +54,7 @@
 - PR #262 Removed networkx conda dependency for both build and runtime
 - PR #271 Removed nvgraph conda dependency
 - PR #276 Removed libgdf_cffi import from bindings
+- PR #288 Add boost as a conda dependency
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
