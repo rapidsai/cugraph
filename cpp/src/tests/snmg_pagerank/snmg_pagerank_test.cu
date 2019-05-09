@@ -184,9 +184,69 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
         gdf_col_delete(col_pagerank[i]);
       }
     }
+// TODO Enable when degree function is present
+#if 0
+    if (n_gpus > 1)
+    {
+      // Only using the 4 fully connected GPUs on DGX1
+      if (n_gpus == 8)
+        n_gpus = 4;
 
+      #pragma omp parallel num_threads(n_gpus)
+       {
+          //omp_set_num_threads(n_gpus);
+          auto i = omp_get_thread_num();
+          auto p = omp_get_num_threads(); 
+          CUDA_RT_CALL(cudaSetDevice(i));
+
+          #ifdef SNMG_VERBOSE 
+            #pragma omp master 
+            { 
+              std::cout << "Number of GPUs : "<< n_gpus <<std::endl;
+              std::cout << "Number of threads : "<< p <<std::endl;
+            }
+          #endif
+
+          gdf_column *col_off = new gdf_column, 
+                     *col_ind = new gdf_column, 
+                     *col_val = new gdf_column;
+          col_pagerank[i] = new gdf_column;
+          create_gdf_column(pagerank_h, col_pagerank[i]);
+          #pragma omp barrier
+
+          //load a chunck of the graph on each GPU 
+          load_csr_loc(csrRowPtr, csrColInd, csrVal, 
+                       v_loc, e_loc, part_offset,
+                       col_off, col_ind, col_val);
+          //printv(col_val->size,(float*)col_val->data,0);
+          t = omp_get_wtime();
+          cugraph::SNMGinfo env;
+          cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
+          pr_solver.setup(alpha);
+
+          val_t* pagerank[p];
+          for (auto i = 0; i < p; ++i)
+            pagerank[i]= static_cast<val_t*>(col_pagerank[i]->data);
+
+          pr_solver.solve(max_iter, pagerank);
+          #pragma omp master 
+          {std::cout <<  omp_get_wtime() - t << " ";}
+
+          verify_pr<val_t>(col_pagerank[i], param);
+
+          gdf_col_delete(col_off);
+          gdf_col_delete(col_ind);
+          gdf_col_delete(col_val);
+          gdf_col_delete(col_pagerank[i]);
+
+
+       }
+    }
+#endif
     std::cout << std::endl;
   }
+
+
 
 };
  
