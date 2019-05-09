@@ -111,8 +111,7 @@ class SNMGpagerank
     void setup(ValueType _alpha) {
       if (!is_setup) {
         alpha=_alpha;
-        ValueType zero = 0.0; //, one = 1.0;
-        //ValueType randomProbability =  one/v_glob;
+        ValueType zero = 0.0; 
         IndexType *degree;
         ALLOC_MANAGED_TRY ((void**)&degree,   sizeof(IndexType) * v_glob, stream);
         
