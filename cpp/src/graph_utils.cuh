@@ -224,11 +224,11 @@ static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, in
 		rmm_temp_allocator allocator(stream);
 
 		thrust::transform(thrust::cuda::par(allocator).on(stream),
-											thrust::device_pointer_cast(x),
-											thrust::device_pointer_cast(x + n),
-											thrust::make_constant_iterator(val),
-											thrust::device_pointer_cast(x),
-											thrust::plus<T>());
+						  thrust::device_pointer_cast(x),
+						  thrust::device_pointer_cast(x + n),
+						  thrust::make_constant_iterator(val),
+						  thrust::device_pointer_cast(x),
+						  thrust::plus<T>());
 		cudaCheckError();
 	}
 

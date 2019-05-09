@@ -49,6 +49,7 @@ class SNMGpagerank
     size_t e_loc;  //local number of edges
     int id; // thread id
     int nt; // number of threads
+    ValueType alpha; // damping factor
     SNMGinfo env;  //info about the snmg env setup
     cudaStream_t stream;  
     
@@ -66,7 +67,6 @@ class SNMGpagerank
 
     // vectors of size v_glob 
     ValueType * bookmark; // constant vector with dangling node info
-    ValueType alpha; // damping factor
 
     bool is_setup;
 
@@ -107,7 +107,7 @@ class SNMGpagerank
     }    
 
 
-    // set val and bookmark
+    // Artificially create the google matrix by setting val and bookmark
     void setup(ValueType _alpha) {
       if (!is_setup) {
         alpha=_alpha;
@@ -128,9 +128,9 @@ class SNMGpagerank
 
         // Transition matrix
         transition_vals(degree);
-//printv(v_glob,degree,0);
-        ALLOC_FREE_TRY(degree, stream);
 
+        //exit
+        ALLOC_FREE_TRY(degree, stream);
         is_setup = true;
       }
       else
@@ -140,11 +140,6 @@ class SNMGpagerank
     // run the power iteration on the google matrix
     void solve (int max_iter, ValueType ** pagerank) {
       if (is_setup) {
-
-//printv(e_loc,val,0);
-//printv(v_glob,bookmark,0);
-   
-
         ValueType  dot_res;
         ValueType one = 1.0;
         ValueType *pr = pagerank[id];
