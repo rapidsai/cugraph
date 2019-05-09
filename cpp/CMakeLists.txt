@@ -136,7 +136,7 @@ include(ConfigureNvgraph)
 
 ###################################################################################################
 # - Find and add different modules and supporting repos -------------------------------------------
-find_package(Boost 1.45.0 COMPONENTS system)
+find_package(Boost REQUIRED)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)

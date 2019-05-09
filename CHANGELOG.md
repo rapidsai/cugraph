@@ -66,6 +66,7 @@
 - PR #262 Removed networkx conda dependency for both build and runtime
 - PR #271 Removed nvgraph conda dependency
 - PR #276 Removed libgdf_cffi import from bindings
+- PR #288 Add boost as a conda dependency
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
@@ -110,6 +111,7 @@
 - PR #160 Added additional link directory to support building on CentOS-7
 - PR #221 Moved two_hop_neighbors.cuh to src folder to prevent it being installed
 - PR #223 Fixed compiler warning in cpp/src/cugraph.cu
+- PR #284 Commented out unit test code that fails due to a cudf bug
 
 
 # cuGraph 0.5.0 (28 Jan 2019)
