@@ -346,7 +346,7 @@ gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, gdf_
         {
             status = main_<long long, long long, double> (src, dest, val, &args, vertices, edges);
         }
-	else
+        else
         {
             status = main_<long long, long long, float> (src, dest, val, &args, vertices, edges);
         }

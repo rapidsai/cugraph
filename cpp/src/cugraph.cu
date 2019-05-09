@@ -117,9 +117,8 @@ gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
 }
 
 gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
-				gdf_column *src_renumbered, gdf_column *dst_renumbered,
-				gdf_column *numbering_map) {
-
+                                gdf_column *src_renumbered, gdf_column *dst_renumbered,
+                                gdf_column *numbering_map) {
   GDF_REQUIRE( src->size == dst->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( src->dtype == dst->dtype, GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
@@ -156,11 +155,11 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
     gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, dst->dtype);
 
     gdf_error err = cugraph::renumber_vertices(src_size,
-					       (const int32_t *) src->data,
-					       (const int32_t *) dst->data,
-					       (int32_t *) src_renumbered->data,
-					       (int32_t *) dst_renumbered->data,
-					       &new_size, &tmp);
+                                               (const int32_t *) src->data,
+                                               (const int32_t *) dst->data,
+                                               (int32_t *) src_renumbered->data,
+                                               (int32_t *) dst_renumbered->data,
+                                               &new_size, &tmp);
     if (err != GDF_SUCCESS)
       return err;
 
@@ -185,11 +184,11 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
     gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, GDF_INT32);
 
     gdf_error err = cugraph::renumber_vertices(src_size,
-					       (const int64_t *) src->data,
-					       (const int64_t *) dst->data,
-					       (int32_t *) src_renumbered->data,
-					       (int32_t *) dst_renumbered->data,
-					       &new_size, &tmp);
+                                               (const int64_t *) src->data,
+                                               (const int64_t *) dst->data,
+                                               (int32_t *) src_renumbered->data,
+                                               (int32_t *) dst_renumbered->data,
+                                               &new_size, &tmp);
     if (err != GDF_SUCCESS)
       return err;
 

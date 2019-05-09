@@ -38,33 +38,33 @@
 
 template <typename T>
 struct CSR_Result {
-	std::int64_t size;
-	std::int64_t nnz;
-	T* rowOffsets;
-	T* colIndices;
+    std::int64_t size;
+    std::int64_t nnz;
+    T* rowOffsets;
+    T* colIndices;
 
-	CSR_Result() : size(0), nnz(0), rowOffsets(nullptr), colIndices(nullptr){}
+    CSR_Result() : size(0), nnz(0), rowOffsets(nullptr), colIndices(nullptr){}
 
 };
 
 template <typename T, typename W>
 struct CSR_Result_Weighted {
-	std::int64_t size;
-	std::int64_t nnz;
-	T* rowOffsets;
-	T* colIndices;
-	W* edgeWeights;
+    std::int64_t size;
+    std::int64_t nnz;
+    T* rowOffsets;
+    T* colIndices;
+    W* edgeWeights;
 
-	CSR_Result_Weighted() : size(0), nnz(0), rowOffsets(nullptr), colIndices(nullptr), edgeWeights(nullptr){}
+    CSR_Result_Weighted() : size(0), nnz(0), rowOffsets(nullptr), colIndices(nullptr), edgeWeights(nullptr){}
 
 };
 
 // Define kernel for copying run length encoded values into offset slots.
 template <typename T>
 __global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
-	uint64_t tid = threadIdx.x + blockIdx.x * blockDim.x;
-	if (tid < runCounts)
-		offsets[unique[tid]] = counts[tid];
+    uint64_t tid = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tid < runCounts)
+        offsets[unique[tid]] = counts[tid];
 }
 
 // Method for constructing CSR from COO
@@ -89,7 +89,7 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), dests, dests + nnz, srcs);
     thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), srcs, srcs + nnz, dests);
 
-	// Find max id (since this may be in the dests array but not the srcs array we need to check both)
+    // Find max id (since this may be in the dests array but not the srcs array we need to check both)
     T maxId = -1;
     //   Max from srcs after sorting is just the last element
     CUDA_TRY(cudaMemcpy(&maxId, &(srcs[nnz-1]), sizeof(T), cudaMemcpyDefault));
@@ -160,7 +160,7 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), dests, dests + nnz, thrust::make_zip_iterator(thrust::make_tuple(srcs, weights)));
     thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), srcs, srcs + nnz, thrust::make_zip_iterator(thrust::make_tuple(dests, weights)));
 
-	// Find max id (since this may be in the dests array but not the srcs array we need to check both)
+    // Find max id (since this may be in the dests array but not the srcs array we need to check both)
     T maxId = -1;
     //   Max from srcs after sorting is just the last element
     CUDA_TRY(cudaMemcpy(&maxId, &(srcs[nnz-1]), sizeof(T), cudaMemcpyDefault));
