@@ -1,3 +1,15 @@
+# cuGraph 0.8.0 (Date TBD)
+
+## New Features
+
+
+## Improvements
+
+
+## Bug Fixes
+- PR #283 Automerge fix
+
+
 # cuGraph 0.7.0 (Date TBD)
 
 ## New Features
@@ -27,6 +39,7 @@
 - PR #264 Add cudatoolkit conda dependency
 - PR #267 Use latest release version in update-version CI script
 - PR #270 Updated the README.md and CONTRIBUTING.md files
+- PR #281 Updated README with algorithm list
 
 
 ## Bug Fixes
