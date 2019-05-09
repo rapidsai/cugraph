@@ -29,12 +29,7 @@
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 
-#define ALLOC_TRY( ptr, sz, stream ){                   \
-      RMM_TRY_THROW( RMM_ALLOC((ptr), (sz), (stream)) ) \
-    }
-
-//TODO: change this when RMM alloc managed will be available !!!!!
-#define ALLOC_MANAGED_TRY(ptr, sz, stream){         \
+#define ALLOC_TRY( ptr, sz, stream ){               \
   RMM_TRY_THROW( RMM_ALLOC((ptr), (sz), (stream)) ) \
 }
 
@@ -42,6 +37,6 @@
   RMM_TRY_THROW( RMM_REALLOC((ptr), (sz), (stream)) ) \
 }
 
-#define ALLOC_FREE_TRY(ptr, stream){                \
+#define ALLOC_FREE_TRY(ptr, stream){            \
   RMM_TRY_THROW( RMM_FREE( (ptr), (stream) ) )  \
 }

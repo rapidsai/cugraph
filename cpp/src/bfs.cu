@@ -32,7 +32,7 @@ namespace cugraph {
     deterministic = false;
     //Working data
     //Each vertex can be in the frontier at most once
-    ALLOC_MANAGED_TRY(&frontier, n * sizeof(IndexType), nullptr);
+    ALLOC_TRY(&frontier, n * sizeof(IndexType), nullptr);
 
     //We will update frontier during the execution
     //We need the orig to reset frontier, or cudaFree
@@ -41,20 +41,20 @@ namespace cugraph {
     //size of bitmaps for vertices
     vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
     //ith bit of visited_bmap is set <=> ith vertex is visited
-    ALLOC_MANAGED_TRY(&visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
+    ALLOC_TRY(&visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
     //ith bit of isolated_bmap is set <=> degree of ith vertex = 0
-    ALLOC_MANAGED_TRY(&isolated_bmap, sizeof(int) * vertices_bmap_size, nullptr);
+    ALLOC_TRY(&isolated_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
     //vertices_degree[i] = degree of vertex i
-    ALLOC_MANAGED_TRY(&vertex_degree, sizeof(IndexType) * n, nullptr);
+    ALLOC_TRY(&vertex_degree, sizeof(IndexType) * n, nullptr);
 
     //Cub working data
     cub_exclusive_sum_alloc(n + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
 
     //We will need (n+1) ints buffer for two differents things (bottom up or top down) - sharing it since those uses are mutually exclusive
-    ALLOC_MANAGED_TRY(&buffer_np1_1, (n + 1) * sizeof(IndexType), nullptr);
-    ALLOC_MANAGED_TRY(&buffer_np1_2, (n + 1) * sizeof(IndexType), nullptr);
+    ALLOC_TRY(&buffer_np1_1, (n + 1) * sizeof(IndexType), nullptr);
+    ALLOC_TRY(&buffer_np1_2, (n + 1) * sizeof(IndexType), nullptr);
 
     //Using buffers : top down
 
@@ -75,13 +75,13 @@ namespace cugraph {
 
     //We use buckets of edges (32 edges per bucket for now, see exact macro in bfs_kernels). frontier_vertex_degree_buckets_offsets[i] is the index k such as frontier[k] is the source of the first edge of the bucket
     //See top down kernels for more details
-    ALLOC_MANAGED_TRY(&exclusive_sum_frontier_vertex_buckets_offsets,
-                      ((nnz / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType), nullptr);
+    ALLOC_TRY(&exclusive_sum_frontier_vertex_buckets_offsets,
+              ((nnz / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType), nullptr);
 
     //Init device-side counters
     //Those counters must be/can be reset at each bfs iteration
     //Keeping them adjacent in memory allow use call only one cudaMemset - launch latency is the current bottleneck
-    ALLOC_MANAGED_TRY(&d_counters_pad, 4 * sizeof(IndexType), nullptr);
+    ALLOC_TRY(&d_counters_pad, 4 * sizeof(IndexType), nullptr);
 
     d_new_frontier_cnt = &d_counters_pad[0];
     d_mu = &d_counters_pad[1];
@@ -117,7 +117,7 @@ namespace cugraph {
 
     //We need distances to use bottom up
     if (directed && !computeDistances)
-      ALLOC_MANAGED_TRY(&distances, n * sizeof(IndexType), nullptr);
+      ALLOC_TRY(&distances, n * sizeof(IndexType), nullptr);
   }
 
   template<typename IndexType>

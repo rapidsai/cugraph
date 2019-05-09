@@ -148,10 +148,10 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
   if (src->dtype == GDF_INT32) {
     int32_t *tmp;
 
-    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view(src_renumbered, tmp, src->valid, src->size, src->dtype);
   
-    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, dst->dtype);
 
     gdf_error err = cugraph::renumber_vertices(src_size,
@@ -177,10 +177,10 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
     //        but none of the algorithms support that.
     //
     int64_t *tmp;
-    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view(src_renumbered, tmp, src->valid, src->size, GDF_INT32);
   
-    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, GDF_INT32);
 
     gdf_error err = cugraph::renumber_vertices(src_size,
@@ -440,9 +440,9 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
     gdf_add_transposed_adj_list(graph);
   }
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
-  ALLOC_MANAGED_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
-  ALLOC_MANAGED_TRY((void**)&d_pr,    sizeof(WT) * m, stream);
+  ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
+  ALLOC_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
+  ALLOC_TRY((void**)&d_pr,    sizeof(WT) * m, stream);
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
   cugraph::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);

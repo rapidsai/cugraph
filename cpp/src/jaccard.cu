@@ -373,9 +373,9 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT32 && weighted) {
     int32_t n = graph->adjList->offsets->size - 1;
     int32_t e = graph->adjList->indices->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(float) * e, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(float) * e, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(float) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
+    ALLOC_TRY(&work, sizeof(float) * n, nullptr);
     cugraph::jaccard<true, int32_t, float>(n,
                                            e,
                                            (int32_t*) csrPtr,
@@ -389,9 +389,9 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT32 && !weighted) {
     int32_t n = graph->adjList->offsets->size - 1;
     int32_t e = graph->adjList->indices->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(float) * e, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(float) * e, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(float) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
+    ALLOC_TRY(&work, sizeof(float) * n, nullptr);
     cugraph::jaccard<false, int32_t, float>(n,
                                             e,
                                             (int32_t*) csrPtr,
@@ -405,9 +405,9 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT32 && weighted) {
     int32_t n = graph->adjList->offsets->size - 1;
     int32_t e = graph->adjList->indices->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(double) * e, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(double) * e, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(double) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
+    ALLOC_TRY(&work, sizeof(double) * n, nullptr);
     cugraph::jaccard<true, int32_t, double>(n,
                                             e,
                                             (int32_t*) csrPtr,
@@ -421,9 +421,9 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT32 && !weighted) {
     int32_t n = graph->adjList->offsets->size - 1;
     int32_t e = graph->adjList->indices->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(double) * e, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(double) * e, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(double) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
+    ALLOC_TRY(&work, sizeof(double) * n, nullptr);
     cugraph::jaccard<false, int32_t, double>(n,
                                              e,
                                              (int32_t*) csrPtr,
@@ -437,9 +437,9 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT64 && weighted) {
     int64_t n = graph->adjList->offsets->size - 1;
     int64_t e = graph->adjList->indices->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(float) * e, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(float) * e, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(float) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
+    ALLOC_TRY(&work, sizeof(float) * n, nullptr);
     cugraph::jaccard<true, int64_t, float>(n,
                                            e,
                                            (int64_t*) csrPtr,
@@ -453,9 +453,9 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT64 && !weighted) {
     int64_t n = graph->adjList->offsets->size - 1;
     int64_t e = graph->adjList->indices->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(float) * e, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(float) * e, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(float) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
+    ALLOC_TRY(&work, sizeof(float) * n, nullptr);
     cugraph::jaccard<false, int64_t, float>(n,
                                             e,
                                             (int64_t*) csrPtr,
@@ -469,9 +469,9 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT64 && weighted) {
     int64_t n = graph->adjList->offsets->size - 1;
     int64_t e = graph->adjList->indices->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(double) * e, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(double) * e, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(double) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
+    ALLOC_TRY(&work, sizeof(double) * n, nullptr);
     cugraph::jaccard<true, int64_t, double>(n,
                                             e,
                                             (int64_t*) csrPtr,
@@ -485,9 +485,9 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT64 && !weighted) {
     int64_t n = graph->adjList->offsets->size - 1;
     int64_t e = graph->adjList->indices->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(double) * e, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(double) * e, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(double) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
+    ALLOC_TRY(&work, sizeof(double) * n, nullptr);
     cugraph::jaccard<false, int64_t, double>(n,
                                              e,
                                              (int64_t*) csrPtr,
@@ -551,9 +551,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT32 && weighted) {
     int32_t n = graph->adjList->offsets->size - 1;
     int32_t num_pairs = first->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(float) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
+    ALLOC_TRY(&work, sizeof(float) * n, nullptr);
     cugraph::jaccard_pairs<true, int32_t, float>(n,
                                                  num_pairs,
                                                  (int32_t*) csrPtr,
@@ -570,9 +570,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT32 && !weighted) {
     int32_t n = graph->adjList->offsets->size - 1;
     int32_t num_pairs = first->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(float) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
+    ALLOC_TRY(&work, sizeof(float) * n, nullptr);
     cugraph::jaccard_pairs<false, int32_t, float>(n,
                                                   num_pairs,
                                                   (int32_t*) csrPtr,
@@ -589,9 +589,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT32 && weighted) {
     int32_t n = graph->adjList->offsets->size - 1;
     int32_t num_pairs = first->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(double) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
+    ALLOC_TRY(&work, sizeof(double) * n, nullptr);
     cugraph::jaccard_pairs<true, int32_t, double>(n,
                                                   num_pairs,
                                                   (int32_t*) csrPtr,
@@ -608,9 +608,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT32 && !weighted) {
     int32_t n = graph->adjList->offsets->size - 1;
     int32_t num_pairs = first->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(double) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
+    ALLOC_TRY(&work, sizeof(double) * n, nullptr);
     cugraph::jaccard_pairs<false, int32_t, double>(n,
                                                    num_pairs,
                                                    (int32_t*) csrPtr,
@@ -627,9 +627,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT64 && weighted) {
     int64_t n = graph->adjList->offsets->size - 1;
     int64_t num_pairs = first->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(float) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
+    ALLOC_TRY(&work, sizeof(float) * n, nullptr);
     cugraph::jaccard_pairs<true, int64_t, float>(n,
                                                  num_pairs,
                                                  (int64_t*) csrPtr,
@@ -646,9 +646,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT64 && !weighted) {
     int64_t n = graph->adjList->offsets->size - 1;
     int64_t num_pairs = first->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(float) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
+    ALLOC_TRY(&work, sizeof(float) * n, nullptr);
     cugraph::jaccard_pairs<false, int64_t, float>(n,
                                                   num_pairs,
                                                   (int64_t*) csrPtr,
@@ -665,9 +665,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT64 && weighted) {
     int64_t n = graph->adjList->offsets->size - 1;
     int64_t num_pairs = first->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(double) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
+    ALLOC_TRY(&work, sizeof(double) * n, nullptr);
     cugraph::jaccard_pairs<true, int64_t, double>(n,
                                                   num_pairs,
                                                   (int64_t*) csrPtr,
@@ -684,9 +684,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT64 && !weighted) {
     int64_t n = graph->adjList->offsets->size - 1;
     int64_t num_pairs = first->size;
-    ALLOC_MANAGED_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
-    ALLOC_MANAGED_TRY(&work, sizeof(double) * n, nullptr);
+    ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
+    ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
+    ALLOC_TRY(&work, sizeof(double) * n, nullptr);
     cugraph::jaccard_pairs<false, int64_t, double>(n,
                                                    num_pairs,
                                                    (int64_t*) csrPtr,

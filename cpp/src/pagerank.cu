@@ -97,8 +97,8 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
 
   cudaStream_t stream{nullptr};
 
-  ALLOC_MANAGED_TRY((void**)&b, sizeof(ValueType) * n, stream);
-  ALLOC_MANAGED_TRY((void**)&tmp, sizeof(ValueType) * n, stream);
+  ALLOC_TRY((void**)&b, sizeof(ValueType) * n, stream);
+  ALLOC_TRY((void**)&tmp, sizeof(ValueType) * n, stream);
   cudaCheckError();
 
   if (!has_guess) {
@@ -115,7 +115,7 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
   cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
                          cscPtr, cscInd, tmp, pagerank_vector, n, n, e);
    // Allocate temporary storage
-  ALLOC_MANAGED_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
+  ALLOC_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
   cudaCheckError()
 #ifdef PR_VERBOSE
   std::stringstream ss;

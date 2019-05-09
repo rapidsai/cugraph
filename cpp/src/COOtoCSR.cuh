@@ -76,8 +76,8 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
 
     auto stream = cudaStream_t{nullptr};
     
-    ALLOC_MANAGED_TRY((void**)&srcs, sizeof(T) * nnz, stream);
-    ALLOC_MANAGED_TRY((void**)&dests, sizeof(T) * nnz, stream);
+    ALLOC_TRY((void**)&srcs, sizeof(T) * nnz, stream);
+    ALLOC_TRY((void**)&dests, sizeof(T) * nnz, stream);
     
     CUDA_TRY(cudaMemcpy(srcs, sources, sizeof(T) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, destinations, sizeof(T) * nnz, cudaMemcpyDefault));
@@ -100,21 +100,21 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     result.size = maxId + 1;
 
     // Allocate offsets array
-    ALLOC_MANAGED_TRY((void**)&result.rowOffsets, (maxId + 2) * sizeof(T), stream);
+    ALLOC_TRY((void**)&result.rowOffsets, (maxId + 2) * sizeof(T), stream);
 
     // Set all values in offsets array to zeros
     CUDA_TRY(cudaMemset(result.rowOffsets, 0,(maxId + 2) * sizeof(int)));
 
     // Allocate temporary arrays same size as sources array, and single value to get run counts
     T* unique{nullptr}, *counts{nullptr}, *runCount{nullptr};
-    ALLOC_MANAGED_TRY((void**)&unique, (maxId + 1) * sizeof(T), stream);
-    ALLOC_MANAGED_TRY((void**)&counts, (maxId + 1) * sizeof(T), stream);
-    ALLOC_MANAGED_TRY((void**)&runCount, sizeof(T), stream);
+    ALLOC_TRY((void**)&unique, (maxId + 1) * sizeof(T), stream);
+    ALLOC_TRY((void**)&counts, (maxId + 1) * sizeof(T), stream);
+    ALLOC_TRY((void**)&runCount, sizeof(T), stream);
 
     // Use CUB run length encoding to get unique values and run lengths
     tmpStorage = nullptr;
     cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
-    ALLOC_MANAGED_TRY((void**)&tmpStorage, tmpBytes, stream);
+    ALLOC_TRY((void**)&tmpStorage, tmpBytes, stream);
     cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
     ALLOC_FREE_TRY(tmpStorage, stream);
 
@@ -149,9 +149,9 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     
     auto stream = cudaStream_t{nullptr};
 
-    ALLOC_MANAGED_TRY((void**)&srcs, sizeof(T) * nnz, stream);
-    ALLOC_MANAGED_TRY((void**)&dests, sizeof(T) * nnz, stream);
-    ALLOC_MANAGED_TRY((void**)&weights, sizeof(W) * nnz, stream);
+    ALLOC_TRY((void**)&srcs, sizeof(T) * nnz, stream);
+    ALLOC_TRY((void**)&dests, sizeof(T) * nnz, stream);
+    ALLOC_TRY((void**)&weights, sizeof(W) * nnz, stream);
     CUDA_TRY(cudaMemcpy(srcs, sources, sizeof(T) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, destinations, sizeof(T) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(weights, edgeWeights, sizeof(W) * nnz, cudaMemcpyDefault));
@@ -172,7 +172,7 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     result.size = maxId + 1;
 
     // Allocate offsets array
-    ALLOC_MANAGED_TRY((void**)&result.rowOffsets, (maxId + 2) * sizeof(T), stream);
+    ALLOC_TRY((void**)&result.rowOffsets, (maxId + 2) * sizeof(T), stream);
 
     // Set all values in offsets array to zeros
     // /CUDA_TRY(
@@ -182,15 +182,15 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
 
     // Allocate temporary arrays same size as sources array, and single value to get run counts
     T* unique, *counts, *runCount;
-    ALLOC_MANAGED_TRY((void**)&unique, (maxId + 1) * sizeof(T), stream);
-    ALLOC_MANAGED_TRY((void**)&counts, (maxId + 1) * sizeof(T), stream);
-    ALLOC_MANAGED_TRY((void**)&runCount, sizeof(T), stream);
+    ALLOC_TRY((void**)&unique, (maxId + 1) * sizeof(T), stream);
+    ALLOC_TRY((void**)&counts, (maxId + 1) * sizeof(T), stream);
+    ALLOC_TRY((void**)&runCount, sizeof(T), stream);
 
     // Use CUB run length encoding to get unique values and run lengths
     void *tmpStorage = nullptr;
     size_t tmpBytes = 0;
     cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
-    ALLOC_MANAGED_TRY(&tmpStorage, tmpBytes, stream);
+    ALLOC_TRY(&tmpStorage, tmpBytes, stream);
     cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
     ALLOC_FREE_TRY(tmpStorage, stream);
 

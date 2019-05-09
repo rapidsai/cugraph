@@ -350,7 +350,7 @@ namespace cugraph
                            ValueType *bookmark) {
         IndexType *degree;
         cudaStream_t stream { nullptr };
-        ALLOC_MANAGED_TRY((void**)&degree, sizeof(IndexType) * n, stream);
+        ALLOC_TRY((void**)&degree, sizeof(IndexType) * n, stream);
         cudaMemset(degree, 0, sizeof(IndexType) * n);
 
         dim3 nthreads, nblocks;

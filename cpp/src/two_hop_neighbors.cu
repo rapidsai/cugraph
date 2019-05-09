@@ -47,7 +47,7 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
     IndexType *second_pair = nullptr;
     IndexType *block_bucket_offsets = nullptr;
 
-    ALLOC_MANAGED_TRY(&exsum_degree, sizeof(IndexType) * (num_edges + 1), stream);
+    ALLOC_TRY(&exsum_degree, sizeof(IndexType) * (num_edges + 1), stream);
 
     // Find the degree of the out vertex of each edge
     degree_iterator<IndexType> deg_it(offsets);
@@ -70,12 +70,12 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
     cudaMemcpy(&output_size, &exsum_degree[num_edges], sizeof(IndexType), cudaMemcpyDefault);
 
     // Allocate memory for the scattered output
-    ALLOC_MANAGED_TRY(&second_pair, sizeof(IndexType) * output_size, stream);
-    ALLOC_MANAGED_TRY(&first_pair, sizeof(IndexType) * output_size, stream);
+    ALLOC_TRY(&second_pair, sizeof(IndexType) * output_size, stream);
+    ALLOC_TRY(&first_pair, sizeof(IndexType) * output_size, stream);
 
     // Figure out number of blocks and allocate memory for block bucket offsets
     IndexType num_blocks = (output_size + TWO_HOP_BLOCK_SIZE - 1) / TWO_HOP_BLOCK_SIZE;
-    ALLOC_MANAGED_TRY(&block_bucket_offsets, sizeof(IndexType) * (num_blocks + 1), stream);
+    ALLOC_TRY(&block_bucket_offsets, sizeof(IndexType) * (num_blocks + 1), stream);
 
     // Compute the block bucket offsets
     dim3 grid, block;
@@ -112,8 +112,8 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
 
     // Get things ready to return
     outputSize = tuple_end - tuple_start;
-    ALLOC_MANAGED_TRY(first, sizeof(IndexType) * outputSize, nullptr);
-    ALLOC_MANAGED_TRY(second, sizeof(IndexType) * outputSize, nullptr);
+    ALLOC_TRY(first, sizeof(IndexType) * outputSize, nullptr);
+    ALLOC_TRY(second, sizeof(IndexType) * outputSize, nullptr);
     cudaMemcpy(*first, first_pair, sizeof(IndexType) * outputSize, cudaMemcpyDefault);
     cudaMemcpy(*second, second_pair, sizeof(IndexType) * outputSize, cudaMemcpyDefault);
 

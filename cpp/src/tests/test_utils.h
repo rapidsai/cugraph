@@ -632,7 +632,7 @@ gdf_column_ptr create_gdf_column(std::vector<col_type> const & host_vector)
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
+  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly
@@ -666,7 +666,7 @@ void create_gdf_column(std::vector<col_type> const & host_vector, gdf_column * t
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
+  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly

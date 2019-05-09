@@ -178,11 +178,11 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
         return GDF_CUDA_ERROR;
 
     auto stream = cudaStream_t{nullptr};
-    ALLOC_MANAGED_TRY((void**)&coo.row, sizeof(VertexId) * rmat_all_edges, stream);
-    ALLOC_MANAGED_TRY((void**)&coo.col, sizeof(VertexId) * rmat_all_edges, stream);
+    ALLOC_TRY((void**)&coo.row, sizeof(VertexId) * rmat_all_edges, stream);
+    ALLOC_TRY((void**)&coo.col, sizeof(VertexId) * rmat_all_edges, stream);
     if (val != nullptr)
     {
-        ALLOC_MANAGED_TRY((void**)&coo.val, sizeof(Value) * rmat_all_edges, stream);
+        ALLOC_TRY((void**)&coo.val, sizeof(Value) * rmat_all_edges, stream);
     }
     if ((coo.row == NULL) ||(coo.col == NULL))
     {
