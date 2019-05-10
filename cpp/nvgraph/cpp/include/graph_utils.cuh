@@ -31,6 +31,9 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
 #define USE_CG 1
 #define DEBUG 1
 
@@ -279,7 +282,7 @@ flag_leafs ( const  IndexType n, IndexType *degree, ValueType *bookmark) {
 //notice that in the transposed matrix/csc a dangling node is a node without incomming edges
 template <typename IndexType, typename ValueType>
 void google_matrix ( const  IndexType n, const IndexType e, const IndexType *cooColInd, ValueType *cooVal, ValueType *bookmark) {
-  thrust::device_vector<IndexType> degree(n,0);
+  rmm::device_vector<IndexType> degree(n,0);
   dim3 nthreads, nblocks;
   nthreads.x = min(e,CUDA_MAX_KERNEL_THREADS); 
   nthreads.y = 1; 

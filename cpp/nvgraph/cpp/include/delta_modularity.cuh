@@ -22,13 +22,15 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/generate.h>
 #include <thrust/transform.h>
+#include <cusparse.h>
+
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include "util.cuh"
 #include "graph_utils.cuh"
 #include "functor.cuh"
 //#include "block_delta_modularity.cuh"
-
-#include <cusparse.h>
 
 
 namespace nvlouvain{
@@ -371,11 +373,11 @@ max_delta_modularity_vec(const int n_vertex,
 // Not used
 template<typename IdxType, typename ValType>
 void build_delta_modularity_vector_old(const int n_vertex, const int c_size, ValType m2, bool updated,
-                                       thrust::device_vector<IdxType>& csr_ptr_d, thrust::device_vector<IdxType>& csr_ind_d, thrust::device_vector<ValType>& csr_val_d, 
-                                       thrust::device_vector<IdxType>& cluster_d,
+                                       rmm::device_vector<IdxType>& csr_ptr_d, rmm::device_vector<IdxType>& csr_ind_d, rmm::device_vector<ValType>& csr_val_d, 
+                                       rmm::device_vector<IdxType>& cluster_d,
                                        IdxType* cluster_inv_ptr_ptr, IdxType* cluster_inv_ind_ptr, // precompute cluster inverse
                                        ValType* k_vec_ptr, // precompute ki's 
-                                       thrust::device_vector<ValType>& temp_vec, // temp global memory with size n_vertex
+                                       rmm::device_vector<ValType>& temp_vec, // temp global memory with size n_vertex
                                        ValType* cluster_sum_vec_ptr, 
                                        ValType* delta_Q_arr_ptr){
 
@@ -425,8 +427,8 @@ void build_delta_modularity_vector_old(const int n_vertex, const int c_size, Val
 //
 template<typename IdxType, typename ValType>
 void build_delta_modularity_vector(cusparseHandle_t cusp_handle, const int n_vertex, const int c_size, ValType m2, bool updated,
-                                   thrust::device_vector<IdxType>& csr_ptr_d, thrust::device_vector<IdxType>& csr_ind_d, thrust::device_vector<ValType>& csr_val_d, 
-                                   thrust::device_vector<IdxType>& cluster_d,
+                                   rmm::device_vector<IdxType>& csr_ptr_d, rmm::device_vector<IdxType>& csr_ind_d, rmm::device_vector<ValType>& csr_val_d, 
+                                   rmm::device_vector<IdxType>& cluster_d,
                                    IdxType* cluster_inv_ptr_ptr, IdxType* cluster_inv_ind_ptr, // precompute cluster inverse
                                    ValType* k_vec_ptr, // precompute ki's 
                                    ValType* cluster_sum_vec_ptr, 
@@ -449,7 +451,7 @@ void build_delta_modularity_vector(cusparseHandle_t cusp_handle, const int n_ver
   IdxType *cluster_ptr = thrust::raw_pointer_cast(cluster_d.data());
   
   // pre compute coo row indices using cusparse
-  thrust::device_vector<IdxType> coo_row_ind(n_edges);
+  rmm::device_vector<IdxType> coo_row_ind(n_edges);
   IdxType* coo_row_ind_ptr =  thrust::raw_pointer_cast(coo_row_ind.data());
   cusparseXcsr2coo(cusp_handle, csr_ptr_ptr,  
                    n_edges, n_vertex, coo_row_ind_ptr, 
