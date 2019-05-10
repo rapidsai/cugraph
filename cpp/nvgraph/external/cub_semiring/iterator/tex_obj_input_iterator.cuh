@@ -161,7 +161,7 @@ public:
     template <typename QualifiedT>
     cudaError_t BindTexture(
         QualifiedT      *ptr,               ///< Native pointer to wrap that is aligned to cudaDeviceProp::textureAlignment
-        size_t          bytes = size_t(-1),         ///< Number of bytes in the range
+        size_t          bytes,              ///< Number of bytes in the range
         size_t          tex_offset = 0)     ///< OffsetT (in items) from \p ptr denoting the position of the iterator
     {
         this->ptr = const_cast<typename RemoveQualifiers<QualifiedT>::Type *>(ptr);
