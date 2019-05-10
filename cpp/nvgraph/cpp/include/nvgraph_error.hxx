@@ -136,6 +136,25 @@ int NVGRAPH_GetErrorString( NVGRAPH_ERROR error, char* buffer, int buf_len);
     }
 #endif
 
+// This is a gap filler, and should be replaced with a RAPIDS-wise error handling mechanism.
+#undef rmmCheckError
+#if defined(DEBUG) || defined(VERBOSE_DIAG)
+#define rmmCheckError(e) {                              \
+  if (e != RMM_SUCCESS) {                               \
+    std::stringstream _error;                           \
+    _error << "RMM failure.";                           \
+    FatalError(_error.str(), NVGRAPH_ERR_CUDA_FAILURE); \
+  }                                                     \
+}
+#else // NO DEBUG
+#define rmmCheckError(e)                              \
+    {                                                 \
+        if (e != RMM_SUCCESS) {                       \
+            FatalError("", NVGRAPH_ERR_CUDA_FAILURE); \
+        }                                             \
+    }
+#endif
+
 #define CHECK_CUDA(call)                                                      \
     {                                                                         \
         cudaError_t _e = (call);                                              \

@@ -4021,48 +4021,49 @@ nvgraphStatus_t NVGRAPH_API nvgraphJaccard (cudaDataType_t index_type, cudaDataT
         return NVGRAPH_STATUS_INVALID_VALUE;
 
     bool weighted_b = weighted;
+    cudaStream_t stream{nullptr};
 
     if (val_type == CUDA_R_32F)
     {
         float* weight_i = NULL, *weight_s = NULL, *work = NULL;
-        NVG_CUDA_TRY(cudaMalloc ((void**)&weight_i, sizeof(float) * e));
-        NVG_CUDA_TRY(cudaMalloc ((void**)&weight_s, sizeof(float) * e));
+        NVG_RMM_TRY(RMM_ALLOC((void**)&weight_i, sizeof(float) * e, stream));
+        NVG_RMM_TRY(RMM_ALLOC((void**)&weight_s, sizeof(float) * e, stream));
         if (weighted_b == true)
         {
-            NVG_CUDA_TRY(cudaMalloc ((void**)&work, sizeof(float) * n));
+            NVG_RMM_TRY(RMM_ALLOC((void**)&work, sizeof(float) * n, stream));
             status = nvlouvain::jaccard <true> (n, e, (int*) csr_ptr, (int*) csr_ind, (float*) csr_val, (float*) v, work, *((float*) gamma), weight_i, weight_s, (float*)weight_j);
-            NVG_CUDA_TRY(cudaFree (work));
+            NVG_RMM_TRY(RMM_FREE(work, stream));
         }
         else
         {
-            NVG_CUDA_TRY(cudaMalloc ((void**)&work, sizeof(float) * n));
+            NVG_RMM_TRY(RMM_ALLOC((void**)&work, sizeof(float) * n, stream));
             nvlouvain::fill(e, (float*)weight_j, (float)1.0);
             status = nvlouvain::jaccard <false> (n, e, (int*) csr_ptr, (int*) csr_ind, (float*) csr_val, (float*) v, work, *((float*) gamma), weight_i, weight_s, (float*)weight_j);
-            NVG_CUDA_TRY(cudaFree (work));
+            NVG_RMM_TRY(RMM_FREE(work, stream));
         }
-        NVG_CUDA_TRY(cudaFree (weight_s));
-        NVG_CUDA_TRY(cudaFree (weight_i));
+        NVG_RMM_TRY(RMM_FREE(weight_s, stream));
+        NVG_RMM_TRY(RMM_FREE(weight_i, stream));
     }
     else
     {
         double* weight_i = NULL, *weight_s = NULL, *work = NULL;
-        NVG_CUDA_TRY(cudaMalloc ((void**)&weight_i, sizeof(double) * e));
-        NVG_CUDA_TRY(cudaMalloc ((void**)&weight_s, sizeof(double) * e));
+        NVG_RMM_TRY(RMM_ALLOC((void**)&weight_i, sizeof(double) * e, stream));
+        NVG_RMM_TRY(RMM_ALLOC((void**)&weight_s, sizeof(double) * e, stream));
         if (weighted_b == true)
         {
-            NVG_CUDA_TRY(cudaMalloc ((void**)&work, sizeof(double) * n));
+            NVG_RMM_TRY(RMM_ALLOC((void**)&work, sizeof(double) * n, stream));
             status = nvlouvain::jaccard <true> (n, e, (int*) csr_ptr, (int*) csr_ind, (double*) csr_val, (double*) v, work, *((double*) gamma), weight_i, weight_s, (double*)weight_j);
-            NVG_CUDA_TRY(cudaFree (work));
+            NVG_RMM_TRY(RMM_FREE(work, stream));
         }
         else
         {
-            NVG_CUDA_TRY(cudaMalloc ((void**)&work, sizeof(double) * n));
+            NVG_RMM_TRY(RMM_ALLOC((void**)&work, sizeof(double) * n, stream));
             nvlouvain::fill(e, (double*)weight_j, (double)1.0);
             status = nvlouvain::jaccard <false> (n, e, (int*) csr_ptr, (int*) csr_ind, (double*) csr_val, (double*) v, work, *((double*) gamma), weight_i, weight_s, (double*)weight_j);
-            NVG_CUDA_TRY(cudaFree (work));
+            NVG_RMM_TRY(RMM_FREE(work, stream));
         }
-        NVG_CUDA_TRY(cudaFree (weight_s));
-        NVG_CUDA_TRY(cudaFree (weight_i));
+        NVG_RMM_TRY(RMM_FREE(weight_s, stream));
+        NVG_RMM_TRY(RMM_FREE(weight_i, stream));
     }
 
     if (status != 0)

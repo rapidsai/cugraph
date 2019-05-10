@@ -17,14 +17,22 @@
 #ifndef _NVGRAPH_H_
 #define _NVGRAPH_H_
 
-#include "stddef.h"
-#include "stdint.h"
+#include <stddef.h>
+#include <stdint.h>
+
+#include <rmm/rmm.h>
 
 #include "library_types.h"
 
 
 #define NVG_CUDA_TRY(T) {\
                          if (T != cudaSuccess)\
+                             return NVGRAPH_STATUS_ALLOC_FAILED;\
+             }
+
+// This is a gap filler, and should be replaced with a RAPIDS-wise error handling mechanism.
+#define NVG_RMM_TRY(T) {\
+                         if (T != RMM_SUCCESS)\
                              return NVGRAPH_STATUS_ALLOC_FAILED;\
              }
 
