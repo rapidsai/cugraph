@@ -21,56 +21,88 @@
 #include "cub/cub.cuh"
 #include <omp.h>
 #include "graph_utils.cuh"
-#include "snmg_utils.cuh"
+#include "snmg/utils.cuh"
 //#define SNMG_DEBUG
 
 namespace cugraph
 {
 
-template <typename idx_t,typename val_t>
-gdf_error snmg_csrmv (size_t* part_off, idx_t * off, idx_t * ind, val_t * val, val_t ** x) {
-  sync_all();
-  void* cub_d_temp_storage = NULL;
-  size_t cub_temp_storage_bytes = 0;
-  cudaStream_t stream{nullptr};
-  auto i = omp_get_thread_num();
-  auto p = omp_get_num_threads(); 
-  size_t v_glob = part_off[p];
-  size_t v_loc = part_off[i+1]-part_off[i];
-  idx_t tmp;
-  CUDA_TRY(cudaMemcpy(&tmp, &off[v_loc], sizeof(idx_t),cudaMemcpyDeviceToHost));
-  size_t e_loc = tmp;
-  val_t* y_loc;
-  //double t = omp_get_wtime();
-  
-  // Allocate the local result
-  ALLOC_MANAGED_TRY ((void**)&y_loc, v_loc*sizeof(val_t), stream);
+template <typename IndexType, typename ValueType>
+class SNMGcsrmv 
+{ 
 
-  // get temporary storage size for CUB
-  CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
-  	                              val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc));
-  // Allocate CUB's temporary storage
-  ALLOC_MANAGED_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
+  private:
+    size_t v_glob;
+    size_t v_loc;
+    size_t e_loc;
+    SNMGinfo env;
+    size_t* part_off;
+    int i;
+    int p;
+    IndexType * off;
+    IndexType * ind;
+    ValueType * val;
+    ValueType * y_loc;
+    cudaStream_t stream;
+    void* cub_d_temp_storage;
+    size_t cub_temp_storage_bytes;
 
-  // Local SPMV
-  CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
-  	                              val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc));
-  print_mem_usage();	
-  // Free CUB's temporary storage
-  ALLOC_FREE_TRY(cub_d_temp_storage, stream);
-  //#pragma omp master 
-  //{std::cout <<  omp_get_wtime() - t << " ";}
+  public: 
+    SNMGcsrmv(SNMGinfo & env_, size_t* part_off_, 
+              IndexType * off_, IndexType * ind_, ValueType * val_, ValueType ** x) : 
+              env(env_), part_off(part_off_), off(off_), ind(ind_), val(val_) { 
+      sync_all();
+      cub_d_temp_storage = NULL;
+      cub_temp_storage_bytes = 0;
+      stream = nullptr;
+      i = env.get_thread_num();
+      p = env.get_num_threads(); 
+      v_glob = part_off[p];
+      v_loc = part_off[i+1]-part_off[i];
+      IndexType tmp;
+      cudaMemcpy(&tmp, &off[v_loc], sizeof(IndexType),cudaMemcpyDeviceToHost);
+      cudaCheckError();
+      e_loc = tmp;
 
-  // Wait for all local spmv
-  //t = omp_get_wtime();
-  sync_all();
-  //#pragma omp master 
-  //{std::cout <<  omp_get_wtime() - t << " ";}
+      // Allocate the local result
+      ALLOC_MANAGED_TRY ((void**)&y_loc, v_loc*sizeof(ValueType), stream);
 
-  //Update the output vector
-  allgather (part_off, y_loc, x);
+      // get temporary storage size for CUB
+      cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
+                                      val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc);
+      cudaCheckError();
+      // Allocate CUB's temporary storage
+      ALLOC_MANAGED_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
+    } 
 
-  return GDF_SUCCESS;
-}
+    ~SNMGcsrmv() { 
+      ALLOC_FREE_TRY(cub_d_temp_storage, stream);
+      ALLOC_FREE_TRY(y_loc, stream);
+    }
+
+    // run the power iteration
+    void run (ValueType ** x) {
+    // Local SPMV
+    cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
+                                    val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc);
+    cudaCheckError()
+    sync_all();
+     
+ #ifdef SNMG_DEBUG
+    print_mem_usage();  
+    #pragma omp master 
+    {std::cout <<  omp_get_wtime() - t << " ";}
+     Wait for all local spmv
+    t = omp_get_wtime();
+    sync_all();
+    #pragma omp master 
+    {std::cout <<  omp_get_wtime() - t << " ";}
+    Update the output vector
+#endif
+     
+    allgather (env, part_off, y_loc, x);
+  }
+};
+
 
 } //namespace cugraph

@@ -26,6 +26,7 @@
 #include <thrust/sort.h>
 
 #include <rmm_utils.h>
+#include "utilities/error_utils.h"
 
 #define USE_CG 1
 //#define DEBUG 1
@@ -38,24 +39,12 @@ namespace cugraph
 #define DEFAULT_MASK 0xffffffff
 #define US
 
-//error check
-#ifdef DEBUG
-#define WHERE " at: " << __FILE__ << ':' << __LINE__
-#define cudaCheckError() {                                              \
-    cudaError_t e=cudaGetLastError();                                     \
-    if(e!=cudaSuccess) {                                                  \
-      std::cerr << "Cuda failure: "  << cudaGetErrorString(e) << WHERE << std::endl;        \
-    }                                                                     \
-  }
-#else 
-#define cudaCheckError()
-#define WHERE ""
-#endif 
 
-	template<typename T>
-	static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, int mask =
-																									DEFAULT_MASK)
-																							{
+
+template<typename T>
+static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, int mask =
+																								DEFAULT_MASK)
+																						{
 #if __CUDA_ARCH__ >= 300
 #if USE_CG
 		return __shfl_up_sync( mask, r, offset, bound );
@@ -228,6 +217,22 @@ namespace cugraph
 	}
 
 	template<typename T>
+	void addv(size_t n, T val, T* x) {
+		//RMM:
+		//
+		cudaStream_t stream { nullptr };
+		rmm_temp_allocator allocator(stream);
+
+		thrust::transform(thrust::cuda::par(allocator).on(stream),
+						  thrust::device_pointer_cast(x),
+						  thrust::device_pointer_cast(x + n),
+						  thrust::make_constant_iterator(val),
+						  thrust::device_pointer_cast(x),
+						  thrust::plus<T>());
+		cudaCheckError();
+	}
+
+	template<typename T>
 	void fill(size_t n, T* x, T value) {
 		//RMM:
 		//
@@ -303,92 +308,44 @@ namespace cugraph
 //google matrix kernels
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	degree_coo(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
+	degree_coo(const size_t n, const size_t e, const IndexType *ind, IndexType *degree) {
 		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
 			atomicAdd(&degree[ind[i]], 1.0);
-	}
-	template<typename IndexType, typename ValueType>
-	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	equi_prob(const IndexType n,
-						const IndexType e,
-						const IndexType *ind,
-						ValueType *val,
-						IndexType *degree) {
-		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
-			val[i] = 1.0 / degree[ind[i]];
 	}
 
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	flag_leafs(const IndexType n, IndexType *degree, ValueType *bookmark) {
-		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
+	flag_leafs_kernel(const size_t n, const IndexType *degree, ValueType *bookmark) {
+		for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
 			if (degree[i] == 0)
 				bookmark[i] = 1.0;
 	}
 
-        template<typename IndexType, typename ValueType>
-        __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-        degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
-                for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
-                        degree[i] += ind[i+1]-ind[i];
-        }
+    template<typename IndexType, typename ValueType>
+    __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+    degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
+            for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
+                    degree[i] += ind[i+1]-ind[i];
+    }
 
-
-//notice that in the transposed matrix/csc a dangling node is a node without incomming edges
-//just swap coo src and dest arrays after that to interpret it as HT
-	template<typename IndexType, typename ValueType>
-	void HT_matrix_coo(	const IndexType n,
-											const IndexType e,
-											const IndexType *src,
-											ValueType *cooVal,
-											ValueType *bookmark) {
-		IndexType *degree { nullptr };
-		cudaStream_t stream { nullptr };
-		ALLOC_MANAGED_TRY((void** )&degree, sizeof(IndexType) * n, stream);
-
-		cudaMemset(degree, 0, sizeof(IndexType) * n);
-
-		dim3 nthreads, nblocks;
-		nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
-		nthreads.y = 1;
-		nthreads.z = 1;
-		nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-		nblocks.y = 1;
-		nblocks.z = 1;
-		degree_coo<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, src, degree);
-		equi_prob<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, src, cooVal, degree);
-		ValueType val = 0.0;
-		fill(n, bookmark, val);
-		nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
-		nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-		flag_leafs<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
-
-		//printv(n, degree , 0);
-		//printv(n, bookmark , 0);
-		//printv(e, cooVal , 0);
-
-		//this was missing: TODO: check if okay
-		ALLOC_FREE_TRY(degree, stream);
-	}
-
-	template<typename IndexType, typename ValueType>
-	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	equi_prob3(	const IndexType n,
-							const IndexType e,
-							const IndexType *csrPtr,
-							const IndexType *csrInd,
-							ValueType *val,
-							IndexType *degree) {
-		int j, row, col;
-		for (row = threadIdx.z + blockIdx.z * blockDim.z; row < n; row += gridDim.z * blockDim.z) {
-			for (j = csrPtr[row] + threadIdx.y + blockIdx.y * blockDim.y; j < csrPtr[row + 1];
-					j += gridDim.y * blockDim.y) {
-				col = csrInd[j];
-				val[j] = 1.0 / degree[col];
-				//val[j] = 999;
-			}
+    template<typename IndexType, typename ValueType>
+    __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+    equi_prob3(	const IndexType n,
+		const IndexType e,
+		const IndexType *csrPtr,
+		const IndexType *csrInd,
+		ValueType *val,
+		IndexType *degree) {
+	int j, row, col;
+	for (row = threadIdx.z + blockIdx.z * blockDim.z; row < n; row += gridDim.z * blockDim.z) {
+		for (j = csrPtr[row] + threadIdx.y + blockIdx.y * blockDim.y; j < csrPtr[row + 1];
+				j += gridDim.y * blockDim.y) {
+			col = csrInd[j];
+			val[j] = 1.0 / degree[col];
+			//val[j] = 999;
 		}
 	}
+     }
 
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -442,7 +399,6 @@ namespace cugraph
 		nblocks.y = 1;
 		nblocks.z = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS); //1;
 		equi_prob3<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, csrPtr, csrInd, val, degree);
-		//printv(e, val , 0);
 		cudaCheckError();
 
 		ValueType a = 0.0;
@@ -455,10 +411,8 @@ namespace cugraph
 		nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
 		nblocks.y = 1;
 		nblocks.z = 1;
-		flag_leafs<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
+		flag_leafs_kernel<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
 		cudaCheckError();
-
-		//this was missing! TODO: check if okay.
 		ALLOC_FREE_TRY(degree, stream);
 	}
 
@@ -474,9 +428,6 @@ namespace cugraph
 		int nthreads = min(e, CUDA_MAX_KERNEL_THREADS);
 		int nblocks = min((e + nthreads - 1) / nthreads, CUDA_MAX_BLOCKS);
 		permute_vals_kernel<<<nblocks, nthreads>>>(e, perm, in, out);
-		//printv(e, in , 0);
-		//printv(e, perm , 0);
-		//printv(e, out , 0);
 	}
 
 // This will remove duplicate along with sorting

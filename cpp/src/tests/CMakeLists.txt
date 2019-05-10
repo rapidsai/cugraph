@@ -136,6 +136,11 @@ set(SNMG_SPMV_TEST_SRCS
 
 configure_test(SNMG_SPMV_TEST "${SNMG_SPMV_TEST_SRCS}")
 
+set(SNMG_PR_TEST_SRCS
+        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_pagerank/snmg_pagerank_test.cu")
+
+configure_test(SNMG_PR_TEST "${SNMG_PR_TEST_SRCS}")
 
 message(STATUS "******** Tests are ready ********")
 

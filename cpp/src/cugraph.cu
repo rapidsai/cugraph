@@ -22,6 +22,7 @@
 #include "bfs.cuh"
 #include "renumber.cuh"
 #include "snmg/spmv.cuh"
+#include "snmg/pagerank.cuh"
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
 #include <thrust/device_vector.h>
@@ -644,7 +645,6 @@ gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_colu
   GDF_REQUIRE( off->dtype == ind->dtype, GDF_UNSUPPORTED_DTYPE );  
   GDF_REQUIRE( off->null_count + ind->null_count + val->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );                 
 
-  gdf_error status;
   auto p = omp_get_num_threads();
 
   val_t* x[p];
@@ -654,12 +654,14 @@ gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_colu
     GDF_REQUIRE( x_cols[i]->size > 0, GDF_INVALID_API_CALL );
     x[i]= static_cast<val_t*>(x_cols[i]->data);
   }
-  status = cugraph::snmg_csrmv<idx_t,val_t>(part_offsets,
+  cugraph::SNMGinfo snmg_env;
+  cugraph::SNMGcsrmv<idx_t,val_t> spmv_solver(snmg_env, part_offsets,
                                       static_cast<idx_t*>(off->data), 
                                       static_cast<idx_t*>(ind->data), 
                                       static_cast<val_t*>(val->data), 
                                       x);
-  return status;
+  spmv_solver.run(x);
+  return GDF_SUCCESS;
 }
 
 gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){

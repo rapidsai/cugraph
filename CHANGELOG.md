@@ -1,14 +1,13 @@
 # cuGraph 0.8.0 (Date TBD)
 
 ## New Features
-
+- PR #287 SNMG power iteration step1 
 
 ## Improvements
 
 
 ## Bug Fixes
 - PR #283 Automerge fix
-
 
 # cuGraph 0.7.0 (Date TBD)
 
