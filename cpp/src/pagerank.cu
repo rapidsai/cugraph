@@ -99,7 +99,11 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
   cudaStream_t stream{nullptr};
 
   ALLOC_TRY((void**)&b, sizeof(ValueType) * n, stream);
+#if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
+  CUDA_TRY(cudaMalloc((void**)&tmp, sizeof(ValueType) * n));
+#else
   ALLOC_TRY((void**)&tmp, sizeof(ValueType) * n, stream);
+#endif
   cudaCheckError();
 
   if (!has_guess) {
@@ -149,7 +153,11 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
   //printv(n,pagerank_vector,0);
 
   ALLOC_FREE_TRY(b, stream);
+#if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
+  CUDA_TRY(cudaFree(tmp));
+#else
   ALLOC_FREE_TRY(tmp, stream);
+#endif
   ALLOC_FREE_TRY(cub_d_temp_storage, stream);
 
   return converged ? 0 : 1;

@@ -443,7 +443,11 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
   ALLOC_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
-  ALLOC_TRY((void**)&d_pr,    sizeof(WT) * m, stream);
+#if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
+  CUDA_TRY(cudaMalloc((void**)&d_pr, sizeof(WT) * m));
+#else
+  ALLOC_TRY((void**)&d_pr, sizeof(WT) * m, stream);
+#endif
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
   cugraph::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
@@ -467,7 +471,11 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   cugraph::copy<WT>(m, d_pr, (WT*)pagerank->data);
 
   ALLOC_FREE_TRY(d_val, stream);
+#if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
+  CUDA_TRY(cudaFree(d_pr));
+#else
   ALLOC_FREE_TRY(d_pr, stream);
+#endif
   ALLOC_FREE_TRY(d_leaf_vector, stream);
 
   return GDF_SUCCESS;
