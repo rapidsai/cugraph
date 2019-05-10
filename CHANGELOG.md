@@ -1,4 +1,4 @@
-# cuGraph 0.7.0 (Date TBD)
+# cuGraph 0.7.0 (10 May 2019)
 
 ## New Features
 - PR #195 Added Graph.get_two_hop_neighbors() method
