@@ -4,10 +4,13 @@
 - PR #287 SNMG power iteration step1 
 
 ## Improvements
+- PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
 
 
 ## Bug Fixes
 - PR #283 Automerge fix
+- PR #291 Fixed a RMM memory allocation failure due to duplicate copies of cnmem.o
+- PR #291 Fixed a cub CsrMV call error when RMM pool allocator is used.
 
 # cuGraph 0.7.0 (Date TBD)
 
