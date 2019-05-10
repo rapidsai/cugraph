@@ -65,14 +65,14 @@ class SNMGcsrmv
       e_loc = tmp;
 
       // Allocate the local result
-      ALLOC_MANAGED_TRY ((void**)&y_loc, v_loc*sizeof(ValueType), stream);
+      ALLOC_TRY ((void**)&y_loc, v_loc*sizeof(ValueType), stream);
 
       // get temporary storage size for CUB
       cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
                                       val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc);
       cudaCheckError();
       // Allocate CUB's temporary storage
-      ALLOC_MANAGED_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
+      ALLOC_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
     } 
 
     ~SNMGcsrmv() { 

@@ -177,7 +177,7 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
     if (util::SetDevice(gpu_idx[0]))
         return GDF_CUDA_ERROR;
 
-    auto stream = cudaStream_t{nullptr};
+    cudaStream_t stream {nullptr};
     ALLOC_TRY((void**)&coo.row, sizeof(VertexId) * rmat_all_edges, stream);
     ALLOC_TRY((void**)&coo.col, sizeof(VertexId) * rmat_all_edges, stream);
     if (val != nullptr)

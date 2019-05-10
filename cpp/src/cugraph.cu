@@ -39,7 +39,7 @@
  */
 void gdf_col_delete(gdf_column* col) {
   if (col != nullptr) {
-    auto stream = cudaStream_t{nullptr};
+    cudaStream_t stream {nullptr};
     if (col->data != nullptr) {
       ALLOC_FREE_TRY(col->data, stream);
     }
@@ -599,7 +599,7 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
       value_ptr = graph->adjList->edge_data->data;
   }
   else {
-      auto stream = cudaStream_t{nullptr};
+      cudaStream_t stream {nullptr};
       d_values.resize(graph->adjList->indices->size);
       thrust::fill(rmm::exec_policy(stream)->on(stream), d_values.begin(), d_values.end(), 1.0);
       value_ptr = (void * ) thrust::raw_pointer_cast(d_values.data());

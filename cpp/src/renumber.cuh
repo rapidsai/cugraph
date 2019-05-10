@@ -203,7 +203,7 @@ namespace cugraph {
     // We need 3 for hashing, and one array for data
     //
 
-    auto stream = cudaStream_t{nullptr};
+    cudaStream_t stream {nullptr};
 
     T_in *hash_data;
 

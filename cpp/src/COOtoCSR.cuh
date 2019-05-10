@@ -74,7 +74,7 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     //   Allocate local memory for operating on
     T* srcs{nullptr}, *dests{nullptr};
 
-    auto stream = cudaStream_t{nullptr};
+    cudaStream_t stream {nullptr};
     
     ALLOC_TRY((void**)&srcs, sizeof(T) * nnz, stream);
     ALLOC_TRY((void**)&dests, sizeof(T) * nnz, stream);
@@ -147,7 +147,7 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     T* dests{nullptr};
     W* weights{nullptr};
     
-    auto stream = cudaStream_t{nullptr};
+    cudaStream_t stream {nullptr};
 
     ALLOC_TRY((void**)&srcs, sizeof(T) * nnz, stream);
     ALLOC_TRY((void**)&dests, sizeof(T) * nnz, stream);

@@ -39,20 +39,6 @@ namespace cugraph
 #define DEFAULT_MASK 0xffffffff
 #define US
 
-//error check
-#ifdef DEBUG
-#define WHERE " at: " << __FILE__ << ':' << __LINE__
-#define cudaCheckError() {                                                           \
-    cudaError_t e=cudaGetLastError();                                                \
-    if(e!=cudaSuccess) {                                                             \
-      std::cerr << "Cuda failure: "  << cudaGetErrorString(e) << WHERE << std::endl; \
-    }                                                                                \
-  }
-#else 
-#define cudaCheckError()
-#define WHERE ""
-#endif 
-
     template<typename T>
     static __device__  __forceinline__ T shfl_up(T r, int offset, int bound = 32, int mask = DEFAULT_MASK) {
 #if __CUDA_ARCH__ >= 300
@@ -128,7 +114,7 @@ namespace cugraph
 //dot
     template<typename T>
     T dot(size_t n, T* x, T* y) {
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         T result = thrust::inner_product(rmm::exec_policy(stream)->on(stream),
                                          thrust::device_pointer_cast(x),
                                          thrust::device_pointer_cast(x + n),
@@ -153,7 +139,7 @@ namespace cugraph
 
     template<typename T>
     void axpy(size_t n, T a, T* x, T* y) {
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         thrust::transform(rmm::exec_policy(stream)->on(stream),
                           thrust::device_pointer_cast(x),
                           thrust::device_pointer_cast(x + n),
@@ -174,7 +160,7 @@ namespace cugraph
 
     template<typename T>
     T nrm2(size_t n, T* x) {
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         T init = 0;
         T result = std::sqrt(thrust::transform_reduce(rmm::exec_policy(stream)->on(stream),
                                                       thrust::device_pointer_cast(x),
@@ -188,7 +174,7 @@ namespace cugraph
 
     template<typename T>
     T nrm1(size_t n, T* x) {
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         T result = thrust::reduce(rmm::exec_policy(stream)->on(stream),
                                   thrust::device_pointer_cast(x),
                                   thrust::device_pointer_cast(x + n));
@@ -198,7 +184,7 @@ namespace cugraph
 
     template<typename T>
     void scal(size_t n, T val, T* x) {
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         thrust::transform(rmm::exec_policy(stream)->on(stream),
                           thrust::device_pointer_cast(x),
                           thrust::device_pointer_cast(x + n),
@@ -209,8 +195,20 @@ namespace cugraph
     }
 
     template<typename T>
+    void addv(size_t n, T val, T* x) {
+        cudaStream_t stream {nullptr};
+        thrust::transform(rmm::exec_policy(stream)->on(stream),
+                          thrust::device_pointer_cast(x),
+                          thrust::device_pointer_cast(x + n),
+                          thrust::make_constant_iterator(val),
+                          thrust::device_pointer_cast(x),
+                          thrust::plus<T>());
+        cudaCheckError();
+    }
+
+    template<typename T>
     void fill(size_t n, T* x, T value) {
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         thrust::fill(rmm::exec_policy(stream)->on(stream),
                      thrust::device_pointer_cast(x),
                      thrust::device_pointer_cast(x + n), value);
@@ -231,7 +229,7 @@ namespace cugraph
     void copy(size_t n, T *x, T *res) {
         thrust::device_ptr<T> dev_ptr(x);
         thrust::device_ptr<T> res_ptr(res);
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         thrust::copy_n(rmm::exec_policy(stream)->on(stream), dev_ptr, n, res_ptr);
         cudaCheckError();
     }
@@ -258,7 +256,7 @@ namespace cugraph
 
     template<typename T>
     void update_dangling_nodes(size_t n, T* dangling_nodes, T damping_factor) {
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         thrust::transform_if(rmm::exec_policy(stream)->on(stream),
                              thrust::device_pointer_cast(dangling_nodes),
                              thrust::device_pointer_cast(dangling_nodes + n),
@@ -275,21 +273,11 @@ namespace cugraph
         for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
             atomicAdd(&degree[ind[i]], 1.0);
     }
-    template<typename IndexType, typename ValueType>
-    __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-    equi_prob(const IndexType n,
-              const IndexType e,
-              const IndexType *ind,
-              ValueType *val,
-              IndexType *degree) {
-        for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
-            val[i] = 1.0 / degree[ind[i]];
-    }
 
     template<typename IndexType, typename ValueType>
     __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-    flag_leafs(const IndexType n, IndexType *degree, ValueType *bookmark) {
-        for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
+    flag_leafs_kernel(const size_t n, const IndexType *degree, ValueType *bookmark) {
+        for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
             if (degree[i] == 0)
                 bookmark[i] = 1.0;
     }
@@ -383,7 +371,7 @@ namespace cugraph
         nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
         nblocks.y = 1;
         nblocks.z = 1;
-        flag_leafs<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
+        flag_leafs_kernel<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
         cudaCheckError();
         ALLOC_FREE_TRY(degree, stream);
     }
@@ -406,7 +394,7 @@ namespace cugraph
 // This will sort the COO Matrix, row will be sorted and each column of same row will be sorted. 
     template<typename IndexType, typename ValueType, typename SizeT>
     void remove_duplicate(IndexType* src, IndexType* dest, ValueType* val, SizeT &nnz) {
-        auto stream = cudaStream_t{nullptr};
+        cudaStream_t stream {nullptr};
         if (val != NULL) {
             thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
                                        thrust::raw_pointer_cast(val),

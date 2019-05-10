@@ -39,7 +39,7 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
     IndexType num_edges;
     cudaMemcpy(&num_edges, &offsets[num_verts], sizeof(IndexType), cudaMemcpyDefault);
 
-    auto stream = cudaStream_t{nullptr};
+    cudaStream_t stream {nullptr};
 
     // Allocate memory for temporary stuff
     IndexType *exsum_degree = nullptr;
