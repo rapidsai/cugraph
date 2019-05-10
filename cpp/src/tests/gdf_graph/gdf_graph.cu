@@ -353,7 +353,7 @@ TEST(gdf_delete_edge_list, success2)
   delete col_w;
 }
 
-TEST(gdf_graph, gdf_add_transpose)
+TEST(gdf_graph, gdf_add_transposed_adj_list)
 {
   std::vector<int> src_h={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
   std::vector<int> dest_h={1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
@@ -376,7 +376,7 @@ TEST(gdf_graph, gdf_add_transpose)
   //EXPECT_EQ(free2,free3);
   //EXPECT_NE(free,free3);
 
-  ASSERT_EQ(gdf_add_transpose(G),GDF_SUCCESS);
+  ASSERT_EQ(gdf_add_transposed_adj_list(G),GDF_SUCCESS);
 
   //this check doen't work on small case (false positive)
   //cudaMemGetInfo(&free3, &total);
@@ -625,7 +625,7 @@ TEST(gdf_graph, memory)
   //EXPECT_EQ(free2,free3);
   //EXPECT_NE(free,free3);
 
-  ASSERT_EQ(gdf_add_transpose(G),GDF_SUCCESS);
+  ASSERT_EQ(gdf_add_transposed_adj_list(G),GDF_SUCCESS);
   //this check doen't work on small case (false positive)
   //cudaMemGetInfo(&free4_, &total);
   //EXPECT_NE(free4_,free2);

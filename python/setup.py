@@ -26,44 +26,12 @@ def find_in_path(name, path):
     return None
 
 
-def locate_cuda():
-    """Locate the CUDA environment on the system
-    Returns a dict with keys 'home', 'nvcc', 'include', and 'lib64'
-    and values giving the absolute path to each directory.
-    Starts by looking for the CUDAHOME env variable. If not found, everything
-    is based on finding 'nvcc' in the PATH.
-    """
-
-    # first check if the CUDAHOME env variable is in use
-    if 'CUDAHOME' in os.environ:
-        home = os.environ['CUDAHOME']
-        nvcc = pjoin(home, 'bin', 'nvcc')
-    else:
-        # otherwise, search the PATH for NVCC
-        nvcc = find_in_path('nvcc', os.environ['PATH'])
-        if nvcc is None:
-            raise EnvironmentError(
-                'The nvcc binary could not be located in your $PATH. '
-                'Either add it to your path, or set $CUDAHOME')
-        home = os.path.dirname(os.path.dirname(nvcc))
-
-    cudaconfig = {'home': home, 'nvcc': nvcc,
-                  'include': pjoin(home, 'include'),
-                  'lib64': pjoin(home, 'lib64')}
-    for k, v in iter(cudaconfig.items()):
-        if not os.path.exists(v):
-            raise EnvironmentError(
-                'The CUDA %s path could not be located in %s' % (k, v))
-
-    return cudaconfig
-
-
 def locate_nvgraph():
     if 'CONDA_PREFIX' in os.environ:
-        nvgraph_found = find_in_path('lib/libnvgraph_st.so',
+        nvgraph_found = find_in_path('lib/libnvgraph_rapids.so',
                                      os.environ['CONDA_PREFIX'])
     if nvgraph_found is None:
-        nvgraph_found = find_in_path('libnvgraph_st.so',
+        nvgraph_found = find_in_path('libnvgraph_rapids.so',
                                      os.environ['LD_LIBRARY_PATH'])
         if nvgraph_found is None:
             raise EnvironmentError('The nvgraph library could not be located')
@@ -72,10 +40,11 @@ def locate_nvgraph():
                          'include', 'nvgraph'),
         'lib': os.path.dirname(nvgraph_found)}
 
+    print('nvgraph_config = ' + str(nvgraph_config))
+
     return nvgraph_config
 
 
-CUDA = locate_cuda()
 NVGRAPH = locate_nvgraph()
 
 try:
@@ -91,15 +60,14 @@ EXTENSIONS = [
               sources=CYTHON_FILES,
               include_dirs=[NUMPY_INCLUDE,
                             CUDF_INCLUDE,
-                            NVGRAPH['include'],
-                            CUDA['include'],
+                            # NVGRAPH['include'],
                             '../cpp/src',
                             '../cpp/include',
                             '../cpp/build/gunrock',
                             '../cpp/build/gunrock/externals/moderngpu/include',
                             '../cpp/build/gunrock/externals/cub'],
               library_dirs=[get_python_lib(), NVGRAPH['lib']],
-              libraries=['cugraph', 'cudf', 'nvgraph_st'],
+              libraries=['cugraph', 'cudf', 'nvgraph_rapids'],
               language='c++',
               extra_compile_args=['-std=c++14'])
 ]

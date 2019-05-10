@@ -71,7 +71,7 @@ class Tests_Sssp : public ::testing::TestWithParam<Sssp_Usecase> {
     create_gdf_column(sssp_distances,&col_sssp_distances);
     
     if (manual_tanspose)
-          ASSERT_EQ(gdf_add_transpose(&G),0);
+          ASSERT_EQ(gdf_add_transposed_adj_list(&G),0);
 
     ASSERT_EQ(gdf_sssp_nvgraph(&G, &param.src, &col_sssp_distances),GDF_SUCCESS);
 
@@ -103,7 +103,23 @@ typedef struct Sssp2_Usecase_t {
   std::string matrix_file;
   std::string result_file;
   int src;
-  Sssp2_Usecase_t(const std::string& a, const std::string& b, int c ) : matrix_file(a), result_file(b), src(c){};
+  //Sssp2_Usecase_t(const std::string& a, const std::string& b, int c ) : matrix_file(a), result_file(b), src(c){};
+  Sssp2_Usecase_t(const std::string& a, const std::string& b, int c ) {
+    // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
+    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    if ((a != "") && (a[0] != '/')) {
+      matrix_file = rapidsDatasetRootDir + "/" + a;
+    } else {
+      matrix_file = a;
+    }
+    if ((b != "") && (b[0] != '/')) {
+      result_file = rapidsDatasetRootDir + "/" + b;
+    } else {
+      result_file = b;
+    }
+    src = c;
+  }
+
   Sssp2_Usecase_t& operator=(const Sssp2_Usecase_t& rhs) {
     matrix_file = rhs.matrix_file;
     result_file = rhs.result_file;
@@ -178,7 +194,7 @@ class Tests_Sssp2 : public ::testing::TestWithParam<Sssp2_Usecase> {
     ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, nullptr),0);
     
     if (manual_tanspose)
-      ASSERT_EQ(gdf_add_transpose(&G),0);
+      ASSERT_EQ(gdf_add_transposed_adj_list(&G),0);
 
 
     ASSERT_EQ(gdf_sssp_nvgraph(&G, &param.src, &col_sssp),0);
@@ -209,11 +225,11 @@ TEST_P(Tests_Sssp2, CheckFP32) {
 
 // --gtest_filter=*golden_test*
 INSTANTIATE_TEST_CASE_P(golden_test, Tests_Sssp2, 
-                        ::testing::Values(  Sssp2_Usecase("/datasets/networks/karate.mtx" , "", 1)
-                                           ,Sssp2_Usecase("/datasets/golden_data/graphs/dblp.mtx" , "/datasets/golden_data/results/sssp/dblp_T.sssp_100000.bin", 100000)
-                                           ,Sssp2_Usecase("/datasets/golden_data/graphs/dblp.mtx" , "/datasets/golden_data/results/sssp/dblp_T.sssp_100.bin", 100)
-                                           ,Sssp2_Usecase("/datasets/golden_data/graphs/wiki2003.mtx" , "/datasets/golden_data/results/sssp/wiki2003_T.sssp_100000.bin",100000 )
-                                           ,Sssp2_Usecase("/datasets/golden_data/graphs/wiki2003.mtx" , "/datasets/golden_data/results/sssp/wiki2003_T.sssp_100.bin", 100)
+                        ::testing::Values(  Sssp2_Usecase("test/datasets/karate.mtx" , "", 1)
+                                           ,Sssp2_Usecase("test/datasets/dblp.mtx" ,     "test/ref/sssp/dblp_T.sssp_100000.bin", 100000)
+                                           ,Sssp2_Usecase("test/datasets/dblp.mtx" ,     "test/ref/sssp/dblp_T.sssp_100.bin", 100)
+                                           ,Sssp2_Usecase("test/datasets/wiki2003.mtx" , "test/ref/sssp/wiki2003_T.sssp_100000.bin",100000 )
+                                           ,Sssp2_Usecase("test/datasets/wiki2003.mtx" , "test/ref/sssp/wiki2003_T.sssp_100.bin", 100)
                                          )
                        );
 int main(int argc, char **argv)  {

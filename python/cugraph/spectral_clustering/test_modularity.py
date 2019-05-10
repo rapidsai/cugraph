@@ -25,6 +25,12 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float64'], header=None)
+
+
 def cugraph_call(G, partitions):
     df = cugraph.spectralModularityMaximizationClustering(
         G, partitions, num_eigen_vects=(partitions - 1))
@@ -33,7 +39,8 @@ def cugraph_call(G, partitions):
 
 
 def random_call(G, partitions):
-    num_verts = G.num_vertices()
+    random.seed(0)
+    num_verts = G.number_of_vertices()
     assignment = []
     for i in range(num_verts):
         assignment.append(random.randint(0, partitions-1))
@@ -43,9 +50,9 @@ def random_call(G, partitions):
 
 
 DATASETS = [
-    '/datasets/networks/karate.mtx',
-    '/datasets/networks/dolphins.mtx',
-    '/datasets/golden_data/graphs/dblp.mtx']
+    '../datasets/karate',
+    '../datasets/dolphins',
+    '../datasets/netscience']
 PARTITIONS = [2, 4, 8]
 
 
@@ -53,12 +60,12 @@ PARTITIONS = [2, 4, 8]
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):
     # Read in the graph and get a cugraph object
-    M = read_mtx_file(graph_file).tocsr()
-    row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
-    values = cudf.Series(M.data)
+    cu_M = read_csv_file(graph_file+'.csv')
+    sources = cu_M['0']
+    destinations = cu_M['1']
+    values = cu_M['2']
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, values)
+    G.add_edge_list(sources, destinations, values)
 
     # Get the modularity score for partitioning versus random assignment
     cu_score = cugraph_call(G, partitions)
