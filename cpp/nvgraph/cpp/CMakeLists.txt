@@ -81,9 +81,9 @@ find_library(RMM_LIBRARY "rmm"
 message(STATUS "RMM: RMM_LIBRARY set to ${RMM_LIBRARY}")
 message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
 
-add_library(rmm SHARED IMPORTED)
+add_library(rmm SHARED IMPORTED ${RMM_LIBRARY})
 if (RMM_INCLUDE AND RMM_LIBRARY)
-    set_target_properties( rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
+    set_target_properties(rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
@@ -221,7 +221,7 @@ endif(NVGRAPH_LIGHT MATCHES True)
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-target_link_libraries(nvgraph_rapids cublas cusparse curand cusolver rmm cudart)
+target_link_libraries(nvgraph_rapids cublas cusparse curand cusolver rmm cudart cuda)
 
 ###################################################################################################
 # - install targets -------------------------------------------------------------------------------
