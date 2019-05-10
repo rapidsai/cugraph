@@ -19,13 +19,15 @@
  #include <sstream>
 #include <iostream>
 #include <iomanip>
-#include "graph_utils.cuh"
-#include "pagerank.cuh"
 #include "cub/cub.cuh"
 #include <algorithm>
 #include <iomanip>
 
 #include <rmm_utils.h>
+
+#include "graph_utils.cuh"
+#include "pagerank.cuh"
+#include "utilities/error_utils.h"
 
 namespace cugraph
 {
@@ -39,9 +41,8 @@ bool pagerankIteration(IndexType n, IndexType e, IndexType *cscPtr, IndexType *c
                        ValueType * &tmp,  void* cub_d_temp_storage, size_t  cub_temp_storage_bytes,
                        ValueType * &pr, ValueType *residual) {
     ValueType  dot_res;
-    cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
-        cscPtr, cscInd, tmp, pr,
-        n, n, e);
+    CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
+                                    cscPtr, cscInd, tmp, pr, n, n, e));
 
     scal(n, alpha, pr);
     dot_res = dot( n, a, tmp);
@@ -112,8 +113,8 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
   fill(n, b, randomProbability);
   update_dangling_nodes(n, a, alpha);
 
-  cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
-                         cscPtr, cscInd, tmp, pagerank_vector, n, n, e);
+  CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
+                                  cscPtr, cscInd, tmp, pagerank_vector, n, n, e));
    // Allocate temporary storage
   ALLOC_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
   cudaCheckError()

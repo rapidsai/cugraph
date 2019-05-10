@@ -113,9 +113,9 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
 
     // Use CUB run length encoding to get unique values and run lengths
     tmpStorage = nullptr;
-    cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
+    CUDA_TRY(cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz));
     ALLOC_TRY((void**)&tmpStorage, tmpBytes, stream);
-    cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
+    CUDA_TRY(cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz));
     ALLOC_FREE_TRY(tmpStorage, stream);
 
     // Set offsets to run sizes for each index
@@ -189,9 +189,9 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     // Use CUB run length encoding to get unique values and run lengths
     void *tmpStorage = nullptr;
     size_t tmpBytes = 0;
-    cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
+    CUDA_TRY(cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz));
     ALLOC_TRY(&tmpStorage, tmpBytes, stream);
-    cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz);
+    CUDA_TRY(cub::DeviceRunLengthEncode::Encode(tmpStorage, tmpBytes, srcs, unique, counts, runCount, nnz));
     ALLOC_FREE_TRY(tmpStorage, stream);
 
     // Set offsets to run sizes for each index

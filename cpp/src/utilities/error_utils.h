@@ -23,9 +23,11 @@
 #define GDF_ERRORUTILS_H
 
 #include <iostream>
+
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
+#include <cudf/types.h>
 
 #define cudaCheckError() {                                              \
     cudaError_t e=cudaGetLastError();                                     \
