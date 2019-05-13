@@ -1692,13 +1692,13 @@ namespace nvgraph
     // The size of the GMEM buffers (number of elements).
     size_t m_gmem_size;
     // The status: OK if count_non_zeroes succeeded, FAILED otherwise.
-    SHARED_PREFIX::shared_ptr<IndexT> m_status;
+    std::shared_ptr<IndexT> m_status;
     // The work queue for dynamic load balancing in the kernels.
-    SHARED_PREFIX::shared_ptr<IndexT> m_work_queue;
+    std::shared_ptr<IndexT> m_work_queue;
     // The buffer to store keys in GMEM.
-    SHARED_PREFIX::shared_ptr<Key_type> m_keys;
+    std::shared_ptr<Key_type> m_keys;
     // The buffer to store values in GMEM.
-    SHARED_PREFIX::shared_ptr<Value_type> m_vals;
+    std::shared_ptr<Value_type> m_vals;
 
   public:
     // Create a workspace.
@@ -2198,8 +2198,8 @@ namespace nvgraph
 
       //AMGX uses pool allocator thrust::global_thread_handle::cudaMallocHost(), here...
       //
-      SHARED_PREFIX::shared_ptr<IndexT> h_status(new IndexT);
-      SHARED_PREFIX::shared_ptr<IndexT> h_work_offset(new IndexT);
+      std::shared_ptr<IndexT> h_status(new IndexT);
+      std::shared_ptr<IndexT> h_work_offset(new IndexT);
 
       cudaStream_t stream = 0; // for now...
 

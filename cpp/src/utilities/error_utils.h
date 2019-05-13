@@ -23,22 +23,33 @@
 #define GDF_ERRORUTILS_H
 
 #include <iostream>
+
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include "nvgraph_error_utils.h"
 
-#define CUDA_TRY( call ) 									          \
-{                                                                     \
-    cudaError_t cudaStatus = call;                                    \
-    if ( cudaSuccess != cudaStatus )                                  \
-    {                                                                 \
-        std::cerr << "ERROR: CUDA Runtime call " << #call             \
-                  << " in line " << __LINE__                            \
-                  << " of file " << __FILE__                            \
-                  << " failed with " << cudaGetErrorString(cudaStatus)  \
-                  << " (" << cudaStatus << ").\n";                     \
-        return GDF_CUDA_ERROR;                          							\
-    }												                                          \
+#include <cudf/types.h>
+
+#define cudaCheckError() {                                                  \
+    cudaError_t e=cudaGetLastError();                                       \
+    if(e!=cudaSuccess) {                                                    \
+      std::cerr << "Cuda failure: "  << cudaGetErrorString(e) << " at: "    \
+        << __FILE__ << ':' << __LINE__ << std::endl;                        \
+    }                                                                       \
+  }
+
+#define CUDA_TRY( call ) 									                \
+{                                                                           \
+    cudaError_t cudaStatus = call;                                          \
+    if ( cudaSuccess != cudaStatus )                                        \
+    {                                                                       \
+        std::cerr << "ERROR: CUDA Runtime call " << #call                   \
+                  << " in line " << __LINE__                                \
+                  << " of file " << __FILE__                                \
+                  << " failed with " << cudaGetErrorString(cudaStatus)      \
+                  << " (" << cudaStatus << ").\n";                          \
+        return GDF_CUDA_ERROR;                          				    \
+    }												                        \
 }                                                                                                  
 
 #define RMM_TRY(x)  if ((x)!=RMM_SUCCESS) return GDF_MEMORYMANAGER_ERROR;
@@ -47,11 +58,11 @@
 
 #define CUDA_CHECK_LAST() CUDA_TRY(cudaPeekAtLastError())
 
-#define GDF_TRY(x) 														\
-{																							\
-gdf_error err_code = (x);											\
-if (err_code != GDF_SUCCESS) 									\
-	return err_code;														\
+#define GDF_TRY(x) 				\
+{							    \
+gdf_error err_code = (x);       \
+if (err_code != GDF_SUCCESS)    \
+	return err_code;	        \
 }
 
 #define GDF_REQUIRE(F, S) if (!(F)) return (S);

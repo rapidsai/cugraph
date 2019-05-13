@@ -9,6 +9,9 @@
  *
  */
 
+// Pagerank solver
+// Author: Alex Fender afender@nvidia.com
+
 #include <cugraph.h>
 #include "utilities/graph_utils.cuh"
 #include "utilities/error_utils.h"

@@ -1,7 +1,3 @@
-[submodule "cpp/nvgraph/cpp/thirdparty/cnmem"]
-	path = cpp/nvgraph/cpp/thirdparty/cnmem
-	url = https://github.com/NVIDIA/cnmem.git
-	branch = master
 [submodule "cpp/nvgraph/cpp/thirdparty/cub"]
 	path = cpp/nvgraph/cpp/thirdparty/cub
 	url = https://github.com/NVlabs/cub.git

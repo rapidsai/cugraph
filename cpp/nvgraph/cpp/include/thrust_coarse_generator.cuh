@@ -20,9 +20,12 @@
 #include <thrust/gather.h>
 #include <thrust/binary_search.h>
 #include <thrust/detail/temporary_array.h>
-#include "util.cuh"
+
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
 #include "graph_utils.cuh"
-//#include <cusp/format_utils.h> //indices_to_offsets
+#include "util.cuh"
 
 template <typename DerivedPolicy, typename IndexArray, typename OffsetArray>
 void indices_to_offsets(const thrust::execution_policy<DerivedPolicy> &exec,
@@ -161,21 +164,21 @@ void jToJKernel(const IndexType *column_indices, const IndexType *aggregates, In
 // Method to compute Ac on DEVICE using csr format
 template <typename IndexType, typename ValueType>
 void generate_superverticies_graph(const int n_vertex, const int num_aggregates, 
-                                   thrust::device_vector<IndexType> &csr_ptr_d, 
-                                   thrust::device_vector<IndexType> &csr_ind_d,
-                                   thrust::device_vector<ValueType> &csr_val_d,
-                                   thrust::device_vector<IndexType> &new_csr_ptr_d, 
-                                   thrust::device_vector<IndexType> &new_csr_ind_d,
-                                   thrust::device_vector<ValueType> &new_csr_val_d,
-                                   const thrust::device_vector<IndexType> &aggregates  
+                                   rmm::device_vector<IndexType> &csr_ptr_d, 
+                                   rmm::device_vector<IndexType> &csr_ind_d,
+                                   rmm::device_vector<ValueType> &csr_val_d,
+                                   rmm::device_vector<IndexType> &new_csr_ptr_d, 
+                                   rmm::device_vector<IndexType> &new_csr_ind_d,
+                                   rmm::device_vector<ValueType> &new_csr_val_d,
+                                   const rmm::device_vector<IndexType> &aggregates  
                                    ){
   
   const int n_edges = csr_ptr_d[n_vertex];
 
   
-  thrust::device_vector<IndexType> I(n_edges,-1);
-  thrust::device_vector<IndexType> J(n_edges,-1);
-  thrust::device_vector<ValueType> V(n_edges,-1);
+  rmm::device_vector<IndexType> I(n_edges,-1);
+  rmm::device_vector<IndexType> J(n_edges,-1);
+  rmm::device_vector<ValueType> V(n_edges,-1);
 
   const int block_size_I = 128;
   const int block_size_J = 256;
@@ -229,7 +232,7 @@ void generate_superverticies_graph(const int n_vertex, const int num_aggregates,
 
 
   // Reduce by key to fill in Ac.column_indices and Ac.values
-  thrust::device_vector<IndexType> new_row_indices(NNZ,0);
+  rmm::device_vector<IndexType> new_row_indices(NNZ,0);
 
 
   thrust::reduce_by_key(thrust::make_zip_iterator(thrust::make_tuple(I.begin(), J.begin())),

@@ -15,7 +15,6 @@
  */
 
 #include "valued_csr_graph.hxx"
-#include "cnmem_shared_ptr.hxx" // interface with CuMem (memory pool lib) for shared ptr
 
 namespace nvgraph
 {

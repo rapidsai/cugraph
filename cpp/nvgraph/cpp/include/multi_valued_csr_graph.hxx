@@ -38,8 +38,8 @@ protected:
     //std::vector <nvgraph::Vector<ValueType>*> values_dim;
     //std::vector <nvgraph::Vector<ValueType>*> vertex_dim;
 
-    std::vector <SHARED_PREFIX::shared_ptr<nvgraph::Vector<ValueType> > > values_dim;
-    std::vector <SHARED_PREFIX::shared_ptr<nvgraph::Vector<ValueType> > > vertex_dim;
+    std::vector <std::shared_ptr<nvgraph::Vector<ValueType> > > values_dim;
+    std::vector <std::shared_ptr<nvgraph::Vector<ValueType> > > vertex_dim;
 public:
 
     /*! Storage for the nonzero entries of the Multi-CSR data structure.*/
@@ -78,28 +78,28 @@ public:
     {
         vertex_dim.resize(v_dim);
         for (size_t i = 0; i < vertex_dim.size(); ++i)
-          vertex_dim[i] = SHARED_PREFIX::shared_ptr<nvgraph::Vector<ValueType> >(new Vector<ValueType>(this->num_vertices, stream)); 
+          vertex_dim[i] = std::shared_ptr<nvgraph::Vector<ValueType> >(new Vector<ValueType>(this->num_vertices, stream)); 
     }
 
     inline void allocateEdgeData(size_t edges_dim, cudaStream_t stream) 
     {
         values_dim.resize(edges_dim);
          for (size_t i = 0; i < values_dim.size(); ++i)
-           values_dim[i] = SHARED_PREFIX::shared_ptr<nvgraph::Vector<ValueType> >(new Vector<ValueType>(this->num_edges, stream)); 
+           values_dim[i] = std::shared_ptr<nvgraph::Vector<ValueType> >(new Vector<ValueType>(this->num_edges, stream)); 
     }
 
     inline void attachVertexData(size_t i, ValueType* data, cudaStream_t stream) 
     {
         if (vertex_dim.size() <= i)
             vertex_dim.resize(i+1);
-         vertex_dim[i] = SHARED_PREFIX::shared_ptr<nvgraph::Vector<ValueType> >(new Vector<ValueType>(this->num_vertices, data, stream)); 
+         vertex_dim[i] = std::shared_ptr<nvgraph::Vector<ValueType> >(new Vector<ValueType>(this->num_vertices, data, stream)); 
     }
 
     inline void attachEdgeData(size_t i, ValueType* data, cudaStream_t stream) 
     {
          if (values_dim.size() <= i)
             values_dim.resize(i+1);
-        values_dim[i] = SHARED_PREFIX::shared_ptr<nvgraph::Vector<ValueType> >(new Vector<ValueType>(this->num_edges, data, stream)); 
+        values_dim[i] = std::shared_ptr<nvgraph::Vector<ValueType> >(new Vector<ValueType>(this->num_edges, data, stream)); 
     }
     
     inline size_t getNumValues() {
@@ -124,7 +124,7 @@ public:
         //ValuedCsrGraph<IndexType, ValueType> *v = new ValuedCsrGraph<IndexType, ValueType>(static_cast<nvgraph::CsrGraph<IndexType> >(*this), *values_dim[dim_index]);
         //return *v;
       
-        //SHARED_PREFIX::shared_ptr<ValuedCsrGraph<IndexType, ValueType> > svcsr = SHARED_PREFIX::shared_ptr<ValuedCsrGraph<IndexType, ValueType> >(new ValuedCsrGraph<IndexType, ValueType>(static_cast<nvgraph::CsrGraph<IndexType> >(*this), *values_dim[dim_index]));
+        //std::shared_ptr<ValuedCsrGraph<IndexType, ValueType> > svcsr = std::shared_ptr<ValuedCsrGraph<IndexType, ValueType> >(new ValuedCsrGraph<IndexType, ValueType>(static_cast<nvgraph::CsrGraph<IndexType> >(*this), *values_dim[dim_index]));
         //return svcsr; //segfaults
 
         ///return ValuedCsrGraph<IndexType, ValueType>(static_cast<nvgraph::CsrGraph<IndexType> >(*this), *values_dim[dim_index]);//segfaults

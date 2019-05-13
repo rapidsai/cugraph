@@ -31,6 +31,9 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
 #define USE_CG 1
 #define DEBUG 1
 
@@ -58,6 +61,20 @@ namespace nvlouvain
   #define cudaCheckError()   
   #define WHERE ""
 #endif 
+
+// This is a gap filler, and should be replaced with a RAPIDS-wise error handling mechanism.
+#undef rmmCheckError
+#ifdef DEBUG
+  #define WHERE " at: " << __FILE__ << ':' << __LINE__
+  #define rmmCheckError(e) {                               \
+    if(e != RMM_SUCCESS) {                                 \
+      std::cerr << "RMM failure: "  << WHERE << std::endl; \
+    }                                                      \
+  }
+#else
+  #define rmmCheckError(e)
+  #define WHERE ""
+#endif
 
 template<typename T>
 static __device__ __forceinline__ T shfl_up(T r, int offset, int bound = 32, int mask = DEFAULT_MASK)
@@ -279,7 +296,7 @@ flag_leafs ( const  IndexType n, IndexType *degree, ValueType *bookmark) {
 //notice that in the transposed matrix/csc a dangling node is a node without incomming edges
 template <typename IndexType, typename ValueType>
 void google_matrix ( const  IndexType n, const IndexType e, const IndexType *cooColInd, ValueType *cooVal, ValueType *bookmark) {
-  thrust::device_vector<IndexType> degree(n,0);
+  rmm::device_vector<IndexType> degree(n,0);
   dim3 nthreads, nblocks;
   nthreads.x = min(e,CUDA_MAX_KERNEL_THREADS); 
   nthreads.y = 1; 

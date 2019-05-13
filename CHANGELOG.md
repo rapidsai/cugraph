@@ -1,15 +1,17 @@
 # cuGraph 0.8.0 (Date TBD)
 
 ## New Features
-
+- PR #287 SNMG power iteration step1 
 
 ## Improvements
 - PR #286 Reorganized cugraph source directory
+- PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
 
 
 ## Bug Fixes
 - PR #283 Automerge fix
-
+- PR #291 Fixed a RMM memory allocation failure due to duplicate copies of cnmem.o
+- PR #291 Fixed a cub CsrMV call error when RMM pool allocator is used.
 
 # cuGraph 0.7.0 (Date TBD)
 
@@ -67,6 +69,7 @@
 - PR #262 Removed networkx conda dependency for both build and runtime
 - PR #271 Removed nvgraph conda dependency
 - PR #276 Removed libgdf_cffi import from bindings
+- PR #288 Add boost as a conda dependency
 
 # cuGraph 0.6.0 (22 Mar 2019)
 
@@ -111,6 +114,7 @@
 - PR #160 Added additional link directory to support building on CentOS-7
 - PR #221 Moved two_hop_neighbors.cuh to src folder to prevent it being installed
 - PR #223 Fixed compiler warning in cpp/src/cugraph.cu
+- PR #284 Commented out unit test code that fails due to a cudf bug
 
 
 # cuGraph 0.5.0 (28 Jan 2019)

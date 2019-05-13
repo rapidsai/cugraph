@@ -20,12 +20,12 @@ project(NV_GRAPH VERSION 0.4.0 LANGUAGES C CXX CUDA)
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_COMPILER $ENV{CC})
 set(CMAKE_CXX_COMPILER $ENV{CXX})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -47,7 +47,7 @@ option(BUILD_TESTS "Configure CMake to build tests"
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 
-    option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" OFF)
+    option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
     if(CMAKE_CXX11_ABI)
         message(STATUS "nvGraph: Enabling the GLIBCXX11 ABI")
     else()
@@ -66,6 +66,25 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODUL
 include(FeatureSummary)
 include(CheckIncludeFiles)
 include(CheckLibraryExists)
+
+###################################################################################################
+# - add rmm --------------------------------------------------------------------------------------
+find_path(RMM_INCLUDE "rmm"
+          HINTS "$ENV{RMM_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include/rmm"
+                "$ENV{CONDA_PREFIX}/include")
+
+find_library(RMM_LIBRARY "rmm"
+             HINTS "$ENV{RMM_ROOT}/lib"
+                   "$ENV{CONDA_PREFIX}/lib")
+
+message(STATUS "RMM: RMM_LIBRARY set to ${RMM_LIBRARY}")
+message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
+
+add_library(rmm SHARED IMPORTED ${RMM_LIBRARY})
+if (RMM_INCLUDE AND RMM_LIBRARY)
+    set_target_properties(rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
+endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
 # - add gtest -------------------------------------------------------------------------------------
@@ -90,9 +109,9 @@ include_directories(
                     "${CMAKE_BINARY_DIR}/include"
                     "${CMAKE_SOURCE_DIR}/include"
                     "${CMAKE_SOURCE_DIR}/thirdparty/cub"
-                    "${CMAKE_SOURCE_DIR}/thirdparty/cnmem/include"
                     "${CMAKE_SOURCE_DIR}/../external"
                     "${CMAKE_SOURCE_DIR}/../external/cusp"
+                    "${RMM_INCLUDE}"
                     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
                    )
 
@@ -101,13 +120,13 @@ include_directories(
 
 link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the link directories for nvcc
                  "${CMAKE_BINARY_DIR}/lib"
-                 "${GTEST_LIBRARY_DIR}")
+                 "${GTEST_LIBRARY_DIR}"
+                 "${RMM_LIBRARY}")
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 if(NVGRAPH_LIGHT MATCHES True)
     add_library(nvgraph_rapids SHARED
-                thirdparty/cnmem/src/cnmem.cpp
                 src/arnoldi.cu
                 src/bfs.cu
                 src/bfs2d.cu
@@ -141,7 +160,6 @@ if(NVGRAPH_LIGHT MATCHES True)
                )
 else(NVGRAPH_LIGHT MATCHES True)
         add_library(nvgraph_rapids SHARED
-                thirdparty/cnmem/src/cnmem.cpp
                 src/arnoldi.cu
                 src/bfs.cu
                 src/bfs2d.cu
@@ -203,7 +221,7 @@ endif(NVGRAPH_LIGHT MATCHES True)
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-target_link_libraries(nvgraph_rapids cublas cusparse curand cusolver cudart )
+target_link_libraries(nvgraph_rapids cublas cusparse curand cusolver rmm cudart cuda)
 
 ###################################################################################################
 # - install targets -------------------------------------------------------------------------------
