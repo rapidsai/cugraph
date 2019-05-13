@@ -84,8 +84,8 @@ class SNMGpagerank
       e_loc = tmp_e;
       stream = nullptr;
       is_setup = false;
-      ALLOC_MANAGED_TRY ((void**)&bookmark,   sizeof(ValueType) * v_glob, stream);
-      ALLOC_MANAGED_TRY ((void**)&val, sizeof(ValueType) * e_loc, stream);
+      ALLOC_TRY ((void**)&bookmark,   sizeof(ValueType) * v_glob, stream);
+      ALLOC_TRY ((void**)&val, sizeof(ValueType) * e_loc, stream);
     } 
     ~SNMGpagerank() { 
       ALLOC_FREE_TRY(bookmark, stream); 
@@ -113,7 +113,7 @@ class SNMGpagerank
         alpha=_alpha;
         ValueType zero = 0.0; 
         IndexType *degree;
-        ALLOC_MANAGED_TRY ((void**)&degree,   sizeof(IndexType) * v_glob, stream);
+        ALLOC_TRY ((void**)&degree,   sizeof(IndexType) * v_glob, stream);
         
         // TODO snmg degree
         int nthreads = min(static_cast<IndexType>(e_loc), 256);

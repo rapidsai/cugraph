@@ -29,9 +29,6 @@
 
 #include <rmm_utils.h>
 
-template<typename T>
-using Vector = thrust::device_vector<T, rmm_allocator<T>>;
-
 /*
  * cudf has gdf_column_free and using this is, in general, better design than
  * creating our own, but we will keep this as cudf is planning to remove the
@@ -42,7 +39,7 @@ using Vector = thrust::device_vector<T, rmm_allocator<T>>;
  */
 void gdf_col_delete(gdf_column* col) {
   if (col != nullptr) {
-    auto stream = cudaStream_t{nullptr};
+    cudaStream_t stream {nullptr};
     if (col->data != nullptr) {
       ALLOC_FREE_TRY(col->data, stream);
     }
@@ -120,9 +117,8 @@ gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
 }
 
 gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
-				gdf_column *src_renumbered, gdf_column *dst_renumbered,
-				gdf_column *numbering_map) {
-
+                                gdf_column *src_renumbered, gdf_column *dst_renumbered,
+                                gdf_column *numbering_map) {
   GDF_REQUIRE( src->size == dst->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( src->dtype == dst->dtype, GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
@@ -152,18 +148,18 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
   if (src->dtype == GDF_INT32) {
     int32_t *tmp;
 
-    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view(src_renumbered, tmp, src->valid, src->size, src->dtype);
   
-    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, dst->dtype);
 
     gdf_error err = cugraph::renumber_vertices(src_size,
-					       (const int32_t *) src->data,
-					       (const int32_t *) dst->data,
-					       (int32_t *) src_renumbered->data,
-					       (int32_t *) dst_renumbered->data,
-					       &new_size, &tmp);
+                                               (const int32_t *) src->data,
+                                               (const int32_t *) dst->data,
+                                               (int32_t *) src_renumbered->data,
+                                               (int32_t *) dst_renumbered->data,
+                                               &new_size, &tmp);
     if (err != GDF_SUCCESS)
       return err;
 
@@ -181,18 +177,18 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
     //        but none of the algorithms support that.
     //
     int64_t *tmp;
-    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view(src_renumbered, tmp, src->valid, src->size, GDF_INT32);
   
-    ALLOC_MANAGED_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
+    ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
     gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, GDF_INT32);
 
     gdf_error err = cugraph::renumber_vertices(src_size,
-					       (const int64_t *) src->data,
-					       (const int64_t *) dst->data,
-					       (int32_t *) src_renumbered->data,
-					       (int32_t *) dst_renumbered->data,
-					       &new_size, &tmp);
+                                               (const int64_t *) src->data,
+                                               (const int64_t *) dst->data,
+                                               (int32_t *) src_renumbered->data,
+                                               (int32_t *) dst_renumbered->data,
+                                               &new_size, &tmp);
     if (err != GDF_SUCCESS)
       return err;
 
@@ -294,7 +290,8 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
       graph->edgeList->dest_indices = new gdf_column;
       graph->edgeList->ownership = 2;
 
-      CUDA_TRY(cudaMallocManaged ((void**)&d_src, sizeof(int) * graph->adjList->indices->size));
+      cudaStream_t stream{nullptr};
+      ALLOC_TRY((void**)&d_src, sizeof(int) * graph->adjList->indices->size, stream);
 
       cugraph::offsets_to_indices<int>((int*)graph->adjList->offsets->data,
                                   graph->adjList->offsets->size-1,
@@ -444,9 +441,13 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
     gdf_add_transposed_adj_list(graph);
   }
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
-  ALLOC_MANAGED_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
-  ALLOC_MANAGED_TRY((void**)&d_pr,    sizeof(WT) * m, stream);
+  ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
+  ALLOC_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
+#if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
+  CUDA_TRY(cudaMalloc((void**)&d_pr, sizeof(WT) * m));
+#else
+  ALLOC_TRY((void**)&d_pr, sizeof(WT) * m, stream);
+#endif
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
   cugraph::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
@@ -470,7 +471,11 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   cugraph::copy<WT>(m, d_pr, (WT*)pagerank->data);
 
   ALLOC_FREE_TRY(d_val, stream);
+#if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
+  CUDA_TRY(cudaFree(d_pr));
+#else
   ALLOC_FREE_TRY(d_pr, stream);
+#endif
   ALLOC_FREE_TRY(d_leaf_vector, stream);
 
   return GDF_SUCCESS;
@@ -597,15 +602,14 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
   void* indices_ptr = graph->adjList->indices->data;
 
   void* value_ptr;
-  Vector<float> d_values;
+  rmm::device_vector<float> d_values;
   if(graph->adjList->edge_data) {
       value_ptr = graph->adjList->edge_data->data;
   }
   else {
-      cudaStream_t stream { nullptr };
-      rmm_temp_allocator allocator(stream);
+      cudaStream_t stream {nullptr};
       d_values.resize(graph->adjList->indices->size);
-      thrust::fill(thrust::cuda::par(allocator).on(stream), d_values.begin(), d_values.end(), 1.0);
+      thrust::fill(rmm::exec_policy(stream)->on(stream), d_values.begin(), d_values.end(), 1.0);
       value_ptr = (void * ) thrust::raw_pointer_cast(d_values.data());
   }
 

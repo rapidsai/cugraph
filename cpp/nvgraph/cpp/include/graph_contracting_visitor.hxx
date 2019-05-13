@@ -42,6 +42,9 @@
 #include <cusp/print.h>
 #include <cusp/transpose.h>//
 
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
 //debugging only:
 #include <cstdio>
 
@@ -1624,8 +1627,8 @@ namespace{ //unnamed..
                                              const SemiRingFunctorTypes& eCombine,
                                              const SemiRingFunctorTypes& eReduce)
   {
-    typedef thrust::device_vector<IndexT> VectorI;
-    typedef thrust::device_vector<ValueT> VectorV;
+    typedef rmm::device_vector<IndexT> VectorI;
+    typedef rmm::device_vector<ValueT> VectorV;
 
     VectorI aggregates(p_aggregates, p_aggregates+n);
 
@@ -1664,8 +1667,8 @@ namespace{ //unnamed..
                                              const SemiRingFunctorTypes& eCombine,
                                              const SemiRingFunctorTypes& eReduce)
   {
-    typedef thrust::device_vector<IndexT> VectorI;
-    typedef thrust::device_vector<ValueT> VectorV;
+    typedef rmm::device_vector<IndexT> VectorI;
+    typedef rmm::device_vector<ValueT> VectorV;
 
     VectorI aggregates(p_aggregates, p_aggregates+n);
 

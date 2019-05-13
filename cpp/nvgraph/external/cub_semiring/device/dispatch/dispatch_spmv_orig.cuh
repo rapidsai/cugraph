@@ -762,7 +762,7 @@ struct DispatchSpmv
 
 #if (CUB_PTX_ARCH == 0)
             // Init textures
-            if (CubDebug(error = spmv_params.t_vector_x.BindTexture(spmv_params.d_vector_x))) break;
+            if (CubDebug(error = spmv_params.t_vector_x.BindTexture(spmv_params.d_vector_x, spmv_params.num_cols * sizeof(ValueT)))) break;
 #endif
 
             if (search_grid_size < sm_count)

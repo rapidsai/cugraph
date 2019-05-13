@@ -24,7 +24,7 @@
 
 #pragma once
 #include "nvgraph.h"
-#include "cnmem.h"
+#include "rmm/rmm.h"
 
 #if defined(__cplusplus) 
   extern "C" {
@@ -41,7 +41,6 @@ typedef enum
 
 struct nvgraphContext {
    cudaStream_t stream;
-   cnmemDevice_t cnmem_device;  
    int nvgraphIsInitialized;  
 };
 

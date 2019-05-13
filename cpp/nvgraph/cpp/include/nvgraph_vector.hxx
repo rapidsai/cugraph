@@ -15,7 +15,7 @@
  */
  
 #pragma once
-#include <cnmem_shared_ptr.hxx>
+#include <rmm_shared_ptr.hxx>
 #include "nvgraph_error.hxx"
 #include "nvgraph_vector_kernels.hxx"
 
@@ -36,7 +36,7 @@ public:
 protected:
     /*! Storage for the values.
      */
-    SHARED_PREFIX::shared_ptr<ValueType> values;
+    std::shared_ptr<ValueType> values;
 
     /*! Size of the array
      */
