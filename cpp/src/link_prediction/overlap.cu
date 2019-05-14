@@ -19,7 +19,7 @@
  * @file jaccard.cu
  * ---------------------------------------------------------------------------**/
 
-#include "graph_utils.cuh"
+#include "utilities/graph_utils.cuh"
 #include "cugraph.h"
 #include "rmm_utils.h"
 #include "utilities/error_utils.h"

@@ -20,7 +20,7 @@
 #pragma once
 #include "cub/cub.cuh"
 #include <omp.h>
-#include "graph_utils.cuh"
+#include "utilities/graph_utils.cuh"
 #include "snmg/utils.cuh"
 #include "snmg/blas/spmv.cuh"
 //#define SNMG_DEBUG

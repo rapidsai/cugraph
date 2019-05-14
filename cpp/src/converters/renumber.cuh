@@ -34,8 +34,8 @@
 #include <cuda_runtime_api.h>
 
 #include "utilities/error_utils.h"
-#include "graph_utils.cuh"
-#include "heap.cuh"
+#include "utilities/graph_utils.cuh"
+#include "utilities/heap.cuh"
 #include "rmm_utils.h"
 
 namespace cugraph {
