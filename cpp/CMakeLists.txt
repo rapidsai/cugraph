@@ -231,7 +231,7 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 add_library(cugraph SHARED
     src/grmat.cu
     src/cugraph.cu
-    src/pagerank.cu
+    src/link_analysis/pagerank.cu
     src/bfs.cu
     src/jaccard.cu
     src/overlap.cu
