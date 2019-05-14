@@ -21,7 +21,7 @@
 #include <omp.h>
 #include "test_utils.h"
 #include "snmg_test_utils.h"
-#include "snmg/pagerank.cuh"
+#include "snmg/link_analysis/pagerank.cuh"
 
 //#define SNMG_VERBOSE
 
