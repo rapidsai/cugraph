@@ -21,7 +21,7 @@
 
 #include "cuda_profiler_api.h"
 
-#include "renumber.cuh"
+#include "converters/renumber.cuh"
 #include "rmm_utils.h"
 
 #include <chrono>

@@ -236,6 +236,7 @@ add_library(cugraph SHARED
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/converters/nvgraph.cu
+    src/converters/renumber.cu
     src/nvgraph_gdf.cu
     src/traversal/nvgraph_sssp.cu
     src/traversal/two_hop_neighbors.cu
