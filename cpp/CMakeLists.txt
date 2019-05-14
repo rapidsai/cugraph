@@ -233,8 +233,8 @@ add_library(cugraph SHARED
     src/cugraph.cu
     src/link_analysis/pagerank.cu
     src/bfs.cu
-    src/jaccard.cu
-    src/overlap.cu
+    src/link_prediction/jaccard.cu
+    src/link_prediction/overlap.cu
     src/nvgraph_gdf.cu
     src/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
