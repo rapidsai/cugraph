@@ -232,11 +232,13 @@ add_library(cugraph SHARED
     src/grmat.cu
     src/cugraph.cu
     src/link_analysis/pagerank.cu
-    src/bfs.cu
+    src/traversal/bfs.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
+    src/converters/nvgraph.cu
     src/nvgraph_gdf.cu
-    src/two_hop_neighbors.cu
+    src/traversal/nvgraph_sssp.cu
+    src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu

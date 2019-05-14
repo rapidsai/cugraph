@@ -18,7 +18,6 @@
 #include "graph_utils.cuh"
 #include "COOtoCSR.cuh"
 #include "utilities/error_utils.h"
-#include "bfs.cuh"
 #include "renumber.cuh"
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
@@ -473,31 +472,6 @@ gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) {
     delete graph->transposedAdjList;
   }
   graph->transposedAdjList = nullptr;
-  return GDF_SUCCESS;
-}
-
-gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
-  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
-  GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(distances->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(predecessors->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-
-  int n = graph->adjList->offsets->size - 1;
-  int e = graph->adjList->indices->size;
-  int* offsets_ptr = (int*)graph->adjList->offsets->data;
-  int* indices_ptr = (int*)graph->adjList->indices->data;
-  int* distances_ptr = (int*)distances->data;
-  int* predecessors_ptr = (int*)predecessors->data;
-  int alpha = 15;
-  int beta = 18;
-
-  cugraph::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
-  bfs.configure(distances_ptr, predecessors_ptr, nullptr);
-  bfs.traverse(start_vertex);
   return GDF_SUCCESS;
 }
 
