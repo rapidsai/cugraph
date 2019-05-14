@@ -28,6 +28,7 @@
 #include <cuda_runtime_api.h>
 
 #include <cudf/types.h>
+#include "nvgraph_error_utils.h"
 
 #define cudaCheckError() {                                              \
     cudaError_t e=cudaGetLastError();                                     \

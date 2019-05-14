@@ -25,9 +25,9 @@
 
 #include <rmm_utils.h>
 
-#include "graph_utils.cuh"
-#include "pagerank.cuh"
+#include "utilities/graph_utils.cuh"
 #include "utilities/error_utils.h"
+#include <cugraph.h>
 
 namespace cugraph
 {
@@ -168,3 +168,88 @@ template int pagerank<int, float> (  int n, int e, int *cscPtr, int *cscInd,floa
 template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,double *cscVal, double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
 } //namespace cugraph
+
+template <typename WT>
+gdf_error gdf_pagerank_impl (gdf_graph *graph,
+                      gdf_column *pagerank, float alpha = 0.85,
+                      float tolerance = 1e-4, int max_iter = 200,
+                      bool has_guess = false) {
+  GDF_REQUIRE( graph->edgeList != nullptr, GDF_VALIDITY_UNSUPPORTED );
+  GDF_REQUIRE( graph->edgeList->src_indices->size == graph->edgeList->dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
+  GDF_REQUIRE( graph->edgeList->src_indices->dtype == graph->edgeList->dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( graph->edgeList->src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+  GDF_REQUIRE( graph->edgeList->dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+  GDF_REQUIRE( pagerank != nullptr , GDF_INVALID_API_CALL );
+  GDF_REQUIRE( pagerank->data != nullptr , GDF_INVALID_API_CALL );
+  GDF_REQUIRE( pagerank->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+  GDF_REQUIRE( pagerank->size > 0 , GDF_INVALID_API_CALL );
+
+  int m=pagerank->size, nnz = graph->edgeList->src_indices->size, status = 0;
+  WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
+  WT res = 1.0;
+  WT *residual = &res;
+
+  if (graph->transposedAdjList == nullptr) {
+    gdf_add_transposed_adj_list(graph);
+  }
+  cudaStream_t stream{nullptr};
+  ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
+  ALLOC_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
+#if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
+  CUDA_TRY(cudaMalloc((void**)&d_pr, sizeof(WT) * m));
+#else
+  ALLOC_TRY((void**)&d_pr, sizeof(WT) * m, stream);
+#endif
+
+  //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
+  cugraph::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
+
+  if (has_guess)
+  {
+    GDF_REQUIRE( pagerank->data != nullptr, GDF_VALIDITY_UNSUPPORTED );
+    cugraph::copy<WT>(m, (WT*)pagerank->data, d_pr);
+  }
+
+  status = cugraph::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data,
+    d_val, alpha, d_leaf_vector, false, tolerance, max_iter, d_pr, residual);
+
+  if (status !=0)
+    switch ( status ) {
+      case -1: std::cerr<< "Error : bad parameters in Pagerank"<<std::endl; return GDF_CUDA_ERROR;
+      case 1: std::cerr<< "Warning : Pagerank did not reached the desired tolerance"<<std::endl;  return GDF_CUDA_ERROR;
+      default:  std::cerr<< "Pagerank failed"<<std::endl;  return GDF_CUDA_ERROR;
+    }
+
+  cugraph::copy<WT>(m, d_pr, (WT*)pagerank->data);
+
+  ALLOC_FREE_TRY(d_val, stream);
+#if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
+  CUDA_TRY(cudaFree(d_pr));
+#else
+  ALLOC_FREE_TRY(d_pr, stream);
+#endif
+  ALLOC_FREE_TRY(d_leaf_vector, stream);
+
+  return GDF_SUCCESS;
+}
+
+gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess) {
+  //
+  //  page rank operates on CSR and can't currently support 64-bit integers.
+  //
+  //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
+  //
+  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
+  gdf_error err = gdf_add_adj_list(graph);
+  if (err != GDF_SUCCESS)
+    return err;
+
+  GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+
+  switch (pagerank->dtype) {
+    case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank, alpha, tolerance, max_iter, has_guess);
+    case GDF_FLOAT64:   return gdf_pagerank_impl<double>(graph, pagerank, alpha, tolerance, max_iter, has_guess);
+    default: return GDF_UNSUPPORTED_DTYPE;
+  }
+}

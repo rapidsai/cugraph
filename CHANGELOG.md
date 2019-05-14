@@ -5,6 +5,7 @@
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
+- PR #286 Reorganized cugraph source directory
 
 
 ## Bug Fixes

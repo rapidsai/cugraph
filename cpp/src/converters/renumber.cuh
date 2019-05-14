@@ -34,8 +34,8 @@
 #include <cuda_runtime_api.h>
 
 #include "utilities/error_utils.h"
-#include "graph_utils.cuh"
-#include "heap.cuh"
+#include "utilities/graph_utils.cuh"
+#include "utilities/heap.cuh"
 #include "rmm_utils.h"
 
 namespace cugraph {
@@ -134,25 +134,27 @@ namespace cugraph {
 
     }
 
-    __global__ void SetupHash(hash_type hash_size, index_type *hash_bins_start, index_type *hash_bins_end) {
+    template <typename H, typename I>
+    __global__ void SetupHash(H hash_size, I *hash_bins_start, I *hash_bins_end) {
       hash_bins_end[0] = 0;
-      for (hash_type i = 0 ; i < hash_size ; ++i) {
+      for (H i = 0 ; i < hash_size ; ++i) {
         hash_bins_end[i+1] = hash_bins_end[i] + hash_bins_start[i];
       }
 
-      for (hash_type i = 0 ; i < (hash_size + 1) ; ++i) {
+      for (H i = 0 ; i < (hash_size + 1) ; ++i) {
         hash_bins_start[i] = hash_bins_end[i];
       }
    }
 
-    __global__ void ComputeBase(hash_type hash_size, index_type *hash_bins_base) {
-      index_type sum = 0;
-      for (hash_type i = 0 ; i < hash_size ; ++i) {
+    template <typename H, typename I>
+    __global__ void ComputeBase(H hash_size, I *hash_bins_base) {
+      I sum = 0;
+      for (H i = 0 ; i < hash_size ; ++i) {
         sum += hash_bins_base[i];
       }
 
       hash_bins_base[hash_size] = sum;
-      for (hash_type i = hash_size ; i > 0 ; --i) {
+      for (H i = hash_size ; i > 0 ; --i) {
         hash_bins_base[i-1] = hash_bins_base[i] - hash_bins_base[i-1];
       }
     }

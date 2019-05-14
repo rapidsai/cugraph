@@ -19,7 +19,7 @@
  * @file jaccard.cu
  * ---------------------------------------------------------------------------**/
 
-#include "graph_utils.cuh"
+#include "utilities/graph_utils.cuh"
 #include "cugraph.h"
 #include "rmm_utils.h"
 #include "utilities/error_utils.h"
@@ -28,7 +28,7 @@ namespace cugraph {
   // Volume of neighboors (*weight_s)
   template<bool weighted, typename IdxType, typename ValType>
   __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  jaccard_row_sum(IdxType n,
+  overlap_row_sum(IdxType n,
                   IdxType *csrPtr,
                   IdxType *csrInd,
                   ValType *v,
@@ -56,7 +56,7 @@ namespace cugraph {
   // Volume of intersections (*weight_i) and cumulated volume of neighboors (*weight_s)
   template<bool weighted, typename IdxType, typename ValType>
   __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  jaccard_is(IdxType n,
+  overlap_is(IdxType n,
              IdxType *csrPtr,
              IdxType *csrInd,
              ValType *v,
@@ -81,7 +81,7 @@ namespace cugraph {
         cur = (Ni < Nj) ? col : row;
 
         //compute new sum weights
-        weight_s[j] = work[row] + work[col];
+        weight_s[j] = min(work[row], work[col]);
 
         //compute new intersection weights
         //search for the element with the same column index in the reference row
@@ -127,7 +127,7 @@ namespace cugraph {
   // Using list of node pairs
   template<bool weighted, typename IdxType, typename ValType>
   __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  jaccard_is_pairs(IdxType num_pairs,
+  overlap_is_pairs(IdxType num_pairs,
                    IdxType *csrPtr,
                    IdxType *csrInd,
                    IdxType *first_pair,
@@ -152,7 +152,7 @@ namespace cugraph {
       cur = (Ni < Nj) ? col : row;
 
       //compute new sum weights
-      weight_s[idx] = work[row] + work[col];
+      weight_s[idx] = min(work[row], work[col]);
 
       //compute new intersection weights
       //search for the element with the same column index in the reference row
@@ -197,27 +197,26 @@ namespace cugraph {
   //Jaccard  weights (*weight)
   template<bool weighted, typename IdxType, typename ValType>
   __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  jaccard_jw(IdxType e,
+  overlap_jw(IdxType e,
              IdxType *csrPtr,
              IdxType *csrInd,
              ValType *weight_i,
              ValType *weight_s,
              ValType *weight_j) {
     IdxType j;
-    ValType Wi, Ws, Wu;
+    ValType Wi, Wu;
 
     for (j = threadIdx.x + blockIdx.x * blockDim.x;
         j < e;
         j += gridDim.x * blockDim.x) {
       Wi = weight_i[j];
-      Ws = weight_s[j];
-      Wu = Ws - Wi;
+      Wu = weight_s[j];
       weight_j[j] = (Wi / Wu);
     }
   }
 
   template<bool weighted, typename IdxType, typename ValType>
-  int jaccard(IdxType n,
+  int overlap(IdxType n,
               IdxType e,
               IdxType *csrPtr,
               IdxType *csrInd,
@@ -237,7 +236,7 @@ namespace cugraph {
     nblocks.y = min((n + nthreads.y - 1) / nthreads.y, (IdxType) CUDA_MAX_BLOCKS);
     nblocks.z = 1;
     //launch kernel
-    jaccard_row_sum<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(n,
+    overlap_row_sum<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(n,
                                                                         csrPtr,
                                                                         csrInd,
                                                                         weight_in,
@@ -252,7 +251,7 @@ namespace cugraph {
     nblocks.y = 1;
     nblocks.z = min((n + nthreads.z - 1) / nthreads.z, (IdxType) CUDA_MAX_BLOCKS); //1;
     //launch kernel
-    jaccard_is<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(n,
+    overlap_is<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(n,
                                                                    csrPtr,
                                                                    csrInd,
                                                                    weight_in,
@@ -268,7 +267,7 @@ namespace cugraph {
     nblocks.y = 1;
     nblocks.z = 1;
     //launch kernel
-    jaccard_jw<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(e,
+    overlap_jw<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(e,
                                                                    csrPtr,
                                                                    csrInd,
                                                                    weight_i,
@@ -279,7 +278,7 @@ namespace cugraph {
   }
 
   template<bool weighted, typename IdxType, typename ValType>
-  int jaccard_pairs(IdxType n,
+  int overlap_pairs(IdxType n,
                     IdxType num_pairs,
                     IdxType *csrPtr,
                     IdxType *csrInd,
@@ -301,7 +300,7 @@ namespace cugraph {
     nblocks.y = min((n + nthreads.y - 1) / nthreads.y, (IdxType) CUDA_MAX_BLOCKS);
     nblocks.z = 1;
     //launch kernel
-    jaccard_row_sum<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(n,
+    overlap_row_sum<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(n,
                                                                         csrPtr,
                                                                         csrInd,
                                                                         weight_in,
@@ -316,7 +315,7 @@ namespace cugraph {
     nblocks.y = 1;
     nblocks.z = min((n + nthreads.z - 1) / nthreads.z, (IdxType) CUDA_MAX_BLOCKS); //1;
     //launch kernel
-    jaccard_is_pairs<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(num_pairs,
+    overlap_is_pairs<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(num_pairs,
                                                                          csrPtr,
                                                                          csrInd,
                                                                          first_pair,
@@ -334,7 +333,7 @@ namespace cugraph {
     nblocks.y = 1;
     nblocks.z = 1;
     //launch kernel
-    jaccard_jw<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(num_pairs,
+    overlap_jw<weighted, IdxType, ValType> <<<nblocks, nthreads>>>(num_pairs,
                                                                    csrPtr,
                                                                    csrInd,
                                                                    weight_i,
@@ -345,7 +344,7 @@ namespace cugraph {
   }
 } // End cugraph namespace
 
-gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
+gdf_error gdf_overlap(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
   GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE((graph->adjList != nullptr) || (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
   GDF_REQUIRE(result != nullptr, GDF_INVALID_API_CALL);
@@ -376,7 +375,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard<true, int32_t, float>(n,
+    cugraph::overlap<true, int32_t, float>(n,
                                            e,
                                            (int32_t*) csrPtr,
                                            (int32_t*) csrInd,
@@ -392,7 +391,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard<false, int32_t, float>(n,
+    cugraph::overlap<false, int32_t, float>(n,
                                             e,
                                             (int32_t*) csrPtr,
                                             (int32_t*) csrInd,
@@ -408,7 +407,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard<true, int32_t, double>(n,
+    cugraph::overlap<true, int32_t, double>(n,
                                             e,
                                             (int32_t*) csrPtr,
                                             (int32_t*) csrInd,
@@ -424,7 +423,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard<false, int32_t, double>(n,
+    cugraph::overlap<false, int32_t, double>(n,
                                              e,
                                              (int32_t*) csrPtr,
                                              (int32_t*) csrInd,
@@ -440,7 +439,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard<true, int64_t, float>(n,
+    cugraph::overlap<true, int64_t, float>(n,
                                            e,
                                            (int64_t*) csrPtr,
                                            (int64_t*) csrInd,
@@ -456,7 +455,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard<false, int64_t, float>(n,
+    cugraph::overlap<false, int64_t, float>(n,
                                             e,
                                             (int64_t*) csrPtr,
                                             (int64_t*) csrInd,
@@ -472,7 +471,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard<true, int64_t, double>(n,
+    cugraph::overlap<true, int64_t, double>(n,
                                             e,
                                             (int64_t*) csrPtr,
                                             (int64_t*) csrInd,
@@ -488,7 +487,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard<false, int64_t, double>(n,
+    cugraph::overlap<false, int64_t, double>(n,
                                              e,
                                              (int64_t*) csrPtr,
                                              (int64_t*) csrInd,
@@ -507,7 +506,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   return GDF_SUCCESS;
 }
 
-gdf_error gdf_jaccard_list(gdf_graph* graph,
+gdf_error gdf_overlap_list(gdf_graph* graph,
                            gdf_column* weights,
                            gdf_column* first,
                            gdf_column* second,
@@ -554,7 +553,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard_pairs<true, int32_t, float>(n,
+    cugraph::overlap_pairs<true, int32_t, float>(n,
                                                  num_pairs,
                                                  (int32_t*) csrPtr,
                                                  (int32_t*) csrInd,
@@ -573,7 +572,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard_pairs<false, int32_t, float>(n,
+    cugraph::overlap_pairs<false, int32_t, float>(n,
                                                   num_pairs,
                                                   (int32_t*) csrPtr,
                                                   (int32_t*) csrInd,
@@ -592,7 +591,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard_pairs<true, int32_t, double>(n,
+    cugraph::overlap_pairs<true, int32_t, double>(n,
                                                   num_pairs,
                                                   (int32_t*) csrPtr,
                                                   (int32_t*) csrInd,
@@ -611,7 +610,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard_pairs<false, int32_t, double>(n,
+    cugraph::overlap_pairs<false, int32_t, double>(n,
                                                    num_pairs,
                                                    (int32_t*) csrPtr,
                                                    (int32_t*) csrInd,
@@ -630,7 +629,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard_pairs<true, int64_t, float>(n,
+    cugraph::overlap_pairs<true, int64_t, float>(n,
                                                  num_pairs,
                                                  (int64_t*) csrPtr,
                                                  (int64_t*) csrInd,
@@ -649,7 +648,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard_pairs<false, int64_t, float>(n,
+    cugraph::overlap_pairs<false, int64_t, float>(n,
                                                   num_pairs,
                                                   (int64_t*) csrPtr,
                                                   (int64_t*) csrInd,
@@ -668,7 +667,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard_pairs<true, int64_t, double>(n,
+    cugraph::overlap_pairs<true, int64_t, double>(n,
                                                   num_pairs,
                                                   (int64_t*) csrPtr,
                                                   (int64_t*) csrInd,
@@ -687,7 +686,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard_pairs<false, int64_t, double>(n,
+    cugraph::overlap_pairs<false, int64_t, double>(n,
                                                    num_pairs,
                                                    (int64_t*) csrPtr,
                                                    (int64_t*) csrInd,
