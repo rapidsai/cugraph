@@ -265,12 +265,65 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
      // Allocate memory on host
      std::vector<idx_t> csrColInd(nnz), csrRowPtr(m+1);
      std::vector<val_t> cooVal(nnz), csrVal(nnz), pagerank_h(m, 1.0/m);
-     coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
+
+     // transpose here
+     coo2csr(cooColInd, cooRowInd, csrRowPtr, csrColInd);
      CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
      std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
      random_vals(csrVal);
      gdf_column *col_pagerank[n_gpus];
 
+     if (nnz<1200000000)
+     {
+       #pragma omp parallel num_threads(1)
+       {
+        auto i = omp_get_thread_num();
+        auto p = omp_get_num_threads(); 
+        CUDA_RT_CALL(cudaSetDevice(i));
+
+        #ifdef SNMG_VERBOSE 
+          #pragma omp master 
+          { 
+            std::cout << "Number of GPUs : "<< n_gpus <<std::endl;
+            std::cout << "Number of threads : "<< p <<std::endl;
+          }
+        #endif
+
+        gdf_column *col_off = new gdf_column, 
+                   *col_ind = new gdf_column, 
+                   *col_val = new gdf_column;
+        col_pagerank[i] = new gdf_column;
+        create_gdf_column(pagerank_h, col_pagerank[i]);
+        #pragma omp barrier
+
+        //load a chunck of the graph on each GPU 
+        load_csr_loc(csrRowPtr, csrColInd, csrVal, 
+                     v_loc, e_loc, part_offset,
+                     col_off, col_ind, col_val);
+        
+        t = omp_get_wtime();
+        cugraph::SNMGinfo env;
+        cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
+        pr_solver.setup(alpha);
+
+        val_t* pagerank[p];
+        for (auto i = 0; i < p; ++i)
+          pagerank[i]= static_cast<val_t*>(col_pagerank[i]->data);
+
+        pr_solver.solve(max_iter, pagerank);
+        #pragma omp master 
+        {std::cout <<  omp_get_wtime() - t << " ";}
+
+        verify_pr<val_t>(col_pagerank[i], param);
+
+        gdf_col_delete(col_off);
+        gdf_col_delete(col_ind);
+        gdf_col_delete(col_val);
+        gdf_col_delete(col_pagerank[i]);
+      }
+    }
+// TODO Enable when degree function is present
+#if 0
      if (n_gpus > 1)
      {
       // Only using the 4 fully connected GPUs on DGX1
@@ -324,6 +377,7 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
         gdf_col_delete(col_pagerank[i]);
       }
     }
+#endif
     std::cout << std::endl;
   }
 };
