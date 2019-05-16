@@ -104,7 +104,7 @@ gdf_error treeReduce(size_t length, val_t* x_loc, val_t** x_glob){
     #pragma omp_barrier
 
     // Reduce the data from the receiver's global buffer with its local one
-    if(i % (rank * 2) == 0 && i + rank < size){
+    if(i % (rank * 2) == 0 && i + rank < p){
       rmm_temp_allocator allocator(nullptr);
       func_t op;
       thrust::transform(thrust::cuda::par(allocator).on(nullptr),
@@ -143,7 +143,7 @@ gdf_error treeBroadcast(size_t length, val_t* x_loc, val_t** x_glob){
   while(rank * 2 < p)
     rank *= 2;
   for(; rank >= 1; rank /= 2){
-    if(i % (rank * 2) == 0 and i + rank < size){
+    if(i % (rank * 2) == 0 and i + rank < p){
       int receiver = i + rank;
       cudaMemcpyPeer(x_glob[receiver], receiver, x_glob[i], i, sizeof(val_t) * length);
     }

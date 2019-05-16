@@ -129,13 +129,21 @@ set(RENUMBERING_TEST_SRCS
         "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
 configure_test(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
-
+###################################################################################################
+#-SNMG_SPMV  tests --------------------------------------------------------------------------------
 set(SNMG_SPMV_TEST_SRCS
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/snmg_spmv/snmg_spmv_test.cu")
 
 configure_test(SNMG_SPMV_TEST "${SNMG_SPMV_TEST_SRCS}")
 
+###################################################################################################
+#-SNMG_DEGREE  tests --------------------------------------------------------------------------------
+set(SNMG_DEGREE_TEST_SRCS
+        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_degree/snmg_degree_test.cu")
+
+configure_test(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRCS}")
 
 message(STATUS "******** Tests are ready ********")
 

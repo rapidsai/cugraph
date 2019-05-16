@@ -362,7 +362,12 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
     nblocks.z = 1;
 
     switch (col_ptr->dtype) {
-      case GDF_INT32:   cugraph::degree_offsets<int32_t, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
+      case GDF_INT32:
+        cugraph::degree_offsets<int32_t, int32_t><<<nblocks, nthreads>>>(n,
+                                                                       e,
+                                                                       static_cast<int32_t*>(col_ptr->data),
+                                                                       static_cast<int32_t*>(degree->data));
+        break;
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
@@ -376,8 +381,14 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
     nblocks.z = 1;
 
     switch (col_ptr->dtype) {
-      case GDF_INT32:   cugraph::degree_coo<int32_t, float> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
-      default: return GDF_UNSUPPORTED_DTYPE;
+      case GDF_INT32:
+        cugraph::degree_coo<int32_t, int32_t><<<nblocks, nthreads>>>(n,
+                                                                   e,
+                                                                   static_cast<int32_t*>(col_ptr->data),
+                                                                   static_cast<int32_t*>(degree->data));
+        break;
+      default:
+        return GDF_UNSUPPORTED_DTYPE;
     }
   }
   return GDF_SUCCESS;
@@ -701,7 +712,7 @@ gdf_error gdf_snmg_degree_impl(int x,
 }
 
 gdf_error gdf_snmg_degree(int x,
-                          size_t part_offsets,
+                          size_t* part_offsets,
                           gdf_column* off,
                           gdf_column* ind,
                           gdf_column** x_cols) {
@@ -714,5 +725,7 @@ gdf_error gdf_snmg_degree(int x,
       return gdf_snmg_degree_impl<int32_t>(x, part_offsets, off, ind, x_cols);
     case GDF_INT64:
       return gdf_snmg_degree_impl<int64_t>(x, part_offsets, off, ind, x_cols);
+    default:
+      return GDF_INVALID_API_CALL;
   }
 }

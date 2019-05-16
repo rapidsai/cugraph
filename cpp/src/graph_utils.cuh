@@ -303,9 +303,9 @@ namespace cugraph
 //google matrix kernels
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-	degree_coo(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
+	degree_coo(const IndexType n, const IndexType e, const IndexType *ind, ValueType *degree) {
 		for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
-			atomicAdd(&degree[ind[i]], 1.0);
+			atomicAdd(&degree[ind[i]], (ValueType)1.0);
 	}
 	template<typename IndexType, typename ValueType>
 	__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -328,11 +328,20 @@ namespace cugraph
 
         template<typename IndexType, typename ValueType>
         __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-        degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, IndexType *degree) {
+        degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, ValueType *degree) {
                 for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
                         degree[i] += ind[i+1]-ind[i];
         }
 
+template <typename from_t, typename to_t>
+__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+type_convert(from_t* input, size_t n) {
+  for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x){
+    to_t value = input[i];
+    to_t* values = (to_t*)input;
+    values[i] = value;
+  }
+}
 
 //notice that in the transposed matrix/csc a dangling node is a node without incomming edges
 //just swap coo src and dest arrays after that to interpret it as HT
@@ -431,7 +440,7 @@ namespace cugraph
 		nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
 		nblocks.y = 1;
 		nblocks.z = 1;
-		degree_coo<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, csrInd, degree);
+		degree_coo<IndexType, IndexType> <<<nblocks, nthreads>>>(n, e, csrInd, degree);
 		cudaCheckError();
 
 		int y = 4;
