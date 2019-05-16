@@ -89,6 +89,11 @@ class Tests_MGDegree : public ::testing::TestWithParam<MGDegree_Usecase> {
 
      FILE* fpin = fopen(param.matrix_file.c_str(),"r");
 
+     if (!fpin) {
+       std::cout << "Could not open file: " << param.matrix_file << "\n";
+       exit();
+     }
+
      ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
      ASSERT_TRUE(mm_is_matrix(mc));
      ASSERT_TRUE(mm_is_coordinate(mc));
