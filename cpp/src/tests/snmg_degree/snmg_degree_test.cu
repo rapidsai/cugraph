@@ -80,7 +80,7 @@ class Tests_MGDegree : public ::testing::TestWithParam<MGDegree_Usecase> {
      const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
      std::stringstream ss;
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
-
+     std::cout << test_id << "\n";
      int m, k, nnz, n_gpus;
      MM_typecode mc;
      gdf_error status;
