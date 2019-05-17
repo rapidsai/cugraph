@@ -155,6 +155,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
         gdf_col_delete(col_x[i]);
       }
     }
+    
     if (n_gpus > 1)
     {
       // Only using the 4 fully connected GPUs on DGX1
@@ -182,7 +183,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
         create_gdf_column(x_h, col_x[i]);
         #pragma omp barrier
 
-        load_csr_loc(csrRowPtr, cooColInd, csrVal, 
+        load_csr_loc(csrRowPtr, csrColInd, csrVal, 
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
@@ -293,7 +294,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
         #pragma omp barrier
 
         //load a chunck of the graph on each GPU 
-        load_csr_loc(csrRowPtr, cooColInd, csrVal, 
+        load_csr_loc(csrRowPtr, csrColInd, csrVal, 
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
@@ -345,7 +346,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
         #pragma omp barrier
 
         //load a chunck of the graph on each GPU 
-        load_csr_loc(csrRowPtr, cooColInd, csrVal, 
+        load_csr_loc(csrRowPtr, csrColInd, csrVal, 
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
@@ -377,14 +378,14 @@ TEST_P(Tests_MGSpmv_hibench, CheckFP32_hibench) {
     run_current_test<int, float>(GetParam());
 }
 
-
+/*
 INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGSpmv_hibench,  
                         ::testing::Values(   MGSpmv_Usecase("benchmark/hibench/1/Input-small/edges/part-00000")
-                                            ,MGSpmv_Usecase("benchmark/hibench/1/Input-large/edges/part-00000")
-                                            ,MGSpmv_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")
+                                             ,MGSpmv_Usecase("benchmark/hibench/1/Input-large/edges/part-00000")
+                                             ,MGSpmv_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")
                                          )
                        );
-
+*/
 class Tests_MGSpmv_unsorted : public ::testing::TestWithParam<MGSpmv_Usecase> {
   public:
   Tests_MGSpmv_unsorted() {  }
@@ -559,7 +560,6 @@ INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv_unsorted,
                                             ,MGSpmv_Usecase("test/datasets/wiki-Talk.mtx")
                                          )
                        );
-
 int main(int argc, char **argv)  {
     srand(42);
     ::testing::InitGoogleTest(&argc, argv);

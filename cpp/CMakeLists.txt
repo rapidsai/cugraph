@@ -255,7 +255,7 @@ option(BUILD_TESTS "Configure CMake to build tests" OFF)
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES} rmm)
+target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES} rmm cusparse)
 
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory

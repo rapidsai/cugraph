@@ -23,6 +23,13 @@
 namespace cugraph
 {
 
+// Wait for all host threads 
+void sync_all() {
+  cudaDeviceSynchronize();
+  #pragma omp barrier 
+  cudaCheckError();
+}
+
 // basic info about the snmg env setup
 class SNMGinfo 
 { 
@@ -81,14 +88,9 @@ class SNMGinfo
           }
         }
       }
+      sync_all();
     }
 };
-
-// Wait for all host threads 
-void sync_all() {
-  cudaDeviceSynchronize();
-  #pragma omp barrier 
-}
 
 // Each GPU copies its x_loc to x_glob[offset[device]] on all GPU
 template <typename val_t>
@@ -98,8 +100,6 @@ void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
   size_t n_loc= offset[i+1]-offset[i];
 
   env.setup_peer_access(); 
-  // this causes issues with CUB. TODO :  verify the impact on performance.
-
   // send the local spmv output (x_loc) to all peers to reconstruct the global vector x_glob 
   // After this call each peer has a full, updated, copy of x_glob
   for (int j = 0; j < p; ++j) {

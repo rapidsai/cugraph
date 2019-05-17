@@ -23,6 +23,7 @@
 #include "utilities/graph_utils.cuh"
 #include "snmg/utils.cuh"
 //#define SNMG_DEBUG
+#include "utilities/cusparse_helper.h"
 
 namespace cugraph
 {
@@ -44,16 +45,12 @@ class SNMGcsrmv
     ValueType * val;
     ValueType * y_loc;
     cudaStream_t stream;
-    void* cub_d_temp_storage;
-    size_t cub_temp_storage_bytes;
-
+    CusparseCsrMV<ValueType> spmv;
   public: 
     SNMGcsrmv(SNMGinfo & env_, size_t* part_off_, 
-              IndexType * off_, IndexType * ind_, ValueType * val_, ValueType ** x) : 
+              IndexType * off_, IndexType * ind_, ValueType * val_, ValueType ** x): 
               env(env_), part_off(part_off_), off(off_), ind(ind_), val(val_) { 
       sync_all();
-      cub_d_temp_storage = NULL;
-      cub_temp_storage_bytes = 0;
       stream = nullptr;
       i = env.get_thread_num();
       p = env.get_num_threads(); 
@@ -67,27 +64,21 @@ class SNMGcsrmv
       // Allocate the local result
       ALLOC_TRY ((void**)&y_loc, v_loc*sizeof(ValueType), stream);
 
-      // get temporary storage size for CUB
-      cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
-                                      val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc);
-      cudaCheckError();
-      // Allocate CUB's temporary storage
-      ALLOC_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
+      ValueType h_one = 1.0;
+      ValueType h_zero = 0.0;
+      spmv.setup(v_loc, v_glob, e_loc, &h_one, val, off, ind, x[i], &h_zero, y_loc);
     } 
 
     ~SNMGcsrmv() { 
-      ALLOC_FREE_TRY(cub_d_temp_storage, stream);
       ALLOC_FREE_TRY(y_loc, stream);
     }
 
-    // run the power iteration
     void run (ValueType ** x) {
-    // Local SPMV
-    cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, 
-                                    val, off, ind, x[i], y_loc, v_loc, v_glob, e_loc);
-    cudaCheckError()
     sync_all();
-     
+    ValueType h_one = 1.0;
+    ValueType h_zero = 0.0;
+    spmv.run(v_loc, v_glob, e_loc, &h_one, val, off, ind, x[i], &h_zero, y_loc);
+
  #ifdef SNMG_DEBUG
     print_mem_usage();  
     #pragma omp master 
