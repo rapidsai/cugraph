@@ -24,7 +24,7 @@ namespace cugraph
 {
 
 // Wait for all host threads 
-void sync_all() {
+inline void sync_all() {
   cudaDeviceSynchronize();
   #pragma omp barrier 
   cudaCheckError();
@@ -112,7 +112,7 @@ void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
 
 }
 
-void print_mem_usage()
+inline void print_mem_usage()
 {
   size_t free,total;
   cudaMemGetInfo(&free, &total);  

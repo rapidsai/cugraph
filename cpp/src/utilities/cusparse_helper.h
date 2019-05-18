@@ -155,4 +155,7 @@ class CusparseCsrMV
                       spmv_d_temp_storage));
     }
 };
+
+cusparseHandle_t Cusparse::m_handle = 0;
+
 } //namespace

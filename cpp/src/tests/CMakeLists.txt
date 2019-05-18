@@ -46,7 +46,7 @@ function(configure_test TEST_NAME Tests_SRCS)
 #    message(STATUS "${TEST_NAME} will link against: gdf, cugraph")
 
     add_executable(${TEST_NAME} ${Tests_SRCS})
-    target_link_libraries(${TEST_NAME} OpenMP::OpenMP_CXX gmock_main gmock GTest::GTest cugraph nvgraph cudf cudart cusparse)
+    target_link_libraries(${TEST_NAME} OpenMP::OpenMP_CXX gmock_main gmock GTest::GTest cugraph nvgraph cudf cudart)
     set_target_properties(${TEST_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/")
 

@@ -42,7 +42,7 @@ transition_kernel(const size_t e,
 }
 
 template <typename IndexType, typename ValueType>
-SNMGpagerank<typename IndexType, typename ValueType>::SNMGpagerank(SNMGinfo & env_, size_t* part_off_, 
+SNMGpagerank<IndexType,ValueType>::SNMGpagerank(SNMGinfo & env_, size_t* part_off_, 
              IndexType * off_, IndexType * ind_) : 
              env(env_), part_off(part_off_), off(off_), ind(ind_) { 
   id = env.get_thread_num();
@@ -61,14 +61,16 @@ SNMGpagerank<typename IndexType, typename ValueType>::SNMGpagerank(SNMGinfo & en
   // intialize cusparse. This can take some time.
   Cusparse::get_handle();
 } 
-~SNMGpagerank() { 
+
+template <typename IndexType, typename ValueType>
+SNMGpagerank<IndexType,ValueType>::~SNMGpagerank() { 
   Cusparse::destroy_handle();
   ALLOC_FREE_TRY(bookmark, stream); 
   ALLOC_FREE_TRY(val, stream);
 }
 
 template <typename IndexType, typename ValueType>
-void SNMGpagerank<typename IndexType, typename ValueType>::transition_vals(const IndexType *degree) {
+void SNMGpagerank<IndexType,ValueType>::transition_vals(const IndexType *degree) {
   int threads = min(static_cast<IndexType>(e_loc), 256);
   int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
   transition_kernel<IndexType, ValueType> <<<blocks, threads>>> (e_loc, ind, degree, val);
@@ -76,7 +78,7 @@ void SNMGpagerank<typename IndexType, typename ValueType>::transition_vals(const
 }
 
 template <typename IndexType, typename ValueType>
-void SNMGpagerank<typename IndexType, typename ValueType>::flag_leafs(const IndexType *degree) {
+void SNMGpagerank<IndexType,ValueType>::flag_leafs(const IndexType *degree) {
   int threads = min(static_cast<IndexType>(v_glob), 256);
   int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
   flag_leafs_kernel<IndexType, ValueType> <<<blocks, threads>>> (v_glob, degree, bookmark);
@@ -86,7 +88,7 @@ void SNMGpagerank<typename IndexType, typename ValueType>::flag_leafs(const Inde
 
 // Artificially create the google matrix by setting val and bookmark
 template <typename IndexType, typename ValueType>
-void SNMGpagerank<typename IndexType, typename ValueType>::setup(ValueType _alpha) {
+void SNMGpagerank<IndexType,ValueType>::setup(ValueType _alpha) {
   if (!is_setup) {
 
     alpha=_alpha;
@@ -117,7 +119,7 @@ void SNMGpagerank<typename IndexType, typename ValueType>::setup(ValueType _alph
 
 // run the power iteration on the google matrix
 template <typename IndexType, typename ValueType>
-void SNMGpagerank<typename IndexType, typename ValueType>::solve (int max_iter, ValueType ** pagerank) {
+void SNMGpagerank<IndexType,ValueType>::solve (int max_iter, ValueType ** pagerank) {
   if (is_setup) {
     ValueType  dot_res;
     ValueType one = 1.0;
