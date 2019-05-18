@@ -16,14 +16,22 @@
 #=============================================================================
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(cuGraph VERSION 0.8.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.8.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
-# - cmake modules ---------------------------------------------------------------------------------
-include(FeatureSummary)
-include(CheckIncludeFiles)
-include(CheckLibraryExists)
-include(CTest)
+# - build type ------------------------------------------------------------------------------------
+
+# Set a default build type if none was specified
+set(DEFAULT_BUILD_TYPE "Release")
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${DEFAULT_BUILD_TYPE}' since none specified.")
+  set(CMAKE_BUILD_TYPE "${DEFAULT_BUILD_TYPE}" CACHE
+      STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
@@ -35,6 +43,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 
 ###################################################################################################
 ###   C++ ABI changes.
@@ -49,102 +60,61 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 ###   This block of code will configure the old ABI if the flag is set to OFF and
 ###   do nothing (the default behavior of the C++14 compiler).
 ###
-option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
-
-if(CMAKE_CXX11_ABI)
-    message(STATUS "cuGraph: Enabling the GLIBCXX11 ABI")
-else()
-    message(STATUS "cuGraph: Disabling the GLIBCXX11 ABI")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
-endif(CMAKE_CXX11_ABI)
-
-###################################################################################################
-
-#set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
-
-#find_package(CUDA)
-#set_package_properties(
-#    CUDA PROPERTIES TYPE REQUIRED
-#    PURPOSE "NVIDIA CUDA® parallel computing platform and programming model."
-#    URL "https://developer.nvidia.com/cuda-zone")
-
-#if(CUDA_FOUND)
-#    message(STATUS "CUDA ${CUDA_VERSION} found in ${CUDA_TOOLKIT_ROOT_DIR}")
-
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-std=c++11;--expt-extended-lambda; -Xcompiler -rdynamic -lineinfo)
-#    # Suppress SHFL warnings caused by modern GPU.
-#    # TODO: remove this when modern GPU is removed or fixed to use shfl_sync
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -Wno-deprecated-declarations; -Xptxas --disable-warnings)
-#    # set warnings as errors
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-Werror cross-execution-space-call;-Xcompiler -Wall,-Wno-error=sign-compare)
-
-#    message(STATUS "CUDA_NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
-#else()
-#    message(FATAL_ERROR "CUDA not found, please check your settings.")
-#endif()
-
-message(STATUS "Using C++ standard: c++${CMAKE_CXX_STANDARD}")
-
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODULE_PATH})
-message(STATUS "CMAKE_MODULE_PATH:" "${CMAKE_MODULE_PATH}")
-
-#IF(CUDA_VERSION_MAJOR GREATER 7)
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode;arch=compute_60,code=sm_60)
-#ENDIF(CUDA_VERSION_MAJOR GREATER 7)
-
-#IF(CUDA_VERSION_MAJOR GREATER 8)
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode;arch=compute_70,code=sm_70)
-#ENDIF(CUDA_VERSION_MAJOR GREATER 8)
-
-#IF(CMAKE_BUILD_TYPE MATCHES DEBUG)
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-g;-G;-lineinfo)
-#ENDIF(CMAKE_BUILD_TYPE MATCHES DEBUG)
-
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+    option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
+    if(CMAKE_CXX11_ABI)
+        message(STATUS "CUGRAPH: Enabling the GLIBCXX11 ABI")
+    else()
+        message(STATUS "CUGRAPH: Disabling the GLIBCXX11 ABI")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
+    endif(CMAKE_CXX11_ABI)
 endif(CMAKE_COMPILER_IS_GNUCXX)
-	
-# Keith testing space
+
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70")
-	
+
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda -Xcompiler -rdynamic -lineinfo")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
-	
+
+# Option to enable line info in CUDA device compilation to allow introspection when profiling / memchecking
+option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
+if (CMAKE_CUDA_LINEINFO)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo")
+endif(CMAKE_CUDA_LINEINFO)
+
 # Debug options
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Building with debugging flags")
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G -lineinfo")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G -Xcompiler -rdynamic")
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
-	
-message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 
+option(BUILD_TESTS "Configure CMake to build tests"
+       ON)
 
 ###################################################################################################
-# - cmake custom modules --------------------------------------------------------------------------
-include(ConfigureGoogleTest)
+# - cmake modules ---------------------------------------------------------------------------------
+
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODULE_PATH})
+
+include(FeatureSummary)
+include(CheckIncludeFiles)
+include(CheckLibraryExists)
+if(BUILD_TESTS)
+    include(CTest)
+endif(BUILD_TESTS)
+
+###################################################################################################
+# - build nvgraph ---------------------------------------------------------------------------------
 
 # speedup build time by avoiding features that are not exposed
 set(NVGRAPH_LIGHT True)
-# build nvgraph
 include(ConfigureNvgraph)
 
 ###################################################################################################
-# - Find and add different modules and supporting repos -------------------------------------------
-find_package(Boost REQUIRED)
-
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler ${OpenMP_CXX_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
+# - gunrock ---------------------------------------------------------------------------------------
 
 find_package(Git QUIET)
 if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
@@ -159,35 +129,77 @@ else()
 endif()
 
 ###################################################################################################
-# - add cudf --------------------------------------------------------------------------------------
+# - find boost ------------------------------------------------------------------------------------
+
+find_package(Boost REQUIRED)
+if(Boost_FOUND)
+    message(STATUS "Boost found in ${Boost_INCLUDE_DIRS}")
+else()
+    message(FATAL_ERROR "Boost not found, please check your settings.")
+endif(Boost_FOUND)
+
+###################################################################################################
+# - find openmp -----------------------------------------------------------------------------------
+
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler ${OpenMP_CXX_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
+###################################################################################################
+# - find gtest ------------------------------------------------------------------------------------
+
+if(BUILD_TESTS)
+    include(ConfigureGoogleTest)
+
+    if(GTEST_FOUND)
+        message(STATUS "Google C++ Testing Framework (Google Test) found in ${GTEST_ROOT}")
+    else()
+        message(AUTHOR_WARNING "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
+    endif(GTEST_FOUND)
+endif(BUILD_TESTS)
+
+###################################################################################################
+# - cudf ------------------------------------------------------------------------------------------
+
 find_path(CUDF_INCLUDE "cudf"
           HINTS "$ENV{CUDF_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include/cudf"
                 "$ENV{CONDA_PREFIX}/include")
 
 find_library(CUDF_LIBRARY "cudf"
              HINTS "$ENV{CUDF_ROOT}/lib"
                    "$ENV{CONDA_PREFIX}/lib")
 
-add_library(cudf SHARED IMPORTED)
+message(STATUS "CUDF: CUDF_LIBRARY set to ${CUDF_LIBRARY}")
+message(STATUS "CUDF: CUDF_INCLUDE set to ${CUDF_INCLUDE}")
+
+add_library(cudf SHARED IMPORTED ${CUDF_LIBRARY})
 if (CUDF_INCLUDE AND CUDF_LIBRARY)
-    set_target_properties( cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
-    message(STATUS "GDF found in ${CUDF_LIBRARY}")
+    set_target_properties(cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
 endif (CUDF_INCLUDE AND CUDF_LIBRARY)
 
 ###################################################################################################
-# - add rmm --------------------------------------------------------------------------------------
+# - RMM -------------------------------------------------------------------------------------------
+
 find_path(RMM_INCLUDE "rmm"
-          HINTS "$ENV{CUDF_ROOT}/include"
+          HINTS "$ENV{RMM_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include/rmm"
                 "$ENV{CONDA_PREFIX}/include")
 
 find_library(RMM_LIBRARY "rmm"
-             HINTS "$ENV{CUDF_ROOT}/lib"
+             HINTS "$ENV{RMM_ROOT}/lib"
                    "$ENV{CONDA_PREFIX}/lib")
 
-add_library(rmm SHARED IMPORTED)
+message(STATUS "RMM: RMM_LIBRARY set to ${RMM_LIBRARY}")
+message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
+
+add_library(rmm SHARED IMPORTED ${RMM_LIBRARY})
 if (RMM_INCLUDE AND RMM_LIBRARY)
-    set_target_properties( rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
-    message(STATUS "RMM found in ${RMM_LIBRARY}")
+    set_target_properties(rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
@@ -195,22 +207,26 @@ endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 find_path(NVGRAPH_INCLUDE "nvgraph"
       HINTS "$ENV{CONDA_PREFIX}/include")
+
 find_library(NVGRAPH_LIBRARY "nvgraph_rapids"
          HINTS "$ENV{CONDA_PREFIX}/lib")
 
-add_library( nvgraph SHARED IMPORTED)
+message(STATUS "NVGRAPH: NVGRAPH_LIBRARY set to ${NVGRAPH_LIBRARY}")
+message(STATUS "NVGRAPH: NVGRAPH_INCLUDE set to ${NVGRAPH_INCLUDE}")
+
+add_library(nvgraph SHARED IMPORTED ${NVGRAPH_LIBRARY})
 if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
     set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
-    message(STATUS "nvgraph found in ${NVGRAPH_LIBRARY}")
 endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
+
 include_directories(
+    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" 
     "${CMAKE_CURRENT_SOURCE_DIR}/include" 
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/external/cub"
-    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" 
     "${CUDF_INCLUDE}"
     "${NVGRAPH_INCLUDE}"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
@@ -223,11 +239,11 @@ include_directories(
 # - library paths ---------------------------------------------------------------------------------
 
 link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the link directories for nvcc
-                 "${CMAKE_BINARY_DIR}/lib"
-                 "${GTEST_LIBRARY_DIR}")
+                 "${CMAKE_BINARY_DIR}/lib")
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
+
 add_library(cugraph SHARED
     src/utilities/grmat.cu
     src/utilities/degree.cu
@@ -252,43 +268,27 @@ add_library(cugraph SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/gitsha1.c
 )
 
-option(BUILD_TESTS "Configure CMake to build tests" OFF)
-
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES} rmm)
-
-# Command to symlink files into the build directory
-add_custom_command(  # link the include directory
-    OUTPUT include
-    COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/include include
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-# Configure the C++ tests
-###################################################################################################
-# - add gtest -------------------------------------------------------------------------------------
-find_package(GTest QUIET)
-set_package_properties(GTest PROPERTIES TYPE OPTIONAL
-    PURPOSE "Google C++ Testing Framework (Google Test)."
-    URL "https://github.com/google/googletest")
-
+target_link_libraries(cugraph cudf rmm cudart cuda ${Boost_LIBRARIES})
 
 ###################################################################################################
-# - Generate the Tests -------------------------------------------------------------------------------
-if(GTEST_FOUND)
-    message(STATUS "Google C++ Testing Framework (Google Test) found in ${GTEST_ROOT}")
-    include_directories(${GTEST_INCLUDE_DIRS})
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/tests)
-else()
-    message(AUTHOR_WARNING "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
-endif()
+# - generate tests --------------------------------------------------------------------------------
 
+if(BUILD_TESTS)
+    if(GTEST_FOUND)
+        include_directories(${GTEST_INCLUDE_DIR})
+        link_directories(${GTEST_LIBRARY_DIR})
+        add_subdirectory(${CMAKE_SOURCE_DIR}/src/tests)
+    endif(GTEST_FOUND)
+endif(BUILD_TESTS)
 
 ###################################################################################################
 # - install targets -------------------------------------------------------------------------------
-install(TARGETS cugraph LIBRARY DESTINATION lib)
-install(DIRECTORY include/ DESTINATION include/cugraph)
 
-# Print the project summary
-feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
+install(TARGETS cugraph LIBRARY
+        DESTINATION lib)
+
+install(DIRECTORY include/
+        DESTINATION include/cugraph)
