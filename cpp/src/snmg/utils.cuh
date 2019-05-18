@@ -109,7 +109,6 @@ void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
   
   //Make sure everyone has finished copying before returning
   sync_all();
-
 }
 
 inline void print_mem_usage()

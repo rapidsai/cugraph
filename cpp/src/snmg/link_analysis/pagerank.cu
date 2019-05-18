@@ -29,6 +29,9 @@
 namespace cugraph
 {
 
+// adding cusparse handle here as pagerank is the only user
+cusparseHandle_t Cusparse::m_handle = 0;
+
   template<typename IndexType, typename ValueType>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 transition_kernel(const size_t e,

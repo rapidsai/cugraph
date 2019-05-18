@@ -156,6 +156,4 @@ class CusparseCsrMV
     }
 };
 
-cusparseHandle_t Cusparse::m_handle = 0;
-
 } //namespace
