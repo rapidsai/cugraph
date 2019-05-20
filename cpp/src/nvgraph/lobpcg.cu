@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 //#if SPECTRAL_USE_LOBPCG
-#include "lobpcg.hxx"
+#include "include/lobpcg.hxx"
 
 #include <stdio.h>
 #include <time.h>

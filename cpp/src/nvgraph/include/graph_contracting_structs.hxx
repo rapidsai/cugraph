@@ -17,11 +17,11 @@
 #ifndef GRAPH_CONTRACTING_STRUCTS_HXX
 #define GRAPH_CONTRACTING_STRUCTS_HXX
 
-#include <nvgraph_error.hxx>
-#include <multi_valued_csr_graph.hxx> //which includes all other headers... 
-#include <range_view.hxx> // TODO: to be changed to thrust/range_view.h, when toolkit gets in sync with Thrust
+#include "nvgraph_error.hxx"
+#include "multi_valued_csr_graph.hxx" //which includes all other headers... 
+#include "range_view.hxx" // TODO: to be changed to thrust/range_view.h, when toolkit gets in sync with Thrust
 
-#include <thrust_traits.hxx>
+#include "thrust_traits.hxx"
 
 //from amgx/amg/base/include/sm_utils.inl
 //{

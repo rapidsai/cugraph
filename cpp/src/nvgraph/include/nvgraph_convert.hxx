@@ -15,8 +15,8 @@
  */
  #pragma once
 
-#include <nvgraph.h>
-#include <nvgraph_cusparse.hxx>
+#include <nvgraph/nvgraph.h>
+#include "nvgraph_cusparse.hxx"
 
 namespace nvgraph{
   void csr2coo( const int *csrSortedRowPtr,

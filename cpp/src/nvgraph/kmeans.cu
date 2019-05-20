@@ -17,7 +17,7 @@
 //#ifdef NVGRAPH_PARTITION
 //#ifdef DEBUG
 
-#include "kmeans.hxx"
+#include "include/kmeans.hxx"
 
 #include <stdio.h>
 #include <time.h>
@@ -32,11 +32,11 @@
 #include <thrust/random.h>
 #include <thrust/gather.h>
 
-#include "nvgraph_vector.hxx"
-#include "nvgraph_cublas.hxx"
-#include "atomics.hxx"
-#include "sm_utils.h"
-#include "debug_macros.h"
+#include "include/nvgraph_vector.hxx"
+#include "include/nvgraph_cublas.hxx"
+#include "include/atomics.hxx"
+#include "include/sm_utils.h"
+#include "include/debug_macros.h"
 
 using namespace nvgraph;
 

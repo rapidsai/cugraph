@@ -126,7 +126,7 @@ void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::v
 
   create_gdf_column(off_loc, col_off);
   ASSERT_EQ(off_loc.size(), col_off->size);
-
+  
   create_gdf_column(ind_loc, col_ind);
   create_gdf_column(val_loc, col_val);
 }

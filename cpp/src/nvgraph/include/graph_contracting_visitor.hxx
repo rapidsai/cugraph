@@ -19,9 +19,9 @@
 //
 //
 
-#include <multi_valued_csr_graph.hxx> //which includes all other headers... 
-#include <range_view.hxx> // TODO: to be changed to thrust/range_view.h, when toolkit gets in sync with Thrust
-#include <thrust_traits.hxx>
+#include "multi_valued_csr_graph.hxx" //which includes all other headers... 
+#include "range_view.hxx" // TODO: to be changed to thrust/range_view.h, when toolkit gets in sync with Thrust
+#include "thrust_traits.hxx"
 ///#include <graph_contracting_structs.hxx>
 #include <cassert>
 #include <thrust/device_vector.h>

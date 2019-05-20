@@ -16,12 +16,12 @@
 
 #include <algorithm>
 #include <iomanip>
-#include "bfs.hxx"
+#include "include/bfs.hxx"
 #include <limits>
 
 #include <rmm/rmm.h>
 
-#include "nvgraph_error.hxx"
+#include "include/nvgraph_error.hxx"
 #include "bfs_kernels.cu"
 
 using namespace bfs_kernels;

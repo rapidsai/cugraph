@@ -15,7 +15,7 @@
  */
  
 #pragma once
-#include <rmm_shared_ptr.hxx>
+#include "rmm_shared_ptr.hxx"
 #include "nvgraph_error.hxx"
 #include "nvgraph_vector_kernels.hxx"
 

@@ -21,7 +21,7 @@
 // This header give access to experimental feature and internal routines that are not in the official API
 //
 //
-#include "nvgraph.h"
+#include "nvgraph/nvgraph.h"
 
 
 #ifdef __cplusplus

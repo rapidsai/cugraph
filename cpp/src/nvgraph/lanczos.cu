@@ -18,7 +18,7 @@
 
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include "lanczos.hxx"
+#include "include/lanczos.hxx"
 
 #include <stdio.h>
 #include <time.h>
@@ -31,12 +31,12 @@
   #include <curand.h>
 #endif
 
-#include "nvgraph_error.hxx"
-#include "nvgraph_vector.hxx"
-#include "nvgraph_vector_kernels.hxx"
-#include "nvgraph_cublas.hxx"
-#include "nvgraph_lapack.hxx"
-#include "debug_macros.h"
+#include "include/nvgraph_error.hxx"
+#include "include/nvgraph_vector.hxx"
+#include "include/nvgraph_vector_kernels.hxx"
+#include "include/nvgraph_cublas.hxx"
+#include "include/nvgraph_lapack.hxx"
+#include "include/debug_macros.h"
 // =========================================================
 // Useful macros
 // =========================================================

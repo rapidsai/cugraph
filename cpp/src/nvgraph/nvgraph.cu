@@ -19,38 +19,37 @@
 #include <climits>
 #include <cfloat>
 #include <vector>
-#include <nvlouvain.cuh>
-#include <jaccard_gpu.cuh>
+
 #include <cusolverDn.h>
 
-#include <nvgraph_error.hxx>
-#include <rmm_shared_ptr.hxx>
-#include <valued_csr_graph.hxx>
-#include <multi_valued_csr_graph.hxx>
-#include <nvgraph_vector.hxx>
-#include <nvgraph_cusparse.hxx>
-#include <nvgraph_cublas.hxx>
-#include <nvgraph_csrmv.hxx>
-#include <pagerank.hxx>
-#include <arnoldi.hxx>
-#include <sssp.hxx>
-#include <widest_path.hxx>
-#include <partition.hxx>
-#include <nvgraph_convert.hxx>
-#include <size2_selector.hxx>
-#include <modularity_maximization.hxx>
-#include <bfs.hxx>
-#include <triangles_counting.hxx>
+#include <nvgraph/nvgraph.h>   // public header **This is NVGRAPH C API**
 
-#include <csrmv_cub.h>
-
-#include <nvgraph.h>   // public header **This is NVGRAPH C API**
-#include <nvgraphP.h>  // private header, contains structures, and potentially other things, used in the public C API that should never be exposed.
-#include <nvgraph_experimental.h>  // experimental header, contains hidden API entries, can be shared only under special circumstances without reveling internal things
-#include "debug_macros.h"
-
-#include "2d_partitioning.h"
-#include "bfs2d.hxx"
+#include "include/nvlouvain.cuh"
+#include "include/jaccard_gpu.cuh"
+#include "include/nvgraph_error.hxx"
+#include "include/rmm_shared_ptr.hxx"
+#include "include/valued_csr_graph.hxx"
+#include "include/multi_valued_csr_graph.hxx"
+#include "include/nvgraph_vector.hxx"
+#include "include/nvgraph_cusparse.hxx"
+#include "include/nvgraph_cublas.hxx"
+#include "include/nvgraph_csrmv.hxx"
+#include "include/pagerank.hxx"
+#include "include/arnoldi.hxx"
+#include "include/sssp.hxx"
+#include "include/widest_path.hxx"
+#include "include/partition.hxx"
+#include "include/nvgraph_convert.hxx"
+#include "include/size2_selector.hxx"
+#include "include/modularity_maximization.hxx"
+#include "include/bfs.hxx"
+#include "include/triangles_counting.hxx"
+#include "include/csrmv_cub.h"
+#include "include/nvgraphP.h"  // private header, contains structures, and potentially other things, used in the public C API that should never be exposed.
+#include "include/nvgraph_experimental.h"  // experimental header, contains hidden API entries, can be shared only under special circumstances without reveling internal things
+#include "include/debug_macros.h"
+#include "include/2d_partitioning.h"
+#include "include/bfs2d.hxx"
 
 static inline int check_context(const nvgraphHandle_t h) {
     int ret = 0;

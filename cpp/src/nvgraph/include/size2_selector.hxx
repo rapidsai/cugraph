@@ -16,9 +16,9 @@
 
 #pragma once
 
-//#include <common_selector.hxx>
-#include <nvgraph_vector.hxx>
-#include <valued_csr_graph.hxx>
+//#include "common_selector.hxx"
+#include "nvgraph_vector.hxx"
+#include "valued_csr_graph.hxx"
 
 namespace nvgraph {
 

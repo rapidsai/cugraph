@@ -14,7 +14,7 @@
  * limitations under the License.
  */
  
-#include "csr_graph.hxx"
+#include "include/csr_graph.hxx"
 
 namespace nvgraph
 {

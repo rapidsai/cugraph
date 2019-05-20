@@ -18,15 +18,15 @@
 
 #include <algorithm>
 #include <iomanip>
-#include "valued_csr_graph.hxx"
-#include "nvgraph_vector.hxx"
-#include "nvgraph_cusparse.hxx"
-#include "nvgraph_cublas.hxx"
-#include "nvgraph_error.hxx"
-#include "nvgraph_csrmv.hxx"
-#include "sssp.hxx"
+#include "include/valued_csr_graph.hxx"
+#include "include/nvgraph_vector.hxx"
+#include "include/nvgraph_cusparse.hxx"
+#include "include/nvgraph_cublas.hxx"
+#include "include/nvgraph_error.hxx"
+#include "include/nvgraph_csrmv.hxx"
+#include "include/sssp.hxx"
 #ifdef NEW_CSRMV
-#include "csrmv_cub.h"
+#include "include/csrmv_cub.h"
 #include "cub_semiring/cub.cuh"
 #endif
 #include <cfloat>

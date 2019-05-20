@@ -16,12 +16,12 @@
  */
 #include <iostream>
 
-#include <sm_utils.h>
+#include "include/sm_utils.h"
 #include <cub/cub.cuh>
 
 #include <rmm/rmm.h>
 
-#include <nvgraph_error.hxx>
+#include "include/nvgraph_error.hxx"
 
 #define MAXBLOCKS 65535
 #define WARP_SIZE 32

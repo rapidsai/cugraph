@@ -15,7 +15,8 @@
  */
  
 
-#include <nvgraph_lapack.hxx>
+#include "include/nvgraph_lapack.hxx"
+
 //#include <f2c.h>
 //#include <complex>
 

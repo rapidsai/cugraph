@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "nvgraph_convert.hxx"
-#include "nvgraph_error.hxx"
+#include "include/nvgraph_convert.hxx"
+#include "include/nvgraph_error.hxx"
 
 
 

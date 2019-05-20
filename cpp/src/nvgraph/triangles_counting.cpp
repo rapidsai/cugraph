@@ -12,9 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
-#include <triangles_counting.hxx>
-#include <triangles_counting_kernels.hxx>
+ */
+
+#include "include/triangles_counting.hxx"
+#include "include/triangles_counting_kernels.hxx"
+
 #include <thrust/sequence.h>
 
 namespace nvgraph

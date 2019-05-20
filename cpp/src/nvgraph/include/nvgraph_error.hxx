@@ -21,7 +21,7 @@
 #include <sstream>
 #include <time.h>
  
-#include <stacktrace.h>
+#include "stacktrace.h"
 
 //#define VERBOSE_DIAG
 //#define DEBUG 1

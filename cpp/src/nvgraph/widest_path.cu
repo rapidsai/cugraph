@@ -19,16 +19,16 @@
 #include <algorithm>
 #include <iomanip>
 #include <cfloat>
-#include "nvgraph_error.hxx"
-#include "valued_csr_graph.hxx"
-#include "nvgraph_vector.hxx"
-#include "nvgraph_cublas.hxx"
+#include "include/nvgraph_error.hxx"
+#include "include/valued_csr_graph.hxx"
+#include "include/nvgraph_vector.hxx"
+#include "include/nvgraph_cublas.hxx"
 #ifdef NEW_CSRMV
-#include "csrmv_cub.h"
+#include "include/csrmv_cub.h"
 #include "cub_semiring/cub.cuh"
 #endif
-#include "nvgraph_csrmv.hxx"
-#include "widest_path.hxx"
+#include "include/nvgraph_csrmv.hxx"
+#include "include/widest_path.hxx"
 
 namespace nvgraph
 {

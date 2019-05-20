@@ -15,22 +15,18 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef __cplusplus
-#define __STDC_LIMIT_MACROS 1
-#define __STDC_FORMAT_MACROS 1
-#endif
 #include <cuda.h>
 
 #include <assert.h>
 
-#include <triangles_counting_defines.hxx>
-#include <triangles_counting_kernels.hxx>
+#include "include/triangles_counting_defines.hxx"
+#include "include/triangles_counting_kernels.hxx"
 
-#include <nvgraph_error.hxx>
+#include "include/nvgraph_error.hxx"
 
 #include "cub/cub.cuh"
 #include <thrust/iterator/counting_iterator.h>
-#include "sm_utils.h"
+#include "include/sm_utils.h"
 using namespace cub;
 
 #include "rmm/rmm.h"

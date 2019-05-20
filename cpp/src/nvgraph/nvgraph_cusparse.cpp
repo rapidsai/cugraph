@@ -14,7 +14,7 @@
  * limitations under the License.
  */
  
-#include <nvgraph_cusparse.hxx>
+#include "include/nvgraph_cusparse.hxx"
 
 namespace nvgraph
 {

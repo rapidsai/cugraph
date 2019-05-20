@@ -33,11 +33,11 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
         "${GTEST_INCLUDE_DIR}"
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
+        "${CMAKE_SOURCE_DIR}/../thirdparty/cub"
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio"
         "${CMAKE_SOURCE_DIR}/include"
         "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${CMAKE_BINARY_DIR}/gunrock/externals/cub"
     )
 
     target_link_libraries(${CMAKE_TEST_NAME}

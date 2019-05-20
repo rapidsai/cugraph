@@ -15,7 +15,7 @@
  */
  
 #pragma once
-#include <nvgraph_error.hxx>
+#include "nvgraph_error.hxx"
 namespace nvgraph
 {
 template <typename T> class Lapack;

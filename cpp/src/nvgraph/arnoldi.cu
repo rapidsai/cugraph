@@ -19,17 +19,17 @@
 #include <utility>
 #include <curand.h>
 
-#include "valued_csr_graph.hxx"
-#include "nvgraph_vector.hxx"
-#include "nvgraph_vector_kernels.hxx"
-#include "nvgraph_cusparse.hxx"
-#include "nvgraph_cublas.hxx"
-#include "nvgraph_lapack.hxx"
-#include "nvgraph_error.hxx"
-#include "pagerank_kernels.hxx"
-#include "arnoldi.hxx"
-#include "nvgraph_csrmv.hxx"
-#include "matrix.hxx"
+#include "include/valued_csr_graph.hxx"
+#include "include/nvgraph_vector.hxx"
+#include "include/nvgraph_vector_kernels.hxx"
+#include "include/nvgraph_cusparse.hxx"
+#include "include/nvgraph_cublas.hxx"
+#include "include/nvgraph_lapack.hxx"
+#include "include/nvgraph_error.hxx"
+#include "include/pagerank_kernels.hxx"
+#include "include/arnoldi.hxx"
+#include "include/nvgraph_csrmv.hxx"
+#include "include/matrix.hxx"
 
 namespace nvgraph
 {

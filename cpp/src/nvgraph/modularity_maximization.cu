@@ -15,7 +15,7 @@
  */
 //#ifdef NVGRAPH_PARTITION
 
-#include "modularity_maximization.hxx"
+#include "include/modularity_maximization.hxx"
 
 #include <stdio.h>
 #include <math.h>
@@ -26,15 +26,15 @@
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
 
-#include "nvgraph_error.hxx"
-#include "nvgraph_vector.hxx"
-#include "nvgraph_cublas.hxx"
-#include "matrix.hxx"
-#include "lanczos.hxx"
-#include "kmeans.hxx"
-#include "debug_macros.h"
-#include "lobpcg.hxx"
-#include "sm_utils.h"
+#include "include/nvgraph_error.hxx"
+#include "include/nvgraph_vector.hxx"
+#include "include/nvgraph_cublas.hxx"
+#include "include/matrix.hxx"
+#include "include/lanczos.hxx"
+#include "include/kmeans.hxx"
+#include "include/debug_macros.h"
+#include "include/lobpcg.hxx"
+#include "include/sm_utils.h"
 
 //#define COLLECT_TIME_STATISTICS 1
 //#undef COLLECT_TIME_STATISTICS

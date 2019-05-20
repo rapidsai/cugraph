@@ -14,7 +14,7 @@
  * limitations under the License.
  */
  
-#include <nvgraph_cublas.hxx>
+#include "include/nvgraph_cublas.hxx"
 
 namespace nvgraph
 {

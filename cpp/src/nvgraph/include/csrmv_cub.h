@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "nvgraph.h"
+#include "nvgraph/nvgraph.h"
 #include "nvgraph_error.hxx"
 #include "multi_valued_csr_graph.hxx"
 

@@ -16,10 +16,10 @@
 #include <algorithm>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
-#include "nvgraph_error.hxx"
-#include "nvgraph_vector_kernels.hxx"
+#include "include/nvgraph_error.hxx"
+#include "include/nvgraph_vector_kernels.hxx"
 
-#include "debug_macros.h"
+#include "include/debug_macros.h"
 
 namespace nvgraph
 {

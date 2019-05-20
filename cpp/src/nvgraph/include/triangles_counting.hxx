@@ -16,14 +16,14 @@
  
 #pragma once
 
-#include <csr_graph.hxx>
-#include <async_event.hxx>
-#include <nvgraph_error.hxx>
-#include <nvgraph_vector.hxx>
+#include "csr_graph.hxx"
+#include "async_event.hxx"
+#include "nvgraph_error.hxx"
+#include "nvgraph_vector.hxx"
 
 #include <cuda_runtime.h>
 
-#include <triangles_counting_defines.hxx>
+#include "triangles_counting_defines.hxx"
 
 namespace nvgraph
 {

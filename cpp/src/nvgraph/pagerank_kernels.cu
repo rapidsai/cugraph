@@ -16,9 +16,9 @@
 #include <algorithm>
 #include <thrust/device_vector.h>
 
-#include "nvgraph_error.hxx"
-#include "nvgraph_vector_kernels.hxx"
-#include "pagerank_kernels.hxx"
+#include "include/nvgraph_error.hxx"
+#include "include/nvgraph_vector_kernels.hxx"
+#include "include/pagerank_kernels.hxx"
 
 namespace nvgraph
 {

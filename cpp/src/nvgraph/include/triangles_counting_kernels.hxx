@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <triangles_counting.hxx>
+#include "triangles_counting.hxx"
 
 namespace nvgraph
 {

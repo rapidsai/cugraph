@@ -16,11 +16,10 @@
 
  /* This file contains the nvgraph generalized implementation of the Duane Merrill's CUB CSRMV using MergePath */
 
-#include "nvgraph_csrmv.hxx"
-#include "exclusive_kv_scan.hxx" //atomics are included in semiring
-#include "semiring.hxx"
-
-#include "nvgraph_error.hxx"
+#include "include/nvgraph_csrmv.hxx"
+#include "include/exclusive_kv_scan.hxx" //atomics are included in semiring
+#include "include/semiring.hxx"
+#include "include/nvgraph_error.hxx"
  
 //IMPORTANT: IndexType_ must be a signed integer, long, long long etc. Unsigned int is not supported, since -1 is
  //used as a flag value

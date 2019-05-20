@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#include "nvgraph.h"
-#include "nvgraphP.h"
-#include "nvgraph_error.hxx"
-#include "csrmv_cub.h"
-
 #include "cub_semiring/cub.cuh"
+
+#include "nvgraph/nvgraph.h"
+
+#include "include/nvgraphP.h"
+#include "include/nvgraph_error.hxx"
+#include "include/csrmv_cub.h"
 
 namespace nvgraph
 {

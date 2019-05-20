@@ -14,10 +14,10 @@
  * limitations under the License.
  */
  
-#include <nvgraph_cusparse.hxx>
-#include <size2_selector.hxx>
-#include <common_selector.hxx>
-#include <async_event.hxx>
+#include "include/nvgraph_cusparse.hxx"
+#include "include/size2_selector.hxx"
+#include "include/common_selector.hxx"
+#include "include/async_event.hxx"
 
 #include <thrust/device_vector.h>
 #include <thrust/count.h> //count

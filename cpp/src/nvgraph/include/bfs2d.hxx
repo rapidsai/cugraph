@@ -18,7 +18,7 @@
 
 #include <climits>
 
-//Used in nvgraph.h
+//Used in nvgraph/nvgraph.h
 #define TRAVERSAL_DEFAULT_ALPHA 15
 #define TRAVERSAL_DEFAULT_BETA 18
 

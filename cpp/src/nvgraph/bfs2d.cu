@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "bfs2d.hxx"
-#include "bfs2d_kernels.cuh"
-#include "debug_help.h"
+#include "include/bfs2d.hxx"
+#include "include/bfs2d_kernels.cuh"
+#include "include/debug_help.h"
 
 namespace nvgraph {
 	using namespace bfs_kernels;

@@ -20,7 +20,7 @@
 #include <cstddef> // size_t
 #include <iostream> 
 
-#include <graph_visitors.hxx>//
+#include "graph_visitors.hxx"//
 //
 namespace nvgraph
 {

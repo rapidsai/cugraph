@@ -15,18 +15,18 @@
  */
 //#define NEW_CSRMV
 
-#include "valued_csr_graph.hxx"
-#include "nvgraph_vector.hxx"
-#include "nvgraph_cusparse.hxx"
-#include "nvgraph_cublas.hxx"
-#include "nvgraph_error.hxx"
-#include "pagerank.hxx"
-#include "pagerank_kernels.hxx"
+#include "include/valued_csr_graph.hxx"
+#include "include/nvgraph_vector.hxx"
+#include "include/nvgraph_cusparse.hxx"
+#include "include/nvgraph_cublas.hxx"
+#include "include/nvgraph_error.hxx"
+#include "include/pagerank.hxx"
+#include "include/pagerank_kernels.hxx"
 #ifdef NEW_CSRMV
-#include "csrmv_cub.h"
-#include "cub_semiring/cub.cuh"
+#include "include/csrmv_cub.h"
+#include "include/cub_semiring/cub.cuh"
 #endif
-#include "nvgraph_csrmv.hxx"
+#include "include/nvgraph_csrmv.hxx"
 #include <algorithm>
 #include <iomanip>
 

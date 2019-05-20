@@ -16,8 +16,8 @@
 // Jaccard symilarity edge weights
 // Author: Alexandre Fender afender@nvidia.com and Maxim Naumov.
 
-#include "graph_utils.cuh"
-#include "jaccard_gpu.cuh"
+#include "include/graph_utils.cuh"
+#include "include/jaccard_gpu.cuh"
 
 namespace nvlouvain 
 {

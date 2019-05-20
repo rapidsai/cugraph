@@ -28,8 +28,6 @@
 #include <string>
 #include <sstream>
 
-#include <multi_valued_csr_graph.hxx>
-#include <nvgraph_vector.hxx>
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
 #include <thrust/extrema.h>
@@ -39,6 +37,9 @@
 #include <thrust/tuple.h>
 #include <thrust/execution_policy.h>
 #include <thrust/transform.h>
+
+#include "multi_valued_csr_graph.hxx"
+#include "nvgraph_vector.hxx"
 
 namespace nvgraph {
 

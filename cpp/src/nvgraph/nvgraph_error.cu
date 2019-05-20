@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "nvgraph_error.hxx"
+#include "include/nvgraph_error.hxx"
 
 namespace nvgraph
 {
