@@ -38,6 +38,8 @@ namespace cugraph {
     auto i = omp_get_thread_num();
     auto p = omp_get_num_threads();
 
+    std::cout << "Thread " << i << "/" << p << " starting snmg_degree with x=" << x << "\n";
+
     // Getting the global and local vertices and edges
     size_t glob_v = part_off[p];
     size_t loc_v = part_off[i + 1] - part_off[i];
