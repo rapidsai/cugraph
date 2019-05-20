@@ -18,6 +18,21 @@ cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(NV_GRAPH VERSION 0.4.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
+# - build type ------------------------------------------------------------------------------------
+
+# Set a default build type if none was specified
+set(DEFAULT_BUILD_TYPE "Release")
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${DEFAULT_BUILD_TYPE}' since none specified.")
+  set(CMAKE_BUILD_TYPE "${DEFAULT_BUILD_TYPE}" CACHE
+      STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
 set(CMAKE_CXX_STANDARD 14)
@@ -27,22 +42,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-endif(CMAKE_COMPILER_IS_GNUCXX)
-
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70")
-
-# set warnings as errors
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Xcompiler -Wall,-Werror")
-
-# set default build type
-set(CMAKE_BUILD_TYPE "Release")
-
-option(BUILD_TESTS "Configure CMake to build tests"
-       ON)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -58,6 +57,15 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     endif(CMAKE_CXX11_ABI)
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70")
+
+# set warnings as errors
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Xcompiler -Wall,-Werror")
+
+option(BUILD_TESTS "Configure CMake to build tests"
+       ON)
+
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
@@ -68,7 +76,8 @@ include(CheckIncludeFiles)
 include(CheckLibraryExists)
 
 ###################################################################################################
-# - add rmm --------------------------------------------------------------------------------------
+# - RMM -------------------------------------------------------------------------------------------
+
 find_path(RMM_INCLUDE "rmm"
           HINTS "$ENV{RMM_ROOT}/include"
                 "$ENV{CONDA_PREFIX}/include/rmm"
@@ -125,6 +134,7 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
+
 if(NVGRAPH_LIGHT MATCHES True)
     add_library(nvgraph_rapids SHARED
                 src/arnoldi.cu
@@ -208,15 +218,9 @@ endif(NVGRAPH_LIGHT MATCHES True)
 ###################################################################################################
 # - build options ---------------------------------------------------------------------------------
 
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-    message(STATUS "Building with debugging flags")
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G")
-endif(CMAKE_BUILD_TYPE MATCHES Debug)
-
 if(NVGRAPH_LIGHT MATCHES True)
     add_definitions( -DNVGRAPH_LIGHT=${NVGRAPH_LIGHT} )
 endif(NVGRAPH_LIGHT MATCHES True)
-
 
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
@@ -233,5 +237,3 @@ install(FILES
          ${CMAKE_CURRENT_SOURCE_DIR}/include/nvgraph.h
          ${CMAKE_CURRENT_SOURCE_DIR}/include/test_opt_utils.cuh
         DESTINATION include/nvgraph)
-
-
