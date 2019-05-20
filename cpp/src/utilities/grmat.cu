@@ -176,15 +176,13 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
 
     if (util::SetDevice(gpu_idx[0]))
         return GDF_CUDA_ERROR;
-    //RMM:
-    //
-    cudaStream_t stream{nullptr};
-    rmm_temp_allocator allocator(stream);
-    ALLOC_MANAGED_TRY((void**)&coo.row, sizeof(VertexId) * rmat_all_edges, stream);
-    ALLOC_MANAGED_TRY((void**)&coo.col, sizeof(VertexId) * rmat_all_edges, stream);
+
+    cudaStream_t stream {nullptr};
+    ALLOC_TRY((void**)&coo.row, sizeof(VertexId) * rmat_all_edges, stream);
+    ALLOC_TRY((void**)&coo.col, sizeof(VertexId) * rmat_all_edges, stream);
     if (val != nullptr)
     {
-        ALLOC_MANAGED_TRY((void**)&coo.val, sizeof(Value) * rmat_all_edges, stream);
+        ALLOC_TRY((void**)&coo.val, sizeof(Value) * rmat_all_edges, stream);
     }
     if ((coo.row == NULL) ||(coo.col == NULL))
     {
@@ -247,7 +245,7 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
     
     cudaMemcpy((void*)&nodes_row, (void*)&(coo.row[rmat_all_edges-1]), sizeof(VertexId), cudaMemcpyDeviceToHost);
   
-    tmp = thrust::max_element(thrust::cuda::par(allocator).on(stream),
+    tmp = thrust::max_element(rmm::exec_policy(stream)->on(stream),
                                 thrust::device_pointer_cast((VertexId*)(coo.col)), 
                                 thrust::device_pointer_cast((VertexId*)(coo.col + rmat_all_edges)));
     nodes_col = tmp[0];
@@ -348,7 +346,7 @@ gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, gdf_
         {
             status = main_<long long, long long, double> (src, dest, val, &args, vertices, edges);
         }
-	else
+        else
         {
             status = main_<long long, long long, float> (src, dest, val, &args, vertices, edges);
         }

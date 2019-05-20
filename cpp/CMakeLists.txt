@@ -136,7 +136,7 @@ include(ConfigureNvgraph)
 
 ###################################################################################################
 # - Find and add different modules and supporting repos -------------------------------------------
-find_package(Boost 1.45.0 COMPONENTS system)
+find_package(Boost REQUIRED)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -229,14 +229,20 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 add_library(cugraph SHARED
-    src/grmat.cu
-    src/cugraph.cu
-    src/pagerank.cu
-    src/bfs.cu
-    src/jaccard.cu
-    src/overlap.cu
-    src/nvgraph_gdf.cu
-    src/two_hop_neighbors.cu
+    src/utilities/grmat.cu
+    src/utilities/degree.cu
+    src/structure/cugraph.cu
+    src/link_analysis/pagerank.cu
+    src/traversal/bfs.cu
+    src/link_prediction/jaccard.cu
+    src/link_prediction/overlap.cu
+    src/converters/nvgraph.cu
+    src/converters/renumber.cu
+    src/community/nvgraph_gdf.cu
+    src/traversal/nvgraph_sssp.cu
+    src/traversal/two_hop_neighbors.cu
+    src/snmg/blas/spmv.cu
+    src/snmg/degree/degree.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu

@@ -222,8 +222,8 @@ void printCsrMatI(int m, int n, int nnz,std::vector<int> & csrRowPtr, std::vecto
  */
 template <typename IndexType_>
 int mm_properties(FILE * f, int tg, MM_typecode * t,
-		  IndexType_ * m, IndexType_ * n,
-		  IndexType_ * nnz) {
+                  IndexType_ * m, IndexType_ * n,
+                  IndexType_ * nnz) {
 
   // Read matrix properties from file
   int mint, nint, nnzint;
@@ -279,7 +279,7 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
 
       // Check if entry is diagonal
       if(row == col)
-	--(*nnz);
+          --(*nnz);
 
     }
   }
@@ -310,8 +310,8 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
  */
 template <typename IndexType_, typename ValueType_>
 int mm_to_coo(FILE *f, int tg, IndexType_ nnz,
-	      IndexType_ * cooRowInd, IndexType_ * cooColInd,
-	      ValueType_ * cooRVal  , ValueType_ * cooIVal) {
+              IndexType_ * cooRowInd, IndexType_ * cooColInd,
+              ValueType_ * cooRVal  , ValueType_ * cooIVal) {
 
   // Read matrix properties from file
   MM_typecode t;
@@ -381,20 +381,20 @@ int mm_to_coo(FILE *f, int tg, IndexType_ nnz,
 
       // Modify entry value if matrix is skew symmetric or Hermitian
       if(mm_is_skew(t)) {
-	rval = -rval;
-	ival = -ival;
+        rval = -rval;
+        ival = -ival;
       }
       else if(mm_is_hermitian(t)) {
-	ival = -ival;
+        ival = -ival;
       }
 
       // Record entry
       cooRowInd[j] = col;
       cooColInd[j] = row;
       if(cooRVal != NULL)
-	cooRVal[j] = rval;
+        cooRVal[j] = rval;
       if(cooIVal != NULL)
-	cooIVal[j] = ival;
+        cooIVal[j] = ival;
       ++j;
 
     }
@@ -435,10 +435,10 @@ public:
  */
 template <typename IndexType_, typename ValueType_>
 void coo_sort(IndexType_ nnz, int sort_by_row,
-	      IndexType_ * cooRowInd,
-	      IndexType_ * cooColInd,
-	      ValueType_ * cooRVal,
-	      ValueType_ * cooIVal) {
+              IndexType_ * cooRowInd,
+              IndexType_ * cooColInd,
+              ValueType_ * cooRVal,
+              ValueType_ * cooIVal) {
 
   // Determine whether to sort by row or by column
   int i;
@@ -451,21 +451,21 @@ void coo_sort(IndexType_ nnz, int sort_by_row,
   using namespace thrust;
   if((cooRVal==NULL) && (cooIVal==NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz)),
+                lesser_tuple(i));
   else if((cooRVal==NULL) && (cooIVal!=NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooIVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooIVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooIVal+nnz)),
+                lesser_tuple(i));
   else if((cooRVal!=NULL) && (cooIVal==NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooRVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooRVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooRVal+nnz)),
+                lesser_tuple(i));
   else
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooRVal,cooIVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,
-					     cooRVal+nnz,cooIVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,
+                cooRVal+nnz,cooIVal+nnz)),
+                lesser_tuple(i));
 }
 
 template <typename IndexT>
@@ -632,7 +632,7 @@ gdf_column_ptr create_gdf_column(std::vector<col_type> const & host_vector)
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
+  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly
@@ -666,7 +666,7 @@ void create_gdf_column(std::vector<col_type> const & host_vector, gdf_column * t
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
+  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly

@@ -24,6 +24,9 @@
 #include <thrust/generate.h>
 #include <thrust/transform.h>
 
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
 #include "util.cuh"
 #include "graph_utils.cuh"
 #include "functor.cuh"
@@ -226,8 +229,8 @@ template<typename IdxType=int, typename IdxIter>
 void
 generate_cluster_inv(const int n_vertex, const int c_size, 
                     IdxIter cluster_iter, 
-                    thrust::device_vector<IdxType>& cluster_inv_ptr, 
-                    thrust::device_vector<IdxType>& cluster_inv_ind){
+                    rmm::device_vector<IdxType>& cluster_inv_ptr, 
+                    rmm::device_vector<IdxType>& cluster_inv_ind){
 
   int nthreads = min(n_vertex,CUDA_MAX_KERNEL_THREADS); 
   int nblocks = min((n_vertex + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS); 

@@ -38,7 +38,7 @@ private:
 protected:
     /*! Storage for the nonzero entries of the CSR data structure.
      */
-    SHARED_PREFIX::shared_ptr<ValueType> values;
+    std::shared_ptr<ValueType> values;
 
 public:  
 

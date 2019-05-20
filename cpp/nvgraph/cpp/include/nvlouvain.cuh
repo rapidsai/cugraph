@@ -30,6 +30,9 @@
 #include <thrust/functional.h>
 #include <cusparse.h>
 
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
 #include "graph_utils.cuh"
 #include "modularity.cuh"
 #include "delta_modularity.cuh"
@@ -66,12 +69,12 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
   int n_edges = num_edges;
   int n_vertex = num_vertex;
 
-  thrust::device_vector<IdxType> csr_ptr_d(csr_ptr, csr_ptr + n_vertex + 1);
-  thrust::device_vector<IdxType> csr_ind_d(csr_ind, csr_ind + n_edges);
-  thrust::device_vector<ValType> csr_val_d(csr_val, csr_val + n_edges);
+  rmm::device_vector<IdxType> csr_ptr_d(csr_ptr, csr_ptr + n_vertex + 1);
+  rmm::device_vector<IdxType> csr_ind_d(csr_ind, csr_ind + n_edges);
+  rmm::device_vector<ValType> csr_val_d(csr_val, csr_val + n_edges);
 
   //std::vector<IdxType> clustering(n_vertex);
-  thrust::device_vector<IdxType> clustering(n_vertex);
+  rmm::device_vector<IdxType> clustering(n_vertex);
   int upper_bound = 100;
 
   HighResClock hr_clock;
@@ -87,18 +90,18 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
 
   ValType best_modularity = -1;
 
-  thrust::device_vector<IdxType> new_csr_ptr(n_vertex, 0);
-  thrust::device_vector<IdxType> new_csr_ind(n_edges, 0);
-  thrust::device_vector<ValType> new_csr_val(n_edges, 0);
+  rmm::device_vector<IdxType> new_csr_ptr(n_vertex, 0);
+  rmm::device_vector<IdxType> new_csr_ind(n_edges, 0);
+  rmm::device_vector<ValType> new_csr_val(n_edges, 0);
 
-  thrust::device_vector<IdxType> cluster_d(n_vertex);
-  thrust::device_vector<IdxType> aggregates_tmp_d(n_vertex, 0);
-  thrust::device_vector<IdxType> cluster_inv_ptr(c_size + 1, 0);
-  thrust::device_vector<IdxType> cluster_inv_ind(n_vertex, 0);
-  thrust::device_vector<ValType> k_vec(n_vertex, 0);
-  thrust::device_vector<ValType> Q_arr(n_vertex, 0);
-  thrust::device_vector<ValType> delta_Q_arr(n_edges, 0);
-  thrust::device_vector<ValType> cluster_sum_vec(c_size, 0);
+  rmm::device_vector<IdxType> cluster_d(n_vertex);
+  rmm::device_vector<IdxType> aggregates_tmp_d(n_vertex, 0);
+  rmm::device_vector<IdxType> cluster_inv_ptr(c_size + 1, 0);
+  rmm::device_vector<IdxType> cluster_inv_ind(n_vertex, 0);
+  rmm::device_vector<ValType> k_vec(n_vertex, 0);
+  rmm::device_vector<ValType> Q_arr(n_vertex, 0);
+  rmm::device_vector<ValType> delta_Q_arr(n_edges, 0);
+  rmm::device_vector<ValType> cluster_sum_vec(c_size, 0);
   thrust::host_vector<IdxType> best_cluster_h(n_vertex, 0);
   Vector<IdxType> aggregates((int) current_n_vertex, 0);
 
@@ -454,9 +457,9 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
   int n_edges = num_edges;
   int n_vertex = num_vertex;
 
-  thrust::device_vector<IdxType> csr_ptr_d(csr_ptr, csr_ptr + n_vertex + 1);
-  thrust::device_vector<IdxType> csr_ind_d(csr_ind, csr_ind + n_edges);
-  thrust::device_vector<ValType> csr_val_d(csr_val, csr_val + n_edges);
+  rmm::device_vector<IdxType> csr_ptr_d(csr_ptr, csr_ptr + n_vertex + 1);
+  rmm::device_vector<IdxType> csr_ind_d(csr_ind, csr_ind + n_edges);
+  rmm::device_vector<ValType> csr_val_d(csr_val, csr_val + n_edges);
 
 
   int upper_bound = 100;
@@ -472,18 +475,18 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
 
   ValType best_modularity = -1;
 
-  thrust::device_vector<IdxType> new_csr_ptr(n_vertex, 0);
-  thrust::device_vector<IdxType> new_csr_ind(n_edges, 0);
-  thrust::device_vector<ValType> new_csr_val(n_edges, 0);
+  rmm::device_vector<IdxType> new_csr_ptr(n_vertex, 0);
+  rmm::device_vector<IdxType> new_csr_ind(n_edges, 0);
+  rmm::device_vector<ValType> new_csr_val(n_edges, 0);
 
-  thrust::device_vector<IdxType> cluster_d(n_vertex);
-  thrust::device_vector<IdxType> aggregates_tmp_d(n_vertex, 0);
-  thrust::device_vector<IdxType> cluster_inv_ptr(c_size + 1, 0);
-  thrust::device_vector<IdxType> cluster_inv_ind(n_vertex, 0);
-  thrust::device_vector<ValType> k_vec(n_vertex, 0);
-  thrust::device_vector<ValType> Q_arr(n_vertex, 0);
-  thrust::device_vector<ValType> delta_Q_arr(n_edges, 0);
-  thrust::device_vector<ValType> cluster_sum_vec(c_size, 0);
+  rmm::device_vector<IdxType> cluster_d(n_vertex);
+  rmm::device_vector<IdxType> aggregates_tmp_d(n_vertex, 0);
+  rmm::device_vector<IdxType> cluster_inv_ptr(c_size + 1, 0);
+  rmm::device_vector<IdxType> cluster_inv_ind(n_vertex, 0);
+  rmm::device_vector<ValType> k_vec(n_vertex, 0);
+  rmm::device_vector<ValType> Q_arr(n_vertex, 0);
+  rmm::device_vector<ValType> delta_Q_arr(n_edges, 0);
+  rmm::device_vector<ValType> cluster_sum_vec(c_size, 0);
   std::vector<IdxType> best_cluster_h(n_vertex, 0);
   Vector<IdxType> aggregates(current_n_vertex, 0);
 

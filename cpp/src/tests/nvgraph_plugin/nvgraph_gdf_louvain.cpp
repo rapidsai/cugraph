@@ -51,7 +51,7 @@ TEST(nvgraph_louvain, success)
   int* best_cluster_vec = NULL;
 
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&best_cluster_vec, sizeof(int) * no_vertex, stream);
+  ALLOC_TRY((void**)&best_cluster_vec, sizeof(int) * no_vertex, stream);
   
   ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, nvgraphLouvain (CUDA_R_32I, CUDA_R_32F, no_vertex, ind_h.size(),
                             G.adjList->offsets->data, G.adjList->indices->data, G.adjList->edge_data->data, weighted, has_init_cluster, nullptr,
@@ -94,7 +94,7 @@ TEST(nvgraph_louvain_grmat, success)
 
   ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY ((void**)&col_weights.data, sizeof(int) * edges, stream);
+  ALLOC_TRY ((void**)&col_weights.data, sizeof(int) * edges, stream);
   col_weights.size = edges;
   std::vector<float> w_h (edges, (float)1.0);
   cudaMemcpy (col_weights.data, (void*) &(w_h[0]), sizeof(float)*edges, cudaMemcpyHostToDevice);
@@ -110,7 +110,7 @@ TEST(nvgraph_louvain_grmat, success)
   int num_level = 0;
   int* best_cluster_vec = NULL;
 
-  ALLOC_MANAGED_TRY ((void**)&best_cluster_vec, sizeof(int) * vertices, stream);
+  ALLOC_TRY ((void**)&best_cluster_vec, sizeof(int) * vertices, stream);
 
   ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, nvgraphLouvain (CUDA_R_32I, CUDA_R_32F, vertices, edges, G.adjList->offsets->data, G.adjList->indices->data, G.adjList->edge_data->data, weighted, has_init_cluster, nullptr, (void*) &modularity, (void*) best_cluster_vec, (void *)(&num_level)));
 

@@ -34,8 +34,8 @@
 #include <cuda_runtime_api.h>
 
 #include "utilities/error_utils.h"
-#include "graph_utils.cuh"
-#include "heap.cuh"
+#include "utilities/graph_utils.cuh"
+#include "utilities/heap.cuh"
 #include "rmm_utils.h"
 
 namespace cugraph {
@@ -134,25 +134,27 @@ namespace cugraph {
 
     }
 
-    __global__ void SetupHash(hash_type hash_size, index_type *hash_bins_start, index_type *hash_bins_end) {
+    template <typename H, typename I>
+    __global__ void SetupHash(H hash_size, I *hash_bins_start, I *hash_bins_end) {
       hash_bins_end[0] = 0;
-      for (hash_type i = 0 ; i < hash_size ; ++i) {
+      for (H i = 0 ; i < hash_size ; ++i) {
         hash_bins_end[i+1] = hash_bins_end[i] + hash_bins_start[i];
       }
 
-      for (hash_type i = 0 ; i < (hash_size + 1) ; ++i) {
+      for (H i = 0 ; i < (hash_size + 1) ; ++i) {
         hash_bins_start[i] = hash_bins_end[i];
       }
    }
 
-    __global__ void ComputeBase(hash_type hash_size, index_type *hash_bins_base) {
-      index_type sum = 0;
-      for (hash_type i = 0 ; i < hash_size ; ++i) {
+    template <typename H, typename I>
+    __global__ void ComputeBase(H hash_size, I *hash_bins_base) {
+      I sum = 0;
+      for (H i = 0 ; i < hash_size ; ++i) {
         sum += hash_bins_base[i];
       }
 
       hash_bins_base[hash_size] = sum;
-      for (hash_type i = hash_size ; i > 0 ; --i) {
+      for (H i = hash_size ; i > 0 ; --i) {
         hash_bins_base[i-1] = hash_bins_base[i] - hash_bins_base[i-1];
       }
     }
@@ -202,9 +204,9 @@ namespace cugraph {
     //
     // We need 3 for hashing, and one array for data
     //
-    cudaStream_t stream{nullptr};
-    rmm_temp_allocator allocator(stream);
-    
+
+    cudaStream_t stream {nullptr};
+
     T_in *hash_data;
 
     detail::HashFunctionObject<T_in>  hash(hash_size);
@@ -218,10 +220,10 @@ namespace cugraph {
     int hash_threads_per_block = min((int) hash_size, max_threads_per_block);
     int hash_thread_blocks = min(((int) hash_size + hash_threads_per_block - 1) / hash_threads_per_block, max_blocks);
 
-    ALLOC_TRY(&hash_data,       2 * size * sizeof(T_in), nullptr);
-    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(detail::index_type), nullptr);
-    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(detail::index_type), nullptr);
-    ALLOC_TRY(&hash_bins_base,  (1 + hash_size) * sizeof(detail::index_type), nullptr);
+    ALLOC_TRY(&hash_data,       2 * size * sizeof(T_in), stream);
+    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(detail::index_type), stream);
+    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(detail::index_type), stream);
+    ALLOC_TRY(&hash_bins_base,  (1 + hash_size) * sizeof(detail::index_type), stream);
 
     //
     //  Pass 1: count how many vertex ids end up in each hash bin
@@ -229,13 +231,13 @@ namespace cugraph {
     CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::index_type)));
     CUDA_TRY(cudaMemset(hash_bins_base, 0, (1 + hash_size) * sizeof(detail::index_type)));
 
-    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     src, src + size,
 		     [hash_bins_start, hash] __device__ (T_in vid) {
 		       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
 		     });
     
-    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     dst, dst + size,
 		     [hash_bins_start, hash] __device__ (T_in vid) {
 		       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
@@ -252,7 +254,7 @@ namespace cugraph {
     //  Pass 2: Populate hash_data with data from the hash bins.  This implementation
     //    will do some partial deduplication, but we'll need to fully dedupe later.
     //
-    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     src, src + size,
 		     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
 		       uint32_t hash_index = hash(vid);
@@ -260,7 +262,7 @@ namespace cugraph {
 		       hash_data[hash_offset] = vid;
 		     });
 		     
-    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     dst, dst + size,
 		     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
 		       uint32_t hash_index = hash(vid);
@@ -282,7 +284,7 @@ namespace cugraph {
     //  Finally, we'll iterate over src and dst and populate src_renumbered
     //  and dst_renumbered.
     //
-    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     thrust::make_counting_iterator<detail::index_type>(0),
 		     thrust::make_counting_iterator<detail::index_type>(size),
 		     [hash_data, hash_bins_start, hash_bins_end,
@@ -293,7 +295,7 @@ namespace cugraph {
 		       src_renumbered[idx] = hash_bins_base[tmp] + (id - (hash_data + hash_bins_start[tmp]));
 		     });
 
-    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     thrust::make_counting_iterator<detail::index_type>(0),
 		     thrust::make_counting_iterator<detail::index_type>(size),
 		     [hash_data, hash_bins_start, hash_bins_end,
@@ -312,7 +314,7 @@ namespace cugraph {
     
     T_in * local_numbering_map = *numbering_map;
 
-    thrust::for_each(thrust::cuda::par(allocator).on(stream),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     thrust::make_counting_iterator<detail::index_type>(0),
 		     thrust::make_counting_iterator<detail::index_type>(hash_size),
 		     [hash_data, hash_bins_start, hash_bins_end,

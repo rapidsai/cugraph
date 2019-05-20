@@ -11,25 +11,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import cudf
-import pytest
 import numpy as np
-import networkx as nx
+import pytest
 from scipy.io import mmread
 
-def compareEdges(cg, nxg, verts):
+import cudf
+import cugraph
+
+# Temporarily suppress warnings till networkX fixes deprecation warnings
+# (Using or importing the ABCs from 'collections' instead of from
+# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
+# python 3.7.  Also, this import networkx needs to be relocated in the
+# third-party group once this gets fixed.
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import networkx as nx
+
+
+def compare_edges(cg, nxg, verts):
     src, dest = cg.view_edge_list()
-    if (len(src) != nxg.size()):
-        assert False
+    assert len(src) == nxg.size()
     for i in range(len(src)):
-        if not nxg.has_edge(verts[src[i]], verts[dest[i]]):
-            assert False
+        assert nxg.has_edge(verts[src[i]], verts[dest[i]])
     return True
 
-def ReadMtxFile(mmFile):
-    print('Reading '+ str(mmFile) + '...')
+
+def read_mtx_file(mmFile):
+    print('Reading ' + str(mmFile) + '...')
     return mmread(mmFile).asfptype()
+
 
 def cugraph_call(M, verts):
     G = cugraph.Graph()
@@ -37,29 +48,26 @@ def cugraph_call(M, verts):
     cols = cudf.Series(M.col)
     G.add_edge_list(rows, cols, None)
     cu_verts = cudf.Series(verts)
-    Sg = cugraph.subgraph(G, cu_verts)
-    return Sg
+    return cugraph.subgraph(G, cu_verts)
+
 
 def nx_call(M, verts):
     G = nx.DiGraph(M)
-    Sg = nx.subgraph(G, verts)
-    return Sg
+    return nx.subgraph(G, verts)
 
-datasets = ['/datasets/networks/karate.mtx', 
-            '/datasets/networks/dolphins.mtx', 
-            '/datasets/networks/netscience.mtx']
+
+datasets = ['../datasets/karate',
+            '../datasets/dolphins',
+            '../datasets/netscience']
+
 
 @pytest.mark.parametrize('graph_file', datasets)
 def test_subgraph_extraction(graph_file):
-    M = ReadMtxFile(graph_file)
+    M = read_mtx_file(graph_file)
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
     verts[1] = 1
     verts[2] = 17
-    cu_Sg = cugraph_call(M, verts)
-    nx_Sg = nx_call(M, verts)
-    assert compareEdges(cu_Sg, nx_Sg, verts)
-    
-    
-    
-            
+    cu_sg = cugraph_call(M, verts)
+    nx_sg = nx_call(M, verts)
+    assert compare_edges(cu_sg, nx_sg, verts)

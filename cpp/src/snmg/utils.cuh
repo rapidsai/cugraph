@@ -19,12 +19,70 @@
  
 #pragma once
 #include <omp.h>
-#include <rmm_utils.h>
-#include <thrust/transform.h>
-#include <thrust/execution_policy.h>
 
 namespace cugraph
 {
+
+// basic info about the snmg env setup
+class SNMGinfo 
+{ 
+  private:
+    int i, p, n_sm;
+  
+  public: 
+    SNMGinfo() { 
+      int tmp_p, tmp_i;
+      //get info from cuda
+      cudaGetDeviceCount(&tmp_p);
+      cudaGetDevice(&tmp_i);
+
+      //get info from omp 
+      i = omp_get_thread_num();
+      p = omp_get_num_threads();
+
+      // check that thread_num and num_threads are compatible with the device ID and the number of device 
+      if (tmp_i != i) {
+        std::cerr << "Thread ID and GPU ID do not match" << std::endl;
+      }
+      if (p > tmp_p) {
+        std::cerr << "More threads than GPUs" << std::endl;
+      }
+      // number of SM, usefull for kernels paramters
+      cudaDeviceGetAttribute(&n_sm, cudaDevAttrMultiProcessorCount, i);
+      cudaCheckError();
+    } 
+    ~SNMGinfo() { }
+
+    int get_thread_num() {
+      return i; 
+    }
+    int get_num_threads() {
+      return p; 
+    }
+    int get_num_sm() {
+      return n_sm; 
+    } 
+    // enable peer access (all to all)
+    void setup_peer_access() {
+      for (int j = 0; j < p; ++j) {
+        if (i != j) {
+          int canAccessPeer = 0;
+          cudaDeviceCanAccessPeer(&canAccessPeer, i, j);
+          cudaCheckError();
+          if (canAccessPeer) {
+            cudaDeviceEnablePeerAccess(j, 0);
+            cudaError_t status = cudaGetLastError();
+            if (!(status == cudaSuccess || status == cudaErrorPeerAccessAlreadyEnabled)) {
+              std::cerr << "Could not Enable Peer Access from" << i << " to " << j << std::endl;
+            }
+          }
+          else {
+            std::cerr << "P2P access required from " << i << " to " << j << std::endl;
+          }
+        }
+      }
+    }
+};
 
 // Wait for all host threads 
 void sync_all() {
@@ -32,51 +90,26 @@ void sync_all() {
   #pragma omp barrier 
 }
 
-// enable peer access (all to all)
-gdf_error setup_peer_access() {
-  auto i = omp_get_thread_num();
-  auto p = omp_get_num_threads();  
-  for (int j = 0; j < p; ++j) {
-    if (i != j) {
-      int canAccessPeer = 0;
-      CUDA_TRY(cudaDeviceCanAccessPeer(&canAccessPeer, i, j));
-      if (canAccessPeer) {
-		    cudaDeviceEnablePeerAccess(j, 0);
-        cudaError_t status = cudaGetLastError();
-        if (!(status == cudaSuccess || status == cudaErrorPeerAccessAlreadyEnabled)) {
-        	std::cerr << "Could not Enable Peer Access from" << i << " to " << j << std::endl;
-        	return GDF_CUDA_ERROR;
-        }
-      }
-      else {
-        std::cerr << "P2P access required from " << i << " to " << j << std::endl;
-        return GDF_CUDA_ERROR;
-      }
-    }
-  }
-  return GDF_SUCCESS;
-}
-
 // Each GPU copies its x_loc to x_glob[offset[device]] on all GPU
 template <typename val_t>
-gdf_error allgather (size_t* offset, val_t* x_loc, val_t ** x_glob) {
-  auto i = omp_get_thread_num();
-  auto p = omp_get_num_threads();  
+void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
+  auto i = env.get_thread_num();
+  auto p = env.get_num_threads();  
   size_t n_loc= offset[i+1]-offset[i];
 
-  GDF_TRY(setup_peer_access()); 
+  env.setup_peer_access(); 
   // this causes issues with CUB. TODO :  verify the impact on performance.
 
   // send the local spmv output (x_loc) to all peers to reconstruct the global vector x_glob 
   // After this call each peer has a full, updated, copy of x_glob
-  for (int j = 0; j < p; ++j)
-    CUDA_TRY(cudaMemcpyPeer(x_glob[j]+offset[i],j, x_loc,i, n_loc*sizeof(val_t)));
-    //CUDA_TRY(cudaMemcpy(x_glob[j]+offset[i], x_loc, n_loc*sizeof(val_t),cudaMemcpyDeviceToDevice));
+  for (int j = 0; j < p; ++j) {
+    cudaMemcpyPeer(x_glob[j]+offset[i],j, x_loc,i, n_loc*sizeof(val_t));
+    cudaCheckError();
+  }
   
   //Make sure everyone has finished copying before returning
   sync_all();
 
-  return GDF_SUCCESS;
 }
 
 /**

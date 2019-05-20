@@ -22,6 +22,7 @@
 #include "two_hop_neighbors.cuh"
 #include "utilities/error_utils.h"
 #include <rmm_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/scan.h>
 #include <thrust/transform.h>
@@ -38,27 +39,28 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
     IndexType num_edges;
     cudaMemcpy(&num_edges, &offsets[num_verts], sizeof(IndexType), cudaMemcpyDefault);
 
+    cudaStream_t stream {nullptr};
+
     // Allocate memory for temporary stuff
     IndexType *exsum_degree = nullptr;
     IndexType *first_pair = nullptr;
     IndexType *second_pair = nullptr;
     IndexType *block_bucket_offsets = nullptr;
 
-    ALLOC_MANAGED_TRY(&exsum_degree, sizeof(IndexType) * (num_edges + 1), nullptr);
+    ALLOC_TRY(&exsum_degree, sizeof(IndexType) * (num_edges + 1), stream);
 
     // Find the degree of the out vertex of each edge
     degree_iterator<IndexType> deg_it(offsets);
     deref_functor<degree_iterator<IndexType>, IndexType> deref(deg_it);
-    rmm_temp_allocator allocator(nullptr);
-    thrust::fill(thrust::cuda::par(allocator).on(nullptr), exsum_degree, exsum_degree + 1, 0);
-    thrust::transform(thrust::cuda::par(allocator).on(nullptr),
+    thrust::fill(rmm::exec_policy(stream)->on(stream), exsum_degree, exsum_degree + 1, 0);
+    thrust::transform(rmm::exec_policy(stream)->on(stream),
                                         indices,
                                         indices + num_edges,
                                         exsum_degree + 1,
                                         deref);
 
     // Take the inclusive sum of the degrees
-    thrust::inclusive_scan(thrust::cuda::par(allocator).on(nullptr),
+    thrust::inclusive_scan(rmm::exec_policy(stream)->on(stream),
                                                     exsum_degree + 1,
                                                     exsum_degree + num_edges + 1,
                                                     exsum_degree + 1);
@@ -68,12 +70,12 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
     cudaMemcpy(&output_size, &exsum_degree[num_edges], sizeof(IndexType), cudaMemcpyDefault);
 
     // Allocate memory for the scattered output
-    ALLOC_MANAGED_TRY(&second_pair, sizeof(IndexType) * output_size, nullptr);
-    ALLOC_MANAGED_TRY(&first_pair, sizeof(IndexType) * output_size, nullptr);
+    ALLOC_TRY(&second_pair, sizeof(IndexType) * output_size, stream);
+    ALLOC_TRY(&first_pair, sizeof(IndexType) * output_size, stream);
 
     // Figure out number of blocks and allocate memory for block bucket offsets
     IndexType num_blocks = (output_size + TWO_HOP_BLOCK_SIZE - 1) / TWO_HOP_BLOCK_SIZE;
-    ALLOC_MANAGED_TRY(&block_bucket_offsets, sizeof(IndexType) * (num_blocks + 1), nullptr);
+    ALLOC_TRY(&block_bucket_offsets, sizeof(IndexType) * (num_blocks + 1), stream);
 
     // Compute the block bucket offsets
     dim3 grid, block;
@@ -100,18 +102,18 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
     // Remove duplicates and self pairings
     auto tuple_start = thrust::make_zip_iterator(thrust::make_tuple(first_pair, second_pair));
     auto tuple_end = tuple_start + output_size;
-    thrust::sort(thrust::cuda::par(allocator).on(nullptr), tuple_start, tuple_end);
-    tuple_end = thrust::copy_if(thrust::cuda::par(allocator).on(nullptr),
+    thrust::sort(rmm::exec_policy(stream)->on(stream), tuple_start, tuple_end);
+    tuple_end = thrust::copy_if(rmm::exec_policy(stream)->on(stream),
                                                             tuple_start,
                                                             tuple_end,
                                                             tuple_start,
                                                             self_loop_flagger<IndexType>());
-    tuple_end = thrust::unique(thrust::cuda::par(allocator).on(nullptr), tuple_start, tuple_end);
+    tuple_end = thrust::unique(rmm::exec_policy(stream)->on(stream), tuple_start, tuple_end);
 
     // Get things ready to return
     outputSize = tuple_end - tuple_start;
-    ALLOC_MANAGED_TRY(first, sizeof(IndexType) * outputSize, nullptr);
-    ALLOC_MANAGED_TRY(second, sizeof(IndexType) * outputSize, nullptr);
+    ALLOC_TRY(first, sizeof(IndexType) * outputSize, nullptr);
+    ALLOC_TRY(second, sizeof(IndexType) * outputSize, nullptr);
     cudaMemcpy(*first, first_pair, sizeof(IndexType) * outputSize, cudaMemcpyDefault);
     cudaMemcpy(*second, second_pair, sizeof(IndexType) * outputSize, cudaMemcpyDefault);
 

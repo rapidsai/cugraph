@@ -46,7 +46,7 @@ function(configure_test TEST_NAME Tests_SRCS)
 #    message(STATUS "${TEST_NAME} will link against: gdf, cugraph")
 
     add_executable(${TEST_NAME} ${Tests_SRCS})
-    target_link_libraries(${TEST_NAME} OpenMP::OpenMP_CXX gmock_main gmock GTest::GTest cudart cudf cugraph nvgraph)
+    target_link_libraries(${TEST_NAME} OpenMP::OpenMP_CXX gmock_main gmock GTest::GTest cugraph nvgraph cudf cudart)
     set_target_properties(${TEST_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/")
 
@@ -144,6 +144,12 @@ set(SNMG_DEGREE_TEST_SRCS
         "${CMAKE_CURRENT_SOURCE_DIR}/snmg_degree/snmg_degree_test.cu")
 
 configure_test(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRCS}")
+
+set(SNMG_PR_TEST_SRCS
+        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_pagerank/snmg_pagerank_test.cu")
+
+configure_test(SNMG_PR_TEST "${SNMG_PR_TEST_SRCS}")
 
 message(STATUS "******** Tests are ready ********")
 

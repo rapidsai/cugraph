@@ -23,8 +23,10 @@ import numpy as np
 
 cpdef subgraph(G, vertices):
     """
-    Compute a clustering/partitioning of the given graph using the spectral balanced
-    cut method.
+    Compute a subgraph of the existing graph including only the specified 
+    vertices.  This algorithm works for both directed and undirected graphs,
+    it does not actually traverse the edges, simply pulls out any edges that
+    are incident on vertices that are both contained in the vertices list.
     
     Parameters
     ----------
@@ -62,7 +64,7 @@ cpdef subgraph(G, vertices):
 
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
-    err = gdf_extract_subgraph_vertex_nvgraph(g, rg, &vert_col)
+    err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return resultGraph
