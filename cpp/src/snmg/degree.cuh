@@ -84,6 +84,7 @@ namespace cugraph {
     }
 
     // Combining the local results into global results
+    sync_all();
     treeReduce<idx_t, thrust::plus<idx_t> >(glob_v, local_result, degree);
 
     // Broadcasting the global result to all GPUs
