@@ -102,6 +102,7 @@ gdf_error treeReduce(size_t length, val_t* x_loc, val_t** x_glob){
     // cudaMemcpyPeer synchronizes with all work on both devices but we do need to ensure that
     // none of the reduction transforms are issued before copies are:
     #pragma omp_barrier
+    sync_all();
 
     // Reduce the data from the receiver's global buffer with its local one
     if(i % (rank * 2) == 0 && i + rank < p){

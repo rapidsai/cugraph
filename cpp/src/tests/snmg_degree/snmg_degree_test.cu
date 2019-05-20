@@ -22,7 +22,7 @@
 #include "test_utils.h"
 #include "snmg_test_utils.h"
 
-//#define SNMG_VERBOSE
+#define SNMG_VERBOSE
 
 // ref Degree on the host
 template<typename idx_t>
@@ -33,7 +33,6 @@ void ref_degree_h(int x,
   for (auto i = 0; i < degree.size(); i++)
     degree[i] = 0;
   if (x == 0 || x == 2) {
-    #pragma omp parallel for
     for (auto i = 0; i < degree.size(); ++i) {
       degree[i] += off_h[i + 1] - off_h[i];
     }
