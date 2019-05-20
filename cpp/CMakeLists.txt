@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #=============================================================================
+
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
 project(CUGRAPH VERSION 0.8.0 LANGUAGES C CXX CUDA)
@@ -74,10 +75,9 @@ endif(CMAKE_COMPILER_IS_GNUCXX)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70")
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda -Xcompiler -rdynamic -lineinfo")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Wno-deprecated-declarations -Xptxas --disable-warnings")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling / memchecking
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
@@ -142,12 +142,11 @@ endif(Boost_FOUND)
 # - find openmp -----------------------------------------------------------------------------------
 
 find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler ${OpenMP_CXX_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
+if(OpenMP_FOUND)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
+endif(OpenMP_FOUND)
 
 ###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
@@ -166,13 +165,15 @@ endif(BUILD_TESTS)
 # - cudf ------------------------------------------------------------------------------------------
 
 find_path(CUDF_INCLUDE "cudf"
-          HINTS "$ENV{CUDF_ROOT}/include"
-                "$ENV{CONDA_PREFIX}/include/cudf"
-                "$ENV{CONDA_PREFIX}/include")
+    HINTS
+    "$ENV{CUDF_ROOT}/include"
+    "$ENV{CONDA_PREFIX}/include/cudf"
+    "$ENV{CONDA_PREFIX}/include")
 
 find_library(CUDF_LIBRARY "cudf"
-             HINTS "$ENV{CUDF_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
+    HINTS
+    "$ENV{CUDF_ROOT}/lib"
+    "$ENV{CONDA_PREFIX}/lib")
 
 message(STATUS "CUDF: CUDF_LIBRARY set to ${CUDF_LIBRARY}")
 message(STATUS "CUDF: CUDF_INCLUDE set to ${CUDF_INCLUDE}")
@@ -186,13 +187,15 @@ endif (CUDF_INCLUDE AND CUDF_LIBRARY)
 # - RMM -------------------------------------------------------------------------------------------
 
 find_path(RMM_INCLUDE "rmm"
-          HINTS "$ENV{RMM_ROOT}/include"
-                "$ENV{CONDA_PREFIX}/include/rmm"
-                "$ENV{CONDA_PREFIX}/include")
+    HINTS
+    "$ENV{RMM_ROOT}/include"
+    "$ENV{CONDA_PREFIX}/include/rmm"
+    "$ENV{CONDA_PREFIX}/include")
 
 find_library(RMM_LIBRARY "rmm"
-             HINTS "$ENV{RMM_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
+    HINTS
+    "$ENV{RMM_ROOT}/lib"
+    "$ENV{CONDA_PREFIX}/lib")
 
 message(STATUS "RMM: RMM_LIBRARY set to ${RMM_LIBRARY}")
 message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
@@ -205,12 +208,6 @@ endif (RMM_INCLUDE AND RMM_LIBRARY)
 ###################################################################################################
 # - add nvgraph -----------------------------------------------------------------------------------
 
-find_path(NVGRAPH_INCLUDE "nvgraph"
-      HINTS "$ENV{CONDA_PREFIX}/include")
-
-find_library(NVGRAPH_LIBRARY "nvgraph_rapids"
-         HINTS "$ENV{CONDA_PREFIX}/lib")
-
 message(STATUS "NVGRAPH: NVGRAPH_LIBRARY set to ${NVGRAPH_LIBRARY}")
 message(STATUS "NVGRAPH: NVGRAPH_INCLUDE set to ${NVGRAPH_INCLUDE}")
 
@@ -218,28 +215,6 @@ add_library(nvgraph SHARED IMPORTED ${NVGRAPH_LIBRARY})
 if (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
     set_target_properties( nvgraph PROPERTIES IMPORTED_LOCATION ${NVGRAPH_LIBRARY})
 endif (NVGRAPH_INCLUDE AND NVGRAPH_LIBRARY)
-
-###################################################################################################
-# - include paths ---------------------------------------------------------------------------------
-
-include_directories(
-    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" 
-    "${CMAKE_CURRENT_SOURCE_DIR}/include" 
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/cub"
-    "${CUDF_INCLUDE}"
-    "${NVGRAPH_INCLUDE}"
-    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
-    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
-    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/cub"
-    ${Boost_INCLUDE_DIRS}
-)
-
-###################################################################################################
-# - library paths ---------------------------------------------------------------------------------
-
-link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the link directories for nvcc
-                 "${CMAKE_BINARY_DIR}/lib")
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
@@ -269,17 +244,39 @@ add_library(cugraph SHARED
 )
 
 ###################################################################################################
+# - include paths ---------------------------------------------------------------------------------
+
+target_include_directories(cugraph
+    PRIVATE
+    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+    "${Boost_INCLUDE_DIRS}"
+    "${RMM_INCLUDE}"
+    "${CUDF_INCLUDE}"
+    "${NVGRAPH_INCLUDE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
+    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/cub"
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-target_link_libraries(cugraph cudf rmm cudart cuda ${Boost_LIBRARIES})
+# target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
+# link_directoires (we should switch to target_link_directories once 3.13 becomes the minimum
+# required version).
+link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}") # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the link directories for nvcc
+
+target_link_libraries(cugraph PRIVATE
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVGRAPH_LIBRARY} cudart cuda ${Boost_LIBRARIES})
 
 ###################################################################################################
 # - generate tests --------------------------------------------------------------------------------
 
 if(BUILD_TESTS)
     if(GTEST_FOUND)
-        include_directories(${GTEST_INCLUDE_DIR})
-        link_directories(${GTEST_LIBRARY_DIR})
         add_subdirectory(${CMAKE_SOURCE_DIR}/src/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
@@ -288,7 +285,7 @@ endif(BUILD_TESTS)
 # - install targets -------------------------------------------------------------------------------
 
 install(TARGETS cugraph LIBRARY
-        DESTINATION lib)
+    DESTINATION lib)
 
 install(DIRECTORY include/
-        DESTINATION include/cugraph)
+    DESTINATION include/cugraph)
