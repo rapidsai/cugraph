@@ -35,7 +35,6 @@ namespace cugraph {
    */
   template<typename idx_t>
   gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree) {
-    std::cout << "snmg_degree()\n";
     sync_all();
     SNMGinfo env;
     auto i = env.get_thread_num();

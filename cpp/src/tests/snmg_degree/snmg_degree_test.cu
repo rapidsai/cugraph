@@ -122,7 +122,7 @@ public:
     //reference result
     t = omp_get_wtime();
     ref_degree_h(param.x, csrRowPtr, csrColInd, degree_ref);
-    std::cout << omp_get_wtime() - t << " ";
+    std::cout << "CPU time: " << omp_get_wtime() - t << "\n";
     if (nnz < 1200000000)
         {
 #pragma omp parallel num_threads(1)
@@ -163,7 +163,7 @@ public:
         EXPECT_EQ(status, 0);
 #pragma omp master
         {
-          std::cout << omp_get_wtime() - t << " ";
+          std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
         }
 
 #pragma omp master
@@ -228,7 +228,7 @@ public:
         EXPECT_EQ(status, 0);
 #pragma omp master
         {
-          std::cout << omp_get_wtime() - t << " ";
+          std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
         }
 
 #pragma omp master
@@ -340,7 +340,7 @@ public:
     //reference result
     t = omp_get_wtime();
     ref_degree_h(param.x, csrRowPtr, csrColInd, degree_ref);
-    std::cout << omp_get_wtime() - t << " ";
+    std::cout << "CPU time: " << omp_get_wtime() - t << "\n";
 
     if (nnz < 1200000000) {
 #pragma omp parallel num_threads(1)
@@ -381,7 +381,7 @@ public:
         EXPECT_EQ(status, 0);
 #pragma omp master
         {
-          std::cout << omp_get_wtime() - t << " ";
+          std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
         }
 
 #pragma omp master
@@ -444,7 +444,7 @@ public:
         EXPECT_EQ(status, 0);
 #pragma omp master
         {
-          std::cout << omp_get_wtime() - t << " ";
+          std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
         }
 
 #pragma omp master
