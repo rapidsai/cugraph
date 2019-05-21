@@ -241,7 +241,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
 
      ASSERT_EQ(read_single_file(param.matrix_file.c_str(),cooRowInd,cooColInd),0);
      nnz = cooRowInd.size();
-     m = std::max( *(std::max_element(cooRowInd.begin(), cooRowInd.end())),
+     m = 1 + std::max( *(std::max_element(cooRowInd.begin(), cooRowInd.end())),
                    *(std::max_element(cooColInd.begin(), cooColInd.end())));
 
      // Allocate memory on host
