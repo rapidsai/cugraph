@@ -156,8 +156,10 @@ public:
 
         t = omp_get_wtime();
         status = gdf_snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        if (status != 0)
+        if (status != 0){
           std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
+          std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
+        }
         EXPECT_EQ(status, 0);
 #pragma omp master
         {
@@ -219,8 +221,10 @@ public:
 
         t = omp_get_wtime();
         status = gdf_snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        if (status != 0)
+        if (status != 0){
           std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
+          std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
+        }
         EXPECT_EQ(status, 0);
 #pragma omp master
         {
@@ -361,7 +365,7 @@ public:
         create_gdf_column(degree_h, col_x[i]);
 #pragma omp barrier
 
-        //load a chunck of the graph on each GPU
+        //load a chunk of the graph on each GPU
         load_csr_loc(csrRowPtr, cooColInd, csrVal,
                      v_loc,
                      e_loc, part_offset,
@@ -370,8 +374,10 @@ public:
         //printv(col_val->size,(float*)col_val->data,0);
         t = omp_get_wtime();
         status = gdf_snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        if (status != 0)
+        if (status != 0){
           std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
+          std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
+        }
         EXPECT_EQ(status, 0);
 #pragma omp master
         {
@@ -433,8 +439,10 @@ public:
         //printv(col_val->size,(float*)col_val->data,0);
         t = omp_get_wtime();
         status = gdf_snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
-        if (status != 0)
+        if (status != 0){
           std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
+          std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
+        }
         EXPECT_EQ(status, 0);
 #pragma omp master
         {
