@@ -19,6 +19,7 @@
  
 #pragma once
 #include <omp.h>
+#include "rmm_utils.h"
 
 namespace cugraph
 {
@@ -85,10 +86,7 @@ class SNMGinfo
 };
 
 // Wait for all host threads 
-void sync_all() {
-  cudaDeviceSynchronize();
-  #pragma omp barrier 
-}
+void sync_all();
 
 // Each GPU copies its x_loc to x_glob[offset[device]] on all GPU
 template <typename val_t>
@@ -121,10 +119,10 @@ void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
  * @return Error code
  */
 template <typename val_t, typename func_t>
-gdf_error treeReduce(size_t length, val_t* x_loc, val_t** x_glob){
-  auto i = omp_get_thread_num();
-  auto p = omp_get_num_threads();
-  GDF_TRY(setup_peer_access());
+gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob){
+  auto i = env.get_thread_num();
+  auto p = env.get_num_threads();
+  env.setup_peer_access();
   int rank = 1;
   while(rank < p){
     // Copy local data to the receiver's global buffer
@@ -138,9 +136,8 @@ gdf_error treeReduce(size_t length, val_t* x_loc, val_t** x_glob){
 
     // Reduce the data from the receiver's global buffer with its local one
     if(i % (rank * 2) == 0 && i + rank < p){
-      rmm_temp_allocator allocator(nullptr);
       func_t op;
-      thrust::transform(thrust::cuda::par(allocator).on(nullptr),
+      thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
                         x_glob[i],
                         x_glob[i] + length,
                         x_loc,
@@ -168,10 +165,10 @@ gdf_error treeReduce(size_t length, val_t* x_loc, val_t** x_glob){
  * @return Error code
  */
 template <typename val_t>
-gdf_error treeBroadcast(size_t length, val_t* x_loc, val_t** x_glob){
-  auto i = omp_get_thread_num();
-  auto p = omp_get_num_threads();
-  GDF_TRY(setup_peer_access());
+gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob){
+  auto i = env.get_thread_num();
+  auto p = env.get_num_threads();
+  env.setup_peer_access();
   int rank = 1;
   while(rank * 2 < p)
     rank *= 2;
@@ -188,11 +185,6 @@ gdf_error treeBroadcast(size_t length, val_t* x_loc, val_t** x_glob){
   return GDF_SUCCESS;
 }
 
-void print_mem_usage()
-{
-  size_t free,total;
-  cudaMemGetInfo(&free, &total);  
-  std::cout<< std::endl<< "Mem used: "<<total-free<<std::endl;
-}
+void print_mem_usage();
 
 } //namespace cugraph

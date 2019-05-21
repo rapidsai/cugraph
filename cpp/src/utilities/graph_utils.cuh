@@ -289,6 +289,16 @@ namespace cugraph
             degree[i] += ind[i+1]-ind[i];
     }
 
+    template<typename FromType, typename ToType>
+    __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+    type_convert(FromType* array, int n) {
+      for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x){
+        ToType val = array[i];
+        ToType* vals = (ToType*)array;
+        vals[i] = val;
+      }
+    }
+
     template<typename IndexType, typename ValueType>
     __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
     equi_prob3(const IndexType n,
@@ -348,7 +358,7 @@ namespace cugraph
         nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
         nblocks.y = 1;
         nblocks.z = 1;
-        degree_coo<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, csrInd, degree);
+        degree_coo<IndexType, IndexType> <<<nblocks, nthreads>>>(n, e, csrInd, degree);
         cudaCheckError();
 
         int y = 4;

@@ -16,8 +16,9 @@
 
 #pragma once
 #include <omp.h>
-#include "graph_utils.cuh"
-#include "snmg_utils.cuh"
+#include "utilities/graph_utils.cuh"
+#include "snmg/utils.cuh"
+#include "rmm_utils.h"
 
 namespace cugraph {
   /**
@@ -35,8 +36,9 @@ namespace cugraph {
   template<typename idx_t>
   gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree) {
     sync_all();
-    auto i = omp_get_thread_num();
-    auto p = omp_get_num_threads();
+    SNMGinfo env;
+    auto i = env.get_thread_num();
+    auto p = env.get_num_threads();
 
     // Getting the global and local vertices and edges
     size_t glob_v = part_off[p];
@@ -47,9 +49,8 @@ namespace cugraph {
 
     // Allocating the local result array, and setting all entries to zero.
     idx_t* local_result;
-    ALLOC_MANAGED_TRY((void** )&local_result, glob_v * sizeof(idx_t), nullptr);
-    rmm_temp_allocator allocator(nullptr);
-    thrust::fill(thrust::cuda::par(allocator).on(nullptr), local_result, local_result + glob_v, 0);
+    ALLOC_TRY((void** )&local_result, glob_v * sizeof(idx_t), nullptr);
+    thrust::fill(rmm::exec_policy(nullptr)->on(nullptr), local_result, local_result + glob_v, 0);
 
     // In-degree
     if (x == 1 || x == 0) {
@@ -83,10 +84,10 @@ namespace cugraph {
 
     // Combining the local results into global results
     sync_all();
-    treeReduce<idx_t, thrust::plus<idx_t> >(glob_v, local_result, degree);
+    treeReduce<idx_t, thrust::plus<idx_t> >(env, glob_v, local_result, degree);
 
     // Broadcasting the global result to all GPUs
-    treeBroadcast(glob_v, local_result, degree);
+    treeBroadcast(env, glob_v, local_result, degree);
 
     return GDF_SUCCESS;
   }
@@ -98,8 +99,9 @@ namespace cugraph {
                                  int64_t* ind,
                                  int64_t** degree) {
     sync_all();
-    auto i = omp_get_thread_num();
-    auto p = omp_get_num_threads();
+    SNMGinfo env;
+    auto i = env.get_thread_num();
+    auto p = env.get_num_threads();
 
     // Getting the global and local vertices and edges
     size_t glob_v = part_off[p];
@@ -110,9 +112,8 @@ namespace cugraph {
 
     // Allocating the local result array, and setting all entries to zero.
     int64_t* local_result;
-    ALLOC_MANAGED_TRY((void** )&local_result, glob_v * sizeof(int64_t), nullptr);
-    rmm_temp_allocator allocator(nullptr);
-    thrust::fill(thrust::cuda::par(allocator).on(nullptr), local_result, local_result + glob_v, 0);
+    ALLOC_TRY((void** )&local_result, glob_v * sizeof(int64_t), nullptr);
+    thrust::fill(rmm::exec_policy(nullptr)->on(nullptr), local_result, local_result + glob_v, 0);
 
     // In-degree
     if (x == 1 || x == 0) {
@@ -155,10 +156,10 @@ namespace cugraph {
     type_convert<double, int64_t> <<<nblocks, nthreads>>>((double*) local_result, glob_v);
 
     // Combining the local results into global results
-    treeReduce<int64_t, thrust::plus<int64_t> >(glob_v, local_result, degree);
+    treeReduce<int64_t, thrust::plus<int64_t> >(env, glob_v, local_result, degree);
 
     // Broadcasting the global result to all GPUs
-    treeBroadcast(glob_v, local_result, degree);
+    treeBroadcast(env, glob_v, local_result, degree);
 
     return GDF_SUCCESS;
   }
