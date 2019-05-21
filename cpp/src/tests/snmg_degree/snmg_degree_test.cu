@@ -329,6 +329,7 @@ public:
     nnz = cooRowInd.size();
     m = std::max(*(std::max_element(cooRowInd.begin(), cooRowInd.end())),
                  *(std::max_element(cooColInd.begin(), cooColInd.end())));
+    m += 1;
 
     // Allocate memory on host
     std::vector<idx_t> csrColInd(nnz), csrRowPtr(m + 1), degree_ref(m), degree_h(m), csrVal(nnz);
