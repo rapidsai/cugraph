@@ -129,6 +129,7 @@ gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob)
     if((i - rank) % (rank * 2) == 0){
       int receiver = i - rank;
       cudaMemcpyPeer(x_glob[receiver], receiver, x_loc, i, length*sizeof(val_t));
+      cudaCheckError();
     }
 
     // Sync everything now. This shouldn't be required as cudaMemcpyPeer is supposed to synchronize...
@@ -143,13 +144,16 @@ gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob)
                         x_loc,
                         x_loc,
                         op);
+      cudaCheckError();
     }
     rank *= 2;
   }
 
   // Thread 0 copies it's local result into it's global space
-  if (i == 0)
+  if (i == 0) {
     cudaMemcpy(x_glob[i], x_loc, sizeof(val_t) * length, cudaMemcpyDefault);
+    cudaCheckError();
+  }
 
   // Sync everything before returning
   sync_all();
@@ -176,6 +180,7 @@ gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_gl
     if(i % (rank * 2) == 0 and i + rank < p){
       int receiver = i + rank;
       cudaMemcpyPeer(x_glob[receiver], receiver, x_glob[i], i, sizeof(val_t) * length);
+      cudaCheckError();
     }
   }
 
