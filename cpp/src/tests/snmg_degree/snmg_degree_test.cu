@@ -121,7 +121,7 @@ public:
     gdf_column *col_x[n_gpus];
     //reference result
     t = omp_get_wtime();
-    ref_degree_h(param.x, csrRowPtr, cooColInd, degree_ref);
+    ref_degree_h(param.x, csrRowPtr, csrColInd, degree_ref);
     std::cout << omp_get_wtime() - t << " ";
     if (nnz < 1200000000)
         {
@@ -148,7 +148,7 @@ public:
 #pragma omp barrier
 
         //load a chunk of the graph on each GPU
-        load_csr_loc(csrRowPtr, cooColInd, csrVal,
+        load_csr_loc(csrRowPtr, csrColInd, csrVal,
                      v_loc,
                      e_loc, part_offset,
                      col_off,
@@ -213,7 +213,7 @@ public:
 #pragma omp barrier
 
         //load a chunck of the graph on each GPU
-        load_csr_loc(csrRowPtr, cooColInd, csrVal,
+        load_csr_loc(csrRowPtr, csrColInd, csrVal,
                      v_loc,
                      e_loc, part_offset,
                      col_off,
@@ -338,7 +338,7 @@ public:
     gdf_column *col_x[n_gpus];
     //reference result
     t = omp_get_wtime();
-    ref_degree_h(param.x, csrRowPtr, cooColInd, degree_ref);
+    ref_degree_h(param.x, csrRowPtr, csrColInd, degree_ref);
     std::cout << omp_get_wtime() - t << " ";
 
     if (nnz < 1200000000) {
@@ -365,7 +365,7 @@ public:
 #pragma omp barrier
 
         //load a chunk of the graph on each GPU
-        load_csr_loc(csrRowPtr, cooColInd, csrVal,
+        load_csr_loc(csrRowPtr, csrColInd, csrVal,
                      v_loc,
                      e_loc, part_offset,
                      col_off,
@@ -428,7 +428,7 @@ public:
 #pragma omp barrier
 
         //load a chunk of the graph on each GPU
-        load_csr_loc(csrRowPtr, cooColInd, csrVal,
+        load_csr_loc(csrRowPtr, csrColInd, csrVal,
                      v_loc,
                      e_loc, part_offset,
                      col_off,
