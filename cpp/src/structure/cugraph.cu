@@ -22,9 +22,8 @@
 #include <library_types.h>
 #include <nvgraph/nvgraph.h>
 #include <thrust/device_vector.h>
-
+#include "utilities/cusparse_helper.h"
 #include <rmm_utils.h>
-
 /*
  * cudf has gdf_column_free and using this is, in general, better design than
  * creating our own, but we will keep this as cudf is planning to remove the

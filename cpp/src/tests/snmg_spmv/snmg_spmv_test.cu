@@ -105,7 +105,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
      gdf_column *col_x[n_gpus];
      //reference result
      t = omp_get_wtime();
-     csrmv_h (csrRowPtr, csrColInd, csrVal, x_h, y_ref);
+     csrmv_h< idx_t, val_t>(csrRowPtr, csrColInd, csrVal, x_h, y_ref);
      std::cout <<  omp_get_wtime() - t << " ";
      if (nnz<1200000000)
      {
@@ -154,8 +154,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
         gdf_col_delete(col_val);
         gdf_col_delete(col_x[i]);
       }
-    }
-    
+    } 
     if (n_gpus > 1)
     {
       // Only using the 4 fully connected GPUs on DGX1
@@ -218,17 +217,6 @@ TEST_P(Tests_MGSpmv, CheckFP32_mtx) {
 TEST_P(Tests_MGSpmv, CheckFP64) {
     run_current_test<int,double>(GetParam());
 }
-
-INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv, 
-                        ::testing::Values(   MGSpmv_Usecase("test/datasets/karate.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/netscience.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/cit-Patents.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/webbase-1M.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/web-Google.mtx")
-                                            ,MGSpmv_Usecase("test/datasets/wiki-Talk.mtx")
-                                         )
-                       );
-
 
 class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
   public:
@@ -378,14 +366,6 @@ TEST_P(Tests_MGSpmv_hibench, CheckFP32_hibench) {
     run_current_test<int, float>(GetParam());
 }
 
-/*
-INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGSpmv_hibench,  
-                        ::testing::Values(   MGSpmv_Usecase("benchmark/hibench/1/Input-small/edges/part-00000")
-                                             ,MGSpmv_Usecase("benchmark/hibench/1/Input-large/edges/part-00000")
-                                             ,MGSpmv_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")
-                                         )
-                       );
-*/
 class Tests_MGSpmv_unsorted : public ::testing::TestWithParam<MGSpmv_Usecase> {
   public:
   Tests_MGSpmv_unsorted() {  }
@@ -551,6 +531,16 @@ TEST_P(Tests_MGSpmv_unsorted, CheckFP64) {
     run_current_test<int,double>(GetParam());
 }
 
+INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv, 
+                        ::testing::Values(   MGSpmv_Usecase("test/datasets/karate.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/netscience.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/cit-Patents.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/webbase-1M.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/web-Google.mtx")
+                                            ,MGSpmv_Usecase("test/datasets/wiki-Talk.mtx")
+                                         )
+                       );
+
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv_unsorted, 
                         ::testing::Values(   MGSpmv_Usecase("test/datasets/karate.mtx")
                                             ,MGSpmv_Usecase("test/datasets/netscience.mtx")
@@ -560,6 +550,13 @@ INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv_unsorted,
                                             ,MGSpmv_Usecase("test/datasets/wiki-Talk.mtx")
                                          )
                        );
+INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGSpmv_hibench,  
+                        ::testing::Values(   MGSpmv_Usecase("benchmark/hibench/1/Input-small/edges/part-00000")
+                                             ,MGSpmv_Usecase("benchmark/hibench/1/Input-large/edges/part-00000")
+                                             ,MGSpmv_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")
+                                         )
+                       );
+                      
 int main(int argc, char **argv)  {
     srand(42);
     ::testing::InitGoogleTest(&argc, argv);
