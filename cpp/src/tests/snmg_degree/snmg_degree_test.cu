@@ -319,7 +319,7 @@ public:
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".")
         + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)
         + std::string("_") + ss.str().c_str();
-
+    std::cout << "Filename: " << param.matrix_file << ", x=" << param.x << "\n";
     int m, nnz, n_gpus;
     gdf_error status;
     std::vector<idx_t> cooRowInd, cooColInd;
@@ -341,8 +341,7 @@ public:
     ref_degree_h(param.x, csrRowPtr, cooColInd, degree_ref);
     std::cout << omp_get_wtime() - t << " ";
 
-    if (nnz < 1200000000)
-        {
+    if (nnz < 1200000000) {
 #pragma omp parallel num_threads(1)
       {
         //omp_set_num_threads(n_gpus);
@@ -402,15 +401,13 @@ public:
         gdf_col_delete(col_x[i]);
       }
     }
-    if (n_gpus > 1)
-        {
+    if (n_gpus > 1) {
       // Only using the 4 fully connected GPUs on DGX1
       if (n_gpus == 8)
         n_gpus = 4;
 
 #pragma omp parallel num_threads(n_gpus)
       {
-        //omp_set_num_threads(n_gpus);
         auto i = omp_get_thread_num();
         auto p = omp_get_num_threads();
         CUDA_RT_CALL(cudaSetDevice(i));
@@ -430,7 +427,7 @@ public:
         create_gdf_column(degree_h, col_x[i]);
 #pragma omp barrier
 
-        //load a chunck of the graph on each GPU
+        //load a chunk of the graph on each GPU
         load_csr_loc(csrRowPtr, cooColInd, csrVal,
                      v_loc,
                      e_loc, part_offset,
@@ -438,7 +435,7 @@ public:
                      col_ind, col_val);
         //printv(col_val->size,(float*)col_val->data,0);
         t = omp_get_wtime();
-        status = gdf_snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+        status = gdf_snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
         if (status != 0){
           std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
           std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
