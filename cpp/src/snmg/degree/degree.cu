@@ -22,6 +22,7 @@ gdf_error gdf_snmg_degree_impl(int x,
                                gdf_column* off,
                                gdf_column* ind,
                                gdf_column** x_cols) {
+  std::cout << "gdf_snmg_degree_impl()\n";
   GDF_REQUIRE(off->size > 0, GDF_INVALID_API_CALL);
   GDF_REQUIRE(ind->size > 0, GDF_INVALID_API_CALL);
   GDF_REQUIRE(off->dtype == ind->dtype, GDF_UNSUPPORTED_DTYPE);
@@ -50,6 +51,7 @@ gdf_error gdf_snmg_degree(int x,
                           gdf_column* off,
                           gdf_column* ind,
                           gdf_column** x_cols) {
+  std::cout << "gdf_snmg_degree()\n";
   GDF_REQUIRE(part_offsets != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(off != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(ind != nullptr, GDF_INVALID_API_CALL);
