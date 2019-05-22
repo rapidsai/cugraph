@@ -55,31 +55,35 @@ namespace cugraph {
     // In-degree
     if (x == 1 || x == 0) {
       dim3 nthreads, nblocks;
-      nthreads.x = min((idx_t) loc_e, (idx_t) CUDA_MAX_KERNEL_THREADS);
+      nthreads.x = min(static_cast<idx_t>(loc_e), static_cast<idx_t>(CUDA_MAX_KERNEL_THREADS));
       nthreads.y = 1;
       nthreads.z = 1;
-      nblocks.x = min((idx_t) ((loc_e + nthreads.x - 1) / nthreads.x), (idx_t) CUDA_MAX_BLOCKS);
+      nblocks.x = min(static_cast<idx_t>((loc_e + nthreads.x - 1) / nthreads.x),
+                      static_cast<idx_t>(env.get_num_sm() * 32));
       nblocks.y = 1;
       nblocks.z = 1;
-      degree_coo<idx_t, idx_t> <<<nblocks, nthreads>>>((idx_t) loc_e,
-                                                       (idx_t) loc_e,
+      degree_coo<idx_t, idx_t> <<<nblocks, nthreads>>>(static_cast<idx_t>(loc_e),
+                                                       static_cast<idx_t>(loc_e),
                                                        ind,
                                                        local_result);
+      cudaCheckError();
     }
 
     // Out-degree
     if (x == 2 || x == 0) {
       dim3 nthreads, nblocks;
-      nthreads.x = min((idx_t) loc_v, (idx_t) CUDA_MAX_KERNEL_THREADS);
+      nthreads.x = min(static_cast<idx_t>(loc_v), static_cast<idx_t>(CUDA_MAX_KERNEL_THREADS));
       nthreads.y = 1;
       nthreads.z = 1;
-      nblocks.x = min((idx_t) ((loc_v + nthreads.x - 1) / nthreads.x), (idx_t) CUDA_MAX_BLOCKS);
+      nblocks.x = min(static_cast<idx_t>((loc_v + nthreads.x - 1) / nthreads.x),
+                      static_cast<idx_t>(env.get_num_sm() * 32));
       nblocks.y = 1;
       nblocks.z = 1;
-      degree_offsets<idx_t, idx_t> <<<nblocks, nthreads>>>((idx_t) loc_v,
-                                                           (idx_t) loc_e,
+      degree_offsets<idx_t, idx_t> <<<nblocks, nthreads>>>(static_cast<idx_t>(loc_v),
+                                                           static_cast<idx_t>(loc_e),
                                                            off,
                                                            local_result + part_off[i]);
+      cudaCheckError();
     }
 
     // Combining the local results into global results
@@ -118,42 +122,49 @@ namespace cugraph {
     // In-degree
     if (x == 1 || x == 0) {
       dim3 nthreads, nblocks;
-      nthreads.x = min((int64_t) loc_e, (int64_t) CUDA_MAX_KERNEL_THREADS);
+      nthreads.x = min(static_cast<int64_t>(loc_e), static_cast<int64_t>(CUDA_MAX_KERNEL_THREADS));
       nthreads.y = 1;
       nthreads.z = 1;
-      nblocks.x = min((int64_t)((loc_e + nthreads.x - 1) / nthreads.x), (int64_t) CUDA_MAX_BLOCKS);
+      nblocks.x = min(static_cast<int64_t>((loc_e + nthreads.x - 1) / nthreads.x),
+                      static_cast<int64_t>(env.get_num_sm() * 32));
       nblocks.y = 1;
       nblocks.z = 1;
-      degree_coo<int64_t, double> <<<nblocks, nthreads>>>((int64_t) loc_e,
-                                                        (int64_t) loc_e,
-                                                        ind,
-                                                        (double*) local_result);
+      degree_coo<int64_t, double> <<<nblocks, nthreads>>>(static_cast<int64_t>(loc_e),
+                                                          static_cast<int64_t>(loc_e),
+                                                          ind,
+                                                          static_cast<double*>(local_result));
+      cudaCheckError();
     }
 
     // Out-degree
     if (x == 2 || x == 0) {
       dim3 nthreads, nblocks;
-      nthreads.x = min((int64_t) loc_v, (int64_t) CUDA_MAX_KERNEL_THREADS);
+      nthreads.x = min(static_cast<int64_t>(loc_v), static_cast<int64_t>(CUDA_MAX_KERNEL_THREADS));
       nthreads.y = 1;
       nthreads.z = 1;
-      nblocks.x = min((int64_t)((loc_v + nthreads.x - 1) / nthreads.x), (int64_t) CUDA_MAX_BLOCKS);
+      nblocks.x = min(static_cast<int64_t>((loc_v + nthreads.x - 1) / nthreads.x),
+                      static_cast<int64_t>(env.get_num_sm() * 32));
       nblocks.y = 1;
       nblocks.z = 1;
-      degree_offsets<int64_t, double> <<<nblocks, nthreads>>>((int64_t) loc_v,
-                                                            (int64_t) loc_e,
-                                                            off,
-                                                            (double*) (local_result + part_off[i]));
+      degree_offsets<int64_t, double> <<<nblocks, nthreads>>>(static_cast<int64_t>(loc_v),
+                                                              static_cast<int64_t>(loc_e),
+                                                              off,
+                                                              static_cast<double*>(local_result
+                                                                  + part_off[i]));
+      cudaCheckError();
     }
 
     // Convert the values written as doubles back to int64:
     dim3 nthreads, nblocks;
-    nthreads.x = min((int64_t) glob_v, (int64_t) CUDA_MAX_KERNEL_THREADS);
+    nthreads.x = min(static_cast<int64_t>(glob_v), static_cast<int64_t>(CUDA_MAX_KERNEL_THREADS));
     nthreads.y = 1;
     nthreads.z = 1;
-    nblocks.x = min((int64_t)((glob_v + nthreads.x - 1) / nthreads.x), (int64_t) CUDA_MAX_BLOCKS);
+    nblocks.x = min(static_cast<int64_t>((glob_v + nthreads.x - 1) / nthreads.x),
+                    static_cast<int64_t>(env.get_num_sm() * 32));
     nblocks.y = 1;
     nblocks.z = 1;
-    type_convert<double, int64_t> <<<nblocks, nthreads>>>((double*) local_result, glob_v);
+    type_convert<double, int64_t> <<<nblocks, nthreads>>>(static_cast<double*>(local_result), glob_v);
+    cudaCheckError();
 
     // Combining the local results into global results
     treeReduce<int64_t, thrust::plus<int64_t> >(env, glob_v, local_result, degree);
