@@ -132,7 +132,7 @@ namespace cugraph {
       degree_coo<int64_t, double> <<<nblocks, nthreads>>>(static_cast<int64_t>(loc_e),
                                                           static_cast<int64_t>(loc_e),
                                                           ind,
-                                                          static_cast<double*>(local_result));
+                                                          reinterpret_cast<double*>(local_result));
       cudaCheckError();
     }
 
@@ -149,7 +149,7 @@ namespace cugraph {
       degree_offsets<int64_t, double> <<<nblocks, nthreads>>>(static_cast<int64_t>(loc_v),
                                                               static_cast<int64_t>(loc_e),
                                                               off,
-                                                              static_cast<double*>(local_result
+                                                              reinterpret_cast<double*>(local_result
                                                                   + part_off[i]));
       cudaCheckError();
     }
@@ -163,7 +163,7 @@ namespace cugraph {
                     static_cast<int64_t>(env.get_num_sm() * 32));
     nblocks.y = 1;
     nblocks.z = 1;
-    type_convert<double, int64_t> <<<nblocks, nthreads>>>(static_cast<double*>(local_result), glob_v);
+    type_convert<double, int64_t> <<<nblocks, nthreads>>>(reinterpret_cast<double*>(local_result), glob_v);
     cudaCheckError();
 
     // Combining the local results into global results
