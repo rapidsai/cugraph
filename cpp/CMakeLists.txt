@@ -242,6 +242,8 @@ add_library(cugraph SHARED
     src/traversal/nvgraph_sssp.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
+    src/snmg/degree/degree.cu
+    src/snmg/utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
