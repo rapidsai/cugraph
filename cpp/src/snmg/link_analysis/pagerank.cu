@@ -100,7 +100,7 @@ void SNMGpagerank<IndexType,ValueType>::setup(ValueType _alpha) {
     // TODO snmg degree
     int nthreads = min(static_cast<IndexType>(e_loc), 256);
     int nblocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
-    degree_coo<IndexType, ValueType><<<nblocks, nthreads>>>(v_glob, e_loc, ind, degree);
+    degree_coo<IndexType, IndexType><<<nblocks, nthreads>>>(v_glob, e_loc, ind, degree);
     
     // Update dangling node vector
     fill(v_glob, bookmark, zero);

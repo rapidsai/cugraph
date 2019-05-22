@@ -2,6 +2,7 @@
 
 ## New Features
 - PR #287 SNMG power iteration step1 
+- PR #297 SNMG degree calculation 
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
