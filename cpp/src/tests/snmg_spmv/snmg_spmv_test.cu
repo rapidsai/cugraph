@@ -32,7 +32,7 @@ void csrmv_h (std::vector<idx_t> & off_h,
                       std::vector<val_t> & x,  
                       std::vector<val_t> & y) {
   #pragma omp parallel for
-  for (auto i = 0; i < y.size(); ++i) 
+  for (auto i = size_t{0}; i < y.size(); ++i) 
   {
       //std::cout<< omp_get_num_threads()<<std::endl;
       for (auto j = off_h[i]; j <  off_h[i+1]; ++j) 
@@ -148,7 +148,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
           //printv(m, (val_t *)col_x[0]->data, 0);
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (auto j = size_t{0}; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
@@ -203,7 +203,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
           //printv(m, (val_t *)col_x[0]->data, 0);
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (auto j = size_t{0}; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
@@ -318,7 +318,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
           //printv(m, (val_t *)col_x[0]->data, 0);
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (auto j = size_t{0}; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
@@ -373,7 +373,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
           //printv(m, (val_t *)col_x[0]->data, 0);
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (auto j = size_t{0}; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
