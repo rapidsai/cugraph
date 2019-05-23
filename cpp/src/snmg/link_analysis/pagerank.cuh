@@ -67,7 +67,7 @@ class SNMGpagerank
     void flag_leafs(const IndexType *degree);
 
     // Artificially create the google matrix by setting val and bookmark
-    void setup(ValueType _alpha);
+    void setup(ValueType _alpha, IndexType** degree);
 
     // run the power iteration on the google matrix
     void solve (int max_iter, ValueType ** pagerank);

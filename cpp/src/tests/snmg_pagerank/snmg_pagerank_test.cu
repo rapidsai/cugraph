@@ -124,6 +124,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
      std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
      random_vals(csrVal);
      gdf_column *col_pagerank[n_gpus];
+     idx_t *degree[n_gpus];
 
      if (nnz<1200000000)
      {
@@ -156,7 +157,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
         t = omp_get_wtime();
         cugraph::SNMGinfo env;
         cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
-        pr_solver.setup(alpha);
+        pr_solver.setup(alpha,degree);
 
         val_t* pagerank[p];
         for (auto i = 0; i < p; ++i)
@@ -174,8 +175,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
         gdf_col_delete(col_pagerank[i]);
       }
     }
-// TODO Enable when degree function is present
-#if 0
+
     if (n_gpus > 1)
     {
       // Only using the 4 fully connected GPUs on DGX1
@@ -210,7 +210,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
           t = omp_get_wtime();
           cugraph::SNMGinfo env;
           cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
-          pr_solver.setup(alpha);
+          pr_solver.setup(alpha,degree);
 
           val_t* pagerank[p];
           for (auto i = 0; i < p; ++i)
@@ -230,7 +230,6 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
 
        }
     }
-#endif
     std::cout << std::endl;
   }
 
@@ -272,6 +271,7 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
      std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
      random_vals(csrVal);
      gdf_column *col_pagerank[n_gpus];
+     idx_t *degree[n_gpus];
 
      if (nnz<1200000000)
      {
@@ -304,7 +304,7 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
         t = omp_get_wtime();
         cugraph::SNMGinfo env;
         cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
-        pr_solver.setup(alpha);
+        pr_solver.setup(alpha,degree);
 
         val_t* pagerank[p];
         for (auto i = 0; i < p; ++i)
@@ -359,7 +359,7 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
         t = omp_get_wtime();
         cugraph::SNMGinfo env;
         cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
-        pr_solver.setup(alpha);
+        pr_solver.setup(alpha,degree);
 
         val_t* pagerank[p];
         for (auto i = 0; i < p; ++i)
@@ -396,20 +396,20 @@ TEST_P(Tests_MGPR_hibench, CheckFP32_hibench) {
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
                         ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            //,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
                                          )
                        );
 
-INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGPR_hibench,  
-                        ::testing::Values(   MGPagerank_Usecase("benchmark/hibench/1/Input-small/edges/part-00000", "")
-                                            ,MGPagerank_Usecase("benchmark/hibench/1/Input-large/edges/part-00000", "")
-                                            ,MGPagerank_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000", "")
-                                         )
-                       );
+//INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGPR_hibench,  
+//                        ::testing::Values(   MGPagerank_Usecase("benchmark/hibench/1/Input-small/edges/part-00000", "")
+//                                            ,MGPagerank_Usecase("benchmark/hibench/1/Input-large/edges/part-00000", "")
+//                                            ,MGPagerank_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000", "")
+//                                         )
+//                       );
 
 
 

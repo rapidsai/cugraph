@@ -25,6 +25,7 @@
 #include "utilities/cusparse_helper.h"
 #include "snmg/blas/spmv.cuh"
 #include "snmg/link_analysis/pagerank.cuh"
+#include "snmg/degree/degree.cuh"
 //#define SNMG_DEBUG
 
 namespace cugraph
@@ -89,29 +90,27 @@ void SNMGpagerank<IndexType,ValueType>::flag_leafs(const IndexType *degree) {
 
 // Artificially create the google matrix by setting val and bookmark
 template <typename IndexType, typename ValueType>
-void SNMGpagerank<IndexType,ValueType>::setup(ValueType _alpha) {
+void SNMGpagerank<IndexType,ValueType>::setup(ValueType _alpha, IndexType** degree) {
   if (!is_setup) {
 
     alpha=_alpha;
     ValueType zero = 0.0; 
-    IndexType *degree;
-    ALLOC_TRY ((void**)&degree,   sizeof(IndexType) * v_glob, stream);
-    
-    // TODO snmg degree
-    int nthreads = min(static_cast<IndexType>(e_loc), 256);
-    int nblocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
-    degree_coo<IndexType, IndexType><<<nblocks, nthreads>>>(v_glob, e_loc, ind, degree);
-    
+    IndexType *degree_loc;
+    ALLOC_TRY ((void**)&degree_loc,   sizeof(IndexType) * v_glob, stream);
+    degree[id] = degree_loc;
+    if (snmg_degree(1, part_off, off, ind, degree))
+       throw std::string("SNMG Degree failed in Pagerank");
+
     // Update dangling node vector
     fill(v_glob, bookmark, zero);
-    flag_leafs(degree);
+    flag_leafs(degree_loc);
     update_dangling_nodes(v_glob, bookmark, alpha);
 
     // Transition matrix
-    transition_vals(degree);
+    transition_vals(degree_loc);
 
     //exit
-    ALLOC_FREE_TRY(degree, stream);
+    ALLOC_FREE_TRY(degree_loc, stream);
     is_setup = true;
   }
   else
