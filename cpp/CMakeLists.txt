@@ -82,7 +82,8 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compa
 set(NVGRAPH_LIGHT True)
 add_compile_definitions(NVGRAPH_LIGHT=${NVGRAPH_LIGHT})
 
-# Option to enable line info in CUDA device compilation to allow introspection when profiling / memchecking
+# Option to enable line info in CUDA device compilation to allow introspection when profiling /
+# memchecking
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 if (CMAKE_CUDA_LINEINFO)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo")
@@ -139,8 +140,7 @@ endif(Boost_FOUND)
 
 find_package(OpenMP)
 if(OpenMP_FOUND)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
 endif(OpenMP_FOUND)
 
@@ -151,9 +151,11 @@ if(BUILD_TESTS)
     include(ConfigureGoogleTest)
 
     if(GTEST_FOUND)
-        message(STATUS "Google C++ Testing Framework (Google Test) found in ${GTEST_ROOT}")
+        message(STATUS
+            "Google C++ Testing Framework (Google Test) found in ${GTEST_ROOT}")
     else()
-        message(AUTHOR_WARNING "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
+        message(AUTHOR_WARNING
+            "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
 
@@ -203,6 +205,14 @@ endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
+
+# target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
+# link_directoires (we should switch to target_link_directories once 3.13 becomes the minimum
+# required version).
+link_directories(
+     # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the
+     # link directories for nvcc.
+    "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 if(NVGRAPH_LIGHT MATCHES True)
 add_library(cugraph SHARED
@@ -348,19 +358,68 @@ target_include_directories(cugraph
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-# target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
-# link_directoires (we should switch to target_link_directories once 3.13 becomes the minimum
-# required version).
-link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}") # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the link directories for nvcc
-
 target_link_libraries(cugraph PRIVATE
     ${CUDF_LIBRARY} ${RMM_LIBRARY} cublas cusparse curand cusolver cudart cuda ${Boost_LIBRARIES})
+if(OpenMP_CXX_FOUND)
+target_link_libraries(cugraph PRIVATE
+###################################################################################################
+###   Use ${OpenMP_CXX_LIB_NAMES} instead of OpenMP::OpenMP_CXX to avoid the following warnings.
+###
+###   Cannot generate a safe runtime search path for target TARGET_NAME
+###   because files in some directories may conflict with libraries in implicit
+###   directories:
+###   ...
+###
+###   libgomp.so is included in the conda base environment and copied to every new conda
+###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY} and ${RMM_LIBRARY}), cmake
+###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
+###   disabled).
+###
+###   cmake maintains a system specific implicit directories (e.g. /lib, /lib/x86_64-linux-gnu,
+###   /lib32, /lib32/x86_64-linux-gnu, /lib64, /lib64/x86_64-linux-gnu, /usr/lib,
+###   /usr/lib/gcc/x86_64-linux-gnu/7, /usr/lib/x86_64-linux-gnu, /usr/lib32,
+###   /usr/lib32/x86_64-linux-gnu, /usr/lib64, /usr/lib64/x86_64-linux-gnu,
+###   /usr/local/cuda-10.0/lib64", /usr/local/cuda-10.0/lib64/stubs).
+###
+###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
+###   checks whether there is any other libgomp.so with the different full path (after resolving
+###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
+###   path included in BUILD_RPATH when ${CUDF_LIBRARY} and ${RMM_LIBRARY} are added; this one can
+###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
+###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
+###   overlaps with implicit directories).
+###
+###   If we provide just the library names (gomp;pthread), cmake does not generate warnings (we
+###   did not specify which libgomp.so should be loaded in runtime), and the one first found in
+###   the search order is loaded (we can change the load library by setting LD_LIBRARY_PATH or
+###     manually editing BUILD_RPATH).
+###
+###   Manually editing BUILD_RPATH:
+###   set(TARGET_BUILD_RPATH "")
+###   foreach(TMP_VAR_FULLPATH IN LISTS OpenMP_CXX_LIBRARIES)
+###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_FULLPATH} DIRECTORY)
+###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
+###       get_filename_component(TMP_VAR_REALPATH ${TMP_VAR_FULLPATH} REALPATH)
+###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_REALPATH} DIRECTORY)
+###       # cmake automatically removes duplicates, so skip checking.
+###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
+###   endforeach()
+###   string(APPEND TARGET_BUILD_RPATH "${CONDA_PREFIX}/lib")
+###   message(STATUS "TARGET_BUILD_RPATH=${TARGET_BUILD_RPATH}")
+###   set_target_properties(target PROPERTIES
+###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
+    ${OpenMP_CXX_LIB_NAMES})
+endif(OpenMP_CXX_FOUND)
 
 ###################################################################################################
 # - generate tests --------------------------------------------------------------------------------
 
 if(BUILD_TESTS)
     if(GTEST_FOUND)
+        # target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
+        # link_directoires (we should switch to target_link_directories once 3.13 becomes the
+        # minimum required version).
+        link_directories(${GTEST_LIBRARY_DIR})
         add_subdirectory(${CMAKE_SOURCE_DIR}/src/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
