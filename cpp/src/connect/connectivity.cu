@@ -6,6 +6,8 @@
 #include <algo_types.h>
 
 #include <iostream>
+#include <type_traits>
+#include <cstdint>
 
 //
 /**
@@ -25,10 +27,11 @@
  */
 template<typename IndexT,
          int TPB_X = 32>
-gdf_error gdf_connected_components_impl(gdf_graph *graph,
-                                        gdf_column *labels,
-                                        cugraph_connect_t connectivity_type,
-                                        cudaStream_t stream)
+std::enable_if_t<std::is_signed<IndexT>::value,gdf_error>
+gdf_connected_components_impl(gdf_graph *graph,
+                              gdf_column *labels,
+                              cugraph_connect_t connectivity_type,
+                              cudaStream_t stream)
 {
   static auto row_offsets_ = [](const gdf_graph* G){
     return static_cast<const IndexT*>(G->adjList->offsets->data);
@@ -74,13 +77,17 @@ gdf_error gdf_connected_components_impl(gdf_graph *graph,
       IndexT* p_d_labels = static_cast<IndexT*>(labels->data);
       const IndexT* p_d_row_offsets = row_offsets_(graph);
       const IndexT* p_d_col_ind = col_indices_(graph);
+
+      IndexT nnz = nnz_(graph);
+      IndexT nrows = nrows_(graph);
       
-      MLCommon::Sparse::weak_cc<IndexT, TPB_X>(p_d_labels,
+      MLCommon::Sparse::weak_cc_entry<IndexT, TPB_X>(p_d_labels,
                                                p_d_row_offsets,
                                                p_d_col_ind,
-                                               nnz_(graph),
-                                               nrows_(graph),
+                                               nnz,
+                                               nrows,
                                                stream);
+
     }
   else
     {
@@ -92,4 +99,25 @@ gdf_error gdf_connected_components_impl(gdf_graph *graph,
       return GDF_INVALID_API_CALL;//for now...
     }
   return GDF_SUCCESS;
+}
+
+gdf_error gdf_connected_components(gdf_graph *graph,
+                                   gdf_column *labels,
+                                   cugraph_connect_t connectivity_type)
+{
+  cudaStream_t stream{nullptr};
+  
+  switch( labels->dtype )//currently graph's row offsets, col_indices and labels are same type; that may change in the future
+    {
+    case GDF_INT32:
+      return gdf_connected_components_impl<int32_t>(graph, labels, connectivity_type, stream);
+      //    case GDF_INT64:
+      //return gdf_connected_components_impl<int64_t>(graph, labels, connectivity_type, stream);
+      // PROBLEM: relies on atomicMin(), which won't work w/ int64_t
+      // should work with `unsigned long long` but using signed `Type`'s
+      //(initialized to `-1`)
+    default:
+      break;//warning eater
+    }
+  return GDF_UNSUPPORTED_DTYPE;
 }

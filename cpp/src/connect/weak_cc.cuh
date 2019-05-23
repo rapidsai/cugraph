@@ -38,14 +38,15 @@ namespace MLCommon {
  * @brief Provide a ceiling division operation ie. ceil(a / b)
  * @tparam IntType supposed to be only integers for now!
  */
-template <typename IntType>
+template <typename IntType1,
+          typename IntType2>
 constexpr inline __host__ __device__
-IntType ceildiv(IntType a, IntType b) {
+IntType1 ceildiv(IntType1 a, IntType2 b) {
   return (a + b - 1) / b;
 }
 
 template<typename T, typename IndexT = int>
-__device__ IndexT get_stop_idx(T row, IndexT m, IndexT nnz, T *ind) {
+__device__ IndexT get_stop_idx(T row, IndexT m, IndexT nnz, const T *ind) {
     IndexT stop_idx = 0;
     if(row < (m-1))
         stop_idx = ind[row+1];
@@ -93,7 +94,7 @@ class WeakCCState {
 template <typename Type, int TPB_X = 32>
 __global__ void weak_cc_label_device(
         Type *labels,
-        Type *row_ind, Type *row_ind_ptr, Type nnz,
+        const Type *row_ind, const Type *row_ind_ptr, Type nnz,
         bool *fa, bool *xa, bool *m,
         Type startVertexId, Type batchSize) {
     Type tid = threadIdx.x + blockIdx.x*TPB_X;
@@ -154,7 +155,7 @@ __global__ void weak_cc_init_all_kernel(Type *labels, bool *fa, bool *xa,
 
   template <typename Type, int TPB_X = 32, typename Lambda>
 void weak_cc_label_batched(Type *labels,
-        Type* const row_ind, Type* const row_ind_ptr, Type nnz, Type N,
+        const Type* row_ind, const Type* row_ind_ptr, Type nnz, Type N,
         WeakCCState<Type> *state,
         Type startVertexId, Type batchSize,
         cudaStream_t stream, Lambda filter_op) {
@@ -217,7 +218,7 @@ void weak_cc_label_batched(Type *labels,
  * should get considered for labeling.
  */
 template<typename Type = int, int TPB_X = 32, typename Lambda = auto (Type)->bool>
-void weak_cc_batched(Type *labels, Type* const row_ind,  Type* const row_ind_ptr,
+void weak_cc_batched(Type *labels, const Type* row_ind, const Type* row_ind_ptr,
         Type nnz, Type N, Type startVertexId, Type batchSize,
         WeakCCState<Type> *state, cudaStream_t stream, Lambda filter_op) {
 
@@ -259,7 +260,7 @@ void weak_cc_batched(Type *labels, Type* const row_ind,  Type* const row_ind_ptr
  * @param stream the cuda stream to use
  */
 template<typename Type = int, int TPB_X = 32>
-void weak_cc_batched(Type *labels, Type* const row_ind,  Type* const row_ind_ptr,
+void weak_cc_batched(Type *labels, const Type* row_ind,  const Type* row_ind_ptr,
         Type nnz, Type N, Type startVertexId, Type batchSize,
         WeakCCState<Type> *state, cudaStream_t stream) {
 
@@ -291,7 +292,7 @@ void weak_cc_batched(Type *labels, Type* const row_ind,  Type* const row_ind_ptr
  * should get considered for labeling.
  */
 template<typename Type = int, int TPB_X = 32, typename Lambda = auto (Type)->bool>
-void weak_cc(Type *labels, Type* const row_ind, Type* const row_ind_ptr,
+void weak_cc(Type *labels, const Type* row_ind, const Type* row_ind_ptr,
         Type nnz, Type N, cudaStream_t stream, Lambda filter_op) {
 
     WeakCCState<Type> state(N);
@@ -324,8 +325,12 @@ void weak_cc(Type *labels, Type* const row_ind, Type* const row_ind_ptr,
  * should get considered for labeling.
  */
 template<typename Type = int, int TPB_X = 32>
-void weak_cc(Type *labels, Type* const row_ind, Type* const row_ind_ptr,
-        Type nnz, Type N, cudaStream_t stream) {
+void weak_cc_entry(Type *labels,
+                   const Type* row_ind,
+                   const Type* row_ind_ptr,
+                   Type nnz,
+                   Type N,
+                   cudaStream_t stream) {
 
     WeakCCState<Type> state(N);
     weak_cc_batched<Type, TPB_X>(
@@ -333,6 +338,6 @@ void weak_cc(Type *labels, Type* const row_ind, Type* const row_ind_ptr,
             nnz, N, 0, N, &state, stream);
             ///[] __device__ (Type t){return true;});//this works, but subject to deprecation
 }
-
+  
 }
 }
