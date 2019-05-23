@@ -82,6 +82,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
      double t;
 
      FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
      
      ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
      ASSERT_TRUE(mm_is_matrix(mc));
@@ -259,7 +260,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
      std::vector<idx_t> cooRowInd, cooColInd;
      double t;
 
-     ASSERT_EQ(read_single_file(param.matrix_file.c_str(),cooRowInd,cooColInd),0);
+     ASSERT_EQ(read_single_file(param.matrix_file.c_str(),cooRowInd,cooColInd),0) << "read_single_file(" << param.matrix_file << ", ...) failure.";
      nnz = cooRowInd.size();
      m = std::max( *(std::max_element(cooRowInd.begin(), cooRowInd.end())),
                    *(std::max_element(cooColInd.begin(), cooColInd.end())));
