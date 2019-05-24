@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <math.h>
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 #include "cuda_profiler_api.h"
@@ -68,13 +68,17 @@ void verify_pr(gdf_column* col_pagerank, const MGPagerank_Usecase& param){
     val_t err;
     int n_err = 0;
     for (int i = 0; i < m; i++) {
+        //check for invalid values
+        ASSERT_FALSE(isnan(calculated_res[i])); 
+        ASSERT_LE(calculated_res[i], 1.0);
+        ASSERT_GE(calculated_res[i], 0.0);
         err = fabs(expected_res[i] - calculated_res[i]);
         if (err> 1e-5) {
             n_err++; // count the number of mismatches 
         }
     }
     if (n_err) {
-        EXPECT_LE(n_err, 0.001*m); // tolerate 0.1% of values with a litte difference
+        ASSERT_LE(n_err, 0.001*m); // tolerate 0.1% of values with a litte difference
     }
   }
 }
@@ -181,7 +185,6 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
       // Only using the 4 fully connected GPUs on DGX1
       if (n_gpus == 8)
         n_gpus = 4;
-
       #pragma omp parallel num_threads(n_gpus)
        {
           auto i = omp_get_thread_num();
@@ -221,7 +224,6 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
           {std::cout <<  omp_get_wtime() - t << " ";}
 
           verify_pr<val_t>(col_pagerank[i], param);
-
           gdf_col_delete(col_off);
           gdf_col_delete(col_ind);
           gdf_col_delete(col_val);
@@ -251,7 +253,7 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
-     int m, nnz, n_gpus, max_iter=50;
+     int m, nnz, n_gpus, max_iter=500;
      val_t alpha = 0.85;
      std::vector<idx_t> cooRowInd, cooColInd;
      double t;
@@ -322,14 +324,11 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
         gdf_col_delete(col_pagerank[i]);
       }
     }
-// TODO Enable when degree function is present
-#if 0
      if (n_gpus > 1)
      {
       // Only using the 4 fully connected GPUs on DGX1
       if (n_gpus == 8)
         n_gpus = 4;
-
        #pragma omp parallel num_threads(n_gpus)
        {
         auto i = omp_get_thread_num();
@@ -377,7 +376,6 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
         gdf_col_delete(col_pagerank[i]);
       }
     }
-#endif
     std::cout << std::endl;
   }
 };
@@ -395,22 +393,22 @@ TEST_P(Tests_MGPR_hibench, CheckFP32_hibench) {
 
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
                         ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
+                                            ,MGPagerank_Usecase("test/datasets/netscience.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
-                                            //,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
                                          )
                        );
 
-//INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGPR_hibench,  
-//                        ::testing::Values(   MGPagerank_Usecase("benchmark/hibench/1/Input-small/edges/part-00000", "")
-//                                            ,MGPagerank_Usecase("benchmark/hibench/1/Input-large/edges/part-00000", "")
-//                                            ,MGPagerank_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000", "")
-//                                         )
-//                       );
-
+INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGPR_hibench,  
+                        ::testing::Values(   MGPagerank_Usecase("benchmark/hibench/1/Input-small/edges/part-00000", "")
+                                            ,MGPagerank_Usecase("benchmark/hibench/1/Input-large/edges/part-00000", "")
+                                            ,MGPagerank_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000", "")
+                                         )
+                       );
 
 
 int main(int argc, char **argv)  {
