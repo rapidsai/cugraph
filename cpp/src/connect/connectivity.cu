@@ -101,6 +101,19 @@ gdf_connected_components_impl(gdf_graph *graph,
   return GDF_SUCCESS;
 }
 
+/**
+ * @brief Compute connected components. 
+ * The weak version was imported from cuML.
+ * This implementation comes from [1] and solves component labeling problem in
+ * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
+ *
+ * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ *
+ 
+ * @param graph input graph; assumed undirected for weakly CC [in]
+ * @param labels gdf_column for the output labels [out]
+ * @param connectivity_type 0=WEAK; 1=STRONG
+ */
 gdf_error gdf_connected_components(gdf_graph *graph,
                                    gdf_column *labels,
                                    cugraph_connect_t connectivity_type)
