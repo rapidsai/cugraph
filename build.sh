@@ -22,7 +22,7 @@ VALIDARGS="clean libcugraph cugraph -v -g -n -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean      - remove all existing build artifacts and configuration (start over)
-   libcugraph - build the cugraph C++ code only
+   libcugraph - build the cugraph C++ code
    cugraph    - build the cugraph Python package
  and <flag> is:
    -v         - verbose build mode
