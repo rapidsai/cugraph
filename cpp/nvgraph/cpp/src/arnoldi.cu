@@ -31,13 +31,6 @@
 #include "nvgraph_csrmv.hxx"
 #include "matrix.hxx"
 
-
-#include "debug_macros.h"
-#ifdef DEBUG
-#define IRAM_VERBOSE
-// #define IRAM_DEBUG
-#endif
-
 namespace nvgraph
 {
 
@@ -88,19 +81,6 @@ NVGRAPH_ERROR ImplicitArnoldi<IndexType_, ValueType_>::solve(const int restart_i
                                                           const int nested_subspaces_freq)
 {
     //try {
-    #ifdef IRAM_VERBOSE
-        std::stringstream ss;
-        ss.str(std::string());
-        size_t used_mem, free_mem, total_mem;
-        ss <<" ------------------ImplicitArnoldi------------------"<< std::endl;
-        ss <<" --------------------------------------------"<< std::endl;
-        ss << std::setw(10) << "Iteration" << std::setw(20) << " Mem Usage (MB)" << std::setw(15) << "Residual" << std::endl;
-        ss <<" --------------------------------------------"<< std::endl;
-        COUT()<<ss.str();
-        // start timer
-        cuda_timer timer;
-        timer.start();
-    #endif
     m_nested_subspaces_freq = nested_subspaces_freq;
 
     setup(initial_guess, restart_it, nEigVals);
@@ -108,36 +88,12 @@ NVGRAPH_ERROR ImplicitArnoldi<IndexType_, ValueType_>::solve(const int restart_i
     bool converged = false;
     int i = 0;
     // we can print stats after setup to have the initial residual
-    #ifdef IRAM_VERBOSE
-            ss.str(std::string());
-            cnmemMemGetInfo(&free_mem, &total_mem, NULL);
-            used_mem=total_mem-free_mem;
-            ss << std::setw(10) << i ;
-            ss.precision(3);
-            ss << std::setw(20) << std::fixed << used_mem/1024.0/1024.0;
-            ss << std::setw(15) << std::scientific << m_residual;
-           if (m_miramns)  ss << "  (Krylov size: " << m_select << ")";
-            ss << std::endl;
-            COUT()<<ss.str();
-    #endif
     while (!converged && i< m_max_iter)
     {
         // re-add the extra eigenvalue in case QR step changed it.
         m_n_eigenvalues = m_nr_eigenvalues+1; 
         converged = solve_it();
         i++;
-         #ifdef IRAM_VERBOSE
-            ss.str(std::string());
-            cnmemMemGetInfo(&free_mem, &total_mem, NULL);
-            used_mem=total_mem-free_mem;
-            ss << std::setw(10) << i ;
-            ss.precision(3);
-            ss << std::setw(20) << std::fixed << used_mem/1024.0/1024.0;
-            ss << std::setw(15) << std::scientific << m_residual;
-            if (m_miramns)  ss << "  (Krylov size: " << m_select << ")";
-            ss << std::endl;
-            COUT()<<ss.str();
-        #endif
     }
     m_iterations = i;
     if (!m_miramns)
@@ -158,23 +114,6 @@ NVGRAPH_ERROR ImplicitArnoldi<IndexType_, ValueType_>::solve(const int restart_i
     compute_eigenvectors();
     cudaMemcpyAsync(eigVals.raw(), &m_ritz_eigenvalues[0], (size_t)(m_nr_eigenvalues*sizeof(m_ritz_eigenvalues[0])), cudaMemcpyHostToDevice);
     cudaCheckError();
-    #ifdef IRAM_VERBOSE
-        COUT() <<" --------------------------------------------"<< std::endl;
-        //stop timer
-        COUT() <<" Total Time : "<< timer.stop() << "ms"<<std::endl;
-        COUT() <<" --------------------------------------------"<< std::endl;
-
-       //for(int i = 0; i<m_nr_eigenvalues; i++)
-       //{
-       //     COUT() << m_ritz_eigenvalues[i];
-       //     if (m_ritz_eigenvalues_i[i])
-       //         COUT() << " " <<m_ritz_eigenvalues_i[i]<<std::endl;
-       //     else
-       //         COUT() <<std::endl;
-       //}
-
-
-    #endif
     // } catch (const std::exception &exc) {std::cout << exc.what();}
     // x = m_x; // sometime there is a mixup between pointers, need to investigate that.
     return NVGRAPH_OK;
@@ -494,19 +433,6 @@ bool ImplicitArnoldi<IndexType_, ValueType_>::solve_arnoldi(int lower_bound, int
         }
         
     }
-     #ifdef IRAM_DEBUG
-       COUT()
-       <<"---------------------------------------------"<<std::endl
-       <<"                   ARNOLDI                     "<<std::endl
-       <<"---------------------------------------------"<<std::endl;
-       COUT()<<"V:"<<std::endl;
-       for (int i = 0; i < m_Vi.size()-1; ++i)
-           m_V.dump(n*i,n);
-       COUT()<<std::endl<<"f:"<<std::endl;
-       m_V.dump(n*m_krylov_size,n);
-       COUT()<<std::endl<<"H:"<<std::endl;
-       dump_host_dense_mat(m_H, m_krylov_size);
-    #endif
    // dump_host_dense_mat(m_H, m_krylov_size);
     // this is where we compute the residual after the arnoldi reduction in IRAM
     if (!m_miramns)
@@ -535,10 +461,6 @@ bool ImplicitArnoldi<IndexType_, ValueType_>::solve_it()
 template <typename IndexType_, typename ValueType_>
 void ImplicitArnoldi<IndexType_, ValueType_>::select_subspace()
 {
-    #ifdef IRAM_DEBUG
-        COUT() <<std::endl << "Residuals "; dump_host_vec(m_mns_residuals);
-    #endif
-    
 #if __cplusplus > 199711L
     typename std::vector<ValueType_>::iterator it = std::min_element(std::begin(m_mns_residuals), std::end(m_mns_residuals));
 #else
@@ -682,25 +604,10 @@ void ImplicitArnoldi<IndexType_, ValueType_>::compute_residual(int subspace_size
                lam = std::abs(m_ritz_eigenvalues[i]);
 
             tmp_residual = residual_norm / lam;
-            //tmp_residual = residual_norm ;
-            //COUT() << "last_ritz_vector : "<<last_ritz_vector<<std::endl;
-            //COUT() << "res : "<<residual_norm<<std::endl;
-            //COUT() << "ri : "<<m_ritz_eigenvalues[i]<<std::endl;
-            //COUT() << "tmp : "<<tmp_residual<<std::endl;
             if (m_residual<tmp_residual)
                 m_residual = tmp_residual;
         }
     }
-    //#ifdef IRAM_DEBUG
-        //COUT()<<std::endl << "Residual " << m_residual <<std::endl;
-        //COUT() << "m_ritz_eigenvalues : "<<std::endl;
-        //dump_host_vec(m_ritz_eigenvalues);
-        //COUT() << "m_ritz_eigenvectors : "<<std::endl;
-        //dump_host_dense_mat(m_ritz_eigenvectors, subspace_size);
-        //COUT() << "m_beta : " << m_beta <<std::endl;
-        //COUT() << "last_ritz_vector : " << last_ritz_vector <<std::endl;
-        //COUT() << "residual_norm : " << residual_norm <<std::endl;
-    //#endif
 
     if (m_residual < m_tolerance)
     {
@@ -718,52 +625,11 @@ void ImplicitArnoldi<IndexType_, ValueType_>::implicit_restart()
     // optim:  avoid the cpy here 
     if (!m_miramns) std::copy(m_H.begin(), m_H.end(), m_H_select.begin());
     select_shifts(m_dirty_bit);
-    #ifdef IRAM_DEBUG
-     for(int i = 0; i<m_n_eigenvalues; i++)
-       {
-            COUT() << m_ritz_eigenvalues[i];
-            if (m_ritz_eigenvalues_i[i])
-                COUT() << " " <<m_ritz_eigenvalues_i[i]<<std::endl;
-            else
-                COUT() <<std::endl;
-       }
-        COUT()<<std::endl
-       <<"---------------------------------------------"<<std::endl
-       <<"        KRYLOV SOLUTION           "<<std::endl
-       <<"---------------------------------------------"<<std::endl;
-        COUT() << "ritz_values : "<<std::endl;
-        dump_host_vec(m_ritz_eigenvalues);
-        COUT() << "ritz_vectors : "<<std::endl;
-        dump_host_dense_mat(m_ritz_eigenvectors, m_select);
-    #endif
 
     qr_step();
 
-     #ifdef IRAM_DEBUG
-        COUT()<<std::endl
-       <<"---------------------------------------------"<<std::endl
-       <<"                SHIFTED QR                 "<<std::endl
-       <<"---------------------------------------------"<<std::endl;
-       COUT() << "H+"<< std::endl;
-       dump_host_dense_mat(m_H_select, m_select);
-       COUT() << "Q+"<< std::endl;
-       dump_host_dense_mat(m_Q, m_select);
-    #endif
-
     refine_basis();
 
-     #ifdef IRAM_DEBUG
-        COUT()<<std::endl
-       <<"---------------------------------------------"<<std::endl
-       <<"           REFINED BASIS               "<<std::endl
-       <<"---------------------------------------------"<<std::endl;
-       int n = m_A.get_num_vertices();
-       COUT() << "V+ : "<<std::endl;  
-       for (int i = 0; i < m_n_eigenvalues; ++i)
-           m_V.dump(n*i,n);
-       COUT()<<std::endl<<"f+:"<<std::endl;
-       m_V.dump(n*m_n_eigenvalues,n);
-    #endif
     // optim:  avoid the cpy here 
     if (!m_miramns) std::copy(m_H_select.begin(), m_H_select.end(), m_H.begin());
 }
@@ -777,12 +643,6 @@ void ImplicitArnoldi<IndexType_, ValueType_>::select_shifts(bool dirty_bit)
         std::copy(m_H_select.begin(), m_H_select.end(), m_H_tmp.begin()); 
         //Lapack<ValueType_>::geev(&m_H_tmp[0], &m_ritz_eigenvalues[0], &m_ritz_eigenvectors[0], m_select , m_select, m_select);
         Lapack<ValueType_>::geev(&m_H_tmp[0], &m_ritz_eigenvalues[0],&m_ritz_eigenvalues_i[0], &m_ritz_eigenvectors[0], NULL, m_select , m_select, m_select);
-        // #ifdef IRAM_DEBUG
-        //     COUT() << "m_ritz_eigenvalues : "<<std::endl;
-        //     dump_host_vec(m_ritz_eigenvalues);
-        //     COUT() << "m_ritz_eigenvectors : "<<std::endl;
-        //     dump_host_dense_mat(m_ritz_eigenvectors, m_select);
-        // #endif
     }
     m_dirty_bit = false;
     if (m_laplacian)
@@ -960,15 +820,6 @@ void ImplicitArnoldi<IndexType_, ValueType_>::qr_step()
     //for (int j = 0; j < m_select; j++)
     //    m_Q[j*m_select+j] = 1.0;
    
-    #ifdef IRAM_DEBUG
-        COUT() << "m_ritz_eigenvalues : "<<std::endl;
-        dump_host_vec(m_ritz_eigenvalues);
-        COUT() << "H0 : "<<std::endl;
-        dump_host_dense_mat(m_H_select, m_select);
-        COUT() << "Q0 : "<<std::endl;
-        dump_host_dense_mat(m_Q, m_select);
-        COUT() << "Lwork : " << lwork <<std::endl;
-    #endif
     int i = m_select-1;
     while (i >= m_n_eigenvalues)
     {
@@ -1144,17 +995,6 @@ void ImplicitArnoldi<IndexType_, ValueType_>::compute_eigenvectors()
     //nrm 1 for pagerank
     if(m_markov) 
         Cublas::scal(n, (ValueType_)1.0/m_eigenvectors.nrm1(), m_eigenvectors.raw(), 1);
-    
-    #ifdef IRAM_DEBUG
-        COUT()<<std::endl
-       <<"---------------------------------------------"<<std::endl
-       <<"             EIGENVECTORS            "<<std::endl
-       <<"---------------------------------------------"<<std::endl;
-       for (int i = 0; i < m_nr_eigenvalues; ++i)
-           m_eigenvectors.dump(n*i,n);
-        COUT() <<std::endl;  
-    #endif
-
 }
 
 template <typename IndexType_, typename ValueType_>
@@ -1200,15 +1040,9 @@ void ImplicitArnoldi<IndexType_, ValueType_>::cleanup_subspace(std::vector<Value
 template <typename IndexType_, typename ValueType_>
 void ImplicitArnoldi<IndexType_, ValueType_>::shift(std::vector<ValueType_>& H, int ld, int m, ValueType mu)
 {
-    #ifdef IRAM_DEBUG
-        dump_host_dense_mat(H,ld);
-    #endif
     int start = ld-m;
     for (int i = start; i < ld; i++)
         H[i*ld+i-start] -= mu;
-    #ifdef IRAM_DEBUG
-        dump_host_dense_mat(H,ld);
-    #endif
 }
 
 template <typename IndexType_, typename ValueType_>

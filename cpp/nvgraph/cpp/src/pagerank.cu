@@ -30,12 +30,6 @@
 #include <algorithm>
 #include <iomanip>
 
-
-#include "debug_macros.h"
-#ifdef DEBUG
-  #define PR_VERBOSE
-#endif
-
 namespace nvgraph
 {
 template <typename IndexType_, typename ValueType_>
@@ -167,18 +161,6 @@ bool Pagerank<IndexType_, ValueType_>::solve_it()
 template <typename IndexType_, typename ValueType_>
 NVGRAPH_ERROR Pagerank<IndexType_, ValueType_>::solve(ValueType damping_factor, Vector<ValueType>& initial_guess, Vector<ValueType>& pagerank_vector, float tolerance, int max_it)
 {
-   
-    #ifdef PR_VERBOSE
-        std::stringstream ss;
-        ss.str(std::string());
-        size_t used_mem, free_mem, total_mem;
-        ss <<" ------------------PageRank------------------"<< std::endl;
-        ss <<" --------------------------------------------"<< std::endl;
-        ss << std::setw(10) << "Iteration" << std::setw(20) << " Mem Usage (MB)" << std::setw(15) << "Residual" << std::endl;
-        ss <<" --------------------------------------------"<< std::endl;
-        COUT()<<ss.str();
-        cuda_timer timer; timer.start();
-    #endif
     m_max_it = max_it;
     m_tolerance = static_cast<ValueType_>(tolerance);
     setup(damping_factor, initial_guess, pagerank_vector);
@@ -190,25 +172,9 @@ NVGRAPH_ERROR Pagerank<IndexType_, ValueType_>::solve(ValueType damping_factor, 
         m_iterations = i;
         converged = solve_it();
         i++;
-         #ifdef PR_VERBOSE
-            ss.str(std::string());
-            cnmemMemGetInfo(&free_mem, &total_mem, NULL);
-            used_mem=total_mem-free_mem;
-            ss << std::setw(10) << i ;
-            ss.precision(3);
-            ss << std::setw(20) << std::fixed << used_mem/1024.0/1024.0;
-            ss << std::setw(15) << std::scientific << m_residual  << std::endl;
-            COUT()<<ss.str();
-        #endif
     }
     m_iterations = i;
-    #ifdef PR_VERBOSE
-        COUT() <<" --------------------------------------------"<< std::endl;
-        //stop timer
-        COUT() <<" Total Time : "<< timer.stop() << "ms"<<std::endl;
-        COUT() <<" --------------------------------------------"<< std::endl;
-    #endif
-    
+
     if (converged)    
     {
         pagerank_vector = m_pagerank;

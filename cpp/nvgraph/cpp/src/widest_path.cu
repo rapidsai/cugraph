@@ -30,10 +30,6 @@
 #include "nvgraph_csrmv.hxx"
 #include "widest_path.hxx"
 
-#include "debug_macros.h"
-#ifdef DEBUG
-#define MF_VERBOSE 0
-#endif
 namespace nvgraph
 {
 template <typename IndexType_, typename ValueType_>
@@ -157,35 +153,12 @@ NVGRAPH_ERROR WidestPath<IndexType_, ValueType_>::solve(IndexType source_index, 
     setup(source_index, source_connection, widest_path_result);
     bool converged = false;
     int max_it = 100000, i = 0;
-    #ifdef MF_VERBOSE
-        std::stringstream ss;
-        ss.str(std::string());
-        size_t used_mem, free_mem, total_mem;
-        ss <<" ------------------WidestPath------------------"<< std::endl;
-        ss <<" --------------------------------------------"<< std::endl;
-        ss << std::setw(10) << "Iteration" << std::setw(20) << " Mem Usage (MB)" << std::setw(15) << "Residual" << std::endl;
-        ss <<" --------------------------------------------"<< std::endl;
-        COUT()<<ss.str();
-    #endif
     while (!converged && i < max_it)
     {
         converged = solve_it();
         i++;
-         #ifdef MF_VERBOSE
-            ss.str(std::string());
-            cnmemMemGetInfo(&free_mem, &total_mem, NULL);
-            used_mem=total_mem-free_mem;
-            ss << std::setw(10) << i ;
-            ss.precision(3);
-            ss << std::setw(20) << std::fixed << used_mem/1024.0/1024.0;
-            ss << std::setw(15) << std::scientific << m_residual  << std::endl;
-            COUT()<<ss.str();
-        #endif
     }
     m_iterations = i;
-    #ifdef MF_VERBOSE
-        COUT() <<" --------------------------------------------"<< std::endl;
-    #endif
     return converged ? NVGRAPH_OK : NVGRAPH_ERR_NOT_CONVERGED;
 }
 template class WidestPath<int, double>;

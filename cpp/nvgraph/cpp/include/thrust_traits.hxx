@@ -14,65 +14,35 @@
  * limitations under the License.
  */
 
-
-
 #ifndef THRUST_TRAITS_HXX
-
 #define THRUST_TRAITS_HXX
 
-
-
-#include <thrust/device_vector.h>
-
+#include <thrust/device_ptr.h>
 #include <thrust/host_vector.h>
 
-
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
 
 namespace nvgraph
-
 {
-
   //generic Vector Ptr Type facade:
-
-  //
-
   template<typename T, typename Vector>
-
   struct VectorPtrT;
 
-
-
   //partial specialization for device_vector:
-
-  //
-
   template<typename T>
-
-  struct VectorPtrT<T, thrust::device_vector<T> >
-
+  struct VectorPtrT<T, rmm::device_vector<T>>
   {
-
     typedef thrust::device_ptr<T> PtrT;
 
   };
 
-
-
   //partial specialization for host_vector:
-
-  //
-
   template<typename T>
-
-  struct VectorPtrT<T, thrust::host_vector<T> >
-
+  struct VectorPtrT<T, thrust::host_vector<T>>
   {
-
     typedef typename thrust::host_vector<T>::value_type* PtrT;
-
   };
-
 }
 
 #endif
-

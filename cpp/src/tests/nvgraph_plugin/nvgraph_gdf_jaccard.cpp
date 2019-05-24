@@ -98,7 +98,7 @@ TEST(nvgraph_jaccard, success)
   float gamma = 1.0;
 
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&weight_j, sizeof(float)*edges, stream);
+  ALLOC_TRY((void**)&weight_j, sizeof(float)*edges, stream);
   
   ASSERT_EQ(nvgraphJaccard (CUDA_R_32I, CUDA_R_32F, no_vertex, edges,
                             (void*)G.adjList->offsets->data, 
@@ -164,7 +164,7 @@ TEST(nvgraph_jaccard_grmat, success)
   cudaMemcpy ((void*) &ind_h[0], G.adjList->indices->data, sizeof(int)*edges, cudaMemcpyDeviceToHost);
 
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&weight_j, sizeof(float)*edges, stream);
+  ALLOC_TRY((void**)&weight_j, sizeof(float)*edges, stream);
 
   ASSERT_EQ(nvgraphJaccard (CUDA_R_32I, CUDA_R_32F, vertices, edges,
                             (void*)G.adjList->offsets->data,

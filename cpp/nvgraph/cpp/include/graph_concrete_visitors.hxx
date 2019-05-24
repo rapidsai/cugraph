@@ -1420,8 +1420,8 @@ namespace nvgraph
   CsrGraph<IndexT>* extract_from_vertex_subset(CsrGraph<IndexT>& graph, 
 					       IndexT* pV, size_t n, cudaStream_t stream)
   {
-    typedef thrust::device_vector<IndexT> VectorI;
-    typedef thrust::device_vector<ValueT> VectorV;
+    typedef rmm::device_vector<IndexT> VectorI;
+    typedef rmm::device_vector<ValueT> VectorV;
     VectorI vSub(pV, pV+n);
 
     validate_input(vSub, graph.get_num_vertices());
@@ -1435,8 +1435,8 @@ namespace nvgraph
   CsrGraph<IndexT>* extract_from_edge_subset(CsrGraph<IndexT>& graph, 
 					     IndexT* pV, size_t n, cudaStream_t stream)
   {
-    typedef thrust::device_vector<IndexT> VectorI;
-    typedef thrust::device_vector<ValueT> VectorV;
+    typedef rmm::device_vector<IndexT> VectorI;
+    typedef rmm::device_vector<ValueT> VectorV;
     VectorI vSub(pV, pV+n);
 
     validate_input(vSub, graph.get_num_edges());

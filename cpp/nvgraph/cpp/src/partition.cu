@@ -535,8 +535,8 @@ namespace nvgraph {
     //nEigVecs - nrmR
     //lwork - Workspace max Lwork value (for either potrf or gesvd)
     //2 - devInfo
-    cudaMalloc(&lanczosVecs, (9*nEigVecs*n + 36*nEigVecs*nEigVecs + nEigVecs + lwork+2)*sizeof(ValueType_)); 
-    cudaCheckError();
+    auto rmm_result = RMM_ALLOC(&lanczosVecs, (9*nEigVecs*n + 36*nEigVecs*nEigVecs + nEigVecs + lwork+2)*sizeof(ValueType_), stream); 
+    rmmCheckError(rmm_result);
 
     //Setup preconditioner M for Laplacian L
     t1=timer();

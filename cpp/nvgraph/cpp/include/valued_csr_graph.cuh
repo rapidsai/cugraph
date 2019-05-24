@@ -16,27 +16,30 @@
 
 #pragma once
 
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+
 namespace nvlouvain{
 
 
 template <typename ValType>
-class Vector: public thrust::device_vector<ValType>{
+class Vector: public rmm::device_vector<ValType>{
   public:
-    Vector(): thrust::device_vector<ValType>(){}
-    Vector(int size): thrust::device_vector<ValType>(size){}
+    Vector(): rmm::device_vector<ValType>(){}
+    Vector(int size): rmm::device_vector<ValType>(size){}
  
     template <typename Iter> 
-    Vector(Iter begin, Iter end): thrust::device_vector<ValType>(begin, end){}
+    Vector(Iter begin, Iter end): rmm::device_vector<ValType>(begin, end){}
  
     inline void fill(const ValType val){
       thrust::fill(thrust::cuda::par, this->begin(), this->end(), val);
     }
-    inline thrust::device_vector<ValType>& to_device_vector(){
-      return static_cast<thrust::device_vector<ValType>> (*this);
+    inline rmm::device_vector<ValType>& to_device_vector(){
+      return static_cast<rmm::device_vector<ValType>> (*this);
     }
 
     inline ValType* raw(){
-      return (ValType*)thrust::raw_pointer_cast( thrust::device_vector<ValType>::data() );
+      return (ValType*)thrust::raw_pointer_cast( rmm::device_vector<ValType>::data() );
     }
 
     inline int get_size(){
@@ -49,7 +52,7 @@ template <typename IndexType, typename ValueType>
 class CsrGraph{
      
   public:
-    CsrGraph( thrust::device_vector<IndexType>& csr_ptr_d, thrust::device_vector<IndexType>& csr_ind_d,  thrust::device_vector<ValueType>& csr_val_d, IndexType v, IndexType e, bool _w=false):
+    CsrGraph( rmm::device_vector<IndexType>& csr_ptr_d, rmm::device_vector<IndexType>& csr_ind_d,  rmm::device_vector<ValueType>& csr_val_d, IndexType v, IndexType e, bool _w=false):
     _n_vertices(v), _n_edges(e), csr_ptr(csr_ptr_d.begin(), csr_ptr_d.end()), csr_ind(csr_ind_d.begin(), csr_ind_d.end()), csr_val(csr_val_d.begin(), csr_val_d.end()), weighted(_w){
     }
     
@@ -93,32 +96,32 @@ class CsrGraph{
       return csr_val;
     }
  
-    inline void update_csr_ptr(thrust::device_vector<IndexType> & d_v){
+    inline void update_csr_ptr(rmm::device_vector<IndexType> & d_v){
       thrust::copy(thrust::cuda::par, d_v.begin(), d_v.end(), csr_ptr.begin());
     }
-    inline void update_csr_ptr_n(thrust::device_vector<IndexType> & d_v,unsigned size){
+    inline void update_csr_ptr_n(rmm::device_vector<IndexType> & d_v,unsigned size){
       csr_ptr.resize(size);
       thrust::copy_n(thrust::cuda::par, d_v.begin(), size, csr_ptr.begin());
     } 
 
 
-    inline void update_csr_ind(thrust::device_vector<IndexType> & d_v){
+    inline void update_csr_ind(rmm::device_vector<IndexType> & d_v){
       thrust::copy(thrust::cuda::par, d_v.begin(), d_v.end(), csr_ind.begin());
     }
-    inline void update_csr_ind_n(thrust::device_vector<IndexType> & d_v,unsigned size){
+    inline void update_csr_ind_n(rmm::device_vector<IndexType> & d_v,unsigned size){
       csr_ind.resize(size);
       thrust::copy_n(thrust::cuda::par, d_v.begin(), size, csr_ind.begin());
     } 
 
 
-    inline void update_csr_val(thrust::device_vector<ValueType> & d_v){
+    inline void update_csr_val(rmm::device_vector<ValueType> & d_v){
       thrust::copy(thrust::cuda::par, d_v.begin(), d_v.end(), csr_val.begin());
     }  
-    inline void update_csr_val_n(thrust::device_vector<ValueType> & d_v,unsigned size){
+    inline void update_csr_val_n(rmm::device_vector<ValueType> & d_v,unsigned size){
       csr_val.resize(size); 
       thrust::copy_n(thrust::cuda::par, d_v.begin(), size, csr_val.begin());
     } 
-    inline void update_graph(size_t n_v, size_t n_e, thrust::device_vector<IndexType> & ptr, thrust::device_vector<IndexType> & ind, thrust::device_vector<ValueType> & val, bool w){
+    inline void update_graph(size_t n_v, size_t n_e, rmm::device_vector<IndexType> & ptr, rmm::device_vector<IndexType> & ind, rmm::device_vector<ValueType> & val, bool w){
       _n_vertices = n_v;
       _n_edges = n_e;
 #ifdef DEBUG
