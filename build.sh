@@ -42,9 +42,9 @@ BUILD_TYPE=Release
 INSTALL_TARGET=install
 
 # Set defaults for vars that may not have been defined externally
-#  FIXME: if INSTALL_PREFIX is not set, check PREFIX, then check
-#         CONDA_PREFIX, but there is no fallback from there!
-INSTALL_PREFIX=${INSTALL_PREFIX:=${PREFIX:=${CONDA_PREFIX}}}
+#  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
+#  from there!
+INSTALL_PREFIX=${PREFIX:=${CONDA_PREFIX}}
 PARALLEL_LEVEL=${PARALLEL_LEVEL:=""}
 BUILD_ABI=${BUILD_ABI:=ON}
 
@@ -100,7 +100,6 @@ if (( ${NUMARGS} == 0 )) || hasArg libcugraph; then
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
           -DCMAKE_CXX11_ABI=${BUILD_ABI} \
-          -DNVG_PLUGIN=True \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ..
     make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} ${INSTALL_TARGET}
 fi
@@ -111,7 +110,7 @@ if (( ${NUMARGS} == 0 )) || hasArg cugraph; then
     cd ${REPODIR}/python
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	python setup.py build_ext --inplace
-	python setup.py install --single-version-externally-managed --record=record.txt
+	python setup.py install
     else
 	python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR}
     fi

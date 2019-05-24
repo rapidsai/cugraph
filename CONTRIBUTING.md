@@ -158,11 +158,11 @@ conda activate cugraph_dev
   ```
 The default installation locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/cugraph` respectively.
 
-As a convenience, a `build.sh` script is provided in `$CUGRAPH_HOME`. To execute the same build commands above, run the script as shown below.  Note that the libraries will be installed to the location set in `$INSTALL_PREFIX` if set (i.e. `export INSTALL_PREFIX=/install/path`), otherwise to `$CONDA_PREFIX`.
+As a convenience, a `build.sh` script is provided in `$CUGRAPH_HOME`. To execute the same build commands above, run the script as shown below.  Note that the libraries will be installed to the location set in `$PREFIX` if set (i.e. `export PREFIX=/install/path`), otherwise to `$CONDA_PREFIX`.
 ```bash
 $ cd $CUGRAPH_HOME
 $ ./build.sh libcugraph  # build the cuGraph libraries and install them to
-                         # $INSTALL_PREFIX if set, otherwise $CONDA_PREFIX
+                         # $PREFIX if set, otherwise $CONDA_PREFIX
 ```
 
 #### Building and installing the Python package
@@ -179,7 +179,7 @@ Like the `libcugraph` build step above, `build.sh` can also be used to build the
 ```bash
 $ cd $CUGRAPH_HOME
 $ ./build.sh cugraph  # build the cuGraph python bindings and install them
-                      # to $INSTALL_PREFIX if set, otherwise $CONDA_PREFIX
+                      # to $PREFIX if set, otherwise $CONDA_PREFIX
 ```
 
 Note: other `build.sh` options include:
