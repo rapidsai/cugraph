@@ -41,6 +41,8 @@
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_pagerank(gdf_graph *graph,
                        gdf_column *pagerank,
+                       gdf_column *personalization_subset,
+                       gdf_column *personalization_values,
                        float alpha,
                        float tolerance,
                        int max_iter,

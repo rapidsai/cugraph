@@ -71,6 +71,7 @@ bool pagerankIteration(IndexType n, IndexType e, IndexType *cscPtr, IndexType *c
 
 template <typename IndexType, typename ValueType>
 int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, ValueType *cscVal,
+             IndexType *prsVtx, ValueType *prsVal, IndexType prsLen, bool has_personalization,
              ValueType alpha, ValueType *a, bool has_guess, float tolerance, int max_iter,
              ValueType * &pagerank_vector, ValueType * &residual) {
   int max_it, i = 0 ;
@@ -114,7 +115,12 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
     copy(n, pagerank_vector, tmp);
   }
 
-  fill(n, b, randomProbability);
+  if (has_personalization) {
+    fill(n, b, static_cast<ValueType>(0));
+    scatter(prsLen, prsVal, b, prsVtx);
+  } else {
+    fill(n, b, randomProbability);
+  }
   update_dangling_nodes(n, a, alpha);
 
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
@@ -164,16 +170,38 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
 }
 
 //template int pagerank<int, half> (  int n, int e, int *cscPtr, int *cscInd,half *cscVal, half alpha, half *a, bool has_guess, float tolerance, int max_iter, half * &pagerank_vector, half * &residual);
-template int pagerank<int, float> (  int n, int e, int *cscPtr, int *cscInd,float *cscVal, float alpha, float *a, bool has_guess, float tolerance, int max_iter, float * &pagerank_vector, float * &residual);
-template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,double *cscVal, double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
+template int pagerank<int, float> (  int n, int e, int *cscPtr, int *cscInd,float *cscVal,
+        int *prsVtx, float *prsVal, int prsLen, bool has_personalization,
+        float alpha, float *a, bool has_guess, float tolerance, int max_iter, float * &pagerank_vector, float * &residual);
+template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,double *cscVal,
+        int *prsVtx,  double *prsVal, int prsLen, bool has_personalization,
+        double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
 } //namespace cugraph
 
 template <typename WT>
 gdf_error gdf_pagerank_impl (gdf_graph *graph,
-                      gdf_column *pagerank, float alpha = 0.85,
+                      gdf_column *pagerank,
+                      gdf_column *personalization_subset, gdf_column *personalization_values,
+                      float alpha = 0.85,
                       float tolerance = 1e-4, int max_iter = 200,
                       bool has_guess = false) {
+  bool has_personalization = false;
+  int *prsVtx = nullptr;
+  WT  *prsVal = nullptr;
+  int prsLen = 0;
+  GDF_REQUIRE((personalization_subset == nullptr) == (personalization_values == nullptr), GDF_INVALID_API_CALL);
+  if (personalization_subset != nullptr) {
+    has_personalization = true;
+    prsVtx = reinterpret_cast<int*>(personalization_subset->data);
+    prsVal = reinterpret_cast<WT* >(personalization_values->data);
+    prsLen = reinterpret_cast<int >(personalization_subset->size);
+    GDF_REQUIRE(pagerank->dtype == personalization_values->dtype, GDF_DTYPE_MISMATCH);
+    GDF_REQUIRE(personalization_subset->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+    GDF_REQUIRE(personalization_subset->size == personalization_values->size, GDF_COLUMN_SIZE_MISMATCH);
+    GDF_REQUIRE(personalization_subset->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+    GDF_REQUIRE(personalization_values->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+  }
   GDF_REQUIRE( graph->edgeList != nullptr, GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( graph->edgeList->src_indices->size == graph->edgeList->dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( graph->edgeList->src_indices->dtype == graph->edgeList->dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
@@ -210,8 +238,9 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
     cugraph::copy<WT>(m, (WT*)pagerank->data, d_pr);
   }
 
-  status = cugraph::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data,
-    d_val, alpha, d_leaf_vector, false, tolerance, max_iter, d_pr, residual);
+  status = cugraph::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
+          prsVtx, prsVal, prsLen, has_personalization,
+    alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 
   if (status !=0)
     switch ( status ) {
@@ -233,7 +262,9 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   return GDF_SUCCESS;
 }
 
-gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess) {
+gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank,
+        gdf_column *personalization_subset, gdf_column *personalization_values,
+        float alpha, float tolerance, int max_iter, bool has_guess) {
   //
   //  page rank operates on CSR and can't currently support 64-bit integers.
   //
@@ -248,8 +279,12 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, floa
   GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
 
   switch (pagerank->dtype) {
-    case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank, alpha, tolerance, max_iter, has_guess);
-    case GDF_FLOAT64:   return gdf_pagerank_impl<double>(graph, pagerank, alpha, tolerance, max_iter, has_guess);
+    case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank,
+                                personalization_subset, personalization_values,
+                                alpha, tolerance, max_iter, has_guess);
+    case GDF_FLOAT64:   return gdf_pagerank_impl<double>(graph, pagerank,
+                                personalization_subset, personalization_values,
+                                alpha, tolerance, max_iter, has_guess);
     default: return GDF_UNSUPPORTED_DTYPE;
   }
 }

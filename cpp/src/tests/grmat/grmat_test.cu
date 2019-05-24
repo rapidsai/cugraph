@@ -389,7 +389,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       status = gdf_pagerank(G.get(), col_grmat.get(), alpha, tol, max_iter, has_guess);
+       status = gdf_pagerank(G.get(), col_grmat.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
        (cudaDeviceSynchronize());
       }
       hr_clock.stop(&time_tmp);
@@ -397,7 +397,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     }
     else {
       cudaProfilerStart();
-      status = gdf_pagerank(G.get(), col_grmat.get(), alpha, tol, max_iter, has_guess);
+      status = gdf_pagerank(G.get(), col_grmat.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
       cudaProfilerStop();
       (cudaDeviceSynchronize());
     }

@@ -12,6 +12,8 @@
 # limitations under the License.
 
 import time
+import random
+import numpy as np
 
 import pytest
 from scipy.io import mmread
@@ -44,7 +46,17 @@ def read_csv_file(mm_file):
                          dtype=['int32', 'int32', 'float32'], header=None)
 
 
-def cugraph_call(cu_M, max_iter, tol, alpha):
+def cudify(d):
+    if d is None:
+        return None
+
+    k = np.array(d.keys(), dtype='int32')
+    v = np.array(d.values(), dtype='float32')
+    cuD = cudf.DataFrame([('vertex', k), ('values', v)])
+    return cuD
+
+
+def cugraph_call(cu_M, max_iter, tol, alpha, personalization):
     # Device data
     sources = cu_M['0']
     destinations = cu_M['1']
@@ -54,7 +66,7 @@ def cugraph_call(cu_M, max_iter, tol, alpha):
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     t1 = time.time()
-    df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol)
+    df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol, personalization=personalization)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
@@ -67,7 +79,7 @@ def cugraph_call(cu_M, max_iter, tol, alpha):
     return sorted(sorted_pr, key=lambda x: x[1], reverse=True)
 
 
-def networkx_call(M, max_iter, tol, alpha):
+def networkx_call(M, max_iter, tol, alpha, personalization_percent, personalization):
     nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
     for nnz in range(M.getnnz()):
         nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
@@ -79,6 +91,16 @@ def networkx_call(M, max_iter, tol, alpha):
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
+
+    if personalization_percent != 0:
+        personalization = {}
+        nnz_vtx = np.unique(M.nonzero())
+        personalization_count = int(nnz_vtx.size * personalization_percent)
+        nnz_vtx = np.random.choice(nnz_vtx, min(nnz_vtx.size, personalization_count), replace=False)
+        nnz_val = np.random.random(nnz_vtx.size)
+        nnz_val = nnz_val/sum(nnz_val)
+        for vtx, val in zip(nnz_vtx, nnz_val):
+            personalization[vtx] = val
 
     # should be autosorted, but check just to make sure
     if not M.has_sorted_indices:
@@ -116,18 +138,22 @@ DATASETS = ['../datasets/dolphins',
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
+PERSONALIZATION_COUNT = [0, 5, 10]
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('tol', TOLERANCE)
 @pytest.mark.parametrize('alpha', ALPHA)
-def test_pagerank(graph_file, max_iter, tol, alpha):
+@pytest.mark.parametrize('personalization_count', PERSONALIZATION_COUNT)
+def test_pagerank(graph_file, max_iter, tol, alpha, personalization_count):
+    networkx_prsn = None
     M = read_mtx_file(graph_file+'.mtx')
-    networkx_pr = networkx_call(M, max_iter, tol, alpha)
+    networkx_pr = networkx_call(M, max_iter, tol, alpha, personalization_count, networkx_prsn)
 
+    cu_prsn = cudify(networkx_prsn)
     cu_M = read_csv_file(graph_file+'.csv')
-    cugraph_pr = cugraph_call(cu_M, max_iter, tol, alpha)
+    cugraph_pr = cugraph_call(cu_M, max_iter, tol, alpha, cu_prsn)
 
     # Calculating mismatch
 
