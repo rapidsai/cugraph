@@ -66,7 +66,7 @@ def cugraph_call(cu_M, max_iter, tol, alpha, personalization):
     G.add_edge_list(sources, destinations, None)
     t1 = time.time()
     df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol,
-            personalization=personalization)
+                          personalization=personalization)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
@@ -80,7 +80,7 @@ def cugraph_call(cu_M, max_iter, tol, alpha, personalization):
 
 
 def networkx_call(M, max_iter, tol, alpha, personalization_percent,
-        personalization):
+                  personalization):
     nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
     for nnz in range(M.getnnz()):
         nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
@@ -98,7 +98,8 @@ def networkx_call(M, max_iter, tol, alpha, personalization_percent,
         nnz_vtx = np.unique(M.nonzero())
         personalization_count = int(nnz_vtx.size * personalization_percent)
         nnz_vtx = np.random.choice(nnz_vtx,
-                min(nnz_vtx.size, personalization_count), replace=False)
+                                   min(nnz_vtx.size, personalization_count),
+                                   replace=False)
         nnz_val = np.random.random(nnz_vtx.size)
         nnz_val = nnz_val/sum(nnz_val)
         for vtx, val in zip(nnz_vtx, nnz_val):
@@ -152,7 +153,7 @@ def test_pagerank(graph_file, max_iter, tol, alpha, personalization_count):
     networkx_prsn = None
     M = read_mtx_file(graph_file+'.mtx')
     networkx_pr = networkx_call(M, max_iter, tol, alpha,
-            personalization_count, networkx_prsn)
+                                personalization_count, networkx_prsn)
 
     cu_prsn = cudify(networkx_prsn)
     cu_M = read_csv_file(graph_file+'.csv')
