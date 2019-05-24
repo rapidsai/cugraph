@@ -215,6 +215,17 @@ namespace cugraph
         cudaCheckError();
     }
 
+    template<typename T, typename M>
+    void scatter(size_t n, T* src, T* dst, M* map) {
+        cudaStream_t stream {nullptr};
+        thrust::scatter(rmm::exec_policy(stream)->on(stream),
+                     thrust::device_pointer_cast(src),
+                     thrust::device_pointer_cast(src + n),
+                     thrust::device_pointer_cast(map),
+                     thrust::device_pointer_cast(dst));
+        cudaCheckError();
+    }
+
     template<typename T>
     void printv(size_t n, T* vec, int offset) {
         thrust::device_ptr<T> dev_ptr(vec);

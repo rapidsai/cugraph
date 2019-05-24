@@ -21,7 +21,7 @@ from librmm_cffi import librmm as rmm
 #from pygdf import Column
 import numpy as np
 
-cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
+cpdef pagerank(G,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
     """
     Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method. 
     The number of iterations depends on the properties of the network itself; it increases when the tolerance descreases and/or alpha increases toward the limiting value of 1.
@@ -29,19 +29,27 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
     
     Parameters
     ----------
-    graph : cuGraph.Graph                  
+    graph : cuGraph.Graph
        cuGraph graph descriptor, should contain the connectivity information as an edge list (edge weights are not used for this algorithm). 
        The transposed adjacency list will be computed if not already present.
-    alpha : float                  
+    alpha : float
        The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85. 
        Thus, 1.0-alpha is the probability to “teleport” to a random vertex. Alpha should be greater than 0.0 and strictly lower than 1.0.
-    tolerance : float              
+    personalization : cudf.Dataframe
+       GPU Dataframe containing the personalizatoin information.
+       personalization['vertex']: Subset of vertices of graph for personalization
+       personalization['values']: Personalization values for vertices
+    max_iter  : int
+       The maximum number of iterations before an answer is returned. This can be used to limit the execution time and do an early exit before the solver reaches the convergence tolerance. 
+       If this value is lower or equal to 0 cuGraph will use the default value, which is 100.
+    tolerance : float
        Set the tolerance the approximation, this parameter should be a small magnitude value. 
        The lower the tolerance the better the approximation. If this value is 0.0f, cuGraph will use the default value which is 1.0E-5. 
        Setting too small a tolerance can lead to non-convergence due to numerical roundoff. Usually values between 0.01 and 0.00001 are acceptable.
-    max_iter  : int                
-       The maximum number of iterations before an answer is returned. This can be used to limit the execution time and do an early exit before the solver reaches the convergence tolerance. 
-       If this value is lower or equal to 0 cuGraph will use the default value, which is 100.
+    nstart : cudf.Dataframe
+       GPU Dataframe containing the initial guess for pagerank.
+       nstart['vertex']: Subset of vertices of graph for initial guess for pagerank values
+       nstart['values']: Pagerank values for vertices
     
     Returns
     -------
@@ -72,9 +80,27 @@ cpdef pagerank(G,alpha=0.85, max_iter=100, tol=1.0e-5):
     df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
     cdef gdf_column c_pagerank_col = get_gdf_column_view(df['pagerank'])    
 
+    cdef bool has_guess = <bool> 0
+    if nstart is not None:
+        cudf.bindings.copying.apply_scatter([nstart['values']._column],
+                                            nstart['vertex']._column._data.mem,
+                                            [df['pagerank']._column])
+        has_guess = <bool> 1
+
+    cdef gdf_column c_pers_vtx
+    cdef gdf_column c_pers_val
+
     err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-    err = gdf_pagerank(g, &c_pagerank_col, <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+    if personalization is None:
+        err = gdf_pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
+                <float> alpha, <float> tol, <int> max_iter, has_guess)
+    else:
+        c_pers_vtx = get_gdf_column_view(personalization['vertex'])
+        c_pers_val = get_gdf_column_view(personalization['values'])
+        err = gdf_pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
+                <float> alpha, <float> tol, <int> max_iter, has_guess)
+
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
