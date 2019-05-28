@@ -79,9 +79,6 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
 
-set(NVGRAPH_LIGHT True)
-add_compile_definitions(NVGRAPH_LIGHT=${NVGRAPH_LIGHT})
-
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
@@ -214,7 +211,6 @@ link_directories(
      # link directories for nvcc.
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
-if(NVGRAPH_LIGHT MATCHES True)
 add_library(cugraph SHARED
     src/utilities/grmat.cu
     src/utilities/degree.cu
@@ -268,73 +264,6 @@ add_library(cugraph SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpuutil.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/gitsha1.c
 )
-else(NVGRAPH_LIGHT MATCHES True)
-add_library(cugraph SHARED
-    src/utilities/grmat.cu
-    src/utilities/degree.cu
-    src/structure/cugraph.cu
-    src/link_analysis/pagerank.cu
-    src/traversal/bfs.cu
-    src/link_prediction/jaccard.cu
-    src/link_prediction/overlap.cu
-    src/converters/nvgraph.cu
-    src/converters/renumber.cu
-    src/community/nvgraph_gdf.cu
-    src/traversal/nvgraph_sssp.cu
-    src/traversal/two_hop_neighbors.cu
-    src/snmg/blas/spmv.cu
-    src/snmg/degree/degree.cu
-    src/snmg/utils.cu
-    src/nvgraph/arnoldi.cu
-    src/nvgraph/bfs.cu
-    src/nvgraph/bfs2d.cu
-    src/nvgraph/bfs_kernels.cu
-    src/nvgraph/convert.cu
-    src/nvgraph/csrmv.cu
-    src/nvgraph/csrmv_cub.cu
-    src/nvgraph/csr_graph.cpp
-    src/nvgraph/graph_extractor.cu
-    src/nvgraph/jaccard_gpu.cu
-    src/nvgraph/kmeans.cu
-    src/nvgraph/lanczos.cu
-    src/nvgraph/lobpcg.cu
-    src/nvgraph/matrix.cu
-    src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph.cu
-    src/nvgraph/nvgraph_cusparse.cpp
-    src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_error.cu
-    src/nvgraph/nvgraph_lapack.cu
-    src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/pagerank.cu
-    src/nvgraph/pagerank_kernels.cu
-    src/nvgraph/partition.cu
-    src/nvgraph/size2_selector.cu
-    src/nvgraph/sssp.cu
-    src/nvgraph/triangles_counting.cpp
-    src/nvgraph/triangles_counting_kernels.cu
-    src/nvgraph/valued_csr_graph.cpp
-    src/nvgraph/widest_path.cu
-    src/nvgraph/graph_contraction/contraction_csr_max.cu
-    src/nvgraph/graph_contraction/contraction_csr_sum.cu
-    src/nvgraph/graph_contraction/contraction_mv_double_mul.cu
-    src/nvgraph/graph_contraction/contraction_mv_float_min.cu
-    src/nvgraph/graph_contraction/contraction_csr_min.cu
-    src/nvgraph/graph_contraction/contraction_mv_double_max.cu
-    src/nvgraph/graph_contraction/contraction_mv_double_sum.cu
-    src/nvgraph/graph_contraction/contraction_mv_float_mul.cu
-    src/nvgraph/graph_contraction/contraction_csr_mul.cu
-    src/nvgraph/graph_contraction/contraction_mv_double_min.cu
-    src/nvgraph/graph_contraction/contraction_mv_float_max.cu
-    src/nvgraph/graph_contraction/contraction_mv_float_sum.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpucontext.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpuutil.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/gitsha1.c
-)
-endif(NVGRAPH_LIGHT MATCHES True)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
