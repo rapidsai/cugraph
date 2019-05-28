@@ -74,8 +74,8 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
 ###
 ###   If we provide just the library names (gomp;pthread), cmake does not generate warnings (we
 ###   did not specify which libgomp.so should be loaded in runtime), and the one first found in
-###   the search order is loaded (we can change the load library by setting LD_LIBRARY_PATH or
-###     manually editing BUILD_RPATH).
+###   the search order is loaded (we can change the loaded library by setting LD_LIBRARY_PATH or
+###   manually editing BUILD_RPATH).
 ###
 ###   Manually editing BUILD_RPATH:
 ###   set(TARGET_BUILD_RPATH "")
