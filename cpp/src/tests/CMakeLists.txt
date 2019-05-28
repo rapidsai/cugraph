@@ -42,7 +42,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${RMM_LIBRARY} cudart cuda)
+        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} cudart cuda)
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
 ###################################################################################################
@@ -191,7 +191,7 @@ set(SNMG_DEGREE_TEST_SRC
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/snmg_degree/snmg_degree_test.cu")
 
-configure_test(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRC}")
+ConfigureTest(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRC}")
 
 set(SNMG_PAGERANK_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
