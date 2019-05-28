@@ -7,12 +7,15 @@
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
 - PR #286 Reorganized cugraph source directory
+- PR #306 Integrated nvgraph to libcugraph.so (libnvgraph_rapids.so will not be built anymore).
+- PR #306 Updated python test files to run pytest with all four RMM configurations.
 
 
 ## Bug Fixes
 - PR #283 Automerge fix
 - PR #291 Fixed a RMM memory allocation failure due to duplicate copies of cnmem.o
 - PR #291 Fixed a cub CsrMV call error when RMM pool allocator is used.
+- PR #306 Fixed cmake warnings due to library conflicts.
 
 # cuGraph 0.7.0 (Date TBD)
 
