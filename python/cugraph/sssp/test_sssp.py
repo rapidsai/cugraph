@@ -120,7 +120,6 @@ SOURCES = [1]
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp(managed, pool, graph_file, source):
@@ -155,7 +154,6 @@ def test_sssp(managed, pool, graph_file, source):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', ['../datasets/netscience'])
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp_edgevals(managed, pool, graph_file, source):

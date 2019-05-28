@@ -118,7 +118,6 @@ DATASETS = ['../datasets/dolphins',
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_jaccard(managed, pool, graph_file):
     gc.collect()
@@ -152,7 +151,6 @@ def test_jaccard(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', ['../datasets/netscience'])
 def test_jaccard_edgevals(managed, pool, graph_file):
     gc.collect()
@@ -186,7 +184,6 @@ def test_jaccard_edgevals(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_jaccard_two_hop(managed, pool, graph_file):
     gc.collect()
@@ -223,7 +220,6 @@ def test_jaccard_two_hop(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     gc.collect()

@@ -124,7 +124,6 @@ DATASETS = ['../datasets/karate',
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     gc.collect()
@@ -160,7 +159,6 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     gc.collect()
@@ -198,7 +196,6 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_transpose_from_adj_list(managed, pool, graph_file):
     gc.collect()
@@ -225,7 +222,6 @@ def test_transpose_from_adj_list(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     gc.collect()
@@ -253,7 +249,6 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     gc.collect()
@@ -296,9 +291,9 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_add_edge_or_adj_list_after_add_edge_or_adj_list(managed, pool, graph_file):
+def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
+        managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
@@ -355,7 +350,6 @@ DATASETS2 = ['../datasets/karate',
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS2)
 def test_two_hop_neighbors(managed, pool, graph_file):
     gc.collect()
@@ -384,7 +378,6 @@ def test_two_hop_neighbors(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_degree_functionality(managed, pool, graph_file):
     gc.collect()
@@ -469,7 +462,6 @@ def test_renumber():
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_renumber_files(managed, pool, graph_file):
     gc.collect()

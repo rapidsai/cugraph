@@ -68,7 +68,6 @@ DATASETS = ['../datasets/dolphins.mtx',
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_triangles(managed, pool, graph_file):
     gc.collect()
@@ -89,7 +88,6 @@ def test_triangles(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_triangles_edge_vals(managed, pool, graph_file):
     gc.collect()

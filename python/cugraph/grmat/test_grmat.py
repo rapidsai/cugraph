@@ -23,7 +23,6 @@ from librmm_cffi import librmm_config as rmm_cfg
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 def test_grmat_gen(managed, pool):
     gc.collect()
 

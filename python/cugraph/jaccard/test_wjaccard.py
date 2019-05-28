@@ -107,7 +107,6 @@ DATASETS = ['../datasets/dolphins',
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_wjaccard(managed, pool, graph_file):
     gc.collect()

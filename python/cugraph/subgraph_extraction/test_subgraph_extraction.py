@@ -69,7 +69,6 @@ datasets = ['../datasets/karate',
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-                         # list(product([False], [False]))) # to save test time
 @pytest.mark.parametrize('graph_file', datasets)
 def test_subgraph_extraction(managed, pool, graph_file):
     gc.collect()
