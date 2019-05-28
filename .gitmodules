@@ -1,8 +1,7 @@
-[submodule "thirdparty/cub"]
-        path = thirdparty/cub
-        url = https://github.com/NVlabs/cub.git
-
 [submodule "thirdparty/cusp"]
 	path = thirdparty/cusp
 	url = https://github.com/cusplibrary/cusplibrary.git
 	branch = cuda9
+[submodule "thirdparty/cub"]
+	path = thirdparty/cub
+	url = https://github.com/NVlabs/cub.git
