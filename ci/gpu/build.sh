@@ -46,23 +46,7 @@ conda list
 ################################################################################
 
 logger "Build libcugraph..."
-mkdir -p $WORKSPACE/cpp/build
-cd $WORKSPACE/cpp/build
-logger "Run cmake libcugraph..."
-cmake -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX -DCMAKE_CXX11_ABI=ON ..
-
-logger "Clean up make..."
-make clean
-
-logger "Make libcugraph..."
-make -j${PARALLEL_LEVEL}
-
-logger "Install libcugraph..."
-make -j${PARALLEL_LEVEL} install
-
-logger "Build cuGraph..."
-cd $WORKSPACE/python
-python setup.py install
+$WORKSPACE/build.sh clean libcugraph cugraph
 
 ################################################################################
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
