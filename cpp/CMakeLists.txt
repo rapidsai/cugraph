@@ -276,7 +276,6 @@ target_include_directories(cugraph
     "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cub"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cusp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
