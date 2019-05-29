@@ -231,6 +231,7 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 add_library(cugraph SHARED
     src/utilities/grmat.cu
     src/utilities/degree.cu
+    src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
@@ -242,8 +243,10 @@ add_library(cugraph SHARED
     src/traversal/nvgraph_sssp.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
-    src/snmg/degree/degree.cu
+    src/snmg/link_analysis/pagerank.cu
+    src/utilities/cusparse_helper.cu
     src/snmg/utils.cu
+    src/snmg/degree/degree.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
     ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
@@ -257,7 +260,7 @@ option(BUILD_TESTS "Configure CMake to build tests" OFF)
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 
-target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES} rmm)
+target_link_libraries(cugraph cudart cuda cudf ${Boost_LIBRARIES} rmm cusparse)
 
 # Command to symlink files into the build directory
 add_custom_command(  # link the include directory

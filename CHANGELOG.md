@@ -1,8 +1,9 @@
 # cuGraph 0.8.0 (Date TBD)
 
 ## New Features
-- PR #287 SNMG power iteration step1
-- PR #297 SNMG degree calculation
+- PR #287 SNMG power iteration step1 
+- PR #297 SNMG degree calculation 
+- PR #302 SNMG CSR Pagerank (cuda/C++)
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
