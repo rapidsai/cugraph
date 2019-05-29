@@ -214,6 +214,7 @@ link_directories(
 add_library(cugraph SHARED
     src/utilities/grmat.cu
     src/utilities/degree.cu
+    src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
@@ -225,8 +226,10 @@ add_library(cugraph SHARED
     src/traversal/nvgraph_sssp.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
-    src/snmg/degree/degree.cu
+    src/snmg/link_analysis/pagerank.cu
+    src/utilities/cusparse_helper.cu
     src/snmg/utils.cu
+    src/snmg/degree/degree.cu
     src/nvgraph/arnoldi.cu
     src/nvgraph/bfs.cu
     src/nvgraph/bfs2d.cu
