@@ -17,6 +17,7 @@
 - PR #291 Fixed a RMM memory allocation failure due to duplicate copies of cnmem.o
 - PR #291 Fixed a cub CsrMV call error when RMM pool allocator is used.
 - PR #306 Fixed cmake warnings due to library conflicts.
+- PR #311 Fixed bug in SNMG degree causing failure for three gpus
 
 # cuGraph 0.7.0 (Date TBD)
 
