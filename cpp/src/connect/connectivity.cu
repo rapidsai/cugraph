@@ -65,14 +65,15 @@ gdf_connected_components_impl(gdf_graph *graph,
   //
   GDF_REQUIRE( type_id == labels->dtype, GDF_UNSUPPORTED_DTYPE);
 
-  bool flag_dir = graph->prop->directed;
+  bool flag_dir = graph->prop->directed;//useless, for the time being...
+  //TODO: direction_checker() to se this flag correctly
   
   if( connectivity_type == CUGRAPH_WEAK )
     {
       //check if graph is undirected; return w/ error, if not?
       //Yes, for now; in the future we may remove this constraint; 
       //
-      GDF_REQUIRE(flag_dir == false, GDF_INVALID_API_CALL);
+      //GDF_REQUIRE(flag_dir == false, GDF_INVALID_API_CALL);//useless check
       
       IndexT* p_d_labels = static_cast<IndexT*>(labels->data);
       const IndexT* p_d_row_offsets = row_offsets_(graph);
@@ -82,11 +83,11 @@ gdf_connected_components_impl(gdf_graph *graph,
       IndexT nrows = nrows_(graph);
       
       MLCommon::Sparse::weak_cc_entry<IndexT, TPB_X>(p_d_labels,
-                                               p_d_row_offsets,
-                                               p_d_col_ind,
-                                               nnz,
-                                               nrows,
-                                               stream);
+                                                     p_d_row_offsets,
+                                                     p_d_col_ind,
+                                                     nnz,
+                                                     nrows,
+                                                     stream);
 
     }
   else

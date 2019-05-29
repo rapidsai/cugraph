@@ -142,6 +142,13 @@ set(SNMG_PR_TEST_SRCS
 
 configure_test(SNMG_PR_TEST "${SNMG_PR_TEST_SRCS}")
 
+set(CONNECTED_TEST_SRCS
+        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/connect/con_comp_test.cu")
+
+configure_test(CONNECTED_TEST "${CONNECTED_TEST_SRCS}")
+
+
 message(STATUS "******** Tests are ready ********")
 
 ###################################################################################################
