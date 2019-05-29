@@ -123,7 +123,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     col_dest = create_gdf_column(cooColInd);
     col_labels = create_gdf_column(labels);
 
-    ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+    ASSERT_EQ(gdf_adj_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
 
     gdf_error status;
     if (PERF)
@@ -146,7 +146,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
         cudaProfilerStop();
         cudaDeviceSynchronize();
       }
-    EXPECT_EQ(status,0);
+    EXPECT_EQ(status,GDF_SUCCESS);
     
 #ifdef DEBUG_NO_RMM
     rmmFinalize();

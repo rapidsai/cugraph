@@ -51,22 +51,45 @@ gdf_connected_components_impl(gdf_graph *graph,
 
 
   GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(row_offsets_(graph) != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(col_indices_(graph) != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(labels != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(labels->data != nullptr, GDF_INVALID_API_CALL);
+  std::cout<<"Passed 1.\n";
 
+  if( !graph->adjList )
+    std::cerr<<"########### graph->adjlist nullptr.\n";
+  
+  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
+  std::cout<<"Passed 2.\n";
+  
+  GDF_REQUIRE(row_offsets_(graph) != nullptr, GDF_INVALID_API_CALL);
+  std::cout<<"Passed 3.\n";
+
+  GDF_REQUIRE(col_indices_(graph) != nullptr, GDF_INVALID_API_CALL);
+  std::cout<<"Passed 4.\n";
+  
+  GDF_REQUIRE(labels != nullptr, GDF_INVALID_API_CALL);
+  std::cout<<"Passed 5.\n";
+  
+  GDF_REQUIRE(labels->data != nullptr, GDF_INVALID_API_CALL);
+  std::cout<<"Passed 6.\n";
+  
   auto type_id = graph->adjList->offsets->dtype;
   GDF_REQUIRE( type_id == GDF_INT32 || type_id == GDF_INT64, GDF_UNSUPPORTED_DTYPE);
+
+  std::cout<<"Passed 7.\n";
+  
   GDF_REQUIRE( type_id == graph->adjList->indices->dtype, GDF_UNSUPPORTED_DTYPE);
+
+  std::cout<<"Passed 8.\n";
   
   //TODO: relax this requirement:
   //
   GDF_REQUIRE( type_id == labels->dtype, GDF_UNSUPPORTED_DTYPE);
 
-  bool flag_dir = graph->prop->directed;//useless, for the time being...
-  //TODO: direction_checker() to se this flag correctly
+  std::cout<<"Passed 9.\n";
+
+  //bool flag_dir = graph->prop->directed;//useless, for the time being...
+  //TODO: direction_checker() to se this flag correctly; prop is not even allocated!
+
+  std::cout<<"Passed 10.\n";
   
   if( connectivity_type == CUGRAPH_WEAK )
     {
@@ -81,7 +104,13 @@ gdf_connected_components_impl(gdf_graph *graph,
 
       IndexT nnz = nnz_(graph);
       IndexT nrows = nrows_(graph);
-      
+
+      std::cout<<"############## "
+               <<"nrows = "<<nrows
+               <<"; nnz = "<<nnz
+               <<"p_d_labels valid: "<<(p_d_labels != nullptr)
+               <<"p_d_row_offsets valid: "<<(p_d_row_offsets != nullptr)
+               <<"p_d_col_ind valid: " << (p_d_col_ind != nullptr) <<"\n";
       MLCommon::Sparse::weak_cc_entry<IndexT, TPB_X>(p_d_labels,
                                                      p_d_row_offsets,
                                                      p_d_col_ind,
@@ -120,6 +149,8 @@ gdf_error gdf_connected_components(gdf_graph *graph,
                                    cugraph_connect_t connectivity_type)
 {
   cudaStream_t stream{nullptr};
+
+  std::cout<<"############# reached here...; type is int32: "<<(labels->dtype==GDF_INT32) << "\n";
   
   switch( labels->dtype )//currently graph's row offsets, col_indices and labels are same type; that may change in the future
     {
