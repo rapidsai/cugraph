@@ -32,7 +32,7 @@ void csrmv_h (std::vector<idx_t> & off_h,
                       std::vector<val_t> & x,  
                       std::vector<val_t> & y) {
   #pragma omp parallel for
-  for (auto i = 0; i < y.size(); ++i) 
+  for (auto i = size_t{0}; i < y.size(); ++i) 
   {
       //std::cout<< omp_get_num_threads()<<std::endl;
       for (auto j = off_h[i]; j <  off_h[i+1]; ++j) 
@@ -82,6 +82,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
      double t;
 
      FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
      
      ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
      ASSERT_TRUE(mm_is_matrix(mc));
@@ -145,7 +146,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
         { 
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (auto j = size_t{0}; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
@@ -196,7 +197,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
         { 
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (auto j = size_t{0}; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
@@ -239,7 +240,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
      std::vector<idx_t> cooRowInd, cooColInd;
      double t;
 
-     ASSERT_EQ(read_single_file(param.matrix_file.c_str(),cooRowInd,cooColInd),0);
+     ASSERT_EQ(read_single_file(param.matrix_file.c_str(),cooRowInd,cooColInd),0) << "read_single_file(" << param.matrix_file << ", ...) failure.";
      nnz = cooRowInd.size();
      m = 1 + std::max( *(std::max_element(cooRowInd.begin(), cooRowInd.end())),
                    *(std::max_element(cooColInd.begin(), cooColInd.end())));
@@ -296,7 +297,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
         { 
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (auto j = size_t{0}; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
@@ -348,7 +349,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
         { 
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (auto j = size_t{0}; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 

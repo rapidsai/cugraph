@@ -11,11 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+from itertools import product
+
 import numpy as np
 import pytest
 from scipy.io import mmread
+
 import cugraph
 import cudf
+from librmm_cffi import librmm as rmm
+from librmm_cffi import librmm_config as rmm_cfg
 '''
 import socket
 import struct
@@ -115,8 +121,19 @@ DATASETS = ['../datasets/karate',
             '../datasets/netscience']
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_add_edge_list_to_adj_list(graph_file):
+def test_add_edge_list_to_adj_list(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
 
     cu_M = read_csv_file(graph_file+'.csv')
     sources = cu_M['0']
@@ -139,8 +156,20 @@ def test_add_edge_list_to_adj_list(graph_file):
     assert compare_series(indices_cu, indices_exp)
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_add_adj_list_to_edge_list(graph_file):
+def test_add_adj_list_to_edge_list(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file+'.mtx').tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
@@ -164,8 +193,20 @@ def test_add_adj_list_to_edge_list(graph_file):
     assert compare_series(destinations_cu, destinations_exp)
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_transpose_from_adj_list(graph_file):
+def test_transpose_from_adj_list(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file+'.mtx').tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
@@ -178,8 +219,20 @@ def test_transpose_from_adj_list(graph_file):
     assert compare_offsets(toff, Mt.indptr)
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_view_edge_list_from_adj_list(graph_file):
+def test_view_edge_list_from_adj_list(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file+'.mtx').tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
@@ -193,8 +246,20 @@ def test_view_edge_list_from_adj_list(graph_file):
     assert compare_series(dst1, dst2)
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_delete_edge_list_delete_adj_list(graph_file):
+def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file+'.mtx')
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
@@ -223,8 +288,21 @@ def test_delete_edge_list_delete_adj_list(graph_file):
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
+def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
+        managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
@@ -269,8 +347,20 @@ DATASETS2 = ['../datasets/karate',
              '../datasets/dolphins']
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS2)
-def test_two_hop_neighbors(graph_file):
+def test_two_hop_neighbors(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     cu_M = read_csv_file(graph_file+'.csv')
     sources = cu_M['0']
     destinations = cu_M['1']
@@ -285,8 +375,20 @@ def test_two_hop_neighbors(graph_file):
     check_all_two_hops(df, M)
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_degree_functionality(graph_file):
+def test_degree_functionality(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file+'.mtx')
     cu_M = read_csv_file(graph_file+'.csv')
     sources = cu_M['0']
@@ -357,8 +459,20 @@ def test_renumber():
 '''
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_renumber_files(graph_file):
+def test_renumber_files(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
