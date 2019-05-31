@@ -3,6 +3,7 @@
 ## New Features
 - PR #287 SNMG power iteration step1 
 - PR #297 SNMG degree calculation 
+- PR #300 Personalized Page Rank
 - PR #302 SNMG CSR Pagerank (cuda/C++)
 - PR #312 Weakly Connected Components (from cuML)
 
@@ -22,7 +23,7 @@
 - PR #311 Fixed bug in SNMG degree causing failure for three gpus
 - PR #309 Update conda build recipes
 
-# cuGraph 0.7.0 (Date TBD)
+# cuGraph 0.7.0 (10 May 2019)
 
 ## New Features
 - PR #195 Added Graph.get_two_hop_neighbors() method
