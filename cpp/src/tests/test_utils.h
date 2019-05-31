@@ -120,7 +120,7 @@ void printv(size_t n, T* vec, int offset) {
 template <typename T>
 void random_vals(std::vector<T> & v) {
   srand(42);
-  for (auto i = 0; i < v.size(); i++)
+  for (auto i = size_t{0}; i < v.size(); i++)
     v[i]=static_cast<T>(std::rand()%10);
 }
 
@@ -475,21 +475,21 @@ void coo2csr(std::vector<IndexT>& cooRowInd, //in: I[] (overwrite)
              std::vector<IndexT>& csrColInd) //out
 {
     std::vector<std::pair<IndexT,IndexT> > items;
-    for (auto i = 0; i < cooRowInd.size(); ++i)
+    for (auto i = size_t{0}; i < cooRowInd.size(); ++i)
         items.push_back(std::make_pair( cooRowInd[i], cooColInd[i]));
     //sort pairs
     std::sort(items.begin(), items.end(),[](const std::pair<IndexT,IndexT> &left, const std::pair<IndexT,IndexT> &right) 
                                              {return left.first < right.first; });
-    for (auto i = 0; i < cooRowInd.size(); ++i) {
+    for (auto i = size_t{0}; i < cooRowInd.size(); ++i) {
       cooRowInd[i]=items[i].first; // save the sorted rows to compress them later
       csrColInd[i]=items[i].second; // save the col idx, not sure if they are sorted for each row
     }
     // Count number of elements per row
-    for(auto i=0; i<cooRowInd.size(); ++i)
+    for(auto i=size_t{0}; i<cooRowInd.size(); ++i)
       ++(csrRowPtr[cooRowInd[i]+1]);
   
     // Compute cumulative sum to obtain row offsets/pointers
-    for(auto i=0; i<csrRowPtr.size()-1; ++i)
+    for(auto i=size_t{0}; i<csrRowPtr.size()-1; ++i)
       csrRowPtr[i+1] += csrRowPtr[i];
 }
 

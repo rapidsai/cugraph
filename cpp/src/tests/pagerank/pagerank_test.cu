@@ -92,6 +92,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      double time_tmp;
 
      FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
      
      ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
      ASSERT_TRUE(mm_is_matrix(mc));

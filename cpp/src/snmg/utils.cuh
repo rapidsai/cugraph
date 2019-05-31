@@ -19,6 +19,7 @@
  
 #pragma once
 #include <omp.h>
+#include "rmm_utils.h"
 
 namespace cugraph
 {
@@ -85,10 +86,7 @@ class SNMGinfo
 };
 
 // Wait for all host threads 
-void sync_all() {
-  cudaDeviceSynchronize();
-  #pragma omp barrier 
-}
+void sync_all();
 
 // Each GPU copies its x_loc to x_glob[offset[device]] on all GPU
 template <typename val_t>
@@ -112,11 +110,87 @@ void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
 
 }
 
-void print_mem_usage()
-{
-  size_t free,total;
-  cudaMemGetInfo(&free, &total);  
-  std::cout<< std::endl<< "Mem used: "<<total-free<<std::endl;
+/**
+ * @tparam val_t The value type
+ * @tparam func_t The reduce functor type
+ * @param length The length of each array being combined
+ * @param x_loc Pointer to the local array
+ * @param x_glob Pointer to global array pointers
+ * @return Error code
+ */
+template <typename val_t, typename func_t>
+gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob){
+  auto i = env.get_thread_num();
+  auto p = env.get_num_threads();
+  env.setup_peer_access();
+  int rank = 1;
+  while(rank < p){
+    // Copy local data to the receiver's global buffer
+    if((i - rank) % (rank * 2) == 0){
+      int receiver = i - rank;
+      cudaMemcpyPeer(x_glob[receiver], receiver, x_loc, i, length*sizeof(val_t));
+      cudaCheckError();
+    }
+
+    // Sync everything now. This shouldn't be required as cudaMemcpyPeer is supposed to synchronize...
+    sync_all();
+
+    // Reduce the data from the receiver's global buffer with its local one
+    if(i % (rank * 2) == 0 && i + rank < p){
+      func_t op;
+      thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
+                        x_glob[i],
+                        x_glob[i] + length,
+                        x_loc,
+                        x_loc,
+                        op);
+      cudaCheckError();
+    }
+    sync_all();
+    rank *= 2;
+  }
+
+  // Thread 0 copies it's local result into it's global space
+  if (i == 0) {
+    cudaMemcpy(x_glob[i], x_loc, sizeof(val_t) * length, cudaMemcpyDefault);
+    cudaCheckError();
+  }
+
+  // Sync everything before returning
+  sync_all();
+
+  return GDF_SUCCESS;
 }
+
+/**
+ * @tparam val_t The value type
+ * @param length The length of the array being broadcast
+ * @param x_loc The local array for each node
+ * @param x_glob Pointer to the global array pointers
+ * @return Error code
+ */
+template <typename val_t>
+gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob){
+  auto i = env.get_thread_num();
+  auto p = env.get_num_threads();
+  env.setup_peer_access();
+  int rank = 1;
+  while(rank * 2 < p)
+    rank *= 2;
+  for(; rank >= 1; rank /= 2){
+    if(i % (rank * 2) == 0 and i + rank < p){
+      int receiver = i + rank;
+      cudaMemcpyPeer(x_glob[receiver], receiver, x_glob[i], i, sizeof(val_t) * length);
+      cudaCheckError();
+    }
+  }
+
+  // Sync everything before returning
+  sync_all();
+
+  return GDF_SUCCESS;
+}
+
+void print_mem_usage();
 
 } //namespace cugraph

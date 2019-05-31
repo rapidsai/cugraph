@@ -11,11 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+from itertools import product
+
 import pytest
 from scipy.io import mmread
 
 import cudf
 import cugraph
+from librmm_cffi import librmm as rmm
+from librmm_cffi import librmm_config as rmm_cfg
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -60,16 +65,40 @@ DATASETS = ['../datasets/dolphins.mtx',
             '../datasets/netscience.mtx']
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_triangles(graph_file):
+def test_triangles(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file)
     cu_count = cugraph_call(M)
     nx_count = networkx_call(M)
     assert cu_count == nx_count
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_triangles_edge_vals(graph_file):
+def test_triangles_edge_vals(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file)
     cu_count = cugraph_call(M, edgevals=True)
     nx_count = networkx_call(M)

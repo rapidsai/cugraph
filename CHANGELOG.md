@@ -6,6 +6,7 @@
 - PR #302 SNMG CSR Pagerank (cuda/C++)
 - PR #312 Weakly Connected Components (from cuML)
 
+
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
 - PR #286 Reorganized cugraph source directory

@@ -26,27 +26,6 @@ def find_in_path(name, path):
     return None
 
 
-def locate_nvgraph():
-    if 'CONDA_PREFIX' in os.environ:
-        nvgraph_found = find_in_path('lib/libnvgraph_rapids.so',
-                                     os.environ['CONDA_PREFIX'])
-    if nvgraph_found is None:
-        nvgraph_found = find_in_path('libnvgraph_rapids.so',
-                                     os.environ['LD_LIBRARY_PATH'])
-        if nvgraph_found is None:
-            raise EnvironmentError('The nvgraph library could not be located')
-    nvgraph_config = {
-        'include': pjoin(os.path.dirname(os.path.dirname(nvgraph_found)),
-                         'include', 'nvgraph'),
-        'lib': os.path.dirname(nvgraph_found)}
-
-    print('nvgraph_config = ' + str(nvgraph_config))
-
-    return nvgraph_config
-
-
-NVGRAPH = locate_nvgraph()
-
 try:
     NUMPY_INCLUDE = numpy.get_include()
 except AttributeError:
@@ -60,14 +39,13 @@ EXTENSIONS = [
               sources=CYTHON_FILES,
               include_dirs=[NUMPY_INCLUDE,
                             CUDF_INCLUDE,
-                            # NVGRAPH['include'],
                             '../cpp/src',
                             '../cpp/include',
                             '../cpp/build/gunrock',
                             '../cpp/build/gunrock/externals/moderngpu/include',
                             '../cpp/build/gunrock/externals/cub'],
-              library_dirs=[get_python_lib(), NVGRAPH['lib']],
-              libraries=['cugraph', 'cudf', 'nvgraph_rapids'],
+              library_dirs=[get_python_lib()],
+              libraries=['cugraph', 'cudf'],
               language='c++',
               extra_compile_args=['-std=c++14'])
 ]

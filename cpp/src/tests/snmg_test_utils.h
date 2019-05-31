@@ -28,7 +28,7 @@
 template <typename T>
 void shift_offsets(std::vector<T> & off_loc) {
   auto start = off_loc.front();
-  for (auto i = 0; i < off_loc.size(); ++i)
+  for (auto i = size_t{0}; i < off_loc.size(); ++i)
     off_loc[i] -= start;
 }
 
@@ -47,7 +47,7 @@ void edge_partioning(std::vector<T> & off_h, std::vector<size_t> & part_offset, 
     auto loc_nnz = off_h.back()/p;
     auto start_nnz = i*loc_nnz;
     auto start_v = 0;
-    for (auto j = 0; j < off_h.size(); ++j) {
+    for (auto j = size_t{0}; j < off_h.size(); ++j) {
       if (off_h[j] > start_nnz) {
         start_v = j;
         break;
@@ -122,11 +122,11 @@ void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::v
 
   shift_offsets(off_loc);
 
-  ASSERT_EQ(off_loc[part_offset[i+1]-part_offset[i]],e_loc[i]);
+  ASSERT_EQ(static_cast<size_t>(off_loc[part_offset[i+1]-part_offset[i]]),e_loc[i]);
 
   create_gdf_column(off_loc, col_off);
-  ASSERT_EQ(off_loc.size(), col_off->size);
-
+  ASSERT_EQ(off_loc.size(), static_cast<size_t>(col_off->size));
+  
   create_gdf_column(ind_loc, col_ind);
   create_gdf_column(val_loc, col_val);
 }

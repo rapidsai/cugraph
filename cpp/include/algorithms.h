@@ -189,3 +189,19 @@ gdf_error gdf_louvain(gdf_graph *graph,
 gdf_error gdf_connected_components(gdf_graph *graph,
                                    gdf_column *labels,
                                    cugraph_connect_t connectivity_type);
+
+/** 
+ * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is
+ * a multi-gpu operation operating on a partitioned graph.
+ * @param x 0 for in+out, 1 for in, 2 for out
+ * @param part_offsets Contains the start/end of each partitions vertex id range
+ * @param off The local partition offsets
+ * @param ind The local partition indices
+ * @param x_cols The results (located on each GPU)
+ * @return Error code
+ */
+gdf_error gdf_snmg_degree(int x,
+                          size_t* part_offsets,
+                          gdf_column* off,
+                          gdf_column* ind,
+                          gdf_column** x_cols);

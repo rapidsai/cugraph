@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <math.h>
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 #include "cuda_profiler_api.h"
@@ -68,13 +68,17 @@ void verify_pr(gdf_column* col_pagerank, const MGPagerank_Usecase& param){
     val_t err;
     int n_err = 0;
     for (int i = 0; i < m; i++) {
+        //check for invalid values
+        ASSERT_FALSE(isnan(calculated_res[i])); 
+        ASSERT_LE(calculated_res[i], 1.0);
+        ASSERT_GE(calculated_res[i], 0.0);
         err = fabs(expected_res[i] - calculated_res[i]);
         if (err> 1e-5) {
             n_err++; // count the number of mismatches 
         }
     }
     if (n_err) {
-        EXPECT_LE(n_err, 0.001*m); // tolerate 0.1% of values with a litte difference
+        ASSERT_LE(n_err, 0.001*m); // tolerate 0.1% of values with a litte difference
     }
   }
 }
@@ -102,6 +106,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
      double t;
 
      FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
      
      ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
      ASSERT_TRUE(mm_is_matrix(mc));
@@ -124,6 +129,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
      std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
      random_vals(csrVal);
      gdf_column *col_pagerank[n_gpus];
+     idx_t *degree[n_gpus];
 
      if (nnz<1200000000)
      {
@@ -156,7 +162,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
         t = omp_get_wtime();
         cugraph::SNMGinfo env;
         cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
-        pr_solver.setup(alpha);
+        pr_solver.setup(alpha,degree);
 
         val_t* pagerank[p];
         for (auto i = 0; i < p; ++i)
@@ -174,14 +180,12 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
         gdf_col_delete(col_pagerank[i]);
       }
     }
-// TODO Enable when degree function is present
-#if 0
+
     if (n_gpus > 1)
     {
       // Only using the 4 fully connected GPUs on DGX1
       if (n_gpus == 8)
         n_gpus = 4;
-
       #pragma omp parallel num_threads(n_gpus)
        {
           auto i = omp_get_thread_num();
@@ -210,7 +214,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
           t = omp_get_wtime();
           cugraph::SNMGinfo env;
           cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
-          pr_solver.setup(alpha);
+          pr_solver.setup(alpha,degree);
 
           val_t* pagerank[p];
           for (auto i = 0; i < p; ++i)
@@ -221,7 +225,6 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
           {std::cout <<  omp_get_wtime() - t << " ";}
 
           verify_pr<val_t>(col_pagerank[i], param);
-
           gdf_col_delete(col_off);
           gdf_col_delete(col_ind);
           gdf_col_delete(col_val);
@@ -230,7 +233,6 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
 
        }
     }
-#endif
     std::cout << std::endl;
   }
 
@@ -252,31 +254,82 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
-     int m, nnz, n_gpus, max_iter=50;
+     int m, nnz, n_gpus, max_iter=500;
      val_t alpha = 0.85;
      std::vector<idx_t> cooRowInd, cooColInd;
      double t;
 
-     ASSERT_EQ(read_single_file(param.matrix_file.c_str(),cooRowInd,cooColInd),0);
+     ASSERT_EQ(read_single_file(param.matrix_file.c_str(),cooRowInd,cooColInd),0) << "read_single_file(" << param.matrix_file << ", ...) failure.";
      nnz = cooRowInd.size();
-     m = std::max( *(std::max_element(cooRowInd.begin(), cooRowInd.end())),
+     m = 1 + std::max( *(std::max_element(cooRowInd.begin(), cooRowInd.end())),
                    *(std::max_element(cooColInd.begin(), cooColInd.end())));
 
      // Allocate memory on host
      std::vector<idx_t> csrColInd(nnz), csrRowPtr(m+1);
      std::vector<val_t> cooVal(nnz), csrVal(nnz), pagerank_h(m, 1.0/m);
-     coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
+
+     // transpose here
+     coo2csr(cooColInd, cooRowInd, csrRowPtr, csrColInd);
      CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
      std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus+1);
      random_vals(csrVal);
      gdf_column *col_pagerank[n_gpus];
+     idx_t *degree[n_gpus];
 
+     if (nnz<1200000000)
+     {
+       #pragma omp parallel num_threads(1)
+       {
+        auto i = omp_get_thread_num();
+        auto p = omp_get_num_threads(); 
+        CUDA_RT_CALL(cudaSetDevice(i));
+
+        #ifdef SNMG_VERBOSE 
+          #pragma omp master 
+          { 
+            std::cout << "Number of GPUs : "<< n_gpus <<std::endl;
+            std::cout << "Number of threads : "<< p <<std::endl;
+          }
+        #endif
+
+        gdf_column *col_off = new gdf_column, 
+                   *col_ind = new gdf_column, 
+                   *col_val = new gdf_column;
+        col_pagerank[i] = new gdf_column;
+        create_gdf_column(pagerank_h, col_pagerank[i]);
+        #pragma omp barrier
+
+        //load a chunck of the graph on each GPU 
+        load_csr_loc(csrRowPtr, csrColInd, csrVal, 
+                     v_loc, e_loc, part_offset,
+                     col_off, col_ind, col_val);
+        
+        t = omp_get_wtime();
+        cugraph::SNMGinfo env;
+        cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
+        pr_solver.setup(alpha,degree);
+
+        val_t* pagerank[p];
+        for (auto i = 0; i < p; ++i)
+          pagerank[i]= static_cast<val_t*>(col_pagerank[i]->data);
+
+        pr_solver.solve(max_iter, pagerank);
+        #pragma omp master 
+        {std::cout <<  omp_get_wtime() - t << " ";}
+
+        verify_pr<val_t>(col_pagerank[i], param);
+
+        gdf_col_delete(col_off);
+        gdf_col_delete(col_ind);
+        gdf_col_delete(col_val);
+        gdf_col_delete(col_pagerank[i]);
+      }
+    }
      if (n_gpus > 1)
      {
       // Only using the 4 fully connected GPUs on DGX1
       if (n_gpus == 8)
         n_gpus = 4;
-
        #pragma omp parallel num_threads(n_gpus)
        {
         auto i = omp_get_thread_num();
@@ -306,7 +359,7 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
         t = omp_get_wtime();
         cugraph::SNMGinfo env;
         cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
-        pr_solver.setup(alpha);
+        pr_solver.setup(alpha,degree);
 
         val_t* pagerank[p];
         for (auto i = 0; i < p; ++i)
@@ -341,6 +394,7 @@ TEST_P(Tests_MGPR_hibench, CheckFP32_hibench) {
 
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
                         ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
+                                            ,MGPagerank_Usecase("test/datasets/netscience.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
@@ -356,7 +410,6 @@ INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGPR_hibench,
                                             ,MGPagerank_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000", "")
                                          )
                        );
-
 
 
 int main(int argc, char **argv)  {

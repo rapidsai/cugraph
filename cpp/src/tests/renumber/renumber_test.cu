@@ -302,7 +302,7 @@ TEST_F(RenumberingTest, Random100KVertexSet)
   if (cnt > 0)
     printf("  src error count = %ld out of %d\n", cnt, num_verts);
 
-  EXPECT_EQ(min_id, 0);
+  EXPECT_EQ(min_id, 0u);
   EXPECT_EQ(max_id, (unique_verts - 1));
   EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
   EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);

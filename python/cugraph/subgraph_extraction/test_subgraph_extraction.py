@@ -11,12 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+from itertools import product
+
 import numpy as np
 import pytest
 from scipy.io import mmread
 
 import cudf
 import cugraph
+from librmm_cffi import librmm as rmm
+from librmm_cffi import librmm_config as rmm_cfg
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -61,8 +66,20 @@ datasets = ['../datasets/karate',
             '../datasets/netscience']
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', datasets)
-def test_subgraph_extraction(graph_file):
+def test_subgraph_extraction(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file)
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
