@@ -1,7 +1,22 @@
+/*
+ * Copyright (c) 2019, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
 
 #include <stdio.h>
-#include <stdlib.h>  
+#include <stdlib.h>
 #include <stddef.h>
 #include <string>
 #include <sstream>
@@ -11,6 +26,8 @@
 #include <limits>
 #include <utility>
 #include <cstdint>
+#include <cstdlib>
+#include <map>
 extern "C" {
 #include "mmio.h"
 }
@@ -41,13 +58,13 @@ extern "C" {
 #endif
 
 std::function<void(gdf_column*)> gdf_col_deleter = [](gdf_column* col){
-  if (col) { 
-    col->size = 0; 
+  if (col) {
+    col->size = 0;
     if(col->data){
       cudaStream_t stream{nullptr};
       ALLOC_FREE_TRY(col->data, stream);
     }
-    delete col;  
+    delete col;
   }
 };
 using gdf_column_ptr = typename std::unique_ptr<gdf_column, decltype(gdf_col_deleter)>;
@@ -70,7 +87,7 @@ std::string getFileName(const std::string& s) {
    return("");
 }
 
-template <typename T> 
+template <typename T>
 void verbose_diff(std::vector<T> & v1, std::vector<T> & v2) {
   for (unsigned int i = 0; i < v1.size(); ++i)
   {
@@ -81,10 +98,10 @@ void verbose_diff(std::vector<T> & v1, std::vector<T> & v2) {
   }
 }
 
-template <typename T> 
+template <typename T>
 int eq(std::vector<T> & v1, std::vector<T> & v2) {
     if (v1 == v2)
-        return 0; 
+        return 0;
     else  {
         verbose_diff(v1,v2);
         return 1;
@@ -98,6 +115,13 @@ void printv(size_t n, T* vec, int offset) {
     std::cout << "sample size = "<< n << ", offset = "<< offset << std::endl;
     thrust::copy(dev_ptr+offset,dev_ptr+offset+n, std::ostream_iterator<T>(std::cout, " "));//Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
     std::cout << std::endl;
+}
+
+template <typename T>
+void random_vals(std::vector<T> & v) {
+  srand(42);
+  for (auto i = size_t{0}; i < v.size(); i++)
+    v[i]=static_cast<T>(std::rand()%10);
 }
 
 template <typename T_ELEM>
@@ -143,32 +167,32 @@ void ref_csr2csc (int m, int n, int nnz, const T_ELEM *csrVals, const int *csrRo
     free(counters);
 }
 
-template <typename T> 
-int transition_matrix_cpu(int n, int e, int *csrRowPtrA, int *csrColIndA, T *weight, T* is_leaf) 
+template <typename T>
+int transition_matrix_cpu(int n, int e, int *csrRowPtrA, int *csrColIndA, T *weight, T* is_leaf)
 //omp_set_num_threads(4);
 //#pragma omp parallel
  {
     int j,row, row_size;
     //#pragma omp for
-    for (row=0; row<n; row++) 
-    {  
+    for (row=0; row<n; row++)
+    {
         row_size = csrRowPtrA[row+1] - csrRowPtrA[row];
         if (row_size == 0)
             is_leaf[row]=1.0;
         else
         {
             is_leaf[row]=0.0;
-            for (j=csrRowPtrA[row]; j<csrRowPtrA[row+1]; j++) 
-                weight[j] = 1.0/row_size; 
-        } 
+            for (j=csrRowPtrA[row]; j<csrRowPtrA[row+1]; j++)
+                weight[j] = 1.0/row_size;
+        }
     }
     return 0;
 }
-template <typename T> 
+template <typename T>
 void printCsrMatI(int m, int n, int nnz,std::vector<int> & csrRowPtr, std::vector<uint16_t> & csrColInd, std::vector<T> & csrVal) {
- 
-    std::vector<T> v(n);   
-    std::stringstream ss; 
+
+    std::vector<T> v(n);
+    std::stringstream ss;
     ss.str(std::string());
     ss << std::fixed; ss << std::setprecision(2);
     for (int i = 0; i < m; i++) {
@@ -198,8 +222,8 @@ void printCsrMatI(int m, int n, int nnz,std::vector<int> & csrRowPtr, std::vecto
  */
 template <typename IndexType_>
 int mm_properties(FILE * f, int tg, MM_typecode * t,
-		  IndexType_ * m, IndexType_ * n,
-		  IndexType_ * nnz) {
+                  IndexType_ * m, IndexType_ * n,
+                  IndexType_ * nnz) {
 
   // Read matrix properties from file
   int mint, nint, nnzint;
@@ -242,7 +266,7 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
       // Read matrix entry
       IndexType_ row, col;
       double rval, ival;
-      if (mm_is_pattern(*t)) 
+      if (mm_is_pattern(*t))
           st = fscanf(f, "%d %d\n", &row, &col);
       else if (mm_is_real(*t) || mm_is_integer(*t))
           st = fscanf(f, "%d %d %lg\n", &row, &col, &rval);
@@ -255,7 +279,7 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
 
       // Check if entry is diagonal
       if(row == col)
-	--(*nnz);
+          --(*nnz);
 
     }
   }
@@ -286,9 +310,9 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
  */
 template <typename IndexType_, typename ValueType_>
 int mm_to_coo(FILE *f, int tg, IndexType_ nnz,
-	      IndexType_ * cooRowInd, IndexType_ * cooColInd, 
-	      ValueType_ * cooRVal  , ValueType_ * cooIVal) {
-  
+              IndexType_ * cooRowInd, IndexType_ * cooColInd,
+              ValueType_ * cooRVal  , ValueType_ * cooIVal) {
+
   // Read matrix properties from file
   MM_typecode t;
   int m, n, nnzOld;
@@ -357,22 +381,22 @@ int mm_to_coo(FILE *f, int tg, IndexType_ nnz,
 
       // Modify entry value if matrix is skew symmetric or Hermitian
       if(mm_is_skew(t)) {
-	rval = -rval;
-	ival = -ival;
+        rval = -rval;
+        ival = -ival;
       }
       else if(mm_is_hermitian(t)) {
-	ival = -ival;
+        ival = -ival;
       }
 
       // Record entry
       cooRowInd[j] = col;
       cooColInd[j] = row;
       if(cooRVal != NULL)
-	cooRVal[j] = rval;
+        cooRVal[j] = rval;
       if(cooIVal != NULL)
-	cooIVal[j] = ival;
+        cooIVal[j] = ival;
       ++j;
-      
+
     }
   }
   return 0;
@@ -392,7 +416,7 @@ public:
     case 1:  return (thrust::get<1>(t1) < thrust::get<1>(t2));
     default: return (thrust::get<0>(t1) < thrust::get<0>(t2));
     }
-    
+
   }
 };
 
@@ -411,10 +435,10 @@ public:
  */
 template <typename IndexType_, typename ValueType_>
 void coo_sort(IndexType_ nnz, int sort_by_row,
-	      IndexType_ * cooRowInd,
-	      IndexType_ * cooColInd, 
-	      ValueType_ * cooRVal,
-	      ValueType_ * cooIVal) {
+              IndexType_ * cooRowInd,
+              IndexType_ * cooColInd,
+              ValueType_ * cooRVal,
+              ValueType_ * cooIVal) {
 
   // Determine whether to sort by row or by column
   int i;
@@ -427,21 +451,46 @@ void coo_sort(IndexType_ nnz, int sort_by_row,
   using namespace thrust;
   if((cooRVal==NULL) && (cooIVal==NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz)),
+                lesser_tuple(i));
   else if((cooRVal==NULL) && (cooIVal!=NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooIVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooIVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooIVal+nnz)),
+                lesser_tuple(i));
   else if((cooRVal!=NULL) && (cooIVal==NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooRVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooRVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooRVal+nnz)),
+                lesser_tuple(i));
   else
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooRVal,cooIVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,
-					     cooRVal+nnz,cooIVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,
+                cooRVal+nnz,cooIVal+nnz)),
+                lesser_tuple(i));
+}
+
+template <typename IndexT>
+void coo2csr(std::vector<IndexT>& cooRowInd, //in: I[] (overwrite)
+             const std::vector<IndexT>& cooColInd, //in: J[]
+             std::vector<IndexT>& csrRowPtr, //out 
+             std::vector<IndexT>& csrColInd) //out
+{
+    std::vector<std::pair<IndexT,IndexT> > items;
+    for (auto i = size_t{0}; i < cooRowInd.size(); ++i)
+        items.push_back(std::make_pair( cooRowInd[i], cooColInd[i]));
+    //sort pairs
+    std::sort(items.begin(), items.end(),[](const std::pair<IndexT,IndexT> &left, const std::pair<IndexT,IndexT> &right) 
+                                             {return left.first < right.first; });
+    for (auto i = size_t{0}; i < cooRowInd.size(); ++i) {
+      cooRowInd[i]=items[i].first; // save the sorted rows to compress them later
+      csrColInd[i]=items[i].second; // save the col idx, not sure if they are sorted for each row
+    }
+    // Count number of elements per row
+    for(auto i=size_t{0}; i<cooRowInd.size(); ++i)
+      ++(csrRowPtr[cooRowInd[i]+1]);
+  
+    // Compute cumulative sum to obtain row offsets/pointers
+    for(auto i=size_t{0}; i<csrRowPtr.size()-1; ++i)
+      csrRowPtr[i+1] += csrRowPtr[i];
 }
 
 /// Compress sorted list of indices
@@ -455,17 +504,17 @@ void coo_sort(IndexType_ nnz, int sort_by_row,
  */
 template <typename IndexType_>
 void coo_compress(IndexType_ m, IndexType_ n, IndexType_ nnz,
-		  const IndexType_ * __restrict__ sortedIndices,
-		  IndexType_ * __restrict__ compressedIndices) {
+      const IndexType_ * __restrict__ sortedIndices,
+      IndexType_ * __restrict__ compressedIndices) {
   IndexType_ i;
 
   // Initialize everything to zero
   memset(compressedIndices, 0, (m+1)*sizeof(IndexType_));
-  
+
   // Count number of elements per row
   for(i=0; i<nnz; ++i)
     ++(compressedIndices[sortedIndices[i]+1]);
-  
+
   // Compute cumulative sum to obtain row offsets/pointers
   for(i=0; i<m; ++i)
     compressedIndices[i+1] += compressedIndices[i];
@@ -501,18 +550,19 @@ void coo_compress(IndexType_ m, IndexType_ n, IndexType_ nnz,
  */
 template <typename IndexType_, typename ValueType_>
 int coo_to_csr(IndexType_ m, IndexType_ n, IndexType_ nnz,
-		IndexType_ * __restrict__ cooRowInd,
-		IndexType_ * __restrict__ cooColInd, 
-		ValueType_ * __restrict__ cooRVal,
-		ValueType_ * __restrict__ cooIVal,
-		IndexType_ * __restrict__ csrRowPtr,
-		IndexType_ * __restrict__ csrColInd,
-		ValueType_ * __restrict__ csrRVal,
-		ValueType_ * __restrict__ csrIVal) {
+    IndexType_ * __restrict__ cooRowInd,
+    IndexType_ * __restrict__ cooColInd, 
+    ValueType_ * __restrict__ cooRVal,
+    ValueType_ * __restrict__ cooIVal,
+    IndexType_ * __restrict__ csrRowPtr,
+    IndexType_ * __restrict__ csrColInd,
+    ValueType_ * __restrict__ csrRVal,
+    ValueType_ * __restrict__ csrIVal) {
 
   // Convert COO to CSR matrix
   coo_sort(nnz, 0, cooRowInd, cooColInd, cooRVal, cooIVal);
   coo_sort(nnz, 1, cooRowInd, cooColInd, cooRVal, cooIVal);
+  //coo_sort2<int,float>(m, nnz, cooRowInd, cooColInd);
   coo_compress(m, n, nnz, cooRowInd, csrRowPtr);
 
   // Copy arrays
@@ -527,13 +577,13 @@ int coo_to_csr(IndexType_ m, IndexType_ n, IndexType_ nnz,
 
 }
 
-int read_binary_vector ( FILE* fpin, 
-                    int n, 
+int read_binary_vector ( FILE* fpin,
+                    int n,
                     std::vector<float>& val
                     )
 {
     size_t is_read1;
-    
+
     double* t_storage = new double[n];
     is_read1 = fread(t_storage, sizeof(double), n, fpin);
     for (int i = 0; i < n; i++)
@@ -546,7 +596,7 @@ int read_binary_vector ( FILE* fpin,
             val[i] = static_cast<float>(t_storage[i]);
     }
     delete[] t_storage;
-    
+
     if (is_read1 != (size_t)n)
     {
         printf("%s", "I/O fail\n");
@@ -555,15 +605,15 @@ int read_binary_vector ( FILE* fpin,
     return 0;
 }
 
-int read_binary_vector ( FILE* fpin, 
-                    int n, 
+int read_binary_vector ( FILE* fpin,
+                    int n,
                     std::vector<double>& val
                     )
 {
     size_t is_read1;
-    
+
     is_read1 = fread(&val[0], sizeof(double), n, fpin);
-    
+
     if (is_read1 != (size_t)n)
     {
         printf("%s", "I/O fail\n");
@@ -582,7 +632,7 @@ gdf_column_ptr create_gdf_column(std::vector<col_type> const & host_vector)
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
+  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly
@@ -616,7 +666,7 @@ void create_gdf_column(std::vector<col_type> const & host_vector, gdf_column * t
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
+  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly
@@ -645,11 +695,44 @@ void gdf_col_delete(gdf_column* col) {
   if (col)
   {
     col->size = 0;
-    cudaStream_t stream{nullptr}; 
+    cudaStream_t stream{nullptr};
     if(col->data)
       ALLOC_FREE_TRY(col->data, stream);
+#if 1
+// If delete col is executed, the memory pointed by col is no longer valid and
+// can be used in another memory allocation, so executing col->data = nullptr
+// after delete col is dangerous, also, col = nullptr has no effect here (the
+// address is passed by value, for col = nullptr should work, the input
+// parameter should be gdf_column*& col (or alternatively, gdf_column** col and
+// *col = nullptr also work)
+    col->data = nullptr;
+    delete col;
+#else
     delete col;
     col->data = nullptr;
-    col = nullptr;  
-  }                                                       
+    col = nullptr;
+#endif
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// TODO: move this code to rapids-core
+////////////////////////////////////////////////////////////////////////////////
+
+// Define RAPIDS_DATASET_ROOT_DIR using a preprocessor variable to
+// allow for a build to override the default. This is useful for
+// having different builds for specific default dataset locations.
+#ifndef RAPIDS_DATASET_ROOT_DIR
+#define RAPIDS_DATASET_ROOT_DIR "/datasets"
+#endif
+
+static const std::string& get_rapids_dataset_root_dir() {
+  static std::string rdrd("");
+  // Env var always overrides the value of RAPIDS_DATASET_ROOT_DIR
+  if (rdrd == "") {
+    const char* envVar = std::getenv("RAPIDS_DATASET_ROOT_DIR");
+    rdrd = (envVar != NULL) ? envVar : RAPIDS_DATASET_ROOT_DIR;
+  }
+  return rdrd;
 }

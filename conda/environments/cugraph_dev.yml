@@ -1,24 +1,25 @@
 name: cugraph_dev
 channels:
-- nvidia
-- rapidsai
-- numba
+- rapidsai/label/cuda9.2
+- nvidia/label/cuda9.2
+- rapidsai-nightly/label/cuda9.2
 - conda-forge
-- defaults
 dependencies:
-- cudf
+- cudf=0.8.*
+- nvstrings=0.8.*
+- rmm=0.8.*
 - scipy
 - networkx
 - python-louvain
-- cudatoolkit
+- nccl
+- cudatoolkit=9.2
 - cmake>=3.12
 - python>=3.6,<3.8
-- numba>=0.40
+- numba>=0.41
 - pandas>=0.23.4
-- pyarrow=0.12.0
+- pyarrow=0.12.1
 - notebook>=0.5.0
 - boost
-- nvstrings
 - cffi>=1.10.0   
 - distributed>=1.23.0
 - cython>=0.29,<0.30
@@ -26,8 +27,10 @@ dependencies:
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport
+- nbsphinx
 - numpydoc
 - ipython
 - recommonmark
+- pip
 - pip:
   - sphinx-markdown-tables

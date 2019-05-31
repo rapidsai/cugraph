@@ -1,3 +1,16 @@
+# Copyright (c) 2019, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from c_sssp cimport *
 from c_graph cimport *
 from libcpp cimport bool
@@ -8,6 +21,8 @@ import cudf
 from librmm_cffi import librmm as rmm
 #from pygdf import Column
 import numpy as np
+
+gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
 
 cpdef sssp(G, source):
     """
@@ -29,7 +44,7 @@ cpdef sssp(G, source):
     
     Examples
     --------
-    >>> M = ReadMtxFile(graph_file)
+    >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
@@ -38,24 +53,29 @@ cpdef sssp(G, source):
     """
 
     cdef uintptr_t graph = G.graph_ptr
-    err = gdf_add_transpose(<gdf_graph*>graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
-    
     cdef gdf_graph* g = <gdf_graph*>graph
 
-    df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=np.int32))
-    cdef uintptr_t identifier_ptr = create_column(df['vertex'])
-    df['distance'] = cudf.Series(np.zeros(g.transposedAdjList.offsets.size-1,dtype=np.float32))
-    cdef uintptr_t distance_ptr = create_column(df['distance'])
+    err = gdf_add_transposed_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    err = g.transposedAdjList.get_vertex_identifiers(<gdf_column*>identifier_ptr)
+    num_verts = G.number_of_vertices()
+
+    data_type = np.float32
+    if g.transposedAdjList.edge_data:
+        data_type = gdf_to_np_dtypes[g.transposedAdjList.edge_data.dtype]
+
+    df = cudf.DataFrame()
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
+    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
+    cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
+
+    err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     cdef int[1] sources
     sources[0] = source
-    err = gdf_sssp_nvgraph(<gdf_graph*>graph, sources, <gdf_column*>distance_ptr)
+    err = gdf_sssp_nvgraph(g, sources, &c_distance_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
-
