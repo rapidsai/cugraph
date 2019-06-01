@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include "algo_types.h"
+
 /**
  * @Synopsis   Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
  * The number of iterations depends on the properties of the network itself; it increases when the tolerance descreases and/or alpha increases toward the limiting value of 1.
@@ -190,3 +192,20 @@ gdf_error gdf_snmg_degree(int x,
                           gdf_column* off,
                           gdf_column* ind,
                           gdf_column** x_cols);
+
+/**
+ * @brief Compute connected components.
+ * The weak version was imported from cuML.
+ * This implementation comes from [1] and solves component labeling problem in
+ * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
+ *
+ * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ *
+
+ * @param graph input graph; assumed undirected for weakly CC [in]
+ * @param connectivity_type CUGRAPH_WEAK, CUGRAPH_STRONG  [in]
+ * @param labels gdf_column for the output labels [out]
+ */
+ gdf_error gdf_connected_components(gdf_graph *graph,
+                                    cugraph_cc_t connectivity_type,
+                                    gdf_column *labels);

@@ -200,6 +200,16 @@ set(SNMG_PAGERANK_TEST_SRC
 ConfigureTest(SNMG_PAGERANK_TEST "${SNMG_PAGERANK_TEST_SRC}")
 
 ###################################################################################################
+#-CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
+
+set(CONNECT_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
+
+ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}")
+
+
+###################################################################################################
 ### enable testing ################################################################################
 ###################################################################################################
 
