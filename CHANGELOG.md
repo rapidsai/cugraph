@@ -5,6 +5,7 @@
 - PR #297 SNMG degree calculation 
 - PR #300 Personalized Page Rank
 - PR #302 SNMG CSR Pagerank (cuda/C++)
+- PR #315 Weakly Connected Components adapted from cuML (cuda/C++)
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
