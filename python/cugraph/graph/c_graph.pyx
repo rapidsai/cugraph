@@ -167,10 +167,10 @@ class Graph:
         cdef gdf_column dest = get_gdf_column_view(dest_col)
 
         err = gdf_renumber_vertices(&source,
-	      			    &dest,
-				    &src_renumbered,
-				    &dst_renumbered,
-				    &numbering_map)
+                                    &dest,
+                                    &src_renumbered,
+                                    &dst_renumbered,
+                                    &numbering_map)
 
         cudf.bindings.cudf_cpp.check_gdf_error(err) 
 
