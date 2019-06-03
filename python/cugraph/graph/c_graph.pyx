@@ -550,6 +550,14 @@ class Graph:
             # An empty graph
             return 0
 
+    def number_of_nodes(self):
+        """
+        An alias of number_of_vertices(). This function is added for NetworkxX
+        compatibility.
+        """
+        return self.number_of_vertices()
+
+
     def number_of_edges(self):
         """
         Get the number of edges in the graph
