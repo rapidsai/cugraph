@@ -20,6 +20,7 @@
 - PR #306 Fixed cmake warnings due to library conflicts.
 - PR #311 Fixed bug in SNMG degree causing failure for three gpus
 - PR #309 Update conda build recipes
+- PR #314 Added datasets to gitignore
 
 # cuGraph 0.7.0 (10 May 2019)
 
