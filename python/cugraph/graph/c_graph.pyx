@@ -119,6 +119,16 @@ class Graph:
         self.delete_transposed_adj_list()
         free(g)
 
+    def clear(self):
+        """
+        Empty this graph. This function is added for NetworkX compatibility.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = <gdf_graph*> graph
+        self.delete_edge_list()
+        self.delete_adj_list()
+        self.delete_transposed_adj_list()
+
     def renumber(self, source_col, dest_col):
         """
         Take a (potentially sparse) set of source and destination vertex
