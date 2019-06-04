@@ -11,13 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
+import numpy as np
+# This is a temporary solution till cudf's issue 1705 is addressed.
+# We currently convert a Pandas DataFrame to a cudf DataFrame, but no need for
+# this once cudf's issue 1705 is resolved.
+import pandas as pd
+
 import cudf
 from librmm_cffi import librmm as rmm
-import numpy as np
+
+from c_graph cimport *
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
@@ -208,7 +214,7 @@ class Graph:
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
-        value_col (optional) : cudf.Series
+        value_col(optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
@@ -269,6 +275,95 @@ class Graph:
         self.edge_list_source_col = tmp_source_col
         self.edge_list_dest_col = tmp_dest_col
         self.edge_list_value_col = tmp_value_col
+
+    def add_edges_from(self, ebunch_to_add):
+        """
+        Add edges to a graph. Currently, self should be an empty graph.
+        If this graph instance already stores a graph, invoking this function
+        raises an error. This function is added for NetworkX compatibility.
+        Parameters
+        ----------
+        ebunch_to_add : a list of 2-tuples (u,v) or 3-tuples (u,v,w)
+            This provides a list of source and destination (or target following
+            NetworkX's terminology) pairs or source, destination, and weight
+            triplets.
+        Examples
+        --------
+        >>> import cugraph
+        >>>
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_edges_from([(0,1), (1,0), (1,2), (2,1)])
+        """
+        # This is a temporary solution till cudf's issue 1705 is addressed.
+        # The code below (two lines) should be replaced with
+        # gdf = cudf.DataFrame(ebunch_to_add)
+        df = pd.DataFrame(ebunch_to_add)
+        gdf = cudf.from_pandas(df)
+        num_columns = gdf.shape[1]
+        if num_columns is 2:
+            self.add_edge_list(gdf[0], gdf[1])
+        elif num_columns is 3:
+            self.add_edge_list(gdf[0], gdf[1], gdf[2])
+        else:
+            raise ValueError("ebunch_to_add should be a list of "
+                             "2-tuples (u,v) or 3-tuples (u,v,w)")
+
+    def add_weighted_edges_from(self, ebunch_to_add):
+        """
+        Add weighted edges to a graph. Currently, self should be an empty
+        graph.
+        If this graph instance already stores a graph, invoking this function
+        raises an error. This function is added for NetworkX compatibility.
+        Parameters
+        ----------
+        ebunch_to_add : a list of 3-tuples (u,v,w)
+            This provides a list of source, destination (or target following
+            NetworkX's terminology), and weight triplets.
+        Examples
+        --------
+        >>> import cugraph
+        >>>
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_weighted_edges_from([(0,1,1.0), (1,0,1.0), (1,2,1.0), (2,1,1.0)])
+        """
+        # This is a temporary solution till cudf's issue 1705 is addressed.
+        # The code below (two lines) should be replaced with
+        # gdf = cudf.DataFrame(ebunch_to_add)
+        df = pd.DataFrame(ebunch_to_add)
+        gdf = cudf.from_pandas(df)
+        num_columns = gdf.shape[1]
+        if num_columns is 3:
+            self.add_edge_list(gdf[0], gdf[1], gdf[2])
+        else:
+            raise ValueError("ebunch_to_add should be a list of "
+                             "3-tuples (u,v,w)")
+
+    def from_cudf_edgelist(self, df, source='source', target='target', weight=None):
+        """
+        Add edges to a graph. Currently, self should be an empty graph.
+        If this graph instance already stores a graph, invoking this function
+        raises an error. This function is added for NetworkX compatibility.
+        Parameters
+        ----------
+        df : cudf.DataFrame
+            This cudf.DataFrame contains columns storing edge source vertices,
+            destination (or target following NetworkX's terminology) vertices,
+            and (optional) weights.
+        source : string or integer
+            This is used to index the source column.
+        target : string or integer
+            This is used to index the destination (or target following
+            NetworkX's terminology) column.
+        weight(optional) : string or integer
+            This pointer can be ``none``.
+            If not, this is used to index the weight column.
+        """
+        if weight is None:
+            self.add_edge_list(df[source], df[target])
+        else:
+            self.add_edge_list(df[source], df[target], df[weight])
 
     def view_edge_list(self):
         """
@@ -336,7 +431,7 @@ class Graph:
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
-        value_col (optional) : cudf.Series
+        value_col(optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
