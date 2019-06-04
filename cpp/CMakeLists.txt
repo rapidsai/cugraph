@@ -230,6 +230,7 @@ add_library(cugraph SHARED
     src/utilities/cusparse_helper.cu
     src/snmg/utils.cu
     src/snmg/degree/degree.cu
+    src/snmg/COO2CSR/COO2CSR.cu
     src/nvgraph/arnoldi.cu
     src/nvgraph/bfs.cu
     src/nvgraph/bfs2d.cu
