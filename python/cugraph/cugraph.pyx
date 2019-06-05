@@ -17,6 +17,7 @@
 # cython: language_level = 3
 
 include "graph/c_graph.pyx"
+include "graph/convert_matrix.pyx"
 include "nvgraph/c_nvgraph.pyx"
 include "pagerank/pagerank_wrapper.pyx"
 include "sssp/sssp_wrapper.pyx"

@@ -350,31 +350,6 @@ class Graph:
             raise ValueError("ebunch_to_add should be a list of "
                              "3-tuples (u,v,w)")
 
-    def from_cudf_edgelist(self, df, source='source', target='target', weight=None):
-        """
-        Add edges to a graph. Currently, self should be an empty graph.
-        If this graph instance already stores a graph, invoking this function
-        raises an error. This function is added for NetworkX compatibility.
-        Parameters
-        ----------
-        df : cudf.DataFrame
-            This cudf.DataFrame contains columns storing edge source vertices,
-            destination (or target following NetworkX's terminology) vertices,
-            and (optional) weights.
-        source : string or integer
-            This is used to index the source column.
-        target : string or integer
-            This is used to index the destination (or target following
-            NetworkX's terminology) column.
-        weight(optional) : string or integer
-            This pointer can be ``none``.
-            If not, this is used to index the weight column.
-        """
-        if weight is None:
-            self.add_edge_list(df[source], df[target])
-        else:
-            self.add_edge_list(df[source], df[target], df[weight])
-
     def view_edge_list(self):
         """
         Display the edge list. Compute it if needed.
