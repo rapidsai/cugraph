@@ -249,6 +249,12 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         """
+        if source_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
+        if dest_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -442,6 +448,13 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_adj_list(offsets, indices, None)
         """
+        if offset_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "offsets.")
+        if index_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
+
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
