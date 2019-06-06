@@ -229,6 +229,7 @@ add_library(cugraph SHARED
     src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
     src/snmg/utils.cu
+    src/components/connectivity.cu
     src/snmg/degree/degree.cu
     src/snmg/COO2CSR/COO2CSR.cu
     src/nvgraph/arnoldi.cu

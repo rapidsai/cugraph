@@ -121,7 +121,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       status = gdf_pagerank(G.get(), col_pagerank.get(), alpha, tol, max_iter, has_guess);
+       status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
        cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
@@ -129,7 +129,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     }
     else {
       cudaProfilerStart();
-      status = gdf_pagerank(G.get(), col_pagerank.get(), alpha, tol, max_iter, has_guess);
+      status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
