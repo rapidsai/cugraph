@@ -317,10 +317,19 @@ class Graph:
         df = pd.DataFrame(ebunch_to_add)
         gdf = cudf.from_pandas(df)
         num_columns = gdf.shape[1]
-        if num_columns is 2:
-            self.add_edge_list(gdf[0], gdf[1])
-        elif num_columns is 3:
-            self.add_edge_list(gdf[0], gdf[1], gdf[2])
+        if (num_columns is 2) or (num_columns is 3):
+            if (gdf[0].max() > 2**31 - 1) or (gdf[1].max() > 2**31 - 1):
+                raise ValueError("cugraph currently does not support vertex"
+                                 "ids larger than 2**32 -1")
+            else:
+                gdf[0] = gdf[0].astype(np.int32)
+                gdf[1] = gdf[1].astype(np.int32)
+
+            if num_columns is 2:
+                self.add_edge_list(gdf[0], gdf[1])
+            else:
+                assert(num_columns is 3)
+                self.add_edge_list(gdf[0], gdf[1], gdf[2])
         else:
             raise ValueError("ebunch_to_add should be a list of "
                              "2-tuples (u,v) or 3-tuples (u,v,w)")
@@ -351,6 +360,13 @@ class Graph:
         gdf = cudf.from_pandas(df)
         num_columns = gdf.shape[1]
         if num_columns is 3:
+            if (gdf[0].max() > 2**31 - 1) or (gdf[1].max() > 2**31 - 1):
+                raise ValueError("cugraph currently does not support vertex"
+                                 "ids larger than 2**32 -1")
+            else:
+                gdf[0] = gdf[0].astype(np.int32)
+                gdf[1] = gdf[1].astype(np.int32)
+
             self.add_edge_list(gdf[0], gdf[1], gdf[2])
         else:
             raise ValueError("ebunch_to_add should be a list of "
