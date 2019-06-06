@@ -81,6 +81,29 @@ int read_single_file(std::string fileName,
     return 0;
 }
 
+template<typename idx_t, typename val_t>
+void load_coo_loc(std::vector<idx_t>& cooRow,
+                  std::vector<idx_t>& cooCol,
+                  std::vector<val_t>& cooVal,
+                  gdf_column* cooRowLocal,
+                  gdf_column* cooColLocal,
+                  gdf_column* cooValLocal) {
+  auto i = omp_get_thread_num();
+  auto p = omp_get_num_threads();
+  std::vector<size_t> startOffsets(p + 1);
+  startOffsets[p] = cooRow.size();
+  size_t numRows = cooRow.size() / p;
+  startOffsets[i] = i * numRows;
+#pragma omp barrier
+  rowCount = startOffsets[i + 1] - startOffsets[i];
+  std::vector<idx_t> cooRow_part(cooRow.begin() + startOffsets[i], cooRow.begin() + startOffsets[i + 1]);
+  std::vector<idx_t> cooCol_part(cooCol.begin() + startOffsets[i], cooCol.begin() + startOffsets[i + 1]);
+  std::vector<val_t> cooVal_part(cooVal.begin() + startOffsets[i], cooVal.begin() + startOffsets[i + 1]);
+  create_gdf_column(cooRow_part, cooRowLocal);
+  create_gdf_column(cooCol_part, cooColLocal);
+  create_gdf_column(cooVal_part, cooValLocal);
+}
+
 template <typename idx_t,typename val_t>
 void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::vector<val_t> & val_h, 
                   std::vector<size_t> & v_loc, std::vector<size_t> & e_loc, std::vector<size_t> & part_offset,
@@ -93,7 +116,7 @@ void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::v
   
   ASSERT_EQ(part_offset[i+1]-part_offset[i], v_loc[i]);
   
-  std::vector<idx_t> off_loc(off_h.begin()+part_offset[i],off_h.begin()+part_offset[i+1]+1), 
+  std::vector<idx_t> off_loc(off_h.begin()+part_offset[i], off_h.begin()+part_offset[i+1]+1),
                      ind_loc(ind_h.begin()+off_h[part_offset[i]],ind_h.begin()+off_h[part_offset[i+1]]);
   std::vector<val_t> val_loc(val_h.begin()+off_h[part_offset[i]],val_h.begin()+off_h[part_offset[i+1]]);
   ASSERT_EQ(off_loc.size(), v_loc[i]+1);

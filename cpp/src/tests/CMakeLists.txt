@@ -193,6 +193,18 @@ set(SNMG_DEGREE_TEST_SRC
 
 ConfigureTest(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRC}")
 
+###################################################################################################
+#-SNMG_COO2CSR  tests ------------------------------------------------------------------------------
+
+set(SNMG_COO2CSR_TEST_SRC
+        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_coo2csr/snmg_coo2csr_test.cu")
+
+ConfigureTest(SNMG_COO2CSR_TEST "${SNMG_COO2CSR_TEST_SRC}")
+
+###################################################################################################
+#-SNMG_PAGERANK  tests ------------------------------------------------------------------------------
+
 set(SNMG_PAGERANK_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/snmg_pagerank/snmg_pagerank_test.cu")
