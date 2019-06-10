@@ -20,7 +20,7 @@
 
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
-#include <cudf.h>
+#include <cudf/cudf.h>
 #include "cuda_profiler_api.h"
 
 #include <cugraph.h>
@@ -50,7 +50,7 @@ namespace{ //un-nammed
     {
       matrix_file = rhs.matrix_file;
     }
-    
+
     Usecase& operator = (const Usecase& rhs)
     {
       matrix_file = rhs.matrix_file;
@@ -64,19 +64,19 @@ namespace{ //un-nammed
   private:
     std::string matrix_file;
   };
-  
+
 }//end un-nammed namespace
 
 struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
 {
   Tests_Weakly_CC() {  }
   static void SetupTestCase() {  }
-  static void TearDownTestCase() { 
+  static void TearDownTestCase() {
     if (PERF) {
      for (unsigned int i = 0; i < weakly_cc_time.size(); ++i) {
       std::cout <<  weakly_cc_time[i] << std::endl;
      }
-    } 
+    }
   }
   virtual void SetUp() {  }
   virtual void TearDown() {  }
@@ -85,13 +85,13 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
 
   void run_current_test(const Usecase& param) {
     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
-    std::stringstream ss; 
+    std::stringstream ss;
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.get_matrix_file())+ std::string("_") + ss.str().c_str();
     cudaStream_t stream{nullptr};
 
     int m, k, nnz; //
     MM_typecode mc;
-     
+
     HighResClock hr_clock;
     double time_tmp;
 
@@ -102,7 +102,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_TRUE(mm_is_matrix(mc));
     ASSERT_TRUE(mm_is_coordinate(mc));
     ASSERT_TRUE(mm_is_symmetric(mc));//weakly cc only works w/ undirected graphs, for now;
-    
+
     // Allocate memory on host
     std::vector<int> cooRowInd(nnz);
     std::vector<int> cooColInd(nnz);
@@ -144,10 +144,10 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
         cudaDeviceSynchronize();
       }
     EXPECT_EQ(status,GDF_SUCCESS);
-    
+
   }
 };
- 
+
 std::vector<double> Tests_Weakly_CC::weakly_cc_time;
 
 TEST_P(Tests_Weakly_CC, Weakly_CC) {
@@ -155,7 +155,7 @@ TEST_P(Tests_Weakly_CC, Weakly_CC) {
 }
 
 // --gtest_filter=*simple_test*
-INSTANTIATE_TEST_CASE_P(simple_test, Tests_Weakly_CC, 
+INSTANTIATE_TEST_CASE_P(simple_test, Tests_Weakly_CC,
                         ::testing::Values( Usecase("networks/dolphins.mtx")
                                            //Usecase("networks/coPapersDBLP.mtx"),
                                            //Usecase("networks/coPapersCiteseer.mtx"),
@@ -173,5 +173,3 @@ int main(int argc, char **argv)  {
 
   return RUN_ALL_TESTS();
 }
-
-
