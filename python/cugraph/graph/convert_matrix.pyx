@@ -22,9 +22,9 @@ from cugraph import Graph
 
 def from_cudf_edgelist(df, source='source', target='target', weight=None):
     """
-    Add edges to a graph. Currently, self should be an empty graph.
-    If this graph instance already stores a graph, invoking this function
-    raises an error. This function is added for NetworkX compatibility.
+    Return a new graph created from the edge list representaion. This function
+    is added for NetworkX compatibility (this function is a RAPIDS version of
+    NetworkX's from_pandas_edge_list()).
     Parameters
     ----------
     df : cudf.DataFrame

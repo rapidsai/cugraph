@@ -76,6 +76,9 @@ def compare_offsets(offset0, offset1):
     return True
 
 
+# This function returns True if two graphs are identical (bijection between the
+# vertices in one graph to the vertices in the other graph is identity AND two
+# graphs are automorphic; no permutations of vertices are allowed).
 def compare_graphs(nx_graph, cu_graph):
     sources, destinations = cu_graph.view_edge_list()
 
