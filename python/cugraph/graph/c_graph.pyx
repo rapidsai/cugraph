@@ -15,10 +15,6 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 import numpy as np
-# This is a temporary solution till cudf's issue 1705 is addressed.
-# We currently convert a Pandas DataFrame to a cudf DataFrame, but no need for
-# this once cudf's issue 1705 is resolved.
-import pandas as pd
 
 import cudf
 from librmm_cffi import librmm as rmm
