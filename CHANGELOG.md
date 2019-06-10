@@ -1,8 +1,8 @@
 # cuGraph 0.8.0 (Date TBD)
 
 ## New Features
-- PR #287 SNMG power iteration step1 
-- PR #297 SNMG degree calculation 
+- PR #287 SNMG power iteration step1
+- PR #297 SNMG degree calculation
 - PR #300 Personalized Page Rank
 - PR #302 SNMG CSR Pagerank (cuda/C++)
 - PR #315 Weakly Connected Components adapted from cuML (cuda/C++)
@@ -22,6 +22,7 @@
 - PR #311 Fixed bug in SNMG degree causing failure for three gpus
 - PR #309 Update conda build recipes
 - PR #314 Added datasets to gitignore
+- PR #322 Updates to accommodate new cudf include file locations
 
 # cuGraph 0.7.0 (10 May 2019)
 
