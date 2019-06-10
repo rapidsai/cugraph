@@ -138,7 +138,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offsets_r[0],
+        status = gdf_snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -158,8 +158,8 @@ public:
         }
 
         // Compare the results with those generated on the host
-        EXPECT_EQ(part_offset[0], part_offsets_r[0]);
-        EXPECT_EQ(part_offset[1], part_offsets_r[0]);
+        EXPECT_EQ(part_offset[0], part_offset_r[0]);
+        EXPECT_EQ(part_offset[1], part_offset_r[0]);
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
 
@@ -217,7 +217,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offsets_r[0],
+        status = gdf_snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -237,7 +237,7 @@ public:
 
         // Compare the results with those generated on the host
         for (int j = 0; j < n_gpus + 1; j++)
-          EXPECT_EQ(part_offset[j], part_offsets_r[j]);
+          EXPECT_EQ(part_offset[j], part_offset_r[j]);
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
 
@@ -287,7 +287,7 @@ public:
 
   static std::vector<double> mgspmv_time;
 
-  template<typename idx_t>
+  template<typename idx_t, typename val_t>
   void run_current_test(const MGcoo2csr_Usecase& param) {
     const ::testing::TestInfo* const test_info =
         ::testing::UnitTest::GetInstance()->current_test_info();
@@ -295,7 +295,7 @@ public:
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".")
         + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)
         + std::string("_") + ss.str().c_str();
-    std::cout << "Filename: " << param.matrix_file << ", x=" << param.x << "\n";
+    std::cout << "Filename: " << param.matrix_file << "\n";
     int m, nnz, n_gpus;
     gdf_error status;
     std::vector<idx_t> cooRowInd, cooColInd;
@@ -312,8 +312,8 @@ public:
     std::vector<val_t> csrVal(nnz, 0);
     coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
     CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
-    std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus + 1);
-    gdf_column *col_x[n_gpus];
+    std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus + 1), part_offset_r(n_gpus + 1);
+    void* comm1;
     //reference result
     t = omp_get_wtime();
     std::cout << "CPU time: " << omp_get_wtime() - t << "\n";
@@ -356,7 +356,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offsets_r[0],
+        status = gdf_snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -375,8 +375,8 @@ public:
         }
 
         // Compare the results with those generated on the host
-        EXPECT_EQ(part_offset[0], part_offsets_r[0]);
-        EXPECT_EQ(part_offset[1], part_offsets_r[0]);
+        EXPECT_EQ(part_offset[0], part_offset_r[0]);
+        EXPECT_EQ(part_offset[1], part_offset_r[0]);
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
 
@@ -432,7 +432,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offsets_r[0],
+        status = gdf_snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -452,7 +452,7 @@ public:
 
         // Compare the results with those generated on the host
         for (int j = 0; j < n_gpus + 1; j++)
-          EXPECT_EQ(part_offset[j], part_offsets_r[j]);
+          EXPECT_EQ(part_offset[j], part_offset_r[j]);
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
 
@@ -472,7 +472,11 @@ public:
 };
 
 TEST_P(Tests_MGcoo2csr_hibench, CheckFP32_hibench) {
-  run_current_test<int>(GetParam());
+  run_current_test<int, float>(GetParam());
+}
+
+TEST_P(Tests_MGcoo2csr_hibench, CheckFP64_hibench) {
+  run_current_test<int, double>(GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(hibench_test,
