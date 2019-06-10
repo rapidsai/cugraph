@@ -392,42 +392,6 @@ def test_networkx_compatibility(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    # cugraph.Graph() is implicitly a directed graph right at this moment, so
-    # we should use nx.DiGraph() for comparison.
-    Gnx = nx.DiGraph()
-    G = cugraph.Graph()
-
-    # test add_edges_from()
-
-    Gnx.add_edges_from([(0, 1), (1, 0), (1, 2), (2, 1)])
-    G.add_edges_from([(0, 1), (1, 0), (1, 2), (2, 1)])
-
-    assert compare_graphs(Gnx, G)
-
-    Gnx.clear()
-    G.clear()
-
-    Gnx.add_edges_from([(0, 1, {'weight': 1.0}), (1, 0, {'weight': 1.0}),
-                        (1, 2, {'weight': 1.0}), (2, 1, {'weight': 1.0})])
-    G.add_edges_from([(0, 1, 1.0), (1, 0, 1.0), (1, 2, 1.0), (2, 1, 1.0)])
-
-    assert compare_graphs(Gnx, G)
-
-    Gnx.clear()
-    G.clear()
-
-    # test add_weighted_edges_from()
-
-    Gnx.add_weighted_edges_from([(0, 1, 1.0), (1, 0, 1.0), (1, 2, 1.0),
-                                 (2, 1, 1.0)])
-    G.add_weighted_edges_from([(0, 1, 1.0), (1, 0, 1.0), (1, 2, 1.0),
-                               (2, 1, 1.0)])
-
-    assert compare_graphs(Gnx, G)
-
-    Gnx.clear()
-    G.clear()
-
     # test from_cudf_edgelist()
 
     M = read_mtx_file(graph_file)
