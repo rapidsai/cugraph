@@ -32,7 +32,7 @@
 
 #include <gunrock/util/shared_utils.cuh>
 
-#include <cudf.h>
+#include <cudf/cudf.h>
 #include <thrust/extrema.h>
 #include "utilities/error_utils.h"
 #include "graph_utils.cuh"
@@ -44,7 +44,7 @@ using namespace gunrock::util;
 using namespace gunrock::graphio;
 using namespace gunrock::graphio::grmat;
 
-template <typename VertexId, typename Value, typename SizeT> 
+template <typename VertexId, typename Value, typename SizeT>
 __global__ void Remove_Self_Loops (VertexId* row, VertexId* col, Value* val, SizeT edges)
 {
    SizeT i = (SizeT)blockIdx.x * blockDim.x + threadIdx.x;
@@ -54,7 +54,7 @@ __global__ void Remove_Self_Loops (VertexId* row, VertexId* col, Value* val, Siz
        if (row[i] == col[i])
        {
            col[i] = 0;
-       } 
+       }
    }
 }
 
@@ -98,9 +98,9 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
     bool quiet = false;
 
     typedef Coo_nv<VertexId, Value> EdgeTupleType;
-  
+
     cpu_timer.Start();
-  
+
     if (args->CheckCmdLineFlag ("rmat_scale") && args->CheckCmdLineFlag ("rmat_nodes"))
     {
         printf ("Please mention scale or nodes, not both \n");
@@ -111,8 +111,8 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
         printf ("Please mention edgefactor or edge, not both \n");
         return GDF_UNSUPPORTED_METHOD;
     }
- 
-    self_loops = args->CheckCmdLineFlag ("rmat_self_loops"); 
+
+    self_loops = args->CheckCmdLineFlag ("rmat_self_loops");
     // graph construction or generation related parameters
     if (args -> CheckCmdLineFlag("normalized"))
         undirected = args -> CheckCmdLineFlag("rmat_undirected");
@@ -138,10 +138,10 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
         rmat_seed = -1;
     }
     EdgeTupleType coo;
-    
+
     if (undirected == true)
     {
-        rmat_all_edges = 2 * rmat_edges; 
+        rmat_all_edges = 2 * rmat_edges;
     }
     else
     {
@@ -169,8 +169,8 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
         printf ("---------Graph properties-------\n"
                 "      Undirected : %s\n"
                 "      Nodes : %lld\n"
-                "      Edges : %lld\n" 
-                "      a = %f, b = %f, c = %f, d = %f\n\n\n", ((undirected == true)? "True": "False"), (long long)rmat_nodes, 
+                "      Edges : %lld\n"
+                "      a = %f, b = %f, c = %f, d = %f\n\n\n", ((undirected == true)? "True": "False"), (long long)rmat_nodes,
                               (long long)(rmat_edges * ((undirected == true)? 2: 1)), rmat_a, rmat_b, rmat_c, rmat_d);
     }
 
@@ -197,8 +197,8 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
     cpu_timer2.Start();
     cudaError_t status = cudaSuccess;
     if(val == nullptr)
-        status = BuildRmatGraph_coo_nv<false, VertexId, SizeT, Value, EdgeTupleType>(rmat_nodes, rmat_edges, coo, undirected, 
-                                               rmat_a, rmat_b, rmat_c, rmat_d, rmat_vmultipiler, rmat_vmin, rmat_seed, 
+        status = BuildRmatGraph_coo_nv<false, VertexId, SizeT, Value, EdgeTupleType>(rmat_nodes, rmat_edges, coo, undirected,
+                                               rmat_a, rmat_b, rmat_c, rmat_d, rmat_vmultipiler, rmat_vmin, rmat_seed,
                                                quiet, temp_devices.size(), gpu_idx);
     else
         status = BuildRmatGraph_coo_nv<true, VertexId, SizeT, Value, EdgeTupleType>(rmat_nodes, rmat_edges, coo, undirected,
@@ -222,15 +222,15 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
 
         return GDF_CUDA_ERROR;
     }
-    
+
     int block_size = (sizeof(VertexId) == 4) ? 1024 : 512;
     int grid_size = rmat_all_edges / block_size + 1;
 
     if (util::SetDevice(gpu_idx[0]))
         return GDF_CUDA_ERROR;
     if ((self_loops != false) && (val != nullptr))
-    { 
-        Remove_Self_Loops 
+    {
+        Remove_Self_Loops
               <VertexId, Value, SizeT>
               <<<grid_size, block_size, 0>>>
               (coo.row, coo.col, coo.val, rmat_all_edges);
@@ -242,26 +242,26 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
 
     VertexId nodes_row = 0;
     VertexId nodes_col = 0;
-    
+
     cudaMemcpy((void*)&nodes_row, (void*)&(coo.row[rmat_all_edges-1]), sizeof(VertexId), cudaMemcpyDeviceToHost);
-  
+
     tmp = thrust::max_element(rmm::exec_policy(stream)->on(stream),
-                                thrust::device_pointer_cast((VertexId*)(coo.col)), 
+                                thrust::device_pointer_cast((VertexId*)(coo.col)),
                                 thrust::device_pointer_cast((VertexId*)(coo.col + rmat_all_edges)));
     nodes_col = tmp[0];
-    
+
     VertexId max_nodes = (nodes_row > nodes_col)? nodes_row: nodes_col;
-    
+
     cpu_timer.Stop();
 
     if ((src != nullptr) && (dest != nullptr))
-    {        
-        src->data = coo.row;    
+    {
+        src->data = coo.row;
         src->size = rmat_all_edges;
-        src->valid = nullptr; 
-            
-        dest->data = coo.col;    
-        dest->size = rmat_all_edges;    
+        src->valid = nullptr;
+
+        dest->data = coo.col;
+        dest->size = rmat_all_edges;
         dest->valid = nullptr;
     }
     else
@@ -274,20 +274,20 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
             ALLOC_FREE_TRY(coo.val, stream);
         if (!quiet)
             printf ("Error : Pointers for gdf column are null, releasing allocated memory for graph\n");
-          
+
         return GDF_CUDA_ERROR;
     }
-        
+
     if (val != nullptr)
     {
-        val->data = coo.val;    
-        val->size = rmat_all_edges;    
+        val->data = coo.val;
+        val->size = rmat_all_edges;
         val->valid = nullptr;
     }
 
     vertices = max_nodes+1;
     edges = rmat_all_edges;
- 
+
     if (!quiet)
         printf ("Time to generate the graph %f ms\n"
                 "Total time %f ms\n", cpu_timer2.ElapsedMillis(), cpu_timer.ElapsedMillis());
@@ -327,7 +327,7 @@ gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, gdf_
     if (src == nullptr || dest == nullptr)
     {
         free_args(argc, arg);
-        return GDF_DATASET_EMPTY; 
+        return GDF_DATASET_EMPTY;
     }
 
     GDF_REQUIRE ((src->dtype == dest->dtype), GDF_DTYPE_MISMATCH);

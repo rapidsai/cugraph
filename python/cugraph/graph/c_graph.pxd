@@ -1,6 +1,6 @@
 from libcpp cimport bool
 
-cdef extern from "cudf.h":
+cdef extern from "cudf/cudf.h":
 
     ctypedef size_t gdf_size_type
 
@@ -16,7 +16,7 @@ cdef extern from "cudf.h":
     ctypedef struct gdf_dtype_extra_info:
         gdf_time_unit time_unit
 
-    ctypedef enum gdf_error: 
+    ctypedef enum gdf_error:
 
         pass
 
@@ -99,4 +99,4 @@ cdef extern from "cugraph.h":
     cdef gdf_error gdf_add_transposed_adj_list(gdf_graph *graph)
     cdef gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph)
 
-    cdef gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x)    
+    cdef gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x)
