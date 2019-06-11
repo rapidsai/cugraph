@@ -726,7 +726,7 @@ bool gdf_column_equal(gdf_column* a, gdf_column* b) {
     return false;
   }
   if (a->size != b->size){
-    std::cout << "Mismatched sizes: a=" << a->size << " b=" b->size << "\n";
+    std::cout << "Mismatched sizes: a=" << a->size << " b=" << b->size << "\n";
     return false;
   }
   std::vector<col_type>a_h(a->size);
