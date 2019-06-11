@@ -102,6 +102,13 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_TRUE(mm_is_matrix(mc));
     ASSERT_TRUE(mm_is_coordinate(mc));
     ASSERT_TRUE(mm_is_symmetric(mc));//weakly cc only works w/ undirected graphs, for now;
+
+    //rmmInitialize(nullptr);
+
+#ifdef _DEBUG_WEAK_CC 
+    std::cout<<"matrix nrows: "<<m<<"\n";
+    std::cout<<"matrix nnz: "<<nnz<<"\n";
+#endif
     
     // Allocate memory on host
     std::vector<int> cooRowInd(nnz);
@@ -109,7 +116,8 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     std::vector<int> cooVal(nnz);
     std::vector<int> labels(m);//for G(V, E), m := |V|
 
-    // Read
+    // Read: COO Format
+    //
     ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin),0);
 
@@ -120,7 +128,13 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     col_dest = create_gdf_column(cooColInd);
     col_labels = create_gdf_column(labels);
 
-    ASSERT_EQ(gdf_adj_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+    //Get the COO format 1st:
+    //
+    ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+
+    //Then convert to CSR:
+    //
+    ASSERT_EQ(gdf_add_adj_list(G.get()),0);
 
     gdf_error status;
     if (PERF)
@@ -145,6 +159,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
       }
     EXPECT_EQ(status,GDF_SUCCESS);
     
+    //rmmFinalize();
   }
 };
  
@@ -156,10 +171,10 @@ TEST_P(Tests_Weakly_CC, Weakly_CC) {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Weakly_CC, 
-                        ::testing::Values( Usecase("networks/dolphins.mtx")
-                                           //Usecase("networks/coPapersDBLP.mtx"),
-                                           //Usecase("networks/coPapersCiteseer.mtx"),
-                                           //Usecase("networks/hollywood.mtx")
+                        ::testing::Values(   Usecase("networks/dolphins.mtx")
+                                           , Usecase("networks/coPapersDBLP.mtx")
+                                           , Usecase("networks/coPapersCiteseer.mtx")
+                                           , Usecase("networks/hollywood.mtx")
 					  ));
 
 
