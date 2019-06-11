@@ -122,8 +122,8 @@ private:
  */
 template <typename Type>
 void copy(Type *dst, const Type *src, size_t len, cudaStream_t stream) {
-    CUDA_CHECK(cudaMemcpyAsync(dst, src, len * sizeof(Type),
-                               cudaMemcpyDefault, stream));
+  /*CUDA_CHECK(*/cudaMemcpyAsync(dst, src, len * sizeof(Type),
+                                 cudaMemcpyDefault, stream);//);
 }
 
 /**
@@ -149,8 +149,8 @@ void updateHost(Type *hPtr, const Type *dPtr, size_t len,
 template <typename Type>
 void copyAsync(Type* dPtr1, const Type* dPtr2, size_t len,
                cudaStream_t stream) {
-  CUDA_CHECK(cudaMemcpyAsync(dPtr1, dPtr2, len * sizeof(Type),
-                             cudaMemcpyDeviceToDevice, stream));
+  /*CUDA_CHECK(*/cudaMemcpyAsync(dPtr1, dPtr2, len * sizeof(Type),
+                                 cudaMemcpyDeviceToDevice, stream);//);
 }
 /** @} */
 
@@ -169,6 +169,7 @@ template <typename Type>
 void allocate(Type *&ptr, size_t len, bool setZero = false) {
   cudaStream_t stream{nullptr};
   ALLOC_TRY ((void**)&ptr,   sizeof(Type) * len, stream);
+  //cudaMalloc((void **)&ptr, sizeof(Type) * len);
   if (setZero)
     CUDA_CHECK(cudaMemset(ptr, 0, sizeof(Type) * len));
 }
@@ -227,7 +228,7 @@ template<class T, class OutStream>
 void myPrintDevVector(const char * variableName, const T * devMem, size_t componentsCount, OutStream& out)
 {
     T* hostMem = new T[componentsCount];
-    CUDA_CHECK(cudaMemcpy(hostMem, devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
+    /*CUDA_CHECK(*/cudaMemcpy(hostMem, devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost);//);
     myPrintHostVector(variableName, hostMem, componentsCount, out);
     delete []hostMem;
 }
