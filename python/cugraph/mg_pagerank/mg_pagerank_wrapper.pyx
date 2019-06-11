@@ -25,5 +25,6 @@ def mg_pagerank(src_ptrs_info, dest_ptrs_info):
                                             nelem=pr_ptr.size,
                                             dtype=np.int32)
     x = cudf.DataFrame()
+    x['vertex'] = np.ones(pr_ptr.size,dtype=int)
     x['pagerank'] = cudf.Series(data)
     return x
