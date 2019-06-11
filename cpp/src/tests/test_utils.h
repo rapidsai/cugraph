@@ -717,19 +717,27 @@ void gdf_col_delete(gdf_column* col) {
 
 template <typename col_type>
 bool gdf_column_equal(gdf_column* a, gdf_column* b) {
-  if (a == nullptr || b == nullptr)
+  if (a == nullptr || b == nullptr){
+    std::cout << "A given column is null!\n";
     return false;
-  if (a->dtype != b->dtype)
+  }
+  if (a->dtype != b->dtype){
+    std::cout << "Mismatched dtypes\n";
     return false;
-  if (a->size != b->size)
+  }
+  if (a->size != b->size){
+    std::cout << "Mismatched sizes: a=" << a->size << " b=" b->size << "\n";
     return false;
+  }
   std::vector<col_type>a_h(a->size);
   std::vector<col_type>b_h(b->size);
   cudaMemcpy(&a_h[0], a->data, sizeof(col_type) * a->size, cudaMemcpyDefault);
   cudaMemcpy(&b_h[0], b->data, sizeof(col_type) * b->size, cudaMemcpyDefault);
   for (int i = 0; i < a_h.size(); i++) {
-    if (a_h[i] != b_h[i])
+    if (a_h[i] != b_h[i]){
+      std::cout << "Elements at " << i << " differ: a=" << a_h[i] << " b=" << b_h[i] << "\n";
       return false;
+    }
   }
   return true;
 }
