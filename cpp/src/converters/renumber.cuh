@@ -30,7 +30,7 @@
 
 #include <thrust/scan.h>
 #include <thrust/binary_search.h>
-#include <cudf.h>
+#include <cudf/cudf.h>
 #include <cuda_runtime_api.h>
 
 #include "utilities/error_utils.h"
@@ -44,7 +44,7 @@ namespace cugraph {
     typedef uint32_t               hash_type;
     //typedef unsigned long long     index_type;
     typedef uint32_t index_type;
-    
+
     template <typename VertexIdType>
     class HashFunctionObject {
     public:
@@ -236,13 +236,13 @@ namespace cugraph {
 		     [hash_bins_start, hash] __device__ (T_in vid) {
 		       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
 		     });
-    
+
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     dst, dst + size,
 		     [hash_bins_start, hash] __device__ (T_in vid) {
 		       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
 		     });
-    
+
 
     //
     //  Compute exclusive sum and copy it into both hash_bins_start and
@@ -261,7 +261,7 @@ namespace cugraph {
 		       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
 		       hash_data[hash_offset] = vid;
 		     });
-		     
+
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
 		     dst, dst + size,
 		     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
@@ -269,7 +269,7 @@ namespace cugraph {
 		       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
 		       hash_data[hash_offset] = vid;
 		     });
-		     
+
     //
     //  Now we need to dedupe the hash bins
     //
@@ -311,7 +311,7 @@ namespace cugraph {
     *new_size = temp;
 
     ALLOC_TRY(numbering_map, (*new_size) * sizeof(T_in), nullptr);
-    
+
     T_in * local_numbering_map = *numbering_map;
 
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
@@ -332,7 +332,7 @@ namespace cugraph {
 
     return GDF_SUCCESS;
   }
-  
+
 }
 
 #endif
