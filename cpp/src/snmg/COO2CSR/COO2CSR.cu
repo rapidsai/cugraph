@@ -162,11 +162,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
   // Each thread reads the global edgecount
   idx_t globalEdgeCount;
-  cudaMemcpy(&globalEdgeCount, sourceCountsTemp + maxId, sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&globalEdgeCount, sourceCountsTemp + maxId + 1, sizeof(idx_t), cudaMemcpyDefault);
   cudaCheckError();
 
   // Each thread searches the global source node counts prefix sum to find the start of its vertex ID range
-  idx_t myStartVertex;
+  idx_t myStartVertex = 0;
   if (i != 0) {
     idx_t edgeCount = (globalEdgeCount / p) * i;
     idx_t* vertexRangeStart;
