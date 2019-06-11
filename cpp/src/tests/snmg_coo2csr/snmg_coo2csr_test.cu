@@ -159,7 +159,7 @@ public:
 
         // Compare the results with those generated on the host
         EXPECT_EQ(part_offset[0], part_offset_r[0]);
-        EXPECT_EQ(part_offset[1], part_offset_r[0]);
+        EXPECT_EQ(part_offset[1], part_offset_r[1]);
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
         EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
 
