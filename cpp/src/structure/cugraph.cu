@@ -32,6 +32,13 @@
  * use their new features. Until that time, we may rely on this as a temporary
  * solution.
  */
+
+int get_device(const void *ptr) {
+    cudaPointerAttributes att;
+    cudaPointerGetAttributes(&att, ptr);
+    return att.device;
+}
+
 void gdf_col_delete(gdf_column* col) {
   if (col != nullptr) {
     cudaStream_t stream {nullptr};
