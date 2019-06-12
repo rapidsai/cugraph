@@ -9,6 +9,10 @@
 #include <type_traits>
 #include <cstdint>
 
+#include "topology/topology.cuh"
+
+//#define _DEBUG_WEAK_CC
+
 //
 /**
  * @brief Compute connected components. 
@@ -73,30 +77,50 @@ gdf_connected_components_impl(gdf_graph *graph,
 
   //bool flag_dir = graph->prop->directed;//useless, for the time being...
   //TODO: direction_checker() to set this flag correctly; prop is not even allocated!
+
+  IndexT* p_d_labels = static_cast<IndexT*>(labels->data);
+  const IndexT* p_d_row_offsets = row_offsets_(graph);
+  const IndexT* p_d_col_ind = col_indices_(graph);
+
+  IndexT nnz = nnz_(graph);
+  IndexT nrows = nrows_(graph);//static_cast<IndexT>(graph->adjList->offsets->size) - 1;
   
   if( connectivity_type == CUGRAPH_WEAK )
     {
-      //check if graph is undirected; return w/ error, if not?
-      //Yes, for now; in the future we may remove this constraint; 
-      //
-      //GDF_REQUIRE(flag_dir == false, GDF_INVALID_API_CALL);//useless check
-      
-      IndexT* p_d_labels = static_cast<IndexT*>(labels->data);
-      const IndexT* p_d_row_offsets = row_offsets_(graph);
-      const IndexT* p_d_col_ind = col_indices_(graph);
-
-      IndexT nnz = nnz_(graph);
-      IndexT nrows = nrows_(graph);
+      // using VectorT = thrust::device_vector<IndexT>;
+      // VectorT d_ro(p_d_row_offsets, p_d_row_offsets + nrows + 1);
+      // VectorT d_ci(p_d_col_ind, p_d_col_ind + nnz);
 
 #ifdef _DEBUG_WEAK_CC
+      IndexT last_elem{0};
+      cudaMemcpy((void*)(&last_elem), p_d_row_offsets+nrows, sizeof(IndexT), cudaMemcpyDeviceToHost);
       std::cout<<"############## "
                <<"nrows = "<<nrows
                <<"; nnz = "<<nnz
+               <<"; nnz_ro = "<<last_elem
                <<"; p_d_labels valid: "<<(p_d_labels != nullptr)
                <<"; p_d_row_offsets valid: "<<(p_d_row_offsets != nullptr)
-               <<"; p_d_col_ind valid: " << (p_d_col_ind != nullptr) <<"\n";
+               <<"; p_d_col_ind valid: " << (p_d_col_ind != nullptr)
+               <<"\n";
+      
+      std::cout<<"############## d_ro:\n";
+      print_v(d_ro, std::cout);
+
+      std::cout<<"############## d_ci:\n";
+      print_v(d_ci, std::cout);
+#endif
+
+      //check if graph is undirected; return w/ error, if not?
+      //Yes, for now; in the future we may remove this constraint; 
+      //
+      bool is_symmetric = topology::check_symmetry(nrows, p_d_row_offsets, nnz, p_d_col_ind);
+#ifdef _DEBUG_WEAK_CC
+      std::cout<<"############## "
+               <<"; adj. matrix symmetric? " << is_symmetric
+               <<"\n";
 #endif
       
+      GDF_REQUIRE( is_symmetric, GDF_INVALID_API_CALL);
       MLCommon::Sparse::weak_cc_entry<IndexT, TPB_X>(p_d_labels,
                                                      p_d_row_offsets,
                                                      p_d_col_ind,
