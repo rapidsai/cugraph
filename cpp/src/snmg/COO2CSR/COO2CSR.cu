@@ -178,8 +178,8 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   cudaCheckError();
 
   // Each thread reads the global edgecount
-  idx_t globalEdgeCount;
-  cudaMemcpy(&globalEdgeCount, sourceCountsTemp + maxId + 1, sizeof(idx_t), cudaMemcpyDefault);
+  val_t globalEdgeCount;
+  cudaMemcpy(&globalEdgeCount, sourceCountsTemp + maxId + 1, sizeof(val_t), cudaMemcpyDefault);
   cudaCheckError();
 
   // Each thread searches the global source node counts prefix sum to find the start of its vertex ID range
@@ -210,9 +210,9 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
   // Each thread determines how many edges it will have in it's partition
   idx_t myEndVertex = part_offsets[i + 1];
-  idx_t startEdge, endEdge;
-  cudaMemcpy(&startEdge, sourceCountsTemp + myStartVertex, sizeof(idx_t), cudaMemcpyDefault);
-  cudaMemcpy(&endEdge, sourceCountsTemp + myEndVertex, sizeof(idx_t), cudaMemcpyDefault);
+  val_t startEdge, endEdge;
+  cudaMemcpy(&startEdge, sourceCountsTemp + myStartVertex, sizeof(val_t), cudaMemcpyDefault);
+  cudaMemcpy(&endEdge, sourceCountsTemp + myEndVertex, sizeof(val_t), cudaMemcpyDefault);
   idx_t myEdgeCount = endEdge - startEdge;
 
   ss.str("");
