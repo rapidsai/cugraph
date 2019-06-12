@@ -215,6 +215,10 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   cudaMemcpy(&endEdge, sourceCountsTemp + myEndVertex, sizeof(idx_t), cudaMemcpyDefault);
   idx_t myEdgeCount = endEdge - startEdge;
 
+  ss.str("");
+  ss << "MyEdgeCount=" << myEdgeCount;
+  serializeMessage(env, ss.str());
+
   // Each thread sorts its cooRow, cooCol, and cooVal
   idx_t *cooRowTemp, *cooColTemp;
   val_t *cooValTemp;
