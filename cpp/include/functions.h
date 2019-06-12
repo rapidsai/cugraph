@@ -216,3 +216,5 @@ gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * 
  */
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x);
+int get_device(const void *ptr);
+

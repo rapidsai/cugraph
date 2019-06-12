@@ -17,8 +17,10 @@
 # cython: language_level = 3
 
 include "graph/c_graph.pyx"
+include "utils/pointer_utils.pyx"
 include "nvgraph/c_nvgraph.pyx"
 include "pagerank/pagerank_wrapper.pyx"
+include "mg_pagerank/mg_pagerank_wrapper.pyx"
 include "sssp/sssp_wrapper.pyx"
 include "jaccard/jaccard_wrapper.pyx"
 include "jaccard/wjaccard_wrapper.pyx"
@@ -30,3 +32,5 @@ include "bfs/bfs_wrapper.pyx"
 include "spectral_clustering/spectral_clustering.pyx"
 include "subgraph_extraction/subgraph_extraction.pyx"
 include "triangle_count/triangle_count_wrapper.pyx"
+
+
