@@ -61,7 +61,7 @@ void serializeMessage(cugraph::SNMGinfo& env, std::string message){
   auto p = env.get_num_threads();
   for (int j = 0; j < p; j++){
     if (i == j)
-      std::cout << "Thread " << i << ": " << message << "/n";
+      std::cout << "Thread " << i << ": " << message << "\n";
 #pragma omp barrier
   }
 }
@@ -346,7 +346,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     thrust::sort(rmm::exec_policy(nullptr)->on(nullptr), zippy, zippy + myEdgeCount);
   }
 
-  idx_t localMaxId = part_offsets[i + 1] - part_offsets[i];
+  idx_t localMaxId = part_offsets[i + 1] - part_offsets[i] - 1;
   idx_t* offsets;
   ALLOC_TRY(&offsets, (localMaxId + 2) * sizeof(idx_t), nullptr);
   cudaMemset(offsets, 0, (maxId + 2) * sizeof(idx_t));
