@@ -58,6 +58,34 @@ cdef gdf_column get_gdf_column_view(col):
 
     return c_col
 
+
+cdef gdf_column get_gdf_column_ptr(ipc_data_ptr, col_len):
+    print("in gdf_column, ipc_data_ptr: ", ipc_data_ptr)
+    #cdef gdf_column* c_col
+    #c_col = <gdf_column*>calloc(1,sizeof(gdf_column))
+    cdef gdf_column c_col
+    cdef uintptr_t data_ptr = ipc_data_ptr
+    cdef uintptr_t valid_ptr = 0
+    #cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
+    #cdef uintptr_t valid_ptr
+    #if col._column._mask is None:
+    #    #valid_ptr = 0
+    #else:
+    #    #valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
+
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
+
+    err = gdf_column_view_augmented(<gdf_column*> &c_col,
+                                    <void*> data_ptr,
+                                    <gdf_valid_type*> valid_ptr,
+                                    <gdf_size_type> col_len,
+                                    dtypes[np.int32],
+                                    <gdf_size_type> 0,
+                                    c_extra_dtype_info)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    print("ipc_data_ptr: ", ipc_data_ptr)
+    return c_col
+
 #
 #  Really want something like this to clean up the code... but
 #  this can't work with the current interface.
