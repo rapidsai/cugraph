@@ -412,9 +412,12 @@ public:
   __host__ __device__
   bool operator()(const Tuple1 t1, const Tuple2 t2) {
     switch(i) {
-    case 0:  return (thrust::get<0>(t1) < thrust::get<0>(t2));
-    case 1:  return (thrust::get<1>(t1) < thrust::get<1>(t2));
-    default: return (thrust::get<0>(t1) < thrust::get<0>(t2));
+    case 0:
+      return (thrust::get<0>(t1) == thrust::get<0>(t2) ? thrust::get<1>(t1) < thrust::get<1>(t2) : thrust::get<0>(t1) < thrust::get<0>(t2));
+    case 1:
+      return (thrust::get<1>(t1) == thrust::get<1>(t2) ? thrust::get<0>(t1) < thrust::get<0>(t2) : thrust::get<1>(t1) < thrust::get<1>(t2));
+    default:
+      return (thrust::get<0>(t1) == thrust::get<0>(t2) ? thrust::get<1>(t1) < thrust::get<1>(t2) : thrust::get<0>(t1) < thrust::get<0>(t2));
     }
 
   }
