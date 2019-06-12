@@ -16,6 +16,8 @@
 
 #include <omp.h>
 #include <vector>
+#include <sstream>
+#include <string>
 #include "utilities/graph_utils.cuh"
 #include "snmg/utils.cuh"
 #include "rmm_utils.h"
@@ -53,6 +55,16 @@ public:
     free(valPtrs);
   }
 };
+
+void serializeMessage(cugraph::SNMGinfo& env, std::string message){
+  auto i = env.get_thread_num();
+  auto p = env.get_num_threads();
+  for (int j = 0; j < p; j++){
+    if (i == j)
+      std::cout << "Thread " << i << ": " << message << "/n";
+#pragma omp barrier
+  }
+}
 
 template<typename idx_t, typename val_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -106,6 +118,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   idx_t colID;
   cudaMemcpy(&colID, max_ptr, sizeof(idx_t), cudaMemcpyDefault);
   comm->maxIds[i] = max(rowID, colID);
+
+  std::stringstream ss;
+  ss << "Max Id found: " << comm->maxIds[i];
+  serializeMessage(env, ss.str());
+
 #pragma omp barrier
 
   // First thread finds maximum global ID
@@ -186,7 +203,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   }
   else {
     part_offsets[0] = 0;
-    part_offsets[p] = maxId;
+    part_offsets[p] = maxId + 1;
   }
   cudaCheckError();
 #pragma omp barrier
