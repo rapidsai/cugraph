@@ -25,9 +25,11 @@
 #include "nvgraph_error_utils.h"
 #include <thrust/sort.h>
 
+namespace cugraph {
 // Function for checking 0-based indexing
 template <typename T>
-gdf_error indexing_check (T* sources, T* destinations, int64_t nnz) {
+gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
+    cudaStream_t stream {nullptr};
     //   min from srcs after sorting is just the first element
     T minId = -1;
     CUDA_TRY(cudaMemcpy(&minId, &(srcs[0]), sizeof(T), cudaMemcpyDefault));
@@ -52,4 +54,4 @@ gdf_error indexing_check (T* sources, T* destinations, int64_t nnz) {
     return GDF_SUCCESS;
 }
 
-
+} //namespace cugraph

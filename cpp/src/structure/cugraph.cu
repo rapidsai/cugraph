@@ -24,6 +24,7 @@
 #include <thrust/device_vector.h>
 #include "utilities/cusparse_helper.h"
 #include <rmm_utils.h>
+#include <utilities/validation.cuh>
 /*
  * cudf has gdf_column_free and using this is, in general, better design than
  * creating our own, but we will keep this as cudf is planning to remove the
@@ -147,7 +148,23 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
     graph->edgeList->edge_data = nullptr;
   }
 
-  return GDF_SUCCESS;
+  gdf_error status;
+  switch (graph->edgeList->src_indices->dtype) {
+    case GDF_INT32:  status = cugraph::indexing_check<int> (
+                                static_cast<int*>(graph->edgeList->src_indices->data), 
+                                static_cast<int*>(graph->edgeList->dest_indices->data), 
+                                graph->edgeList->dest_indices->size);
+                    break;
+
+    case GDF_INT64: status = cugraph::indexing_check<int64_t>(
+                              static_cast<int64_t*>(graph->edgeList->src_indices->data), 
+                              static_cast<int64_t*>(graph->edgeList->dest_indices->data), 
+                              graph->edgeList->dest_indices->size);
+                    break;
+
+    default: break;
+  }
+  return status;
 }
 
 template <typename T, typename WT>
