@@ -20,7 +20,6 @@
 
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
-#include <cudf.h>
 #include "cuda_profiler_api.h"
 
 #include <cugraph.h>
