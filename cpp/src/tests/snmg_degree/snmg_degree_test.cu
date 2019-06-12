@@ -30,15 +30,15 @@ void ref_degree_h(int x,
                   std::vector<idx_t> & off_h,
                   std::vector<idx_t> & ind_h,
                   std::vector<idx_t> & degree) {
-  for (auto i = 0; i < degree.size(); i++)
+  for (size_t i = 0; i < degree.size(); i++)
     degree[i] = 0;
   if (x == 0 || x == 2) {
-    for (auto i = 0; i < degree.size(); ++i) {
+    for (size_t i = 0; i < degree.size(); ++i) {
       degree[i] += off_h[i + 1] - off_h[i];
     }
   }
   if (x == 0 || x == 1) {
-    for (auto i = 0; i < ind_h.size(); i++)
+    for (size_t i = 0; i < ind_h.size(); i++)
       degree[ind_h[i]] += 1;
   }
 }
@@ -174,7 +174,7 @@ public:
                                   sizeof(idx_t) * m,
                                   cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < degree_h.size(); ++j)
+          for (size_t j = 0; j < degree_h.size(); ++j)
             EXPECT_EQ(degree_ref[j], degree_h[j]);
         }
 
@@ -239,7 +239,7 @@ public:
                                   sizeof(idx_t) * m,
                                   cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < degree_h.size(); ++j)
+          for (size_t j = 0; j < degree_h.size(); ++j)
             EXPECT_EQ(degree_ref[j], degree_h[j]);
         }
 
@@ -392,7 +392,7 @@ public:
                                   sizeof(idx_t) * m,
                                   cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < degree_ref.size(); ++j)
+          for (size_t j = 0; j < degree_ref.size(); ++j)
             EXPECT_EQ(degree_ref[j], degree_h[j]);
         }
 
@@ -455,7 +455,7 @@ public:
                                   sizeof(idx_t) * m,
                                   cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < degree_h.size(); ++j)
+          for (size_t j = 0; j < degree_h.size(); ++j)
             EXPECT_EQ(degree_ref[j], degree_h[j]);
         }
 
