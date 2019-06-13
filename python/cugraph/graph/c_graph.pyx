@@ -225,18 +225,24 @@ class Graph:
         stores references to the deep-copies of the passed objects pointed by
         source_col and dest_col. If this class instance already stores a graph,
         invoking this function raises an error.
+        Source and detination indices must be in the range [0, V) where V is 
+        the number of vertices. They must be 32 bit integers. Please refer to 
+        cuGraph's renumbering feature if your input does not match these 
+        requierments.
         
         Parameters
         ----------
         source_col : cudf.Series
             This cudf.Series wraps a gdf_column of size E (E: number of edges).
             The gdf column contains the source index for each edge.
-            Source indices must be in the range [0, V) (V: number of vertices).
+            Source indices must be in the range [0, V) (V: number of vertices). 
+            Source indices must be 32 bit integers.
         dest_col : cudf.Series
             This cudf.Series wraps a gdf_column of size E (E: number of edges).
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
+            Destination indices must be 32 bit integers.
         value_col (optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
@@ -618,7 +624,7 @@ class Graph:
 
         df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed in-degree of the corresponding vertex
-        
+
         Examples
         --------
         >>> import numpy as np
