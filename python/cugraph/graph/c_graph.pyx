@@ -225,6 +225,7 @@ class Graph:
         stores references to the deep-copies of the passed objects pointed by
         source_col and dest_col. If this class instance already stores a graph,
         invoking this function raises an error.
+        
         Parameters
         ----------
         source_col : cudf.Series
@@ -243,6 +244,7 @@ class Graph:
             The gdf column contains the weight value for each edge.
             The expected type of the gdf_column element is floating point
             number.
+        
         Examples
         --------
         >>> import numpy as np
@@ -352,6 +354,7 @@ class Graph:
         the passed objects pointed by offset_col and index_col. If this class
         instance already stores a graph, invoking this function raises an
         error.
+
         Parameters
         ----------
         offset_col : cudf.Series
@@ -371,6 +374,7 @@ class Graph:
             The gdf column contains the weight value for each edge.
             The expected type of the gdf_column element is floating point
             number.
+
         Examples
         --------
         >>> import numpy as np
@@ -522,10 +526,11 @@ class Graph:
         connected by a path of two hops in the graph. The resulting pairs are
         returned in sorted order.
 
-        Returns:
-        df : a cudf.DataFrame object
-        df['first'] the first vertex id of a pair
-        df['second'] the second vertex id of a pair
+        Returns
+        -------
+        Two hop neighbors : cudf.DataFrame
+            df['first'] the first vertex id of a pair
+            df['second'] the second vertex id of a pair
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
@@ -598,10 +603,12 @@ class Graph:
         """
         Calculates and returns the in-degree of vertices. Vertex in-degree
         is the number of edges pointing in to the vertex.
+
         Parameters
         ----------
         vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
             A container of vertices for displaying corresponding in-degree
+
         Returns
         -------
         df  : cudf.DataFrame
@@ -611,6 +618,7 @@ class Graph:
 
         df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed in-degree of the corresponding vertex
+        
         Examples
         --------
         >>> import numpy as np
@@ -634,10 +642,12 @@ class Graph:
         """
         Calculates and returns the out-degree of vertices. Vertex out-degree
         is the number of edges pointing out from the vertex.
+
         Parameters
         ----------
         vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
             A container of vertices for displaying corresponding out-degree
+
         Returns
         -------
         df  : cudf.DataFrame
@@ -647,6 +657,7 @@ class Graph:
 
         df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed out-degree of the corresponding vertex
+
         Examples
         --------
         >>> import numpy as np
@@ -670,10 +681,12 @@ class Graph:
         """
         Calculates and returns the degree of vertices. Vertex degree
         is the number of edges adjacent to that vertex.
+
         Parameters
         ----------
         vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
             A container of vertices for displaying corresponding degree
+
         Returns
         -------
         df  : cudf.DataFrame
@@ -683,6 +696,7 @@ class Graph:
 
         df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed degree of the corresponding vertex
+
         Examples
         --------
         >>> import numpy as np
