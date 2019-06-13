@@ -80,7 +80,7 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
   GDF_REQUIRE( offsets->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( (offsets->dtype == indices->dtype), GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( ((offsets->dtype == GDF_INT32) || (offsets->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( ((offsets->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( (offsets->size > 0), GDF_DATASET_EMPTY );
 
   graph->adjList = new gdf_adj_list;
@@ -127,7 +127,7 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
     (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
   GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( src_indices->dtype == dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( ((src_indices->dtype == GDF_INT32) || (src_indices->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( ((src_indices->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY );
   GDF_REQUIRE( src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
@@ -149,21 +149,10 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
   }
 
   gdf_error status;
-  switch (graph->edgeList->src_indices->dtype) {
-    case GDF_INT32:  status = cugraph::indexing_check<int> (
+  status = cugraph::indexing_check<int> (
                                 static_cast<int*>(graph->edgeList->src_indices->data), 
                                 static_cast<int*>(graph->edgeList->dest_indices->data), 
                                 graph->edgeList->dest_indices->size);
-                    break;
-
-    case GDF_INT64: status = cugraph::indexing_check<int64_t>(
-                              static_cast<int64_t*>(graph->edgeList->src_indices->data), 
-                              static_cast<int64_t*>(graph->edgeList->dest_indices->data), 
-                              graph->edgeList->dest_indices->size);
-                    break;
-
-    default: break;
-  }
   return status;
 }
 
