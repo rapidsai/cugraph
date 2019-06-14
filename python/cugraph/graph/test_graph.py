@@ -15,6 +15,7 @@ import gc
 from itertools import product
 
 import numpy as np
+import pandas as pd
 import pytest
 from scipy.io import mmread
 
@@ -59,7 +60,7 @@ def compare_series(series_1, series_2):
             print("Series[" + str(i) + "] does not match, " + str(series_1[i])
                   + ", " + str(series_2[i]))
             return 0
-    return 1
+    return True
 
 
 def compare_offsets(offset0, offset1):
@@ -72,6 +73,43 @@ def compare_offsets(offset0, offset1):
             print("Series[" + str(i) + "]: " + str(offset0[i]) + " != "
                   + str(offset1[i]))
             return False
+    return True
+
+
+# This function returns True if two graphs are identical (bijection between the
+# vertices in one graph to the vertices in the other graph is identity AND two
+# graphs are automorphic; no permutations of vertices are allowed).
+def compare_graphs(nx_graph, cu_graph):
+    sources, destinations = cu_graph.view_edge_list()
+
+    df = pd.DataFrame()
+    df['source'] = sources.to_pandas()
+    df['target'] = destinations.to_pandas()
+
+    cu_to_nx_graph = nx.from_pandas_edgelist(df, create_using=nx.DiGraph())
+
+    # first compare nodes
+
+    ds0 = pd.Series(nx_graph.nodes)
+    ds1 = pd.Series(cu_to_nx_graph.nodes)
+
+    if not ds0.equals(ds1):
+        return False
+
+    # second compare edges
+
+    diff = nx.difference(nx_graph, cu_to_nx_graph)
+    if diff.number_of_edges() > 0:
+        return False
+
+    diff = nx.difference(cu_to_nx_graph, nx_graph)
+    if diff.number_of_edges() > 0:
+        return False
+
+    # need to compare edge weights for weighted graphs as well but currently
+    # users cannot retrieve edge weights from cugraph Graph objects
+    # (cugraph issue #319).
+
     return True
 
 
@@ -341,6 +379,52 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
         G.add_adj_list(offsets, indices, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
     G.delete_adj_list()
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_networkx_compatibility(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
+    # test from_cudf_edgelist()
+
+    M = read_mtx_file(graph_file)
+
+    df = pd.DataFrame()
+    df['source'] = pd.Series(M.row)
+    df['target'] = pd.Series(M.col)
+
+    gdf = cudf.from_pandas(df)
+
+    # cugraph.Graph() is implicitly a directed graph right at this moment, so
+    # we should use nx.DiGraph() for comparison.
+    Gnx = nx.from_pandas_edgelist(df, create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(gdf)
+
+    assert compare_graphs(Gnx, G)
+
+    Gnx.clear()
+    G.clear()
+
+    # cugraph.Graph() is implicitly a directed graph right at this moment, so
+    # we should use nx.DiGraph() for comparison.
+    Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
+                                  create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(gdf, source='source', target='target')
+
+    assert compare_graphs(Gnx, G)
+
+    Gnx.clear()
+    G.clear()
 
 
 DATASETS2 = ['../datasets/karate',
