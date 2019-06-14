@@ -6,6 +6,7 @@
 - PR #300 Personalized Page Rank
 - PR #302 SNMG CSR Pagerank (cuda/C++)
 - PR #315 Weakly Connected Components adapted from cuML (cuda/C++)
+- PR #323 Add test skipping function to build.sh
 - PR #308 SNMG python wrapper for pagerank
 
 ## Improvements
