@@ -256,23 +256,56 @@ gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
     return GDF_SUCCESS;
 }
 
-gdf_error gdf_add_adj_list(gdf_graph *graph) {
+gdf_error gdf_add_adj_list(gdf_graph* graph) {
   if (graph->adjList != nullptr)
     return GDF_SUCCESS;
 
-  GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
-  GDF_REQUIRE( graph->edgeList->src_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE(graph->edgeList != nullptr, GDF_INVALID_API_CALL);
+  GDF_REQUIRE(graph->edgeList->src_indices->dtype == GDF_INT32,
+              GDF_UNSUPPORTED_DTYPE);
+  gdf_error ret;
 
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return gdf_add_adj_list_impl<int32_t, float>(graph);
-      case GDF_FLOAT64:   return gdf_add_adj_list_impl<int32_t, double>(graph);
-      default: return GDF_UNSUPPORTED_DTYPE;
+      case GDF_FLOAT32:
+        ret = gdf_add_adj_list_impl<int32_t, float>(graph);
+        if (ret == GDF_SUCCESS) {
+          if (!graph->prop)
+            graph->prop = new gdf_graph_properties();
+          if (cugraph::has_negative_val(
+                  static_cast<float*>(graph->adjList->edge_data->data),
+                  graph->adjList->edge_data->size)) {
+            graph->prop->has_negative_edges = GDF_PROP_TRUE;
+          } else {
+            graph->prop->has_negative_edges = GDF_PROP_FALSE;
+          }
+        }
+        break;
+      case GDF_FLOAT64:
+        ret = gdf_add_adj_list_impl<int32_t, double>(graph);
+        if (ret == GDF_SUCCESS) {
+          if (!graph->prop)
+            graph->prop = new gdf_graph_properties();
+          if (cugraph::has_negative_val(
+                  static_cast<double*>(graph->adjList->edge_data->data),
+                  graph->adjList->edge_data->size))
+            graph->prop->has_negative_edges = GDF_PROP_TRUE;
+          else
+            graph->prop->has_negative_edges = GDF_PROP_FALSE;
+        }
+        break;
+      default:
+        ret = GDF_UNSUPPORTED_DTYPE;
+    }
+  } else {
+    ret = gdf_add_adj_list_impl<int32_t, float>(graph);
+    if (ret == GDF_SUCCESS) {
+      if (!graph->prop)
+        graph->prop = new gdf_graph_properties();
+      graph->prop->has_negative_edges = GDF_PROP_FALSE;
     }
   }
-  else {
-    return gdf_add_adj_list_impl<int32_t, float>(graph);
-  }
+  return ret;
 }
 
 gdf_error gdf_add_transposed_adj_list(gdf_graph *graph) {

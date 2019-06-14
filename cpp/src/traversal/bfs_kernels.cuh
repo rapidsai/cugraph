@@ -17,162 +17,9 @@
 
 #include <cub/cub.cuh>
 #include <utilities/sm_utils.h>
-
-#define MAXBLOCKS 65535
-#define WARP_SIZE 32
-#define INT_SIZE 32
-
-//
-// Bottom up macros
-//
-
-#define FILL_UNVISITED_QUEUE_DIMX 256
-
-#define COUNT_UNVISITED_EDGES_DIMX 256
-
-#define MAIN_BOTTOMUP_DIMX 256
-#define MAIN_BOTTOMUP_NWARPS (MAIN_BOTTOMUP_DIMX/WARP_SIZE)
-
-#define LARGE_BOTTOMUP_DIMX 256
-
-//Number of edges processed in the main bottom up kernel
-#define MAIN_BOTTOMUP_MAX_EDGES 6
-
-//Power of 2 < 32 (strict <)
-#define BOTTOM_UP_LOGICAL_WARP_SIZE 4
-
-//
-// Top down macros
-//
-
-// We will precompute the results the binsearch_maxle every TOP_DOWN_BUCKET_SIZE edges
-#define TOP_DOWN_BUCKET_SIZE 32
-
-// DimX of the kernel
-#define TOP_DOWN_EXPAND_DIMX 256
-
-// TOP_DOWN_EXPAND_DIMX edges -> NBUCKETS_PER_BLOCK buckets
-#define NBUCKETS_PER_BLOCK (TOP_DOWN_EXPAND_DIMX/TOP_DOWN_BUCKET_SIZE)
-
-// How many items_per_thread we can process with one bucket_offset loading
-// the -1 is here because we need the +1 offset
-#define MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD (TOP_DOWN_BUCKET_SIZE - 1)
-
-// instruction parallelism
-// for how many edges will we create instruction parallelism
-#define TOP_DOWN_BATCH_SIZE 2
-
-#define COMPUTE_BUCKET_OFFSETS_DIMX 512
-
-//Other macros
-
-#define FLAG_ISOLATED_VERTICES_DIMX 128
-
-//Number of vertices handled by one thread
-//Must be power of 2, lower than 32
-#define FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD 4 
-
-//Number of threads involved in the "construction" of one int in the bitset
-#define FLAG_ISOLATED_VERTICES_THREADS_PER_INT (INT_SIZE/FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD)
-
-//
-// Parameters of the heuristic to switch between bottomup/topdown
-//Finite machine described in http://parlab.eecs.berkeley.edu/sites/all/parlab/files/main.pdf 
-//
-
-using namespace cugraph;
+#include "traversal_common.cuh"
 
 namespace bfs_kernels {
-  //
-  // gives the equivalent vectors from a type
-  // for the max val, would be better to use numeric_limits<>::max() once
-  // cpp11 is allowed in nvgraph
-  //
-
-  template<typename >
-  struct vec_t {
-    typedef int4 vec4;
-    typedef int2 vec2;
-  };
-
-  template<>
-  struct vec_t<int> {
-    typedef int4 vec4;
-    typedef int2 vec2;
-    static const int max = INT_MAX;
-  };
-
-  template<>
-  struct vec_t<long long int> {
-    typedef longlong4 vec4;
-    typedef longlong2 vec2;
-    static const long long int max = LLONG_MAX;
-  };
-
-  //
-  // ------------------------- Helper device functions -------------------
-  //
-
-  __forceinline__ __device__ int getMaskNRightmostBitSet(int n) {
-    if (n == INT_SIZE)
-      return (~0);
-    int mask = (1 << n) - 1;
-    return mask;
-  }
-
-  __forceinline__ __device__ int getMaskNLeftmostBitSet(int n) {
-    if (n == 0)
-      return 0;
-    int mask = ~((1 << (INT_SIZE - n)) - 1);
-    return mask;
-  }
-
-  __forceinline__ __device__ int getNextZeroBit(int& val) {
-    int ibit = __ffs(~val) - 1;
-    val |= (1 << ibit);
-
-    return ibit;
-  }
-
-  struct BitwiseAnd
-  {
-    template<typename T>
-    __host__  __device__  __forceinline__ T operator()(const T &a, const T &b) const
-                                      {
-      return (a & b);
-    }
-  };
-
-  struct BitwiseOr
-  {
-    template<typename T>
-    __host__  __device__  __forceinline__ T operator()(const T &a, const T &b) const
-                                      {
-      return (a | b);
-    }
-  };
-
-  template<typename IndexType>
-  __device__ IndexType binsearch_maxle(const IndexType *vec,
-                                       const IndexType val,
-                                       IndexType low,
-                                       IndexType high) {
-    while (true) {
-      if (low == high)
-        return low; //we know it exists
-      if ((low + 1) == high)
-        return (vec[high] <= val) ? high : low;
-
-      IndexType mid = low + (high - low) / 2;
-
-      if (vec[mid] > val)
-        high = mid - 1;
-      else
-        low = mid;
-
-    }
-  }
-
   //
   //  -------------------------  Bottom up -------------------------
   //
@@ -223,7 +70,7 @@ namespace bfs_kernels {
       if (v_idx == (visited_bmap_nints - 1)) {
         int active_bits = n - (INT_SIZE * v_idx);
         int inactive_bits = INT_SIZE - active_bits;
-        int mask = getMaskNLeftmostBitSet(inactive_bits);
+        int mask = traversal::getMaskNLeftmostBitSet(inactive_bits);
         thread_visited_int |= mask; //Setting inactive bits as visited
       }
 
@@ -258,14 +105,14 @@ namespace bfs_kernels {
 
       while (nvertices_to_write > 0) {
         if (nvertices_to_write >= 4 && (current_unvisited_index % 4) == 0) {
-          typename vec_t<IndexType>::vec4 vec_v;
+          typename traversal::vec_t<IndexType>::vec4 vec_v;
 
-          vec_v.x = v_idx * INT_SIZE + getNextZeroBit(thread_visited_int);
-          vec_v.y = v_idx * INT_SIZE + getNextZeroBit(thread_visited_int);
-          vec_v.z = v_idx * INT_SIZE + getNextZeroBit(thread_visited_int);
-          vec_v.w = v_idx * INT_SIZE + getNextZeroBit(thread_visited_int);
+          vec_v.x = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
+          vec_v.y = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
+          vec_v.z = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
+          vec_v.w = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
 
-          typename vec_t<IndexType>::vec4 *unvisited_i4 = reinterpret_cast<typename vec_t<
+          typename traversal::vec_t<IndexType>::vec4 *unvisited_i4 = reinterpret_cast<typename traversal::vec_t<
               IndexType>::vec4*>(&unvisited[current_unvisited_index]);
           *unvisited_i4 = vec_v;
 
@@ -273,19 +120,19 @@ namespace bfs_kernels {
           nvertices_to_write -= 4;
         }
         else if (nvertices_to_write >= 2 && (current_unvisited_index % 2) == 0) {
-          typename vec_t<IndexType>::vec2 vec_v;
+          typename traversal::vec_t<IndexType>::vec2 vec_v;
 
-          vec_v.x = v_idx * INT_SIZE + getNextZeroBit(thread_visited_int);
-          vec_v.y = v_idx * INT_SIZE + getNextZeroBit(thread_visited_int);
+          vec_v.x = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
+          vec_v.y = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
 
-          typename vec_t<IndexType>::vec2 *unvisited_i2 = reinterpret_cast<typename vec_t<
+          typename traversal::vec_t<IndexType>::vec2 *unvisited_i2 = reinterpret_cast<typename traversal::vec_t<
               IndexType>::vec2*>(&unvisited[current_unvisited_index]);
           *unvisited_i2 = vec_v;
 
           current_unvisited_index += 2;
           nvertices_to_write -= 2;
         } else {
-          IndexType v = v_idx * INT_SIZE + getNextZeroBit(thread_visited_int);
+          IndexType v = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
 
           unvisited[current_unvisited_index] = v;
 
@@ -545,7 +392,7 @@ namespace bfs_kernels {
       int local_bmap_agg =
           WarpReduce(reduce_temp_storage).HeadSegmentedReduce(local_visited_bmap,
                                                               is_head,
-                                                              BitwiseAnd());
+                                                              traversal::BitwiseAnd());
 
       // We need to take care of the groups cut in two in two different warps
       // Saving second part of the reduce here, then applying it on the first part bellow
@@ -586,7 +433,7 @@ namespace bfs_kernels {
         //We know that's the case because elts are sorted in a group, and we are at laneid == 0
         //We will do an atomicOr - we have to be neutral about elts < unvisited_vertex
         int iv = unvisited_vertex % INT_SIZE; // we know that this unvisited_vertex is valid
-        int mask = getMaskNLeftmostBitSet(INT_SIZE - iv);
+        int mask = traversal::getMaskNLeftmostBitSet(INT_SIZE - iv);
         local_bmap_agg &= mask; //we have to be neutral for elts < unvisited_vertex
         atomicOr(&visited_bmap[unvisited_vertex / INT_SIZE], local_bmap_agg);
       }
@@ -612,7 +459,7 @@ namespace bfs_kernels {
         if (is_last_head_in_warp)
         {
           int ilast_v = last_v % INT_SIZE + 1;
-          int mask = getMaskNRightmostBitSet(ilast_v);
+          int mask = traversal::getMaskNRightmostBitSet(ilast_v);
           local_bmap_agg &= mask; //we have to be neutral for elts > last_unvisited_vertex
           atomicOr(&visited_bmap[unvisited_vertex / INT_SIZE], local_bmap_agg);
         }
@@ -798,59 +645,6 @@ namespace bfs_kernels {
                                                                 distances,
                                                                 predecessors,
                                                                 edge_mask);
-    cudaCheckError();
-  }
-
-  //
-  //
-  //  ------------------------------ Top down ------------------------------
-  //
-  //
-
-  //
-  // compute_bucket_offsets_kernel
-  // simply compute the position in the frontier corresponding all valid edges with index=TOP_DOWN_BUCKET_SIZE * k, k integer
-  //
-
-  template<typename IndexType>
-  __global__ void compute_bucket_offsets_kernel(const IndexType *frontier_degrees_exclusive_sum,
-                                                IndexType *bucket_offsets,
-                                                const IndexType frontier_size,
-                                                IndexType total_degree) {
-    IndexType end = ((total_degree - 1 + TOP_DOWN_EXPAND_DIMX) / TOP_DOWN_EXPAND_DIMX
-        * NBUCKETS_PER_BLOCK + 1);
-
-    for (IndexType bid = blockIdx.x * blockDim.x + threadIdx.x;
-        bid <= end;
-        bid += gridDim.x * blockDim.x) {
-
-      IndexType eid = min(bid * TOP_DOWN_BUCKET_SIZE, total_degree - 1);
-
-      bucket_offsets[bid] = binsearch_maxle(frontier_degrees_exclusive_sum,
-                                            eid,
-                                            (IndexType) 0,
-                                            frontier_size - 1);
-
-    }
-  }
-
-  template<typename IndexType>
-  void compute_bucket_offsets(IndexType *cumul,
-                              IndexType *bucket_offsets,
-                              IndexType frontier_size,
-                              IndexType total_degree,
-                              cudaStream_t m_stream) {
-    dim3 grid, block;
-    block.x = COMPUTE_BUCKET_OFFSETS_DIMX;
-
-    grid.x = min(  (IndexType) MAXBLOCKS,
-              ((total_degree - 1 + TOP_DOWN_EXPAND_DIMX) / TOP_DOWN_EXPAND_DIMX
-                  * NBUCKETS_PER_BLOCK + 1 + block.x - 1) / block.x);
-
-    compute_bucket_offsets_kernel<<<grid, block, 0, m_stream>>>(cumul,
-                                                                bucket_offsets,
-                                                                frontier_size,
-                                                                total_degree);
     cudaCheckError();
   }
 
@@ -1044,7 +838,7 @@ namespace bfs_kernels {
               IndexType bucket_end = shared_buckets_offsets[start_off_idx + 1]
                   - frontier_degrees_exclusive_sum_block_offset;
 
-              IndexType k = binsearch_maxle(shared_frontier_degrees_exclusive_sum,
+              IndexType k = traversal::binsearch_maxle(shared_frontier_degrees_exclusive_sum,
                                             gid,
                                             bucket_start,
                                             bucket_end)
@@ -1428,7 +1222,7 @@ namespace bfs_kernels {
       //Building int for bmap
       int int_aggregate_isolated_bmap =
           WarpReduce(warp_reduce_temp_storage[logicalwarpid]).Reduce(local_isolated_bmap,
-                                                                     BitwiseOr());
+                                                                     traversal::BitwiseOr());
 
       int is_head_of_visited_int =
           ((threadIdx.x % (FLAG_ISOLATED_VERTICES_THREADS_PER_INT)) == 0);
@@ -1461,106 +1255,5 @@ namespace bfs_kernels {
     cudaCheckError();
   }
 
-  //
-  //
-  //
-  // Some utils functions
-  //
-  //
-
-  //Creates CUB data for graph size n
-  template<typename IndexType>
-  void cub_exclusive_sum_alloc(IndexType n, void*& d_temp_storage, size_t &temp_storage_bytes) {
-    // Determine temporary device storage requirements for exclusive prefix scan
-    d_temp_storage = NULL;
-    temp_storage_bytes = 0;
-    IndexType *d_in = NULL, *d_out = NULL;
-    cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out, n);
-    // Allocate temporary storage for exclusive prefix scan
-    cudaStream_t stream{nullptr};
-    ALLOC_TRY(&d_temp_storage, temp_storage_bytes, stream);
-  }
-
-  template<typename IndexType>
-  __global__ void fill_kernel(IndexType *vec, IndexType n, IndexType val) {
-    for (IndexType u = blockDim.x * blockIdx.x + threadIdx.x;
-        u < n;
-        u += gridDim.x * blockDim.x)
-      vec[u] = val;
-
-  }
-
-  template<typename IndexType>
-  void fill(IndexType *vec, IndexType n, IndexType val, cudaStream_t m_stream) {
-    dim3 grid, block;
-    block.x = 256;
-    grid.x = min((n + block.x - 1) / block.x, (IndexType) MAXBLOCKS);
-    fill_kernel<<<grid, block, 0, m_stream>>>(vec, n, val);
-    cudaCheckError();
-  }
-
-  template<typename IndexType>
-  __global__ void set_frontier_degree_kernel(IndexType *frontier_degree,
-                                             IndexType *frontier,
-                                             const IndexType *degree,
-                                             IndexType n) {
-    for (IndexType idx = blockDim.x * blockIdx.x + threadIdx.x;
-        idx < n;
-        idx += gridDim.x * blockDim.x) {
-      IndexType u = frontier[idx];
-      frontier_degree[idx] = degree[u];
-    }
-  }
-
-  template<typename IndexType>
-  void set_frontier_degree(IndexType *frontier_degree,
-                           IndexType *frontier,
-                           const IndexType *degree,
-                           IndexType n,
-                           cudaStream_t m_stream) {
-    dim3 grid, block;
-    block.x = 256;
-    grid.x = min((n + block.x - 1) / block.x, (IndexType) MAXBLOCKS);
-    set_frontier_degree_kernel<<<grid, block, 0, m_stream>>>(frontier_degree,
-                                                             frontier,
-                                                             degree,
-                                                             n);
-    cudaCheckError();
-  }
-
-  template<typename IndexType>
-  void exclusive_sum(void *d_temp_storage,
-                     size_t temp_storage_bytes,
-                     IndexType *d_in,
-                     IndexType *d_out,
-                     IndexType num_items,
-                     cudaStream_t m_stream) {
-    if (num_items <= 1)
-      return; //DeviceScan fails if n==1
-    cub::DeviceScan::ExclusiveSum(d_temp_storage,
-                                  temp_storage_bytes,
-                                  d_in,
-                                  d_out,
-                                  num_items,
-                                  m_stream);
-  }
-
-  template<typename T>
-  __global__ void fill_vec_kernel(T *vec, T n, T val) {
-    for (T idx = blockIdx.x * blockDim.x + threadIdx.x;
-        idx < n;
-        idx += blockDim.x * gridDim.x)
-      vec[idx] = val;
-  }
-
-  template<typename T>
-  void fill_vec(T *vec, T n, T val, cudaStream_t stream) {
-    dim3 grid, block;
-    block.x = 256;
-    grid.x = (n + block.x - 1) / block.x;
-
-    fill_vec_kernel<<<grid, block, 0, stream>>>(vec, n, val);
-    cudaCheckError();
-  }
 }
 //
