@@ -42,7 +42,7 @@ gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
     T minId2;
     CUDA_TRY(cudaMemcpy(&minId2, minId_it, sizeof(T), cudaMemcpyDefault));        
     // negative index are not allowed
-    if (minId < 0 )
+    if (minId2 < 0 )
         return GDF_INVALID_API_CALL; 
 
     minId = minId < minId2 ? minId : minId2;

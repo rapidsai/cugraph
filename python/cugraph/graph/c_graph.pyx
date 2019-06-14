@@ -228,7 +228,8 @@ class Graph:
         Source and detination indices must be in the range [0, V) where V is 
         the number of vertices. They must be 32 bit integers. Please refer to 
         cuGraph's renumbering feature if your input does not match these 
-        requierments.
+        requierments. Undirected edges must be stored as directed edge in both 
+        direction.
         
         Parameters
         ----------
@@ -359,7 +360,8 @@ class Graph:
         If copy is True, this funcion stores references to the deep-copies of
         the passed objects pointed by offset_col and index_col. If this class
         instance already stores a graph, invoking this function raises an
-        error.
+        error. Undirected edges must be stored as directed edge in both 
+        direction.
 
         Parameters
         ----------
