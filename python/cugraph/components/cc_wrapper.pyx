@@ -20,7 +20,7 @@ import cudf
 #from pygdf import Column
 import numpy as np
 
-cpdef weak_cc(G, connect_type = 0): # CUGRAPH_WEAK):
+cpdef weak_cc(G, connect_type = CUGRAPH_WEAK):
     """
     Find the distances and predecessors for a breadth first traversal of a graph.
     
