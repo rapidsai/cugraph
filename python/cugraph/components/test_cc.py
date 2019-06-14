@@ -118,19 +118,13 @@ def test_weak_cc(managed, pool, graph_file):
     cu_M = read_csv_file(graph_file+'.csv')
     cugraph_labels = cugraph_call(cu_M)
 
-    # PROBLEM: NetX returns a list of components, each component being a
-    # collection of vertex indices;
+    # NetX returns a list of components, each component being a
+    # collection (set{}) of vertex indices;
     #
     # while cugraph returns a component label for each vertex;
 
     nx_n_components = len(netx_labels)
     cg_n_components = max(cugraph_labels)
-    #print("netx len: ", lnx)
-    #print("netx labels: ", netx_labels)
-
-    # debug:
-    #print("cugraph len: ", lnc)
-    #print("cugraph labels: ", cugraph_labels)
     
     assert nx_n_components == cg_n_components
 
@@ -142,9 +136,3 @@ def test_weak_cc(managed, pool, graph_file):
     lst_cg_components_lens = [counter_f(cugraph_labels, uniq_val) for uniq_val in set(cugraph_labels)]
 
     assert lst_nx_components_lens == lst_cg_components_lens
-    
-    #equality=[netx_labels[i] == cugraph_labels[i] for i in range(lnx)]
-    #if False in equality:
-    #    print("Found inconsistency at: ", equality.index(False))
-    #assert not (False in equality)
-    
