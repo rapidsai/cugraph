@@ -22,7 +22,7 @@ import numpy as np
 
 cpdef weak_cc(G, connect_type = CUGRAPH_WEAK):
     """
-    Find the distances and predecessors for a breadth first traversal of a graph.
+    Generate the connected components and attach a component label to each vertex.
     
     Parameters
     ----------
