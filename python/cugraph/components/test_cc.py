@@ -13,10 +13,8 @@
 
 import gc
 from itertools import product
-import queue
 import time
 
-import numpy as np
 import pytest
 from scipy.io import mmread
 
@@ -48,6 +46,7 @@ def read_csv_file(mm_file):
     print('Reading ' + str(mm_file) + '...')
     return cudf.read_csv(mm_file, delimiter=' ',
                          dtype=['int32', 'int32', 'float32'], header=None)
+
 
 def networkx_call(M):
     M = M.tocsr()
@@ -90,12 +89,14 @@ def cugraph_call(cu_M):
     labels = sorted(result)
     return labels
 
+
 # these should come w/ cugraph/python:
 #
-DATASETS = ['../datasets/dolphins', '../datasets/karate'] #,
-#            '../datasets/coPapersDBLP',     # missing
-#            '../datasets/coPapersCiteseer', # missing
-#            '../datasets/hollywood']        # missing
+DATASETS = ['../datasets/dolphins', '../datasets/karate']
+
+
+def counter_f(ls, val):
+    return sum(1 for x in ls if x == val)
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -114,7 +115,7 @@ def test_weak_cc(managed, pool, graph_file):
 
     M = read_mtx_file(graph_file+'.mtx')
     netx_labels = networkx_call(M)
-    
+
     cu_M = read_csv_file(graph_file+'.csv')
     cugraph_labels = cugraph_call(cu_M)
 
@@ -125,14 +126,14 @@ def test_weak_cc(managed, pool, graph_file):
 
     nx_n_components = len(netx_labels)
     cg_n_components = max(cugraph_labels)
-    
+
     assert nx_n_components == cg_n_components
 
-    lst_nx_components_lens = [len(c) for c in sorted(netx_labels ,key=len)]
+    lst_nx_components_lens = [len(c) for c in sorted(netx_labels, key=len)]
 
     # get counts of uniques:
     #
-    counter_f = lambda ls, val: sum(1 for x in ls if x==val)
-    lst_cg_components_lens = [counter_f(cugraph_labels, uniq_val) for uniq_val in set(cugraph_labels)]
+    lst_cg_components_lens = [counter_f(cugraph_labels, uniq_val)
+                              for uniq_val in set(cugraph_labels)]
 
     assert lst_nx_components_lens == lst_cg_components_lens
