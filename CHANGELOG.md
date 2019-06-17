@@ -6,13 +6,16 @@
 - PR #300 Personalized Page Rank
 - PR #302 SNMG CSR Pagerank (cuda/C++)
 - PR #315 Weakly Connected Components adapted from cuML (cuda/C++)
+- PR #323 Add test skipping function to build.sh
 - PR #308 SNMG python wrapper for pagerank
+- PR #321 Added graph initialization functions for NetworkX compatibility.
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
 - PR #286 Reorganized cugraph source directory
 - PR #306 Integrated nvgraph to libcugraph.so (libnvgraph_rapids.so will not be built anymore).
 - PR #306 Updated python test files to run pytest with all four RMM configurations.
+- PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
 
 
 ## Bug Fixes
@@ -25,6 +28,7 @@
 - PR #314 Added datasets to gitignore
 - PR #322 Updates to accommodate new cudf include file locations
 - PR #324 Fixed crash in WeakCC for larger graph and added adj matrix symmetry check
+- PR #327 Implemented a tempory fix for the build failure due to gunrock updates.
 
 # cuGraph 0.7.0 (10 May 2019)
 
