@@ -18,6 +18,7 @@
 ///#include "cuda_utils.h"
 ///#include "array/array.h"
 
+#include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
 
@@ -60,36 +61,72 @@ namespace Sparse {
 
 template<typename T = int>
 class WeakCCState {
-    public:
+public:
+  //using bool_ = char;
+  
+  bool *xa;
+  bool *fa;
+  bool *m;
+  bool owner;
 
-        bool *xa;
-        bool *fa;
-        bool *m;
-        bool owner;
+  WeakCCState(T n):
+    xa(nullptr),
+    fa(nullptr),
+    m(nullptr),
+    owner(true)
+  {
+    MLCommon::allocate(xa, n, true);
+    MLCommon::allocate(fa, n, true);
+    MLCommon::allocate(m, 1, true);
+    // h_p_d_xa = new thrust::device_vector<bool>(n, 1);
+    // h_p_d_fa = new thrust::device_vector<bool>(n, 1);
+    // h_p_d_m = new thrust::device_vector<bool>(1, 1);
 
-        WeakCCState(T n): owner(true) {
-            MLCommon::allocate(xa, n, true);
-            MLCommon::allocate(fa, n, true);
-            MLCommon::allocate(m, 1, true);
-        }
+    // xa = h_p_d_xa->data().get();
+    // fa = h_p_d_fa->data().get();
+    // m  = h_p_d_m->data().get();
+  }
 
-        WeakCCState(bool *xa, bool *fa, bool *m):
-            owner(false), xa(xa), fa(fa), m(m) {
-        }
+  WeakCCState(bool *xa, bool *fa, bool *m):
+    owner(false), xa(xa), fa(fa), m(m) {
+  }
 
-        ~WeakCCState() {
-            if(owner) {
-                try {
-                  cudaStream_t stream{nullptr};
-                  ALLOC_FREE_TRY(xa, stream);
-                  ALLOC_FREE_TRY(fa, stream);
-                  ALLOC_FREE_TRY(m,  stream);
-                } catch(Exception &e) {
-                    std::cout << "Exception freeing memory for WeakCCState: " <<
-                            e.what() << std::endl;
-                }
-            }
-        }
+  ~WeakCCState() {
+    if(owner) {
+      try {
+        // delete h_p_d_xa;
+        // delete h_p_d_fa;
+        // delete h_p_d_m;
+               
+        cudaStream_t stream{nullptr};
+        
+        if( xa )
+          ALLOC_FREE_TRY(xa, stream);
+          //CUDA_CHECK(cudaFree(xa));
+
+        if( fa )
+          ALLOC_FREE_TRY(fa, stream);
+          //CUDA_CHECK(cudaFree(fa));
+
+        if( m )
+          ALLOC_FREE_TRY(m,  stream);
+          //CUDA_CHECK(cudaFree(m));
+
+        xa = nullptr;
+        fa = nullptr;
+        m = nullptr;
+          
+        
+      } catch(Exception &e) {
+        std::cout << "Exception freeing memory for WeakCCState: " <<
+          e.what() << std::endl;
+      }
+    }
+  }
+// private:
+//   thrust::device_vector<bool>* h_p_d_xa;
+//   thrust::device_vector<bool>* h_p_d_fa;
+//   thrust::device_vector<bool>* h_p_d_m;
 };
 
 template <typename Type, int TPB_X = 32>
@@ -333,11 +370,13 @@ void weak_cc_entry(Type *labels,
                    Type N,
                    cudaStream_t stream) {
 
-    WeakCCState<Type> state(N);
-    weak_cc_batched<Type, TPB_X>(
-            labels, row_ind, row_ind_ptr,
-            nnz, N, 0, N, &state, stream);
-            ///[] __device__ (Type t){return true;});//this works, but subject to deprecation
+  WeakCCState<Type> state(N);
+  //WeakCCState<Type>* p_state(new WeakCCState<Type>(N));//leak memory on purpose...
+  weak_cc_batched<Type, TPB_X>(labels, row_ind, row_ind_ptr,
+                               nnz, N, 0, N, &state, stream);
+  ///[] __device__ (Type t){return true;});//this works, but subject to deprecation
+  
+  cudaDeviceSynchronize();
 }
   
 }

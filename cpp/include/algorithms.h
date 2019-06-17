@@ -209,3 +209,5 @@ gdf_error gdf_snmg_degree(int x,
  gdf_error gdf_connected_components(gdf_graph *graph,
                                     cugraph_cc_t connectivity_type,
                                     gdf_column *labels);
+gdf_error gdf_multi_pagerank (const size_t global_v, gdf_column *src_ptrs, gdf_column *dest_ptrs, gdf_column *pr, const float damping_factor, const int max_iter);
+

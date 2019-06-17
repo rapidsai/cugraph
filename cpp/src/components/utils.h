@@ -122,8 +122,8 @@ private:
  */
 template <typename Type>
 void copy(Type *dst, const Type *src, size_t len, cudaStream_t stream) {
-    CUDA_CHECK(cudaMemcpyAsync(dst, src, len * sizeof(Type),
-                               cudaMemcpyDefault, stream));
+  CUDA_CHECK(cudaMemcpyAsync(dst, src, len * sizeof(Type),
+                                 cudaMemcpyDefault, stream));
 }
 
 /**
@@ -169,6 +169,7 @@ template <typename Type>
 void allocate(Type *&ptr, size_t len, bool setZero = false) {
   cudaStream_t stream{nullptr};
   ALLOC_TRY ((void**)&ptr,   sizeof(Type) * len, stream);
+  //cudaMalloc((void **)&ptr, sizeof(Type) * len);
   if (setZero)
     CUDA_CHECK(cudaMemset(ptr, 0, sizeof(Type) * len));
 }
