@@ -92,7 +92,7 @@ def cugraph_call(cu_M):
 
 # these should come w/ cugraph/python:
 #
-DATASETS = ['../datasets/dolphins'] #,
+DATASETS = ['../datasets/dolphins', '../datasets/karate'] #,
 #            '../datasets/coPapersDBLP',     # missing
 #            '../datasets/coPapersCiteseer', # missing
 #            '../datasets/hollywood']        # missing
