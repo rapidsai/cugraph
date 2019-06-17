@@ -12,12 +12,9 @@
 # limitations under the License.
 
 from c_cc cimport *
-#from libcpp cimport bool
 from c_graph cimport *
-#from libcpp cimport cugraph_cc_t
 from libc.stdint cimport uintptr_t
 import cudf
-#from pygdf import Column
 import numpy as np
 
 cpdef weak_cc(G, connect_type = CUGRAPH_WEAK):
@@ -27,8 +24,7 @@ cpdef weak_cc(G, connect_type = CUGRAPH_WEAK):
     Parameters
     ----------
     G : cugraph.graph
-        cuGraph graph descriptor, should contain the connectivity information as an
-        adjacency list.
+        cuGraph graph descriptor
     connect_type : cugraph_cc_t
         Weak (CUGRAPH_WEAK), or Strong (CUGRAPH_STRONG) (not implemented, yet)
     
@@ -45,7 +41,7 @@ cpdef weak_cc(G, connect_type = CUGRAPH_WEAK):
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,none)
-    >>> dist, pred = cuGraph.weak_cc(G, CUGRAPH_WEAK)
+    >>> df = cuGraph.weak_cc(G, CUGRAPH_WEAK)
     """
 
     cdef uintptr_t graph = G.graph_ptr
