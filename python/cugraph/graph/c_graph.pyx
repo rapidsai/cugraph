@@ -11,13 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
+import numpy as np
+
 import cudf
 from librmm_cffi import librmm as rmm
-import numpy as np
+
+from c_graph cimport *
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
@@ -56,6 +58,34 @@ cdef gdf_column get_gdf_column_view(col):
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
+    return c_col
+
+
+cdef gdf_column get_gdf_column_ptr(ipc_data_ptr, col_len):
+    print("in gdf_column, ipc_data_ptr: ", ipc_data_ptr)
+    #cdef gdf_column* c_col
+    #c_col = <gdf_column*>calloc(1,sizeof(gdf_column))
+    cdef gdf_column c_col
+    cdef uintptr_t data_ptr = ipc_data_ptr
+    cdef uintptr_t valid_ptr = 0
+    #cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
+    #cdef uintptr_t valid_ptr
+    #if col._column._mask is None:
+    #    #valid_ptr = 0
+    #else:
+    #    #valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
+
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
+
+    err = gdf_column_view_augmented(<gdf_column*> &c_col,
+                                    <void*> data_ptr,
+                                    <gdf_valid_type*> valid_ptr,
+                                    <gdf_size_type> col_len,
+                                    dtypes[np.int32],
+                                    <gdf_size_type> 0,
+                                    c_extra_dtype_info)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    print("ipc_data_ptr: ", ipc_data_ptr)
     return c_col
 
 #
@@ -113,6 +143,16 @@ class Graph:
         self.delete_transposed_adj_list()
         free(g)
 
+    def clear(self):
+        """
+        Empty this graph. This function is added for NetworkX compatibility.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = <gdf_graph*> graph
+        self.delete_edge_list()
+        self.delete_adj_list()
+        self.delete_transposed_adj_list()
+
     def renumber(self, source_col, dest_col):
         """
         Take a (potentially sparse) set of source and destination vertex
@@ -167,10 +207,10 @@ class Graph:
         cdef gdf_column dest = get_gdf_column_view(dest_col)
 
         err = gdf_renumber_vertices(&source,
-	      			    &dest,
-				    &src_renumbered,
-				    &dst_renumbered,
-				    &numbering_map)
+                                    &dest,
+                                    &src_renumbered,
+                                    &dst_renumbered,
+                                    &numbering_map)
 
         cudf.bindings.cudf_cpp.check_gdf_error(err) 
 
@@ -208,7 +248,7 @@ class Graph:
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
-        value_col (optional) : cudf.Series
+        value_col(optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
@@ -233,6 +273,12 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         """
+        if source_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
+        if dest_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -336,7 +382,7 @@ class Graph:
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
-        value_col (optional) : cudf.Series
+        value_col(optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
@@ -362,6 +408,13 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_adj_list(offsets, indices, None)
         """
+        if offset_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "offsets.")
+        if index_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
+
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -549,6 +602,14 @@ class Graph:
         else:
             # An empty graph
             return 0
+
+    def number_of_nodes(self):
+        """
+        An alias of number_of_vertices(). This function is added for NetworkxX
+        compatibility.
+        """
+        return self.number_of_vertices()
+
 
     def number_of_edges(self):
         """
