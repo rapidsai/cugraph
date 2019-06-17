@@ -20,26 +20,26 @@ try:
 except AttributeError:
     NUMPY_INCLUDE = numpy.get_numpy_include()
 
-cudf_include_dir = os.path.normpath(sys.prefix) + '/include'
+conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 CYTHON_FILES = ['cugraph/*.pyx']
 
 if (os.environ.get('CONDA_PREFIX', None)):
     conda_prefix = os.environ.get('CONDA_PREFIX')
-    cudf_include_dir = conda_prefix + '/include'
-    cudf_lib_dir = conda_prefix + '/lib'
+    conda_include_dir = conda_prefix + '/include'
+    conda_lib_dir = conda_prefix + '/lib'
 
 EXTENSIONS = [
     Extension("cugraph",
               sources=CYTHON_FILES,
               include_dirs=[NUMPY_INCLUDE,
-                            cudf_include_dir,
+                            conda_include_dir,
                             '../cpp/src',
                             '../cpp/include',
                             '../cpp/build/gunrock',
                             '../cpp/build/gunrock/externals/moderngpu/include',
                             '../cpp/build/gunrock/externals/cub'],
               library_dirs=[get_python_lib()],
-              runtime_library_dirs=[cudf_lib_dir],
+              runtime_library_dirs=[conda_lib_dir],
               libraries=['cugraph', 'cudf'],
               language='c++',
               extra_compile_args=['-std=c++14'])
