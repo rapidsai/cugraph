@@ -92,11 +92,28 @@ def cugraph_call(cu_M):
 
 # these should come w/ cugraph/python:
 #
-DATASETS = ['../datasets/dolphins', '../datasets/karate']
+DATASETS = ['../datasets/dolphins', '../datasets/netscience']
 
 
+# vcount how many `val`s in ls container:
+#
 def counter_f(ls, val):
     return sum(1 for x in ls if x == val)
+
+
+# return number of uniques values in lst container:
+#
+def get_n_uniqs(lst):
+    return len(set(lst))
+
+
+# gets unique values of list and then counts the
+# occurences of each unique value within list;
+# note: because of using set(), the "keys"
+# (unique values) will be sorted in set(lst)
+#
+def get_uniq_counts(lst):
+    return [counter_f(lst, uniq_val) for uniq_val in set(lst)]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -125,7 +142,7 @@ def test_weak_cc(managed, pool, graph_file):
     # while cugraph returns a component label for each vertex;
 
     nx_n_components = len(netx_labels)
-    cg_n_components = max(cugraph_labels)
+    cg_n_components = get_n_uniqs(cugraph_labels)
 
     assert nx_n_components == cg_n_components
 
@@ -133,7 +150,6 @@ def test_weak_cc(managed, pool, graph_file):
 
     # get counts of uniques:
     #
-    lst_cg_components_lens = [counter_f(cugraph_labels, uniq_val)
-                              for uniq_val in set(cugraph_labels)]
+    lst_cg_components_lens = sorted(get_uniq_counts(cugraph_labels))
 
     assert lst_nx_components_lens == lst_cg_components_lens
