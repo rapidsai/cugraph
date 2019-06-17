@@ -218,18 +218,22 @@ class Graph:
         """
         Create the edge list representation of a Graph. The passed source_col
         and dest_col arguments wrap gdf_column objects that represent a graph
-        using the edge list format. If value_col is None, an unweighted graph
-        is created. If value_col is not None, an weighted graph is created. If
-        copy is False, this function stores references to the passed objects
+        using the edge list format. 
+        Source and detination indices must be in the range [0, V) where V is 
+        the number of vertices. They must be 32 bit integers. Please refer to 
+        cuGraph's renumbering feature if your input does not match these 
+        requierments. When using cudf.read_csv to load a CSV edge list, 
+        please make sure to set dtype to int32 for the source and destination
+        columns.
+        Undirected edges must be stored as directed edge in both directions.
+        If value_col is None, an unweighted graph is created. If value_col is 
+        not None, an weighted graph is created. 
+        If copy is False, this function stores references to the passed objects
         pointed by source_col and dest_col. If copy is True, this funcion
         stores references to the deep-copies of the passed objects pointed by
         source_col and dest_col. If this class instance already stores a graph,
         invoking this function raises an error.
-        Source and detination indices must be in the range [0, V) where V is 
-        the number of vertices. They must be 32 bit integers. Please refer to 
-        cuGraph's renumbering feature if your input does not match these 
-        requierments. Undirected edges must be stored as directed edge in both 
-        direction.
+        
         
         Parameters
         ----------
