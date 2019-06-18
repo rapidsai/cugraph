@@ -38,6 +38,7 @@ cdef gdf_column get_gdf_column_view(col):
     redesign, we need to update this code to use their new features. Until that
     time, we may rely on this as a temporary solution.
     """
+
     cdef gdf_column c_col
     cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
     cdef uintptr_t valid_ptr
@@ -104,6 +105,10 @@ cdef gdf_column get_gdf_column_ptr(ipc_data_ptr, col_len):
 #                                     dtype=dtypes_inv[col.dtype],
 #                                     finalizer=rmm._make_finalizer(<uintptr_t> col_ptr, 0))
 #
+
+def null_check(col):
+    if col.null_count != 0:
+        raise ValueError('Series contains NULL values')
 
 class Graph:
     """
@@ -186,6 +191,8 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> src_r, dst_r, numbering = G.renumber(sources, destinations)
         """
+        null_check(source_col)
+        null_check(dest_col)
 
         cdef gdf_column src_renumbered
         cdef gdf_column dst_renumbered
@@ -274,6 +281,8 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         """
+        null_check(source_col)
+        null_check(dest_col)
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -295,6 +304,7 @@ class Graph:
         if value_col is None:
             c_value_col_ptr = NULL
         else:
+            null_check(tmp_value_col)
             c_value_col = get_gdf_column_view(tmp_value_col)
             c_value_col_ptr = &c_value_col
 
@@ -406,6 +416,9 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_adj_list(offsets, indices, None)
         """
+        null_check(offset_col)
+        null_check(index_col)
+
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -427,6 +440,7 @@ class Graph:
         if value_col is None:
             c_value_col_ptr = NULL
         else:
+            null_check(tmp_value_col)
             c_value_col = get_gdf_column_view(tmp_value_col)
             c_value_col_ptr = &c_value_col
 

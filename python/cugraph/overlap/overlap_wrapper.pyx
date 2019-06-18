@@ -78,6 +78,8 @@ cpdef overlap(input_graph, first=None, second=None):
     cdef gdf_column c_src_index_col
 
     if type(first) == cudf.dataframe.series.Series and type(second) == cudf.dataframe.series.Series:
+        null_check(first)
+        null_check(second)
         result_size = len(first)
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
