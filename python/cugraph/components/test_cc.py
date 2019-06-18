@@ -80,7 +80,7 @@ def cugraph_call(cu_M):
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     t1 = time.time()
-    df = cugraph.weak_cc(G)
+    df = cugraph.weakly_connected_components(G)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 

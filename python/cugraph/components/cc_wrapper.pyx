@@ -17,7 +17,7 @@ from libc.stdint cimport uintptr_t
 import cudf
 import numpy as np
 
-cpdef weak_cc(G, connect_type = CUGRAPH_WEAK):
+cpdef weakly_connected_components(G, connect_type = CUGRAPH_WEAK):
     """
     Generate the connected components and attach a component label to each vertex.
     
