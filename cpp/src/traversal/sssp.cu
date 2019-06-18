@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// Author: Prasun Gera pgera@nvidia.com
+
 #include <cugraph.h>
 #include <rmm_utils.h>
 #include <algorithm>
@@ -94,6 +96,7 @@ void SSSP<IndexType, DistType>::setup() {
                   stream);
 
   // We need nisolated to be ready to use
+  // nisolated is the number of isolated (zero out-degree) vertices
   cudaStreamSynchronize(stream);
 }
 
@@ -162,19 +165,6 @@ gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   int iters = 0;
 
   while (nf > 0) {
-#if 0 
-	  //DEBUG CODE
-	  std::cout << "nf " << nf << "\n";
-	  DistType test;
-		cudaMemcpyAsync(&test,
-                    &distances[0],
-                    sizeof(DistType),
-                    cudaMemcpyDeviceToHost,
-                    stream);
-    cudaStreamSynchronize(stream);
-	std::cout << "test val " << test << "\n";
-#endif
-
     // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
     traversal::set_frontier_degree(
         frontier_vertex_degree, frontier, vertex_degree, nf, stream);

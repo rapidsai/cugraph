@@ -28,11 +28,13 @@ void ref_bfs(const std::vector<MaxEType>& rowPtr,
              const MaxVType source_vertex,
              std::vector<DistType>& distances,
              std::vector<MaxVType>& predecessors) {
-  size_t n = rowPtr.size() - 1;
-  size_t nnz = colInd.size();
+  typename std::vector<MaxEType>::size_type n = rowPtr.size() - 1;
+  typename std::vector<MaxVType>::size_type nnz = colInd.size();
 
-  ASSERT_LE(n, std::numeric_limits<MaxVType>::max() - 1);
-  ASSERT_LE(nnz, std::numeric_limits<MaxEType>::max());
+  ASSERT_LE(
+      n, static_cast<decltype(n)>(std::numeric_limits<MaxVType>::max()) - 1);
+  ASSERT_LE(nnz,
+            static_cast<decltype(nnz)>(std::numeric_limits<MaxEType>::max()));
   ASSERT_EQ(distances.size(), rowPtr.size() - 1);
 
   std::fill(distances.begin(),
@@ -67,11 +69,13 @@ void ref_sssp(const std::vector<MaxEType>& rowPtr,
               const MaxVType source_vertex,
               std::vector<DistType>& distances,
               std::vector<MaxVType>& predecessors) {
-  size_t n = rowPtr.size() - 1;
-  size_t nnz = colInd.size();
+  typename std::vector<MaxEType>::size_type n = rowPtr.size() - 1;
+  typename std::vector<MaxVType>::size_type nnz = colInd.size();
 
-  ASSERT_LE(n, std::numeric_limits<MaxVType>::max() - 1);
-  ASSERT_LE(nnz, std::numeric_limits<MaxEType>::max());
+  ASSERT_LE(
+      n, static_cast<decltype(n)>(std::numeric_limits<MaxVType>::max()) - 1);
+  ASSERT_LE(nnz,
+            static_cast<decltype(nnz)>(std::numeric_limits<MaxEType>::max()));
   ASSERT_EQ(nnz, weights.size());
   ASSERT_EQ(distances.size(), rowPtr.size() - 1);
 
@@ -118,7 +122,7 @@ typedef struct SSSP_Usecase_t {
   GraphType type_;
   std::string config_;
   std::string file_path_;
-  int src_;
+  uint64_t src_;
   SSSP_Usecase_t(const GraphType& type,
                  const std::string& config,
                  const int src)
@@ -142,7 +146,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
   static void SetupTestCase() {}
   static void TearDownTestCase() {
     if (PERF) {
-      for (unsigned int i = 0; i < SSSP_time.size(); ++i) {
+      for (size_t i = 0; i < SSSP_time.size(); ++i) {
         std::cout << SSSP_time[i] / PERF_MULTIPLIER << std::endl;
       }
     }
@@ -152,19 +156,36 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
   static std::vector<double> SSSP_time;
 
-  template <typename DistType, bool DoDist, bool DoPreds>
+  template <typename MaxVType,
+            typename MaxEType,
+            typename DistType,
+            bool DoDist,
+            bool DoPreds>
   void run_current_test(const SSSP_Usecase& param) {
     gdf_column col_src, col_dest, col_weights, col_distances, col_preds;
 
-    size_t v, e;
+    MaxVType num_vertices;
+    MaxEType num_edges;
+    MaxVType src;
+
+    ASSERT_LE(param.src_,
+              static_cast<uint64_t>(std::numeric_limits<MaxVType>::max()));
+    src = static_cast<MaxVType>(param.src_);
+
     // Input
     col_src.data = nullptr;
-    col_src.dtype = GDF_INT32;
+    if (std::is_same<MaxVType, int>::value)
+      col_src.dtype = GDF_INT32;
+    else
+      ASSERT_TRUE(0);  // We don't have support for other types yet
     col_src.valid = nullptr;
     col_src.null_count = 0;
 
     col_dest.data = nullptr;
-    col_dest.dtype = GDF_INT32;
+    if (std::is_same<MaxVType, int>::value)
+      col_dest.dtype = GDF_INT32;
+    else
+      ASSERT_TRUE(0);  // We don't have support for other types yet
     col_dest.valid = nullptr;
     col_dest.null_count = 0;
 
@@ -174,7 +195,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     else if (std::is_same<DistType, double>::value)
       col_weights.dtype = GDF_FLOAT64;
     else
-      ASSERT_TRUE(0);
+      ASSERT_TRUE(0);  // We don't have support for other types yet
+
     col_weights.valid = nullptr;
     col_weights.null_count = 0;
 
@@ -185,17 +207,23 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     col_preds.size = 0;
 
     if (param.type_ == RMAT) {
+      // This is size_t due to grmat_gen which should be fixed there
+      size_t v, e;
       ASSERT_EQ(
           gdf_grmat_gen(
               param.config_.c_str(), v, e, &col_src, &col_dest, &col_weights),
           GDF_SUCCESS);
+      num_vertices = v;
+      num_edges = e;
     } else if (param.type_ == MTX) {
-      int m, k, nnz;
+      MaxVType m, k;
+      MaxEType nnz;
       MM_typecode mc;
 
       FILE* fpin = fopen(param.file_path_.c_str(), "r");
-
-      ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
+      ASSERT_NE(fpin, static_cast<FILE*>(nullptr));
+      // mm_properties has only one template param which should be fixed there
+      ASSERT_EQ(mm_properties<MaxVType>(fpin, 1, &mc, &m, &k, &nnz), 0)
           << "could not read Matrix Market file properties"
           << "\n";
       ASSERT_TRUE(mm_is_matrix(mc));
@@ -204,21 +232,30 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_FALSE(mm_is_skew(mc));
 
       // Allocate memory on host
-      std::vector<int> cooRowInd(nnz), cooColInd(nnz);
+      std::vector<MaxVType> cooRowInd(nnz), cooColInd(nnz);
       std::vector<DistType> cooVal;
 
       // Read weights if given
       if (!mm_is_pattern(mc)) {
         cooVal.resize(nnz);
-        ASSERT_EQ(
-            (mm_to_coo<int, DistType>(
-                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
-            0)
+        ASSERT_EQ((mm_to_coo(fpin,
+                             1,
+                             nnz,
+                             &cooRowInd[0],
+                             &cooColInd[0],
+                             &cooVal[0],
+                             static_cast<DistType*>(nullptr))),
+                  0)
             << "could not read matrix data"
             << "\n";
       } else {
-        ASSERT_EQ((mm_to_coo<int, DistType>(
-                      fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], NULL, NULL)),
+        ASSERT_EQ((mm_to_coo(fpin,
+                             1,
+                             nnz,
+                             &cooRowInd[0],
+                             &cooColInd[0],
+                             static_cast<DistType*>(nullptr),
+                             static_cast<DistType*>(nullptr))),
                   0)
             << "could not read matrix data"
             << "\n";
@@ -238,28 +275,28 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       create_gdf_column(cooRowInd, &col_src);
       create_gdf_column(cooColInd, &col_dest);
       create_gdf_column(cooVal, &col_weights);
-      v = m;
-      e = nnz;
+
+      num_vertices = m;
+      num_edges = nnz;
     } else {
       ASSERT_TRUE(0);
     }
 
-    // std::cout << "v = " << v << "e = " << e << "\n";
     gdf_graph G;
     ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights),
               GDF_SUCCESS);
 
     std::vector<DistType> dist_vec;
-    std::vector<int32_t> pred_vec;
+    std::vector<MaxVType> pred_vec;
 
     if (DoDist) {
-      dist_vec =
-          std::vector<DistType>(v, std::numeric_limits<DistType>::max());
+      dist_vec = std::vector<DistType>(num_vertices,
+                                       std::numeric_limits<DistType>::max());
       create_gdf_column(dist_vec, &col_distances);
     }
 
     if (DoPreds) {
-      pred_vec = std::vector<int32_t>(v, -1);
+      pred_vec = std::vector<MaxVType>(num_vertices, -1);
       create_gdf_column(pred_vec, &col_preds);
     }
 
@@ -270,62 +307,64 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     cudaDeviceSynchronize();
     if (PERF) {
       hr_clock.start();
-      for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-        ret = gdf_sssp(&G, &col_distances, &col_preds, param.src_);
+      for (auto i = 0; i < PERF_MULTIPLIER; ++i) {
+        ret = gdf_sssp(&G, &col_distances, &col_preds, src);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       SSSP_time.push_back(time_tmp);
     } else {
-      ret = gdf_sssp(&G, &col_distances, &col_preds, param.src_);
+      ret = gdf_sssp(&G, &col_distances, &col_preds, src);
       cudaDeviceSynchronize();
     }
 
     ASSERT_EQ(ret, GDF_SUCCESS);
 
-    // MTX may have zero-degree vertices. So reset v after conversion to CSR
-    v = G.adjList->offsets->size - 1;
+    // MTX may have zero-degree vertices. So reset num_vertices after
+    // conversion to CSR
+    num_vertices = G.adjList->offsets->size - 1;
 
     if (DoDist)
       cudaMemcpy((void*)&dist_vec[0],
                  col_distances.data,
-                 sizeof(DistType) * v,
+                 sizeof(DistType) * num_vertices,
                  cudaMemcpyDeviceToHost);
 
     if (DoPreds)
       cudaMemcpy((void*)&pred_vec[0],
                  col_preds.data,
-                 sizeof(int32_t) * v,
+                 sizeof(MaxVType) * num_vertices,
                  cudaMemcpyDeviceToHost);
 
     // Create ref host structures
 
-    std::vector<int32_t> vlist(v + 1), elist(e);
-    std::vector<DistType> ref_distances(v), weights(e);
-    std::vector<int32_t> ref_predecessors(v);
+    std::vector<MaxEType> vlist(num_vertices + 1);
+    std::vector<MaxVType> elist(num_edges);
+    std::vector<DistType> ref_distances(num_vertices), weights(num_edges);
+    std::vector<MaxVType> ref_predecessors(num_vertices);
 
     cudaMemcpy((void*)&vlist[0],
                G.adjList->offsets->data,
-               sizeof(int32_t) * (v + 1),
+               sizeof(MaxEType) * (num_vertices + 1),
                cudaMemcpyDeviceToHost);
     cudaMemcpy((void*)&elist[0],
                G.adjList->indices->data,
-               sizeof(int32_t) * (e),
+               sizeof(MaxVType) * (num_edges),
                cudaMemcpyDeviceToHost);
     cudaMemcpy((void*)&weights[0],
                G.adjList->edge_data->data,
-               sizeof(DistType) * (e),
+               sizeof(DistType) * (num_edges),
                cudaMemcpyDeviceToHost);
 
-    std::unordered_map<uint64_t, DistType> min_edge_map;
+    std::map<std::pair<MaxVType, MaxVType>, DistType> min_edge_map;
 
     if (DoPreds) {
-      for (auto i = 0; i < v; ++i) {
-        for (auto e = vlist[i]; e < vlist[i + 1]; ++e) {
-          DistType weight = weights[e];
-          uint64_t key = (uint64_t)i << 32 | (uint64_t)elist[e];
+      for (auto i = 0; i < num_vertices; ++i) {
+        for (auto offset = vlist[i]; offset < vlist[i + 1]; ++offset) {
+          DistType weight = weights[offset];
+          auto key = std::make_pair(i, elist[offset]);
           if (min_edge_map.find(key) != min_edge_map.end()) {
-            min_edge_map[key] == std::min(weight, min_edge_map[key]);
+            min_edge_map[key] = std::min(weight, min_edge_map[key]);
           } else {
             min_edge_map[key] = weight;
           }
@@ -333,10 +372,9 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       }
     }
 
-    ref_sssp(
-        vlist, elist, weights, param.src_, ref_distances, ref_predecessors);
+    ref_sssp(vlist, elist, weights, src, ref_distances, ref_predecessors);
 
-    for (auto i = 0; i < v; ++i) {
+    for (auto i = 0; i < num_vertices; ++i) {
       if (DoDist)
         ASSERT_EQ(dist_vec[i], ref_distances[i])
             << "vid: " << i << "ref dist " << ref_distances[i]
@@ -344,8 +382,9 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
       if (DoPreds) {
         if (pred_vec[i] != -1) {
-          uint64_t key = (uint64_t)pred_vec[i] << 32 | (uint64_t)i;
+          auto key = std::make_pair(pred_vec[i], i);
           DistType min_edge_weight = min_edge_map.at(key);
+
           ASSERT_EQ(ref_distances[pred_vec[i]] + min_edge_weight,
                     ref_distances[i])
               << "vid: " << i << "pred " << pred_vec[i] << " ref dist "
@@ -359,28 +398,38 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
         }
       }
     }
+
+    // Done with device mem. Free it
+    cudaStream_t stream{nullptr};
+    ALLOC_FREE_TRY(col_src.data, stream);
+    ALLOC_FREE_TRY(col_dest.data, stream);
+    ALLOC_FREE_TRY(col_weights.data, stream);
+    if (DoDist)
+      ALLOC_FREE_TRY(col_distances.data, stream);
+    if (DoPreds)
+      ALLOC_FREE_TRY(col_preds.data, stream);
   }
 };
 
 std::vector<double> Tests_SSSP::SSSP_time;
 
 TEST_P(Tests_SSSP, CheckFP32_DIST_NO_PREDS) {
-  run_current_test<float, true, false>(GetParam());
+  run_current_test<int, int, float, true, false>(GetParam());
 }
 TEST_P(Tests_SSSP, CheckFP32_NO_DIST_PREDS) {
-  run_current_test<float, false, true>(GetParam());
+  run_current_test<int, int, float, false, true>(GetParam());
 }
 TEST_P(Tests_SSSP, CheckFP32_DIST_PREDS) {
-  run_current_test<float, true, true>(GetParam());
+  run_current_test<int, int, float, true, true>(GetParam());
 }
 TEST_P(Tests_SSSP, CheckFP64_DIST_NO_PREDS) {
-  run_current_test<double, true, false>(GetParam());
+  run_current_test<int, int, double, true, false>(GetParam());
 }
 TEST_P(Tests_SSSP, CheckFP64_NO_DIST_PREDS) {
-  run_current_test<double, false, true>(GetParam());
+  run_current_test<int, int, double, false, true>(GetParam());
 }
 TEST_P(Tests_SSSP, CheckFP64_DIST_PREDS) {
-  run_current_test<double, true, true>(GetParam());
+  run_current_test<int, int, double, true, true>(GetParam());
 }
 
 // --gtest_filter=*simple_test*
@@ -399,9 +448,7 @@ INSTANTIATE_TEST_CASE_P(
                      10),
         SSSP_Usecase(MTX, "test/datasets/dblp.mtx", 100),
         SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
-        SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)
-        //,SSSP_Usecase(MTX, "test/datasets/cit-Patents.mtx", 100)
-        ));
+        SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));
 
 int main(int argc, char** argv) {
   srand(42);

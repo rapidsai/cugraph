@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// Author: Prasun Gera pgera@nvidia.com
+
 #pragma once
 
 namespace cugraph {

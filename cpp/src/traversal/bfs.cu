@@ -20,8 +20,6 @@
 #include "traversal_common.cuh"
 #include "bfs_kernels.cuh"
 
-//using namespace bfs_kernels;
-
 namespace cugraph {
   enum BFS_ALGO_STATE {
     TOPDOWN, BOTTOMUP
