@@ -253,8 +253,9 @@ namespace cugraph {
     //  to sort each bin.  This will allow us to identify duplicates (all duplicates
     //  are in the same hash bin so they will end up sorted consecutively).
     //
+    detail::index_type size_as_int = size;
     cugraph::bitonic::segmented_sort(hash_size,
-                                     detail::index_type{size},
+                                     size_as_int,
                                      hash_bins_start,
                                      hash_bins_end,
                                      hash_data,
@@ -347,8 +348,9 @@ namespace cugraph {
     //
     //  If we do a segmented sort now, we can do the final lookups.
     //
+    size_as_int = size;
     cugraph::bitonic::segmented_sort(hash_size,
-                                     detail::index_type{size},
+                                     size_as_int,
                                      hash_bins_start,
                                      hash_bins_end,
                                      local_numbering_map,

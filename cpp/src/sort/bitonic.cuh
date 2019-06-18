@@ -457,27 +457,11 @@ namespace cugraph {
                            atomicAdd(d_lrb + __clz(size), 1);
                        });
       
-#ifdef DEBUG
-      printf("lrb counts:");
-      CUDA_TRY(cudaMemcpy(lrb, d_lrb, (lrb_size + 1) * sizeof(IndexT), cudaMemcpyDeviceToHost));
-      for (int iii = 0 ; iii < lrb_size ; ++iii)
-        printf(" %d", lrb[iii]);
-      printf("\n");
-#endif
-
       //
       //  Exclusive sum will identify where each bin begins
       //
       thrust::exclusive_scan(rmm::exec_policy(stream)->on(stream),
                              d_lrb, d_lrb + (lrb_size + 1), d_lrb);
-
-#ifdef DEBUG
-      printf("lrb starts:");
-      CUDA_TRY(cudaMemcpy(lrb, d_lrb, (lrb_size + 1) * sizeof(IndexT), cudaMemcpyDeviceToHost));
-      for (int iii = 0 ; iii < lrb_size ; ++iii)
-        printf(" %d", lrb[iii]);
-      printf("\n");
-#endif
 
       //
       //  Copy the start of each bin to local memory

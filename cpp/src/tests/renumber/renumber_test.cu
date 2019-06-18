@@ -236,7 +236,7 @@ TEST_F(RenumberingTest, SmallFixedVertexListString)
   memset(local_buffer, 0, unique_verts * maxStringLen);
 
   local_strings[0] = local_buffer;
-  for (int i = 1 ; i < unique_verts ; ++i)
+  for (size_t i = 1 ; i < unique_verts ; ++i)
     local_strings[i] = local_strings[i-1] + maxStringLen;
 
   EXPECT_EQ(omap->to_host(local_strings, 0, unique_verts), 0);
@@ -564,7 +564,7 @@ TEST_F(RenumberingTest, Random10MVertexListString)
   memset(local_buffer, 0, unique_verts * maxStringLen);
 
   local_strings[0] = local_buffer;
-  for (int i = 1 ; i < unique_verts ; ++i)
+  for (size_t i = 1 ; i < unique_verts ; ++i)
     local_strings[i] = local_strings[i-1] + maxStringLen;
 
   EXPECT_EQ(omap->to_host(local_strings, 0, unique_verts), 0);

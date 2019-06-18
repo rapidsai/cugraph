@@ -80,10 +80,10 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, dst->dtype);
 
       gdf_error err = cugraph::renumber_vertices(src->size,
-                                                 (const int32_t *) src->data,
-                                                 (const int32_t *) dst->data,
-                                                 (int32_t *) src_renumbered->data,
-                                                 (int32_t *) dst_renumbered->data,
+                                                 static_cast<const int32_t *>(src->data),
+                                                 static_cast<const int32_t *>(dst->data),
+                                                 static_cast<int32_t *>(src_renumbered->data),
+                                                 static_cast<int32_t *>(dst_renumbered->data),
                                                  &new_size,
                                                  &tmp,
                                                  cugraph::HashFunctionObjectInt(hash_size),
@@ -118,10 +118,10 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, GDF_INT32);
 
       gdf_error err = cugraph::renumber_vertices(src->size,
-                                                 (const int64_t *) src->data,
-                                                 (const int64_t *) dst->data,
-                                                 (int32_t *) src_renumbered->data,
-                                                 (int32_t *) dst_renumbered->data,
+                                                 static_cast<const int64_t *>(src->data),
+                                                 static_cast<const int64_t *>(dst->data),
+                                                 static_cast<int32_t *>(src_renumbered->data),
+                                                 static_cast<int32_t *>(dst_renumbered->data),
                                                  &new_size,
                                                  &tmp,
                                                  cugraph::HashFunctionObjectInt(hash_size),
@@ -163,14 +163,12 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       NVStrings *srcList = reinterpret_cast<NVStrings*>(src->data);
       NVStrings *dstList = reinterpret_cast<NVStrings*>(dst->data);
 
-      typedef std::pair<const char *, size_t>   pair_t;
-
       std::pair<const char *, size_t> *srcs;
       std::pair<const char *, size_t> *dsts;
       std::pair<const char *, size_t> *output_map;
 
-      ALLOC_TRY((void**) &srcs, sizeof(pair_t) * src->size, stream);
-      ALLOC_TRY((void**) &dsts, sizeof(pair_t) * dst->size, stream);
+      ALLOC_TRY((void**) &srcs, sizeof(std::pair<const char *, size_t>) * src->size, stream);
+      ALLOC_TRY((void**) &dsts, sizeof(std::pair<const char *, size_t>) * dst->size, stream);
 
       srcList->create_index(srcs, true);
       dstList->create_index(dsts, true);
@@ -178,8 +176,8 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       gdf_error err = cugraph::renumber_vertices(src->size,
                                                  srcs,
                                                  dsts,
-                                                 (int32_t *) src_renumbered->data,
-                                                 (int32_t *) dst_renumbered->data,
+                                                 static_cast<int32_t *>(src_renumbered->data),
+                                                 static_cast<int32_t *>(dst_renumbered->data),
                                                  &new_size,
                                                  &output_map,
                                                  cugraph::HashFunctionObjectString(hash_size),
