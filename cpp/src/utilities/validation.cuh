@@ -51,9 +51,12 @@ gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
 
     // warning when smallest vertex is not 0
     if (minId > 0 ) {
-        std::cerr<< "WARNING: the smallest vertex index in the edge set is "<<minId<<". ";
+        std::cerr<< "WARNING: the smallest vertex identifier in the edge set is "<<minId<<". ";
         std::cerr<< "Cugraph supports 0-based indexing. ";
-        std::cerr<< "Vertex 0 to "<<  minId <<" will be created." << std::endl;
+        std::cerr<< "Hence, the smallest vertex is assumed to be 0" << std::endl;
+        std::cerr<< "Vertex [0, "<<  minId <<") will be created."<< std::endl;
+        std::cerr<< "If this is not intended, please refer to ";
+        std::cerr<< "cuGraph renumbering feature." << std::endl;
     }
     return GDF_SUCCESS;
 }

@@ -103,7 +103,7 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
         std::cerr<< "WARNING: there are more vertices than edges in the graph ";
         std::cerr<< ": V=" << result.size <<", E="<<nnz <<". ";
         std::cerr<< "Sometime this is not intended and may cause performace and stability issues. ";
-        std::cerr<< "Vertex identifieres must be in the range 0-V where V is the number of vertices. ";
+        std::cerr<< "Vertex identifieres must be in the range [0, V) where V is the number of vertices. ";
         std::cerr<< "Please refer to cuGraph's renumbering feature ";
         std::cerr<< "if some identifiers are larger than your actual number of vertices." << std::endl;
     }

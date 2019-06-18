@@ -71,7 +71,7 @@ void cpy_column_view(const gdf_column *in, gdf_column *out) {
 }
 
 gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
-                            const gdf_column *indices, 
+                            const gdf_column *indices,
                             const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
