@@ -26,19 +26,21 @@
 #include <thrust/sort.h>
 
 namespace cugraph {
+
 // Function for checking 0-based indexing
 template <typename T>
 gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
     cudaStream_t stream {nullptr};
-    //   min from srcs after sorting is just the first element
-    T minId = -1;
-    CUDA_TRY(cudaMemcpy(&minId, &(srcs[0]), sizeof(T), cudaMemcpyDefault));
-    
+
+    // min from srcs 
+    auto minId_it = thrust::min_element(rmm::exec_policy(stream)->on(stream), srcs, srcs + nnz);
+    T minId;
+    CUDA_TRY(cudaMemcpy(&minId, minId_it, sizeof(T), cudaMemcpyDefault));
     // negative index are not allowed
     if (minId < 0 )
         return GDF_INVALID_API_CALL; 
-    // min from dests requires a scan to find
-    auto minId_it = thrust::min_element(rmm::exec_policy(stream)->on(stream), dests, dests + nnz);
+    
+    minId_it = thrust::min_element(rmm::exec_policy(stream)->on(stream), dests, dests + nnz);
     T minId2;
     CUDA_TRY(cudaMemcpy(&minId2, minId_it, sizeof(T), cudaMemcpyDefault));        
     // negative index are not allowed
@@ -46,7 +48,9 @@ gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
         return GDF_INVALID_API_CALL; 
 
     minId = minId < minId2 ? minId : minId2;
-    if (minId != 0 ) {
+
+    // warning when smallest vertex is not 0
+    if (minId > 0 ) {
         std::cerr<< "WARNING: the smallest vertex index in the edge set is "<<minId<<". ";
         std::cerr<< "Cugraph supports 0-based indexing. ";
         std::cerr<< "Vertex 0 to "<<  minId <<" will be created." << std::endl;
