@@ -17,9 +17,8 @@
 #include "rmm_utils.h"
 
 #include "utilities/graph_utils.cuh"
+#include "traversal_common.cuh"
 #include "bfs_kernels.cuh"
-
-using namespace bfs_kernels;
 
 namespace cugraph {
   enum BFS_ALGO_STATE {
@@ -51,7 +50,7 @@ namespace cugraph {
     ALLOC_TRY(&vertex_degree, sizeof(IndexType) * n, nullptr);
 
     //Cub working data
-    cub_exclusive_sum_alloc(n + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
+    traversal::cub_exclusive_sum_alloc(n + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
 
     //We will need (n+1) ints buffer for two differents things (bottom up or top down) - sharing it since those uses are mutually exclusive
     ALLOC_TRY(&buffer_np1_1, (n + 1) * sizeof(IndexType), nullptr);
@@ -96,7 +95,7 @@ namespace cugraph {
 
     //Computing isolated_bmap
     //Only dependent on graph - not source vertex - done once
-    flag_isolated_vertices(n, isolated_bmap, row_offsets, vertex_degree, d_nisolated, stream);
+    traversal::flag_isolated_vertices(n, isolated_bmap, row_offsets, vertex_degree, d_nisolated, stream);
     cudaMemcpyAsync(&nisolated, d_nisolated, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
 
     //We need nisolated to be ready to use
@@ -147,7 +146,7 @@ namespace cugraph {
     //if the graph is undirected, we may need distances even if
     //computeDistances is false
     if (distances)
-      fill_vec(distances, n, vec_t<IndexType>::max, stream);
+      traversal::fill_vec(distances, n, traversal::vec_t<IndexType>::max, stream);
 
     //If needed, setting all predecessors to non-existent (-1)
     if (computePredecessors) {
@@ -226,8 +225,8 @@ namespace cugraph {
     IndexType size_last_unvisited_queue = 0; //queue empty
 
     //Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-    set_frontier_degree(frontier_vertex_degree, frontier, vertex_degree, nf, stream);
-    exclusive_sum(d_cub_exclusive_sum_storage,
+    traversal::set_frontier_degree(frontier_vertex_degree, frontier, vertex_degree, nf, stream);
+    traversal::exclusive_sum(d_cub_exclusive_sum_storage,
                   cub_exclusive_sum_storage_bytes,
                   frontier_vertex_degree,
                   exclusive_sum_frontier_vertex_degree,
@@ -270,7 +269,7 @@ namespace cugraph {
 
               //We need to prepare the switch back to top down
               //We couldnt keep track of mu during bottom up - because we dont know what mf is. Computing mu here
-              count_unvisited_edges(unvisited_queue,
+	      bfs_kernels::count_unvisited_edges(unvisited_queue,
                                     size_last_unvisited_queue,
                                     visited_bmap,
                                     vertex_degree,
@@ -278,12 +277,12 @@ namespace cugraph {
                                     stream);
 
               //Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-              set_frontier_degree(frontier_vertex_degree,
+              traversal::set_frontier_degree(frontier_vertex_degree,
                                   frontier,
                                   vertex_degree,
                                   nf,
                                   stream);
-              exclusive_sum(d_cub_exclusive_sum_storage,
+              traversal::exclusive_sum(d_cub_exclusive_sum_storage,
                             cub_exclusive_sum_storage_bytes,
                             frontier_vertex_degree,
                             exclusive_sum_frontier_vertex_degree,
@@ -310,12 +309,12 @@ namespace cugraph {
 
       switch (algo_state) {
         case TOPDOWN:
-          compute_bucket_offsets(exclusive_sum_frontier_vertex_degree,
+          traversal::compute_bucket_offsets(exclusive_sum_frontier_vertex_degree,
                                  exclusive_sum_frontier_vertex_buckets_offsets,
                                  nf,
                                  mf,
                                  stream);
-          frontier_expand(row_offsets,
+	  bfs_kernels::frontier_expand(row_offsets,
                           col_indices,
                           frontier,
                           nf,
@@ -348,12 +347,12 @@ namespace cugraph {
 
           if (nf) {
             //Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-            set_frontier_degree(frontier_vertex_degree,
+            traversal::set_frontier_degree(frontier_vertex_degree,
                                 new_frontier,
                                 vertex_degree,
                                 nf,
                                 stream);
-            exclusive_sum(d_cub_exclusive_sum_storage,
+            traversal::exclusive_sum(d_cub_exclusive_sum_storage,
                            cub_exclusive_sum_storage_bytes,
                            frontier_vertex_degree,
                            exclusive_sum_frontier_vertex_degree,
@@ -371,7 +370,7 @@ namespace cugraph {
           break;
 
         case BOTTOMUP:
-          fill_unvisited_queue(visited_bmap,
+	  bfs_kernels::fill_unvisited_queue(visited_bmap,
                                vertices_bmap_size,
                                n,
                                unvisited_queue,
@@ -381,7 +380,7 @@ namespace cugraph {
 
           size_last_unvisited_queue = nu;
 
-          bottom_up_main(unvisited_queue,
+	  bfs_kernels::bottom_up_main(unvisited_queue,
                          size_last_unvisited_queue,
                          left_unvisited_queue,
                          d_left_unvisited_cnt,
@@ -408,7 +407,7 @@ namespace cugraph {
             cudaCheckError()
             //We need last_left_unvisited_size
             cudaStreamSynchronize(stream);
-            bottom_up_large(left_unvisited_queue,
+	    bfs_kernels::bottom_up_large(left_unvisited_queue,
                             size_last_left_unvisited_queue,
                             visited_bmap,
                             row_offsets,
