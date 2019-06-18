@@ -26,6 +26,15 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
                                 gdf_column *numbering_map) {
   GDF_REQUIRE( src->size == dst->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( src->dtype == dst->dtype, GDF_UNSUPPORTED_DTYPE );
+
+  //
+  //  Added this back in.  Below I added support for strings, however the 
+  //  cudf python interface doesn't fully support strings yet, so the below
+  //  code can't be debugged.  Rather than remove the code, this error check
+  //  will prevent code from being executed.  Once cudf fully support string
+  //  columns we can eliminate this check and debug the GDF_STRING case below.
+  //
+  GDF_REQUIRE( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( src->size > 0, GDF_DATASET_EMPTY );
 
   //
