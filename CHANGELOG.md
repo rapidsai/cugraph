@@ -9,6 +9,7 @@
 - PR #323 Add test skipping function to build.sh
 - PR #308 SNMG python wrapper for pagerank
 - PR #321 Added graph initialization functions for NetworkX compatibility.
+- PR #332 Added C++ support for strings in renumbering function
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
