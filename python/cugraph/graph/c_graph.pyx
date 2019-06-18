@@ -436,7 +436,7 @@ class Graph:
         """
         null_check(offset_col)
         null_check(index_col)
-         if offset_col.dtype != np.int32:
+        if offset_col.dtype != np.int32:
             raise TypeError("cugraph currently supports only 32bit integer"
                             "offsets.")
         if index_col.dtype != np.int32:
