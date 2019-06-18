@@ -23,15 +23,20 @@ cpdef weak_cc(G, connect_type = CUGRAPH_WEAK):
     
     Parameters
     ----------
-    G : cugraph.graph
-        cuGraph graph descriptor
+    G : cugraph.Graph
+      cuGraph graph descriptor, should contain the connectivity information as an edge list 
+      (edge weights are not used for this algorithm). Currently, the graph should be undirected where 
+      an undirected edge is represented by a directed edge in both directions.
+      The adjacency list will be computed if not already present.
+      The number of vertices should fit into a 32b int. 
+
     connect_type : cugraph_cc_t
-        Weak (CUGRAPH_WEAK), or Strong (CUGRAPH_STRONG) (not implemented, yet)
+      Weak (CUGRAPH_WEAK), or Strong (CUGRAPH_STRONG) (not implemented, yet)
     
     Returns
     -------
     df : cudf.DataFrame
-        df['labels'][i] gives the label id of the i'th vertex
+      df['labels'][i] gives the label id of the i'th vertex
        
         
     Examples
@@ -46,6 +51,9 @@ cpdef weak_cc(G, connect_type = CUGRAPH_WEAK):
 
     cdef uintptr_t graph = G.graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
+
+    err = gdf_add_adj_list(<gdf_graph*> graph)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     num_verts = G.number_of_vertices()
 
