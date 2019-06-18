@@ -2,7 +2,6 @@
 
 from distutils.sysconfig import get_python_lib
 import os
-from os.path import join as pjoin
 import sys
 
 from setuptools import setup
