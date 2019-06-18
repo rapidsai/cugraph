@@ -111,7 +111,24 @@ gdf_error gdf_bfs(gdf_graph *graph,
                   gdf_column *predecessors,
                   int start_vertex,
                   bool directed);
-
+/**                                                                             
+ * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
+ *                                                                              
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
+ *                                                                              
+ * @Param[out] *predecessors         If set to a valid column, this is populated by the sssp predecessor of every vertex
+ *                                                                              
+ * @Param[in] start_vertex           The starting vertex for SSSP               
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_sssp(gdf_graph *graph,                                            
+        		gdf_column *distances,                                                  
+        		gdf_column *predecessors,                                               
+          		const int source_vertex);                                               
 /**
  * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
  * which are connected by an edge.
