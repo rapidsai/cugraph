@@ -217,6 +217,7 @@ add_library(cugraph SHARED
     src/structure/cugraph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
+    src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/converters/nvgraph.cu

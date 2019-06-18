@@ -57,5 +57,4 @@ gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
     }
     return GDF_SUCCESS;
 }
-
 } //namespace cugraph
