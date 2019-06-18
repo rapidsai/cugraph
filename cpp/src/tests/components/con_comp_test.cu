@@ -170,10 +170,10 @@ TEST_P(Tests_Weakly_CC, Weakly_CC) {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Weakly_CC, 
-                        ::testing::Values(   Usecase("networks/dolphins.mtx")
-                                           , Usecase("networks/coPapersDBLP.mtx")
-                                           , Usecase("networks/coPapersCiteseer.mtx")
-                                           , Usecase("networks/hollywood.mtx")
+                        ::testing::Values(   Usecase("test/datasets/dolphins.mtx")
+                                           , Usecase("test/datasets/coPapersDBLP.mtx")
+                                           , Usecase("test/datasets/coPapersCiteseer.mtx")
+                                           , Usecase("test/datasets/hollywood.mtx")
 					  ));
 
 
