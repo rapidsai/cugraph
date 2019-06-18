@@ -11,13 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
+import numpy as np
+
 import cudf
 from librmm_cffi import librmm as rmm
-import numpy as np
+
+from c_graph cimport *
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
@@ -146,6 +148,16 @@ class Graph:
         self.delete_transposed_adj_list()
         free(g)
 
+    def clear(self):
+        """
+        Empty this graph. This function is added for NetworkX compatibility.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = <gdf_graph*> graph
+        self.delete_edge_list()
+        self.delete_adj_list()
+        self.delete_transposed_adj_list()
+
     def renumber(self, source_col, dest_col):
         """
         Take a (potentially sparse) set of source and destination vertex
@@ -202,10 +214,10 @@ class Graph:
         cdef gdf_column dest = get_gdf_column_view(dest_col)
 
         err = gdf_renumber_vertices(&source,
-	      			    &dest,
-				    &src_renumbered,
-				    &dst_renumbered,
-				    &numbering_map)
+                                    &dest,
+                                    &src_renumbered,
+                                    &dst_renumbered,
+                                    &numbering_map)
 
         cudf.bindings.cudf_cpp.check_gdf_error(err) 
 
@@ -255,7 +267,7 @@ class Graph:
             Destination indices must be in the range [0, V) (V: number of
             vertices).
             Destination indices must be 32 bit integers.
-        value_col (optional) : cudf.Series
+        value_col(optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
@@ -283,6 +295,12 @@ class Graph:
         """
         null_check(source_col)
         null_check(dest_col)
+        if source_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
+        if dest_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -389,7 +407,7 @@ class Graph:
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
-        value_col (optional) : cudf.Series
+        value_col(optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
@@ -418,7 +436,12 @@ class Graph:
         """
         null_check(offset_col)
         null_check(index_col)
-
+        if index_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
+        if index_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -608,6 +631,14 @@ class Graph:
         else:
             # An empty graph
             return 0
+
+    def number_of_nodes(self):
+        """
+        An alias of number_of_vertices(). This function is added for NetworkxX
+        compatibility.
+        """
+        return self.number_of_vertices()
+
 
     def number_of_edges(self):
         """
