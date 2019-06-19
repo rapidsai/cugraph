@@ -408,7 +408,7 @@ class Tests_MGSpmv_unsorted : public ::testing::TestWithParam<MGSpmv_Usecase> {
      coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
 
      //unsorted random indices
-     for (auto i = 0; i < csrColInd.size(); i++)
+     for (size_t i = 0; i < csrColInd.size(); i++)
       csrColInd[i]=static_cast<idx_t>(std::rand()%m);
 
      CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
@@ -458,7 +458,7 @@ class Tests_MGSpmv_unsorted : public ::testing::TestWithParam<MGSpmv_Usecase> {
         { 
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (size_t j = 0; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
@@ -510,7 +510,7 @@ class Tests_MGSpmv_unsorted : public ::testing::TestWithParam<MGSpmv_Usecase> {
         { 
           CUDA_RT_CALL(cudaMemcpy(&y_h[0], col_x[0]->data,   sizeof(val_t) * m, cudaMemcpyDeviceToHost));
 
-          for (auto j = 0; j < y_h.size(); ++j)
+          for (size_t j = 0; j < y_h.size(); ++j)
             EXPECT_LE(fabs(y_ref[j] - y_h[j]), 0.0001);
         }
 
