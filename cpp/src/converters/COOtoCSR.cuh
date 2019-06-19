@@ -98,7 +98,15 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     CUDA_TRY(cudaMemcpy(&maxId2, maxId_it, sizeof(T), cudaMemcpyDefault));
     maxId = maxId > maxId2 ? maxId : maxId2;
     result.size = maxId + 1;
-
+    // Sending a warning rather than an error here as this may be intended and suported.
+    if (result.size > nnz ) {
+        std::cerr<< "WARNING: there are more vertices than edges in the graph ";
+        std::cerr<< ": V=" << result.size <<", E="<<nnz <<". ";
+        std::cerr<< "Sometime this is not intended and may cause performace and stability issues. ";
+        std::cerr<< "Vertex identifieres must be in the range [0, V) where V is the number of vertices. ";
+        std::cerr<< "Please refer to cuGraph's renumbering feature ";
+        std::cerr<< "if some identifiers are larger than your actual number of vertices." << std::endl;
+    }
     // Allocate offsets array
     ALLOC_TRY((void**)&result.rowOffsets, (maxId + 2) * sizeof(T), stream);
 

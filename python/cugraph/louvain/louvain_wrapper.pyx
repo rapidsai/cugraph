@@ -25,8 +25,9 @@ cpdef nvLouvain(input_graph):
     Parameters
     ----------
     input_graph : cuGraph.Graph
-      cuGraph graph descriptor, should contain the connectivity information as an edge list (edge weights are not used for this algorithm).
-      The adjacency list will be computed if not already present.
+      cuGraph graph descriptor, should contain the connectivity information as an edge list.
+      The adjacency list will be computed if not already present. The graph should be undirected where 
+      an undirected edge is represented by a directed edge in both direction.
 
     Returns
     -------

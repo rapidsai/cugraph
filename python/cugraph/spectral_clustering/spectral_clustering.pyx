@@ -128,8 +128,7 @@ cpdef spectralModularityMaximizationClustering(G,
     
     Returns
     -------
-    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and 
-      the corresponding cluster assignments.
+    Clustering : cudf.DataFrame
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
         
@@ -187,6 +186,7 @@ cpdef analyzeClustering_modularity(G, n_clusters, clustering):
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
         The cluster assignment to analyze.
+
     Returns
     -------
     score : float
@@ -227,6 +227,7 @@ cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
         The cluster assignment to analyze.
+
     Returns
     -------
     score : float
@@ -267,6 +268,7 @@ cpdef analyzeClustering_ratio_cut(G, n_clusters, clustering):
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
         The cluster assignment to analyze.
+        
     Returns
     -------
     score : float
