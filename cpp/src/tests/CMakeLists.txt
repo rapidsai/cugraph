@@ -23,7 +23,7 @@ project(CUGRAPH_TESTS LANGUAGES C CXX CUDA)
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 
-function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
+function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
     add_executable(${CMAKE_TEST_NAME}
         ${CMAKE_TEST_SRC})
 
@@ -42,7 +42,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} cudart cuda)
+        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS} cudart cuda)
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
 ###################################################################################################
@@ -119,7 +119,7 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 set(GDFGRAPH_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/gdf_graph/gdf_graph.cu")
 
-ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}")
+ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
 
 ###################################################################################################
 # - grmat tests -----------------------------------------------------------------------------------
@@ -128,7 +128,7 @@ set(GRMAT_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/grmat/grmat_test.cu")
 
-ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC}")
+ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC}" "")
 
 ###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
@@ -137,7 +137,7 @@ set(PAGERANK_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cu")
 
-ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}")
+ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
 ###################################################################################################
 #- native sssp tests -- ---------------------------------------------------------------------------
@@ -145,7 +145,7 @@ set(NATIVE_SSSP_TEST_SRCS
 	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
 
-ConfigureTest(NATIVE_SSSP_TEST "${NATIVE_SSSP_TEST_SRCS}")
+ConfigureTest(NATIVE_SSSP_TEST "${NATIVE_SSSP_TEST_SRCS}" "")
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
@@ -154,7 +154,7 @@ set(SSSP_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_sssp.cpp")
 
-ConfigureTest(SSSP_TEST "${SSSP_TEST_SRC}")
+ConfigureTest(SSSP_TEST "${SSSP_TEST_SRC}" "")
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
@@ -163,7 +163,7 @@ set(LOUVAIN_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_louvain.cpp")
 
-ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}")
+ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 
 ###################################################################################################
 # - JACCARD tests ---------------------------------------------------------------------------------
@@ -172,7 +172,7 @@ set(JACCARD_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_jaccard.cpp")
 
-ConfigureTest(JACCARD_TEST "${JACCARD_TEST_SRC}")
+ConfigureTest(JACCARD_TEST "${JACCARD_TEST_SRC}" "")
 
 ###################################################################################################
 # - RENUMBERING tests -----------------------------------------------------------------------------
@@ -181,7 +181,7 @@ set(RENUMBERING_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
-ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}")
+ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "${NVSTRINGS_LIBRARY}")
 
 ###################################################################################################
 # - SNMG SpMV tests -------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ set(SNMG_SPMV_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/snmg_spmv/snmg_spmv_test.cu")
 
-ConfigureTest(SNMG_SPMV_TEST "${SNMG_SPMV_TEST_SRC}")
+ConfigureTest(SNMG_SPMV_TEST "${SNMG_SPMV_TEST_SRC}" "")
 
 ###################################################################################################
 #-SNMG_DEGREE  tests ------------------------------------------------------------------------------
@@ -199,13 +199,13 @@ set(SNMG_DEGREE_TEST_SRC
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/snmg_degree/snmg_degree_test.cu")
 
-ConfigureTest(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRC}")
+ConfigureTest(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRC}" "")
 
 set(SNMG_PAGERANK_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/snmg_pagerank/snmg_pagerank_test.cu")
 
-ConfigureTest(SNMG_PAGERANK_TEST "${SNMG_PAGERANK_TEST_SRC}")
+ConfigureTest(SNMG_PAGERANK_TEST "${SNMG_PAGERANK_TEST_SRC}" "")
 
 ###################################################################################################
 #-CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
@@ -214,7 +214,7 @@ set(CONNECT_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
 
-ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}")
+ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
 
 
 ###################################################################################################
