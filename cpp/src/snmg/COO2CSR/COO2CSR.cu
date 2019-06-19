@@ -82,6 +82,13 @@ __global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
         offsets[unique[tid]] = counts[tid];
 }
 
+template <typename T>
+__global__ void writeSingleValue(T* ptr, T val) {
+  uint64_t tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid == 0)
+    *ptr = val;
+}
+
 template<typename idx_t, typename val_t>
 gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                             bool free_input,
@@ -219,6 +226,13 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   ss << "MyEdgeCount=" << myEdgeCount;
   serializeMessage(env, ss.str());
 
+  ss.str("");
+  ss << "part_offsets: {";
+  for (int j = 0; j < p + 1; j++)
+    ss << " " << part_offsets[j];
+  ss << "}";
+  serializeMessage(env, ss.str());
+
   // Each thread sorts its cooRow, cooCol, and cooVal
   idx_t *cooRowTemp, *cooColTemp;
   val_t *cooValTemp;
@@ -244,21 +258,45 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   }
   cudaCheckError();
 
+  ss.str("");
+  ss << "My Initial COO Row sorted={";
+  std::vector<idx_t> temp1(size);
+  cudaMemcpy(&temp1[0], cooRowTemp, sizeof(idx_t) * size, cudaMemcpyDefault);
+  for (size_t j = 0; j < temp1.size(); j++)
+    ss << " " << temp1[j];
+  ss << "}\n";
+  serializeMessage(env, ss.str());
+
   // Each thread determines the count of rows it needs to transfer to each other thread
+  idx_t localMinId, localMaxId;
+  cudaMemcpy(&localMinId, cooRowTemp, sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&localMaxId, cooRowTemp + size - 1, sizeof(idx_t), cudaMemcpyDefault);
   idx_t *endPositions;
   ALLOC_TRY(&endPositions, sizeof(idx_t) * (p - 1), nullptr);
   for (int j = 0; j < p - 1; j++) {
     idx_t endVertexId = part_offsets[j + 1];
-    dim3 nthreads, nblocks;
-    nthreads.x = min(size, static_cast<idx_t>(CUDA_MAX_KERNEL_THREADS));
-    nthreads.y = 1;
-    nthreads.z = 1;
-    nblocks.x = min((size + nthreads.x - 1) / nthreads.x, static_cast<idx_t>(env.get_num_sm() * 32));
-    nblocks.y = 1;
-    nblocks.z = 1;
-    findStartRange<<<nblocks, nthreads>>>(size, endPositions + j, endVertexId, cooRowTemp);
+    if (endVertexId < localMinId) {
+      // Write out zero for this position
+      writeSingleValue<<<1, 256>>>(endPositions + j, static_cast<idx_t>(0));
+    }
+    else if (endVertexId >= localMaxId) {
+      // Write out size for this position
+      writeSingleValue<<<1, 256>>>(endPositions + j, size);
+    }
+    else if (endVertexId >= localMinId && endVertexId < localMaxId) {
+      dim3 nthreads, nblocks;
+      nthreads.x = min(size, static_cast<idx_t>(CUDA_MAX_KERNEL_THREADS));
+      nthreads.y = 1;
+      nthreads.z = 1;
+      nblocks.x = min((size + nthreads.x - 1) / nthreads.x,
+                      static_cast<idx_t>(env.get_num_sm() * 32));
+      nblocks.y = 1;
+      nblocks.z = 1;
+      findStartRange<<<nblocks, nthreads>>>(size, endPositions + j, endVertexId, cooRowTemp);
+    }
   }
   cudaDeviceSynchronize();
+  cudaCheckError();
   std::vector<idx_t> positions(p + 1);
   cudaMemcpy(&positions[1], endPositions, sizeof(idx_t) * (p - 1), cudaMemcpyDefault);
   ALLOC_FREE_TRY(endPositions, nullptr);
@@ -269,6 +307,14 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   for (int j = 0; j < p; j++){
     myRowCounts[j] = positions[j + 1] - positions[j];
   }
+
+  ss.str("");
+    ss << "MySize=" << size << " My positions: { ";
+    for (int j = 0; j < p + 1; j++)
+      ss << " " << positions[j];
+    ss << " }";
+    serializeMessage(env, ss.str());
+
 #pragma omp barrier
 
   // Each thread allocates space to receive their rows from others
@@ -314,6 +360,8 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     }
   }
 
+  cudaCheckError();
+
   // Each thread frees up the input if allowed
   ALLOC_FREE_TRY(cooRowTemp, nullptr);
   ALLOC_FREE_TRY(cooColTemp, nullptr);
@@ -350,10 +398,21 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     thrust::sort(rmm::exec_policy(nullptr)->on(nullptr), zippy, zippy + myEdgeCount);
   }
 
-  idx_t localMaxId = part_offsets[i + 1] - part_offsets[i] - 1;
+  cudaCheckError();
+
+  ss.str("");
+  ss << "My COO Row sorted={";
+  std::vector<idx_t> temp(myEdgeCount);
+  cudaMemcpy(&temp[0], cooRowNew, sizeof(idx_t) * myEdgeCount, cudaMemcpyDefault);
+  for (size_t j = 0; j < temp.size(); j++)
+    ss << " " << temp[j];
+  ss << "}\n";
+  serializeMessage(env, ss.str());
+
+  localMaxId = part_offsets[i + 1] - part_offsets[i] - 1;
   idx_t* offsets;
   ALLOC_TRY(&offsets, (localMaxId + 2) * sizeof(idx_t), nullptr);
-  cudaMemset(offsets, 0, (maxId + 2) * sizeof(idx_t));
+  cudaMemset(offsets, 0, (localMaxId + 2) * sizeof(idx_t));
   idx_t *unique, *counts, *runcount;
   ALLOC_TRY(&unique, (localMaxId + 1) * sizeof(idx_t), nullptr);
   ALLOC_TRY(&counts, (localMaxId + 1) * sizeof(idx_t), nullptr);
@@ -377,11 +436,21 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                                      myEdgeCount);
   ALLOC_FREE_TRY(tmpStorage, nullptr);
 
+  cudaDeviceSynchronize();
   idx_t runCount_h;
   cudaMemcpy(&runCount_h, runcount, sizeof(idx_t), cudaMemcpyDefault);
   int threadsPerBlock = 1024;
   int numBlocks = (runCount_h + threadsPerBlock - 1) / threadsPerBlock;
+
+  cudaCheckError();
+
+  ss.str("");
+  ss << "LocalMaxId=" << localMaxId << " RunCount_h=" << runCount_h << " numBlocks=" << numBlocks;
+  serializeMessage(env, ss.str());
+
   offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
+
+  cudaCheckError();
 
   thrust::exclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
                          offsets,

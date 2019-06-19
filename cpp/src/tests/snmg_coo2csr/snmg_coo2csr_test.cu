@@ -158,10 +158,11 @@ public:
         }
 
         // Compare the results with those generated on the host
-        EXPECT_EQ(part_offset[0], part_offset_r[0]);
-        EXPECT_EQ(part_offset[1], part_offset_r[1]);
-        EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
-        EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
+        if (status == 0) {
+          EXPECT_EQ(part_offset[0], part_offset_r[0]);
+          EXPECT_EQ(part_offset[1], part_offset_r[1]);
+          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
+        }
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -206,7 +207,7 @@ public:
         gdf_column *coo_val = new gdf_column;
 #pragma omp barrier
 
-        //load a chunck of the graph on each GPU
+        //load a chunk of the graph on each GPU
         load_csr_loc(csrRowPtr, csrColInd, csrVal,
                      v_loc,
                      e_loc, part_offset,
@@ -236,10 +237,11 @@ public:
         }
 
         // Compare the results with those generated on the host
-        for (int j = 0; j < n_gpus + 1; j++)
-          EXPECT_EQ(part_offset[j], part_offset_r[j]);
-        EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
-        EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
+        if (status == 0) {
+          for (int j = 0; j < n_gpus + 1; j++)
+            EXPECT_EQ(part_offset[j], part_offset_r[j]);
+          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
+        }
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -375,10 +377,11 @@ public:
         }
 
         // Compare the results with those generated on the host
-        EXPECT_EQ(part_offset[0], part_offset_r[0]);
-        EXPECT_EQ(part_offset[1], part_offset_r[0]);
-        EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
-        EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
+        if (status == 0) {
+          EXPECT_EQ(part_offset[0], part_offset_r[0]);
+          EXPECT_EQ(part_offset[1], part_offset_r[0]);
+          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
+        }
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -451,10 +454,11 @@ public:
         }
 
         // Compare the results with those generated on the host
-        for (int j = 0; j < n_gpus + 1; j++)
-          EXPECT_EQ(part_offset[j], part_offset_r[j]);
-        EXPECT_TRUE(gdf_column_equal < idx_t > (csr_off, col_off));
-        EXPECT_TRUE(gdf_column_equal < idx_t > (csr_ind, col_ind));
+        if (status == 0) {
+          for (int j = 0; j < n_gpus + 1; j++)
+            EXPECT_EQ(part_offset[j], part_offset_r[j]);
+          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
+        }
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);

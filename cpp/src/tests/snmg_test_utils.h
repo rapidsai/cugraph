@@ -48,7 +48,7 @@ void edge_partioning(std::vector<T> & off_h, std::vector<size_t> & part_offset, 
     auto start_nnz = i*loc_nnz;
     auto start_v = 0;
     for (auto j = size_t{0}; j < off_h.size(); ++j) {
-      if (off_h[j] > start_nnz) {
+      if (off_h[j] >= start_nnz) {
         start_v = j;
         break;
       }
@@ -58,7 +58,7 @@ void edge_partioning(std::vector<T> & off_h, std::vector<size_t> & part_offset, 
   // all threads must know their partition offset 
   #pragma omp barrier 
 
-  // Store the local number of V and E for convinience
+  // Store the local number of V and E for convenience
   v_loc[i] = part_offset[i+1] - part_offset[i];
   e_loc[i] = off_h[part_offset[i+1]] - off_h[part_offset[i]];
 }
@@ -93,8 +93,15 @@ void load_coo_loc(std::vector<idx_t>& cooRow,
   std::vector<size_t> startOffsets(p + 1);
   startOffsets[p] = cooRow.size();
   size_t numRows = cooRow.size() / p;
-  startOffsets[i] = i * numRows;
+  for (int j = 0; j < p; j++)
+    startOffsets[j] = j * numRows;
 #pragma omp barrier
+  if (i == 0){
+    std::cout << "COO Start Offsets: { ";
+    for (int j = 0; j < startOffsets.size(); j++)
+      std::cout << " " << startOffsets[j];
+    std::cout << " }\n";
+  }
   std::vector<idx_t> cooRow_part(cooRow.begin() + startOffsets[i], cooRow.begin() + startOffsets[i + 1]);
   std::vector<idx_t> cooCol_part(cooCol.begin() + startOffsets[i], cooCol.begin() + startOffsets[i + 1]);
   std::vector<val_t> cooVal_part(cooVal.begin() + startOffsets[i], cooVal.begin() + startOffsets[i + 1]);
@@ -151,4 +158,14 @@ void load_csr_loc(std::vector<idx_t> & off_h, std::vector<idx_t> & ind_h, std::v
   
   create_gdf_column(ind_loc, col_ind);
   create_gdf_column(val_loc, col_val);
+}
+
+void serializeMessage(std::string message){
+  auto i = omp_get_thread_num();
+  auto p = omp_get_num_threads();
+  for (int j = 0; j < p; j++){
+    if (i == j)
+      std::cout << "Thread " << i << ": " << message << "\n";
+#pragma omp barrier
+  }
 }
