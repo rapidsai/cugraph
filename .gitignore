@@ -36,3 +36,10 @@ build/
 .settings
 
 datasets/*
+
+## Temporary solution to integrate Hornet to cugraph
+
+!thirdparty/hornet/cuda9_2/libhornet.a
+!thirdparty/hornet/cuda9_2/libhornetAlg.a
+!thirdparty/hornet/cuda10_0/libhornet.a
+!thirdparty/hornet/cuda10_0/libhornetAlg.a
