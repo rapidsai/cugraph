@@ -187,10 +187,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   cudaMemcpy(&globalEdgeCount, sourceCountsTemp + maxId + 1, sizeof(unsigned long long int), cudaMemcpyDefault);
   cudaCheckError();
 
-//  std::stringstream ss;
-//  ss << "Global Edge Count: " << globalEdgeCount;
-//  serializeMessage(env, ss.str());
-
   // Each thread searches the global source node counts prefix sum to find the start of its vertex ID range
   idx_t myStartVertex = 0;
   if (i != 0) {
@@ -216,13 +212,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   }
   cudaCheckError();
 #pragma omp barrier
-
-//  ss.str("");
-//  ss << "Part Offsets: {";
-//  for (int j = 0; j < p + 1; j++)
-//    ss << " " << part_offsets[j];
-//  ss << "}";
-//  serializeMessage(env, ss.str());
 
   // Each thread determines how many edges it will have in it's partition
   idx_t myEndVertex = part_offsets[i + 1];
