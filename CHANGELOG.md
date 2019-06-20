@@ -12,6 +12,7 @@
 - PR #332 Added C++ support for strings in renumbering function
 - PR #325 Implement SSSP with predecessors (cuda/C++)
 - PR #331 Python bindings and test for Weakly Connected Components.
+- PR #339 SNMG COO2CSR (cuda/C++)
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
