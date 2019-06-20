@@ -183,6 +183,7 @@ gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_gl
       cudaMemcpyPeer(x_glob[receiver], receiver, x_glob[i], i, sizeof(val_t) * length);
       cudaCheckError();
     }
+    sync_all();
   }
 
   // Sync everything before returning
