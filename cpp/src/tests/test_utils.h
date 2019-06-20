@@ -412,9 +412,12 @@ public:
   __host__ __device__
   bool operator()(const Tuple1 t1, const Tuple2 t2) {
     switch(i) {
-    case 0:  return (thrust::get<0>(t1) < thrust::get<0>(t2));
-    case 1:  return (thrust::get<1>(t1) < thrust::get<1>(t2));
-    default: return (thrust::get<0>(t1) < thrust::get<0>(t2));
+    case 0:
+      return (thrust::get<0>(t1) == thrust::get<0>(t2) ? thrust::get<1>(t1) < thrust::get<1>(t2) : thrust::get<0>(t1) < thrust::get<0>(t2));
+    case 1:
+      return (thrust::get<1>(t1) == thrust::get<1>(t2) ? thrust::get<0>(t1) < thrust::get<0>(t2) : thrust::get<1>(t1) < thrust::get<1>(t2));
+    default:
+      return (thrust::get<0>(t1) == thrust::get<0>(t2) ? thrust::get<1>(t1) < thrust::get<1>(t2) : thrust::get<0>(t1) < thrust::get<0>(t2));
     }
 
   }
@@ -713,6 +716,99 @@ void gdf_col_delete(gdf_column* col) {
     col = nullptr;
 #endif
   }
+}
+
+template <typename col_type>
+bool gdf_column_equal(gdf_column* a, gdf_column* b) {
+  if (a == nullptr || b == nullptr){
+    std::cout << "A given column is null!\n";
+    return false;
+  }
+  if (a->dtype != b->dtype){
+    std::cout << "Mismatched dtypes\n";
+    return false;
+  }
+  if (a->size != b->size){
+    std::cout << "Mismatched sizes: a=" << a->size << " b=" << b->size << "\n";
+    return false;
+  }
+  std::vector<col_type>a_h(a->size);
+  std::vector<col_type>b_h(b->size);
+  cudaMemcpy(&a_h[0], a->data, sizeof(col_type) * a->size, cudaMemcpyDefault);
+  cudaMemcpy(&b_h[0], b->data, sizeof(col_type) * b->size, cudaMemcpyDefault);
+  for (size_t i = 0; i < a_h.size(); i++) {
+    if (a_h[i] != b_h[i]){
+      std::cout << "Elements at " << i << " differ: a=" << a_h[i] << " b=" << b_h[i] << "\n";
+      return false;
+    }
+  }
+  return true;
+}
+
+template<typename idx_t>
+bool gdf_csr_equal(gdf_column* a_off, gdf_column* a_ind, gdf_column* b_off, gdf_column* b_ind) {
+  if (a_off == nullptr || a_ind == nullptr || b_off == nullptr || b_ind == nullptr) {
+    std::cout << "A given column is null!\n";
+    return false;
+  }
+  auto type = a_off->dtype;
+  if (a_ind->dtype != type || b_off->dtype != type || b_ind->dtype != type) {
+    std::cout << "Mismatched dtypes\n";
+    return false;
+  }
+  if (!gdf_column_equal<idx_t>(a_off, b_off)) {
+    std::cout << "Offsets arrays do not match!\n";
+    return false;
+  }
+  if (a_ind->size != b_ind->size) {
+    std::cout << "Size of indices arrays do not match\n";
+    return false;
+  }
+  // Compare the elements of each section of the indices, regardless of order
+  std::vector<idx_t> a_off_h(a_off->size);
+  std::vector<idx_t> a_ind_h(a_ind->size);
+  std::vector<idx_t> b_ind_h(b_ind->size);
+  cudaMemcpy(&a_off_h[0], a_off->data, a_off->size * sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&a_ind_h[0], a_ind->data, a_ind->size * sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&b_ind_h[0], b_ind->data, b_ind->size * sizeof(idx_t), cudaMemcpyDefault);
+  auto numVerts = a_off_h.size() - 1;
+  for (size_t vert = 0; vert < numVerts; vert++){
+    auto start = a_off_h[vert];
+    auto end = a_off_h[vert + 1];
+    std::set<idx_t> a_set;
+    std::set<idx_t> b_set;
+    for (int i = start; i < end; i++){
+      a_set.insert(a_ind_h[i]);
+      b_set.insert(b_ind_h[i]);
+    }
+    if (a_set.size() != b_set.size()) {
+      std::cout << "Vertex " << vert << " set sizes do not match!\n";
+      std::cout << "A Set: {";
+      for (auto it = a_set.begin(); it != a_set.end(); it++)
+        std::cout << " " << *it;
+      std::cout << "}\nB Set: {";
+      for (auto it = b_set.begin(); it != b_set.end(); it++)
+        std::cout << " " << *it;
+      std::cout << "}\n";
+      std::cout << "A list: {";
+      for (int i = start; i < end; i++) {
+        std::cout << " " << a_ind_h[i];
+      }
+      std::cout << "}\nB List: {";
+      for (int i = start; i < end; i++) {
+        std::cout << " " << b_ind_h[i];
+      }
+      std::cout << "}\n";
+      return false;
+    }
+    for (auto it = a_set.begin(); it != a_set.end(); it++) {
+      if (b_set.count(*it) != 1) {
+        std::cout << "A set contains " << *it << " B set does not!\n";
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 
