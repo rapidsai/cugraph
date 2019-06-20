@@ -12,6 +12,7 @@
 - PR #332 Added C++ support for strings in renumbering function
 - PR #325 Implement SSSP with predecessors (cuda/C++)
 - PR #331 Python bindings and test for Weakly Connected Components.
+- PR #338 Added Hornet library/header files under thirdparty/hornet.
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
@@ -32,7 +33,7 @@
 - PR #314 Added datasets to gitignore
 - PR #322 Updates to accommodate new cudf include file locations
 - PR #324 Fixed crash in WeakCC for larger graph and added adj matrix symmetry check
-- PR #327 Implemented a tempory fix for the build failure due to gunrock updates.
+- PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 
 # cuGraph 0.7.0 (10 May 2019)
 
