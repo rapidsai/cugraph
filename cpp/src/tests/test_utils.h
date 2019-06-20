@@ -736,7 +736,7 @@ bool gdf_column_equal(gdf_column* a, gdf_column* b) {
   std::vector<col_type>b_h(b->size);
   cudaMemcpy(&a_h[0], a->data, sizeof(col_type) * a->size, cudaMemcpyDefault);
   cudaMemcpy(&b_h[0], b->data, sizeof(col_type) * b->size, cudaMemcpyDefault);
-  for (int i = 0; i < a_h.size(); i++) {
+  for (size_t i = 0; i < a_h.size(); i++) {
     if (a_h[i] != b_h[i]){
       std::cout << "Elements at " << i << " differ: a=" << a_h[i] << " b=" << b_h[i] << "\n";
       return false;

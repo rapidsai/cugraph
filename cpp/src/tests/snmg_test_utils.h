@@ -95,13 +95,6 @@ void load_coo_loc(std::vector<idx_t>& cooRow,
   size_t numRows = cooRow.size() / p;
   for (int j = 0; j < p; j++)
     startOffsets[j] = j * numRows;
-#pragma omp barrier
-  if (i == 0){
-    std::cout << "COO Start Offsets: { ";
-    for (int j = 0; j < startOffsets.size(); j++)
-      std::cout << " " << startOffsets[j];
-    std::cout << " }\n";
-  }
   std::vector<idx_t> cooRow_part(cooRow.begin() + startOffsets[i], cooRow.begin() + startOffsets[i + 1]);
   std::vector<idx_t> cooCol_part(cooCol.begin() + startOffsets[i], cooCol.begin() + startOffsets[i + 1]);
   std::vector<val_t> cooVal_part(cooVal.begin() + startOffsets[i], cooVal.begin() + startOffsets[i + 1]);

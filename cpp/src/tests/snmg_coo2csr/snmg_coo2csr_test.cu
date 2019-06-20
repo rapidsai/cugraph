@@ -92,7 +92,9 @@ public:
     ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], NULL, NULL)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin), 0);
     //ASSERT_EQ( (coo_to_csr<int,val_t> (m, m, nnz, &cooRowInd[0],  &cooColInd[0], NULL, NULL, &csrRowPtr[0], NULL, NULL, NULL)), 0) << "could not covert COO to CSR "<< "\n";
-    coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
+    std::vector<idx_t> cooRowInd_tmp(cooRowInd);
+    std::vector<idx_t> cooColInd_tmp(cooColInd);
+    coo2csr(cooRowInd_tmp, cooColInd_tmp, csrRowPtr, csrColInd);
 
     CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
     std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus + 1), part_offset_r(n_gpus
@@ -312,13 +314,12 @@ public:
     // Allocate memory on host
     std::vector<idx_t> csrColInd(nnz), csrRowPtr(m + 1), degree_ref(m), degree_h(m);
     std::vector<val_t> csrVal(nnz, 0);
-    coo2csr(cooRowInd, cooColInd, csrRowPtr, csrColInd);
+    std::vector<idx_t> cooRowInd_tmp(cooRowInd);
+    std::vector<idx_t> cooColInd_tmp(cooColInd);
+    coo2csr(cooRowInd_tmp, cooColInd_tmp, csrRowPtr, csrColInd);
     CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
     std::vector<size_t> v_loc(n_gpus), e_loc(n_gpus), part_offset(n_gpus + 1), part_offset_r(n_gpus + 1);
     void* comm1;
-    //reference result
-    t = omp_get_wtime();
-    std::cout << "CPU time: " << omp_get_wtime() - t << "\n";
 
     if (nnz < 1200000000) {
 #pragma omp parallel num_threads(1)
@@ -379,7 +380,7 @@ public:
         // Compare the results with those generated on the host
         if (status == 0) {
           EXPECT_EQ(part_offset[0], part_offset_r[0]);
-          EXPECT_EQ(part_offset[1], part_offset_r[0]);
+          EXPECT_EQ(part_offset[1], part_offset_r[1]);
           EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
         }
 

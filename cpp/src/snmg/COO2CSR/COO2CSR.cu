@@ -36,7 +36,7 @@ public:
   idx_t* rowCounts;
   idx_t** rowPtrs;
   idx_t** colPtrs;
-  val_t** reductionSpace;
+  unsigned long long int** reductionSpace;
   val_t** valPtrs;
   communicator(idx_t p) {
     maxIds = reinterpret_cast<idx_t*>(malloc(sizeof(idx_t) * p));
@@ -44,7 +44,7 @@ public:
     rowPtrs = reinterpret_cast<idx_t**>(malloc(sizeof(idx_t*) * p));
     colPtrs = reinterpret_cast<idx_t**>(malloc(sizeof(idx_t*) * p));
     valPtrs = reinterpret_cast<val_t**>(malloc(sizeof(val_t*) * p));
-    reductionSpace = reinterpret_cast<val_t**>(malloc(sizeof(val_t*) * p));
+    reductionSpace = reinterpret_cast<unsigned long long int**>(malloc(sizeof(unsigned long long int*) * p));
   }
   ~communicator() {
     free(maxIds);
@@ -126,10 +126,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   cudaMemcpy(&colID, max_ptr, sizeof(idx_t), cudaMemcpyDefault);
   comm->maxIds[i] = max(rowID, colID);
 
-  std::stringstream ss;
-  ss << "Max Id found: " << comm->maxIds[i];
-  serializeMessage(env, ss.str());
-
 #pragma omp barrier
 
   // First thread finds maximum global ID
@@ -144,8 +140,10 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   // Each thread allocates space for the source node counts
   idx_t maxId = comm->maxIds[0];
   idx_t offsetsSize = maxId + 2;
-  val_t* sourceCounts;
-  ALLOC_TRY(&sourceCounts, sizeof(val_t) * offsetsSize, nullptr);
+  unsigned long long int* sourceCounts;
+  ALLOC_TRY(&sourceCounts, sizeof(unsigned long long int) * offsetsSize, nullptr);
+  cudaMemset(sourceCounts, 0, sizeof(unsigned long long int) * offsetsSize);
+
 
   // Each thread computes the source node counts for its owned rows
   dim3 nthreads, nblocks;
@@ -156,23 +154,23 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                   static_cast<idx_t>(env.get_num_sm() * 32));
   nblocks.y = 1;
   nblocks.z = 1;
-  cugraph::degree_coo<idx_t, val_t><<<nblocks, nthreads>>>(size,
-                                                           size,
-                                                           reinterpret_cast<idx_t*>(cooRow->data),
-                                                           sourceCounts);
+  cugraph::degree_coo<idx_t, unsigned long long int><<<nblocks, nthreads>>>(size,
+                                                                            size,
+                                                                            reinterpret_cast<idx_t*>(cooRow->data),
+                                                                            sourceCounts);
   cudaDeviceSynchronize();
   cudaCheckError();
 
   // Threads globally reduce their local source node counts to get the global ones
-  val_t* sourceCountsTemp;
-  ALLOC_TRY(&sourceCountsTemp, sizeof(val_t) * offsetsSize, nullptr);
+  unsigned long long int* sourceCountsTemp;
+  ALLOC_TRY(&sourceCountsTemp, sizeof(unsigned long long int) * offsetsSize, nullptr);
   comm->reductionSpace[i] = sourceCountsTemp;
 #pragma omp barrier
 
-  cugraph::treeReduce<val_t, thrust::plus<val_t>>(env,
-                                                  offsetsSize,
-                                                  sourceCounts,
-                                                  comm->reductionSpace);
+  cugraph::treeReduce<unsigned long long int, thrust::plus<unsigned long long int>>(env,
+                                                                                    offsetsSize,
+                                                                                    sourceCounts,
+                                                                                    comm->reductionSpace);
   cugraph::treeBroadcast(env, offsetsSize, sourceCounts, comm->reductionSpace);
 
   // Each thread takes the exclusive scan of the global counts
@@ -180,13 +178,13 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                          sourceCountsTemp,
                          sourceCountsTemp + offsetsSize,
                          sourceCountsTemp);
-  cudaFree(sourceCounts);
+  ALLOC_FREE_TRY(sourceCounts, nullptr);
   cudaDeviceSynchronize();
   cudaCheckError();
 
   // Each thread reads the global edgecount
-  val_t globalEdgeCount;
-  cudaMemcpy(&globalEdgeCount, sourceCountsTemp + maxId + 1, sizeof(val_t), cudaMemcpyDefault);
+  unsigned long long int globalEdgeCount;
+  cudaMemcpy(&globalEdgeCount, sourceCountsTemp + maxId + 1, sizeof(unsigned long long int), cudaMemcpyDefault);
   cudaCheckError();
 
   // Each thread searches the global source node counts prefix sum to find the start of its vertex ID range
@@ -217,21 +215,12 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
   // Each thread determines how many edges it will have in it's partition
   idx_t myEndVertex = part_offsets[i + 1];
-  val_t startEdge, endEdge;
-  cudaMemcpy(&startEdge, sourceCountsTemp + myStartVertex, sizeof(val_t), cudaMemcpyDefault);
-  cudaMemcpy(&endEdge, sourceCountsTemp + myEndVertex, sizeof(val_t), cudaMemcpyDefault);
+  unsigned long long int startEdge;
+  unsigned long long int endEdge;
+  cudaMemcpy(&startEdge, sourceCountsTemp + myStartVertex, sizeof(unsigned long long int), cudaMemcpyDefault);
+  cudaMemcpy(&endEdge, sourceCountsTemp + myEndVertex, sizeof(unsigned long long int), cudaMemcpyDefault);
+  ALLOC_FREE_TRY(sourceCountsTemp, nullptr);
   idx_t myEdgeCount = endEdge - startEdge;
-
-  ss.str("");
-  ss << "MyEdgeCount=" << myEdgeCount;
-  serializeMessage(env, ss.str());
-
-  ss.str("");
-  ss << "part_offsets: {";
-  for (int j = 0; j < p + 1; j++)
-    ss << " " << part_offsets[j];
-  ss << "}";
-  serializeMessage(env, ss.str());
 
   // Each thread sorts its cooRow, cooCol, and cooVal
   idx_t *cooRowTemp, *cooColTemp;
@@ -257,15 +246,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     thrust::sort(rmm::exec_policy(nullptr)->on(nullptr), zippy, zippy + size);
   }
   cudaCheckError();
-
-  ss.str("");
-  ss << "My Initial COO Row sorted={";
-  std::vector<idx_t> temp1(size);
-  cudaMemcpy(&temp1[0], cooRowTemp, sizeof(idx_t) * size, cudaMemcpyDefault);
-  for (size_t j = 0; j < temp1.size(); j++)
-    ss << " " << temp1[j];
-  ss << "}\n";
-  serializeMessage(env, ss.str());
 
   // Each thread determines the count of rows it needs to transfer to each other thread
   idx_t localMinId, localMaxId;
@@ -307,13 +287,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   for (int j = 0; j < p; j++){
     myRowCounts[j] = positions[j + 1] - positions[j];
   }
-
-  ss.str("");
-    ss << "MySize=" << size << " My positions: { ";
-    for (int j = 0; j < p + 1; j++)
-      ss << " " << positions[j];
-    ss << " }";
-    serializeMessage(env, ss.str());
 
 #pragma omp barrier
 
@@ -400,15 +373,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
   cudaCheckError();
 
-  ss.str("");
-  ss << "My COO Row sorted={";
-  std::vector<idx_t> temp(myEdgeCount);
-  cudaMemcpy(&temp[0], cooRowNew, sizeof(idx_t) * myEdgeCount, cudaMemcpyDefault);
-  for (size_t j = 0; j < temp.size(); j++)
-    ss << " " << temp[j];
-  ss << "}\n";
-  serializeMessage(env, ss.str());
-
   localMaxId = part_offsets[i + 1] - part_offsets[i] - 1;
   idx_t* offsets;
   ALLOC_TRY(&offsets, (localMaxId + 2) * sizeof(idx_t), nullptr);
@@ -443,10 +407,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   int numBlocks = (runCount_h + threadsPerBlock - 1) / threadsPerBlock;
 
   cudaCheckError();
-
-  ss.str("");
-  ss << "LocalMaxId=" << localMaxId << " RunCount_h=" << runCount_h << " numBlocks=" << numBlocks;
-  serializeMessage(env, ss.str());
 
   offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
 
