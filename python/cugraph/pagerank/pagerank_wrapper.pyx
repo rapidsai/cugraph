@@ -96,6 +96,8 @@ cpdef pagerank(G,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nst
         err = gdf_pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
     else:
+        null_check(personalization['vertex'])
+        null_check(personalization['values'])
         c_pers_vtx = get_gdf_column_view(personalization['vertex'])
         c_pers_val = get_gdf_column_view(personalization['values'])
         err = gdf_pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,

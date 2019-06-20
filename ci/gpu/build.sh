@@ -4,10 +4,17 @@
 # cuGraph GPU build & testscript for CI  #
 ##########################################
 set -e
+NUMARGS=$#
+ARGS=$*
 
 # Logger function for build status output
 function logger() {
   echo -e "\n>>>> $@\n"
+}
+
+# Arg parsing function
+function hasArg {
+    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
 # Set path, build parallel level, and CUDA version
@@ -51,6 +58,11 @@ $WORKSPACE/build.sh clean libcugraph cugraph
 ################################################################################
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
 ################################################################################
+
+if hasArg --skip-tests; then
+    logger "Skipping Tests..."
+    exit 0
+fi
 
 logger "Check GPU usage..."
 nvidia-smi

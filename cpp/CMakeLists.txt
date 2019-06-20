@@ -113,13 +113,12 @@ endif(BUILD_TESTS)
 find_package(Git QUIET)
 if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
     execute_process(COMMAND ${GIT_EXECUTABLE} log  -1 --pretty=format:"%ad" --date=format:%Y%m%d%H%M%S OUTPUT_VARIABLE LATEST_COMMIT_DATE WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
-    set(REQUIRED_COMMIT_DATE "\"20181011022038\"")
-    if(${REQUIRED_COMMIT_DATE} STRGREATER ${LATEST_COMMIT_DATE})
-        execute_process(COMMAND ${GIT_EXECUTABLE} checkout master "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
-        execute_process(COMMAND ${GIT_EXECUTABLE} pull WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
+    set(REQUIRED_COMMIT_DATE "\"20190528081356\"")
+    if(NOT ${REQUIRED_COMMIT_DATE} STREQUAL ${LATEST_COMMIT_DATE})
+        message(FATAL_ERROR "${CMAKE_CURRENT_BINARY_DIR}/gunrock is incompatible with cuGraph, please delete the gunrock directory and re-execute cmake.")
     endif()
 else()
-    execute_process(COMMAND ${GIT_EXECUTABLE} clone --recursive  https://github.com/gunrock/gunrock "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
+    execute_process(COMMAND ${GIT_EXECUTABLE} clone -b v0.5.1 --single-branch --recursive  https://github.com/gunrock/gunrock "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
 endif()
 
 ###################################################################################################
@@ -155,6 +154,47 @@ if(BUILD_TESTS)
             "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
+
+
+###################################################################################################
+# - NVStrings -------------------------------------------------------------------------------------
+
+find_path(NVSTRINGS_INCLUDE "nvstrings"
+          HINTS "$ENV{NVSTRINGS_ROOT}/include"
+                "$ENV{CONDA_PREFIX}/include/nvstrings"
+                "$ENV{CONDA_PREFIX}/include")
+
+find_library(NVSTRINGS_LIBRARY "NVStrings"
+             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
+                   "$ENV{CONDA_PREFIX}/lib")
+
+find_library(NVCATEGORY_LIBRARY "NVCategory"
+             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
+                   "$ENV{CONDA_PREFIX}/lib")
+
+find_library(NVTEXT_LIBRARY "NVText"
+             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
+                   "$ENV{CONDA_PREFIX}/lib")
+
+message(STATUS "NVSTRINGS: NVSTRINGS_INCLUDE set to ${NVSTRINGS_INCLUDE}")
+message(STATUS "NVSTRINGS: NVSTRINGS_LIBRARY set to ${NVSTRINGS_LIBRARY}")
+message(STATUS "NVSTRINGS: NVCATEGORY_LIBRARY set to ${NVCATEGORY_LIBRARY}")
+message(STATUS "NVSTRINGS: NVTEXT_LIBRARY set to ${NVTEXT_LIBRARY}")
+
+add_library(NVStrings SHARED IMPORTED ${NVSTRINGS_LIBRARY})
+if (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
+    set_target_properties(NVStrings PROPERTIES IMPORTED_LOCATION ${NVSTRINGS_LIBRARY})
+endif (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
+
+add_library(NVCategory SHARED IMPORTED ${NVCATEGORY_LIBRARY})
+if (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
+    set_target_properties(NVCategory PROPERTIES IMPORTED_LOCATION ${NVCATEGORY_LIBRARY})
+endif (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
+
+add_library(NVText SHARED IMPORTED ${NVTEXT_LIBRARY})
+if (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
+    set_target_properties(NVText PROPERTIES IMPORTED_LOCATION ${NVTEXT_LIBRARY})
+endif (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
 
 ###################################################################################################
 # - cudf ------------------------------------------------------------------------------------------
@@ -218,6 +258,7 @@ add_library(cugraph SHARED
     src/structure/cugraph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
+    src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/converters/nvgraph.cu
@@ -292,7 +333,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} cublas cusparse curand cusolver cudart cuda ${Boost_LIBRARIES})
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${Boost_LIBRARIES})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################

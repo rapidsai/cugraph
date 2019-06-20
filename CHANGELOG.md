@@ -1,17 +1,25 @@
 # cuGraph 0.8.0 (Date TBD)
 
 ## New Features
-- PR #287 SNMG power iteration step1 
-- PR #297 SNMG degree calculation 
+- PR #287 SNMG power iteration step1
+- PR #297 SNMG degree calculation
 - PR #300 Personalized Page Rank
 - PR #302 SNMG CSR Pagerank (cuda/C++)
 - PR #315 Weakly Connected Components adapted from cuML (cuda/C++)
+- PR #323 Add test skipping function to build.sh
+- PR #308 SNMG python wrapper for pagerank
+- PR #321 Added graph initialization functions for NetworkX compatibility.
+- PR #332 Added C++ support for strings in renumbering function
+- PR #325 Implement SSSP with predecessors (cuda/C++)
+- PR #331 Python bindings and test for Weakly Connected Components.
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
 - PR #286 Reorganized cugraph source directory
 - PR #306 Integrated nvgraph to libcugraph.so (libnvgraph_rapids.so will not be built anymore).
 - PR #306 Updated python test files to run pytest with all four RMM configurations.
+- PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
+- PR #333 Various general improvements at the library level 
 
 
 ## Bug Fixes
@@ -22,6 +30,9 @@
 - PR #311 Fixed bug in SNMG degree causing failure for three gpus
 - PR #309 Update conda build recipes
 - PR #314 Added datasets to gitignore
+- PR #322 Updates to accommodate new cudf include file locations
+- PR #324 Fixed crash in WeakCC for larger graph and added adj matrix symmetry check
+- PR #327 Implemented a tempory fix for the build failure due to gunrock updates.
 
 # cuGraph 0.7.0 (10 May 2019)
 

@@ -11,13 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
+import numpy as np
+
 import cudf
 from librmm_cffi import librmm as rmm
-import numpy as np
+
+from c_graph cimport *
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
@@ -38,6 +40,7 @@ cdef gdf_column get_gdf_column_view(col):
     redesign, we need to update this code to use their new features. Until that
     time, we may rely on this as a temporary solution.
     """
+
     cdef gdf_column c_col
     cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
     cdef uintptr_t valid_ptr
@@ -58,6 +61,34 @@ cdef gdf_column get_gdf_column_view(col):
 
     return c_col
 
+
+cdef gdf_column get_gdf_column_ptr(ipc_data_ptr, col_len):
+    print("in gdf_column, ipc_data_ptr: ", ipc_data_ptr)
+    #cdef gdf_column* c_col
+    #c_col = <gdf_column*>calloc(1,sizeof(gdf_column))
+    cdef gdf_column c_col
+    cdef uintptr_t data_ptr = ipc_data_ptr
+    cdef uintptr_t valid_ptr = 0
+    #cdef uintptr_t data_ptr = cudf.bindings.cudf_cpp.get_column_data_ptr(col._column)
+    #cdef uintptr_t valid_ptr
+    #if col._column._mask is None:
+    #    #valid_ptr = 0
+    #else:
+    #    #valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
+
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
+
+    err = gdf_column_view_augmented(<gdf_column*> &c_col,
+                                    <void*> data_ptr,
+                                    <gdf_valid_type*> valid_ptr,
+                                    <gdf_size_type> col_len,
+                                    dtypes[np.int32],
+                                    <gdf_size_type> 0,
+                                    c_extra_dtype_info)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    print("ipc_data_ptr: ", ipc_data_ptr)
+    return c_col
+
 #
 #  Really want something like this to clean up the code... but
 #  this can't work with the current interface.
@@ -76,6 +107,10 @@ cdef gdf_column get_gdf_column_view(col):
 #                                     dtype=dtypes_inv[col.dtype],
 #                                     finalizer=rmm._make_finalizer(<uintptr_t> col_ptr, 0))
 #
+
+def null_check(col):
+    if col.null_count != 0:
+        raise ValueError('Series contains NULL values')
 
 class Graph:
     """
@@ -112,6 +147,16 @@ class Graph:
         self.delete_adj_list()
         self.delete_transposed_adj_list()
         free(g)
+
+    def clear(self):
+        """
+        Empty this graph. This function is added for NetworkX compatibility.
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph * g = <gdf_graph*> graph
+        self.delete_edge_list()
+        self.delete_adj_list()
+        self.delete_transposed_adj_list()
 
     def renumber(self, source_col, dest_col):
         """
@@ -158,6 +203,8 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> src_r, dst_r, numbering = G.renumber(sources, destinations)
         """
+        null_check(source_col)
+        null_check(dest_col)
 
         cdef gdf_column src_renumbered
         cdef gdf_column dst_renumbered
@@ -167,10 +214,10 @@ class Graph:
         cdef gdf_column dest = get_gdf_column_view(dest_col)
 
         err = gdf_renumber_vertices(&source,
-	      			    &dest,
-				    &src_renumbered,
-				    &dst_renumbered,
-				    &numbering_map)
+                                    &dest,
+                                    &src_renumbered,
+                                    &dst_renumbered,
+                                    &numbering_map)
 
         cudf.bindings.cudf_cpp.check_gdf_error(err) 
 
@@ -190,31 +237,44 @@ class Graph:
         """
         Create the edge list representation of a Graph. The passed source_col
         and dest_col arguments wrap gdf_column objects that represent a graph
-        using the edge list format. If value_col is None, an unweighted graph
-        is created. If value_col is not None, an weighted graph is created. If
-        copy is False, this function stores references to the passed objects
+        using the edge list format. 
+        Source and destination indices must be in the range [0, V) where V is 
+        the number of vertices. They must be 32 bit integers. Please refer to 
+        cuGraph's renumbering feature if your input does not match these 
+        requierments. When using cudf.read_csv to load a CSV edge list, 
+        make sure to set dtype to int32 for the source and destination
+        columns.
+        Undirected edges must be stored as directed edges in both directions.
+        If value_col is None, an unweighted graph is created. If value_col is 
+        not None, an weighted graph is created. 
+        If copy is False, this function stores references to the passed objects
         pointed by source_col and dest_col. If copy is True, this funcion
         stores references to the deep-copies of the passed objects pointed by
         source_col and dest_col. If this class instance already stores a graph,
         invoking this function raises an error.
+        
+        
         Parameters
         ----------
         source_col : cudf.Series
             This cudf.Series wraps a gdf_column of size E (E: number of edges).
             The gdf column contains the source index for each edge.
-            Source indices must be in the range [0, V) (V: number of vertices).
+            Source indices must be in the range [0, V) (V: number of vertices). 
+            Source indices must be 32 bit integers.
         dest_col : cudf.Series
             This cudf.Series wraps a gdf_column of size E (E: number of edges).
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
-        value_col (optional) : cudf.Series
+            Destination indices must be 32 bit integers.
+        value_col(optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
             The gdf column contains the weight value for each edge.
             The expected type of the gdf_column element is floating point
             number.
+        
         Examples
         --------
         >>> import numpy as np
@@ -233,6 +293,14 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         """
+        null_check(source_col)
+        null_check(dest_col)
+        if source_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
+        if dest_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -254,6 +322,7 @@ class Graph:
         if value_col is None:
             c_value_col_ptr = NULL
         else:
+            null_check(tmp_value_col)
             c_value_col = get_gdf_column_view(tmp_value_col)
             c_value_col_ptr = &c_value_col
 
@@ -323,7 +392,9 @@ class Graph:
         If copy is True, this funcion stores references to the deep-copies of
         the passed objects pointed by offset_col and index_col. If this class
         instance already stores a graph, invoking this function raises an
-        error.
+        error. Undirected edges must be stored as directed edges in both 
+        directions.
+
         Parameters
         ----------
         offset_col : cudf.Series
@@ -336,13 +407,14 @@ class Graph:
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
-        value_col (optional) : cudf.Series
+        value_col(optional) : cudf.Series
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
             The gdf column contains the weight value for each edge.
             The expected type of the gdf_column element is floating point
             number.
+
         Examples
         --------
         >>> import numpy as np
@@ -362,6 +434,14 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_adj_list(offsets, indices, None)
         """
+        null_check(offset_col)
+        null_check(index_col)
+        if offset_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "offsets.")
+        if index_col.dtype != np.int32:
+            raise TypeError("cugraph currently supports only 32bit integer"
+                            "vertex ids.")
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -383,6 +463,7 @@ class Graph:
         if value_col is None:
             c_value_col_ptr = NULL
         else:
+            null_check(tmp_value_col)
             c_value_col = get_gdf_column_view(tmp_value_col)
             c_value_col_ptr = &c_value_col
 
@@ -494,10 +575,11 @@ class Graph:
         connected by a path of two hops in the graph. The resulting pairs are
         returned in sorted order.
 
-        Returns:
-        df : a cudf.DataFrame object
-        df['first'] the first vertex id of a pair
-        df['second'] the second vertex id of a pair
+        Returns
+        -------
+        Two hop neighbors : cudf.DataFrame
+            df['first'] the first vertex id of a pair
+            df['second'] the second vertex id of a pair
         """
         cdef uintptr_t graph = self.graph_ptr
         cdef gdf_graph * g = <gdf_graph*> graph
@@ -550,6 +632,14 @@ class Graph:
             # An empty graph
             return 0
 
+    def number_of_nodes(self):
+        """
+        An alias of number_of_vertices(). This function is added for NetworkxX
+        compatibility.
+        """
+        return self.number_of_vertices()
+
+
     def number_of_edges(self):
         """
         Get the number of edges in the graph
@@ -570,10 +660,12 @@ class Graph:
         """
         Calculates and returns the in-degree of vertices. Vertex in-degree
         is the number of edges pointing in to the vertex.
+
         Parameters
         ----------
         vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
             A container of vertices for displaying corresponding in-degree
+
         Returns
         -------
         df  : cudf.DataFrame
@@ -583,6 +675,7 @@ class Graph:
 
         df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed in-degree of the corresponding vertex
+
         Examples
         --------
         >>> import numpy as np
@@ -606,10 +699,12 @@ class Graph:
         """
         Calculates and returns the out-degree of vertices. Vertex out-degree
         is the number of edges pointing out from the vertex.
+
         Parameters
         ----------
         vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
             A container of vertices for displaying corresponding out-degree
+
         Returns
         -------
         df  : cudf.DataFrame
@@ -619,6 +714,7 @@ class Graph:
 
         df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed out-degree of the corresponding vertex
+
         Examples
         --------
         >>> import numpy as np
@@ -642,10 +738,12 @@ class Graph:
         """
         Calculates and returns the degree of vertices. Vertex degree
         is the number of edges adjacent to that vertex.
+
         Parameters
         ----------
         vertex_subset(optional, default=all vertices) : cudf.Series or iterable container
             A container of vertices for displaying corresponding degree
+
         Returns
         -------
         df  : cudf.DataFrame
@@ -655,6 +753,7 @@ class Graph:
 
         df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
         df['degree']: The computed degree of the corresponding vertex
+
         Examples
         --------
         >>> import numpy as np

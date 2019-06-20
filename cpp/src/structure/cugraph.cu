@@ -12,7 +12,6 @@
  */
 
 // Graph analytics features
-// Author: Alex Fender afender@nvidia.com
 
 #include <cugraph.h>
 #include "utilities/graph_utils.cuh"
@@ -24,6 +23,7 @@
 #include <thrust/device_vector.h>
 #include "utilities/cusparse_helper.h"
 #include <rmm_utils.h>
+#include <utilities/validation.cuh>
 /*
  * cudf has gdf_column_free and using this is, in general, better design than
  * creating our own, but we will keep this as cudf is planning to remove the
@@ -32,6 +32,13 @@
  * use their new features. Until that time, we may rely on this as a temporary
  * solution.
  */
+
+int get_device(const void *ptr) {
+    cudaPointerAttributes att;
+    cudaPointerGetAttributes(&att, ptr);
+    return att.device;
+}
+
 void gdf_col_delete(gdf_column* col) {
   if (col != nullptr) {
     cudaStream_t stream {nullptr};
@@ -64,7 +71,8 @@ void cpy_column_view(const gdf_column *in, gdf_column *out) {
 }
 
 gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
-                                 const gdf_column *indices, const gdf_column *edge_data) {
+                            const gdf_column *indices,
+                            const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
   GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
@@ -72,8 +80,9 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
   GDF_REQUIRE( offsets->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( (offsets->dtype == indices->dtype), GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( ((offsets->dtype == GDF_INT32) || (offsets->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( ((offsets->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( (offsets->size > 0), GDF_DATASET_EMPTY );
+
 
   graph->adjList = new gdf_adj_list;
   graph->adjList->offsets = new gdf_column;
@@ -82,13 +91,56 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
 
   cpy_column_view(offsets, graph->adjList->offsets);
   cpy_column_view(indices, graph->adjList->indices);
+  
+  if (!graph->prop)
+      graph->prop = new gdf_graph_properties();
+
   if (edge_data) {
-      GDF_REQUIRE( indices->size == edge_data->size, GDF_COLUMN_SIZE_MISMATCH );
-      graph->adjList->edge_data = new gdf_column;
-      cpy_column_view(edge_data, graph->adjList->edge_data);
-  }
-  else {
+    GDF_REQUIRE(indices->size == edge_data->size, GDF_COLUMN_SIZE_MISMATCH);
+    graph->adjList->edge_data = new gdf_column;
+    cpy_column_view(edge_data, graph->adjList->edge_data);
+    
+    bool has_neg_val;
+    
+    switch (graph->adjList->edge_data->dtype) {
+    case GDF_INT8:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<int8_t *>(graph->adjList->edge_data->data),
+          graph->adjList->edge_data->size);
+      break;
+    case GDF_INT16:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<int16_t *>(graph->adjList->edge_data->data),
+          graph->adjList->edge_data->size);
+      break;
+    case GDF_INT32:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<int32_t *>(graph->adjList->edge_data->data),
+          graph->adjList->edge_data->size);
+      break;
+    case GDF_INT64:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<int64_t *>(graph->adjList->edge_data->data),
+          graph->adjList->edge_data->size);
+      break;
+    case GDF_FLOAT32:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<float *>(graph->adjList->edge_data->data),
+          graph->adjList->edge_data->size);
+      break;
+    case GDF_FLOAT64:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<double *>(graph->adjList->edge_data->data),
+          graph->adjList->edge_data->size);
+      break;
+    default:
+      has_neg_val = false;
+    }
+    graph->prop->has_negative_edges =
+        (has_neg_val) ? GDF_PROP_TRUE : GDF_PROP_FALSE;
+  } else {
     graph->adjList->edge_data = nullptr;
+    graph->prop->has_negative_edges = GDF_PROP_FALSE;
   }
   return GDF_SUCCESS;
 }
@@ -112,14 +164,15 @@ gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
 }
 
 gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
-                                 const gdf_column *dest_indices, const gdf_column *edge_data) {
+                             const gdf_column *dest_indices, 
+                             const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
   GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
   GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( src_indices->dtype == dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( ((src_indices->dtype == GDF_INT32) || (src_indices->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
+  GDF_REQUIRE( ((src_indices->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY );
   GDF_REQUIRE( src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
@@ -131,16 +184,65 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
 
   cpy_column_view(src_indices, graph->edgeList->src_indices);
   cpy_column_view(dest_indices, graph->edgeList->dest_indices);
+
+  if (!graph->prop)
+    graph->prop = new gdf_graph_properties();
+
   if (edge_data) {
-      GDF_REQUIRE( src_indices->size == edge_data->size, GDF_COLUMN_SIZE_MISMATCH );
-      graph->edgeList->edge_data = new gdf_column;
-      cpy_column_view(edge_data, graph->edgeList->edge_data);
-  }
-  else {
+    GDF_REQUIRE(src_indices->size == edge_data->size, GDF_COLUMN_SIZE_MISMATCH);
+    graph->edgeList->edge_data = new gdf_column;
+    cpy_column_view(edge_data, graph->edgeList->edge_data);
+
+    bool has_neg_val;
+
+    switch (graph->edgeList->edge_data->dtype) {
+    case GDF_INT8:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<int8_t *>(graph->edgeList->edge_data->data),
+          graph->edgeList->edge_data->size);
+      break;
+    case GDF_INT16:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<int16_t *>(graph->edgeList->edge_data->data),
+          graph->edgeList->edge_data->size);
+      break;
+    case GDF_INT32:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<int32_t *>(graph->edgeList->edge_data->data),
+          graph->edgeList->edge_data->size);
+      break;
+    case GDF_INT64:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<int64_t *>(graph->edgeList->edge_data->data),
+          graph->edgeList->edge_data->size);
+      break;
+    case GDF_FLOAT32:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<float *>(graph->edgeList->edge_data->data),
+          graph->edgeList->edge_data->size);
+      break;
+    case GDF_FLOAT64:
+      has_neg_val = cugraph::has_negative_val(
+          static_cast<double *>(graph->edgeList->edge_data->data),
+          graph->edgeList->edge_data->size);
+      break;
+    default:
+      has_neg_val = false;
+    }
+    graph->prop->has_negative_edges =
+        (has_neg_val) ? GDF_PROP_TRUE : GDF_PROP_FALSE;
+
+  } else {
     graph->edgeList->edge_data = nullptr;
+    graph->prop->has_negative_edges = GDF_PROP_FALSE;
   }
 
-  return GDF_SUCCESS;
+  gdf_error status;
+  status = cugraph::indexing_check<int> (
+                                static_cast<int*>(graph->edgeList->src_indices->data), 
+                                static_cast<int*>(graph->edgeList->dest_indices->data), 
+                                graph->edgeList->dest_indices->size);
+  return status;
 }
 
 template <typename T, typename WT>

@@ -111,7 +111,24 @@ gdf_error gdf_bfs(gdf_graph *graph,
                   gdf_column *predecessors,
                   int start_vertex,
                   bool directed);
-
+/**                                                                             
+ * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
+ *                                                                              
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
+ *                                                                              
+ * @Param[out] *predecessors         If set to a valid column, this is populated by the sssp predecessor of every vertex
+ *                                                                              
+ * @Param[in] start_vertex           The starting vertex for SSSP               
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_sssp(gdf_graph *graph,                                            
+        		gdf_column *distances,                                                  
+        		gdf_column *predecessors,                                               
+          		const int source_vertex);                                               
 /**
  * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
  * which are connected by an edge.
@@ -231,3 +248,5 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
  gdf_error gdf_connected_components(gdf_graph *graph,
                                     cugraph_cc_t connectivity_type,
                                     gdf_column *labels);
+gdf_error gdf_multi_pagerank (const size_t global_v, gdf_column *src_ptrs, gdf_column *dest_ptrs, gdf_column *pr, const float damping_factor, const int max_iter);
+

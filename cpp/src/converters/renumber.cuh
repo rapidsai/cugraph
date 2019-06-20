@@ -30,135 +30,112 @@
 
 #include <thrust/scan.h>
 #include <thrust/binary_search.h>
-#include <cudf.h>
+#include <cudf/cudf.h>
+#include <nvstrings/NVStrings.h>
 #include <cuda_runtime_api.h>
 
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
-#include "utilities/heap.cuh"
+#include "sort/bitonic.cuh"
 #include "rmm_utils.h"
+
+namespace thrust {
+  template <>
+  inline void swap(std::pair<const char *, size_t> &a, 
+                   std::pair<const char *, size_t> &b) {
+    thrust::swap(a.first, b.first);
+    thrust::swap(a.second, b.second);
+  }
+}
+
 
 namespace cugraph {
 
   namespace detail {
     typedef uint32_t               hash_type;
-    //typedef unsigned long long     index_type;
-    typedef uint32_t index_type;
-    
-    template <typename VertexIdType>
-    class HashFunctionObject {
-    public:
-      HashFunctionObject(hash_type hash_size): hash_size_(hash_size) {}
-
-      __device__ __host__
-      hash_type operator()(const VertexIdType &vertex_id) const {
-	return (vertex_id % hash_size_);
-      }
-
-    private:
-      hash_type hash_size_;
-    };
-
-    template<typename T>
-    __global__ void DedupeHash(index_type hash_size, T *hash_data, index_type *hash_bins_start,
-                               index_type *hash_bins_end, index_type *hash_bins_base) {
-
-      index_type first = blockIdx.x * blockDim.x + threadIdx.x;
-      index_type stride = blockDim.x * gridDim.x;
-
-      for (index_type i = first ; i < hash_size ; i += stride) {
-        //
-        //  For each hash bin, we want to dedupe the elements.
-        //
-        //    hash_bins_start[i] to be unchanged
-        //    hash_bins_end[i] to point to the end of the deduped bin
-        //    hash_bins_base[i] to identify the number of unique elements in the bin
-        //
-        if (hash_bins_end[i] > hash_bins_start[i]) {
-	  //
-	  //  We're going to sort and dedupe this hash bin.
-	  //
-	  index_type size = hash_bins_end[i] - hash_bins_start[i];
-	  T *heap = hash_data + hash_bins_start[i];
-
-	  thrust::greater<T>  compare;
-
-	  heap::heapify(heap, size, compare);
-
-	  hash_bins_start[i] = size;
-
-	  //
-	  //  Pop the top element off the heap.
-	  //
-	  //  NOTE: We're taking advantage of a side-effect here.
-	  //        The heap_pop method swaps the top of the heap
-	  //        with the last element in the array.  We want
-	  //        our element to be the last element in the
-	  //        array, so we don't have to do anything special
-	  //        here.
-	  //
-	  //        Otherwise we would capture the output of heap_pop
-	  //        and set heap[size-1] to be that value.
-	  //
-	  heap::heap_pop(heap, size, compare);
-	  --size;
-	  ++hash_bins_base[i];
-	  --hash_bins_start[i];
-
-	  while (size > 0) {
-	    T top = heap::heap_pop(heap, size, compare);
-	    --size;
-
-	    //
-	    //  Now some dedupe logic.  If top is equal to
-	    //  the last element we pull off of the heap then
-	    //  we have a duplicate and we'll just skip it.
-	    //
-	    if (heap[hash_bins_start[i]] != top) {
-	      //
-	      //  We want to keep this element, so fix the counts
-	      //  and store it.
-	      //
-	      ++hash_bins_base[i];
-	      --hash_bins_start[i];
-	      heap[hash_bins_start[i]] = top;
-	    }
-	  }
-
-	  hash_bins_base[i] = hash_bins_base[i];
-	  hash_bins_start[i] = hash_bins_end[i] - hash_bins_base[i];
-        } else {
-          hash_bins_base[i] = 0;
-        }
-      }
-
-    }
-
-    template <typename H, typename I>
-    __global__ void SetupHash(H hash_size, I *hash_bins_start, I *hash_bins_end) {
-      hash_bins_end[0] = 0;
-      for (H i = 0 ; i < hash_size ; ++i) {
-        hash_bins_end[i+1] = hash_bins_end[i] + hash_bins_start[i];
-      }
-
-      for (H i = 0 ; i < (hash_size + 1) ; ++i) {
-        hash_bins_start[i] = hash_bins_end[i];
-      }
-   }
-
-    template <typename H, typename I>
-    __global__ void ComputeBase(H hash_size, I *hash_bins_base) {
-      I sum = 0;
-      for (H i = 0 ; i < hash_size ; ++i) {
-        sum += hash_bins_base[i];
-      }
-
-      hash_bins_base[hash_size] = sum;
-      for (H i = hash_size ; i > 0 ; --i) {
-        hash_bins_base[i-1] = hash_bins_base[i] - hash_bins_base[i-1];
-      }
-    }
+    typedef uint32_t               index_type;
   }
+
+  class HashFunctionObjectInt {
+  public:
+    HashFunctionObjectInt(detail::hash_type hash_size): hash_size_(hash_size) {}
+
+    template <typename VertexIdType>
+    __device__ __inline__
+    detail::hash_type operator()(const VertexIdType &vertex_id) const {
+      return (vertex_id % hash_size_);
+    }
+
+    detail::hash_type getHashSize() const {
+      return hash_size_;
+    }
+
+  private:
+    detail::hash_type hash_size_;
+  };
+
+  struct CompareString {
+    __device__ __inline__
+    bool operator() (const std::pair<const char *, size_t> &a,
+                     const std::pair<const char *, size_t> &b) const {
+
+      // return true if a < b
+      const char *ptr1 = a.first;
+      if (!ptr1)
+        return false;
+
+      const char *ptr2 = b.first;
+      if (!ptr2)
+        return false;
+
+      size_t len1 = a.second;
+      size_t len2 = b.second;
+      size_t minlen = thrust::min(len1, len2);
+      size_t idx;
+
+      for (idx = 0 ; idx < minlen ; ++idx) {
+        if (*ptr1 < *ptr2) {
+          return true;
+        } else if (*ptr1 > *ptr2) {
+          return false;
+        }
+  
+        ptr1++;
+        ptr2++;
+      }
+
+      return (idx < len1);
+    }
+  };
+
+  class HashFunctionObjectString {
+  public:
+    HashFunctionObjectString(detail::hash_type hash_size): hash_size_(hash_size) {}
+
+    __device__ __inline__
+    detail::hash_type operator() (const std::pair<const char *, size_t> &str) const {
+      //
+      //  Lifted/adapted from custring_view.inl in custrings
+      //
+      size_t sz = str.second;
+      const char *sptr = str.first;
+
+      detail::hash_type seed = 31; // prime number
+      detail::hash_type hash = 0;
+
+      for(size_t i = 0; i < sz; i++)
+        hash = hash * seed + sptr[i];
+
+      return (hash % hash_size_);
+    }
+
+    detail::hash_type getHashSize() const {
+      return hash_size_;
+    }
+
+  private:
+    detail::hash_type hash_size_;
+  };
 
   /**
    * @brief Renumber vertices to a dense numbering (0..vertex_size-1)
@@ -182,153 +159,236 @@ namespace cugraph {
    *
    * @return  SOME SORT OF ERROR CODE
    */
-  template <typename T_in, typename T_out>
+  template <typename T_in, typename T_out,
+            typename Hash_t, typename Compare_t>
   gdf_error renumber_vertices(size_t size,
-			      const T_in *src,
-			      const T_in *dst,
-			      T_out *src_renumbered,
-			      T_out *dst_renumbered,
+                              const T_in *src,
+                              const T_in *dst,
+                              T_out *src_renumbered,
+                              T_out *dst_renumbered,
                               size_t *new_size,
-			      T_in ** numbering_map,
-			      int max_threads_per_block = CUDA_MAX_KERNEL_THREADS,
-			      int max_blocks = CUDA_MAX_BLOCKS,
-			      detail::hash_type hash_size = 8191) {
+                              T_in ** numbering_map,
+                              Hash_t hash,
+                              Compare_t compare) {
 
     //
-    // Assume - src/dst/src_renumbered/dst_renumbered/numbering_map are all pre-allocated.
+    // Assume - src/dst/src_renumbered/dst_renumbered are all pre-allocated.
+    //
+    // This function will allocate numbering_map to be the exact size needed
+    // (user doesn't know a priori how many unique vertices there are.
     //
     // Here's the idea: Create a hash table. Since we're dealing with integers,
     // we can take the integer modulo some prime p to create hash buckets.  Then
     // we dedupe the hash buckets to create a deduped set of entries.  This hash
     // table can then be used to renumber everything.
     //
-    // We need 3 for hashing, and one array for data
+    // We need 2 arrays for hash indexes, and one array for data
     //
+    cudaStream_t stream = nullptr;
 
-    cudaStream_t stream {nullptr};
+    detail::hash_type hash_size = hash.getHashSize();
 
     T_in *hash_data;
 
-    detail::HashFunctionObject<T_in>  hash(hash_size);
-
     detail::index_type  *hash_bins_start;
     detail::index_type  *hash_bins_end;
-    detail::index_type  *hash_bins_base;
-
-    int threads_per_block = min((int) size, max_threads_per_block);
-    int thread_blocks = min(((int) size + threads_per_block - 1) / threads_per_block, max_blocks);
-    int hash_threads_per_block = min((int) hash_size, max_threads_per_block);
-    int hash_thread_blocks = min(((int) hash_size + hash_threads_per_block - 1) / hash_threads_per_block, max_blocks);
 
     ALLOC_TRY(&hash_data,       2 * size * sizeof(T_in), stream);
     ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(detail::index_type), stream);
     ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(detail::index_type), stream);
-    ALLOC_TRY(&hash_bins_base,  (1 + hash_size) * sizeof(detail::index_type), stream);
 
     //
     //  Pass 1: count how many vertex ids end up in each hash bin
     //
     CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::index_type)));
-    CUDA_TRY(cudaMemset(hash_bins_base, 0, (1 + hash_size) * sizeof(detail::index_type)));
 
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
-		     src, src + size,
-		     [hash_bins_start, hash] __device__ (T_in vid) {
-		       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
-		     });
+                     src, src + size,
+                     [hash_bins_start, hash] __device__ (T_in vid) {
+                       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
+                     });
     
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
-		     dst, dst + size,
-		     [hash_bins_start, hash] __device__ (T_in vid) {
-		       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
-		     });
-    
+                     dst, dst + size,
+                     [hash_bins_start, hash] __device__ (T_in vid) {
+                       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
+                     });
 
+    //
+    //  Compute exclusive sum and copy it into both hash_bins_start and
+    //  hash_bins_end.  hash_bins_end will be used to populate the
+    //  hash_data array and at the end will identify the end of
+    //  each range.
+    //
+    thrust::exclusive_scan(rmm::exec_policy(stream)->on(stream),
+                           hash_bins_start,
+                           hash_bins_start + hash_size + 1,
+                           hash_bins_end);
+
+    CUDA_TRY(cudaMemcpy(hash_bins_start, hash_bins_end,
+                        (hash_size + 1) * sizeof(detail::hash_type),
+                        cudaMemcpyDeviceToDevice));
+
+    //
+    //  Pass 2: Populate hash_data with data from the hash bins.
+    //
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                     src, src + size,
+                     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
+                       uint32_t hash_index = hash(vid);
+                       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+                       hash_data[hash_offset] = vid;
+                     });
+         
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                     dst, dst + size,
+                     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
+                       uint32_t hash_index = hash(vid);
+                       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+                       hash_data[hash_offset] = vid;
+                     });
+         
+    //
+    //  Now that we have data in hash bins, we'll do a segmented sort of the has bins
+    //  to sort each bin.  This will allow us to identify duplicates (all duplicates
+    //  are in the same hash bin so they will end up sorted consecutively).
+    //
+    detail::index_type size_as_int = size;
+    cugraph::bitonic::segmented_sort(hash_size,
+                                     size_as_int,
+                                     hash_bins_start,
+                                     hash_bins_end,
+                                     hash_data,
+                                     compare,
+                                     stream);
+
+    //
+    //  Now we rinse and repeat.  hash_data contains the data organized into sorted
+    //  hash bins.  This allows us to identify duplicates.  We'll start over but
+    //  we'll skip the duplicates when we repopulate the hash table.
+    //
+    
+    //
+    //  Pass 3: count how many vertex ids end up in each hash bin after deduping
+    //
+    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::index_type)));
+
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                     thrust::make_counting_iterator<detail::index_type>(0),
+                     thrust::make_counting_iterator<detail::index_type>(2 * size),
+                     [hash_data, hash_bins_start, hash, compare, size]
+                     __device__ (detail::index_type idx) {
+
+                       //
+                       //     Two items (a and b) are equal if
+                       //   compare(a,b) is false and compare(b,a)
+                       //   is also false.  If either is true then
+                       //   a and b are not equal.
+                       //
+                       //     Note that if there are k duplicate
+                       //   instances of an entry, only the LAST
+                       //   entry will be counted
+                       //
+                       bool unique = ((idx + 1) == (2 * size)) ||
+                         compare(hash_data[idx], hash_data[idx+1]) ||
+                         compare(hash_data[idx+1], hash_data[idx]);
+
+                       if (unique)
+                         atomicAdd(hash_bins_start + hash(hash_data[idx]), detail::index_type{1});
+                     });
+    
     //
     //  Compute exclusive sum and copy it into both hash_bins_start and
     //  hash bins end.
     //
-    detail::SetupHash<<<1,1>>>(hash_size, hash_bins_start, hash_bins_end);
+    thrust::exclusive_scan(rmm::exec_policy(stream)->on(stream),
+                           hash_bins_start,
+                           hash_bins_start + hash_size + 1,
+                           hash_bins_end);
+
+    CUDA_TRY(cudaMemcpy(hash_bins_start, hash_bins_end,
+                        (hash_size + 1) * sizeof(detail::hash_type),
+                        cudaMemcpyDeviceToDevice));
 
     //
-    //  Pass 2: Populate hash_data with data from the hash bins.  This implementation
-    //    will do some partial deduplication, but we'll need to fully dedupe later.
+    //    The last entry in the array (hash_bins_end[hash_size]) is the
+    //  total number of unique vertices
     //
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-		     src, src + size,
-		     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
-		       uint32_t hash_index = hash(vid);
-		       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
-		       hash_data[hash_offset] = vid;
-		     });
-		     
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-		     dst, dst + size,
-		     [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
-		       uint32_t hash_index = hash(vid);
-		       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
-		       hash_data[hash_offset] = vid;
-		     });
-		     
-    //
-    //  Now we need to dedupe the hash bins
-    //
-    detail::DedupeHash<<<hash_thread_blocks, hash_threads_per_block>>>(hash_size, hash_data, hash_bins_start, hash_bins_end, hash_bins_base);
-
-    //
-    //  Now we can compute densly packed indices
-    //
-    detail::ComputeBase<<<1,1>>>(hash_size, hash_bins_base);
-
-    //
-    //  Finally, we'll iterate over src and dst and populate src_renumbered
-    //  and dst_renumbered.
-    //
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-		     thrust::make_counting_iterator<detail::index_type>(0),
-		     thrust::make_counting_iterator<detail::index_type>(size),
-		     [hash_data, hash_bins_start, hash_bins_end,
-		      hash_bins_base, hash, src, src_renumbered]
-		     __device__ (detail::index_type idx) {
-		       detail::hash_type tmp = hash(src[idx]);
-		       const T_in *id = thrust::lower_bound(thrust::seq, hash_data + hash_bins_start[tmp], hash_data + hash_bins_end[tmp], src[idx]);
-		       src_renumbered[idx] = hash_bins_base[tmp] + (id - (hash_data + hash_bins_start[tmp]));
-		     });
-
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-		     thrust::make_counting_iterator<detail::index_type>(0),
-		     thrust::make_counting_iterator<detail::index_type>(size),
-		     [hash_data, hash_bins_start, hash_bins_end,
-		      hash_bins_base, hash, dst, dst_renumbered]
-		     __device__ (detail::index_type idx) {
-		       detail::hash_type tmp = hash(dst[idx]);
-		       const T_in *id = thrust::lower_bound(thrust::seq, hash_data + hash_bins_start[tmp], hash_data + hash_bins_end[tmp], dst[idx]);
-		       dst_renumbered[idx] = hash_bins_base[tmp] + (id - (hash_data + hash_bins_start[tmp]));
-		     });
-
-    detail::index_type temp{0};
-    CUDA_TRY(cudaMemcpy(&temp, hash_bins_base + hash_size, sizeof(detail::index_type), cudaMemcpyDeviceToHost));
+    detail::index_type temp = 0;
+    CUDA_TRY(cudaMemcpy(&temp, hash_bins_end + hash_size, sizeof(detail::index_type), cudaMemcpyDeviceToHost));
     *new_size = temp;
 
-    ALLOC_TRY(numbering_map, (*new_size) * sizeof(T_in), nullptr);
-    
-    T_in * local_numbering_map = *numbering_map;
+    ALLOC_TRY(numbering_map, temp * sizeof(T_in), nullptr);
+    T_in *local_numbering_map = *numbering_map;
+
+    //
+    //  Pass 4: Populate hash_data with data from the hash bins after deduping
+    //
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                     thrust::make_counting_iterator<detail::index_type>(0),
+                     thrust::make_counting_iterator<detail::index_type>(2 * size),
+                     [hash_bins_end, hash_data, local_numbering_map, hash, compare, size]
+                     __device__ (detail::index_type idx) {
+                       bool unique = ((idx + 1) == (2 * size))
+                         || compare(hash_data[idx], hash_data[idx+1])
+                         || compare(hash_data[idx+1], hash_data[idx]);
+       
+                       if (unique) {
+                         uint32_t hash_index = hash(hash_data[idx]);
+                         detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+                         local_numbering_map[hash_offset] = hash_data[idx];
+                       }
+                     });
+         
+    //
+    //  At this point, hash_bins_start and numbering_map partition the
+    //  unique data into a hash table.
+    //
+
+    //
+    //  If we do a segmented sort now, we can do the final lookups.
+    //
+    size_as_int = size;
+    cugraph::bitonic::segmented_sort(hash_size,
+                                     size_as_int,
+                                     hash_bins_start,
+                                     hash_bins_end,
+                                     local_numbering_map,
+                                     compare,
+                                     stream);
+
+    //
+    //     Renumber the input.  For each vertex, identify the
+    //   hash bin, and then search the hash bin for the
+    //   record that matches, the relative offset between that
+    //   element and the beginning of the array is the vertex
+    //   id in the renumbered map.
+    //
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                     thrust::make_counting_iterator<detail::index_type>(0),
+                     thrust::make_counting_iterator<detail::index_type>(size),
+                     [local_numbering_map, hash_bins_start, hash_bins_end,
+                      hash, src, src_renumbered, compare]
+                     __device__ (detail::index_type idx) {
+                       detail::hash_type tmp = hash(src[idx]);
+                       const T_in *id = thrust::lower_bound(thrust::seq, local_numbering_map + hash_bins_start[tmp], local_numbering_map + hash_bins_end[tmp], src[idx], compare);
+                       src_renumbered[idx] = id - local_numbering_map;
+                     });
 
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
-		     thrust::make_counting_iterator<detail::index_type>(0),
-		     thrust::make_counting_iterator<detail::index_type>(hash_size),
-		     [hash_data, hash_bins_start, hash_bins_end,
-		      hash_bins_base, local_numbering_map]
-		     __device__ (detail::index_type idx) {
-		       for (int j = hash_bins_start[idx] ; j < hash_bins_end[idx] ; ++j) {
-			 local_numbering_map[hash_bins_base[idx] + (j - hash_bins_start[idx])] = hash_data[j];
-		       }
-		     });
+                     thrust::make_counting_iterator<detail::index_type>(0),
+                     thrust::make_counting_iterator<detail::index_type>(size),
+                     [local_numbering_map, hash_bins_start, hash_bins_end,
+                      hash, dst, dst_renumbered, compare]
+                     __device__ (detail::index_type idx) {
+                       detail::hash_type tmp = hash(dst[idx]);
+                       const T_in *id = thrust::lower_bound(thrust::seq, local_numbering_map + hash_bins_start[tmp], local_numbering_map + hash_bins_end[tmp], dst[idx], compare);
+                       dst_renumbered[idx] = id - local_numbering_map;
+                     });
 
     ALLOC_FREE_TRY(hash_data, nullptr);
     ALLOC_FREE_TRY(hash_bins_start, nullptr);
     ALLOC_FREE_TRY(hash_bins_end, nullptr);
-    ALLOC_FREE_TRY(hash_bins_base, nullptr);
 
     return GDF_SUCCESS;
   }
