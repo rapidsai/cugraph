@@ -77,8 +77,9 @@ def cugraph_call(cu_M, source, edgevals=False):
     verts_np = df['vertex'].to_array()
     dist_np = df['distance'].to_array()
     pred_np = df['predecessor'].to_array()
-    result = dict(zip(verts_np, zip(dist_np,pred_np)))
-    return result 
+    result = dict(zip(verts_np, zip(dist_np, pred_np)))
+    return result
+
 
 def networkx_call(M, source, edgevals=False):
 
@@ -105,7 +106,7 @@ def networkx_call(M, source, edgevals=False):
 
     print('Time : ' + str(t2))
 
-    return path,Gnx
+    return path, Gnx
 
 
 DATASETS = ['../datasets/dolphins',
@@ -133,7 +134,7 @@ def test_sssp(managed, pool, graph_file, source):
     M = read_mtx_file(graph_file+'.mtx')
     cu_M = read_csv_file(graph_file+'.csv')
     cu_paths = cugraph_call(cu_M, source)
-    nx_paths,Gnx = networkx_call(M, source)
+    nx_paths, Gnx = networkx_call(M, source)
 
     # Calculating mismatch
     err = 0
@@ -170,7 +171,7 @@ def test_sssp_edgevals(managed, pool, graph_file, source):
     M = read_mtx_file(graph_file+'.mtx')
     cu_M = read_csv_file(graph_file+'.csv')
     cu_paths = cugraph_call(cu_M, source, edgevals=True)
-    nx_paths,Gnx = networkx_call(M, source, edgevals=True)
+    nx_paths, Gnx = networkx_call(M, source, edgevals=True)
 
     # Calculating mismatch
     err = 0
