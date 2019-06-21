@@ -43,7 +43,8 @@
 - PR #314 Added datasets to gitignore
 - PR #322 Updates to accommodate new cudf include file locations
 - PR #324 Fixed crash in WeakCC for larger graph and added adj matrix symmetry check
-- PR #327 Implemented a tempory fix for the build failure due to gunrock updates.
+- PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
+- PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
 
 # cuGraph 0.7.0 (10 May 2019)
 
