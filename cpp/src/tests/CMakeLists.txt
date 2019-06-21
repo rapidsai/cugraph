@@ -140,21 +140,12 @@ set(PAGERANK_TEST_SRC
 ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
 ###################################################################################################
-#- native sssp tests -- ---------------------------------------------------------------------------
-set(NATIVE_SSSP_TEST_SRCS
+# - SSSP tests ------------------------------------------------------------------------------------
+set(SSSP_TEST_SRCS
 	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
 
-ConfigureTest(NATIVE_SSSP_TEST "${NATIVE_SSSP_TEST_SRCS}" "")
-
-###################################################################################################
-# - SSSP tests ------------------------------------------------------------------------------------
-
-set(SSSP_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_sssp.cpp")
-
-ConfigureTest(SSSP_TEST "${SSSP_TEST_SRC}" "")
+ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
