@@ -211,6 +211,28 @@ gdf_error gdf_snmg_degree(int x,
                           gdf_column** x_cols);
 
 /**
+ * Converts the input edge list (partitioned and loaded onto the GPUs) into a partitioned csr representation.
+ * This is a multi-gpu operation operating on partitioned data.
+ * @param part_offsets Set to contain the start/end of each partition's vertex ID range. (output)
+ * @param comm1 A pointer to void pointer which will be used for inter-thread communication
+ * @param cooRow The local partition's initial COO row indices (input)
+ * @param cooCol The local partition's initial COO column indices (input)
+ * @param cooVal The local partition's initial COO values (input)
+ * @param csrOff The local partition's CSR Offsets (output)
+ * @param csrInd The local partition's CSR Indices (output)
+ * @param csrVal The local partition's CSR Values (output)
+ * @return Error code
+ */
+gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
+                           bool free_input,
+                           void** comm1,
+                           gdf_column* cooRow,
+                           gdf_column* cooCol,
+                           gdf_column* cooVal,
+                           gdf_column* csrOff,
+                           gdf_column* csrInd,
+                           gdf_column* csrVal);
+/**
  * @brief Compute connected components.
  * The weak version was imported from cuML.
  * This implementation comes from [1] and solves component labeling problem in
