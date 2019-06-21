@@ -69,18 +69,16 @@ def cugraph_call(cu_M, source, edgevals=False):
     print('cugraph Solving... ')
     t1 = time.time()
 
-    dist = cugraph.sssp(G, source)
+    df = cugraph.sssp(G, source)
 
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
-    distances = []
-    dist_np = dist['distance'].to_array()
-    for i, d in enumerate(dist_np):
-        distances.append((i, d))
-
-    return distances
-
+    verts_np = df['vertex'].to_array()
+    dist_np = df['distance'].to_array()
+    pred_np = df['predecessor'].to_array()
+    result = dict(zip(verts_np, zip(dist_np,pred_np)))
+    return result 
 
 def networkx_call(M, source, edgevals=False):
 
@@ -107,7 +105,7 @@ def networkx_call(M, source, edgevals=False):
 
     print('Time : ' + str(t2))
 
-    return path
+    return path,Gnx
 
 
 DATASETS = ['../datasets/dolphins',
@@ -135,17 +133,20 @@ def test_sssp(managed, pool, graph_file, source):
     M = read_mtx_file(graph_file+'.mtx')
     cu_M = read_csv_file(graph_file+'.csv')
     cu_paths = cugraph_call(cu_M, source)
-    nx_paths = networkx_call(M, source)
+    nx_paths,Gnx = networkx_call(M, source)
 
     # Calculating mismatch
     err = 0
-
-    for i in range(len(cu_paths)):
-        if (cu_paths[i][1] != np.finfo(np.float32).max):
-            if(cu_paths[i][1] != nx_paths[cu_paths[i][0]]):
+    for vid in cu_paths:
+        if (cu_paths[vid][0] != np.finfo(np.float32).max):
+            if(cu_paths[vid][0] != nx_paths[vid]):
+                err = err + 1
+            # check pred dist + 1 = current dist (since unweighted)
+            pred = cu_paths[vid][1]
+            if(vid != source and cu_paths[pred][0] + 1 != cu_paths[vid][0]):
                 err = err + 1
         else:
-            if (cu_paths[i][0] in nx_paths.keys()):
+            if (vid in nx_paths.keys()):
                 err = err + 1
 
     assert err == 0
@@ -169,19 +170,25 @@ def test_sssp_edgevals(managed, pool, graph_file, source):
     M = read_mtx_file(graph_file+'.mtx')
     cu_M = read_csv_file(graph_file+'.csv')
     cu_paths = cugraph_call(cu_M, source, edgevals=True)
-    nx_paths = networkx_call(M, source, edgevals=True)
+    nx_paths,Gnx = networkx_call(M, source, edgevals=True)
 
     # Calculating mismatch
     err = 0
     print(cu_paths)
     print(nx_paths)
     print(len(cu_paths))
-    for i in range(len(cu_paths)):
-        if (cu_paths[i][1] != np.finfo(np.float32).max):
-            if(cu_paths[i][1] != nx_paths[cu_paths[i][0]]):
+    for vid in cu_paths:
+        if (cu_paths[vid][0] != np.finfo(np.float32).max):
+            if(cu_paths[vid][0] != nx_paths[vid]):
                 err = err + 1
+            # check pred dist + edge_weight = current dist
+            if(vid != source):
+                pred = cu_paths[vid][1]
+                edge_weight = Gnx[pred][vid]['weight']
+                if(cu_paths[pred][0] + edge_weight != cu_paths[vid][0]):
+                    err = err + 1
         else:
-            if (cu_paths[i][0] in nx_paths.keys()):
+            if (vid in nx_paths.keys()):
                 err = err + 1
 
     assert err == 0
