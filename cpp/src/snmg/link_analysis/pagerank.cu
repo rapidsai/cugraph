@@ -149,7 +149,7 @@ template class SNMGpagerank<int, float>;
 } //namespace cugraph
 
 template<typename idx_t, typename val_t>
-gdf_error gdf_multi_pagerank(
+gdf_error gdf_snmg_pagerank_impl(
             const size_t n_gpus, 
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
