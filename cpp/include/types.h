@@ -19,13 +19,16 @@ void gdf_col_delete(gdf_column* col);
 
 void gdf_col_release(gdf_column* col);
 
+typedef enum gdf_prop_type{GDF_PROP_UNDEF, GDF_PROP_FALSE, GDF_PROP_TRUE} GDFPropType;
+
 struct gdf_graph_properties {
   bool directed;
   bool weighted;
   bool multigraph;
   bool bipartite;
   bool tree;
-  gdf_graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false){}
+  GDFPropType has_negative_edges;
+  gdf_graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false), has_negative_edges(GDF_PROP_UNDEF){}
 };
 
 struct gdf_edge_list{

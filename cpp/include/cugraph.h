@@ -19,10 +19,10 @@
 #include <cstdlib>
 #include <cstdint>
 
-#include <cudf.h>
+#include <cudf/cudf.h>
 
 #include "types.h"
 
 #include "functions.h"
 
-
+#include "algorithms.h"

@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-cd python
-python setup.py install
+# This assumes the script is executed from the root of the repo directory
+./build.sh cugraph

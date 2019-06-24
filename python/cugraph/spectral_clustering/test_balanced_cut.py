@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+from itertools import product
 import random
 
 import pytest
@@ -18,11 +20,19 @@ from scipy.io import mmread
 
 import cudf
 import cugraph
+from librmm_cffi import librmm as rmm
+from librmm_cffi import librmm_config as rmm_cfg
 
 
 def read_mtx_file(mm_file):
     print('Reading ' + str(mm_file) + '...')
     return mmread(mm_file).asfptype()
+
+
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float64'], header=None)
 
 
 def cugraph_call(G, partitions):
@@ -34,7 +44,7 @@ def cugraph_call(G, partitions):
 
 def random_call(G, partitions):
     random.seed(0)
-    num_verts = G.num_vertices()
+    num_verts = G.number_of_vertices()
     assignment = []
     for i in range(num_verts):
         assignment.append(random.randint(0, partitions-1))
@@ -44,26 +54,91 @@ def random_call(G, partitions):
 
 
 DATASETS = [
-    '/datasets/networks/karate.mtx',
-    '/datasets/networks/dolphins.mtx',
-    '/datasets/golden_data/graphs/dblp.mtx']
+    '../datasets/karate',
+    '../datasets/dolphins',
+    '../datasets/netscience']
 PARTITIONS = [2, 4, 8]
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('partitions', PARTITIONS)
+def test_modularity_clustering(managed, pool, graph_file, partitions):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
+    # Read in the graph and get a cugraph object
+    M = read_mtx_file(graph_file+'.mtx').tocsr()
+    cu_M = read_csv_file(graph_file+'.csv')
+
+    row_offsets = cudf.Series(M.indptr)
+    col_indices = cudf.Series(M.indices)
+
+    sources = cu_M['0']
+    destinations = cu_M['1']
+
+    G_adj = cugraph.Graph()
+    G_adj.add_adj_list(row_offsets, col_indices)
+    G_edge = cugraph.Graph()
+    G_edge.add_edge_list(sources, destinations)
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G_adj, partitions)
+    rand_vid, rand_score = random_call(G_adj, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G_edge, partitions)
+    rand_vid, rand_score = random_call(G_edge, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
-def test_modularity_clustering(graph_file, partitions):
+def test_modularity_clustering_with_edgevals(graph_file, partitions):
     # Read in the graph and get a cugraph object
     M = read_mtx_file(graph_file).tocsr()
+    cu_M = read_csv_file(graph_file+'.csv')
+
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    values = cudf.Series(M.data)
-    G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, values)
+    val = cudf.Series(M.data)
+
+    G_adj = cugraph.Graph()
+    G_adj.add_adj_list(row_offsets, col_indices, val)
+
+    sources = cu_M['0']
+    destinations = cu_M['1']
+    values = cu_M['2']
+
+    G_edge = cugraph.Graph()
+    G_edge.add_edge_list(sources, destinations, values)
 
     # Get the modularity score for partitioning versus random assignment
-    cu_vid, cu_score = cugraph_call(G, partitions)
-    rand_vid, rand_score = random_call(G, partitions)
+    cu_vid, cu_score = cugraph_call(G_adj, partitions)
+    rand_vid, rand_score = random_call(G_adj, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score < rand_score
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_vid, cu_score = cugraph_call(G_edge, partitions)
+    rand_vid, rand_score = random_call(G_edge, partitions)
 
     # Assert that the partitioning has better modularity than the random
     # assignment

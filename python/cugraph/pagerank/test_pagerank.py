@@ -11,13 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+from itertools import product
 import time
+import numpy as np
 
 import pytest
 from scipy.io import mmread
 
 import cudf
 import cugraph
+from librmm_cffi import librmm as rmm
+from librmm_cffi import librmm_config as rmm_cfg
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -38,17 +43,33 @@ def read_mtx_file(mm_file):
     return mmread(mm_file).asfptype()
 
 
-def cugraph_call(M, max_iter, tol, alpha):
+def read_csv_file(mm_file):
+    print('Reading ' + str(mm_file) + '...')
+    return cudf.read_csv(mm_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float32'], header=None)
+
+
+def cudify(d):
+    if d is None:
+        return None
+
+    k = np.fromiter(d.keys(), dtype='int32')
+    v = np.fromiter(d.values(), dtype='float32')
+    cuD = cudf.DataFrame([('vertex', k), ('values', v)])
+    return cuD
+
+
+def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
     # Device data
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
-    # values = cudf.Series(np.ones(len(sources), dtype = np.float64))
+    sources = cu_M['0']
+    destinations = cu_M['1']
 
     # cugraph Pagerank Call
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     t1 = time.time()
-    df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol)
+    df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol,
+                          personalization=personalization, nstart=nstart)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
@@ -58,10 +79,12 @@ def cugraph_call(M, max_iter, tol, alpha):
     for i, rank in enumerate(pr_scores):
         sorted_pr.append((i, rank))
 
-    return sorted(sorted_pr, key=lambda x: x[1], reverse=True)
+    return sorted_pr
 
 
-def networkx_call(M, max_iter, tol, alpha):
+# The function selects personalization_perc% of accessible vertices in graph M
+# and randomly assigns them personalization values
+def networkx_call(M, max_iter, tol, alpha, personalization_perc):
     nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
     for nnz in range(M.getnnz()):
         nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
@@ -73,6 +96,20 @@ def networkx_call(M, max_iter, tol, alpha):
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
+
+    personalization = None
+    if personalization_perc != 0:
+        personalization = {}
+        nnz_vtx = np.unique(M.nonzero())
+        personalization_count = int((nnz_vtx.size *
+                                     personalization_perc)/100.0)
+        nnz_vtx = np.random.choice(nnz_vtx,
+                                   min(nnz_vtx.size, personalization_count),
+                                   replace=False)
+        nnz_val = np.random.random(nnz_vtx.size)
+        nnz_val = nnz_val/sum(nnz_val)
+        for vtx, val in zip(nnz_vtx, nnz_val):
+            personalization[vtx] = val
 
     # should be autosorted, but check just to make sure
     if not M.has_sorted_indices:
@@ -94,41 +131,64 @@ def networkx_call(M, max_iter, tol, alpha):
 
     # same parameters as in NVGRAPH
     pr = nx.pagerank(Gnx, alpha=alpha, nstart=z, max_iter=max_iter*2,
-                     tol=tol*0.01)
+                     tol=tol*0.01, personalization=personalization)
     t2 = time.time() - t1
 
     print('Time : ' + str(t2))
 
-    # return Sorted Pagerank values
-    return sorted(pr.items(), key=lambda x: x[1], reverse=True)
+    return pr, personalization
 
 
-DATASETS = ['/datasets/networks/dolphins.mtx',
-            '/datasets/networks/karate.mtx',
-            '/datasets/networks/netscience.mtx']
+DATASETS = ['../datasets/dolphins',
+            '../datasets/karate']
+
 
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
+PERSONALIZATION_PERC = [0, 10, 50]
+HAS_GUESS = [0, 1]
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('tol', TOLERANCE)
 @pytest.mark.parametrize('alpha', ALPHA)
-def test_pagerank(graph_file, max_iter, tol, alpha):
-    M = read_mtx_file(graph_file)
+@pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
+@pytest.mark.parametrize('has_guess', HAS_GUESS)
+def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
+                  personalization_perc, has_guess):
+    gc.collect()
 
-    networkx_pr = networkx_call(M, max_iter, tol, alpha)
-    cugraph_pr = cugraph_call(M, max_iter, tol, alpha)
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+    M = read_mtx_file(graph_file+'.mtx')
+    networkx_pr, networkx_prsn = networkx_call(M, max_iter, tol, alpha,
+                                               personalization_perc)
+
+    cu_nstart = None
+    if has_guess == 1:
+        cu_nstart = cudify(networkx_pr)
+        max_iter = 5
+    cu_prsn = cudify(networkx_prsn)
+    cu_M = read_csv_file(graph_file+'.csv')
+    cugraph_pr = cugraph_call(cu_M, max_iter, tol, alpha, cu_prsn, cu_nstart)
 
     # Calculating mismatch
 
+    networkx_pr = sorted(networkx_pr.items(), key=lambda x: x[0])
     err = 0
     assert len(cugraph_pr) == len(networkx_pr)
     for i in range(len(cugraph_pr)):
         if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*1.1
            and cugraph_pr[i][0] == networkx_pr[i][0]):
             err = err + 1
-    print(err)
+    print("Mismatches:", err)
     assert err < (0.01*len(cugraph_pr))

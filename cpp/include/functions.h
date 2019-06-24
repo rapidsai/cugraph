@@ -15,6 +15,36 @@
  */
 #pragma once 
 
+/* ----------------------------------------------------------------------------*/
+
+/**
+ * @Synopsis Renumber source and destination indexes to be a dense numbering,
+ *           using contiguous values between 0 and number of vertices minus 1.
+ *
+ *    Assumptions:
+ *       * source and dest have same size and type
+ *       * source and dest are either GDF_INT32 or GDF_INT64
+ *       * source and dest have a size greater than 0
+ *
+ *    Note that this function allocates memory for the src_renumbered,
+ *    dst_renumbered and numbering_map arrays.
+ *
+ *  @Param[in]  src - the original source vertices
+ *  @Param[in]  dst - the original dest vertices
+ *  @Param[out] src_renumbered - the renumbered source vertices.  This array
+ *                               will be a GDF_INT32 array.
+ *  @Param[out] dst_renumbered - the renumbered dest vertices.  This array
+ *                               will be a GDF_INT32 array.
+ *  @Param[out] numbering_map - mapping of new vertex ids to old vertex ids.
+ *                              This array will match the type of src/dst input.
+ *
+ *  @Returns    GDF_SUCCESS on success, an error code on failure.
+ *              GDF_COLUMN_SIZE_TOO_BIG if the number of unique vertices is > 2^31-1.
+ */
+gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
+				gdf_column *src_renumbered, gdf_column *dst_renumbered,
+				gdf_column *numbering_map);
+
 /**
  * @Synopsis   Wrap existing gdf columns representing an edge list in a gdf_graph.
  *             cuGRAPH does not own the memory used to represent this graph. This function does not allocate memory.
@@ -85,7 +115,7 @@ gdf_error gdf_add_adj_list(gdf_graph *graph);
  */
 /* ----------------------------------------------------------------------------*/
 
-gdf_error gdf_add_transpose(gdf_graph *graph);
+gdf_error gdf_add_transposed_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Create the edge lists of a gdf_graph from its adjacency list.
@@ -131,81 +161,60 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph);
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_delete_transpose(gdf_graph *graph);
+gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph);
 
 /**
- * @Synopsis   Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
- * The number of iterations depends on the properties of the network itself; it increases when the tolerance descreases and/or alpha increases toward the limiting value of 1.
- * The user is free to use default values or to provide inputs for the initial guess, tolerance and maximum number of iterations.
+ * @Synopsis   Find pairs of vertices in the input graph such that each pair is connected by
+ *             a path that is two hops in length.
  *
- * @Param[in] graph               cuGRAPH graph descriptor, should contain the connectivity information as an edge list (edge weights are not used for this algorithm).
- *                                The transposed adjacency list will be computed if not already present.
- * @Param[in] alpha               The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
-                                  Thus, 1.0-alpha is the probability to “teleport” to a random node. Alpha should be greater than 0.0 and strictly lower than 1.0.
- * @Param[in] has_guess           This parameter is used to notify cuGRAPH if it should use a user-provided initial guess. False means the user doesn't have a guess, in this case cuGRAPH will use a uniform vector set to 1/V.
- *                                If the value is True, cuGRAPH will read the pagerank parameter and use this as an initial guess.
- *                                The initial guess must not be the vector of 0s. Any value other than 1 or 0 is treated as an invalid value.
- * @Param[in] pagerank (optional) Initial guess if has_guess=true
- * @Param[in] tolerance           Set the tolerance the approximation, this parameter should be a small magnitude value.
- *                                The lower the tolerance the better the approximation. If this value is 0.0f, cuGRAPH will use the default value which is 1.0E-6.
- *                                Setting too small a tolerance can lead to non-convergence due to numerical roundoff. Usually values between 0.01 and 0.00001 are acceptable.
- * @Param[in] max_iter            The maximum number of iterations before an answer is returned. This can be used to limit the execution time and do an early exit before the solver reaches the convergence tolerance.
- *                                If this value is lower or equal to 0 cuGRAPH will use the default value, which is 500.
+ * @param[in] *graph                 in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
  *
- * @Param[out] *pagerank          The PageRank : pagerank[i] is the PageRank of vertex i.
+ * @param[out] first                 out : An uninitialized gdf_column which will be initialized to contain the
+ *                                         first entry of each result pair.
+ * @param[out] second                out : An uninitialized gdf_column which will be initialized to contain the
+ *                                         second entry of each result pair.
  *
- * @Returns                       GDF_SUCCESS upon successful completion.
+ * @return                           GDF_SUCCESS upon successful completion. 
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank, float alpha, float tolerance, int max_iter, bool has_guess);
+gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
 
 /**
- * @Synopsis   Creates source, destination and value columns based on the specified R-MAT model
+ * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
+ *             Should be called in an omp parallel section with one thread per device.
+ *             Each device is expected to have a part of the matrix and a copy of the vector
+ *             This function is designed for 1D decomposition. Each partition should have local offsets.
  *
- * @Param[in] *argv                  String that accepts the following arguments
- *                                   rmat (default: rmat_scale = 10, a = 0.57, b = c = 0.19)
- *                                               Generate R-MAT graph as input
- *                                               --rmat_scale=<vertex-scale>
- *                                               --rmat_nodes=<number-nodes>
- *                                               --rmat_edgefactor=<edge-factor>
- *                                               --rmat_edges=<number-edges>
- *                                               --rmat_a=<factor> --rmat_b=<factor> --rmat_c=<factor>
- *                                               --rmat_self_loops If this option is supplied, then self loops will be retained
- *                                               --rmat_undirected If this option is not mentioned, then the graps will be undirected
- *                                       Optional arguments:
- *                                       [--device=<device_index>] Set GPU(s) for testing (Default: 0).
- *                                       [--quiet]                 No output (unless --json is specified).
- *                                       [--random_seed]           This will enable usage of random seed, else it will use same seed
+ * @Param[in] *part_offsets          in  : Vertex offsets for each partition. This information should be available on all threads/devices
+ *                                         part_offsets[device_id] contains the global ID of the first vertex of the partion owned by device_id. 
+ *                                         part_offsets[num_devices] contains the global number of vertices
+ * @Param[in] off                    in  : Local adjacency list offsets. Starting at 0. The last element contains the local number of edges owned by the partition.
+ * @Param[in] ind                    in  : Local adjacency list indices. Indices are between 0 and the global number of edges. 
+ * @Param[in] val                    in  : Local adjacency list values. Type should be float or double.
  *
- * @Param[out] &vertices             Number of vertices in the generated edge list
- *
- * @Param[out] &edges                Number of edges in the generated edge list
- *
- * @Param[out] *src                  Columns containing the sources
- *
- * @Param[out] *dst                  Columns containing the destinations
- *
- * @Param[out] *val                  Columns containing the edge weights
+ * @Param[in, out] **x_col           in  : x[device_id] contains the input vector of the spmv for a device_id. The input should be duplicated on all devices.
+ *                                   out : Overwritten on output by the result of x = A*x, on all devices.
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_grmat_gen (const char* argv, size_t &vertices, size_t &edges, gdf_column* src, gdf_column* dest, gdf_column* val);
+gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
 
 /**
- * @Synopsis   Performs a breadth first search traversal of a graph starting from a node.
+ * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a gdf_graph
  *
- * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @Param[in] *graph                 in  : graph descriptor with graph->transposedAdjList or graph->adjList present
+ * @Param[in] x                      in  : integer value indicating type of degree calculation
+ *                                         0 : in+out degree
+ *                                         1 : in-degree
+ *                                         2 : out-degree
  *
- * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting node
- *
- * @Param[out] *predecessors         If set to a valid column, this is populated by bfs traversal predecessor of every vertex
- *
- * @Param[in] start_node             The starting node for breadth first search traversal
- *
- * @Param[in] directed               Treat the input graph as directed
+ * @Param[out] *degree               out : gdf_column of size V (V is number of vertices) initialized to zeros.
+ *                                         Contains the computed degree of every vertex.
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_node, bool directed);
+gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x);
+int get_device(const void *ptr);
+

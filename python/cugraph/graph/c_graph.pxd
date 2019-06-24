@@ -1,6 +1,6 @@
 from libcpp cimport bool
 
-cdef extern from "cudf.h":
+cdef extern from "cudf/cudf.h":
 
     ctypedef size_t gdf_size_type
 
@@ -16,7 +16,7 @@ cdef extern from "cudf.h":
     ctypedef struct gdf_dtype_extra_info:
         gdf_time_unit time_unit
 
-    ctypedef enum gdf_error: 
+    ctypedef enum gdf_error:
 
         pass
 
@@ -77,6 +77,12 @@ cdef extern from "cugraph.h":
         gdf_adj_list *transposedAdjList
 
 
+    cdef gdf_error gdf_renumber_vertices(const gdf_column *src,
+    	 	   			 const gdf_column *dst,
+				         gdf_column *src_renumbered,
+					 gdf_column *dst_renumbered,
+				         gdf_column *numbering_map)
+
     cdef gdf_error gdf_edge_list_view(gdf_graph *graph,
                              const gdf_column *source_indices,
                              const gdf_column *destination_indices,
@@ -89,7 +95,8 @@ cdef extern from "cugraph.h":
                              const gdf_column *edge_data)
     cdef gdf_error gdf_add_adj_list(gdf_graph *graph)
     cdef gdf_error gdf_delete_adj_list(gdf_graph *graph)
-    cdef gdf_error gdf_add_transpose(gdf_graph *graph)
-    cdef gdf_error gdf_delete_transpose(gdf_graph *graph)
+    cdef gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second)
+    cdef gdf_error gdf_add_transposed_adj_list(gdf_graph *graph)
+    cdef gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph)
 
-    
+    cdef gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x)

@@ -34,3 +34,5 @@ build/
 .project
 .cproject
 .settings
+
+datasets/*
