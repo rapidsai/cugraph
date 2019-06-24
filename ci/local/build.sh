@@ -10,7 +10,6 @@ CONTAINER_SHELL_ONLY=0
 SHORTHELP="$(basename $0) [-h] [-H] [-s] [-r <repo_dir>] [-i <image_name>]"
 LONGHELP="${SHORTHELP}
 Build and test your local repository using a base gpuCI Docker image
-
 where:
     -H   Show this help text
     -r   Path to repository (defaults to working directory)
