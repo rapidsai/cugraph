@@ -266,7 +266,7 @@ Find the PageRank vertex values for a graph. cuGraph computes an approximation o
 gdf_error gdf_snmg_pagerank (
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
-            gdf_column **pr_col_ptrs, 
+            gdf_column *pr_col_ptrs, 
             const size_t n_gpus, 
             const float damping_factor, 
             const int n_iter);

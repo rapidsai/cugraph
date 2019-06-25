@@ -224,13 +224,16 @@ gdf_error gdf_snmg_pagerank_impl(
 
     // Run n_iter pagerank MG SPMVs. 
     pr_solver.solve(n_iter, pagerank);
+
+    // set the result in the gdf column
     #pragma omp master
     {
       cudaMemcpy(&pr_col->data, &pagerank[i], sizeof(val_t) * part_offset[p],cudaMemcpyDeviceToDevice);
       cudaCheckError();
       pr_col->size = part_offset[p];
     }
-    // Free the transposed adj list
+
+    // Free
     gdf_col_delete(col_csr_off);
     gdf_col_delete(col_csr_ind);
     ALLOC_FREE_TRY(pagerank[i], nullptr);
@@ -250,7 +253,10 @@ gdf_error gdf_snmg_pagerank (
     GDF_REQUIRE(src_col_ptrs != nullptr, GDF_INVALID_API_CALL);
     GDF_REQUIRE(dest_col_ptrs != nullptr, GDF_INVALID_API_CALL);
     GDF_REQUIRE(pr_col != nullptr, GDF_INVALID_API_CALL);
-    // pagerank parameter values
+    // check that the pagernak column is empty
+    GDF_REQUIRE( pr_col->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+    GDF_REQUIRE( pr_col->size == 0 , GDF_INVALID_API_CALL);
+    // parameter values
     GDF_REQUIRE(damping_factor > 0.0, GDF_INVALID_API_CALL);
     GDF_REQUIRE(damping_factor < 1.0, GDF_INVALID_API_CALL);
     GDF_REQUIRE(n_iter > 0, GDF_INVALID_API_CALL);
@@ -273,9 +279,6 @@ gdf_error gdf_snmg_pagerank (
       // int 32 edge list indices
       GDF_REQUIRE( src_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
       GDF_REQUIRE( dest_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-      // Check that the pagernak column is empty
-      GDF_REQUIRE( pr_col->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-      GDF_REQUIRE( pr_col->size == 0 , GDF_INVALID_API_CALL);
     }
 
     switch (pr_col->dtype) {
