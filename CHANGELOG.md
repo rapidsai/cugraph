@@ -31,7 +31,7 @@
 - PR #306 Updated python test files to run pytest with all four RMM configurations.
 - PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
 - PR #333 Various general improvements at the library level 
-
+- PR #353 Change snmg python wrapper in accordance to cpp api  
 
 ## Bug Fixes
 - PR #283 Automerge fix
