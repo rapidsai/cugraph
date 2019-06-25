@@ -150,60 +150,136 @@ template class SNMGpagerank<int, float>;
 
 template<typename idx_t, typename val_t>
 gdf_error gdf_snmg_pagerank_impl(
-            const size_t n_gpus, 
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
             gdf_column **pr_col_ptrs, 
+            const size_t n_gpus, 
             const float damping_factor, 
-            const int max_iter) {
+            const int n_iter) {
   
+  // Must be shared
+  // Set during coo2csr and used in PageRank
   std::vector<size_t> part_offset(n_gpus+1);
-  idx_t *degree[n_gpus];
-  void* coo2csr_comm;
+
+  // Must be shared. 
+  // When a thread encounters an error it will update this value 
+  // using a critical section
   gdf_error status = GDF_SUCCESS;
+
+  // Pagerank specific.
+  // must be shared between threads
+  idx_t *degree[n_gpus];
+
+  // coo2csr specific.
+  // used to communicate global info such as patition offsets 
+  // must be shared
+  void* coo2csr_comm; 
 
   #pragma omp parallel num_threads(n_gpus)
   {
 
+    // Setting basic SNMG env information
     cugraph::SNMGinfo env;
     auto i = env.get_thread_num();
     auto p = env.get_num_threads();
     cudaSetDevice(i);
     cudaCheckError();
 
+    // Local CSR columns
     gdf_column *col_csr_off = new gdf_column;
     gdf_column *col_csr_ind = new gdf_column;
 
+    // distributed coo2csr
+    // notice that source and destination input are swapped 
+    // this is becasue pagerank needs the transposed CSR
+    // the resulting csr matrix is the transposed adj list
     gdf_error status_i = gdf_snmg_coo2csr(
                            &part_offset[0],
                            false,
-                           &coo2csr_comm,
-                           src_col_ptrs[i],
+                           &coo2csr_comm,   
                            dest_col_ptrs[i],
+                           src_col_ptrs[i],
                            nullptr,
                            col_csr_off,
                            col_csr_ind,
                            nullptr);
+    
+    // checking coo2csr return code
     if (status_i != GDF_SUCCESS)
     {
       #pragma omp critical
       status = status_i;
     }
     
+    // Allocate and intialize Pagerank class
     cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
                                 static_cast<idx_t*>(col_csr_off->data), 
                                 static_cast<idx_t*>(col_csr_ind->data));
+    
+    // Set all constants info, call the SNMG degree feature
     pr_solver.setup(damping_factor,degree);
 
+    // Retreive raw pagerank pointers from the columns
     val_t* pagerank[p];
     for (auto i = 0; i < p; ++i)
       pagerank[i]= static_cast<val_t*>(pr_col_ptrs[i]->data);
 
-    pr_solver.solve(max_iter, pagerank);
+    // Run n_iter pagerank MG SPMVs. 
+    pr_solver.solve(n_iter, pagerank);
 
+    // Free the transposed adj list
     gdf_col_delete(col_csr_off);
     gdf_col_delete(col_csr_ind);
   }
 
   return status;
+}
+
+gdf_error gdf_snmg_pagerank (
+            gdf_column **src_col_ptrs, 
+            gdf_column **dest_col_ptrs, 
+            gdf_column **pr_col_ptrs, 
+            const size_t n_gpus, 
+            const float damping_factor = 0.85, 
+            const int n_iter = 10) {
+    // null pointers check
+    GDF_REQUIRE(src_col_ptrs != nullptr, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(dest_col_ptrs != nullptr, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(pr_col_ptrs != nullptr, GDF_INVALID_API_CALL);
+    // pagerank parameter values
+    GDF_REQUIRE(damping_factor > 0.0, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(damping_factor < 1.0, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(n_iter > 0, GDF_INVALID_API_CALL);
+    // number of GPU
+    int dev_count;
+    cudaGetDeviceCount(&dev_count);
+    cudaCheckError();
+    GDF_REQUIRE(n_gpus > 0, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(n_gpus < static_cast<size_t>(dev_count+1), GDF_INVALID_API_CALL); 
+
+    // for each GPU
+    for (size_t i = 0; i < n_gpus; ++i)
+    {
+      // src/dest consistency
+      GDF_REQUIRE( src_col_ptrs[i]->size == dest_col_ptrs[i]->size, GDF_COLUMN_SIZE_MISMATCH );
+      GDF_REQUIRE( src_col_ptrs[i]->dtype == dest_col_ptrs[i]->dtype, GDF_UNSUPPORTED_DTYPE );
+      //null mask
+      GDF_REQUIRE( src_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+      GDF_REQUIRE( dest_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+      // int 32 edge list indices
+      GDF_REQUIRE( src_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+      GDF_REQUIRE( dest_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+      // Check that the pagernak column is empty
+      GDF_REQUIRE( pr_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+      GDF_REQUIRE( pr_col_ptrs[i]->size == 0 , GDF_INVALID_API_CALL);
+    }
+
+    switch (pr_col_ptrs[0]->dtype) {
+      case GDF_FLOAT32:   return gdf_snmg_pagerank_impl<int, float>(src_col_ptrs, dest_col_ptrs,
+                                  pr_col_ptrs, n_gpus, damping_factor, n_iter);
+      case GDF_FLOAT64:   return gdf_snmg_pagerank_impl<int, double>(src_col_ptrs, dest_col_ptrs,
+                                  pr_col_ptrs, n_gpus, damping_factor, n_iter);
+      default: return GDF_UNSUPPORTED_DTYPE;
+  }
+
 }
