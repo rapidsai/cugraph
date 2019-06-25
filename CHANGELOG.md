@@ -1,4 +1,4 @@
-# cuGraph 0.8.0 (Date TBD)
+# cuGraph 0.8.0 (27 June 2019)
 
 ## New Features
 - PR #287 SNMG power iteration step1
