@@ -152,7 +152,7 @@ template<typename idx_t, typename val_t>
 gdf_error gdf_snmg_pagerank_impl(
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
-            gdf_column **pr_col_ptrs, 
+            gdf_column *pr_col, 
             const size_t n_gpus, 
             const float damping_factor, 
             const int n_iter) {
@@ -219,17 +219,21 @@ gdf_error gdf_snmg_pagerank_impl(
     // Set all constants info, call the SNMG degree feature
     pr_solver.setup(damping_factor,degree);
 
-    // Retreive raw pagerank pointers from the columns
     val_t* pagerank[p];
-    for (auto i = 0; i < p; ++i)
-      pagerank[i]= static_cast<val_t*>(pr_col_ptrs[i]->data);
+    ALLOC_TRY ((void**)&pagerank[i],   sizeof(val_t) * part_offset[p], nullptr);
 
     // Run n_iter pagerank MG SPMVs. 
     pr_solver.solve(n_iter, pagerank);
-
+    #pragma omp master
+    {
+      cudaMemcpy(&pr_col->data, &pagerank[i], sizeof(val_t) * part_offset[p],cudaMemcpyDeviceToDevice);
+      cudaCheckError();
+      pr_col->size = part_offset[p];
+    }
     // Free the transposed adj list
     gdf_col_delete(col_csr_off);
     gdf_col_delete(col_csr_ind);
+    ALLOC_FREE_TRY(pagerank[i], nullptr);
   }
 
   return status;
@@ -238,14 +242,14 @@ gdf_error gdf_snmg_pagerank_impl(
 gdf_error gdf_snmg_pagerank (
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
-            gdf_column **pr_col_ptrs, 
+            gdf_column *pr_col, 
             const size_t n_gpus, 
             const float damping_factor = 0.85, 
             const int n_iter = 10) {
     // null pointers check
     GDF_REQUIRE(src_col_ptrs != nullptr, GDF_INVALID_API_CALL);
     GDF_REQUIRE(dest_col_ptrs != nullptr, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(pr_col_ptrs != nullptr, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(pr_col != nullptr, GDF_INVALID_API_CALL);
     // pagerank parameter values
     GDF_REQUIRE(damping_factor > 0.0, GDF_INVALID_API_CALL);
     GDF_REQUIRE(damping_factor < 1.0, GDF_INVALID_API_CALL);
@@ -270,15 +274,15 @@ gdf_error gdf_snmg_pagerank (
       GDF_REQUIRE( src_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
       GDF_REQUIRE( dest_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
       // Check that the pagernak column is empty
-      GDF_REQUIRE( pr_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-      GDF_REQUIRE( pr_col_ptrs[i]->size == 0 , GDF_INVALID_API_CALL);
+      GDF_REQUIRE( pr_col->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+      GDF_REQUIRE( pr_col->size == 0 , GDF_INVALID_API_CALL);
     }
 
-    switch (pr_col_ptrs[0]->dtype) {
+    switch (pr_col->dtype) {
       case GDF_FLOAT32:   return gdf_snmg_pagerank_impl<int, float>(src_col_ptrs, dest_col_ptrs,
-                                  pr_col_ptrs, n_gpus, damping_factor, n_iter);
+                                  pr_col, n_gpus, damping_factor, n_iter);
       case GDF_FLOAT64:   return gdf_snmg_pagerank_impl<int, double>(src_col_ptrs, dest_col_ptrs,
-                                  pr_col_ptrs, n_gpus, damping_factor, n_iter);
+                                  pr_col, n_gpus, damping_factor, n_iter);
       default: return GDF_UNSUPPORTED_DTYPE;
   }
 
