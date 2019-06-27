@@ -28,7 +28,7 @@
 #include "snmg/link_analysis/pagerank.cuh"
 #include "snmg/degree/degree.cuh"
 //#define SNMG_DEBUG
-
+//#define SNMG_PR_T
 namespace cugraph
 {
 
@@ -175,9 +175,11 @@ gdf_error gdf_snmg_pagerank_impl(
   // used to communicate global info such as patition offsets 
   // must be shared
   void* coo2csr_comm; 
+  double t;
 
   #pragma omp parallel num_threads(n_gpus)
   {
+    t = omp_get_wtime();
     // Setting basic SNMG env information
     cugraph::SNMGinfo env;
     auto i = env.get_thread_num();
@@ -203,7 +205,12 @@ gdf_error gdf_snmg_pagerank_impl(
                            col_csr_off,
                            col_csr_ind,
                            nullptr);
-    
+    // coo2csr time
+    #ifdef SNMG_PR_T
+      #pragma omp master 
+      {std::cout <<  omp_get_wtime() - t << " ";}
+      t = omp_get_wtime();
+    #endif
     // checking coo2csr return code
     if (status_i != GDF_SUCCESS)
     {
@@ -217,6 +224,13 @@ gdf_error gdf_snmg_pagerank_impl(
 
     // Set all constants info, call the SNMG degree feature
     pr_solver.setup(damping_factor,degree);
+
+    // Setup time
+    #ifdef SNMG_PR_T
+      #pragma omp master 
+      {std::cout <<  omp_get_wtime() - t << " ";}
+      t = omp_get_wtime();
+    #endif
 
     ALLOC_TRY ((void**)&pagerank[i],   sizeof(val_t) * part_offset[p], nullptr);
 
@@ -238,7 +252,11 @@ gdf_error gdf_snmg_pagerank_impl(
       extra_info.time_unit = TIME_UNIT_NONE;
       pr_col->dtype_info = extra_info;
     }
-
+    // Power iteration time
+    #ifdef SNMG_PR_T
+      #pragma omp master 
+      {std::cout <<  omp_get_wtime() - t << " ";}
+    #endif
     // Free
     gdf_col_delete(col_csr_off);
     gdf_col_delete(col_csr_ind);
@@ -259,9 +277,7 @@ gdf_error gdf_snmg_pagerank (
     GDF_REQUIRE(src_col_ptrs != nullptr, GDF_INVALID_API_CALL);
     GDF_REQUIRE(dest_col_ptrs != nullptr, GDF_INVALID_API_CALL);
     GDF_REQUIRE(pr_col != nullptr, GDF_INVALID_API_CALL);
-    // check that the pagernak column is empty
-    //GDF_REQUIRE( pr_col->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-    //GDF_REQUIRE( pr_col->size == 0 , GDF_INVALID_API_CALL);
+
     // parameter values
     GDF_REQUIRE(damping_factor > 0.0, GDF_INVALID_API_CALL);
     GDF_REQUIRE(damping_factor < 1.0, GDF_INVALID_API_CALL);

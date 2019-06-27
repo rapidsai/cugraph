@@ -130,7 +130,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
      
     gdf_error status = GDF_SUCCESS;
 
-    int nthreads = n_gpus;
+    int nthreads = 1;
 
     // Only using the 4 fully connected GPUs on DGX1
     if (n_gpus == 8)
@@ -198,7 +198,7 @@ class Tests_MGPagerankCSR : public ::testing::TestWithParam<MGPagerank_Usecase> 
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
-     int m, k, nnz, n_gpus, max_iter=50;
+     int m, k, nnz, n_gpus, max_iter=10;
      val_t alpha = 0.85;
      MM_typecode mc;
 

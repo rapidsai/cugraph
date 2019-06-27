@@ -170,7 +170,6 @@ namespace cugraph {
                               T_in ** numbering_map,
                               Hash_t hash,
                               Compare_t compare) {
-/*
     //
     // Assume - src/dst/src_renumbered/dst_renumbered are all pre-allocated.
     //
@@ -389,7 +388,7 @@ namespace cugraph {
     ALLOC_FREE_TRY(hash_data, nullptr);
     ALLOC_FREE_TRY(hash_bins_start, nullptr);
     ALLOC_FREE_TRY(hash_bins_end, nullptr);
-*/
+
     return GDF_SUCCESS;  
   }
 
