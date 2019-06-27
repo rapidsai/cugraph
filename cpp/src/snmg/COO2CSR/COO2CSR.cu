@@ -332,7 +332,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                      rowCount * sizeof(idx_t));
     }
   }
-
   cudaCheckError();
 
   // Each thread frees up the input if allowed
