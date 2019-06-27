@@ -28,7 +28,7 @@
 #include "snmg/link_analysis/pagerank.cuh"
 #include "snmg/degree/degree.cuh"
 //#define SNMG_DEBUG
-//#define SNMG_PR_T
+#define SNMG_PR_T
 namespace cugraph
 {
 
@@ -175,11 +175,12 @@ gdf_error gdf_snmg_pagerank_impl(
   // used to communicate global info such as patition offsets 
   // must be shared
   void* coo2csr_comm; 
-  double t;
 
   #pragma omp parallel num_threads(n_gpus)
   {
-    t = omp_get_wtime();
+    #ifdef SNMG_PR_T
+      double t = omp_get_wtime();
+    #endif
     // Setting basic SNMG env information
     cugraph::SNMGinfo env;
     auto i = env.get_thread_num();

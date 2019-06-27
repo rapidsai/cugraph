@@ -130,7 +130,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
      
     gdf_error status = GDF_SUCCESS;
 
-    int nthreads = 1;
+    int nthreads = n_gpus;
 
     // Only using the 4 fully connected GPUs on DGX1
     if (n_gpus == 8)
