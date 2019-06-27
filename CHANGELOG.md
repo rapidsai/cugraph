@@ -1,16 +1,59 @@
+# cuGraph 0.8.0 (27 June 2019)
+
+## New Features
+- PR #287 SNMG power iteration step1
+- PR #297 SNMG degree calculation
+- PR #300 Personalized Page Rank
+- PR #302 SNMG CSR Pagerank (cuda/C++)
+- PR #315 Weakly Connected Components adapted from cuML (cuda/C++)
+- PR #323 Add test skipping function to build.sh
+- PR #308 SNMG python wrapper for pagerank
+- PR #321 Added graph initialization functions for NetworkX compatibility.
+- PR #332 Added C++ support for strings in renumbering function
+- PR #325 Implement SSSP with predecessors (cuda/C++)
+- PR #331 Python bindings and test for Weakly Connected Components.
+- PR #339 SNMG COO2CSR (cuda/C++)
+- PR #341 SSSP with predecessors (python) and function for filtering unreachable nodes in the traversal
+- PR #348 Updated README for release
+
+## Improvements
+- PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
+- PR #286 Reorganized cugraph source directory
+- PR #306 Integrated nvgraph to libcugraph.so (libnvgraph_rapids.so will not be built anymore).
+- PR #306 Updated python test files to run pytest with all four RMM configurations.
+- PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
+- PR #333 Various general improvements at the library level 
+
+
+## Bug Fixes
+- PR #283 Automerge fix
+- PR #291 Fixed a RMM memory allocation failure due to duplicate copies of cnmem.o
+- PR #291 Fixed a cub CsrMV call error when RMM pool allocator is used.
+- PR #306 Fixed cmake warnings due to library conflicts.
+- PR #311 Fixed bug in SNMG degree causing failure for three gpus
+- PR #309 Update conda build recipes
+- PR #314 Added datasets to gitignore
+- PR #322 Updates to accommodate new cudf include file locations
+- PR #324 Fixed crash in WeakCC for larger graph and added adj matrix symmetry check
+- PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
+- PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
+- PR #350 Configure Sphinx to render params correctly
+
+
 # cuGraph 0.7.0 (10 May 2019)
 
 ## New Features
 - PR #195 Added Graph.get_two_hop_neighbors() method
 - PR #195 Updated Jaccard and Weighted Jaccard to accept lists of vertex pairs to compute for
 - PR #202 Added methods to compute the overlap coefficient and weighted overlap coefficient
-- PR #230 SNMG SPMV and helpers functions 
+- PR #230 SNMG SPMV and helpers functions
 - PR #210 Expose degree calculation kernel via python API
 - PR #220 Added bindings for Nvgraph triangle counting
 - PR #234 Added bindings for renumbering, modify renumbering to use RMM
 - PR #246 Added bindings for subgraph extraction
 - PR #250 Add local build script to mimic gpuCI
 - PR #261 Add docs build script to cuGraph
+- PR #301 Added build.sh script, updated CI scripts and documentation
 
 ## Improvements
 - PR #157 Removed cudatoolkit dependency in setup.py
@@ -19,7 +62,7 @@
 - PR #190 Added a copy option in graph creation
 - PR #196 Fix typos in readme intro
 - PR #207 mtx2csv script
-- PR #203 Added small datasets directly in the repo 
+- PR #203 Added small datasets directly in the repo
 - PR #215 Simplified get_rapids_dataset_root_dir(), set a default value for the root dir
 - PR #233 Added csv datasets and edited test to use cudf for reading graphs
 - PR #247 Added some documentation for renumbering
@@ -103,4 +146,3 @@
 
 
 # cuGraph 0.5.0 (28 Jan 2019)
-

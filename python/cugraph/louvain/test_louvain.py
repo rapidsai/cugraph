@@ -11,12 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+from itertools import product
 import time
 
 import pytest
 from scipy.io import mmread
+
 import cudf
 import cugraph
+from librmm_cffi import librmm as rmm
+from librmm_cffi import librmm_config as rmm_cfg
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -86,8 +91,20 @@ DATASETS = ['../datasets/karate',
             '../datasets/netscience']
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_louvain_with_edgevals(graph_file):
+def test_louvain_with_edgevals(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file+'.mtx')
     cu_M = read_csv_file(graph_file+'.csv')
     cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
@@ -113,8 +130,20 @@ DATASETS = ['../datasets/karate',
             '../datasets/dolphins']
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_louvain(graph_file):
+def test_louvain(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
     M = read_mtx_file(graph_file+'.mtx')
     cu_M = read_csv_file(graph_file+'.csv')
     cu_parts, cu_mod = cugraph_call(cu_M)

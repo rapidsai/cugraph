@@ -28,39 +28,37 @@ for i in range(len(gdf_page)):
 
 ## Supported Algorithms:
 
-| Algorithm                                     | Scale      | Notes |
-| --------------------------------------------- | ---------- | ----- |
-| PageRank                                      | Single-GPU |       |
-| Jaccard Similarity                            | Single-GPU |       |
-| Weighted Jaccard                              | Single-GPU |       |
-| Overlap Similarity                            | Single-GPU |       |
-| SSSP                                          | Single-GPU |       |
-| BSF                                           | Single-GPU |       |
-| Triangle Counting                             | Single-GPU |       |
-| Subgraph Extraction                           | Single-GPU |       |
-| Spectral Clustering - Balanced-Cut            | Single-GPU |       |
-| Spectral Clustering - Modularity Maximization | Single-GPU |       |
-| Louvain                                       | Single-GPU |       |
-| Renumbering                                   | Single-GPU |       |
-| Basic Graph Statistics                        | Single-GPU |       |
+| Algorithm                                     | Scale      | Notes                        |
+| :-------------------------------------------- | ---------- | ---------------------------- |
+| PageRank                                      | Single-GPU |                              |
+| Personal PageRank                             | Single-GPU |                              |
+| Jaccard Similarity                            | Single-GPU |                              |
+| Weighted Jaccard                              | Single-GPU |                              |
+| Overlap Similarity                            | Single-GPU |                              |
+| SSSP                                          | Single-GPU | Updated to provide path info |
+| BSF                                           | Single-GPU |                              |
+| Triangle Counting                             | Single-GPU |                              |
+| Subgraph Extraction                           | Single-GPU |                              |
+| Spectral Clustering - Balanced-Cut            | Single-GPU |                              |
+| Spectral Clustering - Modularity Maximization | Single-GPU |                              |
+| Louvain                                       | Single-GPU |                              |
+| Renumbering                                   | Single-GPU |                              |
+| Basic Graph Statistics                        | Single-GPU |                              |
+| Weakly Connected Components                   | Single-GPU |                              |
 
 
 
-## cuGraph 0.7 Notice
 
-cuGraph version 0.7 has some limitations:
+
+## cuGraph 0.8 Notice
+
+cuGraph version 0.8 has some limitations:
 
 - Only Int32 Vertex ID are supported
 - Only float (FP32) edge data is supported
 - Vertex numbering is assumed to start at zero
 
-These limitations are being addressed and will be fixed future versions.
-
-
-
-
-
-
+These limitations are being addressed and will be fixed soon.
 
 
 
@@ -68,7 +66,7 @@ These limitations are being addressed and will be fixed future versions.
 
 ## Getting cuGraph
 ### Intro
-There are 4 ways to get cuGraph :
+There are 3 ways to get cuGraph :
 1. [Quick start with Docker Demo Repo](#quick)
 1. [Conda Installation](#conda)
 1. [Build from Source](#source)
@@ -134,4 +132,3 @@ The RAPIDS suite of open source software libraries aim to enable execution of en
 ### Apache Arrow on GPU
 
 The GPU version of [Apache Arrow](https://arrow.apache.org/) is a common API that enables efficient interchange of tabular data between processes running on the GPU. End-to-end computation on the GPU avoids unnecessary copying and converting of data off the GPU, reducing compute time and cost for high-performance analytics common in artificial intelligence workloads. As the name implies, cuDF uses the Apache Arrow columnar data format on the GPU. Currently, a subset of the features in Apache Arrow are supported.
-

@@ -4,18 +4,25 @@
 # cuGraph GPU build & testscript for CI  #
 ##########################################
 set -e
+NUMARGS=$#
+ARGS=$*
 
 # Logger function for build status output
 function logger() {
   echo -e "\n>>>> $@\n"
 }
 
+# Arg parsing function
+function hasArg {
+    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+}
+
 # Set path, build parallel level, and CUDA version
 export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
 export PARALLEL_LEVEL=4
 export CUDA_REL=${CUDA_VERSION%.*}
-export CUDF_VERSION=0.7.*
-export RMM_VERSION=0.7.*
+export CUDF_VERSION=0.8.*
+export RMM_VERSION=0.8.*
 
 # Set home to the job's workspace
 export HOME=$WORKSPACE
@@ -46,27 +53,16 @@ conda list
 ################################################################################
 
 logger "Build libcugraph..."
-mkdir -p $WORKSPACE/cpp/build
-cd $WORKSPACE/cpp/build
-logger "Run cmake libcugraph..."
-cmake -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX -DCMAKE_CXX11_ABI=ON ..
-
-logger "Clean up make..."
-make clean
-
-logger "Make libcugraph..."
-make -j${PARALLEL_LEVEL}
-
-logger "Install libcugraph..."
-make -j${PARALLEL_LEVEL} install
-
-logger "Build cuGraph..."
-cd $WORKSPACE/python
-python setup.py install
+$WORKSPACE/build.sh clean libcugraph cugraph
 
 ################################################################################
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
 ################################################################################
+
+if hasArg --skip-tests; then
+    logger "Skipping Tests..."
+    exit 0
+fi
 
 logger "Check GPU usage..."
 nvidia-smi

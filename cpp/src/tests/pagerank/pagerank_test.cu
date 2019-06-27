@@ -92,6 +92,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      double time_tmp;
 
      FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
      
      ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
      ASSERT_TRUE(mm_is_matrix(mc));
@@ -106,12 +107,6 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      // Read
      ASSERT_EQ( (mm_to_coo<int,T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
      ASSERT_EQ(fclose(fpin),0);
-
-     //std::cout<< *std::min_element(cooRowInd.begin(), cooRowInd.end()) <<std::endl;
-     //std::cout<< *std::max_element(cooRowInd.begin(), cooRowInd.end()) <<std::endl <<std::endl;
-     //std::cout<< *std::min_element(cooColInd.begin(), cooColInd.end()) <<std::endl;
-     //std::cout<< *std::max_element(cooColInd.begin(), cooColInd.end()) <<std::endl <<std::endl; 
-     //std::cout<< cooColInd.size() <<std::endl;
     
     // gdf columns
     col_src = create_gdf_column(cooRowInd);
@@ -126,7 +121,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       status = gdf_pagerank(G.get(), col_pagerank.get(), alpha, tol, max_iter, has_guess);
+       status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
        cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
@@ -134,7 +129,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     }
     else {
       cudaProfilerStart();
-      status = gdf_pagerank(G.get(), col_pagerank.get(), alpha, tol, max_iter, has_guess);
+      status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
@@ -154,25 +149,14 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
       fclose(fpin);
       T err;
       int n_err = 0;
-      for (int i = 0; i < m; i++)
-      {
-          //if(i > (m-10))
-          //  std::cout << expected_res[i] << " " << calculated_res[i] <<std::endl;
+      for (int i = 0; i < m; i++) {
           err = fabs(expected_res[i] - calculated_res[i]);
-          if (err> tol*1.1)
-          {
-              n_err++;
+          if (err> tol*1.1) {
+              n_err++; // count the number of mismatches 
           }
       }
-      if (n_err)
-      {
-          //EXPECT_NEAR(tot_err/n_err, cugraph_Const<T>::tol, cugraph_Const<T>::tol*9.99); // Network x used n*1e-10 for precision
+      if (n_err) {
           EXPECT_LE(n_err, 0.001*m); // we tolerate 0.1% of values with a litte difference
-          //printf("number of incorrect entries: %d\n", n_err);
-          //if (n_err > 0.001*m)
-          //{
-          //  eq(calculated_res,expected_res);
-          //}
       }
     }
   }

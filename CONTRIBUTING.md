@@ -51,11 +51,11 @@ implementation of the issue, ask them in the issue instead of the PR.
 
 ## Setting Up Your Build Environment
 
-### Build from Source 
+### Build from Source
 
 The following instructions are for developers and contributors to cuGraph OSS development. These instructions are tested on Linux Ubuntu 16.04 & 18.04. Use these instructions to build cuGraph from source and contribute to its development.  Other operating systems may be compatible, but are not currently tested.
 
-The cuGraph package include both a C/C++ CUDA portion and a python portion.  Both libraries need to be installed in order for cuGraph to operate correctly.  
+The cuGraph package include both a C/C++ CUDA portion and a python portion.  Both libraries need to be installed in order for cuGraph to operate correctly.
 
 The following instructions are tested on Linux systems.
 
@@ -97,7 +97,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 1) Clone the repository and submodules
 
   ```bash
-  # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME 
+  # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME
   export CUGRAPH_HOME=$(pwd)/cugraph
 
   # Download the cuGraph repo
@@ -108,7 +108,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
   git submodule update --init --recursive
   ```
 
-2) Create the conda development environment 
+2) Create the conda development environment
 
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
@@ -119,13 +119,13 @@ conda env create --name cugraph_dev --file conda/environments/cugraph_dev.yml
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.yml
 
 # activate the environment
-conda activate cugraph_dev 
+conda activate cugraph_dev
 
 # to deactivate an environment
 conda deactivate
 ```
 
-  - The environment can be updated as development includes/changes the dependencies. To do so, run:  
+  - The environment can be updated as development includes/changes the dependencies. To do so, run:
 
 
 ```bash
@@ -135,7 +135,7 @@ conda env update --name cugraph_dev --file conda/environments/cugraph_dev.yml
 # for CUDA 10
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.yml
 
-conda activate cugraph_dev 
+conda activate cugraph_dev
 ```
 
 3) Build and install `libcugraph`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
@@ -143,21 +143,27 @@ conda activate cugraph_dev
   This project uses cmake for building the C/C++ library. CMake will also automatically build and install nvGraph library (`$CUGRAPH_HOME/cpp/nvgraph`) which may take a few minutes. To configure cmake, run:
 
   ```bash
-  # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME 
+  # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME
   export CUGRAPH_HOME=$(pwd)/cugraph
-  
+
   cd $CUGRAPH_HOME
-  cd cpp	      		# enter cpp directory
-  mkdir build   		# create build directory 
-  cd build     		# enter the build directory
-  cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX 
+  cd cpp                                        # enter cpp directory
+  mkdir build                                   # create build directory
+  cd build                                      # enter the build directory
+  cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
 
   # now build the code
-  make -j				# "-j" starts multiple threads
-  make install		# install the libraries 
+  make -j                                       # "-j" starts multiple threads
+  make install                                  # install the libraries
   ```
+The default installation locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/cugraph` respectively.
 
-The default installation  locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/cugraph` respectively.
+As a convenience, a `build.sh` script is provided in `$CUGRAPH_HOME`. To execute the same build commands above, run the script as shown below.  Note that the libraries will be installed to the location set in `$PREFIX` if set (i.e. `export PREFIX=/install/path`), otherwise to `$CONDA_PREFIX`.
+```bash
+$ cd $CUGRAPH_HOME
+$ ./build.sh libcugraph  # build the cuGraph libraries and install them to
+                         # $PREFIX if set, otherwise $CONDA_PREFIX
+```
 
 #### Building and installing the Python package
 
@@ -169,20 +175,37 @@ cd python
 python setup.py install    # install cugraph python bindings
 ```
 
+Like the `libcugraph` build step above, `build.sh` can also be used to build the `cugraph` python package, as shown below:
+```bash
+$ cd $CUGRAPH_HOME
+$ ./build.sh cugraph  # build the cuGraph python bindings and install them
+                      # to $PREFIX if set, otherwise $CONDA_PREFIX
+```
+
+Note: other `build.sh` options include:
+```bash
+$ cd $CUGRAPH_HOME
+$ ./build.sh clean                        # remove any prior build artifacts and configuration (start over)
+$ ./build.sh libcugraph -v                # compile and install libcugraph with verbose output
+$ ./build.sh libcugraph -g                # compile and install libcugraph for debug
+$ PARALLEL_LEVEL=4 ./build.sh libcugraph  # compile and install libcugraph limiting parallel build jobs to 4 (make -j4)
+$ ./build.sh libcugraph -n                # compile libcugraph but do not install
+```
+
 #### Run tests
 
 6. Run either the C++ or the Python tests with datasets
 
-  - **Python tests with datasets** 
+  - **Python tests with datasets**
 
     ```bash
     cd $CUGRAPH_HOME
     cd python
-    pytest  
+    pytest
     ```
-  - **C++ stand alone tests** 
+  - **C++ stand alone tests**
 
-    From the build directory : 
+    From the build directory :
 
     ```bash
     # Run the cugraph tests
@@ -191,21 +214,21 @@ python setup.py install    # install cugraph python bindings
     gtests/GDFGRAPH_TEST		# this is an executable file
     ```
  - **C++ tests with larger datasets**
-   
+
    If you already have the datasets:
-  
+
    ```bash
    export RAPIDS_DATASET_ROOT_DIR=<path_to_ccp_test_and_reference_data>
    ```
    If you do not have the datasets:
-   
+
    ```bash
    cd $CUGRAPH_HOME/datasets
    source get_test_data.sh #This takes about 10 minutes and download 1GB data (>5 GB uncompressed)
    ```
-   
+
    Run the C++ tests on large input:
-  
+
    ```bash
    cd $CUGRAPH_HOME/cpp/build
    #test one particular analytics (eg. pagerank)
@@ -258,7 +281,7 @@ Python API documentation can be generated from [docs](docs) directory.
 
 ## C++ ABI issues
 
-cuGraph builds with C++14 features.  By default, we build cuGraph with the latest ABI (the ABI changed with C++11).  The version of cuDF pointed to in 
+cuGraph builds with C++14 features.  By default, we build cuGraph with the latest ABI (the ABI changed with C++11).  The version of cuDF pointed to in
 the conda installation above is build with the new ABI.
 
 If you see link errors indicating trouble finding functions that use C++ strings when trying to build cuGraph you may have an ABI incompatibility.

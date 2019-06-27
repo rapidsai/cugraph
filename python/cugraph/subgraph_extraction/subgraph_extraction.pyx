@@ -61,7 +61,7 @@ cpdef subgraph(G, vertices):
     resultGraph = Graph()
     cdef uintptr_t rGraph = resultGraph.graph_ptr
     cdef gdf_graph* rg = <gdf_graph*>rGraph
-
+    null_check(vertices)
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
     err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)

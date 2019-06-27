@@ -21,7 +21,6 @@
 
 #pragma once
 
-//#include <nvgraph/nvgraph.h>
 #include <cugraph.h>
 
 /**

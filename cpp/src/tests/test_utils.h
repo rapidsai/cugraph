@@ -120,7 +120,7 @@ void printv(size_t n, T* vec, int offset) {
 template <typename T>
 void random_vals(std::vector<T> & v) {
   srand(42);
-  for (auto i = 0; i < v.size(); i++)
+  for (auto i = size_t{0}; i < v.size(); i++)
     v[i]=static_cast<T>(std::rand()%10);
 }
 
@@ -222,8 +222,8 @@ void printCsrMatI(int m, int n, int nnz,std::vector<int> & csrRowPtr, std::vecto
  */
 template <typename IndexType_>
 int mm_properties(FILE * f, int tg, MM_typecode * t,
-		  IndexType_ * m, IndexType_ * n,
-		  IndexType_ * nnz) {
+                  IndexType_ * m, IndexType_ * n,
+                  IndexType_ * nnz) {
 
   // Read matrix properties from file
   int mint, nint, nnzint;
@@ -279,7 +279,7 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
 
       // Check if entry is diagonal
       if(row == col)
-	--(*nnz);
+          --(*nnz);
 
     }
   }
@@ -310,8 +310,8 @@ int mm_properties(FILE * f, int tg, MM_typecode * t,
  */
 template <typename IndexType_, typename ValueType_>
 int mm_to_coo(FILE *f, int tg, IndexType_ nnz,
-	      IndexType_ * cooRowInd, IndexType_ * cooColInd,
-	      ValueType_ * cooRVal  , ValueType_ * cooIVal) {
+              IndexType_ * cooRowInd, IndexType_ * cooColInd,
+              ValueType_ * cooRVal  , ValueType_ * cooIVal) {
 
   // Read matrix properties from file
   MM_typecode t;
@@ -381,20 +381,20 @@ int mm_to_coo(FILE *f, int tg, IndexType_ nnz,
 
       // Modify entry value if matrix is skew symmetric or Hermitian
       if(mm_is_skew(t)) {
-	rval = -rval;
-	ival = -ival;
+        rval = -rval;
+        ival = -ival;
       }
       else if(mm_is_hermitian(t)) {
-	ival = -ival;
+        ival = -ival;
       }
 
       // Record entry
       cooRowInd[j] = col;
       cooColInd[j] = row;
       if(cooRVal != NULL)
-	cooRVal[j] = rval;
+        cooRVal[j] = rval;
       if(cooIVal != NULL)
-	cooIVal[j] = ival;
+        cooIVal[j] = ival;
       ++j;
 
     }
@@ -412,9 +412,12 @@ public:
   __host__ __device__
   bool operator()(const Tuple1 t1, const Tuple2 t2) {
     switch(i) {
-    case 0:  return (thrust::get<0>(t1) < thrust::get<0>(t2));
-    case 1:  return (thrust::get<1>(t1) < thrust::get<1>(t2));
-    default: return (thrust::get<0>(t1) < thrust::get<0>(t2));
+    case 0:
+      return (thrust::get<0>(t1) == thrust::get<0>(t2) ? thrust::get<1>(t1) < thrust::get<1>(t2) : thrust::get<0>(t1) < thrust::get<0>(t2));
+    case 1:
+      return (thrust::get<1>(t1) == thrust::get<1>(t2) ? thrust::get<0>(t1) < thrust::get<0>(t2) : thrust::get<1>(t1) < thrust::get<1>(t2));
+    default:
+      return (thrust::get<0>(t1) == thrust::get<0>(t2) ? thrust::get<1>(t1) < thrust::get<1>(t2) : thrust::get<0>(t1) < thrust::get<0>(t2));
     }
 
   }
@@ -435,10 +438,10 @@ public:
  */
 template <typename IndexType_, typename ValueType_>
 void coo_sort(IndexType_ nnz, int sort_by_row,
-	      IndexType_ * cooRowInd,
-	      IndexType_ * cooColInd,
-	      ValueType_ * cooRVal,
-	      ValueType_ * cooIVal) {
+              IndexType_ * cooRowInd,
+              IndexType_ * cooColInd,
+              ValueType_ * cooRVal,
+              ValueType_ * cooIVal) {
 
   // Determine whether to sort by row or by column
   int i;
@@ -451,21 +454,21 @@ void coo_sort(IndexType_ nnz, int sort_by_row,
   using namespace thrust;
   if((cooRVal==NULL) && (cooIVal==NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz)),
+                lesser_tuple(i));
   else if((cooRVal==NULL) && (cooIVal!=NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooIVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooIVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooIVal+nnz)),
+                lesser_tuple(i));
   else if((cooRVal!=NULL) && (cooIVal==NULL))
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooRVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooRVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,cooRVal+nnz)),
+                lesser_tuple(i));
   else
     stable_sort(make_zip_iterator(make_tuple(cooRowInd,cooColInd,cooRVal,cooIVal)),
-		make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,
-					     cooRVal+nnz,cooIVal+nnz)),
-		lesser_tuple(i));
+                make_zip_iterator(make_tuple(cooRowInd+nnz,cooColInd+nnz,
+                cooRVal+nnz,cooIVal+nnz)),
+                lesser_tuple(i));
 }
 
 template <typename IndexT>
@@ -475,21 +478,21 @@ void coo2csr(std::vector<IndexT>& cooRowInd, //in: I[] (overwrite)
              std::vector<IndexT>& csrColInd) //out
 {
     std::vector<std::pair<IndexT,IndexT> > items;
-    for (auto i = 0; i < cooRowInd.size(); ++i)
+    for (auto i = size_t{0}; i < cooRowInd.size(); ++i)
         items.push_back(std::make_pair( cooRowInd[i], cooColInd[i]));
     //sort pairs
     std::sort(items.begin(), items.end(),[](const std::pair<IndexT,IndexT> &left, const std::pair<IndexT,IndexT> &right) 
                                              {return left.first < right.first; });
-    for (auto i = 0; i < cooRowInd.size(); ++i) {
+    for (auto i = size_t{0}; i < cooRowInd.size(); ++i) {
       cooRowInd[i]=items[i].first; // save the sorted rows to compress them later
       csrColInd[i]=items[i].second; // save the col idx, not sure if they are sorted for each row
     }
     // Count number of elements per row
-    for(auto i=0; i<cooRowInd.size(); ++i)
+    for(auto i=size_t{0}; i<cooRowInd.size(); ++i)
       ++(csrRowPtr[cooRowInd[i]+1]);
   
     // Compute cumulative sum to obtain row offsets/pointers
-    for(auto i=0; i<csrRowPtr.size()-1; ++i)
+    for(auto i=size_t{0}; i<csrRowPtr.size()-1; ++i)
       csrRowPtr[i+1] += csrRowPtr[i];
 }
 
@@ -632,7 +635,7 @@ gdf_column_ptr create_gdf_column(std::vector<col_type> const & host_vector)
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
+  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly
@@ -666,7 +669,7 @@ void create_gdf_column(std::vector<col_type> const & host_vector, gdf_column * t
   // Allocate device storage for gdf_column and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
   cudaStream_t stream{nullptr};
-  ALLOC_MANAGED_TRY((void**)&(the_column->data), input_size_bytes, stream);
+  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
   cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   // Deduce the type and set the gdf_dtype accordingly
@@ -713,6 +716,99 @@ void gdf_col_delete(gdf_column* col) {
     col = nullptr;
 #endif
   }
+}
+
+template <typename col_type>
+bool gdf_column_equal(gdf_column* a, gdf_column* b) {
+  if (a == nullptr || b == nullptr){
+    std::cout << "A given column is null!\n";
+    return false;
+  }
+  if (a->dtype != b->dtype){
+    std::cout << "Mismatched dtypes\n";
+    return false;
+  }
+  if (a->size != b->size){
+    std::cout << "Mismatched sizes: a=" << a->size << " b=" << b->size << "\n";
+    return false;
+  }
+  std::vector<col_type>a_h(a->size);
+  std::vector<col_type>b_h(b->size);
+  cudaMemcpy(&a_h[0], a->data, sizeof(col_type) * a->size, cudaMemcpyDefault);
+  cudaMemcpy(&b_h[0], b->data, sizeof(col_type) * b->size, cudaMemcpyDefault);
+  for (size_t i = 0; i < a_h.size(); i++) {
+    if (a_h[i] != b_h[i]){
+      std::cout << "Elements at " << i << " differ: a=" << a_h[i] << " b=" << b_h[i] << "\n";
+      return false;
+    }
+  }
+  return true;
+}
+
+template<typename idx_t>
+bool gdf_csr_equal(gdf_column* a_off, gdf_column* a_ind, gdf_column* b_off, gdf_column* b_ind) {
+  if (a_off == nullptr || a_ind == nullptr || b_off == nullptr || b_ind == nullptr) {
+    std::cout << "A given column is null!\n";
+    return false;
+  }
+  auto type = a_off->dtype;
+  if (a_ind->dtype != type || b_off->dtype != type || b_ind->dtype != type) {
+    std::cout << "Mismatched dtypes\n";
+    return false;
+  }
+  if (!gdf_column_equal<idx_t>(a_off, b_off)) {
+    std::cout << "Offsets arrays do not match!\n";
+    return false;
+  }
+  if (a_ind->size != b_ind->size) {
+    std::cout << "Size of indices arrays do not match\n";
+    return false;
+  }
+  // Compare the elements of each section of the indices, regardless of order
+  std::vector<idx_t> a_off_h(a_off->size);
+  std::vector<idx_t> a_ind_h(a_ind->size);
+  std::vector<idx_t> b_ind_h(b_ind->size);
+  cudaMemcpy(&a_off_h[0], a_off->data, a_off->size * sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&a_ind_h[0], a_ind->data, a_ind->size * sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&b_ind_h[0], b_ind->data, b_ind->size * sizeof(idx_t), cudaMemcpyDefault);
+  auto numVerts = a_off_h.size() - 1;
+  for (size_t vert = 0; vert < numVerts; vert++){
+    auto start = a_off_h[vert];
+    auto end = a_off_h[vert + 1];
+    std::set<idx_t> a_set;
+    std::set<idx_t> b_set;
+    for (int i = start; i < end; i++){
+      a_set.insert(a_ind_h[i]);
+      b_set.insert(b_ind_h[i]);
+    }
+    if (a_set.size() != b_set.size()) {
+      std::cout << "Vertex " << vert << " set sizes do not match!\n";
+      std::cout << "A Set: {";
+      for (auto it = a_set.begin(); it != a_set.end(); it++)
+        std::cout << " " << *it;
+      std::cout << "}\nB Set: {";
+      for (auto it = b_set.begin(); it != b_set.end(); it++)
+        std::cout << " " << *it;
+      std::cout << "}\n";
+      std::cout << "A list: {";
+      for (int i = start; i < end; i++) {
+        std::cout << " " << a_ind_h[i];
+      }
+      std::cout << "}\nB List: {";
+      for (int i = start; i < end; i++) {
+        std::cout << " " << b_ind_h[i];
+      }
+      std::cout << "}\n";
+      return false;
+    }
+    for (auto it = a_set.begin(); it != a_set.end(); it++) {
+      if (b_set.count(*it) != 1) {
+        std::cout << "A set contains " << *it << " B set does not!\n";
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 

@@ -23,8 +23,19 @@
 #define GDF_ERRORUTILS_H
 
 #include <iostream>
+
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+
+#include <cudf/types.h>
+#include "nvgraph_error_utils.h"
+
+#define cudaCheckError() {                                              \
+    cudaError_t e=cudaGetLastError();                                     \
+    if(e!=cudaSuccess) {                                                  \
+      std::cerr << "Cuda failure: "  << cudaGetErrorString(e) << " at: " << __FILE__ << ':' << __LINE__ << std::endl;        \
+    }                                                                     \
+  }
 
 #define CUDA_TRY( call ) 									                            \
 {                                                                     \
