@@ -482,21 +482,17 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
 };
 
 
-//TEST_P(Tests_MGPagerankCSR, CheckFP32_mtx) {
-//    run_current_test<int, float>(GetParam());
-//}
-//TEST_P(Tests_MGPagerankCSR, CheckFP64) {
-//    run_current_test<int,double>(GetParam());
-//}
+TEST_P(Tests_MGPagerankCSR, CheckFP32_mtx) {
+    run_current_test<int, float>(GetParam());
+}
+
 TEST_P(Tests_MGPagerank, CheckFP32_mtx) {
     run_current_test<int, float>(GetParam());
 }
-//TEST_P(Tests_MGPagerank, CheckFP64) {
-//    run_current_test<int,double>(GetParam());
-//}
-//TEST_P(Tests_MGPR_hibench, CheckFP32_hibench) {
-//    run_current_test<int, float>(GetParam());
-//}
+
+TEST_P(Tests_MGPR_hibench, CheckFP32_hibench) {
+    run_current_test<int, float>(GetParam());
+}
 
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerankCSR, 
                         ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
