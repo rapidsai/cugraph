@@ -1,4 +1,14 @@
-# cuGraph 0.8.0 (27 June 2019)
+# cuGraph 0.9.0 (Date TBD)
+
+## New Features
+
+## Improvements
+
+## Bug Fixes
+- PR #354 Fixed bug in building a debug version
+
+
+# cuGraph 0.8.0 (Date TBD)
 
 ## New Features
 - PR #287 SNMG power iteration step1
@@ -38,7 +48,6 @@
 - PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 - PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
 - PR #350 Configure Sphinx to render params correctly
-- PR #354 Fixed bug in building a debug version
 
 
 # cuGraph 0.7.0 (10 May 2019)
