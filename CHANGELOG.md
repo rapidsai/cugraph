@@ -1,6 +1,7 @@
 # cuGraph 0.9.0 (Date TBD)
 
 ## New Features
+- PR #357 Pagerank cpp API
 
 ## Improvements
 
