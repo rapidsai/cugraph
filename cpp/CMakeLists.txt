@@ -335,7 +335,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${Boost_LIBRARIES})
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda)
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
