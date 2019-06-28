@@ -28,12 +28,10 @@ requirements:
     - libcudf=0.8*
     - cython
     - cudatoolkit {{ cuda_version }}.*
-    - boost
   run:
     - libcudf=0.8*
     - cython
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - boost
 
 #test:
 #  commands:
