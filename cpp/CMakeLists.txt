@@ -126,7 +126,7 @@ endif()
 
 ###################################################################################################
 # - find boost ------------------------------------------------------------------------------------
-
+set(BOOST_ROOT $ENV{CONDA_PREFIX})
 find_package(Boost REQUIRED)
 if(Boost_FOUND)
     message(STATUS "Boost found in ${Boost_INCLUDE_DIRS}")
