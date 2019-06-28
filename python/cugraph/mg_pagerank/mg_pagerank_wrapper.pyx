@@ -4,8 +4,8 @@ import cudf
 import numpy as np
 
 def mg_pagerank(src_ptrs_info, dest_ptrs_info):
-    cdef gdf_column* src_column_ptr = <gdf_column*>malloc(len(src_ptrs_info) * sizeof(gdf_column))
-    cdef gdf_column* dest_column_ptr = <gdf_column*>malloc(len(dest_ptrs_info) * sizeof(gdf_column))
+    cdef gdf_column** src_column_ptr = <gdf_column**>malloc(len(src_ptrs_info) * sizeof(gdf_column*))
+    cdef gdf_column** dest_column_ptr = <gdf_column**>malloc(len(dest_ptrs_info) * sizeof(gdf_column*))
     
     n_gpus = len(src_ptrs_info);
     for i in range(n_gpus):
@@ -13,12 +13,13 @@ def mg_pagerank(src_ptrs_info, dest_ptrs_info):
         dest_column_ptr[i] = get_gdf_column_ptr(dest_ptrs_info[i]["data"][0], dest_ptrs_info[i]["shape"][0])
 
     cdef gdf_column* pr_ptr = <gdf_column*>malloc(sizeof(gdf_column))
-    gdf_multi_pagerank(<const size_t>n_gpus,
-                     <gdf_column*> src_column_ptr,
-                     <gdf_column*> dest_column_ptr,
+    gdf_snmg_pagerank(
+                     <gdf_column**> src_column_ptr,
+                     <gdf_column**> dest_column_ptr,
                      <gdf_column*> pr_ptr,
+                     <const size_t>n_gpus,
                      <float> 0.85,#damping_factor,
-                     <int> 20 #max_iter
+                     <int> 10 #max_iter
                      )
 
     data = rmm.device_array_from_ptr(<uintptr_t> pr_ptr.data,

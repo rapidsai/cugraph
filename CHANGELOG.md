@@ -4,8 +4,10 @@
 - PR #357 Pagerank cpp API
 
 ## Improvements
+- PR #353 Change snmg python wrapper in accordance to cpp api
 
 ## Bug Fixes
+- PR #354 Fixed bug in building a debug version
 
 
 # cuGraph 0.8.0 (Date TBD)
@@ -24,6 +26,7 @@
 - PR #331 Python bindings and test for Weakly Connected Components.
 - PR #339 SNMG COO2CSR (cuda/C++)
 - PR #341 SSSP with predecessors (python) and function for filtering unreachable nodes in the traversal
+- PR #348 Updated README for release
 
 ## Improvements
 - PR #291 nvGraph is updated to use RMM instead of directly invoking cnmem functions.
@@ -32,7 +35,6 @@
 - PR #306 Updated python test files to run pytest with all four RMM configurations.
 - PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
 - PR #333 Various general improvements at the library level 
-
 
 ## Bug Fixes
 - PR #283 Automerge fix
@@ -46,6 +48,8 @@
 - PR #324 Fixed crash in WeakCC for larger graph and added adj matrix symmetry check
 - PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 - PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
+- PR #350 Configure Sphinx to render params correctly
+
 
 # cuGraph 0.7.0 (10 May 2019)
 

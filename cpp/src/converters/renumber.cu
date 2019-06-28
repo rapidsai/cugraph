@@ -163,15 +163,15 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       NVStrings *srcList = reinterpret_cast<NVStrings*>(src->data);
       NVStrings *dstList = reinterpret_cast<NVStrings*>(dst->data);
 
-      std::pair<const char *, size_t> *srcs;
-      std::pair<const char *, size_t> *dsts;
-      std::pair<const char *, size_t> *output_map;
+      thrust::pair<const char *, size_t> *srcs;
+      thrust::pair<const char *, size_t> *dsts;
+      thrust::pair<const char *, size_t> *output_map;
 
-      ALLOC_TRY((void**) &srcs, sizeof(std::pair<const char *, size_t>) * src->size, stream);
-      ALLOC_TRY((void**) &dsts, sizeof(std::pair<const char *, size_t>) * dst->size, stream);
+      ALLOC_TRY((void**) &srcs, sizeof(thrust::pair<const char *, size_t>) * src->size, stream);
+      ALLOC_TRY((void**) &dsts, sizeof(thrust::pair<const char *, size_t>) * dst->size, stream);
 
-      srcList->create_index(srcs, true);
-      dstList->create_index(dsts, true);
+      srcList->create_index((std::pair<const char *, size_t> *) srcs, true);
+      dstList->create_index((std::pair<const char *, size_t> *) dsts, true);
       
       gdf_error err = cugraph::renumber_vertices(src->size,
                                                  srcs,

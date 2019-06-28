@@ -502,7 +502,7 @@ INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerankCSR,
                        );
 
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
-                        ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
+                        ::testing::Values(   MGPagerank_Usecase("test/datasets/wiki-Talk.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/netscience.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
