@@ -11,8 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_grmat cimport *
-from c_graph cimport *
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.utilities.c_grmat cimport *
+from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -20,7 +25,11 @@ import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
-cpdef grmat_gen(argv):
+
+def grmat_gen(argv):
+    """
+    Call gdf_grmat_gen
+    """
     cdef size_t vertices = 0
     cdef size_t edges = 0
     cdef gdf_column* c_source_col = <gdf_column*>malloc(sizeof(gdf_column))
@@ -51,5 +60,3 @@ cpdef grmat_gen(argv):
                                      dtype=np.int32,
                                      finalizer=rmm._make_finalizer(dest_col_data, 0))
     return vertices, edges, cudf.Series(src_data), cudf.Series(dest_data)
-
-

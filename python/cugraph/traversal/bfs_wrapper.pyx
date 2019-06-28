@@ -11,61 +11,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_bfs cimport *
-from libcpp cimport bool
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
 from libc.stdint cimport uintptr_t
-import cudf
-#from pygdf import Column
+from libcpp cimport bool
+from cugraph.traversal.c_bfs cimport *
+from cugraph.structure.graph_wrapper cimport * 
+
 import numpy as np
+import cudf
 
-cpdef bfs(G, start, directed=True):
+
+cpdef bfs(graph_ptr, start, directed=True):
     """
-    Find the distances and predecessors for a breadth first traversal of a graph.
-    
-    Parameters
-    ----------
-    G : cugraph.graph
-        cuGraph graph descriptor, should contain the connectivity information as an
-        adjacency list.
-    start : Integer
-        The index of the graph vertex from which the traversal begins
-    directed : bool
-        Indicates whether the graph in question is a directed graph, or whether
-        each edge has a corresponding reverse edge. (Allows optimizations if the
-        graph is undirected)
-    
-    Returns
-    -------
-    df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
-        df['distance'][i] gives the path distance for the i'th vertex from the starting vertex
-        df['predecessor'][i] gives for the i'th vertex the vertex it was reached from in the traversal
-        
-    Examples
-    --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,none)
-    >>> dist, pred = cuGraph.bfs(G, 0, false)
+    Call gdf_bfs
     """
 
-    cdef uintptr_t graph = G.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
-    num_verts = G.number_of_vertices()
+    err = gdf_add_adj_list(g)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # used instead of g.adjList.offsets.size - 1)
+    num_verts = g.adjList.offsets.size - 1
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_vertex_col = get_gdf_column_view(df['vertex'])
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_distances_col = get_gdf_column_view(df['distance'])
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_predecessors_col = get_gdf_column_view(df['predecessor'])
+    cdef gdf_column c_vertex_col = get_gdf_column_view(df['vertex'])
+    cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
+    cdef gdf_column c_predecessor_col = get_gdf_column_view(df['predecessor'])
 
     err = g.adjList.get_vertex_identifiers(&c_vertex_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    gdf_bfs(g, &c_distances_col, &c_predecessors_col, <int>start, <bool>directed)
+    err = gdf_bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
     return df

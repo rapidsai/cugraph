@@ -11,55 +11,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_louvain cimport *
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.community.c_louvain cimport *
+from cugraph.structure.graph_wrapper cimport *
+from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
-cpdef nvLouvain(input_graph):
+cpdef louvain(graph_ptr):
     """
-    Compute the modularity optimizing partition of the input graph using the Louvain heuristic
-
-    Parameters
-    ----------
-    input_graph : cuGraph.Graph
-      cuGraph graph descriptor, should contain the connectivity information as an edge list.
-      The adjacency list will be computed if not already present. The graph should be undirected where 
-      an undirected edge is represented by a directed edge in both direction.
-
-    Returns
-    -------
-    louvain_parts, modularity_score  : cudf.DataFrame
-      louvain_parts: GPU data frame of size V containing two columns: the vertex id 
-          and the partition id it is assigned to.
-      modularity_score: a double value containing the modularity score of the partitioning
- 
-    Examples
-    --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> louvain_parts, modularity_score = cuGraph.louvain(G)
+    Call gdf_louvain
     """
 
-    cdef uintptr_t graph = input_graph.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_verts = input_graph.number_of_vertices()
+    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # used instead of g.adjList.offsets.size - 1)
+    num_verts = g.adjList.offsets.size - 1
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
     err = g.adjList.get_vertex_identifiers(&c_index_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-    
+
     df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))
     cdef gdf_column c_louvain_parts_col = get_gdf_column_view(df['partition'])
 

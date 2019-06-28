@@ -11,4 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_nvgraph cimport *
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.nvgraph.c_nvgraph cimport *

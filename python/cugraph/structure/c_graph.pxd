@@ -1,5 +1,3 @@
-from libcpp cimport bool
-
 cdef extern from "cudf/cudf.h":
 
     ctypedef size_t gdf_size_type
@@ -53,8 +51,6 @@ cdef extern from "cudf/cudf.h":
                                              gdf_dtype dtype,
                                              gdf_size_type null_count,
                                              gdf_dtype_extra_info extra_info)
-
-
 
 
 cdef extern from "cugraph.h":

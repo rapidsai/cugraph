@@ -11,8 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_nvgraph cimport * 
-from c_graph cimport * 
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.nvgraph.c_nvgraph cimport *
+from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph_wrapper cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -21,7 +27,8 @@ import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
-cpdef spectralBalancedCutClustering(G,
+
+cpdef spectralBalancedCutClustering(graph_ptr,
                                     num_clusters,
                                     num_eigen_vects=2,
                                     evs_tolerance=.00001,
@@ -29,51 +36,19 @@ cpdef spectralBalancedCutClustering(G,
                                     kmean_tolerance=.00001,
                                     kmean_max_iter=100):
     """
-    Compute a clustering/partitioning of the given graph using the spectral balanced
-    cut method.
-    
-    Parameters
-    ----------
-    G : cuGraph.Graph                  
-       cuGraph graph descriptor
-    num_clusters : integer
-        Specifies the number of clusters to find
-    num_eigen_vects : integer
-        Specifies the number of eigenvectors to use. Must be lower or equal to num_clusters.
-    evs_tolerance: float
-        Specifies the tolerance to use in the eigensolver
-    evs_max_iter: integer
-        Specifies the maximum number of iterations for the eigensolver
-    kmean_tolerance: float
-        Specifies the tolerance to use in the k-means solver
-    kmean_max_iter: integer
-        Specifies the maximum number of iterations for the k-means solver
-    
-    Returns
-    -------
-    DF : GPU data frame containing two cudf.Series of size V: the vertex identifiers and the 
-      corresponding cluster assignments.
-        DF['vertex'] contains the vertex identifiers
-        DF['cluster'] contains the cluster assignments
-        
-    Example:
-    --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
+    Call gdf_balancedCutClustering_nvgraph
     """
 
-    cdef uintptr_t graph = G.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_verts = G.number_of_vertices()
+    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # used instead of g.adjList.offsets.size - 1)
+    num_verts = g.adjList.offsets.size - 1
 
     # Create the output dataframe
     df = cudf.DataFrame()
@@ -98,7 +73,7 @@ cpdef spectralBalancedCutClustering(G,
 
     return df
 
-cpdef spectralModularityMaximizationClustering(G,
+cpdef spectralModularityMaximizationClustering(graph_ptr,
                                                num_clusters,
                                                num_eigen_vects=2,
                                                evs_tolerance=.00001,
@@ -106,50 +81,19 @@ cpdef spectralModularityMaximizationClustering(G,
                                                kmean_tolerance=.00001,
                                                kmean_max_iter=100):
     """
-    Compute a clustering/partitioning of the given graph using the spectral modularity
-    maximization method.
-    
-    Parameters
-    ----------
-    G : cuGraph.Graph                  
-       cuGraph graph descriptor
-    num_clusters : integer
-        Specifies the number of clusters to find
-    num_eigen_vects : integer
-        Specifies the number of eigenvectors to use. Must be lower or equal to num_clusters
-    evs_tolerance: float
-        Specifies the tolerance to use in the eigensolver
-    evs_max_iter: integer
-        Specifies the maximum number of iterations for the eigensolver
-    kmean_tolerance: float
-        Specifies the tolerance to use in the k-means solver
-    kmean_max_iter: integer
-        Specifies the maximum number of iterations for the k-means solver
-    
-    Returns
-    -------
-    Clustering : cudf.DataFrame
-        DF['vertex'] contains the vertex identifiers
-        DF['cluster'] contains the cluster assignments
-        
-    Example:
-    --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralModularityMaximizationClustering(G, 5)
+    Call gdf_spectralModularityMaximization_nvgraph
     """
 
-    cdef uintptr_t graph = G.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
 
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    num_verts = G.number_of_vertices()
+    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # used instead of g.adjList.offsets.size - 1)
+    num_verts = g.adjList.offsets.size - 1
 
     # Create the output dataframe
     df = cudf.DataFrame()
@@ -174,35 +118,11 @@ cpdef spectralModularityMaximizationClustering(G,
 
     return df
 
-cpdef analyzeClustering_modularity(G, n_clusters, clustering):
+cpdef analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     """
-    Compute the modularity score for a partitioning/clustering
-    
-    Parameters
-    ----------
-    G : cuGraph.Graph                  
-       cuGraph graph descriptor
-    n_clusters : integer
-        Specifies the number of clusters in the given clustering
-    clustering : cudf.Series
-        The cluster assignment to analyze.
-
-    Returns
-    -------
-    score : float
-        The computed modularity score
-        
-    Example:
-    --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_modularity(G, 5, DF['cluster'])
+    Call gdf_AnalyzeClustering_modularity_nvgraph
     """
-    cdef uintptr_t graph = G.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     
     # Ensure that the graph has CSR adjacency list
@@ -215,35 +135,11 @@ cpdef analyzeClustering_modularity(G, n_clusters, clustering):
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
 
-cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
+cpdef analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     """
-    Compute the edge cut score for a partitioning/clustering
-    
-    Parameters
-    ----------
-    G : cuGraph.Graph                  
-       cuGraph graph descriptor
-    n_clusters : integer
-        Specifies the number of clusters in the given clustering
-    clustering : cudf.Series
-        The cluster assignment to analyze.
-
-    Returns
-    -------
-    score : float
-        The computed edge cut score
-        
-    Example:
-    --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_edge_cut(G, 5, DF['cluster'])
+    Call gdf_AnalyzeClustering_edge_cut_nvgraph
     """
-    cdef uintptr_t graph = G.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     
     # Ensure that the graph has CSR adjacency list
@@ -256,35 +152,11 @@ cpdef analyzeClustering_edge_cut(G, n_clusters, clustering):
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
 
-cpdef analyzeClustering_ratio_cut(G, n_clusters, clustering):
+cpdef analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
     """
-    Compute the ratio cut score for a partitioning/clustering
-    
-    Parameters
-    ----------
-    G : cuGraph.Graph                  
-       cuGraph graph descriptor
-    n_clusters : integer
-        Specifies the number of clusters in the given clustering
-    clustering : cudf.Series
-        The cluster assignment to analyze.
-        
-    Returns
-    -------
-    score : float
-        The computed ratio cut score
-        
-    Example:
-    --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_ratio_cut(G, 5, DF['cluster'])
+    Call gdf_AnalyzeClustering_ratio_cut_nvgraph
     """
-    cdef uintptr_t graph = G.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     
     # Ensure that the graph has CSR adjacency list

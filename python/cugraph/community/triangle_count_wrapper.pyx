@@ -11,39 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_nvgraph cimport *
-from c_graph cimport *
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.nvgraph.c_nvgraph cimport * 
+from cugraph.structure.c_graph cimport * 
 from libc.stdint cimport uintptr_t
 
 import cudf
 from librmm_cffi import librmm as rmm
 
-cpdef triangles(input_graph):
+cpdef triangles(graph_ptr):
     """
-    Compute the triangle (number of cycles of length three) count of the 
-    input graph.
-    
-    Parameters
-    ----------
-    input_graph : cugraph.graph
-      cugraph graph descriptor, should contain the connectivity information,
-      (edge weights are not used in this algorithm)
-    
-    Returns
-    -------
-    count : A 64 bit integer whose value gives the number of triangles in the
-      graph.
-      
-    Example
-    -------
-    >>>> M = read_mtx_file(graph_file)
-    >>>> sources = cudf.Series(M.row)
-    >>>> destinations = cudf.Series(M.col)
-    >>>> G = cugraph.Graph()
-    >>>> G.add_edge_list(sources, destinations, None)
-    >>>> count = cugraph.triangle_count(G)
+    Call gdf_triangle_count_nvgraph
     """
-    cdef uintptr_t graph = input_graph.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
     
     err = gdf_add_adj_list(g)

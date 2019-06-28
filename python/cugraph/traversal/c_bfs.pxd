@@ -1,4 +1,4 @@
-from c_graph cimport *
+from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 
 cdef extern from "cugraph.h":

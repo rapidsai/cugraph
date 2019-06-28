@@ -11,8 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_nvgraph cimport * 
-from c_graph cimport * 
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.nvgraph.c_nvgraph cimport * 
+from cugraph.structure.c_graph cimport * 
+from cugraph.structure.graph_wrapper cimport * 
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -21,50 +27,17 @@ import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
-cpdef subgraph(G, vertices):
+cpdef subgraph(graph_ptr, vertices, subgraph_ptr):
     """
-    Compute a subgraph of the existing graph including only the specified 
-    vertices.  This algorithm works for both directed and undirected graphs,
-    it does not actually traverse the edges, simply pulls out any edges that
-    are incident on vertices that are both contained in the vertices list.
-    
-    Parameters
-    ----------
-    G : cuGraph.Graph                  
-       cuGraph graph descriptor
-    vertices : cudf.Series
-        Specifies the vertices of the induced subgraph
-    
-    Returns
-    -------
-    Sg : cuGraph.Graph
-        A graph object containing the subgraph induced by the given vertex set.
-        
-    Example:
-    --------
-    >>> M = ReadMtxFile(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> verts = numpy.zeros(3, dtype=np.int32)
-    >>> verts[0] = 0
-    >>> verts[1] = 1
-    >>> verts[2] = 2
-    >>> sverts = cudf.Series(verts)
-    >>> Sg = cuGraph.subgraph(G, sverts)
+    Call gdf_extract_subgraph_vertex_nvgraph
     """
 
-    cdef uintptr_t graph = G.graph_ptr
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = < gdf_graph *> graph
 
-    resultGraph = Graph()
-    cdef uintptr_t rGraph = resultGraph.graph_ptr
+    cdef uintptr_t rGraph = subgraph_ptr
     cdef gdf_graph* rg = <gdf_graph*>rGraph
-    null_check(vertices)
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
     err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-
-    return resultGraph

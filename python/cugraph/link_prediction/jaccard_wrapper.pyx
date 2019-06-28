@@ -11,8 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_jaccard cimport * 
-from c_graph cimport * 
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.link_prediction.c_jaccard cimport * 
+from cugraph.structure.c_graph cimport * 
+from cugraph.structure.graph_wrapper cimport * 
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 import cudf
@@ -20,54 +26,15 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 from cython cimport floating
 
-cpdef jaccard(input_graph, first=None, second=None):
-    """
-    Compute the Jaccard similarity between each pair of vertices connected by an edge,
-    or between arbitrary pairs of vertices specified by the user. Jaccard similarity 
-    is defined between two sets as the ratio of the volume of their intersection divided 
-    by the volume of their union. In the context of graphs, the neighborhood of a vertex 
-    is seen as a set. The Jaccard similarity weight of each edge represents the strength 
-    of connection between vertices based on the relative similarity of their neighbors.
-    If first is specified but second is not, or vice versa, an exception will be thrown.
 
-    Parameters
-    ----------
-    graph : cuGraph.Graph                 
-      cuGraph graph descriptor, should contain the connectivity information as an edge list 
-      (edge weights are not used for this algorithm). The graph should be undirected where 
-      an undirected edge is represented by a directed edge in both direction.
-      The adjacency list will be computed if not already present. 
-    
-    first : cudf.Series
-      Specifies the first vertices of each pair of vertices to compute for, must be specified
-      along with second.
-      
-    second : cudf.Series
-      Specifies the second vertices of each pair of vertices to compute for, must be specified
-      along with first.
+gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
 
-    Returns
-    -------
-    df  : cudf.DataFrame
-      GPU data frame of size E (the default) or the size of the given pairs (first, second) 
-      containing the Jaccard weights. The ordering is relative to the adjacency list, or that
-      given by the specified vertex pairs.
-      
-      df['source']: The source vertex ID (will be identical to first if specified)
-      df['destination']: The destination vertex ID (will be identical to second if specified)
-      df['jaccard_coeff']: The computed Jaccard coefficient between the source and destination
-        vertices
- 
-    Examples
-    --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> jaccard_weights = cugraph.jaccard(G)
+
+def jaccard(graph_ptr, first=None, second=None):
     """
-    cdef uintptr_t graph = input_graph.graph_ptr
+    Call gdf_jaccard_list
+    """
+    cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
 
     err = gdf_add_adj_list(<gdf_graph*> graph)
@@ -79,8 +46,6 @@ cpdef jaccard(input_graph, first=None, second=None):
     cdef gdf_column c_src_index_col
 
     if type(first) == cudf.dataframe.series.Series and type(second) == cudf.dataframe.series.Series:
-        null_check(first)
-        null_check(second)
         result_size = len(first)
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
@@ -98,8 +63,12 @@ cpdef jaccard(input_graph, first=None, second=None):
         df['jaccard_coeff'] = result
         return df
 
-    elif first is None and second is None:
-        num_edges = input_graph.number_of_edges()
+    else:
+        # error check performed in jaccard.py
+        assert first is None and second is None
+        # we should add get_number_of_edges() to gdf_graph (and this should be
+        # used instead of g.adjList.indices.size)
+        num_edges = g.adjList.indices.size
         result = cudf.Series(np.ones(num_edges, dtype=np.float32), nan_as_null=False)
         c_result_col = get_gdf_column_view(result)
 
@@ -112,11 +81,9 @@ cpdef jaccard(input_graph, first=None, second=None):
         df = cudf.DataFrame()
         df['source'] = cudf.Series(np.zeros(num_edges, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
         c_src_index_col = get_gdf_column_view(df['source'])
-        err = g.adjList.get_source_indices(&c_src_index_col);
+        err = g.adjList.get_source_indices(&c_src_index_col)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df['destination'] = cudf.Series(dest_data)
         df['jaccard_coeff'] = result
 
         return df
-    
-    raise ValueError("Specify first and second or neither")

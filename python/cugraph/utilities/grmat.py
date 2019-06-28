@@ -11,15 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.c_graph cimport *
+import cugraph.utilities.grmat_wrapper as cpp_grmat
 
-cdef extern from "cugraph.h":
-    cdef gdf_error gdf_overlap (gdf_graph * graph,
-                                gdf_column * weights,
-                                gdf_column * result)
-    
-    cdef gdf_error gdf_overlap_list(gdf_graph * graph,
-                                    gdf_column * weights,
-                                    gdf_column * first,
-                                    gdf_column * second,
-                                    gdf_column * result)
+
+def grmat_gen(argv):
+    vertices, edges, source_col, dest_col = cpp_grmat.grmat_gen(argv)
+
+    return vertices, edges, source_col, dest_col

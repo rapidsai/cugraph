@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from c_graph cimport *
+from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uint64_t
 
