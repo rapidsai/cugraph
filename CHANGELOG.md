@@ -6,6 +6,7 @@
 - PR #353 Change snmg python wrapper in accordance to cpp api
 
 ## Bug Fixes
+- PR #354 Fixed bug in building a debug version
 
 
 # cuGraph 0.8.0 (Date TBD)
@@ -46,6 +47,8 @@
 - PR #324 Fixed crash in WeakCC for larger graph and added adj matrix symmetry check
 - PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 - PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
+- PR #350 Configure Sphinx to render params correctly
+
 
 # cuGraph 0.7.0 (10 May 2019)
 
