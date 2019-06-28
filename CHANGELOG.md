@@ -1,3 +1,9 @@
+# cuGraph 0.8.1 (28 June 2019)
+
+## Bug Fixes
+- PR #358 Remove boost linking dependency
+
+
 # cuGraph 0.8.0 (27 June 2019)
 
 ## New Features
