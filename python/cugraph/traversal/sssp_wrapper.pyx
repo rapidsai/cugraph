@@ -32,7 +32,7 @@ import numpy as np
 gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
 
 
-cpdef sssp(graph_ptr, source):
+def sssp(graph_ptr, source):
     """
     Call gdf_sssp_nvgraph
     """

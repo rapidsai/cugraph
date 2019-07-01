@@ -29,7 +29,7 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 
 
-cpdef spectralBalancedCutClustering(graph_ptr,
+def spectralBalancedCutClustering(graph_ptr,
                                     num_clusters,
                                     num_eigen_vects=2,
                                     evs_tolerance=.00001,
@@ -74,7 +74,7 @@ cpdef spectralBalancedCutClustering(graph_ptr,
 
     return df
 
-cpdef spectralModularityMaximizationClustering(graph_ptr,
+def spectralModularityMaximizationClustering(graph_ptr,
                                                num_clusters,
                                                num_eigen_vects=2,
                                                evs_tolerance=.00001,
@@ -119,7 +119,7 @@ cpdef spectralModularityMaximizationClustering(graph_ptr,
 
     return df
 
-cpdef analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
+def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     """
     Call gdf_AnalyzeClustering_modularity_nvgraph
     """
@@ -136,7 +136,7 @@ cpdef analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
 
-cpdef analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
+def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     """
     Call gdf_AnalyzeClustering_edge_cut_nvgraph
     """
@@ -153,7 +153,7 @@ cpdef analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     cudf.bindings.cudf_cpp.check_gdf_error(err)
     return score
 
-cpdef analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
+def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
     """
     Call gdf_AnalyzeClustering_ratio_cut_nvgraph
     """

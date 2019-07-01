@@ -26,7 +26,7 @@ import cudf
 import numpy as np
 
 
-cpdef bfs(graph_ptr, start, directed=True):
+def bfs(graph_ptr, start, directed=True):
     """
     Call gdf_bfs
     """

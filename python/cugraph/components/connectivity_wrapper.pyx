@@ -25,7 +25,7 @@ import cudf
 import numpy as np
 
 
-cpdef weakly_connected_components(graph_ptr, connect_type = CUGRAPH_WEAK):
+def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
     """
     Call gdf_connected_components
     """

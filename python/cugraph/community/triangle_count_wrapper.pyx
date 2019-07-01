@@ -25,7 +25,7 @@ import cudf
 from librmm_cffi import librmm as rmm
 
 
-cpdef triangles(graph_ptr):
+def triangles(graph_ptr):
     """
     Call gdf_triangle_count_nvgraph
     """

@@ -29,7 +29,7 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 
 
-cpdef subgraph(graph_ptr, vertices, subgraph_ptr):
+def subgraph(graph_ptr, vertices, subgraph_ptr):
     """
     Call gdf_extract_subgraph_vertex_nvgraph
     """

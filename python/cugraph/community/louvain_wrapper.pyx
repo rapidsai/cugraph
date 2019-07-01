@@ -28,7 +28,7 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 
 
-cpdef louvain(graph_ptr):
+def louvain(graph_ptr):
     """
     Call gdf_louvain
     """
