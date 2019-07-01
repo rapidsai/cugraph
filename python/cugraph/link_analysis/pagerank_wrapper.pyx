@@ -18,13 +18,13 @@
 
 from cugraph.link_analysis.c_pagerank cimport *
 from cugraph.structure.c_graph cimport *
-from cugraph.structure.graph_wrapper cimport *
+from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
+
 import cudf
 from librmm_cffi import librmm as rmm
-#from pygdf import Column
 import numpy as np
 
 

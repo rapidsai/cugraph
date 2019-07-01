@@ -18,13 +18,14 @@
 
 from cugraph.link_prediction.c_jaccard cimport * 
 from cugraph.structure.c_graph cimport * 
-from cugraph.structure.graph_wrapper cimport * 
+from cugraph.utilities.column_utils cimport * 
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
+from cython cimport floating
+
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
-from cython cimport floating
 
 
 gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}

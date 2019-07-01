@@ -18,8 +18,9 @@
 
 from cugraph.components.c_connectivity cimport *
 from cugraph.structure.c_graph cimport *
-from cugraph.structure.graph_wrapper cimport *
+from cugraph.utilities.column_utils cimport *
 from libc.stdint cimport uintptr_t
+
 import cudf
 import numpy as np
 

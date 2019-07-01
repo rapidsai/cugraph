@@ -18,9 +18,10 @@
 
 from cugraph.link_prediction.c_jaccard cimport * 
 from cugraph.structure.c_graph cimport * 
-from cugraph.structure.graph_wrapper cimport * 
+from cugraph.utilities.column_utils cimport * 
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
+
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np

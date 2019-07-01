@@ -18,17 +18,19 @@
 
 from cugraph.traversal.c_sssp cimport *
 from cugraph.structure.c_graph cimport *
-from cugraph.structure.graph_wrapper cimport * 
+from cugraph.utilities.column_utils cimport * 
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
+
 import cudf
 from librmm_cffi import librmm as rmm
-#from pygdf import Column
 import numpy as np
 
+
 gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
+
 
 cpdef sssp(graph_ptr, source):
     """

@@ -19,10 +19,11 @@
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 from cugraph.traversal.c_bfs cimport *
-from cugraph.structure.graph_wrapper cimport * 
+from cugraph.structure.c_graph cimport *
+from cugraph.utilities.column_utils cimport * 
 
-import numpy as np
 import cudf
+import numpy as np
 
 
 cpdef bfs(graph_ptr, start, directed=True):

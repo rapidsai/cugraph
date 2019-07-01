@@ -3,14 +3,16 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 from cugraph.snmg.link_analysis.c_mg_pagerank cimport *
 from cugraph.structure.c_graph cimport *
-from cugraph.structure.graph_wrapper cimport *
+from cugraph.utilities.column_utils cimport *
+from libc.stdint cimport uintptr_t
+from libc.stdlib cimport calloc, malloc, free
+
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
+
 
 def mg_pagerank(src_ptrs_info, dest_ptrs_info):
     cdef gdf_column** src_column_ptr = <gdf_column**>malloc(len(src_ptrs_info) * sizeof(gdf_column*))

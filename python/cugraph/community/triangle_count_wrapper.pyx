@@ -18,6 +18,7 @@
 
 from cugraph.nvgraph.c_nvgraph cimport * 
 from cugraph.structure.c_graph cimport * 
+from cugraph.utilities.column_utils cimport * 
 from libc.stdint cimport uintptr_t
 
 import cudf

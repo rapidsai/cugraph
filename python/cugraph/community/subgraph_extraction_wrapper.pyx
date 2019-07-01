@@ -18,14 +18,16 @@
 
 from cugraph.nvgraph.c_nvgraph cimport * 
 from cugraph.structure.c_graph cimport * 
-from cugraph.structure.graph_wrapper cimport * 
+from cugraph.utilities.column_utils cimport * 
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
+
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
+
 
 cpdef subgraph(graph_ptr, vertices, subgraph_ptr):
     """
