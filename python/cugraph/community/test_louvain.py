@@ -63,7 +63,7 @@ def cugraph_call(cu_M, edgevals=False):
 
     # cugraph Louvain Call
     t1 = time.time()
-    parts, mod = cugraph.nvLouvain(G)
+    parts, mod = cugraph.louvain(G)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
