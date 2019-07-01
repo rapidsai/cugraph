@@ -11,26 +11,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
 import cugraph.community.triangle_count_wrapper as cpp_triangle_count
 
 
 def triangles(G):
     """
-    Compute the triangle (number of cycles of length three) count of the 
+    Compute the triangle (number of cycles of length three) count of the
     input graph.
-    
+
     Parameters
     ----------
     G : cugraph.graph
       cugraph graph descriptor, should contain the connectivity information,
       (edge weights are not used in this algorithm)
-    
+
     Returns
     -------
     count : A 64 bit integer whose value gives the number of triangles in the
       graph.
-      
+
     Example
     -------
     >>>> M = read_mtx_file(graph_file)

@@ -16,27 +16,30 @@ import cugraph.traversal.bfs_wrapper as cpp_bfs
 
 def bfs(G, start, directed=True):
     """
-    Find the distances and predecessors for a breadth first traversal of a graph.
-    
+    Find the distances and predecessors for a breadth first traversal of a
+    graph.
+
     Parameters
     ----------
     G : cugraph.graph
-        cuGraph graph descriptor, should contain the connectivity information as an
-        adjacency list.
+        cuGraph graph descriptor, should contain the connectivity information
+        as an adjacency list.
     start : Integer
         The index of the graph vertex from which the traversal begins
     directed : bool
         Indicates whether the graph in question is a directed graph, or whether
-        each edge has a corresponding reverse edge. (Allows optimizations if the
-        graph is undirected)
-    
+        each edge has a corresponding reverse edge. (Allows optimizations if
+        the graph is undirected)
+
     Returns
     -------
     df : cudf.DataFrame
         df['vertex'][i] gives the vertex id of the i'th vertex
-        df['distance'][i] gives the path distance for the i'th vertex from the starting vertex
-        df['predecessor'][i] gives for the i'th vertex the vertex it was reached from in the traversal
-        
+        df['distance'][i] gives the path distance for the i'th vertex from the
+        starting vertex
+        df['predecessor'][i] gives for the i'th vertex the vertex it was
+        reached from in the traversal
+
     Examples
     --------
     >>> M = read_mtx_file(graph_file)

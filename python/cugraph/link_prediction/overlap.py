@@ -11,48 +11,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-import cugraph
 import cugraph.link_prediction.overlap_wrapper as cpp_overlap
+import cugraph
+import cudf
 
 
 def overlap(input_graph, first=None, second=None):
     """
-    Compute the Overlap Coefficient between each pair of vertices connected by an edge,
-    or between arbitrary pairs of vertices specified by the user. Overlap Coefficient 
-    is defined between two sets as the ratio of the volume of their intersection divided 
-    by the smaller of their two volumes. In the context of graphs, the neighborhood of a vertex 
-    is seen as a set. The Overlap Coefficient weight of each edge represents the strength 
-    of connection between vertices based on the relative similarity of their neighbors.
-    If first is specified but second is not, or vice versa, an exception will be thrown.
+    Compute the Overlap Coefficient between each pair of vertices connected by
+    an edge, or between arbitrary pairs of vertices specified by the user.
+    Overlap Coefficient is defined between two sets as the ratio of the volume
+    of their intersection divided by the smaller of their two volumes. In the
+    context of graphs, the neighborhood of a vertex is seen as a set. The
+    Overlap Coefficient weight of each edge represents the strength of
+    connection between vertices based on the relative similarity of their
+    neighbors. If first is specified but second is not, or vice versa, an
+    exception will be thrown.
 
     Parameters
     ----------
-    graph : cuGraph.Graph                 
-      cuGraph graph descriptor, should contain the connectivity information as an edge list 
-      (edge weights are not used for this algorithm).
-      The adjacency list will be computed if not already present. 
-    
+    graph : cuGraph.Graph
+      cuGraph graph descriptor, should contain the connectivity information as
+      an edge list (edge weights are not used for this algorithm). The
+      adjacency list will be computed if not already present.
+
     first : cudf.Series
-      Specifies the first vertices of each pair of vertices to compute for, must be specified
-      along with second.
-      
+      Specifies the first vertices of each pair of vertices to compute for,
+      must be specified along with second.
+
     second : cudf.Series
-      Specifies the second vertices of each pair of vertices to compute for, must be specified
-      along with first.
+      Specifies the second vertices of each pair of vertices to compute for,
+      must be specified along with first.
 
     Returns
     -------
-    df  : cudf.DataFrame
-      GPU data frame of size E (the default) or the size of the given pairs (first, second) 
-      containing the Overlap coefficients. The ordering is relative to the adjacency list, or that
-      given by the specified vertex pairs.
-      
-      df['source']: The source vertex ID (will be identical to first if specified)
-      df['destination']: The destination vertex ID (will be identical to second if specified)
-      df['overlap_coeff']: The computed Overlap coefficient between the source and destination
-        vertices
- 
+    df : cudf.DataFrame
+      GPU data frame of size E (the default) or the size of the given pairs
+      (first, second) containing the Overlap coefficients. The ordering is
+      relative to the adjacency list, or that given by the specified vertex
+      pairs.
+
+      df['source']: The source vertex ID (will be identical to first if
+        specified)
+      df['destination']: The destination vertex ID (will be identical to second
+        if specified)
+      df['overlap_coeff']: The computed Overlap coefficient between the source
+        and destination vertices
+
     Examples
     --------
     >>> M = read_mtx_file(graph_file)
@@ -63,7 +68,8 @@ def overlap(input_graph, first=None, second=None):
     >>> df = cugraph.overlap(G)
     """
 
-    if type(first) == cudf.dataframe.series.Series and type(second) == cudf.dataframe.series.Series:
+    if (type(first) == cudf.dataframe.series.Series and
+            type(second) == cudf.dataframe.series.Series):
         cugraph.null_check(first)
         cugraph.null_check(second)
     elif first is None and second is None:

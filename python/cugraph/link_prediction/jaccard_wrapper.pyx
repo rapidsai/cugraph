@@ -16,9 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.link_prediction.c_jaccard cimport * 
-from cugraph.structure.c_graph cimport * 
-from cugraph.utilities.column_utils cimport * 
+from cugraph.link_prediction.c_jaccard cimport *
+from cugraph.structure.c_graph cimport *
+from cugraph.utilities.column_utils cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from cython cimport floating

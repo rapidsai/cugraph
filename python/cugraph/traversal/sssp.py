@@ -12,27 +12,36 @@
 # limitations under the License.
 
 import cugraph.traversal.sssp_wrapper as cpp_sssp
+import numpy as np
+
 
 def sssp(G, source):
     """
-    Compute the distance and predecessors for shortest paths from the specified source to all the vertices in the graph. The distances column will
-    store the distance from the source to each vertex. The predecessors column will store each vertex's predecessor in the shortest path. Vertices
-    that are unreachable will have a distance of infinity denoted by the maximum value of the data type and the predecessor set as -1. The source vertex's 
-    predecessor is also set to -1. Graphs with negative weight cycles are not supported.
-    
+    Compute the distance and predecessors for shortest paths from the specified
+    source to all the vertices in the graph. The distances column will store
+    the distance from the source to each vertex. The predecessors column will
+    store each vertex's predecessor in the shortest path. Vertices that are
+    unreachable will have a distance of infinity denoted by the maximum value
+    of the data type and the predecessor set as -1. The source vertex's
+    predecessor is also set to -1. Graphs with negative weight cycles are not
+    supported.
+
     Parameters
     ----------
-    graph : cuGraph.Graph                  
-       cuGraph graph descriptor with connectivity information. Edge weights, if present, should be single or double precision floating point values
-    source : int                  
+    graph : cuGraph.Graph
+       cuGraph graph descriptor with connectivity information. Edge weights, if
+       present, should be single or double precision floating point values
+    source : int
        Index of the source vertex
     Returns
     -------
     df : cudf.DataFrame
         df['vertex'][i] gives the vertex id of the i'th vertex
-        df['distance'][i] gives the path distance for the i'th vertex from the starting vertex
-        df['predecessor'][i] gives the vertex id of the vertex that was reached before the i'th vertex in the traversal
-    
+        df['distance'][i] gives the path distance for the i'th vertex from the
+        starting vertex
+        df['predecessor'][i] gives the vertex id of the vertex that was reached
+        before the i'th vertex in the traversal
+
     Examples
     --------
     >>> M = read_mtx_file(graph_file)
@@ -47,19 +56,22 @@ def sssp(G, source):
 
     return df
 
+
 def filter_unreachable(df):
     """
     Remove unreachable vertices from the result of SSSP or BFS
-    
+
     Parameters
     ----------
-    df : cudf.DataFrame that is the output of SSSP or BFS 
+    df : cudf.DataFrame that is the output of SSSP or BFS
     Returns
     -------
     df : filtered cudf.DataFrame with only reachable vertices
         df['vertex'][i] gives the vertex id of the i'th vertex
-        df['distance'][i] gives the path distance for the i'th vertex from the starting vertex
-        df['predecessor'][i] gives the vertex that was reached before the i'th vertex in the traversal
+        df['distance'][i] gives the path distance for the i'th vertex from the
+        starting vertex
+        df['predecessor'][i] gives the vertex that was reached before the i'th
+        vertex in the traversal
     """
     if('distance' not in df):
         raise KeyError("No distance column found in input data frame")
@@ -70,4 +82,4 @@ def filter_unreachable(df):
         max_val = np.finfo(df['distance'].dtype).max
         return df[df.distance != max_val]
     else:
-        raise TypeError("distace type unsupported") 
+        raise TypeError("distace type unsupported")

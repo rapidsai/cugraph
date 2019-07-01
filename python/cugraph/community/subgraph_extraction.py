@@ -14,25 +14,26 @@
 import cugraph
 import cugraph.community.subgraph_extraction_wrapper as cpp_subgraph_extraction
 
+
 def subgraph(G, vertices):
     """
-    Compute a subgraph of the existing graph including only the specified 
+    Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works for both directed and undirected graphs,
     it does not actually traverse the edges, simply pulls out any edges that
     are incident on vertices that are both contained in the vertices list.
-    
+
     Parameters
     ----------
-    G : cuGraph.Graph                  
+    G : cuGraph.Graph
        cuGraph graph descriptor
     vertices : cudf.Series
         Specifies the vertices of the induced subgraph
-    
+
     Returns
     -------
     Sg : cuGraph.Graph
         A graph object containing the subgraph induced by the given vertex set.
-        
+
     Example:
     --------
     >>> M = ReadMtxFile(graph_file)
@@ -52,6 +53,9 @@ def subgraph(G, vertices):
 
     result_graph = cugraph.Graph()
 
-    cpp_subgraph_extraction.subgraph(G.graph_ptr, vertices, result_graph.graph_ptr)
+    cpp_subgraph_extraction.subgraph(
+        G.graph_ptr,
+        vertices,
+        result_graph.graph_ptr)
 
     return result_graph

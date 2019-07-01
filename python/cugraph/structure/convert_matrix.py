@@ -15,7 +15,6 @@
 # issue #146 is addressed, this file's extension should be changed from .pyx to
 # .py and should be located outside the python/cugraph/bindings directory.
 
-import cudf
 import cugraph
 
 

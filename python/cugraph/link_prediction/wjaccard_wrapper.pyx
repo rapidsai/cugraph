@@ -16,9 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.link_prediction.c_jaccard cimport * 
-from cugraph.structure.c_graph cimport * 
-from cugraph.utilities.column_utils cimport * 
+from cugraph.link_prediction.c_jaccard cimport *
+from cugraph.structure.c_graph cimport *
+from cugraph.utilities.column_utils cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
@@ -38,7 +38,7 @@ def jaccard_w(graph_ptr, weights, first=None, second=None):
 
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    
+
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
@@ -85,7 +85,7 @@ def jaccard_w(graph_ptr, weights, first=None, second=None):
                                             dtype=gdf_to_np_dtypes[g.adjList.indices.dtype])
         df = cudf.DataFrame()
         df['source'] = cudf.Series(np.zeros(num_edges, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
-        c_index_col = get_gdf_column_view(df['source']) 
+        c_index_col = get_gdf_column_view(df['source'])
         err = g.adjList.get_source_indices(&c_index_col);
         cudf.bindings.cudf_cpp.check_gdf_error(err)
         df['destination'] = cudf.Series(dest_data)

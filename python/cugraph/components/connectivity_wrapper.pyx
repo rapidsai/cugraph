@@ -24,6 +24,7 @@ from libc.stdint cimport uintptr_t
 import cudf
 import numpy as np
 
+
 cpdef weakly_connected_components(graph_ptr, connect_type = CUGRAPH_WEAK):
     """
     Call gdf_connected_components

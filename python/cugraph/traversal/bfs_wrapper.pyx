@@ -16,11 +16,11 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from libc.stdint cimport uintptr_t
-from libcpp cimport bool
 from cugraph.traversal.c_bfs cimport *
 from cugraph.structure.c_graph cimport *
-from cugraph.utilities.column_utils cimport * 
+from cugraph.utilities.column_utils cimport *
+from libcpp cimport bool
+from libc.stdint cimport uintptr_t
 
 import cudf
 import numpy as np

@@ -17,7 +17,7 @@ import numpy as np
 def mg_pagerank(src_ptrs_info, dest_ptrs_info):
     cdef gdf_column** src_column_ptr = <gdf_column**>malloc(len(src_ptrs_info) * sizeof(gdf_column*))
     cdef gdf_column** dest_column_ptr = <gdf_column**>malloc(len(dest_ptrs_info) * sizeof(gdf_column*))
-    
+
     n_gpus = len(src_ptrs_info);
     for i in range(n_gpus):
         src_column_ptr[i] = get_gdf_column_ptr(src_ptrs_info[i]["data"][0], src_ptrs_info[i]["shape"][0])

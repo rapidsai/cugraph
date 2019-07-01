@@ -21,6 +21,7 @@ from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
+
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
@@ -43,7 +44,7 @@ def grmat_gen(argv):
     #cdef gdf_column* c_val_col = <gdf_column*>malloc(sizeof(gdf_column))
     argv_bytes = argv.encode()
     cdef char* c_argv = argv_bytes
-    
+
     err = gdf_grmat_gen (<char*>c_argv, vertices, edges, <gdf_column*>c_source_col, <gdf_column*>c_dest_col, <gdf_column*>0)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 

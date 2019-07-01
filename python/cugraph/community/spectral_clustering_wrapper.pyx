@@ -23,6 +23,7 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
+
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
@@ -41,7 +42,7 @@ cpdef spectralBalancedCutClustering(graph_ptr,
 
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    
+
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
@@ -56,7 +57,7 @@ cpdef spectralBalancedCutClustering(graph_ptr,
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['cluster'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
-    
+
     # Set the vertex identifiers
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
@@ -101,7 +102,7 @@ cpdef spectralModularityMaximizationClustering(graph_ptr,
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['cluster'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
-    
+
     # Set the vertex identifiers
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
@@ -124,11 +125,11 @@ cpdef analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     """
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    
+
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-    
+
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
@@ -141,11 +142,11 @@ cpdef analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     """
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    
+
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-    
+
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
@@ -158,11 +159,11 @@ cpdef analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
     """
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    
+
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-    
+
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)

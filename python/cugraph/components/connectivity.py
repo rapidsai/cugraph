@@ -18,26 +18,24 @@ def weakly_connected_components(G):
     """
     Generate the weakly connected components and attach a component label to
     each vertex.
-    
+
     Parameters
     ----------
     G : cugraph.Graph
       cuGraph graph descriptor, should contain the connectivity information as
-      an edge list 
-      (edge weights are not used for this algorithm). Currently, the graph should be undirected where 
-      an undirected edge is represented by a directed edge in both directions.
-      The adjacency list will be computed if not already present.
-      The number of vertices should fit into a 32b int. 
+      an edge list (edge weights are not used for this algorithm). Currently,
+      the graph should be undirected where an undirected edge is represented by
+      a directed edge in both directions. The adjacency list will be computed
+      if not already present. The number of vertices should fit into a 32b int.
 
     connect_type : cugraph_cc_t
       Weak (CUGRAPH_WEAK), or Strong (CUGRAPH_STRONG) (not implemented, yet)
-    
+
     Returns
     -------
     df : cudf.DataFrame
       df['labels'][i] gives the label id of the i'th vertex
-       
-        
+
     Examples
     --------
     >>> M = read_mtx_file(graph_file)

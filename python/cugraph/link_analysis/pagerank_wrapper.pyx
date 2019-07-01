@@ -43,11 +43,11 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     # used instead of g.transposedAdjList.offsets.size - 1)
     num_verts = g.transposedAdjList.offsets.size - 1
 
-    df = cudf.DataFrame()  
+    df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex']) 
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
-    cdef gdf_column c_pagerank_col = get_gdf_column_view(df['pagerank'])    
+    cdef gdf_column c_pagerank_col = get_gdf_column_view(df['pagerank'])
 
     cdef bool has_guess = <bool> 0
     if nstart is not None:
