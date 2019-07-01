@@ -1,6 +1,7 @@
 # cuGraph 0.9.0 (Date TBD)
 
 ## New Features
+- PR #361 Prototypes for cusort functions
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
