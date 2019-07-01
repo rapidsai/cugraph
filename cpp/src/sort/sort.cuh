@@ -10,60 +10,62 @@ namespace cusort {
    * @brief  Sort key value pairs distributed across multiple GPUs
    *
    *   This sort function takes arrays of keys and values distributed
-   *   around multiple GPUs 
+   *   around multiple GPUs, redistributes them so that GPU 0 contains
+   *   the smallest elements, GPU 1 the next smallest elements, etc.
    *
-   * @param[in]   input_keys_d     The unsorted keys, stored in device arrays.
+   * @param[in]   d_input_keys     The unsorted keys, stored in device arrays.
    *                               input_keys_d[i] is the array of keys on GPU i
-   * @param[in]   input_values_d   The unsorted values, stored in device arrays.
+   * @param[in]   d_input_values   The unsorted values, stored in device arrays.
    *                               input_values_d[i] is the array of values on GPU i
-   * @param[in]   input_length_h   Host array containing the number of elements on
+   * @param[in]   h_input_length   Host array containing the number of elements on
    *                               each GPU in the input key/value arrays.
-   * @param[out]  output_keys_d    The sorted keys, stored in device arrays.
+   * @param[out]  d_output_keys    The sorted keys, stored in device arrays.
    *                               output_keys_d[i] is the array of keys on GPU i
-   * @param[out]  output_values_d  The sorted values, stored in device arrays.
+   * @param[out]  d_output_values  The sorted values, stored in device arrays.
    *                               output_values_d[i] is the array of values on GPU i
-   * @param[out]  output_length_h  Host array containing the number of elements on
+   * @param[out]  h_output_length  Host array containing the number of elements on
    *                               each GPU in the output key/value arrays.
    * @param[in]   num_gpus         The number of GPUs
    *
    * @return   GDF_SUCCESS upon successful completion
    */
   template <typename Key_t, typename Value_t, typename Length_t>
-  gdf_error sortKeyValue(Key_t **input_keys_d,
-                         Value_t **input_values_d,
-                         Length_t *input_length_h,
-                         Key_t **output_keys_d,
-                         Value_t **output_values_d,
-                         Length_t *output_length_h,
-                         int num_gpus) {
+  gdf_error sort_key_value(Key_t **d_input_keys,
+                           Value_t **d_input_values,
+                           Length_t *h_input_length,
+                           Key_t **d_output_keys,
+                           Value_t **d_output_values,
+                           Length_t *h_output_length,
+                           int num_gpus) {
 
     return GDF_SUCCESS;
   }
   
   /**
-   * @brief  Sort key value pairs distributed across multiple GPUs
+   * @brief  Sort keys distributed across multiple GPUs
    *
-   *   This sort function takes arrays of keys and values distributed
-   *   around multiple GPUs 
+   *   This sort function takes an array of keys distributed
+   *   around multiple GPUs, redistributes them so that GPU 0 contains
+   *   the smallest elements, GPU 1 the next smallest elements, etc.
    *
-   * @param[in]   input_keys_d     The unsorted keys, stored in device arrays.
+   * @param[in]   d_input_keys     The unsorted keys, stored in device arrays.
    *                               input_keys_d[i] is the array of keys on GPU i
-   * @param[in]   input_length_h   Host array containing the number of elements on
+   * @param[in]   h_input_length   Host array containing the number of elements on
    *                               each GPU in the input key/value arrays.
-   * @param[out]  output_keys_d    The sorted keys, stored in device arrays.
+   * @param[out]  d_output_keys    The sorted keys, stored in device arrays.
    *                               output_keys_d[i] is the array of keys on GPU i
-   * @param[out]  output_length_h  Host array containing the number of elements on
+   * @param[out]  h_output_length  Host array containing the number of elements on
    *                               each GPU in the output key/value arrays.
    * @param[in]   num_gpus         The number of GPUs
    *
    * @return   GDF_SUCCESS upon successful completion
    */
   template <typename Key_t, typename Value_t, typename Length_t>
-  gdf_error sortKey(Key_t **input_keys_d,
-                    Length_t *input_lengths_h,
-                    Key_t **output_keys_d,
-                    Length_t *output_lengths_h,
-                    int num_gpus) {
+  gdf_error sort_key(Key_t **d_input_keys,
+                     Length_t *h_input_lengths,
+                     Key_t **d_output_keys,
+                     Length_t *h_output_lengths,
+                     int num_gpus) {
 
     return GDF_SUCCESS;
   }
