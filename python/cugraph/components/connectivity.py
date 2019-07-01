@@ -28,9 +28,6 @@ def weakly_connected_components(G):
       a directed edge in both directions. The adjacency list will be computed
       if not already present. The number of vertices should fit into a 32b int.
 
-    connect_type : cugraph_cc_t
-      Weak (CUGRAPH_WEAK), or Strong (CUGRAPH_STRONG) (not implemented, yet)
-
     Returns
     -------
     df : cudf.DataFrame
@@ -43,7 +40,7 @@ def weakly_connected_components(G):
     >>> destinations = cudf.Series(M.col)
     >>> G = cuGraph.Graph()
     >>> G.add_edge_list(sources,destinations,none)
-    >>> df = cuGraph.weak_cc(G, CUGRAPH_WEAK)
+    >>> df = cuGraph.weakly_connected_components(G)
     """
 
     df = cpp_connectivity.weakly_connected_components(G.graph_ptr)
