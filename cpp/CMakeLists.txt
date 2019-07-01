@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.8.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.9.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -91,6 +91,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Building with debugging flags")
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G -Xcompiler -rdynamic")
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
+
+# To apply RUNPATH to transitive dependencies (this is a temporary solution)
+set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--disable-new-dtags")
 
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
@@ -264,7 +267,6 @@ add_library(cugraph SHARED
     src/converters/nvgraph.cu
     src/converters/renumber.cu
     src/community/nvgraph_gdf.cu
-    src/traversal/nvgraph_sssp.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
     src/snmg/link_analysis/pagerank.cu

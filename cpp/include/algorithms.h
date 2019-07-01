@@ -248,5 +248,26 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
  gdf_error gdf_connected_components(gdf_graph *graph,
                                     cugraph_cc_t connectivity_type,
                                     gdf_column *labels);
-gdf_error gdf_multi_pagerank (const size_t global_v, gdf_column *src_ptrs, gdf_column *dest_ptrs, gdf_column *pr, const float damping_factor, const int max_iter);
 
+ /**
+Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
+ * The user is free to use default values or to provide inputs for the initial guess, tolerance and maximum number of iterations.
+ * @param[in] src_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column src_col_ptrs[i] contains the index of the source for each edge on GPU i. Indices must be in the range [0, V-1], where V is the global number of vertices.
+ * @param[in] dest_col_ptrs     Array of size n_gpu containing pointers to gdf columns. The column dest_col_ptrs[i] contains the index of the destination for each edge on GPU i. Indices must be in the range [0, V-1], where V is the global number of vertices.
+ * @param[out] pr_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column pr_col_ptrs[i] contains a copy of the full pagerank result on GPU i.
+ * @Param[in] alpha             The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
+ *                              Thus, 1.0-alpha is the probability to “teleport” to a random vertex. Alpha should be greater than 0.0 and strictly lower than 1.0.
+ * @param[in] n_gpus            The number of GPUs. This function will launch n_gpus threads and set devices [0, n_gpu-1]. 
+ * @Param[in] n_iter            The number of iterations before an answer is returned. This must be greater than 0. It is recommended to run between 10 and 100 iterations.  
+ *                              The number of iterations should vary depending on the properties of the network itself and the desired approximation quality; it should be increased when alpha increases toward the limiting value of 1.
+ * @return Error code
+ */
+namespace cugraph{
+gdf_error gdf_snmg_pagerank (
+            gdf_column **src_col_ptrs, 
+            gdf_column **dest_col_ptrs, 
+            gdf_column *pr_col_ptrs, 
+            const size_t n_gpus, 
+            const float damping_factor, 
+            const int n_iter);
+}

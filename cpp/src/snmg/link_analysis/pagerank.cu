@@ -146,8 +146,6 @@ template class SNMGpagerank<int, double>;
 template class SNMGpagerank<int, float>;
 
 
-} //namespace cugraph
-
 __global__ void dummy_Kernel(int* src, int* dst, size_t e, int* res) {
         int i = threadIdx.x+blockIdx.x*blockDim.x;
         if(i<e)
@@ -156,39 +154,22 @@ __global__ void dummy_Kernel(int* src, int* dst, size_t e, int* res) {
         }
 }
 
-gdf_error gdf_multi_pagerank(const size_t n_gpus, gdf_column *src_ptrs, gdf_column *dest_ptrs, gdf_column *pr, const float damping_factor, const int max_iter){
 
-    /*const char* p = std::getenv("CUDA_VISIBLE_DEVICES");
-    int x=0;
-    int a[n_gpus];
-    for(int i=0;p[i]!=NULL;i++)
-    {
-        if (p[i]!=',')
-        {a[x]=int(p[i])-int('0');
-        x++;}
-    }
-    std::map<int,int> actual_to_canonical;;
-    for(int i =0;i<n_gpus;i++)
-    {
-    actual_to_canonical[a[i]]=i;
-    }
+gdf_error gdf_snmg_pagerank (
+            gdf_column **src_col_ptrs, 
+            gdf_column **dest_col_ptrs, 
+            gdf_column *pr_col, 
+            const size_t n_gpus, 
+            const float damping_factor = 0.85, 
+            const int n_iter = 10) {
 
-    int prefix_sum[N+1];
-    prefix_sum[0] = 0;
-    for(int i=0;i<n_gpus;i++)
-    {
-      prefix_sum[i+1] = prefix_sum[i] + src_ptrs[actual_to_canonical[i]].size;
-    }
-    int total_length = prefix_sum[n_gpus];
-    */
   int prefix_sum[n_gpus+1];
   prefix_sum[0] = 0;
   for(int i=0;i<n_gpus;i++)
   {
-      prefix_sum[i+1] = prefix_sum[i] + src_ptrs[i].size;
+      prefix_sum[i+1] = prefix_sum[i] + src_col_ptrs[i]->size;
   }
   int total_length = prefix_sum[n_gpus];
-
 
   int* h_result = (int*)malloc(total_length*sizeof(int));
   int *final_result = h_result;
@@ -202,16 +183,16 @@ gdf_error gdf_multi_pagerank(const size_t n_gpus, gdf_column *src_ptrs, gdf_colu
         auto p = omp_get_num_threads(); 
         printf("\n Excecuting omp thread %d", i);
         /*cudaPointerAttributes attr;
-        cudaPointerGetAttributes (&attr, src_ptrs[i].data);
+        cudaPointerGetAttributes (&attr, src_col_ptrs[i]->data);
         cudaDeviceSynchronize();
         int dev = attr.device;
         printf("\n Device: %d", dev);
         cudaSetDevice(dev);*/
         cudaSetDevice(i);
         int *ans;
-        cudaMalloc(&ans, src_ptrs[i].size*sizeof(int));
+        cudaMalloc(&ans, src_col_ptrs[i]->size*sizeof(int));
         
-        int e = src_ptrs[i].size;
+        int e = src_col_ptrs[i]->size;
         dim3 nthreads, nblocks;
         nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
         nthreads.y = 1;
@@ -219,10 +200,10 @@ gdf_error gdf_multi_pagerank(const size_t n_gpus, gdf_column *src_ptrs, gdf_colu
         nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
         nblocks.y = 1;
         nblocks.z = 1;
-        dummy_Kernel<<<nblocks,nthreads>>>((int*)src_ptrs[i].data,(int*)dest_ptrs[i].data, e, (int*)ans);
+        dummy_Kernel<<<nblocks,nthreads>>>((int*)src_col_ptrs[i]->data,(int*)dest_col_ptrs[i]->data, e, (int*)ans);
         
         cudaDeviceSynchronize();
-        cudaMemcpy(final_result+prefix_sum[i], ans, src_ptrs[i].size*sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(final_result+prefix_sum[i], ans, src_col_ptrs[i]->size*sizeof(int), cudaMemcpyDeviceToHost);
        }
   printf("\n END OMP\n");
 
@@ -235,8 +216,11 @@ gdf_error gdf_multi_pagerank(const size_t n_gpus, gdf_column *src_ptrs, gdf_colu
   printf("\n\n");
 
   cudaMemcpy(d_result,h_result, total_length*sizeof(int), cudaMemcpyHostToDevice);
-  pr->data = (void*)d_result;
-  pr->size = total_length;
+  pr_col->data = (void*)d_result;
+  pr_col->size = total_length;
 
   return GDF_SUCCESS;
 }
+
+} //namespace cugraph
+

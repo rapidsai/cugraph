@@ -233,8 +233,8 @@ gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
 
     if (iters > n) {
       // Bail out. Got a graph with a negative cycle
-      std::cerr << "Error: Max iterations exceeded. Check the graph for "
-                   "negative cycles\n";
+      std::cerr << "ERROR: Max iterations exceeded. Check the graph for "
+                   "negative weight cycles\n";
       return GDF_INVALID_API_CALL;
     }
   }
@@ -375,10 +375,11 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
       GDF_REQUIRE(gdf_G->adjList->edge_data->dtype == sssp_distances->dtype,
                   GDF_UNSUPPORTED_DTYPE);
 
-    // We can't deal with negative cycles; so disallow any negative edges
-    GDF_REQUIRE(
-        gdf_G->prop && gdf_G->prop->has_negative_edges == GDF_PROP_FALSE,
-        GDF_INVALID_API_CALL);
+    // SSSP is not defined for graphs with negative weight cycles
+    // Warn user about any negative edges
+    if (gdf_G->prop && gdf_G->prop->has_negative_edges == GDF_PROP_TRUE)
+      std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
+                   "converge if the graph has negative weight cycles\n";
   }
 
   int n = gdf_G->adjList->offsets->size - 1;
