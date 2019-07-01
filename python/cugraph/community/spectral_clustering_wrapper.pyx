@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.nvgraph.c_nvgraph cimport *
+from cugraph.community.c_spectral_clustering cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool

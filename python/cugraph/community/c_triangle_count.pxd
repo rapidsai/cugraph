@@ -11,9 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# cython: profile=False
-# distutils: language = c++
-# cython: embedsignature = True
-# cython: language_level = 3
+from cugraph.structure.c_graph cimport *
+from libc.stdint cimport uint64_t
 
-from cugraph.nvgraph.c_nvgraph cimport *
+
+cdef extern from "nvgraph_gdf.h":
+
+    cdef gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result)                              

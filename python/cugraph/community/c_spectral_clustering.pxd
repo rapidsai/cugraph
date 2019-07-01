@@ -12,15 +12,9 @@
 # limitations under the License.
 
 from cugraph.structure.c_graph cimport *
-from libcpp cimport bool
-from libc.stdint cimport uint64_t
 
 
 cdef extern from "nvgraph_gdf.h":
-
-    cdef gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G,
-                                    const int *source_vert,
-                                    gdf_column *sssp_distances)
 
     cdef gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph *gdf_G,
                                                      const int num_clusters,
@@ -54,9 +48,3 @@ cdef extern from "nvgraph_gdf.h":
                                                             const int n_clusters,
                                                             gdf_column* clustering,
                                                             float* score)
-    
-    cdef gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
-                                                       gdf_column* vertices,
-                                                       gdf_graph* result)
-    
-    cdef gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result)                              
