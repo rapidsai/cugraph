@@ -2,7 +2,6 @@
 
 import os
 import sys
-import numpy
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
@@ -13,12 +12,6 @@ from distutils.sysconfig import get_python_lib
 
 
 INSTALL_REQUIRES = ['numba', 'cython']
-
-
-try:
-    NUMPY_INCLUDE = numpy.get_include()
-except AttributeError:
-    NUMPY_INCLUDE = numpy.get_numpy_include()
 
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
@@ -32,13 +25,8 @@ if (os.environ.get('CONDA_PREFIX', None)):
 EXTENSIONS = [
     Extension("*",
               sources=CYTHON_FILES,
-              include_dirs=[NUMPY_INCLUDE,
-                            conda_include_dir,
-                            '../cpp/src',
-                            '../cpp/include',
-                            '../cpp/build/gunrock',
-                            '../cpp/build/gunrock/externals/moderngpu/include',
-                            '../cpp/build/gunrock/externals/cub'],
+              include_dirs=[conda_include_dir,
+                            '../cpp/include'],
               library_dirs=[get_python_lib()],
               runtime_library_dirs=[conda_lib_dir],
               libraries=['cugraph', 'cudf'],
