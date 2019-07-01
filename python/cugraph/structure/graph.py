@@ -11,10 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-
-import cudf
 import cugraph.structure.graph_wrapper as cpp_graph
+import cudf
+import numpy as np
 
 
 def null_check(col):

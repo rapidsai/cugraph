@@ -11,8 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
 import cugraph.link_analysis.pagerank_wrapper as cpp_pagerank
+import cugraph
 
 
 def pagerank(G,

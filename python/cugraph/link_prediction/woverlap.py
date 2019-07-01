@@ -11,9 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-import cugraph
 import cugraph.link_prediction.woverlap_wrapper as cpp_woverlap
+import cugraph
+import cudf
 
 
 def overlap_w(input_graph, weights, first=None, second=None):

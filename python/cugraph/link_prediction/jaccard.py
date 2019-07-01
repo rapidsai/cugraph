@@ -11,9 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-import cugraph
 import cugraph.link_prediction.jaccard_wrapper as cpp_jaccard
+import cugraph
+import cudf
 
 
 def jaccard(input_graph, first=None, second=None):

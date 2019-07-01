@@ -11,8 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
 import cugraph.community.subgraph_extraction_wrapper as cpp_subgraph_extraction
+import cugraph
 
 
 def subgraph(G, vertices):

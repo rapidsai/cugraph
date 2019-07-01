@@ -278,7 +278,7 @@ def number_of_edges(graph_ptr):
         # An empty graph
         return 0
 
-def _degree(graph_ptr, x = 0):
+def _degree(graph_ptr, x=0):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
