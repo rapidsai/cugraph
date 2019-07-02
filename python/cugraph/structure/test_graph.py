@@ -535,7 +535,8 @@ def test_renumber():
 
     gdf = cudf.DataFrame.from_pandas(df[['source_as_int', 'dest_as_int']])
 
-    src, dst, numbering = cugraph.renumber(gdf['source_as_int'], gdf['dest_as_int'])
+    src, dst, numbering = cugraph.renumber(gdf['source_as_int'],
+                                           gdf['dest_as_int'])
 
     for i in range(len(source_as_int)):
         assert source_as_int[i] == numbering[src[i]]
@@ -565,8 +566,6 @@ def test_renumber_files(managed, pool, graph_file):
 
     source_translated = cudf.Series([x + translate for x in sources])
     dest_translated = cudf.Series([x + translate for x in destinations])
-
-    G = cugraph.Graph()
 
     src, dst, numbering = cugraph.renumber(source_translated, dest_translated)
 

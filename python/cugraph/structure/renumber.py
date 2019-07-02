@@ -13,7 +13,6 @@
 
 import cugraph.structure.graph_wrapper as cpp_graph
 import cugraph
-import numpy as np
 
 
 def renumber(source_col, dest_col):
