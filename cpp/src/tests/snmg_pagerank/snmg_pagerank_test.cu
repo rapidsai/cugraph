@@ -198,7 +198,7 @@ class Tests_MGPagerankCSR : public ::testing::TestWithParam<MGPagerank_Usecase> 
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
-     int m, k, nnz, n_gpus, max_iter=10;
+     int m, k, nnz, n_gpus, max_iter=50;
      val_t alpha = 0.85;
      MM_typecode mc;
 
@@ -353,7 +353,7 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
-     int m, nnz, n_gpus, max_iter=500;
+     int m, nnz, n_gpus, max_iter=50;
      val_t alpha = 0.85;
      std::vector<idx_t> cooRowInd, cooColInd;
      double t;
@@ -374,7 +374,6 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
      random_vals(csrVal);
      gdf_column *col_pagerank[n_gpus];
      idx_t *degree[n_gpus];
-{std::cout<< "entering "<<std::endl;}
 
      if (nnz<1200000000)
      {
@@ -502,12 +501,13 @@ INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerankCSR,
                        );
 
 INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
-                        ::testing::Values(   MGPagerank_Usecase("test/datasets/wiki-Talk.mtx", "")
-                                            ,MGPagerank_Usecase("test/datasets/netscience.mtx", "")
+                        ::testing::Values(  MGPagerank_Usecase("test/datasets/netscience.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
                                          )
                        );
 
