@@ -4,6 +4,7 @@
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
+- PR #362 Restructured python/cython directories and files.
 
 ## Bug Fixes
 - PR #354 Fixed bug in building a debug version
