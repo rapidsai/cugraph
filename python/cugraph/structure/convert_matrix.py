@@ -15,7 +15,7 @@
 # issue #146 is addressed, this file's extension should be changed from .pyx to
 # .py and should be located outside the python/cugraph/bindings directory.
 
-import cugraph
+from cugraph.structure.graph import Graph
 
 
 def from_cudf_edgelist(df, source='source', target='target', weight=None):
@@ -38,7 +38,7 @@ def from_cudf_edgelist(df, source='source', target='target', weight=None):
         This pointer can be ``none``.
         If not, this is used to index the weight column.
     """
-    G = cugraph.Graph()
+    G = Graph()
 
     if weight is None:
         G.add_edge_list(df[source], df[target])

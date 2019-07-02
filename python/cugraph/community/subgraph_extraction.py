@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cugraph.community.subgraph_extraction_wrapper as cpp_subgraph_extraction
-import cugraph
+from cugraph.structure.graph import null_check, Graph
 
 
 def subgraph(G, vertices):
@@ -49,9 +49,9 @@ def subgraph(G, vertices):
     >>> Sg = cuGraph.subgraph(G, sverts)
     """
 
-    cugraph.null_check(vertices)
+    null_check(vertices)
 
-    result_graph = cugraph.Graph()
+    result_graph = Graph()
 
     cpp_subgraph_extraction.subgraph(
         G.graph_ptr,

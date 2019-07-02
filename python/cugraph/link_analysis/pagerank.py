@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cugraph.link_analysis.pagerank_wrapper as cpp_pagerank
-import cugraph
+from cugraph.structure.graph import null_check
 
 
 def pagerank(G,
@@ -82,8 +82,8 @@ def pagerank(G,
     """
 
     if personalization is not None:
-        cugraph.null_check(personalization['vertex'])
-        cugraph.null_check(personalization['values'])
+        null_check(personalization['vertex'])
+        null_check(personalization['values'])
 
     df = cpp_pagerank.pagerank(G.graph_ptr,
                                alpha,

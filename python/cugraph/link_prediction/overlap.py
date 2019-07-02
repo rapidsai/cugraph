@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cugraph.link_prediction.overlap_wrapper as cpp_overlap
-import cugraph
+from cugraph.structure.graph import null_check
 import cudf
 
 
@@ -70,8 +70,8 @@ def overlap(input_graph, first=None, second=None):
 
     if (type(first) == cudf.dataframe.series.Series and
             type(second) == cudf.dataframe.series.Series):
-        cugraph.null_check(first)
-        cugraph.null_check(second)
+        null_check(first)
+        null_check(second)
     elif first is None and second is None:
         pass
     else:
