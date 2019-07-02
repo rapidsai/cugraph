@@ -8,6 +8,7 @@
 
 ## Bug Fixes
 - PR #354 Fixed bug in building a debug version
+- PR #360 Fixed bug in snmg coo2csr causing intermittent test failures.
 
 
 # cuGraph 0.8.0 (Date TBD)
