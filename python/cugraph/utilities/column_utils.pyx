@@ -18,6 +18,7 @@
 
 from cugraph.structure.c_graph cimport *
 from libc.stdint cimport uintptr_t
+from libc.stdlib cimport calloc, malloc, free
 
 import cudf
 import numpy as np
