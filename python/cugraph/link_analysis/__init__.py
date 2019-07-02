@@ -1,1 +1,1 @@
-from cugraph.link_analysis.pagerank import *
+from cugraph.link_analysis.pagerank import pagerank

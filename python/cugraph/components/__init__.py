@@ -1,1 +1,1 @@
-from cugraph.components.connectivity import *
+from cugraph.components.connectivity import weakly_connected_components

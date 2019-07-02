@@ -1,2 +1,2 @@
-from cugraph.traversal.bfs import *
-from cugraph.traversal.sssp import *
+from cugraph.traversal.bfs import bfs
+from cugraph.traversal.sssp import sssp
