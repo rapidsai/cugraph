@@ -10,6 +10,7 @@
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
 
 ## Bug Fixes
+- PR #368 Bump cudf dependency versions for cugraph conda packages
 - PR #354 Fixed bug in building a debug version
 - PR #360 Fixed bug in snmg coo2csr causing intermittent test failures.
 - PR #364 Fixed bug building or installing cugraph when conda isn't installed
