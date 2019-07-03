@@ -63,6 +63,6 @@ def renumber(source_col, dest_col):
     null_check(dest_col)
 
     source_col, dest_col, numbering_map = graph_wrapper.renumber(source_col,
-                                                             dest_col)
+                                                                 dest_col)
 
     return source_col, dest_col, numbering_map

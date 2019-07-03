@@ -86,10 +86,10 @@ def pagerank(G,
         null_check(personalization['values'])
 
     df = pagerank_wrapper.pagerank(G.graph_ptr,
-                               alpha,
-                               personalization,
-                               max_iter,
-                               tol,
-                               nstart)
+                                   alpha,
+                                   personalization,
+                                   max_iter,
+                                   tol,
+                                   nstart)
 
     return df

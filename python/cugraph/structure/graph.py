@@ -144,9 +144,9 @@ class Graph:
             tmp_value_col = value_col.copy()
 
         graph_wrapper.add_edge_list(self.graph_ptr,
-                                tmp_source_col,
-                                tmp_dest_col,
-                                tmp_value_col)
+                                    tmp_source_col,
+                                    tmp_dest_col,
+                                    tmp_value_col)
 
         # Increase the reference count of the Python objects to avoid premature
         # garbage collection while they are still in use inside the gdf_graph
@@ -251,9 +251,9 @@ class Graph:
             tmp_value_col = value_col.copy()
 
         graph_wrapper.add_adj_list(self.graph_ptr,
-                               tmp_offset_col,
-                               tmp_index_col,
-                               tmp_value_col)
+                                   tmp_offset_col,
+                                   tmp_index_col,
+                                   tmp_value_col)
 
         # Increase the reference count of the Python objects to avoid premature
         # garbage collection while they are still in use inside the gdf_graph
