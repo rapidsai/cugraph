@@ -1,7 +1,7 @@
 from c_graph cimport *
 from libcpp cimport bool
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "cugraph.h":
 
     cdef gdf_error gdf_snmg_pagerank (
             gdf_column **src_col_ptrs, 

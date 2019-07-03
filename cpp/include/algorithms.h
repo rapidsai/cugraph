@@ -260,9 +260,9 @@ Find the PageRank vertex values for a graph. cuGraph computes an approximation o
  * @param[in] n_gpus            The number of GPUs. This function will launch n_gpus threads and set devices [0, n_gpu-1]. 
  * @Param[in] n_iter            The number of iterations before an answer is returned. This must be greater than 0. It is recommended to run between 10 and 100 iterations.  
  *                              The number of iterations should vary depending on the properties of the network itself and the desired approximation quality; it should be increased when alpha increases toward the limiting value of 1.
+
  * @return Error code
  */
-namespace cugraph{
 gdf_error gdf_snmg_pagerank (
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
@@ -270,4 +270,3 @@ gdf_error gdf_snmg_pagerank (
             const size_t n_gpus, 
             const float damping_factor, 
             const int n_iter);
-}

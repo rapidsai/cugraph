@@ -95,6 +95,105 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
   
   template <typename idx_t,typename val_t>
   void run_current_test(const MGPagerank_Usecase& param) {
+    const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
+    std::stringstream ss; 
+    std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
+
+    int m, k, nnz, n_gpus, max_iter=50;
+    val_t alpha = 0.85;
+    MM_typecode mc;
+
+    double t;
+
+    FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+    ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
+
+    ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
+    ASSERT_TRUE(mm_is_matrix(mc));
+    ASSERT_TRUE(mm_is_coordinate(mc));
+    ASSERT_FALSE(mm_is_complex(mc));
+    ASSERT_FALSE(mm_is_skew(mc));
+
+    // Allocate memory on host
+    std::vector<idx_t> cooRowInd(nnz), cooColInd(nnz);
+    std::vector<val_t> cooVal_dummy(0);
+
+    // Read
+    ASSERT_EQ( (mm_to_coo<int,val_t>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], NULL, NULL)) , 0)<< "could not read matrix data"<< "\n";
+    ASSERT_EQ(fclose(fpin),0);
+
+    CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
+
+    gdf_column *src_col_ptrs[n_gpus];
+    gdf_column *dest_col_ptrs[n_gpus];
+    gdf_column *pr_col = new gdf_column;
+     
+    gdf_error status = GDF_SUCCESS;
+
+    int nthreads = n_gpus;
+
+    // Only using the 4 fully connected GPUs on DGX1
+    if (n_gpus == 8)
+      nthreads = 4;
+
+    // Parallel load of the edge list
+    #pragma omp parallel num_threads(nthreads)
+    {
+     auto i = omp_get_thread_num();
+     auto p = omp_get_num_threads(); 
+     CUDA_RT_CALL(cudaSetDevice(i));
+
+     #ifdef SNMG_VERBOSE 
+       #pragma omp master 
+       { 
+         std::cout << "Number of GPUs : "<< n_gpus <<std::endl;
+         std::cout << "Number of threads : "<< p <<std::endl;
+       }
+     #endif
+
+     src_col_ptrs[i] = new gdf_column;
+     dest_col_ptrs[i] = new gdf_column;
+
+     //load a chunk of the graph on each GPU COO
+     load_coo_loc(cooRowInd, cooColInd, cooVal_dummy, src_col_ptrs[i], dest_col_ptrs[i], nullptr);
+
+      #pragma omp barrier
+    }
+
+    t = omp_get_wtime();
+
+    status = gdf_snmg_pagerank (src_col_ptrs, dest_col_ptrs, pr_col, 
+                       nthreads, alpha, max_iter);
+    
+    EXPECT_EQ(status, GDF_SUCCESS);
+
+    std::cout <<  omp_get_wtime() - t << std::endl;
+
+    verify_pr<val_t>(pr_col, param);
+
+    // clean up
+    #pragma omp parallel num_threads(nthreads)
+    {
+      auto i = omp_get_thread_num();
+      CUDA_RT_CALL(cudaSetDevice(i));
+      gdf_col_delete(src_col_ptrs[i]);
+      gdf_col_delete(dest_col_ptrs[i]);   
+    }     
+    gdf_col_delete(pr_col);
+  }
+};
+class Tests_MGPagerankCSR : public ::testing::TestWithParam<MGPagerank_Usecase> {
+  public:
+  Tests_MGPagerankCSR() {  }
+  static void SetupTestCase() {  }
+  static void TearDownTestCase() { }
+  virtual void SetUp() {  }
+  virtual void TearDown() {  }
+
+  static std::vector<double> mgpr_time;   
+  
+  template <typename idx_t,typename val_t>
+  void run_current_test(const MGPagerank_Usecase& param) {
      const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
@@ -254,7 +353,7 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
      std::stringstream ss; 
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
-     int m, nnz, n_gpus, max_iter=500;
+     int m, nnz, n_gpus, max_iter=50;
      val_t alpha = 0.85;
      std::vector<idx_t> cooRowInd, cooColInd;
      double t;
@@ -382,24 +481,32 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
 };
 
 
+TEST_P(Tests_MGPagerankCSR, CheckFP32_mtx) {
+    run_current_test<int, float>(GetParam());
+}
+
 TEST_P(Tests_MGPagerank, CheckFP32_mtx) {
     run_current_test<int, float>(GetParam());
 }
-TEST_P(Tests_MGPagerank, CheckFP64) {
-    run_current_test<int,double>(GetParam());
-}
+
 TEST_P(Tests_MGPR_hibench, CheckFP32_hibench) {
     run_current_test<int, float>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
+INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerankCSR, 
                         ::testing::Values(   MGPagerank_Usecase("test/datasets/karate.mtx", "")
-                                            ,MGPagerank_Usecase("test/datasets/netscience.mtx", "")
+                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
+                                         )
+                       );
+
+INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGPagerank, 
+                        ::testing::Values(  MGPagerank_Usecase("test/datasets/netscience.mtx", "")
                                             ,MGPagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            ,MGPagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
                                             ,MGPagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
                                          )
                        );
