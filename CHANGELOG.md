@@ -9,6 +9,7 @@
 ## Bug Fixes
 - PR #354 Fixed bug in building a debug version
 - PR #360 Fixed bug in snmg coo2csr causing intermittent test failures.
+- PR #364 Fixed bug building or installing cugraph when conda isn't installed
 
 
 # cuGraph 0.8.0 (Date TBD)
