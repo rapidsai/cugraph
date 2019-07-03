@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.community.triangle_count_wrapper as cpp_triangle_count
+from cugraph.community import triangle_count_wrapper
 
 
 def triangles(G):
@@ -40,6 +40,6 @@ def triangles(G):
     >>>> count = cugraph.triangle_count(G)
     """
 
-    result = cpp_triangle_count.triangles(G.graph_ptr)
+    result = triangle_count_wrapper.triangles(G.graph_ptr)
 
     return result

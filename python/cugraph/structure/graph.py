@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.structure.graph_wrapper as cpp_graph
+from cugraph.structure import graph_wrapper
 import cudf
 import numpy as np
 
@@ -36,7 +36,7 @@ class Graph:
         >>> import cuGraph
         >>> G = cuGraph.Graph()
         """
-        self.graph_ptr = cpp_graph.allocate_cpp_graph()
+        self.graph_ptr = graph_wrapper.allocate_cpp_graph()
 
         self.edge_list_source_col = None
         self.edge_list_dest_col = None
@@ -51,7 +51,7 @@ class Graph:
         self.delete_adj_list()
         self.delete_transposed_adj_list()
 
-        cpp_graph.release_cpp_graph(self.graph_ptr)
+        graph_wrapper.release_cpp_graph(self.graph_ptr)
 
     def clear(self):
         """
@@ -143,7 +143,7 @@ class Graph:
             tmp_dest_col = dest_col.copy()
             tmp_value_col = value_col.copy()
 
-        cpp_graph.add_edge_list(self.graph_ptr,
+        graph_wrapper.add_edge_list(self.graph_ptr,
                                 tmp_source_col,
                                 tmp_dest_col,
                                 tmp_value_col)
@@ -159,7 +159,7 @@ class Graph:
         """
         Display the edge list. Compute it if needed.
         """
-        source_col, dest_col = cpp_graph.view_edge_list(self.graph_ptr)
+        source_col, dest_col = graph_wrapper.view_edge_list(self.graph_ptr)
 
         return source_col, dest_col
 
@@ -167,7 +167,7 @@ class Graph:
         """
         Delete the edge list.
         """
-        cpp_graph.delete_edge_list(self.graph_ptr)
+        graph_wrapper.delete_edge_list(self.graph_ptr)
 
         # decrease reference count to free memory if the referenced objects are
         # no longer used.
@@ -250,7 +250,7 @@ class Graph:
             tmp_index_col = index_col.copy()
             tmp_value_col = value_col.copy()
 
-        cpp_graph.add_adj_list(self.graph_ptr,
+        graph_wrapper.add_adj_list(self.graph_ptr,
                                tmp_offset_col,
                                tmp_index_col,
                                tmp_value_col)
@@ -266,7 +266,7 @@ class Graph:
         """
         Display the adjacency list. Compute it if needed.
         """
-        offset_col, index_col = cpp_graph.view_adj_list(self.graph_ptr)
+        offset_col, index_col = graph_wrapper.view_adj_list(self.graph_ptr)
 
         return offset_col, index_col
 
@@ -274,7 +274,7 @@ class Graph:
         """
         Delete the adjacency list.
         """
-        cpp_graph.delete_adj_list(self.graph_ptr)
+        graph_wrapper.delete_adj_list(self.graph_ptr)
 
         # decrease reference count to free memory if the referenced objects are
         # no longer used.
@@ -287,13 +287,13 @@ class Graph:
         Compute the transposed adjacency list from the edge list and add it to
         the existing graph.
         """
-        cpp_graph.add_transposed_adj_list(self.graph_ptr)
+        graph_wrapper.add_transposed_adj_list(self.graph_ptr)
 
     def view_transposed_adj_list(self):
         """
         Display the transposed adjacency list. Compute it if needed.
         """
-        offset_col, index_col = cpp_graph.view_transposed_adj_list(
+        offset_col, index_col = graph_wrapper.view_transposed_adj_list(
                                     self.graph_ptr)
 
         return offset_col, index_col
@@ -302,7 +302,7 @@ class Graph:
         """
         Delete the transposed adjacency list.
         """
-        cpp_graph.delete_transposed_adj_list(self.graph_ptr)
+        graph_wrapper.delete_transposed_adj_list(self.graph_ptr)
 
     def get_two_hop_neighbors(self):
         """
@@ -316,7 +316,7 @@ class Graph:
             df['first'] the first vertex id of a pair
             df['second'] the second vertex id of a pair
         """
-        df = cpp_graph.get_two_hop_neighbors(self.graph_ptr)
+        df = graph_wrapper.get_two_hop_neighbors(self.graph_ptr)
 
         return df
 
@@ -324,7 +324,7 @@ class Graph:
         """
         Get the number of vertices in the graph
         """
-        num_vertices = cpp_graph.number_of_vertices(self.graph_ptr)
+        num_vertices = graph_wrapper.number_of_vertices(self.graph_ptr)
 
         return num_vertices
 
@@ -339,7 +339,7 @@ class Graph:
         """
         Get the number of edges in the graph
         """
-        num_edges = cpp_graph.number_of_edges(self.graph_ptr)
+        num_edges = graph_wrapper.number_of_edges(self.graph_ptr)
 
         return num_edges
 
@@ -470,7 +470,7 @@ class Graph:
         return self._degree(vertex_subset)
 
     def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = cpp_graph._degree(self.graph_ptr, x)
+        vertex_col, degree_col = graph_wrapper._degree(self.graph_ptr, x)
 
         df = cudf.DataFrame()
         if vertex_subset is None:

@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.community.louvain_wrapper as cpp_louvain
+from cugraph.community import louvain_wrapper
 
 
 def louvain(input_graph):
@@ -46,6 +46,6 @@ def louvain(input_graph):
     >>> parts, modularity_score = cuGraph.louvain(G)
     """
 
-    parts, modularity_score = cpp_louvain.louvain(input_graph.graph_ptr)
+    parts, modularity_score = louvain_wrapper.louvain(input_graph.graph_ptr)
 
     return parts, modularity_score

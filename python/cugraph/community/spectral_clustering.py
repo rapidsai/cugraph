@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.community.spectral_clustering_wrapper as cpp_spectral_clustering
+from cugraph.community import spectral_clustering_wrapper
 
 
 def spectralBalancedCutClustering(G,
@@ -60,7 +60,7 @@ def spectralBalancedCutClustering(G,
     >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
     """
 
-    df = cpp_spectral_clustering.spectralBalancedCutClustering(
+    df = spectral_clustering_wrapper.spectralBalancedCutClustering(
              G.graph_ptr,
              num_clusters,
              num_eigen_vects,
@@ -117,7 +117,7 @@ def spectralModularityMaximizationClustering(G,
     >>> DF = cuGraph.spectralModularityMaximizationClustering(G, 5)
     """
 
-    df = cpp_spectral_clustering.spectralModularityMaximizationClustering(
+    df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
              G.graph_ptr,
              num_clusters,
              num_eigen_vects,
@@ -158,7 +158,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     >>> score = cuGraph.analyzeClustering_modularity(G, 5, DF['cluster'])
     """
 
-    score = cpp_spectral_clustering.analyzeClustering_modularity(
+    score = spectral_clustering_wrapper.analyzeClustering_modularity(
                 G.graph_ptr,
                 n_clusters,
                 clustering)
@@ -195,7 +195,7 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     >>> score = cuGraph.analyzeClustering_edge_cut(G, 5, DF['cluster'])
     """
 
-    score = cpp_spectral_clustering.analyzeClustering_edge_cut(
+    score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
                 G.graph_ptr,
                 n_clusters,
                 clustering)
@@ -232,7 +232,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     >>> score = cuGraph.analyzeClustering_ratio_cut(G, 5, DF['cluster'])
     """
 
-    score = cpp_spectral_clustering.analyzeClustering_ratio_cut(
+    score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
                 G.graph_ptr,
                 n_clusters,
                 clustering)

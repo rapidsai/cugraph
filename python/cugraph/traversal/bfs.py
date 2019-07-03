@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.traversal.bfs_wrapper as cpp_bfs
+from cugraph.traversal import bfs_wrapper
 
 
 def bfs(G, start, directed=True):
@@ -50,6 +50,6 @@ def bfs(G, start, directed=True):
     >>> df = cugraph.bfs(G, 0, false)
     """
 
-    df = cpp_bfs.bfs(G.graph_ptr, start, directed)
+    df = bfs_wrapper.bfs(G.graph_ptr, start, directed)
 
     return df

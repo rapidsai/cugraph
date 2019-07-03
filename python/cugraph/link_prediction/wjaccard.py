@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.link_prediction.wjaccard_wrapper as cpp_wjaccard
+from cugraph.link_prediction import wjaccard_wrapper
 from cugraph.structure.graph import null_check
 import cudf
 
@@ -76,6 +76,6 @@ def jaccard_w(input_graph, weights, first=None, second=None):
     else:
         raise ValueError("Specify first and second or neither")
 
-    df = cpp_wjaccard.jaccard_w(input_graph.graph_ptr, first, second)
+    df = wjaccard_wrapper.jaccard_w(input_graph.graph_ptr, first, second)
 
     return df

@@ -17,7 +17,7 @@ from cugraph.structure import Graph, from_cudf_edgelist, renumber
 from cugraph.traversal import bfs, sssp
 from cugraph.utilities import grmat_gen
 
-from cugraph.snmg.link_analysis.mg_pagerank import *
+from cugraph.snmg.link_analysis.mg_pagerank import mg_pagerank
 
 # Versioneer
 from ._version import get_versions

@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.structure.graph_wrapper as cpp_graph
+from cugraph.structure import graph_wrapper
 from cugraph.structure.graph import null_check
 
 
@@ -62,7 +62,7 @@ def renumber(source_col, dest_col):
     null_check(source_col)
     null_check(dest_col)
 
-    source_col, dest_col, numbering_map = cpp_graph.renumber(source_col,
+    source_col, dest_col, numbering_map = graph_wrapper.renumber(source_col,
                                                              dest_col)
 
     return source_col, dest_col, numbering_map
