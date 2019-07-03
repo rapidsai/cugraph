@@ -182,10 +182,10 @@ gdf_error gdf_snmg_pagerank_impl(
       double t = omp_get_wtime();
     #endif
     // Setting basic SNMG env information
+    cudaSetDevice(omp_get_thread_num());
     cugraph::SNMGinfo env;
     auto i = env.get_thread_num();
     auto p = env.get_num_threads();
-    cudaSetDevice(i);
     cudaCheckError();
 
     // Local CSR columns
