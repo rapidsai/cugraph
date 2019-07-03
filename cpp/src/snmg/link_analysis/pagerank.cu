@@ -28,7 +28,7 @@
 #include "snmg/link_analysis/pagerank.cuh"
 #include "snmg/degree/degree.cuh"
 //#define SNMG_DEBUG
-
+#define SNMG_PR_T
 namespace cugraph
 {
 
@@ -146,14 +146,126 @@ template class SNMGpagerank<int, double>;
 template class SNMGpagerank<int, float>;
 
 
-__global__ void dummy_Kernel(int* src, int* dst, size_t e, int* res) {
-        int i = threadIdx.x+blockIdx.x*blockDim.x;
-        if(i<e)
-        {
-            res[i]= src[i] + dst[i];
-        }
-}
+} //namespace cugraph
 
+template<typename idx_t, typename val_t>
+gdf_error gdf_snmg_pagerank_impl(
+            gdf_column **src_col_ptrs, 
+            gdf_column **dest_col_ptrs, 
+            gdf_column *pr_col, 
+            const size_t n_gpus, 
+            const float damping_factor, 
+            const int n_iter) {
+  
+  // Must be shared
+  // Set during coo2csr and used in PageRank
+  std::vector<size_t> part_offset(n_gpus+1);
+
+  // Must be shared. 
+  // When a thread encounters an error it will update this value 
+  // using a critical section
+  gdf_error status = GDF_SUCCESS;
+
+  // Pagerank specific.
+  // must be shared between threads
+  idx_t *degree[n_gpus];
+  val_t* pagerank[n_gpus];
+
+  // coo2csr specific.
+  // used to communicate global info such as patition offsets 
+  // must be shared
+  void* coo2csr_comm; 
+
+  #pragma omp parallel num_threads(n_gpus)
+  {
+    #ifdef SNMG_PR_T
+      double t = omp_get_wtime();
+    #endif
+    // Setting basic SNMG env information
+    cudaSetDevice(omp_get_thread_num());
+    cugraph::SNMGinfo env;
+    auto i = env.get_thread_num();
+    auto p = env.get_num_threads();
+    cudaCheckError();
+
+    // Local CSR columns
+    gdf_column *col_csr_off = new gdf_column;
+    gdf_column *col_csr_ind = new gdf_column;
+
+    // distributed coo2csr
+    // notice that source and destination input are swapped 
+    // this is becasue pagerank needs the transposed CSR
+    // the resulting csr matrix is the transposed adj list
+    gdf_error status_i = gdf_snmg_coo2csr(
+                           &part_offset[0],
+                           false,
+                           &coo2csr_comm,   
+                           dest_col_ptrs[i],
+                           src_col_ptrs[i],
+                           nullptr,
+                           col_csr_off,
+                           col_csr_ind,
+                           nullptr);
+    // coo2csr time
+    #ifdef SNMG_PR_T
+      #pragma omp master 
+      {std::cout <<  omp_get_wtime() - t << " ";}
+      t = omp_get_wtime();
+    #endif
+    // checking coo2csr return code
+    if (status_i != GDF_SUCCESS)
+    {
+      #pragma omp critical
+      status = status_i;
+    }
+    // Allocate and intialize Pagerank class
+    cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
+                                static_cast<idx_t*>(col_csr_off->data), 
+                                static_cast<idx_t*>(col_csr_ind->data));
+
+    // Set all constants info, call the SNMG degree feature
+    pr_solver.setup(damping_factor,degree);
+
+    // Setup time
+    #ifdef SNMG_PR_T
+      #pragma omp master 
+      {std::cout <<  omp_get_wtime() - t << " ";}
+      t = omp_get_wtime();
+    #endif
+
+    ALLOC_TRY ((void**)&pagerank[i],   sizeof(val_t) * part_offset[p], nullptr);
+
+    // Run n_iter pagerank MG SPMVs. 
+    pr_solver.solve(n_iter, pagerank);
+
+    // set the result in the gdf column
+    #pragma omp master
+    {
+      ALLOC_TRY ((void**)&pr_col->data,   sizeof(val_t) * part_offset[p], nullptr);
+      cudaMemcpy(pr_col->data, pagerank[i], sizeof(val_t) * part_offset[p], cudaMemcpyDeviceToDevice);
+      cudaCheckError();
+      //default gfd values
+      pr_col->size = part_offset[p];
+      pr_col->valid = nullptr;
+      pr_col->null_count = 0;
+      pr_col->dtype = GDF_FLOAT32;
+      gdf_dtype_extra_info extra_info;
+      extra_info.time_unit = TIME_UNIT_NONE;
+      pr_col->dtype_info = extra_info;
+    }
+    // Power iteration time
+    #ifdef SNMG_PR_T
+      #pragma omp master 
+      {std::cout <<  omp_get_wtime() - t << " ";}
+    #endif
+    // Free
+    gdf_col_delete(col_csr_off);
+    gdf_col_delete(col_csr_ind);
+    ALLOC_FREE_TRY(pagerank[i], nullptr);
+  }
+
+  return status;
+}
 
 gdf_error gdf_snmg_pagerank (
             gdf_column **src_col_ptrs, 
@@ -162,65 +274,38 @@ gdf_error gdf_snmg_pagerank (
             const size_t n_gpus, 
             const float damping_factor = 0.85, 
             const int n_iter = 10) {
+    // null pointers check
+    GDF_REQUIRE(src_col_ptrs != nullptr, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(dest_col_ptrs != nullptr, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(pr_col != nullptr, GDF_INVALID_API_CALL);
 
-  int prefix_sum[n_gpus+1];
-  prefix_sum[0] = 0;
-  for(int i=0;i<n_gpus;i++)
-  {
-      prefix_sum[i+1] = prefix_sum[i] + src_col_ptrs[i]->size;
-  }
-  int total_length = prefix_sum[n_gpus];
+    // parameter values
+    GDF_REQUIRE(damping_factor > 0.0, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(damping_factor < 1.0, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(n_iter > 0, GDF_INVALID_API_CALL);
+    // number of GPU
+    int dev_count;
+    cudaGetDeviceCount(&dev_count);
+    cudaCheckError();
+    GDF_REQUIRE(n_gpus > 0, GDF_INVALID_API_CALL);
+    GDF_REQUIRE(n_gpus < static_cast<size_t>(dev_count+1), GDF_INVALID_API_CALL); 
 
-  int* h_result = (int*)malloc(total_length*sizeof(int));
-  int *final_result = h_result;
-  int *d_result;
-  cudaMalloc(&d_result, total_length*sizeof(int));
+    // for each GPU
+    for (size_t i = 0; i < n_gpus; ++i)
+    {
+      // src/dest consistency
+      GDF_REQUIRE( src_col_ptrs[i]->size == dest_col_ptrs[i]->size, GDF_COLUMN_SIZE_MISMATCH );
+      GDF_REQUIRE( src_col_ptrs[i]->dtype == dest_col_ptrs[i]->dtype, GDF_UNSUPPORTED_DTYPE );
+      //null mask
+      GDF_REQUIRE( src_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+      GDF_REQUIRE( dest_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+      // int 32 edge list indices
+      GDF_REQUIRE( src_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+      GDF_REQUIRE( dest_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+    }
 
-  printf("\nSTART OMP CODE");
-       #pragma omp parallel num_threads(n_gpus)
-       {
-        auto i = omp_get_thread_num();
-        auto p = omp_get_num_threads(); 
-        printf("\n Excecuting omp thread %d", i);
-        /*cudaPointerAttributes attr;
-        cudaPointerGetAttributes (&attr, src_col_ptrs[i]->data);
-        cudaDeviceSynchronize();
-        int dev = attr.device;
-        printf("\n Device: %d", dev);
-        cudaSetDevice(dev);*/
-        cudaSetDevice(i);
-        int *ans;
-        cudaMalloc(&ans, src_col_ptrs[i]->size*sizeof(int));
-        
-        int e = src_col_ptrs[i]->size;
-        dim3 nthreads, nblocks;
-        nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
-        nthreads.y = 1;
-        nthreads.z = 1;
-        nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-        nblocks.y = 1;
-        nblocks.z = 1;
-        dummy_Kernel<<<nblocks,nthreads>>>((int*)src_col_ptrs[i]->data,(int*)dest_col_ptrs[i]->data, e, (int*)ans);
-        
-        cudaDeviceSynchronize();
-        cudaMemcpy(final_result+prefix_sum[i], ans, src_col_ptrs[i]->size*sizeof(int), cudaMemcpyDeviceToHost);
-       }
-  printf("\n END OMP\n");
+    gdf_error status =  gdf_snmg_pagerank_impl<int, float>(src_col_ptrs, dest_col_ptrs,
+                                  pr_col, n_gpus, damping_factor, n_iter);
+    return status;
 
-
-  printf("\nRESULT ON HOST:");
-  for(int i=0;i<total_length;i++)
-  {
-      printf("%d\t", h_result[i]);
-  }
-  printf("\n\n");
-
-  cudaMemcpy(d_result,h_result, total_length*sizeof(int), cudaMemcpyHostToDevice);
-  pr_col->data = (void*)d_result;
-  pr_col->size = total_length;
-
-  return GDF_SUCCESS;
 }
-
-} //namespace cugraph
-

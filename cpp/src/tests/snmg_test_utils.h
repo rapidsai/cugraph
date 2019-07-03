@@ -97,10 +97,13 @@ void load_coo_loc(std::vector<idx_t>& cooRow,
     startOffsets[j] = j * numRows;
   std::vector<idx_t> cooRow_part(cooRow.begin() + startOffsets[i], cooRow.begin() + startOffsets[i + 1]);
   std::vector<idx_t> cooCol_part(cooCol.begin() + startOffsets[i], cooCol.begin() + startOffsets[i + 1]);
-  std::vector<val_t> cooVal_part(cooVal.begin() + startOffsets[i], cooVal.begin() + startOffsets[i + 1]);
   create_gdf_column(cooRow_part, cooRowLocal);
   create_gdf_column(cooCol_part, cooColLocal);
-  create_gdf_column(cooVal_part, cooValLocal);
+  if (cooVal.size() > 0 && cooValLocal != nullptr)
+  {
+    std::vector<val_t> cooVal_part(cooVal.begin() + startOffsets[i], cooVal.begin() + startOffsets[i + 1]);
+    create_gdf_column(cooVal_part, cooValLocal);
+  }
 }
 
 template <typename idx_t,typename val_t>

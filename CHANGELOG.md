@@ -1,13 +1,18 @@
 # cuGraph 0.9.0 (Date TBD)
 
 ## New Features
+- PR #361 Prototypes for cusort functions
+- PR #357 Pagerank cpp API
+
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
+- PR #365 Updates for setting device and vertex ids for snmg pagerank
 
 ## Bug Fixes
 - PR #354 Fixed bug in building a debug version
 - PR #360 Fixed bug in snmg coo2csr causing intermittent test failures.
+- PR #364 Fixed bug building or installing cugraph when conda isn't installed
 
 
 # cuGraph 0.8.0 (Date TBD)
