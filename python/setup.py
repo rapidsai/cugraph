@@ -19,6 +19,7 @@ try:
 except AttributeError:
     NUMPY_INCLUDE = numpy.get_numpy_include()
 
+conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 CYTHON_FILES = ['cugraph/*.pyx']
 
