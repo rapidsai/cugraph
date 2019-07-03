@@ -540,7 +540,7 @@ def test_degree_functionality2(managed, pool, graph_file):
     err_in_degree = 0
     err_out_degree = 0
 
-    for i in range(len(df_degree)):
+    for i in range(len(df)):
         if(df['in_degree'][i] != nx_in_degree[i]):
             err_in_degree = err_in_degree + 1
         if(df['out_degree'][i] != nx_out_degree[i]):

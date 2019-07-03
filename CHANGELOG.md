@@ -3,6 +3,7 @@
 ## New Features
 - PR #361 Prototypes for cusort functions
 - PR #357 Pagerank cpp API
+- PR #366 Adds graph.compute_degree() function returning both in and out degree.
 
 
 ## Improvements

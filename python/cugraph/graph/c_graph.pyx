@@ -20,7 +20,6 @@ import cudf
 from librmm_cffi import librmm as rmm
 
 from c_graph cimport *
-from pyasn1.type.char import GraphicString
 
 
 dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
@@ -831,7 +830,7 @@ class Graph:
         >>> degree_df = G.compute_degree([0,9,12])
         """
         cdef uintptr_t graph = self.graph_ptr
-        cdef gdf_graph* g = <gdf_graph*> GraphicString
+        cdef gdf_graph* g = <gdf_graph*> graph
         n = self.number_of_vertices()
         df = cudf.DataFrame()
         vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
