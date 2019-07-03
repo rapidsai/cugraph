@@ -13,6 +13,7 @@ from distutils.sysconfig import get_python_lib
 
 INSTALL_REQUIRES = ['numba', 'cython']
 
+conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
 CYTHON_FILES = ['cugraph/**/*.pyx']
