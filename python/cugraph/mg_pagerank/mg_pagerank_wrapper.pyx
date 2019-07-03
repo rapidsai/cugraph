@@ -25,7 +25,7 @@ def mg_pagerank(src_ptrs_info, dest_ptrs_info):
     data = rmm.device_array_from_ptr(<uintptr_t> pr_ptr.data,
                                             nelem=pr_ptr.size,
                                             dtype=np.float32)
-    x = cudf.DataFrame()
-    x['vertex'] = np.ones(pr_ptr.size,dtype=int)
-    x['pagerank'] = cudf.Series(data)
-    return x
+    df = cudf.DataFrame()
+    df['vertex'] = np.arange(0,pr_ptr.size,dtype=np.int32)
+    df['pagerank'] = cudf.Series(data)
+    return df
