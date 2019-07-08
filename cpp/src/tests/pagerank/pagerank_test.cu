@@ -33,7 +33,20 @@ void dumy(void* in, void* out ) {
 typedef struct Pagerank_Usecase_t {
   std::string matrix_file;
   std::string result_file;
-  Pagerank_Usecase_t(const std::string& a, const std::string& b) : matrix_file(a), result_file(b){};
+  Pagerank_Usecase_t(const std::string& a, const std::string& b) {
+    // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
+    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    if ((a != "") && (a[0] != '/')) {
+      matrix_file = rapidsDatasetRootDir + "/" + a;
+    } else {
+      matrix_file = a;
+    }
+    if ((b != "") && (b[0] != '/')) {
+      result_file = rapidsDatasetRootDir + "/" + b;
+    } else {
+      result_file = b;
+    }
+  }
   Pagerank_Usecase_t& operator=(const Pagerank_Usecase_t& rhs) {
     matrix_file = rhs.matrix_file;
     result_file = rhs.result_file;
@@ -79,6 +92,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      double time_tmp;
 
      FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
      
      ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
      ASSERT_TRUE(mm_is_matrix(mc));
@@ -93,12 +107,6 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      // Read
      ASSERT_EQ( (mm_to_coo<int,T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
      ASSERT_EQ(fclose(fpin),0);
-
-     //std::cout<< *std::min_element(cooRowInd.begin(), cooRowInd.end()) <<std::endl;
-     //std::cout<< *std::max_element(cooRowInd.begin(), cooRowInd.end()) <<std::endl <<std::endl;
-     //std::cout<< *std::min_element(cooColInd.begin(), cooColInd.end()) <<std::endl;
-     //std::cout<< *std::max_element(cooColInd.begin(), cooColInd.end()) <<std::endl <<std::endl; 
-     //std::cout<< cooColInd.size() <<std::endl;
     
     // gdf columns
     col_src = create_gdf_column(cooRowInd);
@@ -107,13 +115,13 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
 
     ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
     if (manual_tanspose)
-      ASSERT_EQ(gdf_add_transpose(G.get()),0);
+      ASSERT_EQ(gdf_add_transposed_adj_list(G.get()),0);
 
     cudaDeviceSynchronize();
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       status = gdf_pagerank(G.get(), col_pagerank.get(), alpha, tol, max_iter, has_guess);
+       status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
        cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
@@ -121,7 +129,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     }
     else {
       cudaProfilerStart();
-      status = gdf_pagerank(G.get(), col_pagerank.get(), alpha, tol, max_iter, has_guess);
+      status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
@@ -141,25 +149,14 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
       fclose(fpin);
       T err;
       int n_err = 0;
-      for (int i = 0; i < m; i++)
-      {
-          //if(i > (m-10))
-          //  std::cout << expected_res[i] << " " << calculated_res[i] <<std::endl;
+      for (int i = 0; i < m; i++) {
           err = fabs(expected_res[i] - calculated_res[i]);
-          if (err> tol*1.1)
-          {
-              n_err++;
+          if (err> tol*1.1) {
+              n_err++; // count the number of mismatches 
           }
       }
-      if (n_err)
-      {
-          //EXPECT_NEAR(tot_err/n_err, cugraph_Const<T>::tol, cugraph_Const<T>::tol*9.99); // Network x used n*1e-10 for precision
+      if (n_err) {
           EXPECT_LE(n_err, 0.001*m); // we tolerate 0.1% of values with a litte difference
-          //printf("number of incorrect entries: %d\n", n_err);
-          //if (n_err > 0.001*m)
-          //{
-          //  eq(calculated_res,expected_res);
-          //}
       }
     }
   }
@@ -185,24 +182,22 @@ TEST_P(Tests_Pagerank, CheckFP64) {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Pagerank, 
-                        ::testing::Values(  Pagerank_Usecase("/datasets/networks/karate.mtx", "")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/cit-Patents.mtx", "/datasets/golden_data/results/pagerank/cit-Patents.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/ljournal-2008.mtx", "/datasets/golden_data/results/pagerank/ljournal-2008.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/webbase-1M.mtx", "/datasets/golden_data/results/pagerank/webbase-1M.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/web-BerkStan.mtx", "/datasets/golden_data/results/pagerank/web-BerkStan.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/web-Google.mtx", "/datasets/golden_data/results/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            ,Pagerank_Usecase("/datasets/golden_data/graphs/wiki-Talk.mtx", "/datasets/golden_data/results/pagerank/wiki-Talk.pagerank_val_0.85.bin")
-                                            //,Pagerank_Usecase("/datasets/bb_lt250m_4.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/bb_lt250m_3.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/caidaRouterLevel.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/citationCiteseer.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/coPapersDBLP.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/coPapersCiteseer.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/as-Skitter.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/hollywood.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/europe_osm.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/soc-LiveJournal1.mtx", "")
-                                            //,Pagerank_Usecase("/datasets/twitter.mtx", "")
+                        ::testing::Values(   Pagerank_Usecase("test/datasets/karate.mtx", "")
+                                            ,Pagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
+                                            ,Pagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
+                                            //,Pagerank_Usecase("test/datasets/caidaRouterLevel.mtx", "")
+                                            //,Pagerank_Usecase("test/datasets/citationCiteseer.mtx", "")
+                                            //,Pagerank_Usecase("test/datasets/coPapersDBLP.mtx", "")
+                                            //,Pagerank_Usecase("test/datasets/coPapersCiteseer.mtx", "")
+                                            //,Pagerank_Usecase("test/datasets/as-Skitter.mtx", "")
+                                            //,Pagerank_Usecase("test/datasets/hollywood.mtx", "")
+                                            //,Pagerank_Usecase("test/datasets/europe_osm.mtx", "")
+                                            //,Pagerank_Usecase("test/datasets/soc-LiveJournal1.mtx", "")
+                                            //,Pagerank_Usecase("benchmark/twitter.mtx", "")
                                          )
                        );
 
