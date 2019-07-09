@@ -511,7 +511,7 @@ def test_degree_functionality(managed, pool, graph_file):
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_degree_functionality2(managed, pool, graph_file):
+def test_degrees_functionality(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
@@ -532,7 +532,7 @@ def test_degree_functionality2(managed, pool, graph_file):
 
     Gnx = nx.DiGraph(M)
 
-    df = G.compute_degree()
+    df = G.degrees()
 
     nx_in_degree = Gnx.in_degree()
     nx_out_degree = Gnx.out_degree()

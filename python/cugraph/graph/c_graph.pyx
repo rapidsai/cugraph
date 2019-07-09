@@ -796,7 +796,7 @@ class Graph:
 
         return df
 
-    def compute_degree(self, vertex_subset=None):
+    def degrees(self, vertex_subset=None):
         """
         Calculates and returns the in and out degree of vertices, by default computes for all 
         vertices, or optionally filters out all but those listed in vertex_subset.
