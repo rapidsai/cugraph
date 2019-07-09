@@ -8,6 +8,7 @@
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
+- PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
 
 ## Bug Fixes
