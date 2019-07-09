@@ -26,11 +26,11 @@ requirements:
   build:
     - python x.x
     - libcugraph={{ version }}
-    - cudf=0.8*
+    - cudf=0.9*
   run:
     - python x.x
     - libcugraph={{ version }}
-    - cudf=0.8*
+    - cudf=0.9*
 
 #test:
 #  commands:
