@@ -271,6 +271,7 @@ add_library(cugraph SHARED
     src/snmg/blas/spmv.cu
     src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
+    src/utilities/graph_utils.cu
     src/snmg/utils.cu
     src/components/connectivity.cu
     src/snmg/degree/degree.cu
