@@ -795,3 +795,72 @@ class Graph:
             del degree_col
 
         return df
+
+    def degrees(self, vertex_subset=None):
+        """
+        Calculates and returns the in and out degree of vertices, by default computes for all 
+        vertices, or optionally filters out all but those listed in vertex_subset.
+
+        Parameters
+        ----------
+        vertex_subset(optional, default=all vertices): cudf.Series or iterable container
+            A container of vertices for displaying corresponding degree
+
+        Returns
+        -------
+        df : cudf.DataFrame
+            df['vertex']: The vertex IDs (will be identical to vertex_subset if specified)
+            df['in_degree']: The in-degree of the vertex
+            df['out_degree']: The out-degree of the vertex
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from scipy.io import mmread
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> sources = cudf.Series(M.row)
+        >>> destinations = cudf.Series(M.col)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_edge_list(sources, destinations)
+        >>> degree_df = G.compute_degree([0,9,12])
+        """
+        cdef uintptr_t graph = self.graph_ptr
+        cdef gdf_graph* g = <gdf_graph*> graph
+        n = self.number_of_vertices()
+        df = cudf.DataFrame()
+        vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
+        c_vertex_col = get_gdf_column_view(vertex_col)
+        if g.adjList:
+            err = g.adjList.get_vertex_identifiers(&c_vertex_col)
+        else:
+            err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        in_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
+        cdef gdf_column c_in_degree_col = get_gdf_column_view(in_degree_col)
+        err = gdf_degree(g, &c_in_degree_col, <int>1)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        out_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
+        cdef gdf_column c_out_degree_col = get_gdf_column_view(out_degree_col)
+        err = gdf_degree(g, &c_out_degree_col, <int>2)
+        cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+        if vertex_subset is None:
+            df['vertex'] = vertex_col
+            df['in_degree'] = in_degree_col
+            df['out_degree'] = out_degree_col
+        else:
+            df['vertex'] = cudf.Series(np.asarray(vertex_subset, dtype=np.int32))
+            df['in_degree'] = cudf.Series(np.asarray([in_degree_col[i] for i in vertex_subset], dtype=np.int32))
+            df['out_degree'] = cudf.Series(np.asarray([out_degree_col[i] for i in vertex_subset], dtype=np.int32))
+            del vertex_col
+            del in_degree_col
+            del out_degree_col
+
+        return df
