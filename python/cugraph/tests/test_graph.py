@@ -507,6 +507,49 @@ def test_degree_functionality(managed, pool, graph_file):
     assert err_degree == 0
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_degrees_functionality(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
+    M = read_mtx_file(graph_file+'.mtx')
+    cu_M = read_csv_file(graph_file+'.csv')
+    sources = cu_M['0']
+    destinations = cu_M['1']
+    values = cu_M['2']
+
+    G = cugraph.Graph()
+    G.add_edge_list(sources, destinations, values)
+
+    Gnx = nx.DiGraph(M)
+
+    df = G.degrees()
+
+    nx_in_degree = Gnx.in_degree()
+    nx_out_degree = Gnx.out_degree()
+
+    err_in_degree = 0
+    err_out_degree = 0
+
+    for i in range(len(df)):
+        if(df['in_degree'][i] != nx_in_degree[i]):
+            err_in_degree = err_in_degree + 1
+        if(df['out_degree'][i] != nx_out_degree[i]):
+            err_out_degree = err_out_degree + 1
+
+    assert err_in_degree == 0
+    assert err_out_degree == 0
+
+
 '''
 def test_renumber():
     source_list = ['192.168.1.1',

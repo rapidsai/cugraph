@@ -469,6 +469,65 @@ class Graph:
         """
         return self._degree(vertex_subset)
 
+    def degrees(self, vertex_subset=None):
+        """
+        Calculates and returns the in and out degree of vertices, by default
+        computes for all vertices, or optionally filters out all but those
+        listed in vertex_subset.
+
+        Parameters
+        ----------
+        vertex_subset(optional, default=all vertices): cudf.Series or iterable
+        container
+            A container of vertices for displaying corresponding degree
+
+        Returns
+        -------
+        df : cudf.DataFrame
+            df['vertex']: The vertex IDs (will be identical to vertex_subset if
+                specified)
+            df['in_degree']: The in-degree of the vertex
+            df['out_degree']: The out-degree of the vertex
+
+        Examples
+        --------
+        >>> from scipy.io import mmread
+        >>>
+        >>> import cudf
+        >>> import cugraph
+        >>> mm_file = '/datasets/networks/karate.mtx'
+        >>> M = mmread(mm_file).asfptype()
+        >>> sources = cudf.Series(M.row)
+        >>> destinations = cudf.Series(M.col)
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.add_edge_list(sources, destinations)
+        >>> degree_df = G.degrees([0,9,12])
+        """
+        vertex_col, in_degree_col, out_degree_col = graph_wrapper._degrees(
+                                                        self.graph_ptr)
+
+        df = cudf.DataFrame()
+        if vertex_subset is None:
+            df['vertex'] = vertex_col
+            df['in_degree'] = in_degree_col
+            df['out_degree'] = out_degree_col
+        else:
+            df['vertex'] = cudf.Series(
+                np.asarray(vertex_subset, dtype=np.int32))
+            df['in_degree'] = cudf.Series(
+                np.asarray([in_degree_col[i] for i in vertex_subset],
+                           dtype=np.int32))
+            df['out_degree'] = cudf.Series(
+                np.asarray([out_degree_col[i] for i in vertex_subset],
+                           dtype=np.int32))
+            # is this necessary???
+            del vertex_col
+            del in_degree_col
+            del out_degree_col
+
+        return df
+
     def _degree(self, vertex_subset, x=0):
         vertex_col, degree_col = graph_wrapper._degree(self.graph_ptr, x)
 

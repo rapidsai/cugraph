@@ -298,3 +298,29 @@ def _degree(graph_ptr, x=0):
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return vertex_col, degree_col
+
+def _degrees(graph_ptr):
+    cdef uintptr_t graph = graph_ptr
+    cdef gdf_graph* g = <gdf_graph*> graph
+
+    n = number_of_vertices(graph_ptr)
+
+    vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
+    c_vertex_col = get_gdf_column_view(vertex_col)
+    if g.adjList:
+        err = g.adjList.get_vertex_identifiers(&c_vertex_col)
+    else:
+        err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    in_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
+    cdef gdf_column c_in_degree_col = get_gdf_column_view(in_degree_col)
+    err = gdf_degree(g, &c_in_degree_col, <int>1)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    out_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
+    cdef gdf_column c_out_degree_col = get_gdf_column_view(out_degree_col)
+    err = gdf_degree(g, &c_out_degree_col, <int>2)
+    cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    return vertex_col, in_degree_col, out_degree_col
