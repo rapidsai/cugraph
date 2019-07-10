@@ -20,6 +20,7 @@
 #pragma once
 #include <omp.h>
 #include "rmm_utils.h"
+#include "utilities/graph_utils.cuh"
 
 namespace cugraph
 {
@@ -31,58 +32,12 @@ class SNMGinfo
     int i, p, n_sm;
   
   public: 
-    SNMGinfo() { 
-      int tmp_p, tmp_i;
-      //get info from cuda
-      cudaGetDeviceCount(&tmp_p);
-      cudaGetDevice(&tmp_i);
-
-      //get info from omp 
-      i = omp_get_thread_num();
-      p = omp_get_num_threads();
-
-      // check that thread_num and num_threads are compatible with the device ID and the number of device 
-      if (tmp_i != i) {
-        std::cerr << "Thread ID and GPU ID do not match" << std::endl;
-      }
-      if (p > tmp_p) {
-        std::cerr << "More threads than GPUs" << std::endl;
-      }
-      // number of SM, usefull for kernels paramters
-      cudaDeviceGetAttribute(&n_sm, cudaDevAttrMultiProcessorCount, i);
-      cudaCheckError();
-    } 
-    ~SNMGinfo() { }
-
-    int get_thread_num() {
-      return i; 
-    }
-    int get_num_threads() {
-      return p; 
-    }
-    int get_num_sm() {
-      return n_sm; 
-    } 
-    // enable peer access (all to all)
-    void setup_peer_access() {
-      for (int j = 0; j < p; ++j) {
-        if (i != j) {
-          int canAccessPeer = 0;
-          cudaDeviceCanAccessPeer(&canAccessPeer, i, j);
-          cudaCheckError();
-          if (canAccessPeer) {
-            cudaDeviceEnablePeerAccess(j, 0);
-            cudaError_t status = cudaGetLastError();
-            if (!(status == cudaSuccess || status == cudaErrorPeerAccessAlreadyEnabled)) {
-              std::cerr << "Could not Enable Peer Access from" << i << " to " << j << std::endl;
-            }
-          }
-          else {
-            std::cerr << "P2P access required from " << i << " to " << j << std::endl;
-          }
-        }
-      }
-    }
+    SNMGinfo();
+    ~SNMGinfo();
+    int get_thread_num();
+    int get_num_threads();
+    int get_num_sm();
+    void setup_peer_access();
 };
 
 // Wait for all host threads 

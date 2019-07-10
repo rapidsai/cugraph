@@ -332,8 +332,8 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                      rowCount * sizeof(idx_t));
     }
   }
-
   cudaCheckError();
+  cugraph::sync_all();
 
   // Each thread frees up the input if allowed
   ALLOC_FREE_TRY(cooRowTemp, nullptr);
