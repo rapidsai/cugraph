@@ -217,7 +217,16 @@ set(CONNECT_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
 
-ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
+  ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
+
+###################################################################################################
+#-STRONGLY CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
+
+set(SCC_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/components/scc_test.cu")
+
+ConfigureTest(SCC_TEST "${SCC_TEST_SRC}" "")
 
 
 ###################################################################################################
