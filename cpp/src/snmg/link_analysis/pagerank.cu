@@ -182,10 +182,10 @@ gdf_error gdf_snmg_pagerank_impl(
       double t = omp_get_wtime();
     #endif
     // Setting basic SNMG env information
+    cudaSetDevice(omp_get_thread_num());
     cugraph::SNMGinfo env;
     auto i = env.get_thread_num();
     auto p = env.get_num_threads();
-    cudaSetDevice(i);
     cudaCheckError();
 
     // Local CSR columns
@@ -241,17 +241,15 @@ gdf_error gdf_snmg_pagerank_impl(
     // set the result in the gdf column
     #pragma omp master
     {
+      //default gdf values
+      cugraph::gdf_col_set_defaults(pr_col);
+
+      //fill relevant fields
       ALLOC_TRY ((void**)&pr_col->data,   sizeof(val_t) * part_offset[p], nullptr);
       cudaMemcpy(pr_col->data, pagerank[i], sizeof(val_t) * part_offset[p], cudaMemcpyDeviceToDevice);
       cudaCheckError();
-      //default gfd values
       pr_col->size = part_offset[p];
-      pr_col->valid = nullptr;
-      pr_col->null_count = 0;
       pr_col->dtype = GDF_FLOAT32;
-      gdf_dtype_extra_info extra_info;
-      extra_info.time_unit = TIME_UNIT_NONE;
-      pr_col->dtype_info = extra_info;
     }
     // Power iteration time
     #ifdef SNMG_PR_T

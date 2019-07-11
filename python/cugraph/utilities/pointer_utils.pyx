@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2019, NVIDIA CORPORATION.
+# Copyright (c) 2019, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,17 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# See the docstring in versioneer.py for instructions. Note that you must
-# re-run 'versioneer.py setup' after changing this section, and commit the
-# resulting files.
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
 
-[versioneer]
-VCS = git
-style = pep440
-versionfile_source = cugraph/_version.py
-versionfile_build = cugraph/_version.py
-tag_prefix = v
-parentdir_prefix = cugraph-
+from libc.stdint cimport uintptr_t
 
-[flake8]
-exclude = img,notebooks,thirdparty,__init__.py,libgdf
+
+cdef extern from "cugraph.h":
+    cdef int get_device(void *ptr)
+
+
+def device_of_gpu_pointer(g):
+    cdef uintptr_t cptr = g.device_ctypes_pointer.value
+    return get_device(<void*> cptr)
+

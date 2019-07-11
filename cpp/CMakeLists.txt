@@ -94,6 +94,7 @@ endif(CMAKE_BUILD_TYPE MATCHES Debug)
 
 # To apply RUNPATH to transitive dependencies (this is a temporary solution)
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--disable-new-dtags")
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
@@ -271,6 +272,7 @@ add_library(cugraph SHARED
     src/snmg/blas/spmv.cu
     src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
+    src/utilities/graph_utils.cu
     src/snmg/utils.cu
     src/components/connectivity.cu
     src/snmg/degree/degree.cu
