@@ -17,6 +17,7 @@
 - PR #360 Fixed bug in snmg coo2csr causing intermittent test failures.
 - PR #364 Fixed bug building or installing cugraph when conda isn't installed
 - PR #375 Added a function to initialize gdf columns in cugraph #375
+- PR #378 cugraph was unable to import device_of_gpu_pointer
 
 
 
