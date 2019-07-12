@@ -304,6 +304,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   comm->rowPtrs[i] = cooRowNew;
   comm->colPtrs[i] = cooColNew;
   comm->valPtrs[i] = cooValNew;
+  cudaCheckError();
 #pragma omp barrier
 
   // Each thread copies the rows needed by other threads to them
@@ -425,13 +426,24 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   csrOff->dtype = cooRow->dtype;
   csrOff->size = localMaxId + 2;
   csrOff->data = offsets;
+  csrOff->valid = nullptr;
+  csrOff->null_count = 0;
+  gdf_dtype_extra_info extra_info;
+  extra_info.time_unit = TIME_UNIT_NONE;
+  csrOff->dtype_info = extra_info;
   csrInd->dtype = cooRow->dtype;
   csrInd->size = myEdgeCount;
   csrInd->data = cooColNew;
+  csrInd->valid = nullptr;
+  csrInd->null_count = 0;
+  csrInd->dtype_info = extra_info;
   if (cooValNew != nullptr) {
     csrVal->dtype = cooVal->dtype;
     csrVal->size = myEdgeCount;
     csrVal->data = cooValNew;
+    csrVal->valid = nullptr;
+    csrVal->null_count = 0;
+    csrVal->dtype_info = extra_info;
   }
 #pragma omp barrier
 
