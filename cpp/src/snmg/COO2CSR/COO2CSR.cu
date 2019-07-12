@@ -103,6 +103,12 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   auto i = env.get_thread_num();
   auto p = env.get_num_threads();
 
+  int devId;
+  cudaGetDevice(&devId);
+  std::stringstream ss;
+  ss << "My device is: " << devId;
+  serializeMessage(env, ss.str());
+
   // First thread allocates communicator object
   if (i == 0) {
     communicator<idx_t, val_t>* comm = new communicator<idx_t, val_t>(p);
@@ -423,27 +429,19 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   ALLOC_FREE_TRY(runcount, nullptr);
 
   // Each thread sets up the results into the provided gdf_columns
+  cugraph::gdf_col_set_defaults(csrOff);
   csrOff->dtype = cooRow->dtype;
   csrOff->size = localMaxId + 2;
   csrOff->data = offsets;
-  csrOff->valid = nullptr;
-  csrOff->null_count = 0;
-  gdf_dtype_extra_info extra_info;
-  extra_info.time_unit = TIME_UNIT_NONE;
-  csrOff->dtype_info = extra_info;
+  cugraph::gdf_col_set_defaults(csrInd);
   csrInd->dtype = cooRow->dtype;
   csrInd->size = myEdgeCount;
   csrInd->data = cooColNew;
-  csrInd->valid = nullptr;
-  csrInd->null_count = 0;
-  csrInd->dtype_info = extra_info;
   if (cooValNew != nullptr) {
+    cugraph::gdf_col_set_defaults(cooVal);
     csrVal->dtype = cooVal->dtype;
     csrVal->size = myEdgeCount;
     csrVal->data = cooValNew;
-    csrVal->valid = nullptr;
-    csrVal->null_count = 0;
-    csrVal->dtype_info = extra_info;
   }
 #pragma omp barrier
 
