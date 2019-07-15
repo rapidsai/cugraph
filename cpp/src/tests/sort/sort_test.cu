@@ -42,14 +42,18 @@ __global__ void setup_generator(curandState *state, unsigned long long seed = 43
 }
 
 template <typename Key_t, int size>
-__inline__ __device__ Key_t random_key(curandState *state) {
-  return curand(state);
-}
+struct RandomKey {
+  __inline__ __device__ Key_t operator()(curandState *state) {
+    return curand(state);
+  }
+};
 
 template <typename Key_t>
-__inline__ __device__ Key_t random_key<Key_t, 8>(curandState *state) {
-  return (static_cast<Key_t>(curand(state)) << 32) | curand(state);
-}
+struct RandomKey<Key_t, 8> {
+  __inline__ __device__ Key_t operator()(curandState *state) {
+    return (static_cast<Key_t>(curand(state)) << 32) | curand(state);
+  }
+};
 
 template <typename Key_t>
 __global__ void generate_array(curandState *state, int n, Key_t *array) {
@@ -57,8 +61,9 @@ __global__ void generate_array(curandState *state, int n, Key_t *array) {
   int stride = blockDim.x * gridDim.x;
 
   curandState local_state = state[first];
+  RandomKey<Key_t, sizeof(Key_t)> random_key;
   for (int id = first ; id < n ; id += stride) {
-    array[id] = random_key<Key_t, sizeof(Key_t)>(&local_state);
+    array[id] = random_key(&local_state);
   }
 
   state[first] = local_state;
@@ -140,7 +145,6 @@ void verify_sorted_order(Key_t **d_key, Value_t **d_value,
                         thrust::make_counting_iterator(length),
                         diffCounter,
                         [key, cpu_tid, verbose] __device__ (Length_t v) {
-                          //printf("cpu_tid = %d, v = %lld\n", cpu_tid, v);
                           if (v > 0) {
                             if (key[v-1] > key[v]) {
                               if (verbose)

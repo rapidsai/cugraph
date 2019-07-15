@@ -25,15 +25,22 @@ namespace cusort {
     //  Define a device function to count leading zeros, since
     //  the intrinsic is different for each type.
     //
+    //  Note, C++ doesn't currently support partial template
+    //  specialization, so this is done with a function object.
+    //
     template <typename Key_t, int size>
-    __inline__ __device__ int count_leading_zeros(Key_t k) {
-      return __clz(k);
-    }
+    struct CountLeadingZeros {
+      __inline__ __device__ int operator()(Key_t k) {
+        return __clz(k);
+      }
+    };
 
     template <typename Key_t>
-    __inline__ __device__ int count_leading_zeros<Key_t, 8>(Key_t k) {
-      return __clzll(k);
-    }
+    struct CountLeadingZeros<Key_t, 8> {
+      __inline__ __device__ int operator()(Key_t k) {
+        return __clzll(k);
+      }
+    };
   }
   
   template <typename Key_t,typename Value_t, typename Length_t,
@@ -193,15 +200,13 @@ namespace cusort {
 
       cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, tData[cpu_tid].d_input_keys, d_max, tData[cpu_tid].h_input_length);
 
-      printf("max storage: %ld\n", temp_storage_bytes);
-
       ALLOC_TRY(&d_temp_storage, temp_storage_bytes, nullptr);
       cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, tData[cpu_tid].d_input_keys, d_max, tData[cpu_tid].h_input_length);
 
       thrust::for_each_n(thrust::device,
                          d_max, 1,
                          [d_max] __device__ (Key_t &val) {
-                           d_max[0] = detail::count_leading_zeros<Key_t, sizeof(Key_t)>(d_max[0]);
+                           d_max[0] = detail::CountLeadingZeros<Key_t, sizeof(Key_t)>()(d_max[0]);
                          });
 
       CUDA_TRY(cudaMemcpy(h_max_key + cpu_tid, d_max, sizeof(Key_t), cudaMemcpyDeviceToHost));
@@ -309,6 +314,12 @@ namespace cusort {
         for (int r = 0 ; r < num_gpus ; ++r) {
           for (int c = 0 ; c < num_gpus ; ++c) {
             h_writePositions[r+1][c] = h_writePositions[r][c] + (h_readPositions[r+1][c+1] - h_readPositions[r+1][c]);
+          }
+        }
+
+        for (int r = 0 ; r < num_gpus ; ++r) {
+          for (int c = 0 ; c <= num_gpus ; ++c) {
+            h_writePositionsTransposed[r][c] = h_writePositions[c][r];
           }
         }
 
