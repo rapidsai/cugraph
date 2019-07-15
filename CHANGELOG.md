@@ -4,6 +4,7 @@
 - PR #361 Prototypes for cusort functions
 - PR #357 Pagerank cpp API
 - PR #366 Adds graph.degrees() function returning both in and out degree.
+- PR #380 First implemention of cusort - SNMG key/value sorting
 
 
 ## Improvements
