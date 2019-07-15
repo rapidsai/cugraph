@@ -27,6 +27,7 @@ from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
 from cugraph.structure import Graph, from_cudf_edgelist, renumber
 from cugraph.traversal import bfs, sssp
 from cugraph.utilities import grmat_gen
+from cugraph.utilities import device_of_gpu_pointer
 
 from cugraph.snmg.link_analysis.mg_pagerank import mg_pagerank
 
