@@ -103,12 +103,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   auto i = env.get_thread_num();
   auto p = env.get_num_threads();
 
-  int devId;
-  cudaGetDevice(&devId);
-  std::stringstream ss;
-  ss << "My device is: " << devId;
-  serializeMessage(env, ss.str());
-
   // First thread allocates communicator object
   if (i == 0) {
     communicator<idx_t, val_t>* comm = new communicator<idx_t, val_t>(p);
@@ -296,6 +290,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
 #pragma omp barrier
 
+  std::stringstream ss;
+  ss << "myEdgeCount is: " << myEdgeCount;
+  serializeMessage(env, ss.str());
+
+
   // Each thread allocates space to receive their rows from others
   idx_t *cooRowNew, *cooColNew;
   val_t *cooValNew;
@@ -321,6 +320,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
       idx_t* prevRowCounts = comm->rowCounts + (prev * p);
       offset += prevRowCounts[other];
     }
+
+    ss.str("");
+    ss << "Copying " << rowCount << " rows to device " << other << " at offset " << offset;
+    serializeMessage(env, ss.str());
+
     if (rowCount > 0) {
       cudaMemcpy(comm->rowPtrs[other] + offset,
                  cooRowTemp + positions[other],
