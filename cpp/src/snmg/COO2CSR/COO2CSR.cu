@@ -322,22 +322,19 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
       offset += prevRowCounts[other];
     }
     if (rowCount > 0) {
-      cudaMemcpyPeer(comm->rowPtrs[other] + offset,
-                     other,
-                     cooRowTemp + positions[other],
-                     i,
-                     rowCount * sizeof(idx_t));
-      cudaMemcpyPeer(comm->colPtrs[other] + offset,
-                     other,
-                     cooColTemp + positions[other],
-                     i,
-                     rowCount * sizeof(idx_t));
+      cudaMemcpy(comm->rowPtrs[other] + offset,
+                 cooRowTemp + positions[other],
+                 rowCount * sizeof(idx_t),
+                 cudaMemcpyDefault);
+      cudaMemcpy(comm->colPtrs[other] + offset,
+                 cooColTemp + positions[other],
+                 rowCount * sizeof(idx_t),
+                 cudaMemcpyDefault);
       if (cooValTemp != nullptr) {
-        cudaMemcpyPeer(comm->valPtrs[other] + offset,
-                       other,
-                       cooValTemp + positions[other],
-                       i,
-                       rowCount * sizeof(idx_t));
+        cudaMemcpy(comm->ValPtrs[other],
+                   cooValTemp + positions[other],
+                   rowCount * sizeof(idx_t),
+                   cudaMemcpyDefault);
       }
     }
   }
