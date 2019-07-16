@@ -1,3 +1,26 @@
+# cuGraph 0.9.0 (Date TBD)
+
+## New Features
+- PR #361 Prototypes for cusort functions
+- PR #357 Pagerank cpp API
+- PR #366 Adds graph.degrees() function returning both in and out degree.
+
+
+## Improvements
+- PR #353 Change snmg python wrapper in accordance to cpp api
+- PR #362 Restructured python/cython directories and files.
+- PR #365 Updates for setting device and vertex ids for snmg pagerank
+
+## Bug Fixes
+- PR #368 Bump cudf dependency versions for cugraph conda packages
+- PR #354 Fixed bug in building a debug version
+- PR #360 Fixed bug in snmg coo2csr causing intermittent test failures.
+- PR #364 Fixed bug building or installing cugraph when conda isn't installed
+- PR #375 Added a function to initialize gdf columns in cugraph #375
+- PR #378 cugraph was unable to import device_of_gpu_pointer
+
+
+
 # cuGraph 0.8.0 (Date TBD)
 
 ## New Features
@@ -24,7 +47,6 @@
 - PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
 - PR #333 Various general improvements at the library level 
 
-
 ## Bug Fixes
 - PR #283 Automerge fix
 - PR #291 Fixed a RMM memory allocation failure due to duplicate copies of cnmem.o
@@ -37,6 +59,8 @@
 - PR #324 Fixed crash in WeakCC for larger graph and added adj matrix symmetry check
 - PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 - PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
+- PR #350 Configure Sphinx to render params correctly
+
 
 # cuGraph 0.7.0 (10 May 2019)
 

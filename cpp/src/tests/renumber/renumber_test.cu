@@ -172,13 +172,6 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
   EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
-__global__
-void debug(std::pair<const char *, size_t> *a, size_t length) {
-  for (int i = 0 ; i < length ; ++i) {
-    printf("i = %d, a.first = %s, a.size = %ld\n", i, a[i].first, a[i].second);
-  }
-}
-
 TEST_F(RenumberingTest, SmallFixedVertexListString)
 {
   const char * src_data[] = { "4U",  "6U",  "8U", "20U",  "1U" };
@@ -192,27 +185,25 @@ TEST_F(RenumberingTest, SmallFixedVertexListString)
   NVStrings *srcs = NVStrings::create_from_array(src_data, length);
   NVStrings *dsts = NVStrings::create_from_array(dst_data, length);
 
-  typedef std::pair<const char *, size_t>   pair_t;
-
   cudaStream_t stream{nullptr};
 
-  pair_t *src_d;
-  pair_t *dst_d;
-  pair_t *output_map;
+  thrust::pair<const char *, size_t> *src_d;
+  thrust::pair<const char *, size_t> *dst_d;
+  thrust::pair<const char *, size_t> *output_map;
   int32_t *src_output_d;
   int32_t *dst_output_d;
   size_t unique_verts = 0;
   int32_t tmp_results[length];
-  pair_t tmp_map[2 * length];
-  pair_t tmp_compare[length];
+  thrust::pair<const char *, size_t> tmp_map[2 * length];
+  thrust::pair<const char *, size_t> tmp_compare[length];
 
-  ALLOC_TRY((void**) &src_d, sizeof(pair_t) * length, stream);
-  ALLOC_TRY((void**) &dst_d, sizeof(pair_t) * length, stream);
+  ALLOC_TRY((void**) &src_d, sizeof(thrust::pair<const char *, size_t>) * length, stream);
+  ALLOC_TRY((void**) &dst_d, sizeof(thrust::pair<const char *, size_t>) * length, stream);
   ALLOC_TRY((void**) &src_output_d, sizeof(int32_t) * length, stream);
   ALLOC_TRY((void**) &dst_output_d, sizeof(int32_t) * length, stream);
 
-  srcs->create_index(src_d, true);
-  dsts->create_index(dst_d, true);
+  srcs->create_index((std::pair<const char *, size_t> *) src_d, true);
+  dsts->create_index((std::pair<const char *, size_t> *) dst_d, true);
 
   EXPECT_EQ(cugraph::renumber_vertices(length,
 				       src_d,
@@ -228,7 +219,7 @@ TEST_F(RenumberingTest, SmallFixedVertexListString)
   //
   //  Bring output_map back as local_strings so we can do comparisons
   //
-  NVStrings *omap = NVStrings::create_from_index(output_map, unique_verts);
+  NVStrings *omap = NVStrings::create_from_index((std::pair<const char *, size_t> *) output_map, unique_verts);
 
   int maxStringLen = 4;
   char local_buffer[unique_verts * maxStringLen];
@@ -245,10 +236,10 @@ TEST_F(RenumberingTest, SmallFixedVertexListString)
   //
   //  Now, bring back results and compare them
   //
-  EXPECT_EQ(cudaMemcpy(tmp_map, output_map, sizeof(pair_t) * unique_verts, cudaMemcpyDeviceToHost), cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(tmp_map, output_map, sizeof(thrust::pair<const char *, size_t>) * unique_verts, cudaMemcpyDeviceToHost), cudaSuccess);
 
   EXPECT_EQ(cudaMemcpy(tmp_results, src_output_d, sizeof(int32_t) * length, cudaMemcpyDeviceToHost), cudaSuccess);
-  EXPECT_EQ(cudaMemcpy(tmp_compare, src_d, sizeof(pair_t) * length, cudaMemcpyDeviceToHost), cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(tmp_compare, src_d, sizeof(thrust::pair<const char *, size_t>) * length, cudaMemcpyDeviceToHost), cudaSuccess);
 
   for (size_t i = 0 ; i < length ; ++i) {
     EXPECT_EQ(tmp_results[i], src_expected[i]);
@@ -256,7 +247,7 @@ TEST_F(RenumberingTest, SmallFixedVertexListString)
   }
 
   EXPECT_EQ(cudaMemcpy(tmp_results, dst_output_d, sizeof(int32_t) * length, cudaMemcpyDeviceToHost), cudaSuccess);
-  EXPECT_EQ(cudaMemcpy(tmp_compare, dst_d, sizeof(pair_t) * length, cudaMemcpyDeviceToHost), cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(tmp_compare, dst_d, sizeof(thrust::pair<const char *, size_t>) * length, cudaMemcpyDeviceToHost), cudaSuccess);
   for (size_t i = 0 ; i < length ; ++i) {
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_STREQ(local_strings[tmp_results[i]], dst_data[i]);
@@ -503,11 +494,9 @@ TEST_F(RenumberingTest, Random10MVertexListString)
   NVStrings *srcs = NVStrings::itos((int *) src_d, num_verts, nullptr, true);
   NVStrings *dsts = NVStrings::itos((int *) dst_d, num_verts, nullptr, true);
 
-  typedef std::pair<const char *, size_t>   pair_t;
-
-  pair_t *src_pair_d;
-  pair_t *dst_pair_d;
-  pair_t *output_map;
+  thrust::pair<const char *, size_t> *src_pair_d;
+  thrust::pair<const char *, size_t> *dst_pair_d;
+  thrust::pair<const char *, size_t> *output_map;
   int32_t *src_output_d;
   int32_t *dst_output_d;
   size_t unique_verts = 0;
@@ -515,16 +504,16 @@ TEST_F(RenumberingTest, Random10MVertexListString)
   std::cout << "done with initialization" << std::endl;
 
   int32_t *tmp_results = new int32_t[num_verts];
-  pair_t *tmp_map = new pair_t[2 * num_verts];
-  pair_t *tmp_compare = new pair_t[num_verts];
+  thrust::pair<const char *, size_t> *tmp_map = new thrust::pair<const char *, size_t>[2 * num_verts];
+  thrust::pair<const char *, size_t> *tmp_compare = new thrust::pair<const char *, size_t>[num_verts];
 
-  ALLOC_TRY((void**) &src_pair_d, sizeof(pair_t) * num_verts, stream);
-  ALLOC_TRY((void**) &dst_pair_d, sizeof(pair_t) * num_verts, stream);
+  ALLOC_TRY((void**) &src_pair_d, sizeof(thrust::pair<const char *, size_t>) * num_verts, stream);
+  ALLOC_TRY((void**) &dst_pair_d, sizeof(thrust::pair<const char *, size_t>) * num_verts, stream);
   ALLOC_TRY((void**) &src_output_d, sizeof(int32_t) * num_verts, stream);
   ALLOC_TRY((void**) &dst_output_d, sizeof(int32_t) * num_verts, stream);
 
-  srcs->create_index(src_pair_d, true);
-  dsts->create_index(dst_pair_d, true);
+  srcs->create_index((std::pair<const char *, size_t> *) src_pair_d, true);
+  dsts->create_index((std::pair<const char *, size_t> *) dst_pair_d, true);
 
   auto start = std::chrono::system_clock::now();
 
@@ -549,7 +538,7 @@ TEST_F(RenumberingTest, Random10MVertexListString)
   //
   //  Bring output_map back as local_strings so we can do comparisons
   //
-  NVStrings *omap = NVStrings::create_from_index(output_map, unique_verts);
+  NVStrings *omap = NVStrings::create_from_index((std::pair<const char *, size_t> *) output_map, unique_verts);
 
   //  12 bytes (minimum int32 is -2147483648, need room for a null byte)
   //
@@ -577,7 +566,7 @@ TEST_F(RenumberingTest, Random10MVertexListString)
   //
   //  Now, bring back results and compare them
   //
-  EXPECT_EQ(cudaMemcpy(tmp_map, output_map, sizeof(pair_t) * unique_verts, cudaMemcpyDeviceToHost), cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(tmp_map, output_map, sizeof(thrust::pair<const char *, size_t>) * unique_verts, cudaMemcpyDeviceToHost), cudaSuccess);
 
   EXPECT_EQ(cudaMemcpy(tmp_results, src_output_d, sizeof(int32_t) * num_verts, cudaMemcpyDeviceToHost), cudaSuccess);
 

@@ -332,8 +332,8 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                      rowCount * sizeof(idx_t));
     }
   }
-
   cudaCheckError();
+  cugraph::sync_all();
 
   // Each thread frees up the input if allowed
   ALLOC_FREE_TRY(cooRowTemp, nullptr);
@@ -422,13 +422,17 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   ALLOC_FREE_TRY(runcount, nullptr);
 
   // Each thread sets up the results into the provided gdf_columns
+  cugraph::gdf_col_set_defaults(csrOff);
   csrOff->dtype = cooRow->dtype;
   csrOff->size = localMaxId + 2;
   csrOff->data = offsets;
+
+  cugraph::gdf_col_set_defaults(csrInd);
   csrInd->dtype = cooRow->dtype;
   csrInd->size = myEdgeCount;
   csrInd->data = cooColNew;
   if (cooValNew != nullptr) {
+    cugraph::gdf_col_set_defaults(cooVal);
     csrVal->dtype = cooVal->dtype;
     csrVal->size = myEdgeCount;
     csrVal->data = cooValNew;
