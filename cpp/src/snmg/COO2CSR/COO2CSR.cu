@@ -331,7 +331,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                  rowCount * sizeof(idx_t),
                  cudaMemcpyDefault);
       if (cooValTemp != nullptr) {
-        cudaMemcpy(comm->ValPtrs[other],
+        cudaMemcpy(comm->valPtrs[other],
                    cooValTemp + positions[other],
                    rowCount * sizeof(idx_t),
                    cudaMemcpyDefault);
