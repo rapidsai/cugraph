@@ -14,7 +14,13 @@
 from cugraph.snmg.link_analysis import mg_pagerank_wrapper
 
 
-def mg_pagerank(src_ptrs_info, dest_ptrs_info):
-    df = mg_pagerank_wrapper.mg_pagerank(src_ptrs_info, dest_ptrs_info)
+def mg_pagerank(src_ptrs_info,
+                dest_ptrs_info,
+                alpha=0.85,
+                max_iter=30):
+    df = mg_pagerank_wrapper.mg_pagerank(src_ptrs_info,
+                                         dest_ptrs_info,
+                                         alpha,
+                                         max_iter)
 
     return df
