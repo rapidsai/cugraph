@@ -317,6 +317,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   comm->colPtrs[i] = cooColNew;
   comm->valPtrs[i] = cooValNew;
   cudaCheckError();
+  cudaDeviceSynchronize();
 #pragma omp barrier
 
   // Each thread copies the rows needed by other threads to them
