@@ -186,14 +186,15 @@ TEST_F(SortTest, Random10MPerDevice_uint64_t)
   uint64_t           *d_input_values[MAX_NUM_GPUS];
   uint64_t           *d_output[MAX_NUM_GPUS];
   uint64_t           *d_output_values[MAX_NUM_GPUS];
-  unsigned long long  h_input_offsets[3];
-  unsigned long long  h_output_offsets[3];
+  unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
+  unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
   const int num_elements = 10000000;
   const int seed = 43;
   int n_gpus = 0;
 
   CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
+  ASSERT_LE(n_gpus, MAX_NUM_GPUS);
 
   for (int i = 0 ; i < (n_gpus + 1) ; ++i)
     h_input_offsets[i] = i * num_elements;
@@ -230,14 +231,15 @@ TEST_F(SortTest, Random10MPerDevice_uint32_t)
   uint32_t           *d_input_values[MAX_NUM_GPUS];
   uint32_t           *d_output[MAX_NUM_GPUS];
   uint32_t           *d_output_values[MAX_NUM_GPUS];
-  unsigned long long  h_input_offsets[3];
-  unsigned long long  h_output_offsets[3];
+  unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
+  unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
   const int num_elements = 10000000;
   const int seed = 43;
   int n_gpus = 0;
 
   CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
+  ASSERT_LE(n_gpus, MAX_NUM_GPUS);
 
   for (int i = 0 ; i < (n_gpus + 1) ; ++i)
     h_input_offsets[i] = i * num_elements;
@@ -274,14 +276,15 @@ TEST_F(SortTest, Random100MPerDevice_uint64_t)
   uint64_t           *d_input_values[MAX_NUM_GPUS];
   uint64_t           *d_output[MAX_NUM_GPUS];
   uint64_t           *d_output_values[MAX_NUM_GPUS];
-  unsigned long long  h_input_offsets[3];
-  unsigned long long  h_output_offsets[3];
+  unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
+  unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
   const int num_elements = 100000000;
   const int seed = 43;
   int n_gpus = 0;
 
   CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
+  ASSERT_LE(n_gpus, MAX_NUM_GPUS);
 
   for (int i = 0 ; i < (n_gpus + 1) ; ++i)
     h_input_offsets[i] = i * num_elements;
@@ -318,14 +321,15 @@ TEST_F(SortTest, Random100MPerDevice_uint32_t)
   uint32_t           *d_input_values[MAX_NUM_GPUS];
   uint32_t           *d_output[MAX_NUM_GPUS];
   uint32_t           *d_output_values[MAX_NUM_GPUS];
-  unsigned long long  h_input_offsets[3];
-  unsigned long long  h_output_offsets[3];
+  unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
+  unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
   const int num_elements = 100000000;
   const int seed = 43;
   int n_gpus = 0;
 
   CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
+  ASSERT_LE(n_gpus, MAX_NUM_GPUS);
 
   for (int i = 0 ; i < (n_gpus + 1) ; ++i)
     h_input_offsets[i] = i * num_elements;
@@ -362,14 +366,15 @@ TEST_F(SortTest, Random256MPerDevice_uint64_t)
   uint64_t           *d_input_values[MAX_NUM_GPUS];
   uint64_t           *d_output[MAX_NUM_GPUS];
   uint64_t           *d_output_values[MAX_NUM_GPUS];
-  unsigned long long  h_input_offsets[3];
-  unsigned long long  h_output_offsets[3];
+  unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
+  unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
   const int num_elements = 256000000;
   const int seed = 43;
   int n_gpus = 0;
 
   CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
+  ASSERT_LE(n_gpus, MAX_NUM_GPUS);
 
   for (int i = 0 ; i < (n_gpus + 1) ; ++i)
     h_input_offsets[i] = i * num_elements;
@@ -414,6 +419,7 @@ TEST_F(SortTest, Random256MPerDevice_uint32_t)
   int n_gpus = 0;
 
   CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));
+  ASSERT_LE(n_gpus, MAX_NUM_GPUS);
 
   for (int i = 0 ; i < (n_gpus + 1) ; ++i)
     h_input_offsets[i] = i * num_elements;
