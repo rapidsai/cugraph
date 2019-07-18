@@ -315,10 +315,10 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   // Each thread allocates space to receive their rows from others
   idx_t *cooRowNew, *cooColNew;
   val_t *cooValNew;
-  ALLOC_TRY(&cooRowNew, sizeof(idx_t) * myEdgeCount, nullptr);
-  ALLOC_TRY(&cooColNew, sizeof(idx_t) * myEdgeCount, nullptr);
+  ALLOC_TRY(&cooRowNew, sizeof(idx_t) * myRowCount, nullptr);
+  ALLOC_TRY(&cooColNew, sizeof(idx_t) * myRowCount, nullptr);
   if (cooValTemp != nullptr) {
-    ALLOC_TRY(&cooValNew, sizeof(val_t) * myEdgeCount, nullptr);
+    ALLOC_TRY(&cooValNew, sizeof(val_t) * myRowCount, nullptr);
   }
   else {
     cooValNew = nullptr;
@@ -381,7 +381,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   idx_t myOffset = part_offsets[i];
   thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
                     cooRowNew,
-                    cooRowNew + myEdgeCount,
+                    cooRowNew + myRowCount,
                     thrust::make_constant_iterator(myOffset * -1),
                     cooRowNew,
                     thrust::plus<idx_t>());
@@ -391,7 +391,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     auto zippy = thrust::make_zip_iterator(thrust::make_tuple(cooRowNew, cooColNew));
     thrust::sort_by_key(rmm::exec_policy(nullptr)->on(nullptr),
                         zippy,
-                        zippy + myEdgeCount,
+                        zippy + myRowCount,
                         cooValNew);
   }
   else {
@@ -417,7 +417,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                                      unique,
                                      counts,
                                      runcount,
-                                     myEdgeCount);
+                                     myRowCount);
   ALLOC_TRY(&tmpStorage, tmpBytes, nullptr);
   cub::DeviceRunLengthEncode::Encode(tmpStorage,
                                      tmpBytes,
@@ -425,7 +425,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                                      unique,
                                      counts,
                                      runcount,
-                                     myEdgeCount);
+                                     myRowCount);
   ALLOC_FREE_TRY(tmpStorage, nullptr);
 
   cudaDeviceSynchronize();
@@ -456,12 +456,12 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   csrOff->data = offsets;
   cugraph::gdf_col_set_defaults(csrInd);
   csrInd->dtype = cooRow->dtype;
-  csrInd->size = myEdgeCount;
+  csrInd->size = myRowCount;
   csrInd->data = cooColNew;
   if (cooValNew != nullptr) {
     cugraph::gdf_col_set_defaults(cooVal);
     csrVal->dtype = cooVal->dtype;
-    csrVal->size = myEdgeCount;
+    csrVal->size = myRowCount;
     csrVal->data = cooValNew;
   }
 #pragma omp barrier
