@@ -10,6 +10,7 @@
 - PR #353 Change snmg python wrapper in accordance to cpp api
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
+- PR #383 Exposed MG pagerank solver parameters 
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
@@ -21,7 +22,7 @@
 - PR #382 Disabled vertex id check to allow Azure deployment
 
 
-# cuGraph 0.8.0 (Date TBD)
+# cuGraph 0.8.0 (27 June 2019)
 
 ## New Features
 - PR #287 SNMG power iteration step1
