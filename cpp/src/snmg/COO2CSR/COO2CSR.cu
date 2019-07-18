@@ -323,10 +323,6 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
       offset += prevRowCounts[other];
     }
 
-    ss.str("");
-    ss << "Copying " << rowCount << " rows to device " << other << " at offset " << offset;
-    serializeMessage(env, ss.str());
-
     if (rowCount > 0) {
       cudaMemcpy(comm->rowPtrs[other] + offset,
                  cooRowTemp + positions[other],
