@@ -1,4 +1,5 @@
 #include "weak_cc.cuh"
+#include "scc_matrix.cuh"
 
 #include "utilities/graph_utils.cuh"
 #include "utilities/error_utils.h"
@@ -16,11 +17,20 @@
 //
 /**
  * @brief Compute connected components. 
- * The weak version was imported from cuML.
+ * The weak version (for undirected graphs, only) was imported from cuML.
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
  * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ * 
+ * The strong version (for directed or undirected graphs) is based on: 
+ * [2] Gilbert, J. et al, 2011. "Graph Algorithms in the Language of Linear Algebra"
+ *
+ * C = I | A | A^2 |...| A^k
+ * where matrix multiplication is via semi-ring: 
+ * (combine, reduce) == (&, |) (bitwise ops)
+ * Then: X = C & transpose(C); and finally, apply get_labels(X);
+ *
  *
  * @tparam IndexT the numeric type of non-floating point elements
  * @tparam TPB_X the threads to use per block when configuring the kernel
@@ -37,6 +47,8 @@ gdf_connected_components_impl(gdf_graph *graph,
                               cugraph_cc_t connectivity_type,
                               cudaStream_t stream)
 {
+  using ByteT = unsigned char;//minimum addressable unit
+  
   static auto row_offsets_ = [](const gdf_graph* G){
     return static_cast<const IndexT*>(G->adjList->offsets->data);
   };
@@ -74,9 +86,6 @@ gdf_connected_components_impl(gdf_graph *graph,
   //TODO: relax this requirement:
   //
   GDF_REQUIRE( type_id == labels->dtype, GDF_UNSUPPORTED_DTYPE);
-
-  //bool flag_dir = graph->prop->directed;//useless, for the time being...
-  //TODO: direction_checker() to set this flag correctly; prop is not even allocated!
 
   IndexT* p_d_labels = static_cast<IndexT*>(labels->data);
   const IndexT* p_d_row_offsets = row_offsets_(graph);
@@ -131,12 +140,33 @@ gdf_connected_components_impl(gdf_graph *graph,
     }
   else
     {
-      //dump error message and return unsupported, for now:
-      //
-      std::cerr<<"ERROR: Feature not supported, yet;"
-               <<" at: " << __FILE__ << ":" << __LINE__ << std::endl;
       
-      return GDF_INVALID_API_CALL;//for now...
+      //device memory requirements: 2n^2 + 2n x sizeof(IndexT) + 1 (for flag)
+      //( n = |V|)
+      //
+      size_t n2 = 2*nrows;
+      n2 = n2*(nrows*sizeof(ByteT) + sizeof(IndexT)) + 1;
+
+      int device;
+      cudaDeviceProp prop;
+      
+      cudaGetDevice(&device);
+      cudaGetDeviceProperties(&prop, device);
+
+      if( n2 > prop.totalGlobalMem )
+        {
+
+          //not enough memory, dump error message and return unsupported:
+          //
+          std::cerr<<"ERROR: Insufficient device memory for SCC;"
+                   <<" at: " << __FILE__ << ":" << __LINE__ << std::endl;
+      
+          return GDF_MEMORYMANAGER_ERROR;
+        }
+      SCC_Data<ByteT, IndexT> sccd(nrows, p_d_row_offsets, p_d_col_ind);
+      size_t count = 0;
+      count = sccd.run_scc(p_d_labels);
+      
     }
   return GDF_SUCCESS;
 }

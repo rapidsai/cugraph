@@ -22,6 +22,8 @@
 #include "high_res_clock.h"
 #include "cuda_profiler_api.h"
 
+#include <thrust/sequence.h>
+//
 #include <cugraph.h>
 #include "test_utils.h"
 #include <algorithm>
@@ -34,6 +36,9 @@
 // enabled by command line parameter s'--perf'
 //
 static int PERF = 0;
+
+template<typename T>
+using DVector = thrust::device_vector<T>;
 
 namespace{ //un-nammed
   struct Usecase
@@ -78,12 +83,17 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
      for (unsigned int i = 0; i < strongly_cc_time.size(); ++i) {
       std::cout <<  strongly_cc_time[i] << std::endl;
      }
+     
+     std::cout<<"#iterations:\n";
+     for(auto&& count: strongly_cc_counts)
+       std::cout << count << std::endl;
     } 
   }
   virtual void SetUp() {  }
   virtual void TearDown() {  }
 
   static std::vector<double> strongly_cc_time;
+  static std::vector<int> strongly_cc_counts;
 
   void run_current_test(const Usecase& param) {
     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
@@ -106,7 +116,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_EQ(mm_properties<IndexT>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
     ASSERT_TRUE(mm_is_coordinate(mc));
-    ASSERT_TRUE(mm_is_symmetric(mc));//strongly cc only works w/ undirected graphs, for now;
+    //ASSERT_TRUE(mm_is_symmetric(mc));//strongly cc works with both DG and UDG;
 
     //rmmInitialize(nullptr);
 
@@ -132,6 +142,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     std::vector<IndexT> cooColInd(nnz);
     std::vector<IndexT> cooVal(nnz);
     std::vector<IndexT> labels(m);//for G(V, E), m := |V|
+    std::vector<IndexT> verts(m);
 
     // Read: COO Format
     //
@@ -139,11 +150,23 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_EQ(fclose(fpin),0);
 
     gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
-    gdf_column_ptr col_src, col_dest, col_labels;
+    gdf_column_ptr col_src;
+    gdf_column_ptr col_dest;
+    gdf_column_ptr col_labels;
+    gdf_column_ptr col_verts;// = thrust::sequence(0..m-1);
 
     col_src = create_gdf_column(cooRowInd);
     col_dest = create_gdf_column(cooColInd);
     col_labels = create_gdf_column(labels);
+    col_verts = create_gdf_column(verts);
+
+    IndexT* begin = static_cast<IndexT*>(col_verts->data);
+    thrust::sequence(thrust::device, begin, begin + m);
+    
+    std::vector<gdf_column*> vcols{col_labels.get(), col_verts.get()};
+    cudf::table tbl(vcols);//to be passed to the API to be filled
+    //CAVEAT: col_verts have already been filled!
+
 
     //Get the COO format 1st:
     //
@@ -184,7 +207,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         
         cudaDeviceSynchronize();
         hr_clock.stop(&time_tmp);
-        strongly_cc_time.push_back(time_tmp);
+        strongly_cc_time.push_back(time_tmp);    
       }
     else
       {
@@ -196,32 +219,52 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         cudaProfilerStop();
         cudaDeviceSynchronize();
       }
+    strongly_cc_counts.push_back(count);
+    
     EXPECT_EQ(status,GDF_SUCCESS);
 
+#ifdef DEBUG_SCC
     std::cout << "#iterations: " << count << "\n";
     std::cout <<"labels:\n";
     cudaMemcpy(&labels[0], p_d_labels, m*sizeof(IndexT), cudaMemcpyDeviceToHost);
     print_v(labels, std::cout);
 
-    std::vector<IndexT> l_check(m);//for G(V, E), m := |V|
-    gdf_column_ptr check_labels = create_gdf_column(l_check);
-
-    status = gdf_connected_components(G.get(),
-                                      CUGRAPH_WEAK,
-                                      check_labels.get());
-
-    EXPECT_EQ(status,GDF_SUCCESS);
-
-    IndexT* p_d_l_check = static_cast<IndexT*>(check_labels->data);
-    std::cout <<"check labels:\n";
-    cudaMemcpy(&l_check[0], p_d_l_check, m*sizeof(IndexT), cudaMemcpyDeviceToHost);
-    print_v(l_check, std::cout);
+    DVector<IndexT> d_cct(nrows*nrows);//{sccd.get_C()};//copy to int array for printing:
+    thrust::transform(sccd.get_C().begin(), sccd.get_C().end(),
+                      d_cct.begin(),
+                      [] __device__ (ByteT b){
+                        return (b == ByteT{1}? 1:0);
+                      });
     
+    std::cout<<"C & Ct:\n";
+    print_v(d_cct, std::cout);
+#endif
+    
+    //if graph is undirected, check against
+    //WeaklyCC:
+    //
+    if( mm_is_symmetric(mc) )
+      {
+        std::vector<IndexT> l_check(m);//for G(V, E), m := |V|
+        gdf_column_ptr check_labels = create_gdf_column(l_check);
+        
+        status = gdf_connected_components(G.get(),
+                                          CUGRAPH_WEAK,
+                                          check_labels.get());
+
+        EXPECT_EQ(status,GDF_SUCCESS);
+
+        IndexT* p_d_l_check = static_cast<IndexT*>(check_labels->data);
+        std::cout <<"check labels:\n";
+        cudaMemcpy(&l_check[0], p_d_l_check, m*sizeof(IndexT), cudaMemcpyDeviceToHost);
+        print_v(l_check, std::cout);
+      }
     //rmmFinalize();
   }
 };
  
 std::vector<double> Tests_Strongly_CC::strongly_cc_time;
+std::vector<int> Tests_Strongly_CC::strongly_cc_counts;
 
 TEST_P(Tests_Strongly_CC, Strongly_CC) {
     run_current_test(GetParam());
@@ -229,7 +272,8 @@ TEST_P(Tests_Strongly_CC, Strongly_CC) {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Strongly_CC, 
-                        ::testing::Values(Usecase("test/datasets/dolphins.mtx")//, //okay
+                        ::testing::Values(//Usecase("test/datasets/dolphins.mtx")//, //okay
+                                          Usecase("test/datasets/gre_1107.mtx")
                                           //Usecase("test/datasets/coPapersDBLP.mtx")//, //fails (not enough memory)
                                           //Usecase("test/datasets/coPapersCiteseer.mtx")//,fails (not enough memory)
                                           //Usecase("test/datasets/hollywood.mtx")//fails (not enough memory)
