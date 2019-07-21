@@ -205,3 +205,8 @@ gdf_connected_components_impl(gdf_graph *graph,
     }
   return GDF_UNSUPPORTED_DTYPE;
 }
+
+gdf_error gdf_dummy(cudf::table* tbl, int* test)
+{
+  return GDF_SUCCESS; 
+}

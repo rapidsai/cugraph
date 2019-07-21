@@ -270,3 +270,6 @@ gdf_error gdf_snmg_pagerank (
             const size_t n_gpus, 
             const float damping_factor, 
             const int n_iter);
+//
+//TODO: remove:
+gdf_error gdf_dummy(cudf::table* table, int* test = nullptr);

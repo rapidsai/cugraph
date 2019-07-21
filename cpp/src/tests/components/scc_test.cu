@@ -23,6 +23,7 @@
 #include "cuda_profiler_api.h"
 
 #include <thrust/sequence.h>
+#include <thrust/unique.h>
 //
 #include <cugraph.h>
 #include "test_utils.h"
@@ -71,7 +72,41 @@ namespace{ //un-nammed
   private:
     std::string matrix_file;
   };
-  
+
+  //checker of counts of labels for each component
+  //expensive, for testing purposes only;
+  //
+  //params:
+  //p_d_labels: device array of labels of size nrows;
+  //nrows: |V| for graph G(V, E);
+  //d_v_counts: #labels for each component; (_not_ pre-allocated!)
+  //
+  template<typename IndexT>
+  size_t get_component_sizes(const IndexT* p_d_labels,
+                             size_t nrows,
+                             DVector<size_t>& d_v_counts)
+  {
+    DVector<IndexT> d_sorted_l(p_d_labels, p_d_labels+nrows);
+    thrust::sort(d_sorted_l.begin(), d_sorted_l.end());
+
+    size_t counts = thrust::distance(d_sorted_l.begin(),
+                                     thrust::unique(d_sorted_l.begin(), d_sorted_l.end()));
+
+    IndexT* p_d_srt_l = d_sorted_l.data().get();
+
+    d_v_counts.resize(counts);
+    thrust::transform(thrust::device,
+                      d_sorted_l.begin(), d_sorted_l.begin() + counts,  
+                      d_v_counts.begin(),
+                      [p_d_srt_l, counts] __device__ (IndexT indx){
+                        return thrust::count_if(thrust::seq,
+                                                p_d_srt_l, p_d_srt_l+counts,
+                                                [indx] (IndexT label){
+                                                  return label == indx;
+                                                });
+                      });
+    return counts;
+  }
 }//end un-nammed namespace
 
 struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
@@ -165,6 +200,11 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     
     std::vector<gdf_column*> vcols{col_labels.get(), col_verts.get()};
     cudf::table tbl(vcols);//to be passed to the API to be filled
+
+    //dummy test for API using table:
+    //
+    EXPECT_EQ(gdf_dummy(&tbl), GDF_SUCCESS);
+    
     //CAVEAT: col_verts have already been filled!
 
 
@@ -220,6 +260,11 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         cudaDeviceSynchronize();
       }
     strongly_cc_counts.push_back(count);
+
+    DVector<size_t> d_counts;
+    auto count_labels = get_component_sizes(p_d_labels, nrows, d_counts);
+
+    std::cout<<"label count: " << count_labels << "\n";
     
     EXPECT_EQ(status,GDF_SUCCESS);
 
