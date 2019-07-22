@@ -296,6 +296,10 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     myRowCount += otherRowCounts[i];
   }
 
+  std::stringstream ss;
+  ss << "myRowCount=" << myRowCount << " myEdgeCount=" << myEdgeCount;
+  serializeMessage(env, ss.str());
+
   // Each thread allocates space to receive their rows from others
   idx_t *cooRowNew, *cooColNew;
   val_t *cooValNew;
