@@ -243,11 +243,11 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
 
  * @param graph input graph; assumed undirected for weakly CC [in]
  * @param connectivity_type CUGRAPH_WEAK, CUGRAPH_STRONG  [in]
- * @param labels gdf_column for the output labels [out]
+ * @param table of 2 gdf_columns: output labels and vertex indices [out]
  */
  gdf_error gdf_connected_components(gdf_graph *graph,
                                     cugraph_cc_t connectivity_type,
-                                    gdf_column *labels);
+                                    cudf::table *table);
 
  /**
 Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
@@ -270,6 +270,3 @@ gdf_error gdf_snmg_pagerank (
             const size_t n_gpus, 
             const float damping_factor, 
             const int n_iter);
-//
-//TODO: remove:
-gdf_error gdf_dummy(cudf::table* table, int* test = nullptr);

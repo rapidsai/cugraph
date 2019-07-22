@@ -114,6 +114,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     std::vector<int> cooColInd(nnz);
     std::vector<int> cooVal(nnz);
     std::vector<int> labels(m);//for G(V, E), m := |V|
+    std::vector<int> verts(m);
 
     // Read: COO Format
     //
@@ -121,11 +122,18 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_EQ(fclose(fpin),0);
 
     gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
-    gdf_column_ptr col_src, col_dest, col_labels;
+    gdf_column_ptr col_src;
+    gdf_column_ptr col_dest;
+    gdf_column_ptr col_labels;
+    gdf_column_ptr col_verts;
 
     col_src = create_gdf_column(cooRowInd);
     col_dest = create_gdf_column(cooColInd);
     col_labels = create_gdf_column(labels);
+    col_verts = create_gdf_column(verts);
+
+    std::vector<gdf_column*> vcols{col_labels.get(), col_verts.get()};
+    cudf::table table(vcols);
 
     //Get the COO format 1st:
     //
@@ -141,7 +149,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
         hr_clock.start();
         status = gdf_connected_components(G.get(),
                                           CUGRAPH_WEAK,
-                                          col_labels.get());
+                                          &table);
 
         cudaDeviceSynchronize();
         hr_clock.stop(&time_tmp);
@@ -152,7 +160,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
         cudaProfilerStart();
         status = gdf_connected_components(G.get(),
                                           CUGRAPH_WEAK,
-                                          col_labels.get());
+                                          &table);
         cudaProfilerStop();
         cudaDeviceSynchronize();
       }

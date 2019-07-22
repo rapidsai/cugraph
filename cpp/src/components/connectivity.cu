@@ -1,6 +1,8 @@
 #include "weak_cc.cuh"
 #include "scc_matrix.cuh"
 
+#include <thrust/sequence.h>
+
 #include "utilities/graph_utils.cuh"
 #include "utilities/error_utils.h"
 #include <cugraph.h>
@@ -43,7 +45,7 @@ template<typename IndexT,
          int TPB_X = 32>
 std::enable_if_t<std::is_signed<IndexT>::value,gdf_error>
 gdf_connected_components_impl(gdf_graph *graph,
-                              gdf_column *labels,
+                              cudf::table *table,
                               cugraph_cc_t connectivity_type,
                               cudaStream_t stream)
 {
@@ -64,7 +66,9 @@ gdf_connected_components_impl(gdf_graph *graph,
   static auto nnz_ = [](const gdf_graph* G){
     return G->adjList->indices->size;
   };
-
+  
+  gdf_column* labels = table->get_column(0);
+  gdf_column* verts = table->get_column(1);
 
   GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
     
@@ -74,9 +78,9 @@ gdf_connected_components_impl(gdf_graph *graph,
 
   GDF_REQUIRE(col_indices_(graph) != nullptr, GDF_INVALID_API_CALL);
   
-  GDF_REQUIRE(labels != nullptr, GDF_INVALID_API_CALL);
-  
   GDF_REQUIRE(labels->data != nullptr, GDF_INVALID_API_CALL);
+
+  GDF_REQUIRE(verts->data != nullptr, GDF_INVALID_API_CALL);
   
   auto type_id = graph->adjList->offsets->dtype;
   GDF_REQUIRE( type_id == GDF_INT32 || type_id == GDF_INT64, GDF_UNSUPPORTED_DTYPE);
@@ -88,6 +92,8 @@ gdf_connected_components_impl(gdf_graph *graph,
   GDF_REQUIRE( type_id == labels->dtype, GDF_UNSUPPORTED_DTYPE);
 
   IndexT* p_d_labels = static_cast<IndexT*>(labels->data);
+  IndexT* p_d_verts = static_cast<IndexT*>(verts->data);
+  
   const IndexT* p_d_row_offsets = row_offsets_(graph);
   const IndexT* p_d_col_ind = col_indices_(graph);
 
@@ -168,6 +174,11 @@ gdf_connected_components_impl(gdf_graph *graph,
       count = sccd.run_scc(p_d_labels);
       
     }
+
+  //fill the vertex indices column:
+  //
+  thrust::sequence(thrust::device, p_d_verts, p_d_verts + nrows);
+  
   return GDF_SUCCESS;
 }
 
@@ -187,14 +198,26 @@ gdf_connected_components_impl(gdf_graph *graph,
  */
  gdf_error gdf_connected_components(gdf_graph *graph,
                                     cugraph_cc_t connectivity_type,
-                                    gdf_column *labels)  
+                                    cudf::table *table)  
 {
   cudaStream_t stream{nullptr};
+
+  GDF_REQUIRE(table != nullptr, GDF_INVALID_API_CALL);
+  GDF_REQUIRE(table->num_columns() > 1, GDF_INVALID_API_CALL);
   
-  switch( labels->dtype )//currently graph's row offsets, col_indices and labels are same type; that may change in the future
+  gdf_column* labels = table->get_column(0);
+  gdf_column* verts = table->get_column(1);
+
+  GDF_REQUIRE(labels != nullptr, GDF_INVALID_API_CALL);
+  GDF_REQUIRE(verts != nullptr, GDF_INVALID_API_CALL);
+
+  auto dtype = labels->dtype;
+  GDF_REQUIRE( dtype == verts->dtype, GDF_INVALID_API_CALL);
+  
+  switch( dtype )//currently graph's row offsets, col_indices and labels are same type; that may change in the future
     {
     case GDF_INT32:
-      return gdf_connected_components_impl<int32_t>(graph, labels, connectivity_type, stream);
+      return gdf_connected_components_impl<int32_t>(graph, table, connectivity_type, stream);
       //    case GDF_INT64:
       //return gdf_connected_components_impl<int64_t>(graph, labels, connectivity_type, stream);
       // PROBLEM: relies on atomicMin(), which won't work w/ int64_t
@@ -204,9 +227,4 @@ gdf_connected_components_impl(gdf_graph *graph,
       break;//warning eater
     }
   return GDF_UNSUPPORTED_DTYPE;
-}
-
-gdf_error gdf_dummy(cudf::table* tbl, int* test)
-{
-  return GDF_SUCCESS; 
 }

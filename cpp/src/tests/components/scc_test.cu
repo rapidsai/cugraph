@@ -199,11 +199,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     thrust::sequence(thrust::device, begin, begin + m);
     
     std::vector<gdf_column*> vcols{col_labels.get(), col_verts.get()};
-    cudf::table tbl(vcols);//to be passed to the API to be filled
-
-    //dummy test for API using table:
-    //
-    EXPECT_EQ(gdf_dummy(&tbl), GDF_SUCCESS);
+    cudf::table table(vcols);//to be passed to the API to be filled
     
     //CAVEAT: col_verts have already been filled!
 
@@ -243,7 +239,10 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         hr_clock.start();
         //call strongly connected components
         //
-        count = sccd.run_scc(p_d_labels);
+        ///count = sccd.run_scc(p_d_labels);
+        status = gdf_connected_components(G.get(),
+                                          CUGRAPH_STRONG,
+                                          &table);
         
         cudaDeviceSynchronize();
         hr_clock.stop(&time_tmp);
@@ -254,7 +253,10 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         cudaProfilerStart();
         //call strongly connected components
         //
-        count = sccd.run_scc(p_d_labels);
+        ///count = sccd.run_scc(p_d_labels);
+        status = gdf_connected_components(G.get(),
+                                          CUGRAPH_STRONG,
+                                          &table);
         
         cudaProfilerStop();
         cudaDeviceSynchronize();
@@ -295,7 +297,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         
         status = gdf_connected_components(G.get(),
                                           CUGRAPH_WEAK,
-                                          check_labels.get());
+                                          &table);
 
         EXPECT_EQ(status,GDF_SUCCESS);
 
