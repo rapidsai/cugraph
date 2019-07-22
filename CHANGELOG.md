@@ -22,6 +22,7 @@
 - PR #378 cugraph was unable to import device_of_gpu_pointer
 - PR #384 Fixed bug in snmg coo2csr causing error in dask-cugraph tests.
 - PR #382 Disabled vertex id check to allow Azure deployment
+- PR #395 run omp_ge_num_threads in a parallel context
 
 
 # cuGraph 0.8.0 (27 June 2019)

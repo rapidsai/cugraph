@@ -457,8 +457,13 @@ namespace cusort {
       // Used for partitioning the output and ensuring that each GPU sorts a near equal number of elements.
       Length_t average_array_size = (keyCount + num_gpus - 1) / num_gpus;
 
-      int original_number_threads = omp_get_num_threads();
-
+      int original_number_threads = 0;
+#pragma omp parallel
+      {
+        if (omp_get_thread_num() == 0)
+          original_number_threads = omp_get_num_threads();
+      }
+ 
       omp_set_num_threads(num_gpus);
 
 #pragma omp parallel
