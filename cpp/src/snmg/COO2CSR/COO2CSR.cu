@@ -245,6 +245,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     auto zippy = thrust::make_zip_iterator(thrust::make_tuple(cooRowTemp, cooColTemp));
     thrust::sort(rmm::exec_policy(nullptr)->on(nullptr), zippy, zippy + size);
   }
+  cudaDeviceSynchronize();
   cudaCheckError();
 
   // Each thread determines the count of rows it needs to transfer to each other thread
@@ -255,7 +256,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   ALLOC_TRY(&endPositions, sizeof(idx_t) * (p - 1), nullptr);
   for (int j = 0; j < p - 1; j++) {
     idx_t endVertexId = part_offsets[j + 1];
-    if (endVertexId < localMinId) {
+    if (endVertexId <= localMinId) {
       // Write out zero for this position
       writeSingleValue<<<1, 256>>>(endPositions + j, static_cast<idx_t>(0));
     }
@@ -263,7 +264,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
       // Write out size for this position
       writeSingleValue<<<1, 256>>>(endPositions + j, size);
     }
-    else if (endVertexId >= localMinId && endVertexId < localMaxId) {
+    else if (endVertexId > localMinId && endVertexId < localMaxId) {
       dim3 nthreads, nblocks;
       nthreads.x = min(size, static_cast<idx_t>(CUDA_MAX_KERNEL_THREADS));
       nthreads.y = 1;
@@ -298,6 +299,24 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
   std::stringstream ss;
   ss << "myRowCount=" << myRowCount << " myEdgeCount=" << myEdgeCount;
+  serializeMessage(env, ss.str());
+
+  ss.str("");
+  ss << "positions: [";
+  for (int j = 0; j < p + 1; j++)
+    ss << " " << positions[j];
+  ss << "]";
+  serializeMessage(env, ss.str());
+
+  ss.str("");
+  ss << "part_offsets: [";
+  for (int j=0; j < p + 1; j++)
+    ss << " " << part_offsets[j];
+  ss << "]";
+  serializeMessage(env, ss.str());
+
+  ss.str("");
+  ss << "localMinId=" << localMinId << " localMaxId=" << localMaxId;
   serializeMessage(env, ss.str());
 
   // Each thread allocates space to receive their rows from others
