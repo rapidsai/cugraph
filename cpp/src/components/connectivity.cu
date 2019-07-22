@@ -37,9 +37,9 @@
  * @tparam IndexT the numeric type of non-floating point elements
  * @tparam TPB_X the threads to use per block when configuring the kernel
  * @param graph input graph; assumed undirected for weakly CC [in]
- * @param labels gdf_column for the output labels [out]
- * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG
- * @param stream the cuda stream
+ * @param table of 2 gdf_columns: output labels and vertex indices [out]
+ * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
+ * @param stream the cuda stream [in]
  */
 template<typename IndexT,
          int TPB_X = 32>
@@ -184,17 +184,24 @@ gdf_connected_components_impl(gdf_graph *graph,
 
 /**
  * @brief Compute connected components. 
- * The weak version was imported from cuML.
+ * The weak version (for undirected graphs, only) was imported from cuML.
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
  * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
- * code is adapted / truncated from cuML: ml-prims/src/sparse/csr.h
+ * 
+ * The strong version (for directed or undirected graphs) is based on: 
+ * [2] Gilbert, J. et al, 2011. "Graph Algorithms in the Language of Linear Algebra"
  *
- 
+ * C = I | A | A^2 |...| A^k
+ * where matrix multiplication is via semi-ring: 
+ * (combine, reduce) == (&, |) (bitwise ops)
+ * Then: X = C & transpose(C); and finally, apply get_labels(X);
+ *
+ *
  * @param graph input graph; assumed undirected for weakly CC [in]
- * @param connectivity_type CUGRAPH_WEAK, CUGRAPH_STRONG  [in]
- * @param labels gdf_column for the output labels [out]
+ * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
+ * @param table of 2 gdf_columns: output labels and vertex indices [out]
  */
  gdf_error gdf_connected_components(gdf_graph *graph,
                                     cugraph_cc_t connectivity_type,
