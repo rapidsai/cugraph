@@ -30,6 +30,7 @@ namespace cugraph {
 // Function for checking 0-based indexing
 template <typename T>
 gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
+#if 0
     cudaStream_t stream {nullptr};
 
     // min from srcs 
@@ -58,6 +59,7 @@ gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
         std::cerr<< "If this is not intended, please refer to ";
         std::cerr<< "cuGraph renumbering feature." << std::endl;
     }
+#endif
     return GDF_SUCCESS;
 }
 } //namespace cugraph
