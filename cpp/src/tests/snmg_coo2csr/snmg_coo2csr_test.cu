@@ -89,7 +89,7 @@ public:
     std::vector<val_t> csrVal(nnz, 0.0);
 
     // Read
-    ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], NULL, NULL)) , 0)<< "could not read matrix data"<< "\n";
+    ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooColInd[0], &cooRowInd[0], NULL, NULL)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin), 0);
     //ASSERT_EQ( (coo_to_csr<int,val_t> (m, m, nnz, &cooRowInd[0],  &cooColInd[0], NULL, NULL, &csrRowPtr[0], NULL, NULL, NULL)), 0) << "could not covert COO to CSR "<< "\n";
     std::vector<idx_t> cooRowInd_tmp(cooRowInd);
