@@ -30,8 +30,8 @@ def triangles(G):
     count : A 64 bit integer whose value gives the number of triangles in the
       graph.
 
-    Example
-    -------
+    Examples
+    --------
     >>>> M = read_mtx_file(graph_file)
     >>>> sources = cudf.Series(M.row)
     >>>> destinations = cudf.Series(M.col)

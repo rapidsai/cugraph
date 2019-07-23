@@ -50,7 +50,7 @@ def spectralBalancedCutClustering(G,
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
 
-    Example:
+    Examples
     --------
     >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
@@ -107,7 +107,7 @@ def spectralModularityMaximizationClustering(G,
         DF['vertex'] contains the vertex identifiers
         DF['cluster'] contains the cluster assignments
 
-    Example:
+    Examples
     --------
     >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
@@ -147,7 +147,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     score : float
         The computed modularity score
 
-    Example:
+    Examples
     --------
     >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
@@ -184,7 +184,7 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     score : float
         The computed edge cut score
 
-    Example:
+    Examples
     --------
     >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)
@@ -221,7 +221,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     score : float
         The computed ratio cut score
 
-    Example:
+    Examples
     --------
     >>> M = read_mtx_file(graph_file)
     >>> sources = cudf.Series(M.row)

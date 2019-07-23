@@ -34,7 +34,7 @@ def subgraph(G, vertices):
     Sg : cuGraph.Graph
         A graph object containing the subgraph induced by the given vertex set.
 
-    Example:
+    Examples
     --------
     >>> M = ReadMtxFile(graph_file)
     >>> sources = cudf.Series(M.row)
