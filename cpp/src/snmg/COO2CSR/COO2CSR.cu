@@ -68,7 +68,7 @@ void serializeMessage(cugraph::SNMGinfo& env, std::string message){
 
 template<typename idx_t, typename val_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-findStartRange(idx_t n, idx_t* result, idx_t edgeCount, val_t* scanned) {
+findStartRange(idx_t n, idx_t* result, val_t edgeCount, val_t* scanned) {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
     if (scanned[i] < edgeCount && scanned[i + 1] >= edgeCount)
       *result = i + 1;
@@ -213,7 +213,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   cudaCheckError();
 #pragma omp barrier
 
-  // Each thread determines how many edges it will have in it's partition
+  // Each thread determines how many edges it will have in its partition
   idx_t myEndVertex = part_offsets[i + 1];
   unsigned long long int startEdge;
   unsigned long long int endEdge;
