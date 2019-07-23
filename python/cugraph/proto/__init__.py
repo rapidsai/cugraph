@@ -12,5 +12,5 @@
 # limitations under the License.
 
 from cugraph.proto.components import strong_connected_component
-from cugraph.proto.structure import find_bicliques
+from cugraph.proto.structure  import find_bicliques
 
