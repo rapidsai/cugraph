@@ -19,7 +19,8 @@ def test_pagerank():
     gc.collect()
     input_data_path = r"../datasets/karate.csv"
     # Networkx Call
-    pd_df = pd.read_csv(input_data_path, delimiter=' ', names=['src', 'dst', 'value'])
+    pd_df = pd.read_csv(input_data_path, delimiter=' ', 
+                        names=['src', 'dst', 'value'])
     import networkx as nx
     G = nx.Graph()
     for i in range(0,len(pd_df)):
@@ -29,14 +30,16 @@ def test_pagerank():
     # Cugraph snmg pagerank Call
     cluster = LocalCUDACluster(threads_per_worker=1)
     client = Client(cluster)
-    print("Read Input Data.")
     chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(input_data_path, chunksize = chunksize, delimiter=' ', names=['src', 'dst', 'value'], dtype=['int32', 'int32', 'float32'])
-    print("CALLING DASK MG PAGERANK")
+    ddf = dask_cudf.read_csv(input_data_path, chunksize = chunksize, 
+                             delimiter=' ', 
+                             names=['src', 'dst', 'value'], 
+                             dtype=['int32', 'int32', 'float32'])
+
     y = ddf.to_delayed()
     x = client.compute(y)
     wait(x)
-    pr = dcg.pagerank(x, alpha=0.85, max_iter=500)
+    pr = dcg.pagerank(x, alpha=0.85, max_iter=50)
     res_df = pr.compute()
     err = 0
     tol = 1.0e-05

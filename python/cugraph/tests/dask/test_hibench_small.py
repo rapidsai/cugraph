@@ -5,13 +5,14 @@ import gc
 from itertools import product
 import time
 import numpy as np
-
 import pytest
+
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
+
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -39,7 +40,9 @@ def test_pagerank():
     
     t0 = time.time()
     chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(input_data_path, chunksize = chunksize, delimiter='\t', names=['src', 'dst'], dtype=['int32', 'int32'])
+    ddf = dask_cudf.read_csv(input_data_path, chunksize = chunksize, 
+                             delimiter='\t', names=['src', 'dst'], 
+                             dtype=['int32', 'int32'])
     y = ddf.to_delayed()
     x = client.compute(y)
     wait(x)
