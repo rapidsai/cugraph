@@ -19,13 +19,23 @@ with warnings.catch_warnings():
 
 def test_pagerank():
     gc.collect()
-    input_data_path = r"datasets/hibench_small/1/part-00000.csv"
+    input_data_path = r"../datasets/hibench_small/1/part-00000.csv"
+
+    # Networkx Call
+    import pandas as pd
+    pd_df = pd.read_csv(input_data_path, delimiter='\t', names=['src', 'dst'])
+    import networkx as nx
+    G = nx.DiGraph()
+    for i in range(0,len(pd_df)):
+        G.add_edge(pd_df['src'][i],pd_df['dst'][i])
+    nx_pr = nx.pagerank(G, alpha=0.85)
+    nx_pr = sorted(nx_pr.items(), key=lambda x: x[0])
 
     # Cugraph snmg pagerank Call
     cluster = LocalCUDACluster(threads_per_worker=1)
     client = Client(cluster)
     import dask_cudf
-    import dask_cugraph.pagerank as dcg
+    import cugraph.dask.pagerank as dcg
     
     t0 = time.time()
     chunksize = dcg.get_chunksize(input_data_path)
@@ -33,12 +43,18 @@ def test_pagerank():
     y = ddf.to_delayed()
     x = client.compute(y)
     wait(x)
-    print (ddf)
-    ddf = client.submit(ddf.drop_duplicates())
-    print (ddf)
     t1 = time.time()
     print("Reading Csv time: ", t1-t0)
     pr = dcg.pagerank(x, alpha=0.85, max_iter=50)
     t2 = time.time()
     print("Running PR algo time: ", t2-t1)
     res_df = pr.compute()
+
+    # Comparison
+    err = 0
+    tol = 1.0e-05
+    for i in range(len(res_df)):
+        if(abs(res_df['pagerank'][i]-nx_pr[i][1]) > tol*1.1):
+            err = err + 1
+    print("Mismatches:", err)
+    assert err < (0.02*len(res_df))
