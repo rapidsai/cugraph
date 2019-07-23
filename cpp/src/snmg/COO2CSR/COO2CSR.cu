@@ -190,7 +190,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   // Each thread searches the global source node counts prefix sum to find the start of its vertex ID range
   idx_t myStartVertex = 0;
   if (i != 0) {
-    idx_t edgeCount = (globalEdgeCount / p) * i;
+    unsigned long long int edgeCount = (globalEdgeCount / p) * i;
     idx_t* vertexRangeStart;
     ALLOC_TRY(&vertexRangeStart, sizeof(idx_t), nullptr);
     dim3 nthreads, nblocks;
