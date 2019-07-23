@@ -1,17 +1,17 @@
-from dask.distributed import Client, wait
-from dask_cuda import LocalCUDACluster
+import warnings
 import gc
 import dask_cudf
-import cugraph.dask.pagerank as dcg
 import pandas as pd
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
-import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
+    from dask.distributed import Client, wait
+    import cugraph.dask.pagerank as dcg
+    from dask_cuda import LocalCUDACluster
     import networkx as nx
 
 

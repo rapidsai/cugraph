@@ -1,15 +1,18 @@
-from dask.distributed import Client, wait
-from dask_cuda import LocalCUDACluster
+import warnings
 import gc
+import dask_cudf
+import pandas as pd
 import time
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
-import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
+    from dask.distributed import Client, wait
+    import cugraph.dask.pagerank as dcg
+    from dask_cuda import LocalCUDACluster
     import networkx as nx
 
 
@@ -18,7 +21,6 @@ def test_pagerank():
     input_data_path = r"../datasets/hibench_small/1/part-00000.csv"
 
     # Networkx Call
-    import pandas as pd
     pd_df = pd.read_csv(input_data_path, delimiter='\t', names=['src', 'dst'])
     G = nx.DiGraph()
     for i in range(0, len(pd_df)):
@@ -29,8 +31,6 @@ def test_pagerank():
     # Cugraph snmg pagerank Call
     cluster = LocalCUDACluster(threads_per_worker=1)
     client = Client(cluster)
-    import dask_cudf
-    import cugraph.dask.pagerank as dcg
 
     t0 = time.time()
     chunksize = dcg.get_chunksize(input_data_path)
