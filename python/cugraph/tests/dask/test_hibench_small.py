@@ -1,22 +1,17 @@
-import operator
-from dask.distributed import Client, wait, default_client, futures_of
+from dask.distributed import Client, wait
 from dask_cuda import LocalCUDACluster
 import gc
-from itertools import product
 import time
-import numpy as np
-import pytest
-
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
-
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
+
 
 def test_pagerank():
     gc.collect()
@@ -25,10 +20,9 @@ def test_pagerank():
     # Networkx Call
     import pandas as pd
     pd_df = pd.read_csv(input_data_path, delimiter='\t', names=['src', 'dst'])
-    import networkx as nx
     G = nx.DiGraph()
-    for i in range(0,len(pd_df)):
-        G.add_edge(pd_df['src'][i],pd_df['dst'][i])
+    for i in range(0, len(pd_df)):
+        G.add_edge(pd_df['src'][i], pd_df['dst'][i])
     nx_pr = nx.pagerank(G, alpha=0.85)
     nx_pr = sorted(nx_pr.items(), key=lambda x: x[0])
 
@@ -37,11 +31,11 @@ def test_pagerank():
     client = Client(cluster)
     import dask_cudf
     import cugraph.dask.pagerank as dcg
-    
+
     t0 = time.time()
     chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(input_data_path, chunksize = chunksize, 
-                             delimiter='\t', names=['src', 'dst'], 
+    ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
+                             delimiter='\t', names=['src', 'dst'],
                              dtype=['int32', 'int32'])
     y = ddf.to_delayed()
     x = client.compute(y)
