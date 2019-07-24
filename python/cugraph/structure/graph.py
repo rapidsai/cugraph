@@ -30,7 +30,7 @@ class Graph:
         """
         Returns
         -------
-        Graph : cuGraph.Graph.
+        G : cuGraph.Graph.
 
         Examples
         --------
@@ -64,8 +64,9 @@ class Graph:
 
     def add_edge_list(self, source_col, dest_col, value_col=None, copy=False):
         """
-        Create the edge list representation of a Graph. The passed source_col
-        and dest_col arguments wrap gdf_column objects that represent a graph
+        Initialize a graph from the edge list. It is error to call this
+        method on an initialized Graph object. The passed source_col and
+        dest_col arguments wrap gdf_column objects that represent a graph
         using the edge list format.
         Source and destination indices must be in the range [0, V) where V is
         the number of vertices. They must be 32 bit integers. Please refer to
@@ -73,14 +74,13 @@ class Graph:
         requierments. When using cudf.read_csv to load a CSV edge list,
         make sure to set dtype to int32 for the source and destination
         columns.
-        Undirected edges must be stored as directed edges in both directions.
         If value_col is None, an unweighted graph is created. If value_col is
-        not None, an weighted graph is created.
+        not None, a weighted graph is created.
         If copy is False, this function stores references to the passed objects
         pointed by source_col and dest_col. If copy is True, this funcion
         stores references to the deep-copies of the passed objects pointed by
-        source_col and dest_col. If this class instance already stores a graph,
-        invoking this function raises an error.
+        source_col and dest_col.
+        Undirected edges must be stored as directed edges in both directions.
 
         Parameters
         ----------
@@ -177,17 +177,17 @@ class Graph:
 
     def add_adj_list(self, offset_col, index_col, value_col=None, copy=False):
         """
-        Create the adjacency list representation of a Graph. The passed
-        offset_col and index_col arguments wrap gdf_column objects that
-        represent a graph using the adjacency list format. If value_col is
-        None, an unweighted graph is created. If value_col is not None, an
-        weighted graph is created. If copy is False, this function stores
-        references to the passed objects pointed by offset_col and index_col.
-        If copy is True, this funcion stores references to the deep-copies of
-        the passed objects pointed by offset_col and index_col. If this class
-        instance already stores a graph, invoking this function raises an
-        error. Undirected edges must be stored as directed edges in both
-        directions.
+        Initialize a graph from the adjacency list. It is error to call this
+        method on an initialized Graph object. The passed offset_col and
+        index_col arguments wrap gdf_column objects that represent a graph
+        using the adjacency list format.
+        If value_col is None, an unweighted graph is created. If value_col is
+        not None, a weighted graph is created.
+        If copy is False, this function stores references to the passed objects
+        pointed by offset_col and index_col. If copy is True, this funcion
+        stores references to the deep-copies of the passed objects pointed by
+        offset_col and index_col.
+        Undirected edges must be stored as directed edges in both directions.
 
         Parameters
         ----------
@@ -284,8 +284,9 @@ class Graph:
 
     def add_transposed_adj_list(self):
         """
-        Compute the transposed adjacency list from the edge list and add it to
-        the existing graph.
+        Compute the transposed adjacency list. It is error to call this method
+        on an uninitialized Graph object or a Graph object without an existing
+        edge list.
         """
         graph_wrapper.add_transposed_adj_list(self.graph_ptr)
 
@@ -306,17 +307,16 @@ class Graph:
 
     def get_two_hop_neighbors(self):
         """
-        Return a dataframe containing vertex pairs such that each pair of
-        vertices is connected by a path of two hops in the graph. The resulting
-        pairs are returned in sorted order.
+        Compute vertex pairs that are two hop apart. The resulting pairs are
+        sorted before returning.
 
         Returns
         -------
         df : cudf.DataFrame
-            df['first'] :
-                the first vertex id of a pair
-            df['second'] :
-                the second vertex id of a pair
+            df['first'] : cudf.Series
+                the first vertex id of a pair.
+            df['second'] : cudf.Series
+                the second vertex id of a pair.
         """
         df = graph_wrapper.get_two_hop_neighbors(self.graph_ptr)
 
@@ -324,7 +324,7 @@ class Graph:
 
     def number_of_vertices(self):
         """
-        Get the number of vertices in the graph
+        Get the number of vertices in the graph.
         """
         num_vertices = graph_wrapper.number_of_vertices(self.graph_ptr)
 
@@ -339,7 +339,7 @@ class Graph:
 
     def number_of_edges(self):
         """
-        Get the number of edges in the graph
+        Get the number of edges in the graph.
         """
         num_edges = graph_wrapper.number_of_edges(self.graph_ptr)
 
@@ -347,8 +347,11 @@ class Graph:
 
     def in_degree(self, vertex_subset=None):
         """
-        Calculates and returns the in-degree of vertices. Vertex in-degree
-        is the number of edges pointing in to the vertex.
+        Compute veretx in-degree. Vertex in-degree is the number of edges
+        pointing into the vertex. By default, this method computes vertex
+        degrees for the entire set of vertices. If vertex_subset is provided,
+        this method optionally filters out all but those listed in
+        vertex_subset.
 
         Parameters
         ----------
@@ -364,10 +367,11 @@ class Graph:
             relative to the adjacency list, or that given by the specified
             vertex_subset.
 
-            df['vertex'] :
-                The vertex IDs (will be identical to vertex_subset if specified).
-            df['degree'] :
-                The computed in-degree of the corresponding vertex
+            df['vertex'] : cudf.Series
+                The vertex IDs (will be identical to vertex_subset if
+                specified).
+            df['degree'] : cudf.Series
+                The computed in-degree of the corresponding vertex.
 
         Examples
         --------
@@ -390,8 +394,11 @@ class Graph:
 
     def out_degree(self, vertex_subset=None):
         """
-        Calculates and returns the out-degree of vertices. Vertex out-degree
-        is the number of edges pointing out from the vertex.
+        Compute veretx out-degree. Vertex out-degree is the number of edges
+        pointing out from the vertex. By default, this method computes vertex
+        degrees for the entire set of vertices. If vertex_subset is provided,
+        this method optionally filters out all but those listed in
+        vertex_subset.
 
         Parameters
         ----------
@@ -407,10 +414,11 @@ class Graph:
             relative to the adjacency list, or that given by the specified
             vertex_subset.
 
-            df['vertex'] :
-                The vertex IDs (will be identical to vertex_subset if specified)
-            df['degree'] :
-                The computed out-degree of the corresponding vertex
+            df['vertex'] : cudf.Series
+                The vertex IDs (will be identical to vertex_subset if
+                specified).
+            df['degree'] : cudf.Series
+                The computed out-degree of the corresponding vertex.
 
         Examples
         --------
@@ -433,8 +441,10 @@ class Graph:
 
     def degree(self, vertex_subset=None):
         """
-        Calculates and returns the degree of vertices. Vertex degree
-        is the number of edges adjacent to that vertex.
+        Compute veretx degree. By default, this method computes vertex
+        degrees for the entire set of vertices. If vertex_subset is provided,
+        this method optionally filters out all but those listed in
+        vertex_subset.
 
         Parameters
         ----------
@@ -450,10 +460,11 @@ class Graph:
             relative to the adjacency list, or that given by the specified
             vertex_subset.
 
-            df['vertex'] :
-                The vertex IDs (will be identical to vertex_subset if specified)
-            df['degree'] :
-                The computed degree of the corresponding vertex
+            df['vertex'] : cudf.Series
+                The vertex IDs (will be identical to vertex_subset if
+                specified).
+            df['degree'] : cudf.Series
+                The computed degree of the corresponding vertex.
 
         Examples
         --------
@@ -476,9 +487,10 @@ class Graph:
 
     def degrees(self, vertex_subset=None):
         """
-        Calculates and returns the in and out degree of vertices, by default
-        computes for all vertices, or optionally filters out all but those
-        listed in vertex_subset.
+        Compute veretx in-degree and out-degree. By default, this method
+        computes vertex degrees for the entire set of vertices. If
+        vertex_subset is provided, this method optionally filters out all but
+        those listed in vertex_subset.
 
         Parameters
         ----------
@@ -490,13 +502,13 @@ class Graph:
         -------
         df : cudf.DataFrame
 
-            df['vertex'] :
+            df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
-                specified)
-            df['in_degree'] :
-                The in-degree of the vertex
-            df['out_degree'] :
-                The out-degree of the vertex
+                specified).
+            df['in_degree'] : cudf.Series
+                The in-degree of the vertex.
+            df['out_degree'] : cudf.Series
+                The out-degree of the vertex.
 
         Examples
         --------
