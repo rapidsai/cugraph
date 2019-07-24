@@ -37,11 +37,11 @@ def sssp(G, source):
     Returns
     -------
     df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
+        df['vertex'][i] gives the vertex id of the i'th vertex.
         df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex
+        starting vertex.
         df['predecessor'][i] gives the vertex id of the vertex that was reached
-        before the i'th vertex in the traversal
+        before the i'th vertex in the traversal.
 
     Examples
     --------
@@ -70,11 +70,11 @@ def filter_unreachable(df):
     Returns
     -------
     df : filtered cudf.DataFrame with only reachable vertices
-        df['vertex'][i] gives the vertex id of the i'th vertex
+        df['vertex'][i] gives the vertex id of the i'th vertex.
         df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex
+        starting vertex.
         df['predecessor'][i] gives the vertex that was reached before the i'th
-        vertex in the traversal
+        vertex in the traversal.
     """
     if('distance' not in df):
         raise KeyError("No distance column found in input data frame")
