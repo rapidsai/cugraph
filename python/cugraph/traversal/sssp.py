@@ -29,10 +29,11 @@ def sssp(G, source):
     Parameters
     ----------
     graph : cuGraph.Graph
-       cuGraph graph descriptor with connectivity information. Edge weights, if
-       present, should be single or double precision floating point values
+        cuGraph graph descriptor with connectivity information. Edge weights, if
+        present, should be single or double precision floating point values
     source : int
-       Index of the source vertex
+        Index of the source vertex
+
     Returns
     -------
     df : cudf.DataFrame
@@ -63,7 +64,9 @@ def filter_unreachable(df):
 
     Parameters
     ----------
-    df : cudf.DataFrame that is the output of SSSP or BFS
+    df : cudf.DataFrame
+        cudf.DataFrame that is the output of SSSP or BFS
+
     Returns
     -------
     df : filtered cudf.DataFrame with only reachable vertices

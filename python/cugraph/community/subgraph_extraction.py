@@ -25,7 +25,7 @@ def subgraph(G, vertices):
     Parameters
     ----------
     G : cuGraph.Graph
-       cuGraph graph descriptor
+        cuGraph graph descriptor
     vertices : cudf.Series
         Specifies the vertices of the induced subgraph
 

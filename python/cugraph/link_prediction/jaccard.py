@@ -31,33 +31,33 @@ def jaccard(input_graph, first=None, second=None):
     Parameters
     ----------
     graph : cuGraph.Graph
-      cuGraph graph descriptor, should contain the connectivity information as
-      an edge list (edge weights are not used for this algorithm). The graph
-      should be undirected where an undirected edge is represented by a
-      directed edge in both direction. The adjacency list will be computed if
-      not already present.
-
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm). The
+        graph should be undirected where an undirected edge is represented by a
+        directed edge in both direction. The adjacency list will be computed if
+        not already present.
     first : cudf.Series
-      Specifies the first vertices of each pair of vertices to compute for,
-      must be specified along with second.
-
+        Specifies the first vertices of each pair of vertices to compute for,
+        must be specified along with second.
     second : cudf.Series
-      Specifies the second vertices of each pair of vertices to compute for,
-      must be specified along with first.
+        Specifies the second vertices of each pair of vertices to compute for,
+        must be specified along with first.
 
     Returns
     -------
     df  : cudf.DataFrame
-      GPU data frame of size E (the default) or the size of the given pairs
-      (first, second) containing the Jaccard weights. The ordering is relative
-      to the adjacency list, or that given by the specified vertex pairs.
+        GPU data frame of size E (the default) or the size of the given pairs
+        (first, second) containing the Jaccard weights. The ordering is relative
+        to the adjacency list, or that given by the specified vertex pairs.
 
-      df['source']: The source vertex ID (will be identical to first if
-        specified)
-      df['destination']: The destination vertex ID (will be identical to second
-        if specified)
-      df['jaccard_coeff']: The computed Jaccard coefficient between the source
-        and destination vertices
+        df['source'] :
+            The source vertex ID (will be identical to first if specified)
+        df['destination'] :
+            The destination vertex ID (will be identical to second if
+            specified)
+        df['jaccard_coeff'] :
+            The computed Jaccard coefficient between the source and destination
+            vertices
 
     Examples
     --------

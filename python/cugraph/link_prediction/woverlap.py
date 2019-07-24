@@ -31,33 +31,36 @@ def overlap_w(input_graph, weights, first=None, second=None):
     Parameters
     ----------
     input_graph : cuGraph.Graph
-      cuGraph graph descriptor, should contain the connectivity information as
-      an edge list (edge weights are not used for this algorithm). The
-      adjacency list will be computed if not already present.
+        cuGraph graph descriptor, should contain the connectivity information as
+        an edge list (edge weights are not used for this algorithm). The
+        adjacency list will be computed if not already present.
 
     weights : cudf.Series
-      Specifies the weights to be used for each vertex.
+        Specifies the weights to be used for each vertex.
 
     first : cudf.Series
-      Specifies the first vertices of each pair of vertices to compute for,
-      must be specified along with second.
+        Specifies the first vertices of each pair of vertices to compute for,
+        must be specified along with second.
 
     second : cudf.Series
-      Specifies the second vertices of each pair of vertices to compute for,
-      must be specified along with first.
+        Specifies the second vertices of each pair of vertices to compute for,
+        must be specified along with first.
 
     Returns
     -------
     df  : cudf.DataFrame
-      GPU data frame of size E (the default) or the size of the given pairs
-      (first, second) containing the overlap coefficients. The ordering is
-      relative to the adjacency list, or that given by the specified vertex
-      pairs.
+        GPU data frame of size E (the default) or the size of the given pairs
+        (first, second) containing the overlap coefficients. The ordering is
+        relative to the adjacency list, or that given by the specified vertex
+        pairs.
 
-      df['source']: The source vertex ID
-      df['destination']: The destination vertex ID
-      df['overlap_coeff']: The computed weighted Overlap coefficient between
-          the source and destination vertices.
+        df['source'] :
+            The source vertex ID
+        df['destination'] :
+            The destination vertex ID
+        df['overlap_coeff'] :
+            The computed weighted Overlap coefficient between the source and
+            destination vertices.
 
     Examples
     --------

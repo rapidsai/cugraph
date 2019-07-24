@@ -22,19 +22,19 @@ def louvain(input_graph):
     Parameters
     ----------
     input_graph : cuGraph.Graph
-      cuGraph graph descriptor, should contain the connectivity information as
-      an edge list.
-      The adjacency list will be computed if not already present. The graph
-      should be undirected where an undirected edge is represented by a
-      directed edge in both direction.
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list.
+        The adjacency list will be computed if not already present. The graph
+        should be undirected where an undirected edge is represented by a
+        directed edge in both direction.
 
     Returns
     -------
-    parts, modularity_score  : cudf.DataFrame
-      parts: GPU data frame of size V containing two columns: the
-          vertex id and the partition id it is assigned to.
-      modularity_score: a double value containing the modularity score of the
-          partitioning
+    parts : cudf.DataFrame
+        GPU data frame of size V containing two columns the vertex id and the
+        partition id it is assigned to.
+    modularity_score :
+        a double value containing the modularity score of the partitioning
 
     Examples
     --------

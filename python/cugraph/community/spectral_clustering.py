@@ -28,27 +28,31 @@ def spectralBalancedCutClustering(G,
     Parameters
     ----------
     G : cuGraph.Graph
-       cuGraph graph descriptor
+        cuGraph graph descriptor
     num_clusters : integer
-        Specifies the number of clusters to find
+         Specifies the number of clusters to find
     num_eigen_vects : integer
-        Specifies the number of eigenvectors to use. Must be lower or equal to
-        num_clusters.
+         Specifies the number of eigenvectors to use. Must be lower or equal to
+         num_clusters.
     evs_tolerance: float
-        Specifies the tolerance to use in the eigensolver
+         Specifies the tolerance to use in the eigensolver
     evs_max_iter: integer
-        Specifies the maximum number of iterations for the eigensolver
+         Specifies the maximum number of iterations for the eigensolver
     kmean_tolerance: float
-        Specifies the tolerance to use in the k-means solver
+         Specifies the tolerance to use in the k-means solver
     kmean_max_iter: integer
-        Specifies the maximum number of iterations for the k-means solver
+         Specifies the maximum number of iterations for the k-means solver
 
     Returns
     -------
-    DF : GPU data frame containing two cudf.Series of size V: the vertex
+    df :
+        GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding cluster assignments.
-        DF['vertex'] contains the vertex identifiers
-        DF['cluster'] contains the cluster assignments
+
+        df['vertex'] :
+            contains the vertex identifiers
+        df['cluster'] :
+            contains the cluster assignments
 
     Examples
     --------
@@ -86,26 +90,28 @@ def spectralModularityMaximizationClustering(G,
     Parameters
     ----------
     G : cuGraph.Graph
-       cuGraph graph descriptor
+        cuGraph graph descriptor
     num_clusters : integer
-        Specifies the number of clusters to find
+         Specifies the number of clusters to find
     num_eigen_vects : integer
-        Specifies the number of eigenvectors to use. Must be lower or equal to
-        num_clusters
+         Specifies the number of eigenvectors to use. Must be lower or equal to
+         num_clusters
     evs_tolerance: float
-        Specifies the tolerance to use in the eigensolver
+         Specifies the tolerance to use in the eigensolver
     evs_max_iter: integer
-        Specifies the maximum number of iterations for the eigensolver
+         Specifies the maximum number of iterations for the eigensolver
     kmean_tolerance: float
-        Specifies the tolerance to use in the k-means solver
+         Specifies the tolerance to use in the k-means solver
     kmean_max_iter: integer
-        Specifies the maximum number of iterations for the k-means solver
+         Specifies the maximum number of iterations for the k-means solver
 
     Returns
     -------
     Clustering : cudf.DataFrame
-        DF['vertex'] contains the vertex identifiers
-        DF['cluster'] contains the cluster assignments
+        df['vertex'] :
+            contains the vertex identifiers
+        df['cluster'] :
+            contains the cluster assignments
 
     Examples
     --------
@@ -136,7 +142,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     Parameters
     ----------
     G : cuGraph.Graph
-       cuGraph graph descriptor
+        cuGraph graph descriptor
     n_clusters : integer
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
@@ -173,7 +179,7 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     Parameters
     ----------
     G : cuGraph.Graph
-       cuGraph graph descriptor
+        cuGraph graph descriptor
     n_clusters : integer
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
@@ -210,7 +216,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     Parameters
     ----------
     G : cuGraph.Graph
-       cuGraph graph descriptor
+        cuGraph graph descriptor
     n_clusters : integer
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series

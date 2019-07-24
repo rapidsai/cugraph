@@ -31,6 +31,7 @@ class Graph:
         Returns
         -------
         Graph : cuGraph.Graph.
+
         Examples
         --------
         >>> import cuGraph
@@ -81,7 +82,6 @@ class Graph:
         source_col and dest_col. If this class instance already stores a graph,
         invoking this function raises an error.
 
-
         Parameters
         ----------
         source_col : cudf.Series
@@ -95,7 +95,7 @@ class Graph:
             Destination indices must be in the range [0, V) (V: number of
             vertices).
             Destination indices must be 32 bit integers.
-        value_col(optional) : cudf.Series
+        value_col : cudf.Series, optional
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
@@ -201,7 +201,7 @@ class Graph:
             The gdf column contains the destination index for each edge.
             Destination indices must be in the range [0, V) (V: number of
             vertices).
-        value_col(optional) : cudf.Series
+        value_col : cudf.Series, optional
             This pointer can be ``none``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
@@ -312,9 +312,11 @@ class Graph:
 
         Returns
         -------
-        Two hop neighbors : cudf.DataFrame
-            df['first'] the first vertex id of a pair
-            df['second'] the second vertex id of a pair
+        df : cudf.DataFrame
+            df['first'] :
+                the first vertex id of a pair
+            df['second'] :
+                the second vertex id of a pair
         """
         df = graph_wrapper.get_two_hop_neighbors(self.graph_ptr)
 
@@ -350,21 +352,22 @@ class Graph:
 
         Parameters
         ----------
-        vertex_subset(optional, default=all vertices) : cudf.Series or
-        iterable container
-            A container of vertices for displaying corresponding in-degree
+        vertex_subset : cudf.Series or iterable container, optional
+            A container of vertices for displaying corresponding in-degree.
+            If not set, degrees are computed for the entire set of vertices.
 
         Returns
         -------
-        df  : cudf.DataFrame
+        df : cudf.DataFrame
             GPU data frame of size N (the default) or the size of the given
             vertices (vertex_subset) containing the in_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
 
-        df['vertex']: The vertex IDs (will be identical to vertex_subset if
-            specified)
-        df['degree']: The computed in-degree of the corresponding vertex
+            df['vertex'] :
+                The vertex IDs (will be identical to vertex_subset if specified).
+            df['degree'] :
+                The computed in-degree of the corresponding vertex
 
         Examples
         --------
@@ -392,21 +395,22 @@ class Graph:
 
         Parameters
         ----------
-        vertex_subset(optional, default=all vertices) : cudf.Series or iterable
-        container
-            A container of vertices for displaying corresponding out-degree
+        vertex_subset : cudf.Series or iterable container, optional
+            A container of vertices for displaying corresponding out-degree.
+            If not set, degrees are computed for the entire set of vertices.
 
         Returns
         -------
-        df  : cudf.DataFrame
-        GPU data frame of size N (the default) or the size of the given
-        vertices (vertex_subset) containing the out_degree. The ordering is
-        relative to the adjacency list, or that given by the specified
-        vertex_subset.
+        df : cudf.DataFrame
+            GPU data frame of size N (the default) or the size of the given
+            vertices (vertex_subset) containing the out_degree. The ordering is
+            relative to the adjacency list, or that given by the specified
+            vertex_subset.
 
-        df['vertex']: The vertex IDs (will be identical to vertex_subset if
-            specified)
-        df['degree']: The computed out-degree of the corresponding vertex
+            df['vertex'] :
+                The vertex IDs (will be identical to vertex_subset if specified)
+            df['degree'] :
+                The computed out-degree of the corresponding vertex
 
         Examples
         --------
@@ -434,21 +438,22 @@ class Graph:
 
         Parameters
         ----------
-        vertex_subset(optional, default=all vertices) : cudf.Series or iterable
-        container
-            A container of vertices for displaying corresponding degree
+        vertex_subset : cudf.Series or iterable container, optional
+            A container of vertices for displaying corresponding degree. If not
+            set, degrees are computed for the entire set of vertices.
 
         Returns
         -------
-        df  : cudf.DataFrame
-        GPU data frame of size N (the default) or the size of the given
-        vertices (vertex_subset) containing the degree. The ordering is
-        relative to the adjacency list, or that given by the specified
-        vertex_subset.
+        df : cudf.DataFrame
+            GPU data frame of size N (the default) or the size of the given
+            vertices (vertex_subset) containing the degree. The ordering is
+            relative to the adjacency list, or that given by the specified
+            vertex_subset.
 
-        df['vertex']: The vertex IDs (will be identical to vertex_subset if
-            specified)
-        df['degree']: The computed degree of the corresponding vertex
+            df['vertex'] :
+                The vertex IDs (will be identical to vertex_subset if specified)
+            df['degree'] :
+                The computed degree of the corresponding vertex
 
         Examples
         --------
@@ -477,17 +482,21 @@ class Graph:
 
         Parameters
         ----------
-        vertex_subset(optional, default=all vertices): cudf.Series or iterable
-        container
-            A container of vertices for displaying corresponding degree
+        vertex_subset : cudf.Series or iterable container, optional
+            A container of vertices for displaying corresponding degree. If not
+            set, degrees are computed for the entire set of vertices.
 
         Returns
         -------
         df : cudf.DataFrame
-            df['vertex']: The vertex IDs (will be identical to vertex_subset if
+
+            df['vertex'] :
+                The vertex IDs (will be identical to vertex_subset if
                 specified)
-            df['in_degree']: The in-degree of the vertex
-            df['out_degree']: The out-degree of the vertex
+            df['in_degree'] :
+                The in-degree of the vertex
+            df['out_degree'] :
+                The out-degree of the vertex
 
         Examples
         --------

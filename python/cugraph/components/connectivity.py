@@ -22,11 +22,12 @@ def weakly_connected_components(G):
     Parameters
     ----------
     G : cugraph.Graph
-      cuGraph graph descriptor, should contain the connectivity information as
-      an edge list (edge weights are not used for this algorithm). Currently,
-      the graph should be undirected where an undirected edge is represented by
-      a directed edge in both directions. The adjacency list will be computed
-      if not already present. The number of vertices should fit into a 32b int.
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm).
+        Currently, the graph should be undirected where an undirected edge is
+        represented by a directed edge in both directions. The adjacency list
+        will be computed if not already present. The number of vertices should
+        fit into a 32b int.
 
     Returns
     -------

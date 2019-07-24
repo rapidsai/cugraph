@@ -23,21 +23,23 @@ def from_cudf_edgelist(df, source='source', target='target', weight=None):
     Return a new graph created from the edge list representaion. This function
     is added for NetworkX compatibility (this function is a RAPIDS version of
     NetworkX's from_pandas_edge_list()).
+
     Parameters
     ----------
     df : cudf.DataFrame
         This cudf.DataFrame contains columns storing edge source vertices,
-        destination (or target following NetworkX's terminology) vertices,
-        and (optional) weights.
+        destination (or target following NetworkX's terminology) vertices, and
+        (optional) weights.
     source : string or integer
         This is used to index the source column.
     target : string or integer
-        This is used to index the destination (or target following
-        NetworkX's terminology) column.
-    weight(optional) : string or integer
-        This pointer can be ``none``.
-        If not, this is used to index the weight column.
+        This is used to index the destination (or target following NetworkX's
+        terminology) column.
+    weight : string or integer, optional
+        This pointer can be ``none``. If not, this is used to index the weight
+        column.
     """
+
     G = Graph()
 
     if weight is None:
