@@ -29,10 +29,10 @@ def sssp(G, source):
     Parameters
     ----------
     graph : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. Edge weights, if
-        present, should be single or double precision floating point values
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
     source : int
-        Index of the source vertex
+        Index of the source vertex.
 
     Returns
     -------

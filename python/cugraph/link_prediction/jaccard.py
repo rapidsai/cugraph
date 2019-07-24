@@ -47,8 +47,9 @@ def jaccard(input_graph, first=None, second=None):
     -------
     df  : cudf.DataFrame
         GPU data frame of size E (the default) or the size of the given pairs
-        (first, second) containing the Jaccard weights. The ordering is relative
-        to the adjacency list, or that given by the specified vertex pairs.
+        (first, second) containing the Jaccard weights. The ordering is
+        relative to the adjacency list, or that given by the specified vertex
+        pairs.
 
         df['source'] : cudf.Series
             The source vertex ID (will be identical to first if specified)

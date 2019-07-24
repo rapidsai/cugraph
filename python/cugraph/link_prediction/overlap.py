@@ -31,8 +31,8 @@ def overlap(input_graph, first=None, second=None):
     Parameters
     ----------
     graph : cuGraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information as
-        an edge list (edge weights are not used for this algorithm). The
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
     first : cudf.Series
         Specifies the first vertices of each pair of vertices to compute for,
@@ -50,12 +50,13 @@ def overlap(input_graph, first=None, second=None):
         pairs.
 
         df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified)
+            The source vertex ID (will be identical to first if specified).
         df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if specified)
+            The destination vertex ID (will be identical to second if
+            specified).
         df['overlap_coeff'] : cudf.Series
             The computed Overlap coefficient between the source and destination
-            vertices
+            vertices.
 
     Examples
     --------

@@ -31,8 +31,8 @@ def overlap_w(input_graph, weights, first=None, second=None):
     Parameters
     ----------
     input_graph : cuGraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information as
-        an edge list (edge weights are not used for this algorithm). The
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
 
     weights : cudf.Series
@@ -48,7 +48,7 @@ def overlap_w(input_graph, weights, first=None, second=None):
 
     Returns
     -------
-    df  : cudf.DataFrame
+    df : cudf.DataFrame
         GPU data frame of size E (the default) or the size of the given pairs
         (first, second) containing the overlap coefficients. The ordering is
         relative to the adjacency list, or that given by the specified vertex
