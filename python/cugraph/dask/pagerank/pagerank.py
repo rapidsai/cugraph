@@ -2,8 +2,8 @@ import cugraph
 import random
 import dask_cudf as dc
 from collections import defaultdict
-from dask_cugraph.core import new_ipc_thread, parse_host_port
-from dask_cugraph.core import device_of_devicendarray, get_device_id
+from cugraph.dask.core import new_ipc_thread, parse_host_port
+from cugraph.dask.core import device_of_devicendarray, get_device_id
 import os
 from dask.distributed import wait, default_client
 from toolz import first
