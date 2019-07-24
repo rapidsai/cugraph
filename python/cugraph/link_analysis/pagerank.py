@@ -43,9 +43,9 @@ def pagerank(G,
     personalization : cudf.Dataframe
         GPU Dataframe containing the personalizatoin information.
 
-        personalization['vertex'] :
+        personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
-        personalization['values'] :
+        personalization['values'] : cudf.Series
             Personalization values for vertices
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
@@ -64,9 +64,9 @@ def pagerank(G,
     nstart : cudf.Dataframe
         GPU Dataframe containing the initial guess for pagerank.
 
-        nstart['vertex'] :
+        nstart['vertex'] : cudf.Series
             Subset of vertices of graph for initial guess for pagerank values
-        nstart['values'] :
+        nstart['values'] : cudf.Series
             Pagerank values for vertices
 
     Returns

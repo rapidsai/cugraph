@@ -27,7 +27,7 @@ def triangles(G):
 
     Returns
     -------
-    count :
+    count : int64
         A 64 bit integer whose value gives the number of triangles in the
         graph.
 

@@ -49,11 +49,11 @@ def overlap(input_graph, first=None, second=None):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] :
+        df['source'] : cudf.Series
             The source vertex ID (will be identical to first if specified)
-        df['destination'] :
+        df['destination'] : cudf.Series
             The destination vertex ID (will be identical to second if specified)
-        df['overlap_coeff'] :
+        df['overlap_coeff'] : cudf.Series
             The computed Overlap coefficient between the source and destination
             vertices
 

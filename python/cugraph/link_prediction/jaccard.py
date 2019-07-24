@@ -50,12 +50,12 @@ def jaccard(input_graph, first=None, second=None):
         (first, second) containing the Jaccard weights. The ordering is relative
         to the adjacency list, or that given by the specified vertex pairs.
 
-        df['source'] :
+        df['source'] : cudf.Series
             The source vertex ID (will be identical to first if specified)
-        df['destination'] :
+        df['destination'] : cudf.Series
             The destination vertex ID (will be identical to second if
             specified)
-        df['jaccard_coeff'] :
+        df['jaccard_coeff'] : cudf.Series
             The computed Jaccard coefficient between the source and destination
             vertices
 

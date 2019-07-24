@@ -33,8 +33,9 @@ def louvain(input_graph):
     parts : cudf.DataFrame
         GPU data frame of size V containing two columns the vertex id and the
         partition id it is assigned to.
-    modularity_score :
-        a double value containing the modularity score of the partitioning
+    modularity_score : float
+        a floating point number containing the modularity score of the
+        partitioning.
 
     Examples
     --------

@@ -45,13 +45,13 @@ def spectralBalancedCutClustering(G,
 
     Returns
     -------
-    df :
+    df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding cluster assignments.
 
-        df['vertex'] :
+        df['vertex'] : cudf.Series
             contains the vertex identifiers
-        df['cluster'] :
+        df['cluster'] : cudf.Series
             contains the cluster assignments
 
     Examples
@@ -108,9 +108,9 @@ def spectralModularityMaximizationClustering(G,
     Returns
     -------
     Clustering : cudf.DataFrame
-        df['vertex'] :
+        df['vertex'] : cudf.Series
             contains the vertex identifiers
-        df['cluster'] :
+        df['cluster'] : cudf.Series
             contains the cluster assignments
 
     Examples
