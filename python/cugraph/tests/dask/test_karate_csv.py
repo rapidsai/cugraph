@@ -47,3 +47,6 @@ def test_pagerank():
             err = err + 1
     print("Mismatches:", err)
     assert err < (0.01*len(res_df))
+
+    client.close()
+    cluster.close()
