@@ -68,7 +68,7 @@ void serializeMessage(cugraph::SNMGinfo& env, std::string message){
 
 template<typename idx_t, typename val_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-findStartRange(idx_t n, idx_t* result, idx_t edgeCount, val_t* scanned) {
+findStartRange(idx_t n, idx_t* result, val_t edgeCount, val_t* scanned) {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
     if (scanned[i] < edgeCount && scanned[i + 1] >= edgeCount)
       *result = i + 1;
@@ -190,7 +190,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   // Each thread searches the global source node counts prefix sum to find the start of its vertex ID range
   idx_t myStartVertex = 0;
   if (i != 0) {
-    idx_t edgeCount = (globalEdgeCount / p) * i;
+    unsigned long long int edgeCount = (globalEdgeCount / p) * i;
     idx_t* vertexRangeStart;
     ALLOC_TRY(&vertexRangeStart, sizeof(idx_t), nullptr);
     dim3 nthreads, nblocks;
@@ -213,7 +213,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   cudaCheckError();
 #pragma omp barrier
 
-  // Each thread determines how many edges it will have in it's partition
+  // Each thread determines how many edges it will have in its partition
   idx_t myEndVertex = part_offsets[i + 1];
   unsigned long long int startEdge;
   unsigned long long int endEdge;
@@ -245,6 +245,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     auto zippy = thrust::make_zip_iterator(thrust::make_tuple(cooRowTemp, cooColTemp));
     thrust::sort(rmm::exec_policy(nullptr)->on(nullptr), zippy, zippy + size);
   }
+  cudaDeviceSynchronize();
   cudaCheckError();
 
   // Each thread determines the count of rows it needs to transfer to each other thread
@@ -255,7 +256,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   ALLOC_TRY(&endPositions, sizeof(idx_t) * (p - 1), nullptr);
   for (int j = 0; j < p - 1; j++) {
     idx_t endVertexId = part_offsets[j + 1];
-    if (endVertexId < localMinId) {
+    if (endVertexId <= localMinId) {
       // Write out zero for this position
       writeSingleValue<<<1, 256>>>(endPositions + j, static_cast<idx_t>(0));
     }
@@ -263,7 +264,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
       // Write out size for this position
       writeSingleValue<<<1, 256>>>(endPositions + j, size);
     }
-    else if (endVertexId >= localMinId && endVertexId < localMaxId) {
+    else if (endVertexId > localMinId && endVertexId < localMaxId) {
       dim3 nthreads, nblocks;
       nthreads.x = min(size, static_cast<idx_t>(CUDA_MAX_KERNEL_THREADS));
       nthreads.y = 1;
