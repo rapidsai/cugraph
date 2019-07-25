@@ -135,8 +135,8 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
         Alpha should be greater than 0.0 and strictly lower than 1.0.
     max_iter : int
         The maximum number of iterations before an answer is returned.
-        If this value is lower or equal to 0 cuGraph will use the default value,
-        which is 30.
+        If this value is lower or equal to 0 cuGraph will use the default
+        value, which is 30.
 
     Returns
     -------
