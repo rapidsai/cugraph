@@ -134,7 +134,7 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
        Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
        Alpha should be greater than 0.0 and strictly lower than 1.0.
     max_iter : int
-       The maximum number of iterations before an answer is returned. 
+       The maximum number of iterations before an answer is returned.
        If this value is lower or equal to 0 cuGraph will use the default value,
        which is 30.
 
@@ -147,11 +147,13 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
     Examples
     --------
     >>> import dask_cugraph.pagerank as dcg
-    >>> chunksize = dcg.get_chunksize(input_path)
-    >>> ddf = dask_cudf.read_csv(input_path, chunksize = chunksize,
-    >>>                          delimiter='\t', names=['src', 'dst'],
-    >>>                          dtype=['int32', 'int32'])
-    >>> pr = dcg.pagerank(x, alpha=0.85, max_iter=50)
+    >>> chunksize = dcg.get_chunksize(edge_list.csv)
+    >>> ddf_edge_list = dask_cudf.read_csv(edge_list.csv,
+    >>>                                    chunksize = chunksize,
+    >>>                                    delimiter='\t',
+    >>>                                    names=['src', 'dst'],
+    >>>                                    dtype=['int32', 'int32'])
+    >>> pr = dcg.pagerank(ddf_edge_list, alpha=0.85, max_iter=50)
     """
 
     client = default_client()
