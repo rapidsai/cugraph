@@ -113,9 +113,51 @@ def _mg_pagerank(data):
     return pr
 
 
-def pagerank(ddf, alpha=0.85, max_iter=30):
+def pagerank(edge_list, alpha=0.85, max_iter=30):
+    """
+    Find the PageRank values for each vertex in a graph using multiple GPUs.
+    cuGraph computes an approximation of the Pagerank using the power method.
+    The input edge list should be provided in dask-cudf dataframe
+    with one partition per GPU.
+
+    Parameters
+    ----------
+    edge_list : dask_cudf.DataFrame
+       Contain the connectivity information as an edge list
+       Source 'src' and destination 'dst' columns must be of type 'int32'.
+       Edge weights are not used for this algorithm.
+       Indices must be in the range [0, V-1], where V is the global number
+       of vertices.
+    alpha : float
+       The damping factor alpha represents the probability to follow an
+       outgoing edge, standard value is 0.85.
+       Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
+       Alpha should be greater than 0.0 and strictly lower than 1.0.
+    max_iter : int
+       The maximum number of iterations before an answer is returned. This can
+       be used to limit the execution time and do an early exit before the
+       solver reaches the convergence tolerance.
+       If this value is lower or equal to 0 cuGraph will use the default value,
+       which is 100.
+
+    Returns
+    -------
+    PageRank : dask_cudf.DataFrame
+        Dask GPU DataFrame containing two columns of size V: the vertex
+        identifiers and the corresponding PageRank values.
+
+    Examples
+    --------
+    >>> import dask_cugraph.pagerank as dcg
+    >>> chunksize = dcg.get_chunksize(input_path)
+    >>> ddf = dask_cudf.read_csv(input_path, chunksize = chunksize,
+    >>>                          delimiter='\t', names=['src', 'dst'],
+    >>>                          dtype=['int32', 'int32'])
+    >>> pr = dcg.pagerank(x, alpha=0.85, max_iter=50)
+    """
+
     client = default_client()
-    gpu_futures = _get_mg_info(ddf)
+    gpu_futures = _get_mg_info(edge_list)
     npartitions = len(gpu_futures)
 
     host_dict = _build_host_dict(gpu_futures, client).items()
@@ -186,8 +228,17 @@ def get_n_gpus():
         return len(os.popen("nvidia-smi -L").read().strip().split("\n"))
 
 
-def get_chunksize(input_path, delimiter=',', names=None, dtype=None):
-    # Calculate appropriate chunksize to get partitions equal to number of gpus
+def get_chunksize(input_path):
+    """
+    Calculate the appropriate chunksize for dask_cudf.read_csv
+    to get a number of partitions equal to the number of GPUs
+
+    Examples
+    --------
+    >>> import dask_cugraph.pagerank as dcg
+    >>> chunksize = dcg.get_chunksize(edge_list.csv)
+    """
+
     import os
     from glob import glob
     import math
