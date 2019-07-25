@@ -62,3 +62,13 @@ Sssp
     :members: sssp
     :undoc-members: sssp
     
+
+Dask
+=========
+
+Pagerank
+-------
+
+.. automodule:: cugraph.dask.pagerank.pagerank
+    :members:
+    :undoc-members:
