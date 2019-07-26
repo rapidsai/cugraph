@@ -231,3 +231,120 @@ __global__ void partitionRelabel(Key_t *array,
   }  
   __syncthreads();
 }
+
+/**
+ * @brief This global function partitions the data across
+ *        the different GPUs.
+ *
+ * @param[in]     array         The array of keys
+ * @param[out]    reorgArray    The output array of keys
+ * @param[in]     numKeys       The number of keys in array
+ * @param[in]     binOffsets    The (starting) offsets for each bin
+ * @param[in]     computeBin    Functor to convert a key to a bin number
+ * @param[in]     binMap        Maps each bin to a partition id
+ * @param[in]     numPartitions Number of partitions
+ */
+template <int NUMGPUS, int THREADS,
+          typename Key_t, typename Len_t,
+          typename ComputeBin_t>
+__global__ void partitionRelabel(Key_t *array,
+                                 Key_t *reorgArray,
+                                 Len_t  numKeys, 
+                                 Len_t *binOffsets,
+                                 ComputeBin_t computeBin,
+                                 unsigned char *binMap,
+                                 int numPartitions) {
+
+  Len_t pos = blockIdx.x * blockDim.x + threadIdx.x;
+  Len_t tid = threadIdx.x;
+
+  //  Need to see what of these we actually need
+  //    NOTE:  These dimensions are NUMGPUS+1?  I think this is
+  //           to reduce the number of bank collisions
+  //
+  __shared__ Len_t counter[2][NUMGPUS+1];
+  __shared__ Len_t counter2[NUMGPUS+1];
+  __shared__ Len_t prefix[NUMGPUS+1];
+  __shared__ Len_t globalPositions[NUMGPUS+1];
+
+  __shared__ Key_t reOrderedLocalKey[THREADS];
+  __shared__ Len_t reOrderedPositions[THREADS];
+
+  //
+  //  First we initialize the shared data structures
+  //
+  if (tid < numPartitions) {
+    counter[0][tid] = 0L;
+    counter[1][tid] = 0L;
+    counter2[tid] = 0L;
+  }
+
+  __syncthreads();
+
+  //
+  //  Now we get the key used by this thread,
+  //  which gpu bin they map to, and increment the
+  //  count for how many elements go into each GPU.
+  //
+  Key_t key;
+  Len_t gpuBin = 0L;
+
+  if (pos < numKeys) {
+    key    =  array[pos];
+    gpuBin =  binMap[computeBin(key)];
+
+    //
+    // TODO:  Would % 2 be also efficient?
+    //        Would 4 be better than 2?
+    //
+    Len_t tidBin =  tid / (THREADS / 2);
+    //Len_t tidBin =  tid % 2;
+
+    atomicAdd(counter[tidBin] + gpuBin, Len_t{1});
+  }
+
+  __syncthreads();
+
+  //
+  //  Now we compute globalPosition and prefix
+  //  which will help us move the data to the
+  //  right place.
+  //
+  if (tid < numPartitions) {
+    globalPositions[tid] = atomicAdd(binOffsets + tid,
+                                     counter[0][tid] + counter[1][tid]);
+  }
+
+  if (tid == 0) {
+    prefix[0] = 0L;
+    for (int p = 0 ; p < numPartitions ; ++p) {
+      prefix[p+1] = prefix[p] + counter[0][p] + counter[1][p];
+
+      if (prefix[p+1] > THREADS)
+        printf("p = %d, prefix = (%lld, %lld), counter = (%lld, %lld)\n",
+               p, prefix[p+1], prefix[p], counter[0][p], counter[1][p]);
+    }
+  }
+
+  __syncthreads();
+
+  //
+  //  Populate the key buffer with atomics,
+  //  more efficient in shared memory.
+  //
+  Len_t posWithinBin;
+  if (pos < numKeys) {
+    posWithinBin = atomicAdd(counter2 + gpuBin, Len_t{1});
+    reOrderedLocalKey[prefix[gpuBin] + posWithinBin] = key;
+    reOrderedPositions[prefix[gpuBin] + posWithinBin] = posWithinBin + globalPositions[gpuBin];
+  }
+  __syncthreads();
+
+  //
+  //  Now do serial memory accesses to populate the output.
+  //
+  if (pos < numKeys) {
+    reorgArray[reOrderedPositions[tid]] = reOrderedLocalKey[tid];
+  }  
+  __syncthreads();
+}
