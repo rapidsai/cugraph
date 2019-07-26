@@ -1,0 +1,327 @@
+/*
+ * Copyright (c) 2019, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <cugraph.h>
+#include <rmm_utils.h>
+#include <db/db_object.cuh>
+#include <cub/device/device_run_length_encode.cuh>
+
+// Define kernel for copying run length encoded values into offset slots.
+template<typename T>
+__global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
+  uint64_t tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid < runCounts)
+    offsets[unique[tid]] = counts[tid];
+}
+
+namespace cugraph {
+  template<typename idx_t>
+  db_pattern_entry<idx_t>::db_pattern_entry(std::string variable) {
+    is_var = true;
+    variableName = variable;
+  }
+
+  template<typename idx_t>
+  db_pattern_entry<idx_t>::db_pattern_entry(idx_t constant) {
+    is_var = false;
+    constantValue = constant;
+  }
+
+  template<typename idx_t>
+  db_pattern_entry<idx_t>::db_pattern_entry(const db_pattern_entry<idx_t>& other) {
+    is_var = other.is_var;
+    constantValue = other.constantValue;
+    variableName = other.variableName;
+  }
+
+  template<typename idx_t>
+  bool db_pattern_entry<idx_t>::isVariable() const {
+    return is_var;
+  }
+
+  template<typename idx_t>
+  idx_t db_pattern_entry<idx_t>::getConstant() const {
+    return constantValue;
+  }
+
+  template<typename idx_t>
+  std::string db_pattern_entry<idx_t>::getVariable() const {
+    return variableName;
+  }
+
+  template class db_pattern_entry<int32_t> ;
+  template class db_pattern_entry<int64_t> ;
+
+  template<typename idx_t>
+  db_pattern<idx_t>::db_pattern() {
+
+  }
+
+  template<typename idx_t>
+  db_pattern<idx_t>::db_pattern(const db_pattern<idx_t>& other) {
+    for (size_t i = 0; i < other.entries.size(); i++) {
+      entries.push_back(other.getEntry(i));
+    }
+  }
+
+  template<typename idx_t>
+  int db_pattern<idx_t>::getSize() const {
+    return entries.size();
+  }
+
+  template<typename idx_t>
+  const db_pattern_entry<idx_t>& db_pattern<idx_t>::getEntry(int position) const {
+    return entries[position];
+  }
+
+  template<typename idx_t>
+  void db_pattern<idx_t>::addEntry(db_pattern_entry<idx_t>& entry) {
+    entries.push_back(entry);
+  }
+
+  template<typename idx_t>
+  bool db_pattern<idx_t>::isAllConstants() {
+    bool is_all_constants = true;
+    for (size_t i = 0; i < entries.size(); i++)
+      if (entries[i].isVariable())
+        is_all_constants = false;
+    return is_all_constants;
+  }
+
+  template class db_pattern<int32_t> ;
+  template class db_pattern<int64_t> ;
+
+  template<typename idx_t>
+  void db_column_index<idx_t>::deleteData() {
+    delete offsets;
+    delete indirection;
+  }
+
+  template<typename idx_t>
+  db_column_index<idx_t>::db_column_index() {
+    gdf_column* _offsets = (gdf_column*) malloc(sizeof(gdf_column));
+    gdf_col_set_defaults(_offsets);
+    _offsets->data = nullptr;
+    _offsets->size = 0;
+    if (std::is_same<idx_t, int32_t>::value)
+      _offsets->dtype = GDF_INT32;
+    if (std::is_same<idx_t, int64_t>::value)
+      _offsets->dtype = GDF_INT64;
+    offsets = _offsets;
+    gdf_column* _indirection = (gdf_column*) malloc(sizeof(gdf_column));
+    gdf_col_set_defaults(_indirection);
+    _indirection->data = nullptr;
+    _indirection->size = 0;
+    if (std::is_same<idx_t, int32_t>::value)
+      _indirection->dtype = GDF_INT32;
+    if (std::is_same<idx_t, int64_t>::value)
+      _indirection->dtype = GDF_INT64;
+    indirection = _indirection;
+  }
+
+  template<typename idx_t>
+  db_column_index<idx_t>::db_column_index(gdf_column* _offsets, gdf_column* _indirection) {
+    offsets = _offsets;
+    indirection = _indirection;
+  }
+
+  template<typename idx_t>
+  db_column_index<idx_t>::~db_column_index() {
+    deleteData();
+  }
+
+  template<typename idx_t>
+  void db_column_index<idx_t>::resetData(gdf_column* _offsets, gdf_column* _indirection) {
+    deleteData();
+    offsets = _offsets;
+    indirection = _indirection;
+  }
+
+  template class db_column_index<int32_t> ;
+  template class db_column_index<int64_t> ;
+
+  template<typename idx_t>
+  db_table<idx_t>::db_table() {
+
+  }
+
+  template<typename idx_t>
+  void db_table<idx_t>::addColumn(std::string name) {
+    if (columns.size() > 0 && columns[0]->size > 0)
+      throw new std::invalid_argument("Can't add a column to a non-empty table");
+
+    gdf_column* _col = (gdf_column*) malloc(sizeof(gdf_column));
+    gdf_col_set_defaults(_col);
+    _col->data = nullptr;
+    _col->size = 0;
+    if (std::is_same<idx_t, int32_t>::value)
+      _col->dtype = GDF_INT32;
+    if (std::is_same<idx_t, int64_t>::value)
+      _col->dtype = GDF_INT64;
+    columns.push_back(_col);
+    names.push_back(name);
+    indices.resize(indices.size() + 1);
+  }
+
+  template<typename idx_t>
+  void db_table<idx_t>::addEntry(db_pattern<idx_t>& pattern) {
+    if (!pattern.isAllConstants())
+      throw new std::invalid_argument("Can't add an entry that isn't all constants");
+    if (!pattern.getSize() != columns.size())
+      throw new std::invalid_argument("Can't add an entry that isn't the right size");
+    inputBuffer.push_back(pattern);
+  }
+
+  template<typename idx_t>
+  void db_table<idx_t>::rebuildIndices() {
+    for (size_t i = 0; i < columns.size(); i++) {
+      // Copy the column's data to a new array
+      idx_t size = columns[i]->size;
+      idx_t* tempColumn;
+      ALLOC_TRY(&tempColumn, sizeof(idx_t) * size, nullptr);
+      cudaMemcpy(tempColumn, columns[i]->data, sizeof(idx_t) * size, cudaMemcpyDefault);
+
+      // Construct an array of ascending integers
+      idx_t* indirection;
+      ALLOC_TRY(&indirection, sizeof(idx_t) * size, nullptr);
+      thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr), indirection, indirection + size);
+
+      // Sort the arrays together
+      thrust::sort_by_key(rmm::exec_policy(nullptr)->on(nullptr),
+                          tempColumn,
+                          tempColumn + size,
+                          indirection);
+
+      // Compute offsets array based on sorted column
+      idx_t maxId;
+      cudaMemcpy(&maxId, tempColumn + size - 1, sizeof(idx_t), cudaMemcpyDefault);
+      idx_t *unique, *counts, *runCount;
+      ALLOC_TRY(&unique, (maxId + 1) * sizeof(idx_t), nullptr);
+      ALLOC_TRY(&counts, (maxId + 1) * sizeof(idx_t), nullptr);
+      ALLOC_TRY(&runCount, sizeof(idx_t), nullptr);
+      void* tmpStorage = nullptr;
+      size_t tmpBytes = 0;
+      cub::DeviceRunLengthEncode::Encode(tmpStorage,
+                                         tmpBytes,
+                                         tempColumn,
+                                         unique,
+                                         counts,
+                                         runCount,
+                                         size);
+      ALLOC_TRY(&tmpStorage, tmpBytes, nullptr);
+      cub::DeviceRunLengthEncode::Encode(tmpStorage,
+                                         tmpBytes,
+                                         tempColumn,
+                                         unique,
+                                         counts,
+                                         runCount,
+                                         size);
+      ALLOC_FREE_TRY(tmpStorage, nullptr);
+      idx_t runCount_h;
+      cudaMemcpy(&runCount_h, runCount, sizeof(idx_t), cudaMemcpyDefault);
+      idx_t* offsets;
+      ALLOC_TRY(&offsets, (maxId + 2) * sizeof(idx_t), nullptr);
+      int threadsPerBlock = 1024;
+      int numBlocks = (runCount_h + threadsPerBlock - 1) / threadsPerBlock;
+      offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
+      cudaCheckError();
+      thrust::exclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
+                             offsets,
+                             offsets + maxId + 2,
+                             offsets);
+      ALLOC_FREE_TRY(tempColumn, nullptr);
+      ALLOC_FREE_TRY(unique, nullptr);
+      ALLOC_FREE_TRY(counts, nullptr);
+      ALLOC_FREE_TRY(runCount, nullptr);
+
+      // Assign new offsets array and indirection vector to index
+      gdf_column* offsetsCol = (gdf_column*) malloc(sizeof(gdf_column));
+      gdf_col_set_defaults(offsetsCol);
+      offsetsCol->data = offsets;
+      offsetsCol->size = maxId + 2;
+      if (std::is_same<idx_t, int32_t>::value)
+        offsetsCol->dtype = GDF_INT32;
+      if (std::is_same<idx_t, int64_t>::value)
+        offsetsCol->dtype = GDF_INT64;
+
+      gdf_column* indirectionCol = (gdf_column*) malloc(sizeof(gdf_column));
+      gdf_col_set_defaults(indirectionCol);
+      indirectionCol->data = indirection;
+      indirectionCol->size = size;
+      if (std::is_same<idx_t, int32_t>::value)
+        indirectionCol->dtype = GDF_INT32;
+      if (std::is_same<idx_t, int64_t>::value)
+        indirectionCol->dtype = GDF_INT64;
+
+      indices[i].resetData(offsetsCol, indirectionCol);
+    }
+  }
+
+  template<typename idx_t>
+  void db_table<idx_t>::flush_input() {
+    idx_t tempSize = inputBuffer.size();
+    std::vector<idx_t*> tempColumns;
+    for (size_t i = 0; i < columns.size(); i++) {
+      tempColumns.push_back((idx_t*) malloc(sizeof(idx_t) * tempSize));
+      for (idx_t j = 0; j < tempSize; j++) {
+        tempColumns.back()[j] = inputBuffer[j].getEntry(i).getConstant();
+      }
+    }
+    inputBuffer.clear();
+    idx_t currentSize = columns[0]->size;
+    idx_t newSize = currentSize + tempSize;
+    std::vector<idx_t*> newColumns;
+    for (size_t i = 0; i < columns.size(); i++) {
+      idx_t* newCol;
+      ALLOC_TRY(&newCol, sizeof(idx_t) * newSize, nullptr);
+      newColumns.push_back(newCol);
+    }
+    for (size_t i = 0; i < columns.size(); i++) {
+      cudaMemcpy(newColumns[i], columns[i]->data, sizeof(idx_t) * currentSize, cudaMemcpyDefault);
+      cudaMemcpy(newColumns[i] + currentSize,
+                 tempColumns[i],
+                 sizeof(idx_t) * tempSize,
+                 cudaMemcpyDefault);
+      ALLOC_FREE_TRY(columns[i]->data, nullptr);
+      columns[i]->data = newColumns[i];
+      columns[i]->size = newSize;
+    }
+
+    rebuildIndices();
+  }
+
+  template class db_table<int32_t> ;
+  template class db_table<int64_t> ;
+
+  template<typename idx_t>
+  db_object<idx_t>::db_object() {
+    next_id = 0;
+    relationshipsTable.addColumn("begin");
+    relationshipsTable.addColumn("end");
+    relationshipsTable.addColumn("type");
+    relationshipPropertiesTable.addColumn("id");
+    relationshipPropertiesTable.addColumn("name");
+    relationshipPropertiesTable.addColumn("value");
+  }
+
+  template<typename idx_t>
+  std::string db_object<idx_t>::query(std::string query) {
+    return "";
+  }
+
+  template class db_object<int32_t> ;
+  template class db_object<int64_t> ;
+}
