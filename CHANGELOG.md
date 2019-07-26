@@ -5,7 +5,7 @@
 - PR #357 Pagerank cpp API
 - PR #366 Adds graph.degrees() function returning both in and out degree.
 - PR #380 First implemention of cusort - SNMG key/value sorting
-
+- PR #416 OpenCypher: Added C++ implementation of db_object class and assorted other classes
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
