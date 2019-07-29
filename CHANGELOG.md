@@ -6,6 +6,7 @@
 - PR #366 Adds graph.degrees() function returning both in and out degree.
 - PR #380 First implemention of cusort - SNMG key/value sorting
 - PR #411 Integrate dask-cugraph in cugraph #411
+- PR #418 Update cusort to handle SNMG key-only sorting
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
