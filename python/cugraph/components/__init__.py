@@ -12,3 +12,4 @@
 # limitations under the License.
 
 from cugraph.components.connectivity import weakly_connected_components
+from cugraph.components.connectivity import strongly_connected_components
