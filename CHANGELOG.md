@@ -5,13 +5,14 @@
 - PR #357 Pagerank cpp API
 - PR #366 Adds graph.degrees() function returning both in and out degree.
 - PR #380 First implemention of cusort - SNMG key/value sorting
-- PR #411 Integrate dask-cugraph in cugraph #411
+- PR #411 Integrate dask-cugraph in cugraph
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
 - PR #383 Exposed MG pagerank solver parameters 
+- PR #419 Version test
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
