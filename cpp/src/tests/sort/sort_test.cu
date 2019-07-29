@@ -287,7 +287,7 @@ TEST_F(SortTest, Random10MPerDevice_uint64_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 10000000;
+  const long long num_elements = 10000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -334,7 +334,7 @@ TEST_F(SortTest, Random10MPerDevice_uint32_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 10000000;
+  const long long num_elements = 10000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -381,7 +381,7 @@ TEST_F(SortTest, Random100MPerDevice_uint64_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 100000000;
+  const long long num_elements = 100000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -428,7 +428,7 @@ TEST_F(SortTest, Random100MPerDevice_uint32_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 100000000;
+  const long long num_elements = 100000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -475,7 +475,7 @@ TEST_F(SortTest, Random256MPerDevice_uint64_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 256000000;
+  const long long num_elements = 256000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -522,7 +522,7 @@ TEST_F(SortTest, Random256MPerDevice_uint32_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 256000000;
+  const long long num_elements = 256000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -567,7 +567,7 @@ TEST_F(SortTest, Random10MKeysPerDevice_uint64_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 10000000;
+  const long long num_elements = 10000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -610,7 +610,7 @@ TEST_F(SortTest, Random10MKeysPerDevice_uint32_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 10000000;
+  const long long num_elements = 10000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -653,7 +653,7 @@ TEST_F(SortTest, Random100MKeysPerDevice_uint64_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 100000000;
+  const long long num_elements = 100000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -696,7 +696,7 @@ TEST_F(SortTest, Random100MKeysPerDevice_uint32_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 100000000;
+  const long long num_elements = 100000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -739,7 +739,7 @@ TEST_F(SortTest, Random256MKeysPerDevice_uint64_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 256000000;
+  const long long num_elements = 256000000;
   const int seed = 43;
   int n_gpus = 0;
 
@@ -782,7 +782,7 @@ TEST_F(SortTest, Random256MKeysPerDevice_uint32_t)
   unsigned long long  h_input_offsets[MAX_NUM_GPUS+1];
   unsigned long long  h_output_offsets[MAX_NUM_GPUS+1];
 
-  const int num_elements = 256000000;
+  const long long num_elements = 256000000;
   const int seed = 43;
   int n_gpus = 0;
 
