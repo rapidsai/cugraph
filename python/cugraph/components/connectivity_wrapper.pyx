@@ -24,6 +24,9 @@ from libc.stdint cimport uintptr_t
 import cudf
 import numpy as np
 
+# TODO: remove files:
+# From cugraph/python/cugraph/components: cudf_cpp.pxd  dlpack.pxd  utils.pxd
+#From cugraph/cpp/include: dlpack.h
 
 def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
     """
@@ -42,9 +45,11 @@ def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
 
     df = cudf.DataFrame()
     df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_labels = get_gdf_column_view(df['labels'])
+    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    
+    cdef cudf_table* tbl = <cudf_table*> table_from_dataframe(df)
 
-    err = gdf_connected_components(g, <cugraph_cc_t>connect_type, &c_labels)
+    err = gdf_connected_components(g, <cugraph_cc_t>connect_type, tbl)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
