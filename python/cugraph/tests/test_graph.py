@@ -154,9 +154,9 @@ def check_all_two_hops(df, M):
                     assert has_pair(first_arr, second_arr, start, end)
 
 
-def test_verison():
+def test_version():
     gc.collect()
-    print(cugraph.__version__)
+    cugraph.__version__
 
 
 DATASETS = ['../datasets/karate',
