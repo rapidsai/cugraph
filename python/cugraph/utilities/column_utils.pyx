@@ -64,9 +64,7 @@ cdef gdf_column get_gdf_column_view(col):
 
 
 cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
-    print("in gdf_column, ipc_data_ptr: ", ipc_data_ptr)
     cdef gdf_column* c_col = <gdf_column*>malloc(sizeof(gdf_column))
-    #cdef gdf_column c_col
     cdef uintptr_t data_ptr = ipc_data_ptr
     cdef uintptr_t valid_ptr = 0
     cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
@@ -79,7 +77,6 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
                                     <gdf_size_type> 0,
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
-    print("ipc_data_ptr: ", ipc_data_ptr)
     return c_col
 
 #

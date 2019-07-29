@@ -14,6 +14,7 @@ def to_gpu_array(df):
     Get the gpu_array pointer to the data in columns of the
     input dataframe.
     """
+    df.drop_duplicates(inplace=True)
     start_idx = df.index[0]
     stop_idx = df.index[-1]
     gpu_array_src = df['src']._column._data.mem
@@ -191,12 +192,6 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
     return ddf
 
 
-def find_dev(df):
-    gpu_array_src = df['src']._column._data.mem
-    dev = device_of_devicendarray(gpu_array_src)
-    return dev
-
-
 def _get_mg_info(ddf):
     # Get gpu data pointers of columns of each dataframe partition
 
@@ -214,9 +209,6 @@ def _get_mg_info(ddf):
                 for worker, part in worker_map]
 
     wait(gpu_data)
-    [client.submit(find_dev, part, workers=[worker]).result()
-     for worker, part in worker_map]
-
     return gpu_data
 
 
@@ -224,7 +216,6 @@ def get_n_gpus():
     try:
         return len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
     except KeyError:
-        print("here")
         return len(os.popen("nvidia-smi -L").read().strip().split("\n"))
 
 
