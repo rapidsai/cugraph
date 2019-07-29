@@ -8,6 +8,10 @@ dependencies:
 - cudf=0.8.*
 - nvstrings=0.8.*
 - rmm=0.8.*
+- dask
+- distributed
+- dask-cuda=0.8*
+- dask-cudf=0.8*
 - scipy
 - networkx
 - python-louvain

@@ -254,7 +254,7 @@ gdf_error gdf_snmg_pagerank_impl(
     // Power iteration time
     #ifdef SNMG_PR_T
       #pragma omp master 
-      {std::cout <<  omp_get_wtime() - t << " ";}
+      {std::cout <<  omp_get_wtime() - t << std::endl;}
     #endif
     // Free
     gdf_col_delete(col_csr_off);
