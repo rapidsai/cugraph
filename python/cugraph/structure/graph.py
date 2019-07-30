@@ -64,7 +64,7 @@ class Graph:
 
     def add_edge_list(self, source_col, dest_col, value_col=None, copy=False):
         """
-        Initialize a graph from the edge list. It is error to call this
+        Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed source_col and
         dest_col arguments wrap gdf_column objects that represent a graph
         using the edge list format.
@@ -168,7 +168,7 @@ class Graph:
 
     def add_adj_list(self, offset_col, index_col, value_col=None, copy=False):
         """
-        Initialize a graph from the adjacency list. It is error to call this
+        Initialize a graph from the adjacency list. It is an error to call this
         method on an initialized Graph object. The passed offset_col and
         index_col arguments wrap gdf_column objects that represent a graph
         using the adjacency list format.
@@ -268,7 +268,7 @@ class Graph:
 
     def add_transposed_adj_list(self):
         """
-        Compute the transposed adjacency list. It is error to call this
+        Compute the transposed adjacency list. It is an error to call this
         method on an uninitialized Graph object or a Graph object without an
         existing edge list.
         """
@@ -291,7 +291,7 @@ class Graph:
 
     def get_two_hop_neighbors(self):
         """
-        Compute vertex pairs that are two hop apart. The resulting pairs are
+        Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
 
         Returns
