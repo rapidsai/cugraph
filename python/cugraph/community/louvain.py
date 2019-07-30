@@ -21,7 +21,7 @@ def louvain(input_graph):
 
     Parameters
     ----------
-    input_graph : cuGraph.Graph
+    input_graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list.
         The adjacency list will be computed if not already present. The graph
@@ -39,12 +39,13 @@ def louvain(input_graph):
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> parts, modularity_score = cuGraph.louvain(G)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> parts, modularity_score = cugraph.louvain(G)
     """
 
     parts, modularity_score = louvain_wrapper.louvain(input_graph.graph_ptr)

@@ -27,7 +27,7 @@ def spectralBalancedCutClustering(G,
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cugraph.Graph
         cuGraph graph descriptor
     num_clusters : integer
          Specifies the number of clusters to find
@@ -56,12 +56,13 @@ def spectralBalancedCutClustering(G,
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     """
 
     df = spectral_clustering_wrapper.spectralBalancedCutClustering(
@@ -89,7 +90,7 @@ def spectralModularityMaximizationClustering(G,
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cugraph.Graph
         cuGraph graph descriptor
     num_clusters : integer
          Specifies the number of clusters to find
@@ -107,7 +108,7 @@ def spectralModularityMaximizationClustering(G,
 
     Returns
     -------
-    Clustering : cudf.DataFrame
+    df : cudf.DataFrame
         df['vertex'] : cudf.Series
             contains the vertex identifiers
         df['cluster'] : cudf.Series
@@ -115,12 +116,13 @@ def spectralModularityMaximizationClustering(G,
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralModularityMaximizationClustering(G, 5)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     """
 
     df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
@@ -141,7 +143,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cugraph.Graph
         cuGraph graph descriptor
     n_clusters : integer
         Specifies the number of clusters in the given clustering
@@ -155,13 +157,14 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_modularity(G, 5, DF['cluster'])
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> score = cugraph.analyzeClustering_modularity(G, 5, df['cluster'])
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
@@ -178,7 +181,7 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cugraph.Graph
         cuGraph graph descriptor
     n_clusters : integer
         Specifies the number of clusters in the given clustering
@@ -192,13 +195,14 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_edge_cut(G, 5, DF['cluster'])
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df['cluster'])
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
@@ -215,7 +219,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cugraph.Graph
         cuGraph graph descriptor
     n_clusters : integer
         Specifies the number of clusters in the given clustering
@@ -229,13 +233,14 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_ratio_cut(G, 5, DF['cluster'])
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df['cluster'])
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(

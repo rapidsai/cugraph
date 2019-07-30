@@ -30,7 +30,7 @@ def jaccard_w(input_graph, weights, first=None, second=None):
 
     Parameters
     ----------
-    graph : cuGraph.Graph
+    graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
@@ -64,12 +64,13 @@ def jaccard_w(input_graph, weights, first=None, second=None):
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> jaccard_weights = cugraph.jaccard_w(G, weights)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.jaccard_w(G, weights)
     """
 
     if (type(first) == cudf.dataframe.series.Series and

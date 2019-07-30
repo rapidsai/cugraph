@@ -105,19 +105,10 @@ class Graph:
 
         Examples
         --------
-        >>> import numpy as np
-        >>> import pytest
-        >>> from scipy.io import mmread
-        >>>
-        >>> import cudf
-        >>> import cugraph
-        >>>
-        >>>
-        >>> mm_file = '../datasets/karate.mtx'
-        >>> M = mmread(mm_file).asfptype()
-        >>> sources = cudf.Series(M.row)
-        >>> destinations = cudf.Series(M.col)
-        >>>
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> sources = cudf.Series(M['0'])
+        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         """
@@ -211,20 +202,13 @@ class Graph:
 
         Examples
         --------
-        >>> import numpy as np
-        >>> import pytest
-        >>> from scipy.io import mmread
-        >>>
-        >>> import cudf
-        >>> import cugraph
-        >>>
-        >>>
-        >>> mm_file = '../datasets/karate.mtx'
-        >>> M = mmread(mm_file).asfptype()
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = M.to_pandas()
+        >>> M = scipy.sparse.coo_matrix((M['2'],(M['0'],M['1'])))
         >>> M = M.tocsr()
         >>> offsets = cudf.Series(M.indptr)
         >>> indices = cudf.Series(M.indices)
-        >>>
         >>> G = cugraph.Graph()
         >>> G.add_adj_list(offsets, indices, None)
         """
@@ -284,9 +268,9 @@ class Graph:
 
     def add_transposed_adj_list(self):
         """
-        Compute the transposed adjacency list. It is error to call this method
-        on an uninitialized Graph object or a Graph object without an existing
-        edge list.
+        Compute the transposed adjacency list. It is error to call this
+        method on an uninitialized Graph object or a Graph object without an
+        existing edge list.
         """
         graph_wrapper.add_transposed_adj_list(self.graph_ptr)
 
@@ -375,20 +359,13 @@ class Graph:
 
         Examples
         --------
-        >>> import numpy as np
-        >>> import pytest
-        >>> from scipy.io import mmread
-        >>>
-        >>> import cudf
-        >>> import cugraph
-        >>> mm_file = '/datasets/networks/karate.mtx'
-        >>> M = mmread(mm_file).asfptype()
-        >>> sources = cudf.Series(M.row)
-        >>> destinations = cudf.Series(M.col)
-        >>>
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> sources = cudf.Series(M['0'])
+        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations)
-        >>> in_degree_df = G.in_degree([0,9,12])
+        >>> G.add_edge_list(sources, destinations, None)
+        >>> df = G.in_degree([0,9,12])
         """
         return self._degree(vertex_subset, x=1)
 
@@ -422,20 +399,13 @@ class Graph:
 
         Examples
         --------
-        >>> import numpy as np
-        >>> import pytest
-        >>> from scipy.io import mmread
-        >>>
-        >>> import cudf
-        >>> import cugraph
-        >>> mm_file = '/datasets/networks/karate.mtx'
-        >>> M = mmread(mm_file).asfptype()
-        >>> sources = cudf.Series(M.row)
-        >>> destinations = cudf.Series(M.col)
-        >>>
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> sources = cudf.Series(M['0'])
+        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations)
-        >>> out_degree_df = G.out_degree([0,9,12])
+        >>> G.add_edge_list(sources, destinations, None)
+        >>> df = G.out_degree([0,9,12])
         """
         return self._degree(vertex_subset, x=2)
 
@@ -468,20 +438,13 @@ class Graph:
 
         Examples
         --------
-        >>> import numpy as np
-        >>> import pytest
-        >>> from scipy.io import mmread
-        >>>
-        >>> import cudf
-        >>> import cugraph
-        >>> mm_file = '/datasets/networks/karate.mtx'
-        >>> M = mmread(mm_file).asfptype()
-        >>> sources = cudf.Series(M.row)
-        >>> destinations = cudf.Series(M.col)
-        >>>
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> sources = cudf.Series(M['0'])
+        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations)
-        >>> degree_df = G.degree([0,9,12])
+        >>> G.add_edge_list(sources, destinations, None)
+        >>> df = G.degree([0,9,12])
         """
         return self._degree(vertex_subset)
 
@@ -512,18 +475,13 @@ class Graph:
 
         Examples
         --------
-        >>> from scipy.io import mmread
-        >>>
-        >>> import cudf
-        >>> import cugraph
-        >>> mm_file = '/datasets/networks/karate.mtx'
-        >>> M = mmread(mm_file).asfptype()
-        >>> sources = cudf.Series(M.row)
-        >>> destinations = cudf.Series(M.col)
-        >>>
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> sources = cudf.Series(M['0'])
+        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations)
-        >>> degree_df = G.degrees([0,9,12])
+        >>> G.add_edge_list(sources, destinations, None)
+        >>> df = G.degrees([0,9,12])
         """
         vertex_col, in_degree_col, out_degree_col = graph_wrapper._degrees(
                                                         self.graph_ptr)

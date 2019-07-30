@@ -24,29 +24,30 @@ def subgraph(G, vertices):
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cugraph.Graph
         cuGraph graph descriptor
     vertices : cudf.Series
         Specifies the vertices of the induced subgraph
 
     Returns
     -------
-    Sg : cuGraph.Graph
+    Sg : cugraph.Graph
         A graph object containing the subgraph induced by the given vertex set.
 
     Examples
     --------
-    >>> M = ReadMtxFile(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
     >>> verts = numpy.zeros(3, dtype=np.int32)
     >>> verts[0] = 0
     >>> verts[1] = 1
     >>> verts[2] = 2
     >>> sverts = cudf.Series(verts)
-    >>> Sg = cuGraph.subgraph(G, sverts)
+    >>> Sg = cugraph.subgraph(G, sverts)
     """
 
     null_check(vertices)
