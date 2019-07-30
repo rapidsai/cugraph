@@ -44,18 +44,7 @@ namespace{ //un-nammed
 	matrix_file = a;
       }
     }
-
-    Usecase(const Usecase& rhs)
-    {
-      matrix_file = rhs.matrix_file;
-    }
     
-    Usecase& operator = (const Usecase& rhs)
-    {
-      matrix_file = rhs.matrix_file;
-
-      return *this;
-    }
     const std::string& get_matrix_file(void) const
     {
       return matrix_file;
@@ -86,7 +75,6 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
     std::stringstream ss; 
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.get_matrix_file())+ std::string("_") + ss.str().c_str();
-    cudaStream_t stream{nullptr};
 
     int m, k, nnz; //
     MM_typecode mc;

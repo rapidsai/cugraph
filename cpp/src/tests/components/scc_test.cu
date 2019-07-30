@@ -14,9 +14,7 @@
 // strongly connected components tests
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
-//#define DEBUG
-
-#define _DEBUG_CC
+//#define _DEBUG_CC
 
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
@@ -53,18 +51,7 @@ namespace{ //un-nammed
 	matrix_file = a;
       }
     }
-
-    Usecase(const Usecase& rhs)
-    {
-      matrix_file = rhs.matrix_file;
-    }
     
-    Usecase& operator = (const Usecase& rhs)
-    {
-      matrix_file = rhs.matrix_file;
-
-      return *this;
-    }
     const std::string& get_matrix_file(void) const
     {
       return matrix_file;
@@ -105,6 +92,10 @@ namespace{ //un-nammed
                                                   return label == indx;
                                                 });
                       });
+
+    //sort the counts:
+    thrust::sort(d_v_counts.begin(), d_v_counts.end());
+    
     return counts;
   }
 }//end un-nammed namespace
@@ -134,12 +125,11 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
     std::stringstream ss; 
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.get_matrix_file())+ std::string("_") + ss.str().c_str();
-    ///cudaStream_t stream{nullptr};
 
     using ByteT = unsigned char;
     using IndexT = int;
 
-    IndexT m, k, nnz; //
+    IndexT m, k, nnz;
     MM_typecode mc;
      
     HighResClock hr_clock;
@@ -200,9 +190,6 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     
     std::vector<gdf_column*> vcols{col_labels.get(), col_verts.get()};
     cudf::table table(vcols);//to be passed to the API to be filled
-    
-    //CAVEAT: col_verts have already been filled!
-
 
     //Get the COO format 1st:
     //
@@ -223,11 +210,6 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     static auto nrows_ = [](const gdf_graph* G){
       return G->adjList->offsets->size - 1;
     };
-
-    // static auto nnz_ = [](const gdf_graph* G){
-    //   return G->adjList->indices->size;
-    // };
-
 
     SCC_Data<ByteT> sccd(nrows_(G.get()), row_offsets_(G.get()), col_indices_(G.get()));
     IndexT* p_d_labels = static_cast<IndexT*>(col_labels->data);
@@ -319,11 +301,7 @@ TEST_P(Tests_Strongly_CC, Strongly_CC) {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Strongly_CC, 
-                        ::testing::Values(//Usecase("test/datasets/dolphins.mtx")//, //okay
-                                          Usecase("test/datasets/gre_1107.mtx")
-                                          //Usecase("test/datasets/coPapersDBLP.mtx")//, //fails (not enough memory)
-                                          //Usecase("test/datasets/coPapersCiteseer.mtx")//,fails (not enough memory)
-                                          //Usecase("test/datasets/hollywood.mtx")//fails (not enough memory)
+                        ::testing::Values(Usecase("test/datasets/cage6.mtx") //DG "small" enough to meet SCC GPU memory requirements
 					  ));
 
 
