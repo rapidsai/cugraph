@@ -12,6 +12,7 @@
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
 - PR #383 Exposed MG pagerank solver parameters 
+- PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
