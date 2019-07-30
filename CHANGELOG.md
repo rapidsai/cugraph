@@ -4,21 +4,33 @@
 - PR #361 Prototypes for cusort functions
 - PR #357 Pagerank cpp API
 - PR #366 Adds graph.degrees() function returning both in and out degree.
-
+- PR #380 First implemention of cusort - SNMG key/value sorting
+- PR #411 Integrate dask-cugraph in cugraph
+- PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
+- PR #383 Exposed MG pagerank solver parameters 
+- PR #419 Version test
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
 - PR #354 Fixed bug in building a debug version
 - PR #360 Fixed bug in snmg coo2csr causing intermittent test failures.
 - PR #364 Fixed bug building or installing cugraph when conda isn't installed
+- PR #375 Added a function to initialize gdf columns in cugraph #375
+- PR #378 cugraph was unable to import device_of_gpu_pointer
+- PR #384 Fixed bug in snmg coo2csr causing error in dask-cugraph tests.
+- PR #382 Disabled vertex id check to allow Azure deployment
+- PR #410 Fixed overflow error in SNMG COO2CSR
+- PR #395 run omp_ge_num_threads in a parallel context
+- PR #413 Updated python build instructions.
+- PR #414 Add weights to wjaccrd.py
 
 
-# cuGraph 0.8.0 (Date TBD)
+# cuGraph 0.8.0 (27 June 2019)
 
 ## New Features
 - PR #287 SNMG power iteration step1
@@ -57,6 +69,7 @@
 - PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 - PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
 - PR #350 Configure Sphinx to render params correctly
+- PR #359 Updates to remove libboost_system as a runtime dependency on libcugraph.so
 
 
 # cuGraph 0.7.0 (10 May 2019)
