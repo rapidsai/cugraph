@@ -7,6 +7,7 @@ from cugraph.dask.core import device_of_devicendarray, get_device_id
 import os
 from dask.distributed import wait, default_client
 from toolz import first
+import dask.dataframe as dd 
 
 
 def to_gpu_array(df):
@@ -14,7 +15,7 @@ def to_gpu_array(df):
     Get the gpu_array pointer to the data in columns of the
     input dataframe.
     """
-    df.drop_duplicates(inplace=True)
+    df = drop_duplicates(df)
     start_idx = df.index[0]
     stop_idx = df.index[-1]
     gpu_array_src = df['src']._column._data.mem
@@ -197,7 +198,12 @@ def _get_mg_info(ddf):
 
     client = default_client()
 
-    parts = ddf
+    if isinstance(ddf, dd.DataFrame):
+        parts = ddf.to_delayed()
+        parts = client.compute(parts)
+        wait(parts)
+    else:
+        parts = ddf
     key_to_part_dict = dict([(str(part.key), part) for part in parts])
     who_has = client.who_has(parts)
     worker_map = []
@@ -210,6 +216,14 @@ def _get_mg_info(ddf):
 
     wait(gpu_data)
     return gpu_data
+
+
+### UTILITY FUNCTIONS
+
+
+def drop_duplicates(df):
+    df.drop_duplicates(inplace=True)
+    return df
 
 
 def get_n_gpus():

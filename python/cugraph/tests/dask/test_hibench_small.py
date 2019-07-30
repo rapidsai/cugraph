@@ -29,7 +29,7 @@ def test_pagerank():
     nx_pr = sorted(nx_pr.items(), key=lambda x: x[0])
 
     # Cugraph snmg pagerank Call
-    cluster = LocalCUDACluster(threads_per_worker=1)
+    cluster = LocalCUDACluster(local_dir='/datasets/iroy', threads_per_worker=1)
     client = Client(cluster)
 
     t0 = time.time()
@@ -42,11 +42,12 @@ def test_pagerank():
     wait(x)
     t1 = time.time()
     print("Reading Csv time: ", t1-t0)
-    pr = dcg.pagerank(x, alpha=0.85, max_iter=50)
+    pr = dcg.pagerank(ddf, alpha=0.85, max_iter=50)
     t2 = time.time()
     print("Running PR algo time: ", t2-t1)
     res_df = pr.compute()
 
+    print(res_df)
     # Comparison
     err = 0
     tol = 1.0e-05
@@ -55,6 +56,6 @@ def test_pagerank():
             err = err + 1
     print("Mismatches:", err)
     assert err < (0.02*len(res_df))
-
+    
     client.close()
     cluster.close()

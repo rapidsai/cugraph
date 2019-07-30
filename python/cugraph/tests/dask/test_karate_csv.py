@@ -21,13 +21,13 @@ def test_pagerank():
     # Networkx Call
     pd_df = pd.read_csv(input_data_path, delimiter=' ',
                         names=['src', 'dst', 'value'])
-    G = nx.Graph()
+    G = nx.DiGraph()
     for i in range(0, len(pd_df)):
         G.add_edge(pd_df['src'][i], pd_df['dst'][i])
     nx_pr = nx.pagerank(G, alpha=0.85)
     nx_pr = sorted(nx_pr.items(), key=lambda x: x[0])
     # Cugraph snmg pagerank Call
-    cluster = LocalCUDACluster(threads_per_worker=1)
+    cluster = LocalCUDACluster(local_dir='/datasets/iroy', threads_per_worker=1)
     client = Client(cluster)
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
@@ -35,11 +35,9 @@ def test_pagerank():
                              names=['src', 'dst', 'value'],
                              dtype=['int32', 'int32', 'float32'])
 
-    y = ddf.to_delayed()
-    x = client.compute(y)
-    wait(x)
-    pr = dcg.pagerank(x, alpha=0.85, max_iter=50)
+    pr = dcg.pagerank(ddf, alpha=0.85, max_iter=50)
     res_df = pr.compute()
+    print(res_df)
     err = 0
     tol = 1.0e-05
     for i in range(len(res_df)):
