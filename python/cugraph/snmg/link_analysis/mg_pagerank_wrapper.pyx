@@ -27,7 +27,10 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 
 
-def mg_pagerank(src_ptrs_info, dest_ptrs_info):
+def mg_pagerank(src_ptrs_info,
+                dest_ptrs_info,
+                alpha=0.85,
+                max_iter=30):
     cdef gdf_column** src_column_ptr = <gdf_column**>malloc(len(src_ptrs_info) * sizeof(gdf_column*))
     cdef gdf_column** dest_column_ptr = <gdf_column**>malloc(len(dest_ptrs_info) * sizeof(gdf_column*))
 
@@ -42,8 +45,8 @@ def mg_pagerank(src_ptrs_info, dest_ptrs_info):
                      <gdf_column**> dest_column_ptr,
                      <gdf_column*> pr_ptr,
                      <const size_t>n_gpus,
-                     <float> 0.85,#damping_factor,
-                     <int> 10 #max_iter
+                     <float> alpha,
+                     <int> max_iter
                      )
 
     data = rmm.device_array_from_ptr(<uintptr_t> pr_ptr.data,

@@ -172,6 +172,7 @@ $ ./build.sh libcugraph  # build the cuGraph libraries and install them to
 ```bash
 cd $CUGRAPH_HOME
 cd python
+python setup.py build_ext --inplace
 python setup.py install    # install cugraph python bindings
 ```
 

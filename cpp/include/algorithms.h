@@ -260,7 +260,6 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
 
  /**
 Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
- * The user is free to use default values or to provide inputs for the initial guess, tolerance and maximum number of iterations.
  * @param[in] src_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column src_col_ptrs[i] contains the index of the source for each edge on GPU i. Indices must be in the range [0, V-1], where V is the global number of vertices.
  * @param[in] dest_col_ptrs     Array of size n_gpu containing pointers to gdf columns. The column dest_col_ptrs[i] contains the index of the destination for each edge on GPU i. Indices must be in the range [0, V-1], where V is the global number of vertices.
  * @param[out] pr_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column pr_col_ptrs[i] contains a copy of the full pagerank result on GPU i.

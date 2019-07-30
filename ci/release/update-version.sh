@@ -47,7 +47,6 @@ function sed_runner() {
 
 # CMakeLists update
 sed_runner 's/'"cuGraph VERSION .* LANGUAGES C CXX CUDA)"'/'"cuGraph VERSION ${NEXT_FULL_TAG} LANGUAGES C CXX CUDA)"'/g' cpp/CMakeLists.txt
-sed_runner 's/'"NV_GRAPH VERSION .* LANGUAGES C CXX CUDA)"'/'"NV_GRAPH VERSION ${NEXT_FULL_TAG} LANGUAGES C CXX CUDA)"'/g' cpp/nvgraph/cpp/CMakeLists.txt
 
 # RTD update
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/source/conf.py

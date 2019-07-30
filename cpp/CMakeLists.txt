@@ -272,6 +272,7 @@ add_library(cugraph SHARED
     src/snmg/blas/spmv.cu
     src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
+    src/utilities/graph_utils.cu
     src/snmg/utils.cu
     src/components/connectivity.cu
     src/snmg/degree/degree.cu
@@ -336,7 +337,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${Boost_LIBRARIES})
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda)
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
