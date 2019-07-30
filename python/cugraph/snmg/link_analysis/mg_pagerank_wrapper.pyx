@@ -30,7 +30,7 @@ import numpy as np
 def mg_pagerank(src_ptrs_info,
                 dest_ptrs_info,
                 alpha=0.85,
-                max_iter=30,):
+                max_iter=30):
     cdef gdf_column** src_column_ptr = <gdf_column**>malloc(len(src_ptrs_info) * sizeof(gdf_column*))
     cdef gdf_column** dest_column_ptr = <gdf_column**>malloc(len(dest_ptrs_info) * sizeof(gdf_column*))
 

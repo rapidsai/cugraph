@@ -82,6 +82,7 @@ def jaccard_w(input_graph, weights, first=None, second=None):
     else:
         raise ValueError("Specify first and second or neither")
 
-    df = wjaccard_wrapper.jaccard_w(input_graph.graph_ptr, first, second)
+    df = wjaccard_wrapper.jaccard_w(input_graph.graph_ptr,
+                                    weights, first, second)
 
     return df
