@@ -7,7 +7,7 @@ from cugraph.dask.core import device_of_devicendarray, get_device_id
 import os
 from dask.distributed import wait, default_client
 from toolz import first
-import dask.dataframe as dd 
+import dask.dataframe as dd
 
 
 def to_gpu_array(df):
@@ -218,7 +218,7 @@ def _get_mg_info(ddf):
     return gpu_data
 
 
-### UTILITY FUNCTIONS
+# UTILITY FUNCTIONS
 
 
 def drop_duplicates(df):
