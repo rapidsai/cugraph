@@ -16,17 +16,18 @@ import cudf
 import numpy as np
 from collections import OrderedDict
 
+
 def find_bicliques(df, k,
-              offset=0.
-              max_iter=-1,
-              support=1.0,
-              min_features=1,
-              min_machines=10):
+              		offset=0,
+              		max_iter=-1,
+              		support=1.0,
+              		min_features=1,
+              		min_machines=10):
     """
     Find the top k maximal bicliques
 
     Parameters
-    ---------- 
+    ----------
     df :  cudf:DataFrame
         A dataframe containing the bipartite graph edge list
         Columns must be called 'src', 'dst', and 'flag'
@@ -40,15 +41,16 @@ def find_bicliques(df, k,
     Returns
     -------
     B : cudf.DataFrame
-        A dataframe containing the list of machine and features.  This is not the full
-        edge list to save space.  Since it is a biclique, it is ease to recreate the edges
+        A dataframe containing the list of machine and features.  This is not
+		the full edge list to save space.  Since it is a biclique, it is ease 
+		to recreate the edges
 
         B['id']    - a cluster ID (this is a one up number - up to k)
         B['vert']  - the vertex ID
         B['type']  - 0 == machine, 1 == feature
 
 
-    S : cudf.DataFrame 
+    S : cudf.DataFrame
         A dataframe of statistics on the returned info.
         This dataframe is (relatively small) of size k.
 
@@ -63,20 +65,20 @@ def find_bicliques(df, k,
 
     x = [col for col in df.columns]
     if 'src' not in x:
-       raise NameError('src column not found')
+		raise NameError('src column not found')
     if 'dst' not in x:
-       raise NameError('dst column not found')
+		raise NameError('dst column not found')
     if 'flag' not in x:
-       raise NameError('flag column not found')
+		raise NameError('flag column not found')
 
     if support > 1.0 or support < 0.1:
-       raise NameError('support must be between 0.1 and 1.0')
+		raise NameError('support must be between 0.1 and 1.0')
 
     # this removes a prep step that offset the values for CUDA process
     if offset > 0:
         df['dst'] = df['dst'] - offset
 
-    # break the data into chunks to improve join/search performance 
+    # break the data into chunks to improve join/search performance
     src_by_dst, num_parts = _partition_data_by_feature(df, PART_SIZE)
 
     # Get a list of all the dst (features) sorted by degree
@@ -87,7 +89,7 @@ def find_bicliques(df, k,
     stats = cudf.DataFrame()
 
     # create a dataframe to help prevent duplication of work
-    machine_old = cudf.DataFrame()   
+    machine_old = cudf.DataFrame()
 
     # create a dataframe for stats
     stats = cudf.DataFrame()
@@ -103,7 +105,7 @@ def find_bicliques(df, k,
 
         # pop the next feature to process
         feature = f_list['dst'][i]
-        degree  = f_list['count'][i]
+        degree = f_list['count'][i]
 
         # compute the index to this item (which dataframe chunk is in)
         idx = int(feature/PART_SIZE)
@@ -112,7 +114,7 @@ def find_bicliques(df, k,
         machines = get_src_from_dst(src_by_dst[idx], feature)
 
         # if this set of machines is the same as the last, skip this feature
-        if is_same_as_last(machine_old, machines) == False:
+        if not is_same_as_last(machine_old, machines):
 
             # now from those machines, hop out to the list of all the features
             feature_list = get_all_feature(src_by_dst, machines, num_parts)
@@ -128,7 +130,8 @@ def find_bicliques(df, k,
             # need more than X feature to make a biclique
             if len(c) > min_features:
                 if len(machines) >= min_machines:
-                    bicliques, stats = update_results(machines, c, answer_id, bicliques, stats)
+                    bicliques, stats =
+						update_results(machines, c, answer_id, bicliques, stats)
 
                     answer_id = answer_id + 1
 
@@ -208,11 +211,11 @@ def is_same_as_last(_old, _new):
 
 # get all the items used by the specified users
 def get_all_feature(_gdf, src_list_df, N):
-    
+
     c = [None] * N
 
     for i in range(N):
-        c[i] = src_list_df.merge(_gdf[i], on='src', how="inner")    
+        c[i] = src_list_df.merge(_gdf[i], on='src', how="inner")
 
     return cudf.concat(c)
 
@@ -230,12 +233,12 @@ def update_results(m, f, key, b, s):
     -------
     B : cudf.DataFrame
         A dataframe containing the list of machine and features.  This is not
-	the full edge list to save space. Since it is a biclique, it is ease 
+	the full edge list to save space. Since it is a biclique, it is ease
 	to recreate the edges
 
-        B['id']    - a cluster ID (this is a one up number - up to k)
-        B['vert']  - the vertex ID
-        B['type']  - 0 == machine, 1 == feature
+		B['id']    - a cluster ID (this is a one up number - up to k)
+		B['vert']  - the vertex ID
+		B['type']  - 0 == machine, 1 == feature
 
 
     S : cudf.DataFrame
@@ -287,7 +290,7 @@ def update_results(m, f, key, b, s):
     else:
 	S = cudf.concat([s, s_tmp])
 
-    del m_df
-    del f_df
+	del m_df
+	del f_df
 
     return B, S
