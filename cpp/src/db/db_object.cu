@@ -19,15 +19,15 @@
 #include <db/db_object.cuh>
 #include <cub/device/device_run_length_encode.cuh>
 
-// Define kernel for copying run length encoded values into offset slots.
-template<typename T>
-__global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
-  uint64_t tid = threadIdx.x + blockIdx.x * blockDim.x;
-  if (tid < runCounts)
-    offsets[unique[tid]] = counts[tid];
-}
-
 namespace cugraph {
+  // Define kernel for copying run length encoded values into offset slots.
+  template<typename T>
+  __global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
+    uint64_t tid = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tid < runCounts)
+      offsets[unique[tid]] = counts[tid];
+  }
+
   template<typename idx_t>
   db_pattern_entry<idx_t>::db_pattern_entry(std::string variable) {
     is_var = true;
@@ -233,11 +233,17 @@ namespace cugraph {
       idx_t runCount_h;
       cudaMemcpy(&runCount_h, runCount, sizeof(idx_t), cudaMemcpyDefault);
       idx_t* offsets;
+
+      // Allocating the new offsets array
       ALLOC_TRY(&offsets, (maxId + 2) * sizeof(idx_t), nullptr);
+
+      // Filling values in offsets array from the encoded run lengths
       int threadsPerBlock = 1024;
       int numBlocks = (runCount_h + threadsPerBlock - 1) / threadsPerBlock;
       offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
       cudaCheckError();
+
+      // Taking the exclusive scan of the run lengths to get the final offsets.
       thrust::exclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
                              offsets,
                              offsets + maxId + 2,

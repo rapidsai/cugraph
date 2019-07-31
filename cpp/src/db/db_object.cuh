@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <cugraph.h>
 #include <vector>
 #include <map>
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {
+  /**
+   * Class for representing an entry in a pattern, which may either be a variable or constant value
+   */
   template <typename idx_t>
   class db_pattern_entry {
     bool is_var;
@@ -34,6 +39,9 @@ namespace cugraph {
     std::string getVariable() const;
   };
 
+  /**
+   * Class for representing a pattern (usually a triple pattern, but it's extensible)
+   */
   template <typename idx_t>
   class db_pattern {
     std::vector<db_pattern_entry<idx_t>> entries;
@@ -46,6 +54,9 @@ namespace cugraph {
     bool isAllConstants();
   };
 
+  /**
+   * Class which encapsulates a CSR-style index on a column
+   */
   template <typename idx_t>
   class db_column_index {
     gdf_column* offsets;
@@ -58,6 +69,9 @@ namespace cugraph {
     void resetData(gdf_column* offsets, gdf_column* indirection);
   };
 
+  /**
+   * Class which glues an arbitrary number of columns together to form a table
+   */
   template <typename idx_t>
   class db_table {
     std::vector<gdf_column*> columns;
@@ -68,10 +82,27 @@ namespace cugraph {
     db_table();
     void addColumn(std::string name);
     void addEntry(db_pattern<idx_t>& pattern);
+
+    /**
+     * This method will rebuild the indices for each column in the table. This is done by
+     * sorting a copy of the column along with an array which is a 0..n sequence, where
+     * n is the number of entries in the column. The sorted column is used to produce an
+     * offsets array and the sequence array becomes a permutation which maps the offset
+     * position into the original table.
+     */
     void rebuildIndices();
+
+    /**
+     * This method takes all the temporary input in the input buffer and appends it onto
+     * the existing table.
+     */
     void flush_input();
   };
 
+  /**
+   * The main database object. It stores the needed tables and provides a method hook to run
+   * a query on the data.
+   */
   template <typename idx_t>
   class db_object {
     // The dictionary and reverse dictionary encoding strings to ids and vice versa
