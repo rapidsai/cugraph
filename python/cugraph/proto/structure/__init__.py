@@ -11,5 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.proto.structure import find_bicliques
+from cugraph.proto.structure.bicliques import find_bicliques
 
