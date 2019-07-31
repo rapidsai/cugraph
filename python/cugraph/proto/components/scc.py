@@ -30,7 +30,7 @@ import numpy as np
 
 def strong_connected_component(source, destination):
     """
-    Generate the strongly connected components 
+    Generate the strongly connected components
     using the FW-BW-TRIM approach, but skipping the trimming)
 
     Parameters

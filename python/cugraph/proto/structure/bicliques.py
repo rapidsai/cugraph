@@ -17,12 +17,13 @@ import numpy as np
 from collections import OrderedDict
 
 
-def find_bicliques(df, k,
-                    offset=0,
-                    max_iter=-1,
-                    support=1.0,
-                    min_features=1,
-                    min_machines=10):
+def find_bicliques(
+        df, k,
+        offset=0,
+        max_iter=-1,
+        support=1.0,
+        min_features=1,
+        min_machines=10):
     """
     Find the top k maximal bicliques
 
@@ -42,7 +43,7 @@ def find_bicliques(df, k,
     -------
     B : cudf.DataFrame
         A dataframe containing the list of machine and features.  This is not
-        the full edge list to save space.  Since it is a biclique, it is ease 
+        the full edge list to save space.  Since it is a biclique, it is ease
         to recreate the edges
 
         B['id']    - a cluster ID (this is a one up number - up to k)
@@ -130,8 +131,8 @@ def find_bicliques(df, k,
             # need more than X feature to make a biclique
             if len(c) > min_features:
                 if len(machines) >= min_machines:
-                    bicliques, stats =
-                        update_results(machines, c, answer_id, bicliques, stats)
+                    bicliques, stats = update_results(
+				machines, c, answer_id, bicliques, stats)
 
                     answer_id = answer_id + 1
 
@@ -288,7 +289,7 @@ def update_results(m, f, key, b, s):
     if len(s) == 0:
         S = s_tmp
     else:
-    S = cudf.concat([s, s_tmp])
+        S = cudf.concat([s, s_tmp])
 
     del m_df
     del f_df
