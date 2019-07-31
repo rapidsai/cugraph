@@ -15,6 +15,7 @@
 - PR #383 Exposed MG pagerank solver parameters 
 - PR #399 Example Prototype of Strongly Connected Components using primitives
 - PR #419 Version test
+- PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
