@@ -5,7 +5,8 @@
 - PR #357 Pagerank cpp API
 - PR #366 Adds graph.degrees() function returning both in and out degree.
 - PR #380 First implemention of cusort - SNMG key/value sorting
-
+- PR #411 Integrate dask-cugraph in cugraph #411
+- PR #418 Update cusort to handle SNMG key-only sorting
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
@@ -24,6 +25,11 @@
 - PR #378 cugraph was unable to import device_of_gpu_pointer
 - PR #384 Fixed bug in snmg coo2csr causing error in dask-cugraph tests.
 - PR #382 Disabled vertex id check to allow Azure deployment
+- PR #410 Fixed overflow error in SNMG COO2CSR
+- PR #395 run omp_ge_num_threads in a parallel context
+- PR #412 Fixed formatting issues in cuGraph documentation.
+- PR #413 Updated python build instructions.
+- PR #414 Add weights to wjaccrd.py
 
 
 # cuGraph 0.8.0 (27 June 2019)
@@ -65,6 +71,7 @@
 - PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 - PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
 - PR #350 Configure Sphinx to render params correctly
+- PR #359 Updates to remove libboost_system as a runtime dependency on libcugraph.so
 
 
 # cuGraph 0.7.0 (10 May 2019)

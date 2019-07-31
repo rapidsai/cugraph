@@ -29,27 +29,29 @@ def sssp(G, source):
     Parameters
     ----------
     graph : cuGraph.Graph
-       cuGraph graph descriptor with connectivity information. Edge weights, if
-       present, should be single or double precision floating point values
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
     source : int
-       Index of the source vertex
+        Index of the source vertex.
+
     Returns
     -------
     df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
+        df['vertex'][i] gives the vertex id of the i'th vertex.
         df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex
+        starting vertex.
         df['predecessor'][i] gives the vertex id of the vertex that was reached
-        before the i'th vertex in the traversal
+        before the i'th vertex in the traversal.
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> distances = cuGraph.sssp(G, source)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> distances = cugraph.sssp(G, 0)
     """
 
     df = sssp_wrapper.sssp(G.graph_ptr, source)
@@ -63,15 +65,17 @@ def filter_unreachable(df):
 
     Parameters
     ----------
-    df : cudf.DataFrame that is the output of SSSP or BFS
+    df : cudf.DataFrame
+        cudf.DataFrame that is the output of SSSP or BFS
+
     Returns
     -------
     df : filtered cudf.DataFrame with only reachable vertices
-        df['vertex'][i] gives the vertex id of the i'th vertex
+        df['vertex'][i] gives the vertex id of the i'th vertex.
         df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex
+        starting vertex.
         df['predecessor'][i] gives the vertex that was reached before the i'th
-        vertex in the traversal
+        vertex in the traversal.
     """
     if('distance' not in df):
         raise KeyError("No distance column found in input data frame")

@@ -40,24 +40,21 @@ def renumber(source_col, dest_col):
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains the destination index for each edge.
         Destination indices must be an integer type.
+    numbering_map : cudf.Series
+        This cudf.Series wraps a gdf column of size V (V: number of vertices).
+        The gdf column contains a numbering map that mpas the new ids to the
+        original ids.
 
     Examples
     --------
-    >>> import numpy as np
-    >>> import pytest
-    >>> from scipy.io import mmread
-    >>>
-    >>> import cudf
-    >>> import cugraph
-    >>>
-    >>>
-    >>> mm_file = '../datasets/karate.mtx'
-    >>> M = mmread(mm_file).asfptype()
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>>
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> src_r, dst_r, numbering = G.renumber(sources, destinations)
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> source_col, dest_col, numbering_map = cugraph.renumber(sources,
+    >>>                                                        destinations)
     """
     null_check(source_col)
     null_check(dest_col)

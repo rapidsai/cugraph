@@ -99,6 +99,20 @@ namespace cusort {
         return GDF_SUCCESS;
       }
 
+      gdf_error allocate_keys_only(Length_t len, Length_t cubData) {
+        Length_t cubDataSize = ((cubData + MEM_ALIGN - 1) / MEM_ALIGN) * MEM_ALIGN;
+        Length_t sdSize = ((len + MEM_ALIGN - 1) / MEM_ALIGN) * MEM_ALIGN;
+        Length_t startingPoint = sdSize * sizeof(Key_t);         
+
+        ALLOC_TRY(&buffer, cubDataSize + startingPoint, nullptr);
+
+        d_keys = (Key_t *) buffer;
+        cubBuffer = buffer + startingPoint;
+        h_length = len;
+
+        return GDF_SUCCESS;
+      }
+
       gdf_error free() {
         if (buffer != nullptr)
           ALLOC_FREE_TRY(buffer, nullptr);
@@ -194,7 +208,7 @@ namespace cusort {
       }
     };
 
-    gdf_error sort_one(ThreadData *tData, Length_t average_array_size, int cpu_tid, int num_gpus) {
+    gdf_error sort_one(ThreadData *tData, Length_t average_array_size, int cpu_tid, int num_gpus, bool keys_only) {
       Key_t * d_max = nullptr;
       void * d_temp_storage = nullptr;
       size_t temp_storage_bytes = 0;
@@ -363,31 +377,53 @@ namespace cusort {
       }
 
       tData[cpu_tid].cubSortBufferSize = 0;
-      cub::DeviceRadixSort::SortPairs<Key_t,Value_t>(nullptr, tData[cpu_tid].cubSortBufferSize,
-                                                     nullptr, nullptr, nullptr, nullptr, elements);
 
-      tData[cpu_tid].bdReorder.allocate(h_writePositionsTransposed[cpu_tid][num_gpus], tData[cpu_tid].cubSortBufferSize);
+      if (keys_only) {
+        cub::DeviceRadixSort::SortKeys<Key_t>(nullptr, tData[cpu_tid].cubSortBufferSize,
+                                              nullptr, nullptr, elements);
+
+        tData[cpu_tid].bdReorder.allocate_keys_only(h_writePositionsTransposed[cpu_tid][num_gpus], tData[cpu_tid].cubSortBufferSize);
+      } else {
+        cub::DeviceRadixSort::SortPairs<Key_t,Value_t>(nullptr, tData[cpu_tid].cubSortBufferSize,
+                                                       nullptr, nullptr, nullptr, nullptr, elements);
+
+        tData[cpu_tid].bdReorder.allocate(h_writePositionsTransposed[cpu_tid][num_gpus], tData[cpu_tid].cubSortBufferSize);
+      }
+
       tData[cpu_tid].h_output_length = h_writePositionsTransposed[cpu_tid][num_gpus];
       cudaDeviceSynchronize();
       cudaCheckError();
 
 #pragma omp barrier
 
-      partitionRelabel<32, BLOCK_DIM> <<<blocks,BLOCK_DIM>>>
-        (tData[cpu_tid].d_input_keys,
-         tData[cpu_tid].bdReorder.d_keys,
-         tData[cpu_tid].d_input_values,
-         tData[cpu_tid].bdReorder.d_vals,
-         tData[cpu_tid].h_input_length,
-         tData[cpu_tid].tempPrefix,
-         computeBin,
-         tData[cpu_tid].binMap,
-         num_gpus);
+      if (keys_only) {
+        partitionRelabel<32, BLOCK_DIM> <<<blocks,BLOCK_DIM>>>
+          (tData[cpu_tid].d_input_keys,
+           tData[cpu_tid].bdReorder.d_keys,
+           tData[cpu_tid].h_input_length,
+           tData[cpu_tid].tempPrefix,
+           computeBin,
+           tData[cpu_tid].binMap,
+           num_gpus);
+      } else {
+        partitionRelabel<32, BLOCK_DIM> <<<blocks,BLOCK_DIM>>>
+          (tData[cpu_tid].d_input_keys,
+           tData[cpu_tid].bdReorder.d_keys,
+           tData[cpu_tid].d_input_values,
+           tData[cpu_tid].bdReorder.d_vals,
+           tData[cpu_tid].h_input_length,
+           tData[cpu_tid].tempPrefix,
+           computeBin,
+           tData[cpu_tid].binMap,
+           num_gpus);
+      }
 
       cudaCheckError();
 
       ALLOC_TRY(&(tData[cpu_tid].d_output_keys), tData[cpu_tid].h_output_length * sizeof(Key_t), nullptr);
-      ALLOC_TRY(&(tData[cpu_tid].d_output_values), tData[cpu_tid].h_output_length * sizeof(Value_t), nullptr);
+
+      if (!keys_only)
+        ALLOC_TRY(&(tData[cpu_tid].d_output_values), tData[cpu_tid].h_output_length * sizeof(Value_t), nullptr);
 
       cudaCheckError();
 
@@ -396,38 +432,51 @@ namespace cusort {
       //
 #pragma omp barrier
 
-      for (int dest = 0 ; dest < num_gpus ; ++dest) {
-        int dest_id = (cpu_tid + dest) % num_gpus;
+      for (int other = 0 ; other < num_gpus ; ++other) {
+        int from_id = (cpu_tid + other) % num_gpus;
 
-        CUDA_TRY(cudaMemcpyAsync(tData[cpu_tid].d_output_keys + h_writePositionsTransposed[cpu_tid][dest_id],
-                                 tData[dest_id].bdReorder.d_keys + h_readPositions[dest_id+1][cpu_tid],
-                                 (h_readPositions[dest_id+1][cpu_tid+1] - h_readPositions[dest_id+1][cpu_tid]) * sizeof(Key_t),
+        CUDA_TRY(cudaMemcpyAsync(tData[cpu_tid].d_output_keys + h_writePositionsTransposed[cpu_tid][from_id],
+                                 tData[from_id].bdReorder.d_keys + h_readPositions[from_id+1][cpu_tid],
+                                 (h_readPositions[from_id+1][cpu_tid+1] - h_readPositions[from_id+1][cpu_tid]) * sizeof(Key_t),
                                  cudaMemcpyDeviceToDevice));
 
-        CUDA_TRY(cudaMemcpyAsync(tData[cpu_tid].d_output_values + h_writePositionsTransposed[cpu_tid][dest_id],
-                                 tData[dest_id].bdReorder.d_vals + h_readPositions[dest_id+1][cpu_tid],
-                                 (h_readPositions[dest_id+1][cpu_tid+1] - h_readPositions[dest_id+1][cpu_tid]) * sizeof(Value_t),
-                                 cudaMemcpyDeviceToDevice));
+        if (!keys_only)
+          CUDA_TRY(cudaMemcpyAsync(tData[cpu_tid].d_output_values + h_writePositionsTransposed[cpu_tid][from_id],
+                                   tData[from_id].bdReorder.d_vals + h_readPositions[from_id+1][cpu_tid],
+                                   (h_readPositions[from_id+1][cpu_tid+1] - h_readPositions[from_id+1][cpu_tid]) * sizeof(Value_t),
+                                   cudaMemcpyDeviceToDevice));
 
       }
       cudaDeviceSynchronize();
 
 #pragma omp barrier
 
-      d_temp_storage = (void*) tData[cpu_tid].bdReorder.cubBuffer;
-      cub::DeviceRadixSort::SortPairs<Key_t,Value_t>(d_temp_storage,
-                                                     tData[cpu_tid].cubSortBufferSize,
-                                                     tData[cpu_tid].d_output_keys,
-                                                     tData[cpu_tid].bdReorder.d_keys, 
-                                                     tData[cpu_tid].d_output_values,
-                                                     tData[cpu_tid].bdReorder.d_vals,
-                                                     tData[cpu_tid].h_output_length);
+      if (keys_only) {
+        d_temp_storage = (void*) tData[cpu_tid].bdReorder.cubBuffer;
+        cub::DeviceRadixSort::SortKeys<Key_t>(d_temp_storage,
+                                              tData[cpu_tid].cubSortBufferSize,
+                                              tData[cpu_tid].d_output_keys,
+                                              tData[cpu_tid].bdReorder.d_keys, 
+                                              tData[cpu_tid].h_output_length);
+      } else {
+        d_temp_storage = (void*) tData[cpu_tid].bdReorder.cubBuffer;
+        cub::DeviceRadixSort::SortPairs<Key_t,Value_t>(d_temp_storage,
+                                                       tData[cpu_tid].cubSortBufferSize,
+                                                       tData[cpu_tid].d_output_keys,
+                                                       tData[cpu_tid].bdReorder.d_keys, 
+                                                       tData[cpu_tid].d_output_values,
+                                                       tData[cpu_tid].bdReorder.d_vals,
+                                                       tData[cpu_tid].h_output_length);
+      }
 
       cudaCheckError();
       cudaDeviceSynchronize();
 
       CUDA_TRY(cudaMemcpy(tData[cpu_tid].d_output_keys, tData[cpu_tid].bdReorder.d_keys, tData[cpu_tid].h_output_length * sizeof(Key_t), cudaMemcpyDeviceToDevice));
-      CUDA_TRY(cudaMemcpy(tData[cpu_tid].d_output_values, tData[cpu_tid].bdReorder.d_vals, tData[cpu_tid].h_output_length * sizeof(Value_t), cudaMemcpyDeviceToDevice));
+
+      if (!keys_only)
+        CUDA_TRY(cudaMemcpy(tData[cpu_tid].d_output_values, tData[cpu_tid].bdReorder.d_vals, tData[cpu_tid].h_output_length * sizeof(Value_t), cudaMemcpyDeviceToDevice));
+
       cudaDeviceSynchronize();
 
       return GDF_SUCCESS;
@@ -457,7 +506,12 @@ namespace cusort {
       // Used for partitioning the output and ensuring that each GPU sorts a near equal number of elements.
       Length_t average_array_size = (keyCount + num_gpus - 1) / num_gpus;
 
-      int original_number_threads = omp_get_num_threads();
+      int original_number_threads = 0;
+#pragma omp parallel
+      {
+        if (omp_get_thread_num() == 0)
+          original_number_threads = omp_get_num_threads();
+      }
 
       omp_set_num_threads(num_gpus);
 
@@ -473,13 +527,75 @@ namespace cusort {
         ret = tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus);
 
         if (ret == GDF_SUCCESS)
-          ret = sort_one(tData, average_array_size, cpu_tid, num_gpus);
+          ret = sort_one(tData, average_array_size, cpu_tid, num_gpus, false);
 
         tData[cpu_tid].bdReorder.free();
         tData[cpu_tid].free();
 
         d_output_keys[cpu_tid] = tData[cpu_tid].d_output_keys;
         d_output_values[cpu_tid] = tData[cpu_tid].d_output_values;
+      }
+
+      //
+      //  Restore the OpenMP configuration
+      //
+      omp_set_num_threads(original_number_threads);
+
+      h_output_partition_offsets[0] = Length_t{0};
+      for (int i = 0 ; i < num_gpus ; ++i)
+        h_output_partition_offsets[i+1] = h_output_partition_offsets[i] + tData[i].h_output_length;
+
+      return ret;
+    }
+
+    gdf_error sort(Key_t **d_input_keys,
+                   Length_t *h_input_partition_offsets,
+                   Key_t **d_output_keys,
+                   Length_t *h_output_partition_offsets,
+                   int num_gpus = 1) {
+
+      if (num_gpus > MAX_NUM_GPUS) {
+        return GDF_C_ERROR;  // TODO: There are no existing SNMG errors, should be its own error, I think
+      }
+
+      if ((sizeof(Key_t) != 8) && (sizeof(Key_t) != 4)) {
+        return GDF_UNSUPPORTED_DTYPE;
+      }
+
+      ThreadData tData[num_gpus];
+
+      gdf_error ret = GDF_SUCCESS;
+      Length_t keyCount = h_input_partition_offsets[num_gpus];
+
+      // Used for partitioning the output and ensuring that each GPU sorts a near equal number of elements.
+      Length_t average_array_size = (keyCount + num_gpus - 1) / num_gpus;
+
+      int original_number_threads = 0;
+#pragma omp parallel
+      {
+        if (omp_get_thread_num() == 0)
+          original_number_threads = omp_get_num_threads();
+      }
+
+      omp_set_num_threads(num_gpus);
+
+#pragma omp parallel
+      {
+        int cpu_tid = omp_get_thread_num();
+        cudaSetDevice(cpu_tid);
+
+        tData[cpu_tid].h_input_length = h_input_partition_offsets[cpu_tid+1] - h_input_partition_offsets[cpu_tid];
+        tData[cpu_tid].d_input_keys = d_input_keys[cpu_tid];
+
+        ret = tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus);
+
+        if (ret == GDF_SUCCESS)
+          ret = sort_one(tData, average_array_size, cpu_tid, num_gpus, true);
+
+        tData[cpu_tid].bdReorder.free();
+        tData[cpu_tid].free();
+
+        d_output_keys[cpu_tid] = tData[cpu_tid].d_output_keys;
       }
 
       //
