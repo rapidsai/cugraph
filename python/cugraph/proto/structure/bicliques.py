@@ -11,12 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 # Import needed libraries
 import cudf
 import numpy as np
-
-
 
 def find_bicliques(df, k, 
               offset=0, 
@@ -39,10 +36,6 @@ def find_bicliques(df, k,
     
     offset : int
       
-    
-    
-    
-    
     Returns
     -------     
     B : cudf.DataFrame      
@@ -63,13 +56,10 @@ def find_bicliques(df, k,
         S['machines'] - number of machine nodes
         S['features'] - number of feature vertices
         S['bad_ration'] - the ratio of bad machine / total machines
-    
-    
     """
-
     # must be factor of 10
     PART_SIZE   = int(1000)   
-    
+
     x = [col for col in df.columns]
     if 'src' not in x:
        raise NameError('src column not found')
@@ -80,8 +70,7 @@ def find_bicliques(df, k,
 
     if support > 1.0 or support < 0.1:
        raise NameError('support must be between 0.1 and 1.0')  
-    
-    
+
     # this removes a prep step that offset the values for CUDA process
     if offset > 0 :
         df['dst'] = df['dst'] - offset    
@@ -98,26 +87,26 @@ def find_bicliques(df, k,
 
     # create a dataframe to help prevent duplication of work
     machine_old = cudf.DataFrame()   
-    
+
     # create a dataframe for stats
     stats = cudf.DataFrame()
-    
+
     answer_id = 0
     iter_max = len(f_list)
-    
+
     if max_iter != -1 :
         iter_max = max_iter
-    
+
     # Loop over all the features (dst) or until K is reached
     for i in range(iter_max) :
 
         # pop the next feature to process
         feature = f_list['dst'][i]
         degree  = f_list['count'][i]
-        
+
         # compute the index to this item (which dataframe chunk is in)
         idx = int(feature/PART_SIZE)        
-        
+
         # get all machines that have this feature
         machines = get_src_from_dst(src_by_dst[idx], feature) 
 
@@ -131,7 +120,7 @@ def find_bicliques(df, k,
             ic = _count_features(feature_list, True)
 
             goal = int(degree * support)
-            
+
             # only get dst nodes with the same degree
             c = ic.query('count >= @goal')
 
@@ -141,35 +130,31 @@ def find_bicliques(df, k,
                     bicliques, stats = update_results(machines, c, answer_id, bicliques, stats)
 
                     answer_id = answer_id + 1
-            
+
         # end - if same
-    
+
         machine_old = machines
-    
+
         if k > -1:
             if answer_id == k :
                 break
-            
+
     # end for loop
  
-
     # All done, reset data
     if offset > 0 :
         df['dst'] = df['dst'] + offset  
-        
+
     return bicliques, stats
-    
-
-
 
 
 def _partition_data_by_feature(_df) :
     
     #compute the number of sets
     m = int(( _df['dst'].max() / PART_SIZE) + 1 )
-    
+
     _ui = [None] * (m + 1)
-        
+
     # Partition the data into a number of smaller DataFrame
     s = 0
     e = s + PART_SIZE
@@ -178,13 +163,9 @@ def _partition_data_by_feature(_df) :
         _ui[i] = _df.query('dst >= @s and dst < @e')
 
         s = e
-        e = e + PART_SIZE   
-        
+        e = e + PART_SIZE
+
     return _ui, m
-
-
-
-
 
 
 def _count_features( _gdf, sort=True) :
@@ -202,9 +183,6 @@ def _count_features( _gdf, sort=True) :
     return c
 
 
-
-
-
 # get all src vertices for a given dst
 def get_src_from_dst( _gdf, id) :
     
@@ -213,9 +191,6 @@ def get_src_from_dst( _gdf, id) :
     _src_list.drop_column('dst')
     
     return _src_list
-
-
-# In[7]:
 
 
 def is_same_as_last(_old, _new) :
@@ -242,9 +217,6 @@ def get_all_feature(_gdf, src_list_df, N) :
         c[i] = src_list_df.merge(_gdf[i], on='src', how="inner")    
   
     return cudf.concat(c)
-
-
-# In[ ]:
 
 
 def update_results(m, f, key, b, s) :
@@ -277,7 +249,6 @@ def update_results(m, f, key, b, s) :
         S['features'] - number of feature vertices
         S['bad_ratio'] - the ratio of bad machine / total machines
     """
-    
     B = cudf.DataFrame()
     S = cudf.DataFrame()
 
@@ -285,24 +256,22 @@ def update_results(m, f, key, b, s) :
     m_df['vert'] = m['src']
     m_df['id']   = int(key)
     m_df['type'] = int(0) 
-    
-    
+
     f_df = cudf.DataFrame()
     f_df['vert'] = f['dst'].astype(np.int32)
     f_df['id']   = int(key)
     f_df['type'] = int(1)
-        
-        
+
     if len(b) == 0 :
         B = cudf.concat([m_df, f_df])
     else :
         B = cudf.concat([b, m_df, f_df])
-    
+
     # now update the stats
     num_m = len(m_df)
     num_f = len(f_df)
     total = num_m + num_f
-    
+
     num_bad = len(m.query('flag == 1'))
     ratio = num_bad / total
 
@@ -313,14 +282,13 @@ def update_results(m, f, key, b, s) :
     s_tmp['machines'] = num_m
     s_tmp['features'] = num_f
     s_tmp['bad_ratio'] = ratio    
-    
+
     if len(s) == 0 :
         S = s_tmp
     else :
          S = cudf.concat([s,s_tmp])
-    
+
     del m_df
     del f_df
-    
-    return B, S
 
+    return B, S
