@@ -11,5 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.proto.components import strong_connected_component
+from cugraph.proto.components.scc import strong_connected_component
 
