@@ -57,15 +57,15 @@ def strong_connected_component(source, destination):
 
    >>> components, single_components, count = scc.strong_connected_component(source, destination)
     """
-  
+
     max_value = np.iinfo(np.int32).max
 
     # create the FW and BW graphs - this version dopes nopt modify the graphs
     G_fw = cugraph.Graph()
     G_bw = cugraph.Graph()
 
-    G_fw.add_edge_list(source, destination)        
-    G_bw.add_edge_list(destination, source)  
+    G_fw.add_edge_list(source, destination)
+    G_bw.add_edge_list(destination, source)
 
     # get a list of vertices and sort the list on out_degree
     d = G_fw.degrees()
@@ -76,14 +76,14 @@ def strong_connected_component(source, destination):
     # create space for the answers
     components        = [None] * num_verts
     single_components = [None] * num_verts
-    
+
     # Counts - aka array indexies 
-    count             = 0    
-    single_count      = 0    
-   
+    count             = 0
+    single_count      = 0
+
     # remove vertices that cannot be in a component
     bad = d.query('in_degree == 0 or out_degree == 0')
-    
+
     if len(bad) : 
         bad = bad.drop(['in_degree', 'out_degree'])
 
@@ -93,13 +93,13 @@ def strong_connected_component(source, destination):
     
     #----- Start processing -----
     while len(d) > 0 :
-     
+
         v = d['vertex'][0]
  
         # compute the forward BFS
         bfs_fw = cugraph.bfs(G_fw, v)  
         bfs_fw = bfs_fw.query("distance != @max_value")
-           
+
         # Now backwards
         bfs_bw = cugraph.bfs(G_bw, v)
         bfs_bw = bfs_bw.query("distance != @max_value")    
@@ -117,7 +117,7 @@ def strong_connected_component(source, destination):
             # v is an isolated vertex
             vdf = cudf.DataFrame()
             vdf['vertex'] = v
-            
+
             single_components[single_count] = vdf
             single_count = single_count + 1
             d   = d.iloc[1:]
@@ -129,7 +129,8 @@ def strong_connected_component(source, destination):
 
     return comp, sing, count
 
-#---------
+#  ---------
+
 
 def _filter_list(vert_list, drop_list) :
     t = cudf.DataFrame()
@@ -141,20 +142,20 @@ def _filter_list(vert_list, drop_list) :
     df['d'] = df['d'].fillna(1)
     df = df.query('d == 1')
     df.drop_column('d')    
-    
+
     return df
 
+
 def _compress_array(a, l):
-    
+
     tmp = cudf.DataFrame()
 
     if l > 0:
         tmp_a = [None] * l
-        
+
         for i in range(l):
             tmp_a[i] = a[i]
-            
-        tmp = cudf.concat(tmp_a)   
-        
-    return tmp
 
+        tmp = cudf.concat(tmp_a)
+
+    return tmp
