@@ -198,10 +198,6 @@ __global__ void partitionRelabel(Key_t *array,
     prefix[0] = 0L;
     for (int p = 0 ; p < numPartitions ; ++p) {
       prefix[p+1] = prefix[p] + counter[0][p] + counter[1][p];
-
-      if (prefix[p+1] > THREADS)
-        printf("p = %d, prefix = (%lld, %lld), counter = (%lld, %lld)\n",
-               p, prefix[p+1], prefix[p], counter[0][p], counter[1][p]);
     }
   }
 
@@ -319,10 +315,6 @@ __global__ void partitionRelabel(Key_t *array,
     prefix[0] = 0L;
     for (int p = 0 ; p < numPartitions ; ++p) {
       prefix[p+1] = prefix[p] + counter[0][p] + counter[1][p];
-
-      if (prefix[p+1] > THREADS)
-        printf("p = %d, prefix = (%lld, %lld), counter = (%lld, %lld)\n",
-               p, prefix[p+1], prefix[p], counter[0][p], counter[1][p]);
     }
   }
 

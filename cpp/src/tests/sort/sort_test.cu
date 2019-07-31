@@ -173,7 +173,7 @@ void verify_sorted_order(Key_t **d_key, Value_t **d_value,
 
       Key_t *key = d_key[cpu_tid];
 
-      thrust::transform(thrust::device,
+      thrust::transform(rmm::exec_policy(stream)->on(stream),
                         thrust::make_counting_iterator(Length_t{0}),
                         thrust::make_counting_iterator(length),
                         diffCounter,
@@ -193,7 +193,7 @@ void verify_sorted_order(Key_t **d_key, Value_t **d_value,
       cudaDeviceSynchronize();
       cudaCheckError();
 
-      int result = thrust::reduce(thrust::device, diffCounter, diffCounter + length, 0);
+      int result = thrust::reduce(rmm::exec_policy(stream)->on(stream), diffCounter, diffCounter + length, 0);
 
       EXPECT_EQ(result, 0);
       EXPECT_EQ(RMM_FREE(diffCounter, stream), RMM_SUCCESS);
@@ -235,7 +235,7 @@ void verify_sorted_order(Key_t **d_key, Length_t *h_offsets,
 
       Key_t *key = d_key[cpu_tid];
 
-      thrust::transform(thrust::device,
+      thrust::transform(rmm::exec_policy(stream)->on(stream),
                         thrust::make_counting_iterator(Length_t{0}),
                         thrust::make_counting_iterator(length),
                         diffCounter,
@@ -255,7 +255,7 @@ void verify_sorted_order(Key_t **d_key, Length_t *h_offsets,
       cudaDeviceSynchronize();
       cudaCheckError();
 
-      int result = thrust::reduce(thrust::device, diffCounter, diffCounter + length, 0);
+      int result = thrust::reduce(rmm::exec_policy(stream)->on(stream), diffCounter, diffCounter + length, 0);
 
       EXPECT_EQ(result, 0);
       EXPECT_EQ(RMM_FREE(diffCounter, stream), RMM_SUCCESS);

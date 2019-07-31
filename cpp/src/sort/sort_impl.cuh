@@ -383,7 +383,6 @@ namespace cusort {
                                               nullptr, nullptr, elements);
 
         tData[cpu_tid].bdReorder.allocate_keys_only(h_writePositionsTransposed[cpu_tid][num_gpus], tData[cpu_tid].cubSortBufferSize);
-        //tData[cpu_tid].bdReorder.allocate(h_writePositionsTransposed[cpu_tid][num_gpus], tData[cpu_tid].cubSortBufferSize);
       } else {
         cub::DeviceRadixSort::SortPairs<Key_t,Value_t>(nullptr, tData[cpu_tid].cubSortBufferSize,
                                                        nullptr, nullptr, nullptr, nullptr, elements);
