@@ -15,7 +15,6 @@ def to_gpu_array(df):
     Get the gpu_array pointer to the data in columns of the
     input dataframe.
     """
-    df = drop_duplicates(df)
     start_idx = df.index[0]
     stop_idx = df.index[-1]
     gpu_array_src = df['src']._column._data.mem
@@ -221,9 +220,32 @@ def _get_mg_info(ddf):
 # UTILITY FUNCTIONS
 
 
-def drop_duplicates(df):
+def _drop_duplicates(df):
     df.drop_duplicates(inplace=True)
     return df
+
+
+def drop_duplicates(ddf):
+    client = default_client()
+
+    if isinstance(ddf, dd.DataFrame):
+        parts = ddf.to_delayed()
+        parts = client.compute(parts)
+        wait(parts)
+    else:
+        parts = ddf
+    key_to_part_dict = dict([(str(part.key), part) for part in parts])
+    who_has = client.who_has(parts)
+    worker_map = []
+    for key, workers in who_has.items():
+        worker = parse_host_port(first(workers))
+        worker_map.append((worker, key_to_part_dict[key]))
+
+    gpu_data = [client.submit(_drop_duplicates, part, workers=[worker])
+                for worker, part in worker_map]
+
+    wait(gpu_data)
+    return gpu_data
 
 
 def get_n_gpus():
