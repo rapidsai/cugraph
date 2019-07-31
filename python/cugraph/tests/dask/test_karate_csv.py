@@ -9,7 +9,7 @@ import pandas as pd
 # third-party group once this gets fixed.
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from dask.distributed import Client, wait
+    from dask.distributed import Client
     import cugraph.dask.pagerank as dcg
     from dask_cuda import LocalCUDACluster
     import networkx as nx
@@ -27,7 +27,7 @@ def test_pagerank():
     nx_pr = nx.pagerank(G, alpha=0.85)
     nx_pr = sorted(nx_pr.items(), key=lambda x: x[0])
     # Cugraph snmg pagerank Call
-    cluster = LocalCUDACluster(local_dir='/datasets/iroy', threads_per_worker=1)
+    cluster = LocalCUDACluster(threads_per_worker=1)
     client = Client(cluster)
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
@@ -37,7 +37,7 @@ def test_pagerank():
 
     pr = dcg.pagerank(ddf, alpha=0.85, max_iter=50)
     res_df = pr.compute()
-    print(res_df)
+    
     err = 0
     tol = 1.0e-05
     for i in range(len(res_df)):
