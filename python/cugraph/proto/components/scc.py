@@ -62,8 +62,7 @@ def strong_connected_component(source, destination):
    >>> components, single_components, count =
         scc.strong_connected_component(source, destination)
     """
-    max_value = 0
-    max_value = np.iinfo(np.int32).max + max_value
+    max_value = np.iinfo(np.int32).max  # NOQA
 
     # create the FW and BW graphs - this version dopes nopt modify the graphs
     G_fw = cugraph.Graph()
