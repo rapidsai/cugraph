@@ -48,6 +48,8 @@ def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
     err = gdf_connected_components(g, <cugraph_cc_t>connect_type, tbl)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
+    del tbl
+
     return df
 
 
@@ -75,5 +77,7 @@ def strongly_connected_components(graph_ptr):
     cdef cugraph_cc_t connect_type=CUGRAPH_STRONG
     err = gdf_connected_components(g, <cugraph_cc_t>connect_type, tbl)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
+
+    del tbl
 
     return df
