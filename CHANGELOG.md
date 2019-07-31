@@ -13,6 +13,7 @@
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
 - PR #383 Exposed MG pagerank solver parameters 
 - PR #399 Example Prototype of Strongly Connected Components using primitives
+- PR #419 Version test
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
