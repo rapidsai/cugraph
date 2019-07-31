@@ -11,12 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import cudf
 import cugraph
 import numpy as np
-
-
 
 #
 # TRIM Process:
@@ -28,10 +25,9 @@ import numpy as np
 #   - remove component
 #   - repeat
 
-
-def strong_connected_component(source, destination) :
+def strong_connected_component(source, destination):
     """
-    Generate the strongly connected components (using the TRIM approach)
+    Generate the strongly connected components (using the FW-BW-TRIM approach, but skipping the trimming)
 
     Parameters
     ----------
@@ -41,11 +37,17 @@ def strong_connected_component(source, destination) :
     destination : cudf.Seriers
 	A cudf seriers that contains the destination side of an edge list
      
-
     Returns
     -------
-    df : cudf.DataFrame
-      df['labels'][i] gives the label id of the i'th vertex
+    cdf : cudf.DataFrame - a dataframe for components
+	df['vertex']   - the vertex ID
+	df['id']       - the component ID
+
+    sdf : cudf.DataFrame - a dataframe with single vertex components
+	df['vertex']   - the vertex ID
+
+    count - int - the number of components found
+
 
     Examples
     --------
@@ -53,41 +55,46 @@ def strong_connected_component(source, destination) :
     >>> sources = cudf.Series(M.row)
     >>> destinations = cudf.Series(M.col)
 
-   >>> components, single_components, count = 
+   >>> components, single_components, count = scc.strong_connected_component(source, destination)
     """
   
     max_value = np.iinfo(np.int32).max
 
-    # create a copy of the data that can be manipulated
-    coo = cudf.DataFrame()
-    coo['src'] = source
-    coo['dst'] = destination
-    
-    # create space for the answers
-    single_components = cudf.DataFrame()
-    components        = cudf.DataFrame()
-    count             = 0
-    
+    # create the FW and BW graphs - this version dopes nopt modify the graphs
     G_fw = cugraph.Graph()
     G_bw = cugraph.Graph()
 
-    G_fw.add_edge_list(coo['src'], coo['dst'])        
-    G_bw.add_edge_list(coo['dst'], coo['src'])        
+    G_fw.add_edge_list(source, destination)        
+    G_bw.add_edge_list(destination, source)  
 
     # get a list of vertices and sort the list on out_degree
     d = G_fw.degrees()
     d = d.sort_values(by='out_degree', ascending=False) 
+
+    num_verts = len(d)
     
+    # create space for the answers
+    components        = [None] * num_verts
+    single_components = [None] * num_verts
+    
+    # Counts - aka array indexies 
+    count             = 0    
+    single_count      = 0    
+   
+    # remove vertices that cannot be in a component
     bad = d.query('in_degree == 0 or out_degree == 0')
     
     if len(bad) : 
-        single_components = _update_singletons(single_components, bad)
-        d                 = _filter_list(d, bad)
+        bad = bad.drop(['in_degree', 'out_degree'])
+
+        single_components[single_count] = bad
+        single_count = single_count + 1
+        d  = _filter_list(d, bad)
     
     #----- Start processing -----
-    while len(d) > 0 : 
+    while len(d) > 0 :
      
-        v = d['vertex'][0]        
+        v = d['vertex'][0]
  
         # compute the forward BFS
         bfs_fw = cugraph.bfs(G_fw, v)  
@@ -100,58 +107,29 @@ def strong_connected_component(source, destination) :
         # intersection
         common = bfs_fw.merge(bfs_bw, on='vertex', how='inner')
 
-        if len(common) > 1 :     
-            components = _update_components(components, common, count)
+        if len(common) > 1:
+            common['id'] = v
+            components[count] = common       
             d          = _filter_list(d, common)
             count      =  count + 1
-
-            del common
 
         else :
             # v is an isolated vertex
             vdf = cudf.DataFrame()
             vdf['vertex'] = v
-            single_components = _update_singletons(single_components, vdf)
-            d                 = _filter_list(d, vdf)
-
-
-    # loop until coo == 0
-
-    return components, single_components, count
-
-
-
-
-
-
-def _update_singletons(df, sv) :
-    
-    _d = cudf.DataFrame()
-    _d['vertex'] = sv['vertex']
-    _d['id']     = sv['vertex']
-    
-    if len(df) > 0 :
-        _d = cudf.concat([df, _d])
-    
-    return _d
-
-
-
-
-def _update_components(df, bfs_common, vert) :
-  
-    _d = cudf.DataFrame()
-    _d['vertex'] = bfs_common['vertex'].copy()
-    _d['id']     = vert    
-               
-    if len(df) > 0 :  
-        
-        _d = cudf.concat([df, _d])
             
-    return _d
+            single_components[single_count] = vdf
+            single_count = single_count + 1
+            d   = d.iloc[1:]
 
+    # end of loop until vertex queue is empty
 
+    comp = _compress_array(components, count)
+    sing = _compress_array(single_components, single_count)
 
+    return comp, sing, count
+
+#---------
 
 def _filter_list(vert_list, drop_list) :
     t = cudf.DataFrame()
@@ -165,4 +143,18 @@ def _filter_list(vert_list, drop_list) :
     df.drop_column('d')    
     
     return df
+
+def _compress_array(a, l):
+    
+    tmp = cudf.DataFrame()
+
+    if l > 0:
+        tmp_a = [None] * l
+        
+        for i in range(l):
+            tmp_a[i] = a[i]
+            
+        tmp = cudf.concat(tmp_a)   
+        
+    return tmp
 
