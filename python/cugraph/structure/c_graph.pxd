@@ -16,6 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
+from libcpp cimport bool
+
 cdef extern from "cudf/cudf.h":
 
     ctypedef size_t gdf_size_type
@@ -85,10 +87,29 @@ cdef extern from "cugraph.h":
         gdf_error get_vertex_identifiers(gdf_column *identifiers)
         gdf_error get_source_indices(gdf_column *indices)
 
+    struct gdf_dynamic:
+        void   *data
+
+    ctypedef enum gdf_prop_type:
+        GDF_PROP_UNDEF = 0
+        GDF_PROP_FALSE
+        GDF_PROP_TRUE
+
+    struct gdf_graph_properties:
+        bool directed
+        bool weighted
+        bool multigraph
+        bool bipartite
+        bool tree
+        gdf_prop_type has_negative_edges
+
     struct gdf_graph:
         gdf_edge_list *edgeList
         gdf_adj_list *adjList
         gdf_adj_list *transposedAdjList
+        gdf_dynamic  *dynAdjList
+        gdf_graph_properties *prop
+        size_t numberOfVertices
 
 
     cdef gdf_error gdf_renumber_vertices(const gdf_column *src,
@@ -114,3 +135,5 @@ cdef extern from "cugraph.h":
     cdef gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph)
 
     cdef gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x)
+
+    cdef gdf_error gdf_number_of_vertices(gdf_graph *graph)

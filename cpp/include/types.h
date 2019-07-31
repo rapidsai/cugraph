@@ -96,7 +96,8 @@ struct gdf_graph{
   gdf_adj_list *transposedAdjList; //CSC
   gdf_dynamic *dynAdjList; //dynamic 
   gdf_graph_properties *prop;
-  gdf_graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr) {}
+  gdf_size_type numberOfVertices;
+  gdf_graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
   ~gdf_graph() {
     if (edgeList) 
         delete edgeList;

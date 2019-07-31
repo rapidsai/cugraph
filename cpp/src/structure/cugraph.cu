@@ -48,7 +48,8 @@ void gdf_col_delete(gdf_column* col) {
     if (col->valid != nullptr) {
       ALLOC_FREE_TRY(col->valid, stream);
     }
-#if 0/* Currently, gdf_column_view does not set col_name, and col_name can have
+#if 0
+    /* Currently, gdf_column_view does not set col_name, and col_name can have
         an arbitrary value, so freeing col_name can lead to freeing a ranodom
         address. This problem should be cleaned up once cudf finishes
         redesigning cudf::column. */
@@ -242,6 +243,7 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
                                 static_cast<int*>(graph->edgeList->src_indices->data), 
                                 static_cast<int*>(graph->edgeList->dest_indices->data), 
                                 graph->edgeList->dest_indices->size);
+
   return status;
 }
 
@@ -410,5 +412,53 @@ gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) {
     delete graph->transposedAdjList;
   }
   graph->transposedAdjList = nullptr;
+  return GDF_SUCCESS;
+}
+
+gdf_error gdf_number_of_vertices(gdf_graph *graph) {
+  if (graph->numberOfVertices != 0)
+    return GDF_SUCCESS;
+
+  //
+  //  int32_t implementation for now, since that's all that
+  //  is supported elsewhere.
+  //
+  GDF_REQUIRE( (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
+
+  GDF_REQUIRE( (graph->edgeList->src_indices->dtype == GDF_INT32), GDF_UNSUPPORTED_DTYPE );
+
+  int32_t  h_max[2];
+  int32_t *d_max;
+  void    *d_temp_storage = nullptr;
+  size_t   temp_storage_bytes = 0;
+  
+  ALLOC_TRY(&d_max, sizeof(int32_t), nullptr);
+  
+  //
+  //  Compute size of temp storage
+  //
+  int32_t *tmp = static_cast<int32_t *>(graph->edgeList->src_indices->data);
+
+  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, tmp, d_max, graph->edgeList->src_indices->size);
+
+  //
+  //  Compute max of src indices and copy to host
+  //
+  ALLOC_TRY(&d_temp_storage, temp_storage_bytes, nullptr);
+  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, tmp, d_max, graph->edgeList->src_indices->size);
+
+  CUDA_TRY(cudaMemcpy(h_max, d_max, sizeof(int32_t), cudaMemcpyDeviceToHost));
+
+  //
+  //  Compute max of dest indices and copy to host
+  //
+  tmp = static_cast<int32_t *>(graph->edgeList->dest_indices->data);
+  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, tmp, d_max, graph->edgeList->src_indices->size);
+  CUDA_TRY(cudaMemcpy(h_max + 1, d_max, sizeof(int32_t), cudaMemcpyDeviceToHost));
+
+  ALLOC_FREE_TRY(d_temp_storage, nullptr);
+  ALLOC_FREE_TRY(d_max, nullptr);
+  
+  graph->numberOfVertices = 1 + std::max(h_max[0], h_max[1]);
   return GDF_SUCCESS;
 }
