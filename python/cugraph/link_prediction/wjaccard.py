@@ -30,41 +30,49 @@ def jaccard_w(input_graph, weights, first=None, second=None):
 
     Parameters
     ----------
-    graph : cuGraph.Graph
-      cuGraph graph descriptor, should contain the connectivity information as
-      an edge list (edge weights are not used for this algorithm). The
-      adjacency list will be computed if not already present.
+    graph : cugraph.Graph
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm). The
+        adjacency list will be computed if not already present.
 
     weights : cudf.Series
-      Specifies the weights to be used for each vertex.
+        Specifies the weights to be used for each vertex.
 
     first : cudf.Series
-      Specifies the first vertices of each pair of vertices to compute for,
-      must be specified along with second.
+        Specifies the first vertices of each pair of vertices to compute for,
+        must be specified along with second.
 
     second : cudf.Series
-      Specifies the second vertices of each pair of vertices to compute for,
-      must be specified along with first.
+        Specifies the second vertices of each pair of vertices to compute for,
+        must be specified along with first.
 
     Returns
     -------
     df : cudf.DataFrame
-      GPU data frame of size E (the default) or the size of the given pairs
-      (first, second) containing the Jaccard weights. The ordering is relative
-      to the adjacency list, or that given by the specified vertex pairs.
+        GPU data frame of size E (the default) or the size of the given pairs
+        (first, second) containing the Jaccard weights. The ordering is
+        relative to the adjacency list, or that given by the specified vertex
+        pairs.
 
-      df['source']: The source vertex ID
-      df['destination']: The destination vertex ID
-      df['jaccard_coeff']: The computed weighted Jaccard coefficient between
-          the source and destination vertices.
+        df['source'] : cudf.Series
+            The source vertex ID
+        df['destination'] : cudf.Series
+            The destination vertex ID
+        df['jaccard_coeff'] : cudf.Series
+            The computed weighted Jaccard coefficient between the source and
+            destination vertices.
+
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> jaccard_weights = cugraph.jaccard_w(G, weights)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> weights = cudf.Series(numpy.ones(
+    >>>     max(sources.max(),destinations.max())+1, dtype=numpy.float32))
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.jaccard_w(G, weights)
     """
 
     if (type(first) == cudf.dataframe.series.Series and

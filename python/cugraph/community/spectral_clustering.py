@@ -27,37 +27,42 @@ def spectralBalancedCutClustering(G,
 
     Parameters
     ----------
-    G : cuGraph.Graph
-       cuGraph graph descriptor
+    G : cugraph.Graph
+        cuGraph graph descriptor
     num_clusters : integer
-        Specifies the number of clusters to find
+         Specifies the number of clusters to find
     num_eigen_vects : integer
-        Specifies the number of eigenvectors to use. Must be lower or equal to
-        num_clusters.
+         Specifies the number of eigenvectors to use. Must be lower or equal to
+         num_clusters.
     evs_tolerance: float
-        Specifies the tolerance to use in the eigensolver
+         Specifies the tolerance to use in the eigensolver
     evs_max_iter: integer
-        Specifies the maximum number of iterations for the eigensolver
+         Specifies the maximum number of iterations for the eigensolver
     kmean_tolerance: float
-        Specifies the tolerance to use in the k-means solver
+         Specifies the tolerance to use in the k-means solver
     kmean_max_iter: integer
-        Specifies the maximum number of iterations for the k-means solver
+         Specifies the maximum number of iterations for the k-means solver
 
     Returns
     -------
-    DF : GPU data frame containing two cudf.Series of size V: the vertex
+    df : cudf.DataFrame
+        GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding cluster assignments.
-        DF['vertex'] contains the vertex identifiers
-        DF['cluster'] contains the cluster assignments
 
-    Example:
+        df['vertex'] : cudf.Series
+            contains the vertex identifiers
+        df['cluster'] : cudf.Series
+            contains the cluster assignments
+
+    Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     """
 
     df = spectral_clustering_wrapper.spectralBalancedCutClustering(
@@ -85,36 +90,40 @@ def spectralModularityMaximizationClustering(G,
 
     Parameters
     ----------
-    G : cuGraph.Graph
-       cuGraph graph descriptor
+    G : cugraph.Graph
+        cuGraph graph descriptor. This graph should have edge weights.
     num_clusters : integer
-        Specifies the number of clusters to find
+         Specifies the number of clusters to find
     num_eigen_vects : integer
-        Specifies the number of eigenvectors to use. Must be lower or equal to
-        num_clusters
+         Specifies the number of eigenvectors to use. Must be lower or equal to
+         num_clusters
     evs_tolerance: float
-        Specifies the tolerance to use in the eigensolver
+         Specifies the tolerance to use in the eigensolver
     evs_max_iter: integer
-        Specifies the maximum number of iterations for the eigensolver
+         Specifies the maximum number of iterations for the eigensolver
     kmean_tolerance: float
-        Specifies the tolerance to use in the k-means solver
+         Specifies the tolerance to use in the k-means solver
     kmean_max_iter: integer
-        Specifies the maximum number of iterations for the k-means solver
+         Specifies the maximum number of iterations for the k-means solver
 
     Returns
     -------
-    Clustering : cudf.DataFrame
-        DF['vertex'] contains the vertex identifiers
-        DF['cluster'] contains the cluster assignments
+    df : cudf.DataFrame
+        df['vertex'] : cudf.Series
+            contains the vertex identifiers
+        df['cluster'] : cudf.Series
+            contains the cluster assignments
 
-    Example:
+    Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralModularityMaximizationClustering(G, 5)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> values = cudf.Series(M['2'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, values)
+    >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     """
 
     df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
@@ -135,8 +144,8 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
 
     Parameters
     ----------
-    G : cuGraph.Graph
-       cuGraph graph descriptor
+    G : cugraph.Graph
+        cuGraph graph descriptor. This graph should have edge weights.
     n_clusters : integer
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
@@ -147,15 +156,17 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     score : float
         The computed modularity score
 
-    Example:
+    Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_modularity(G, 5, DF['cluster'])
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> values = cudf.Series(M['2'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, values)
+    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> score = cugraph.analyzeClustering_modularity(G, 5, df['cluster'])
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
@@ -172,8 +183,8 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
 
     Parameters
     ----------
-    G : cuGraph.Graph
-       cuGraph graph descriptor
+    G : cugraph.Graph
+        cuGraph graph descriptor
     n_clusters : integer
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
@@ -184,15 +195,16 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     score : float
         The computed edge cut score
 
-    Example:
+    Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_edge_cut(G, 5, DF['cluster'])
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df['cluster'])
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
@@ -209,8 +221,8 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
 
     Parameters
     ----------
-    G : cuGraph.Graph
-       cuGraph graph descriptor
+    G : cugraph.Graph
+        cuGraph graph descriptor. This graph should have edge weights.
     n_clusters : integer
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
@@ -221,15 +233,17 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     score : float
         The computed ratio cut score
 
-    Example:
+    Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
-    >>> DF = cuGraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cuGraph.analyzeClustering_ratio_cut(G, 5, DF['cluster'])
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> values = cudf.Series(M['2'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, values)
+    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df['cluster'])
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(

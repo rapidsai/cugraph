@@ -22,22 +22,24 @@ def triangles(G):
     Parameters
     ----------
     G : cugraph.graph
-      cugraph graph descriptor, should contain the connectivity information,
-      (edge weights are not used in this algorithm)
+        cuGraph graph descriptor, should contain the connectivity information,
+        (edge weights are not used in this algorithm)
 
     Returns
     -------
-    count : A 64 bit integer whose value gives the number of triangles in the
-      graph.
+    count : int64
+        A 64 bit integer whose value gives the number of triangles in the
+        graph.
 
-    Example
-    -------
-    >>>> M = read_mtx_file(graph_file)
-    >>>> sources = cudf.Series(M.row)
-    >>>> destinations = cudf.Series(M.col)
-    >>>> G = cugraph.Graph()
-    >>>> G.add_edge_list(sources, destinations, None)
-    >>>> count = cugraph.triangle_count(G)
+    Examples
+    --------
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> count = cugraph.triangles(G)
     """
 
     result = triangle_count_wrapper.triangles(G.graph_ptr)

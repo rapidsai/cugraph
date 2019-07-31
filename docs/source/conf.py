@@ -41,7 +41,7 @@ extensions = [
     'IPython.sphinxext.ipython_directive',
 ]
 
-ipython_mplbackend = None
+ipython_mplbackend = 'str'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
