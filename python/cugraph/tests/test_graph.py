@@ -154,6 +154,11 @@ def check_all_two_hops(df, M):
                     assert has_pair(first_arr, second_arr, start, end)
 
 
+def test_version():
+    gc.collect()
+    cugraph.__version__
+
+
 DATASETS = ['../datasets/karate',
             '../datasets/dolphins',
             '../datasets/netscience']
