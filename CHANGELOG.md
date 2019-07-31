@@ -26,6 +26,7 @@
 - PR #382 Disabled vertex id check to allow Azure deployment
 - PR #410 Fixed overflow error in SNMG COO2CSR
 - PR #395 run omp_ge_num_threads in a parallel context
+- PR #412 Fixed formatting issues in cuGraph documentation.
 - PR #413 Updated python build instructions.
 - PR #414 Add weights to wjaccrd.py
 
