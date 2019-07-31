@@ -39,7 +39,7 @@ def triangles(G):
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
-    >>> count = cugraph.triangle_count(G)
+    >>> count = cugraph.triangles(G)
     """
 
     result = triangle_count_wrapper.triangles(G.graph_ptr)

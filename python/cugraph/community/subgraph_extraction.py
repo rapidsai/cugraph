@@ -42,7 +42,7 @@ def subgraph(G, vertices):
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
-    >>> verts = numpy.zeros(3, dtype=np.int32)
+    >>> verts = numpy.zeros(3, dtype=numpy.int32)
     >>> verts[0] = 0
     >>> verts[1] = 1
     >>> verts[2] = 2

@@ -51,7 +51,7 @@ def sssp(G, source):
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
-    >>> distances = cugraph.sssp(G, source)
+    >>> distances = cugraph.sssp(G, 0)
     """
 
     df = sssp_wrapper.sssp(G.graph_ptr, source)

@@ -53,7 +53,8 @@ def renumber(source_col, dest_col):
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
-    >>> source_col, dest_col, numbering_map = G.renumber(sources, destinations)
+    >>> source_col, dest_col, numbering_map = cugraph.renumber(sources,
+    >>>                                                        destinations)
     """
     null_check(source_col)
     null_check(dest_col)

@@ -68,6 +68,8 @@ def overlap_w(input_graph, weights, first=None, second=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
+    >>> weights = cudf.Series(numpy.ones(
+    >>>     max(sources.max(),destinations.max())+1, dtype=numpy.float32))
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
     >>> df = cugraph.overlap_w(G, weights)
@@ -82,6 +84,7 @@ def overlap_w(input_graph, weights, first=None, second=None):
     else:
         raise ValueError("Specify first and second or neither")
 
-    df = woverlap_wrapper.overlap_w(input_graph.graph_ptr, first, second)
+    df = woverlap_wrapper.overlap_w(input_graph.graph_ptr,
+                                    weights, first, second)
 
     return df

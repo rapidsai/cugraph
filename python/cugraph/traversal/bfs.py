@@ -48,7 +48,7 @@ def bfs(G, start, directed=True):
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
-    >>> df = cugraph.bfs(G, 0, false)
+    >>> df = cugraph.bfs(G, 0)
     """
 
     df = bfs_wrapper.bfs(G.graph_ptr, start, directed)

@@ -91,7 +91,7 @@ def spectralModularityMaximizationClustering(G,
     Parameters
     ----------
     G : cugraph.Graph
-        cuGraph graph descriptor
+        cuGraph graph descriptor. This graph should have edge weights.
     num_clusters : integer
          Specifies the number of clusters to find
     num_eigen_vects : integer
@@ -120,8 +120,9 @@ def spectralModularityMaximizationClustering(G,
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
+    >>> values = cudf.Series(M['2'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.add_edge_list(sources, destinations, values)
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     """
 
@@ -144,7 +145,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     Parameters
     ----------
     G : cugraph.Graph
-        cuGraph graph descriptor
+        cuGraph graph descriptor. This graph should have edge weights.
     n_clusters : integer
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
@@ -161,8 +162,9 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
+    >>> values = cudf.Series(M['2'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.add_edge_list(sources, destinations, values)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df['cluster'])
     """
@@ -220,7 +222,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     Parameters
     ----------
     G : cugraph.Graph
-        cuGraph graph descriptor
+        cuGraph graph descriptor. This graph should have edge weights.
     n_clusters : integer
         Specifies the number of clusters in the given clustering
     clustering : cudf.Series
@@ -237,8 +239,9 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
+    >>> values = cudf.Series(M['2'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.add_edge_list(sources, destinations, values)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df['cluster'])
     """

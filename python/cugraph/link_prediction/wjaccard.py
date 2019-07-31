@@ -68,6 +68,8 @@ def jaccard_w(input_graph, weights, first=None, second=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
+    >>> weights = cudf.Series(numpy.ones(
+    >>>     max(sources.max(),destinations.max())+1, dtype=numpy.float32))
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
     >>> df = cugraph.jaccard_w(G, weights)
