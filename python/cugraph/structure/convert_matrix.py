@@ -38,6 +38,13 @@ def from_cudf_edgelist(df, source='source', target='target', weight=None):
     weight : string or integer, optional
         This pointer can be ``none``. If not, this is used to index the weight
         column.
+
+    Examples
+    --------
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G = cugraph.from_cudf_edgelist(M, source='0', target='1', weight='2')
     """
 
     G = Graph()
