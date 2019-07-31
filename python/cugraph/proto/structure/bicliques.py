@@ -123,8 +123,7 @@ def find_bicliques(
             # summarize occurances
             ic = _count_features(feature_list, True)
 
-            goal = 0
-            goal = int(degree * support) + goal
+            goal = int(degree * support)  # NOQA 
 
             # only get dst nodes with the same degree
             c = ic.query('count >= @goal')
