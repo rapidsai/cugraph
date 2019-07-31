@@ -13,6 +13,7 @@
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
 - PR #383 Exposed MG pagerank solver parameters 
+- PR #419 Version test
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
@@ -68,6 +69,7 @@
 - PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 - PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
 - PR #350 Configure Sphinx to render params correctly
+- PR #359 Updates to remove libboost_system as a runtime dependency on libcugraph.so
 
 
 # cuGraph 0.7.0 (10 May 2019)
