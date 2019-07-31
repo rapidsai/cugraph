@@ -18,11 +18,11 @@ from collections import OrderedDict
 
 
 def find_bicliques(df, k,
-              		offset=0,
-              		max_iter=-1,
-              		support=1.0,
-              		min_features=1,
-              		min_machines=10):
+                    offset=0,
+                    max_iter=-1,
+                    support=1.0,
+                    min_features=1,
+                    min_machines=10):
     """
     Find the top k maximal bicliques
 
@@ -42,8 +42,8 @@ def find_bicliques(df, k,
     -------
     B : cudf.DataFrame
         A dataframe containing the list of machine and features.  This is not
-		the full edge list to save space.  Since it is a biclique, it is ease 
-		to recreate the edges
+        the full edge list to save space.  Since it is a biclique, it is ease 
+        to recreate the edges
 
         B['id']    - a cluster ID (this is a one up number - up to k)
         B['vert']  - the vertex ID
@@ -65,14 +65,14 @@ def find_bicliques(df, k,
 
     x = [col for col in df.columns]
     if 'src' not in x:
-		raise NameError('src column not found')
+        raise NameError('src column not found')
     if 'dst' not in x:
-		raise NameError('dst column not found')
+        raise NameError('dst column not found')
     if 'flag' not in x:
-		raise NameError('flag column not found')
+        raise NameError('flag column not found')
 
     if support > 1.0 or support < 0.1:
-		raise NameError('support must be between 0.1 and 1.0')
+        raise NameError('support must be between 0.1 and 1.0')
 
     # this removes a prep step that offset the values for CUDA process
     if offset > 0:
@@ -131,7 +131,7 @@ def find_bicliques(df, k,
             if len(c) > min_features:
                 if len(machines) >= min_machines:
                     bicliques, stats =
-						update_results(machines, c, answer_id, bicliques, stats)
+                        update_results(machines, c, answer_id, bicliques, stats)
 
                     answer_id = answer_id + 1
 
@@ -233,12 +233,12 @@ def update_results(m, f, key, b, s):
     -------
     B : cudf.DataFrame
         A dataframe containing the list of machine and features.  This is not
-	the full edge list to save space. Since it is a biclique, it is ease
-	to recreate the edges
+    the full edge list to save space. Since it is a biclique, it is ease
+    to recreate the edges
 
-		B['id']    - a cluster ID (this is a one up number - up to k)
-		B['vert']  - the vertex ID
-		B['type']  - 0 == machine, 1 == feature
+        B['id']    - a cluster ID (this is a one up number - up to k)
+        B['vert']  - the vertex ID
+        B['type']  - 0 == machine, 1 == feature
 
 
     S : cudf.DataFrame
@@ -288,9 +288,9 @@ def update_results(m, f, key, b, s):
     if len(s) == 0:
         S = s_tmp
     else:
-	S = cudf.concat([s, s_tmp])
+    S = cudf.concat([s, s_tmp])
 
-	del m_df
-	del f_df
+    del m_df
+    del f_df
 
     return B, S

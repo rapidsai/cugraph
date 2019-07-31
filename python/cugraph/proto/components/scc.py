@@ -29,26 +29,26 @@ import numpy as np
 
 
 def strong_connected_component(source, destination):
-	"""
-	Generate the strongly connected components 
-	using the FW-BW-TRIM approach, but skipping the trimming)
+    """
+    Generate the strongly connected components 
+    using the FW-BW-TRIM approach, but skipping the trimming)
 
-	Parameters
-	----------
-	source : cudf.Seriers
-		A cudf seriers that contains the source side of an edge list
+    Parameters
+    ----------
+    source : cudf.Seriers
+        A cudf seriers that contains the source side of an edge list
 
-	destination : cudf.Seriers
-		A cudf seriers that contains the destination side of an edge list
+    destination : cudf.Seriers
+        A cudf seriers that contains the destination side of an edge list
 
-	Returns
-	-------
-	cdf : cudf.DataFrame - a dataframe for components
-		df['vertex']   - the vertex ID
-		df['id']       - the component ID
+    Returns
+    -------
+    cdf : cudf.DataFrame - a dataframe for components
+        df['vertex']   - the vertex ID
+        df['id']       - the component ID
 
-	sdf : cudf.DataFrame - a dataframe with single vertex components
-		df['vertex']   - the vertex ID
+    sdf : cudf.DataFrame - a dataframe with single vertex components
+        df['vertex']   - the vertex ID
 
     count - int - the number of components found
 
@@ -60,8 +60,8 @@ def strong_connected_component(source, destination):
     >>> destinations = cudf.Series(M.col)
 
    >>> components, single_components, count =
-		scc.strong_connected_component(source, destination)
-	"""
+        scc.strong_connected_component(source, destination)
+    """
 
     max_value = np.iinfo(np.int32).max
 
