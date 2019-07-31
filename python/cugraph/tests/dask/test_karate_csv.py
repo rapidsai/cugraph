@@ -21,7 +21,7 @@ def test_pagerank():
     # Networkx Call
     pd_df = pd.read_csv(input_data_path, delimiter=' ',
                         names=['src', 'dst', 'value'])
-    G = nx.DiGraph()
+    G = nx.Graph()
     for i in range(0, len(pd_df)):
         G.add_edge(pd_df['src'][i], pd_df['dst'][i])
     nx_pr = nx.pagerank(G, alpha=0.85)
