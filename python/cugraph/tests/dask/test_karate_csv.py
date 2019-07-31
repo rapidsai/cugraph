@@ -37,7 +37,7 @@ def test_pagerank():
 
     pr = dcg.pagerank(ddf, alpha=0.85, max_iter=50)
     res_df = pr.compute()
-    
+
     err = 0
     tol = 1.0e-05
     for i in range(len(res_df)):
