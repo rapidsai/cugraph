@@ -89,6 +89,7 @@ def cugraph_weak_call(cu_M):
     labels = sorted(result)
     return labels
 
+
 def networkx_strong_call(M):
     M = M.tocsr()
     if M is None:
