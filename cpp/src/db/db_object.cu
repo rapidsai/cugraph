@@ -114,21 +114,19 @@ namespace cugraph {
   db_column_index<idx_t>::db_column_index() {
     gdf_column* _offsets = (gdf_column*) malloc(sizeof(gdf_column));
     gdf_col_set_defaults(_offsets);
-    _offsets->data = nullptr;
-    _offsets->size = 0;
-    if (std::is_same<idx_t, int32_t>::value)
-      _offsets->dtype = GDF_INT32;
-    if (std::is_same<idx_t, int64_t>::value)
-      _offsets->dtype = GDF_INT64;
+    gdf_column_view(_offsets,
+                    nullptr,
+                    nullptr,
+                    0,
+                    std::is_same<idx_t, int32_t>::value ? GDF_INT32 : GDF_INT64);
     offsets = _offsets;
     gdf_column* _indirection = (gdf_column*) malloc(sizeof(gdf_column));
     gdf_col_set_defaults(_indirection);
-    _indirection->data = nullptr;
-    _indirection->size = 0;
-    if (std::is_same<idx_t, int32_t>::value)
-      _indirection->dtype = GDF_INT32;
-    if (std::is_same<idx_t, int64_t>::value)
-      _indirection->dtype = GDF_INT64;
+    gdf_column_view(_indirection,
+                    nullptr,
+                    nullptr,
+                    0,
+                    std::is_same<idx_t, int32_t>::value ? GDF_INT32 : GDF_INT64);
     indirection = _indirection;
   }
 
@@ -165,12 +163,11 @@ namespace cugraph {
 
     gdf_column* _col = (gdf_column*) malloc(sizeof(gdf_column));
     gdf_col_set_defaults(_col);
-    _col->data = nullptr;
-    _col->size = 0;
-    if (std::is_same<idx_t, int32_t>::value)
-      _col->dtype = GDF_INT32;
-    if (std::is_same<idx_t, int64_t>::value)
-      _col->dtype = GDF_INT64;
+    gdf_column_view(_col,
+                    nullptr,
+                    nullptr,
+                    0,
+                    std::is_same<idx_t, int32_t>::value ? GDF_INT32 : GDF_INT64);
     columns.push_back(_col);
     names.push_back(name);
     indices.resize(indices.size() + 1);
@@ -256,21 +253,19 @@ namespace cugraph {
       // Assign new offsets array and indirection vector to index
       gdf_column* offsetsCol = (gdf_column*) malloc(sizeof(gdf_column));
       gdf_col_set_defaults(offsetsCol);
-      offsetsCol->data = offsets;
-      offsetsCol->size = maxId + 2;
-      if (std::is_same<idx_t, int32_t>::value)
-        offsetsCol->dtype = GDF_INT32;
-      if (std::is_same<idx_t, int64_t>::value)
-        offsetsCol->dtype = GDF_INT64;
+      gdf_column_view(offsetsCol,
+                      offsets,
+                      nullptr,
+                      maxId + 2,
+                      std::is_same<idx_t, int32_t>::value ? GDF_INT32 : GDF_INT64);
 
       gdf_column* indirectionCol = (gdf_column*) malloc(sizeof(gdf_column));
       gdf_col_set_defaults(indirectionCol);
-      indirectionCol->data = indirection;
-      indirectionCol->size = size;
-      if (std::is_same<idx_t, int32_t>::value)
-        indirectionCol->dtype = GDF_INT32;
-      if (std::is_same<idx_t, int64_t>::value)
-        indirectionCol->dtype = GDF_INT64;
+      gdf_column_view(indirectionCol,
+                      indirection,
+                      nullptr,
+                      size,
+                      std::is_same<idx_t, int32_t>::value ? GDF_INT32 : GDF_INT64);
 
       indices[i].resetData(offsetsCol, indirectionCol);
     }
