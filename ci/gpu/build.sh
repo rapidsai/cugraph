@@ -69,16 +69,16 @@ $WORKSPACE/build.sh clean libcugraph cugraph
 
 if hasArg --skip-tests; then
     logger "Skipping Tests..."
-    exit 0
+else
+    logger "Check GPU usage..."
+    nvidia-smi
+
+    logger "GoogleTest for libcugraph..."
+    cd $WORKSPACE/cpp/build
+    GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
+
+    logger "Python py.test for cuGraph..."
+    cd $WORKSPACE/python
+    py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
 fi
 
-logger "Check GPU usage..."
-nvidia-smi
-
-logger "GoogleTest for libcugraph..."
-cd $WORKSPACE/cpp/build
-GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
-
-logger "Python py.test for cuGraph..."
-cd $WORKSPACE/python
-py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
