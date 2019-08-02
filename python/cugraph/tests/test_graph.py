@@ -631,7 +631,7 @@ def test_number_of_vertices(managed, pool, graph_file):
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
     rmm.initialize()
-  
+
     assert(rmm.is_initialized())
 
     cu_M = read_csv_file(graph_file+'.csv')
@@ -646,4 +646,3 @@ def test_number_of_vertices(managed, pool, graph_file):
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     assert(G.number_of_vertices() == M.shape[0])
-
