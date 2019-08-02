@@ -143,6 +143,8 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
     graph->adjList->edge_data = nullptr;
     graph->prop->has_negative_edges = GDF_PROP_FALSE;
   }
+
+  graph->numberOfVertices = graph->adjList->offsets->size - 1;
   return GDF_SUCCESS;
 }
 
@@ -428,7 +430,6 @@ gdf_error gdf_number_of_vertices(gdf_graph *graph) {
   //  is supported elsewhere.
   //
   GDF_REQUIRE( (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
-
   GDF_REQUIRE( (graph->edgeList->src_indices->dtype == GDF_INT32), GDF_UNSUPPORTED_DTYPE );
 
   int32_t  h_max[2];
