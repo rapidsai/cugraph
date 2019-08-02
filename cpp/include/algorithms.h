@@ -232,22 +232,31 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                            gdf_column* csrOff,
                            gdf_column* csrInd,
                            gdf_column* csrVal);
+
 /**
- * @brief Compute connected components.
- * The weak version was imported from cuML.
+ * @brief Compute connected components. 
+ * The weak version (for undirected graphs, only) was imported from cuML.
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
  * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ * 
+ * The strong version (for directed or undirected graphs) is based on: 
+ * [2] Gilbert, J. et al, 2011. "Graph Algorithms in the Language of Linear Algebra"
  *
-
+ * C = I | A | A^2 |...| A^k
+ * where matrix multiplication is via semi-ring: 
+ * (combine, reduce) == (&, |) (bitwise ops)
+ * Then: X = C & transpose(C); and finally, apply get_labels(X);
+ *
+ *
  * @param graph input graph; assumed undirected for weakly CC [in]
- * @param connectivity_type CUGRAPH_WEAK, CUGRAPH_STRONG  [in]
- * @param labels gdf_column for the output labels [out]
+ * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
+ * @param table of 2 gdf_columns: output labels and vertex indices [out]
  */
  gdf_error gdf_connected_components(gdf_graph *graph,
                                     cugraph_cc_t connectivity_type,
-                                    gdf_column *labels);
+                                    cudf::table *table);
 
  /**
 Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.

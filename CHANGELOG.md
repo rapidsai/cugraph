@@ -5,8 +5,10 @@
 - PR #357 Pagerank cpp API
 - PR #366 Adds graph.degrees() function returning both in and out degree.
 - PR #380 First implemention of cusort - SNMG key/value sorting
+- PR #411 Integrate dask-cugraph in cugraph
 - PR #411 Integrate dask-cugraph in cugraph #411
 - PR #418 Update cusort to handle SNMG key-only sorting
+- PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
