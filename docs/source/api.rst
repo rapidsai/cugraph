@@ -1,64 +1,134 @@
-API Reference
-=============
+~~~~~~~~~~~~~~~~~~~~~
+cuGraph API Reference
+~~~~~~~~~~~~~~~~~~~~~
 
-.. currentmodule:: cugraph
+
+
+Structure
+=========
 
 Graph
----------
-.. autoclass:: Graph
+-----
+
+.. autoclass:: cugraph.structure.graph.Graph
     :members:
+    :undoc-members:
+
+Renumbering
+-----------
+
+.. automodule:: cugraph.structure.renumber
+    :members:
+    :undoc-members:
+
+Conversion from Other Formats
+-----------------------------
+
+.. automodule:: cugraph.structure.convert_matrix
+    :members:
+    :undoc-members:
+
+
+Community
+=========
+
+Louvain
+-------
+
+.. automodule:: cugraph.community.louvain
+    :members:
+    :undoc-members:
+
+Spectral Clustering
+-------------------
+
+.. automodule:: cugraph.community.spectral_clustering
+    :members:
+    :undoc-members:
+
+Subgraph Extraction
+-------------------
+
+.. automodule:: cugraph.community.subgraph_extraction
+    :members:
+    :undoc-members:
+
+Tirangle Counting
+-----------------
+
+.. automodule:: cugraph.community.triangle_count
+    :members:
+    :undoc-members:
+
+Components
+==========
+
+Connected Components
+--------------------
+
+.. automodule:: cugraph.components.connectivity
+    :members:
+    :undoc-members:
+
+Link Analysis
+=============
 
 Pagerank
 ---------
-.. automodule:: cugraph
-    :members: pagerank
-    :undoc-members: pagerank
 
-Bfs
----------
-.. automodule:: cugraph
-    :members: bfs
-    :undoc-members: bfs
-    
-Jaccard
----------
-.. automodule:: cugraph
-    :members: nvJaccard
-    :undoc-members: nvJaccard
-    
-Louvain
----------
-.. automodule:: cugraph
-    :members: nvLouvain
-    :undoc-members: nvLouvain
-    
-Grmat
----------
-.. automodule:: cugraph
-    :members: grmat_gen
-    :undoc-members: grmat_gen
-    
-Spectral Clustering
+.. automodule:: cugraph.link_analysis.pagerank
+    :members:
+    :undoc-members:
+
+Link Prediction
+===============
+
+Jaccard Coefficient
 -------------------
-.. automodule:: cugraph
-    :members: spectralBalancedCutClustering
-    :undoc-members: spectralBalancedCutClustering
-.. automodule:: cugraph
-    :members: spectralModularityMaximizationClustering
-    :undoc-members: spectralModularityMaximizationClustering
-.. automodule:: cugraph
-    :members: analyzeClustering_modularity
-    :undoc-members: analyzeClustering_modularity
-.. automodule:: cugraph
-    :members: analyzeClustering_edge_cut
-    :undoc-members: analyzeClustering_edge_cut
-.. automodule:: cugraph
-    :members: analyzeClustering_ratio_cut
-    :undoc-members: analyzeClustering_ratio_cut
 
-Sssp
----------
-.. automodule:: cugraph
-    :members: sssp
-    :undoc-members: sssp
-    
+.. automodule:: cugraph.link_prediction.jaccard
+    :members:
+    :undoc-members:
+
+.. automodule:: cugraph.link_prediction.wjaccard
+    :members:
+    :undoc-members:
+
+Overlap Coefficient
+-------------------
+
+.. automodule:: cugraph.link_prediction.overlap
+    :members:
+    :undoc-members:
+
+.. automodule:: cugraph.link_prediction.woverlap
+    :members:
+    :undoc-members:
+
+Traversal
+=========
+
+Breadth-first-search
+--------------------
+
+.. automodule:: cugraph.traversal.bfs
+    :members:
+    :undoc-members:
+
+Single-source-shortest-path
+---------------------------
+
+.. automodule:: cugraph.traversal.sssp
+    :members:
+    :undoc-members:
+
+Utilities
+=========
+
+R-mat Graph Generation
+----------------------
+
+.. automodule:: cugraph.utilities.grmat
+    :members:
+    :undoc-members:
+

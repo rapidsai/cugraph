@@ -9,7 +9,7 @@ import pandas as pd
 # third-party group once this gets fixed.
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from dask.distributed import Client, wait
+    from dask.distributed import Client
     import cugraph.dask.pagerank as dcg
     from dask_cuda import LocalCUDACluster
     import networkx as nx
@@ -35,11 +35,9 @@ def test_pagerank():
                              names=['src', 'dst', 'value'],
                              dtype=['int32', 'int32', 'float32'])
 
-    y = ddf.to_delayed()
-    x = client.compute(y)
-    wait(x)
-    pr = dcg.pagerank(x, alpha=0.85, max_iter=50)
+    pr = dcg.pagerank(ddf, alpha=0.85, max_iter=50)
     res_df = pr.compute()
+
     err = 0
     tol = 1.0e-05
     for i in range(len(res_df)):
