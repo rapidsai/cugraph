@@ -26,9 +26,7 @@ namespace cugraph
     cusparseStatus_t _e = (call);                                         \
     if (_e != CUSPARSE_STATUS_SUCCESS)                                    \
     {                                                                     \
-        std::stringstream _error;                                         \
-        _error << "CUSPARSE failure: '#" << _e << "'";                    \
-        throw std::string(_error.str());                                  \
+      std::cerr << "CUSPARSE ERROR: "<< _e << std::endl;                  \
     }                                                                     \
 }
 

@@ -3,6 +3,7 @@
 # Usage:
 #   conda build -c nvidia -c rapidsai -c conda-forge -c defaults .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') %}
+{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
 {% set git_revision_count=environ.get('GIT_DESCRIBE_NUMBER', 0) %}
 {% set cuda_version='.'.join(environ.get('CUDA', '9.2').split('.')[:2]) %}
 package:
@@ -25,15 +26,14 @@ build:
 requirements:
   build:
     - cmake>=3.12.4
-    - libcudf=0.9*
+    - libcudf={{ minor_version }}
     - cython
     - cudatoolkit {{ cuda_version }}.*
-    - boost
+    - boost-cpp>=1.66
   run:
-    - libcudf=0.9*
+    - libcudf={{ minor_version }}
     - cython
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - boost
 
 #test:
 #  commands:
