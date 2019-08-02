@@ -110,8 +110,6 @@ struct SCC_Data
   //protected: cannot have device lambda inside protected memf
   void init(void)
   {    
-    //assert( d_Cprev.size() == nrows_ * nrows_ );
-    
     //init d_Cprev to identity:
     //
     auto* p_d_Cprev = d_Cprev.data().get();
