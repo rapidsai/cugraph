@@ -24,9 +24,6 @@ import cudf
 import numpy as np
 
 
-dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
-
-
 cdef gdf_column get_gdf_column_view(col):
     """
     This function returns a C++ gdf_column object from the Python cudf Series
@@ -55,7 +52,7 @@ cdef gdf_column get_gdf_column_view(col):
                                     <void*> data_ptr,
                                     <gdf_valid_type*> valid_ptr,
                                     <gdf_size_type> len(col),
-                                    dtypes[col.dtype.type],
+                                    get_dtype(col.dtype.type),
                                     <gdf_size_type> col.null_count,
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
@@ -73,7 +70,7 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
                                     <void*> data_ptr,
                                     <gdf_valid_type*> valid_ptr,
                                     <gdf_size_type> col_len,
-                                    dtypes[np.int32],
+                                    get_dtype(np.int32),
                                     <gdf_size_type> 0,
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
