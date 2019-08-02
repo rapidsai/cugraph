@@ -42,9 +42,11 @@ def test_pagerank():
     wait(x)
     t1 = time.time()
     print("Reading Csv time: ", t1-t0)
-    pr = dcg.pagerank(x, alpha=0.85, max_iter=50)
+    new_ddf = dcg.drop_duplicates(x)
     t2 = time.time()
-    print("Running PR algo time: ", t2-t1)
+    pr = dcg.pagerank(new_ddf, alpha=0.85, max_iter=50)
+    t3 = time.time()
+    print("Running PR algo time: ", t3-t2)
     res_df = pr.compute()
 
     # Comparison

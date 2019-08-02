@@ -15,7 +15,9 @@
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
 - PR #383 Exposed MG pagerank solver parameters 
+- PR #399 Example Prototype of Strongly Connected Components using primitives
 - PR #419 Version test
+- PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
@@ -28,8 +30,11 @@
 - PR #382 Disabled vertex id check to allow Azure deployment
 - PR #410 Fixed overflow error in SNMG COO2CSR
 - PR #395 run omp_ge_num_threads in a parallel context
+- PR #412 Fixed formatting issues in cuGraph documentation.
 - PR #413 Updated python build instructions.
 - PR #414 Add weights to wjaccrd.py
+- PR #436 Fix Skip Test Functionality
+- PR #438 Fix versions of packages in build script and conda yml
 
 
 # cuGraph 0.8.0 (27 June 2019)

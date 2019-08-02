@@ -31,6 +31,9 @@ from cugraph.utilities import device_of_gpu_pointer
 
 from cugraph.snmg.link_analysis.mg_pagerank import mg_pagerank
 
+from cugraph.proto.components import strong_connected_component
+from cugraph.proto.structure import find_bicliques
+
 # Versioneer
 from ._version import get_versions
 __version__ = get_versions()['version']

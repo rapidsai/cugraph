@@ -1,5 +1,5 @@
 Welcome to cugraph's documentation!
-=================================
+===================================
 
 .. toctree::
    :maxdepth: 4
