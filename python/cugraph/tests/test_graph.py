@@ -26,7 +26,6 @@ from librmm_cffi import librmm_config as rmm_cfg
 '''
 import socket
 import struct
-import pandas as pd
 '''
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -615,3 +614,31 @@ def test_renumber_files(managed, pool, graph_file):
     for i in range(len(sources)):
         assert sources[i] == (numbering[src[i]] - translate)
         assert destinations[i] == (numbering[dst[i]] - translate)
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_number_of_vertices(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm.initialize()
+  
+    assert(rmm.is_initialized())
+
+    cu_M = read_csv_file(graph_file+'.csv')
+    sources = cu_M['0']
+    destinations = cu_M['1']
+
+    M = read_mtx_file(graph_file+'.mtx')
+    if M is None:
+        raise TypeError('Could not read the input graph')
+
+    # cugraph add_edge_list
+    G = cugraph.Graph()
+    G.add_edge_list(sources, destinations, None)
+    assert(G.number_of_vertices() == M.shape[0])
+
