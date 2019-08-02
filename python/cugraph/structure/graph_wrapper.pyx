@@ -271,6 +271,7 @@ def _degree(graph_ptr, x=0):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
+    err = gdf_add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -292,6 +293,7 @@ def _degrees(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
+    err = gdf_add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
