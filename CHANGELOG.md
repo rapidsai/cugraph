@@ -32,6 +32,7 @@
 - PR #413 Updated python build instructions.
 - PR #414 Add weights to wjaccrd.py
 - PR #436 Fix Skip Test Functionality
+- PR #438 Fix versions of packages in build script and conda yml
 
 
 # cuGraph 0.8.0 (27 June 2019)
