@@ -282,6 +282,8 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
       std::cerr << "Could not generate the adj_list" << std::endl;
       return GDF_CUDA_ERROR;
     }
+
+    graph->numberOfVertices = graph->adjList->offsets->size - 1;
   }
   return GDF_SUCCESS;
 }
@@ -349,6 +351,8 @@ gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
         std::cerr << "Could not generate the adj_list" << std::endl;
         return GDF_CUDA_ERROR;
       }
+
+      graph->numberOfVertices = graph->transposedAdjList->offsets->size - 1;
     }
     return GDF_SUCCESS;
 }
