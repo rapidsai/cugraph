@@ -80,7 +80,7 @@ def strongly_connected_components(G):
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources,destinations,none)
-    >>> df = cuGraph.strongly_connected_components(G)
+    >>> df = cugraph.strongly_connected_components(G)
     """
 
     df = connectivity_wrapper.strongly_connected_components(G.graph_ptr)
