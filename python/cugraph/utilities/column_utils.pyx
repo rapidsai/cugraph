@@ -67,7 +67,11 @@ cdef gdf_column get_gdf_column_view(col):
         valid_ptr = 0
     else:
         valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
-    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
+    cdef uintptr_t category = 0
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(
+        time_unit=TIME_UNIT_NONE,
+        category=<void*>category
+    )
 
     err = gdf_column_view_augmented(<gdf_column*> &c_col,
                                     <void*> data_ptr,
@@ -85,7 +89,11 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
     cdef gdf_column* c_col = <gdf_column*>malloc(sizeof(gdf_column))
     cdef uintptr_t data_ptr = ipc_data_ptr
     cdef uintptr_t valid_ptr = 0
-    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
+    cdef uintptr_t category = 0
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(
+        time_unit=TIME_UNIT_NONE,
+        category=<void*>category
+    )
 
     err = gdf_column_view_augmented(<gdf_column*> c_col,
                                     <void*> data_ptr,
