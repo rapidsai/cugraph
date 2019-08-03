@@ -16,10 +16,9 @@ from itertools import product
 import time
 
 import pytest
-from scipy.io import mmread
 
-import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 
@@ -35,17 +34,6 @@ with warnings.catch_warnings():
 
 
 print('Networkx version : {} '.format(nx.__version__))
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def networkx_weak_call(M):
@@ -172,10 +160,10 @@ def test_weak_cc(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
+    M = utils.read_mtx_file(graph_file+'.mtx')
     netx_labels = networkx_weak_call(M)
 
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     cugraph_labels = cugraph_weak_call(cu_M)
 
     # NetX returns a list of components, each component being a
@@ -211,10 +199,10 @@ def test_strong_cc(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
+    M = utils.read_mtx_file(graph_file+'.mtx')
     netx_labels = networkx_strong_call(M)
 
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     cugraph_labels = cugraph_strong_call(cu_M)
 
     # NetX returns a list of components, each component being a

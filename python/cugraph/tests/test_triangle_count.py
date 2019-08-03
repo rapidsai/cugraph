@@ -15,10 +15,10 @@ import gc
 from itertools import product
 
 import pytest
-from scipy.io import mmread
 
 import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 
@@ -31,11 +31,6 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
 
 
 def cugraph_call(M, edgevals=False):
@@ -79,7 +74,7 @@ def test_triangles(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
     cu_count = cugraph_call(M)
     nx_count = networkx_call(M)
     assert cu_count == nx_count
@@ -99,7 +94,7 @@ def test_triangles_edge_vals(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
     cu_count = cugraph_call(M, edgevals=True)
     nx_count = networkx_call(M)
     assert cu_count == nx_count
