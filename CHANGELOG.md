@@ -35,6 +35,8 @@
 - PR #414 Add weights to wjaccrd.py
 - PR #436 Fix Skip Test Functionality
 - PR #438 Fix versions of packages in build script and conda yml
+- PR #441 Import cudf_cpp.pxd instead of duplicating cudf definitions.
+- PR #441 Removed redundant definitions of python dictionaries and functions.
 
 
 # cuGraph 0.8.0 (27 June 2019)
