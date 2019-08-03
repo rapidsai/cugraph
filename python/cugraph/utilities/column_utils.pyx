@@ -24,6 +24,26 @@ import cudf
 import numpy as np
 
 
+# This is a temporary solution till cudf issue #2457
+# (https://github.com/rapidsai/cudf/issues/2457) is addressed.
+# Once this issue is addressed, we should call cudf's gdf_to_np_dtype()
+# instead of redundantly defining this in cugraph.
+gdf_to_np_dtype_tmp = {
+    GDF_FLOAT64: np.float64,
+    GDF_FLOAT32: np.float32,
+    GDF_INT64: np.int64,
+    GDF_INT32: np.int32,
+    GDF_INT16: np.int16,
+    GDF_INT8: np.int8,
+    GDF_BOOL8: np.bool_,
+    GDF_DATE64: np.datetime64,
+    GDF_CATEGORY: np.int32,
+    GDF_STRING_CATEGORY: np.object_,
+    GDF_STRING: np.object_,
+    N_GDF_TYPES: np.int32
+}
+
+
 cdef gdf_column get_gdf_column_view(col):
     """
     This function returns a C++ gdf_column object from the Python cudf Series
