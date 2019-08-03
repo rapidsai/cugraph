@@ -16,6 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
+from cudf.bindings.cudf_cpp cimport *
 from cugraph.structure.c_graph cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
