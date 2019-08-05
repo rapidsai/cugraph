@@ -21,35 +21,40 @@ from cugraph.structure.c_graph cimport *
 
 cdef extern from "nvgraph_gdf.h":
 
-    cdef gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph *gdf_G,
-                                                     const int num_clusters,
-                                                     const int num_eigen_vects,
-                                                     const float evs_tolerance,
-                                                     const int evs_max_iter,
-                                                     const float kmean_tolerance,
-                                                     const int kmean_max_iter,
-                                                     gdf_column* clustering)
+    cdef gdf_error gdf_balancedCutClustering_nvgraph(
+        gdf_graph *gdf_G,
+        const int num_clusters,
+        const int num_eigen_vects,
+        const float evs_tolerance,
+        const int evs_max_iter,
+        const float kmean_tolerance,
+        const int kmean_max_iter,
+        gdf_column* clustering) except +
     
-    cdef gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
-                                                              const int n_clusters,
-                                                              const int n_eig_vects,
-                                                              const float evs_tolerance,
-                                                              const int evs_max_iter,
-                                                              const float kmean_tolerance,
-                                                              const int kmean_max_iter,
-                                                              gdf_column* clustering) 
+    cdef gdf_error gdf_spectralModularityMaximization_nvgraph(
+        gdf_graph* gdf_G,
+        const int n_clusters,
+        const int n_eig_vects,
+        const float evs_tolerance,
+        const int evs_max_iter,
+        const float kmean_tolerance,
+        const int kmean_max_iter,
+        gdf_column* clustering) except +
     
-    cdef gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
-                                                            const int n_clusters,
-                                                            gdf_column* clustering,
-                                                            float* score)    
+    cdef gdf_error gdf_AnalyzeClustering_modularity_nvgraph(
+        gdf_graph* gdf_G,
+        const int n_clusters,
+        gdf_column* clustering,
+        float* score) except +
     
-    cdef gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
-                                                            const int n_clusters,
-                                                            gdf_column* clustering,
-                                                            float* score)
+    cdef gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(
+        gdf_graph* gdf_G,
+        const int n_clusters,
+        gdf_column* clustering,
+        float* score) except +
     
-    cdef gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
-                                                            const int n_clusters,
-                                                            gdf_column* clustering,
-                                                            float* score)
+    cdef gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(
+        gdf_graph* gdf_G,
+        const int n_clusters,
+        gdf_column* clustering,
+        float* score) except +
