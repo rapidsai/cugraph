@@ -126,6 +126,7 @@ void SNMGpagerank<IndexType,ValueType>::solve (int max_iter, ValueType ** pagera
     ValueType one = 1.0;
     ValueType *pr = pagerank[id];
     fill(v_glob, pagerank[id], one/v_glob);
+    cudaDeviceSynchronize();
     dot_res = dot( v_glob, bookmark, pr);
     SNMGcsrmv<IndexType,ValueType> spmv_solver(env, part_off, off, ind, val, pagerank);
     for (auto i = 0; i < max_iter; ++i) {
