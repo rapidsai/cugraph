@@ -36,6 +36,8 @@
 - PR #414 Add weights to wjaccrd.py
 - PR #436 Fix Skip Test Functionality
 - PR #438 Fix versions of packages in build script and conda yml
+- PR #442 Updated versions in conda environments.
+- PR #442 Added except + to cython bindings to C(++) functions.
 
 
 # cuGraph 0.8.0 (27 June 2019)
