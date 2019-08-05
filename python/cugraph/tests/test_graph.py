@@ -609,6 +609,7 @@ def test_renumber_files(managed, pool, graph_file):
         assert sources[i] == (numbering[src[i]] - translate)
         assert destinations[i] == (numbering[dst[i]] - translate)
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -623,11 +624,11 @@ def test_number_of_vertices(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     sources = cu_M['0']
     destinations = cu_M['1']
 
-    M = read_mtx_file(graph_file+'.mtx')
+    M = utils.read_mtx_file(graph_file+'.mtx')
     if M is None:
         raise TypeError('Could not read the input graph')
 
