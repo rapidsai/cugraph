@@ -32,6 +32,7 @@
 - PR #413 Updated python build instructions.
 - PR #414 Add weights to wjaccrd.py
 - PR #436 Fix Skip Test Functionality
+- PR #443 Fix accuracy loss issue for snmg pagerank
 
 
 # cuGraph 0.8.0 (27 June 2019)
