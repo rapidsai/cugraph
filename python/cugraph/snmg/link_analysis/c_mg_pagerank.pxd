@@ -27,4 +27,4 @@ cdef extern from "cugraph.h":
             gdf_column *pr_col, 
             const size_t n_gpus, 
             const float damping_factor, 
-            const int n_iter)
+            const int n_iter) except +

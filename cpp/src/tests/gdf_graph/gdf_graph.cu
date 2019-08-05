@@ -226,6 +226,26 @@ TEST(gdf_graph_properties, success)
   ASSERT_FALSE(prop->tree);
 }
 
+TEST(gdf_number_of_vertices, success1)
+{
+  std::vector<int> src_h={0, 0, 2, 2, 2, 3, 3, 4, 4, 5};
+  std::vector<int> dest_h={1, 2, 0, 1, 4, 4, 5, 3, 5, 3};
+  std::vector<float> w_h={0.50, 0.50, 0.33, 0.33, 0.33, 0.50, 0.50, 0.50, 0.50, 0.5};
+
+  gdf_graph G;
+  gdf_column col_src, col_dest, col_w;
+  create_gdf_column(src_h, &col_src);
+  create_gdf_column(dest_h, &col_dest);
+  create_gdf_column(w_h, &col_w);
+
+  ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_w),GDF_SUCCESS);
+  ASSERT_EQ(G.numberOfVertices, 0);
+
+  ASSERT_EQ(gdf_number_of_vertices(&G), GDF_SUCCESS);
+
+  ASSERT_EQ(G.numberOfVertices, 6);
+}
+
 TEST(gdf_delete_adjacency_list, success1)
 {
   // Hard-coded Zachary Karate Club network input
@@ -688,5 +708,3 @@ int main(int argc, char **argv)  {
     ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-
-

@@ -18,6 +18,7 @@
 - PR #399 Example Prototype of Strongly Connected Components using primitives
 - PR #419 Version test
 - PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
+- PR #439 More efficient computation of number of vertices from edge list
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
@@ -37,6 +38,8 @@
 - PR #438 Fix versions of packages in build script and conda yml
 - PR #441 Import cudf_cpp.pxd instead of duplicating cudf definitions.
 - PR #441 Removed redundant definitions of python dictionaries and functions.
+- PR #442 Updated versions in conda environments.
+- PR #442 Added except + to cython bindings to C(++) functions.
 
 
 # cuGraph 0.8.0 (27 June 2019)

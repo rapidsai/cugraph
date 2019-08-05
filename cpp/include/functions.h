@@ -218,3 +218,13 @@ gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * 
 gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x);
 int get_device(const void *ptr);
 
+/**
+ * @Synopsis   Compute number of vertices from the edge list
+ *
+ * @Param[in, out] *graph            in  : graph descriptor with graph->edgeList populated
+ *                                   out : graph descriptor with graph->numberOfVertices populated
+ *
+ * @Returns                          GDF_SUCCESS upon successful completion.
+ */
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_number_of_vertices(gdf_graph *graph);
