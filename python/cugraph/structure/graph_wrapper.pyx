@@ -248,22 +248,11 @@ def get_two_hop_neighbors(graph_ptr):
 def number_of_vertices(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    if g.adjList:
-        return g.adjList.offsets.size - 1
-    elif g.transposedAdjList:
-        return g.transposedAdjList.offsets.size - 1
-    elif g.edgeList:
-        # This code needs to be revisited when updating gdf_graph. Users
-        # may expect numbrer_of_vertcies() as a cheap query but this
-        # function can run for a while and also requires a significant
-        # amount of additional memory. It is better to update the number
-        # of vertices when creating an edge list representation.
-        err = gdf_add_adj_list(g)
+    if g.numberOfVertices == 0:
+        err = gdf_number_of_vertices(g)
         cudf.bindings.cudf_cpp.check_gdf_error(err)
-        return g.adjList.offsets.size - 1
-    else:
-        # An empty graph
-        return 0
+
+    return g.numberOfVertices
 
 def number_of_edges(graph_ptr):
     cdef uintptr_t graph = graph_ptr
@@ -282,6 +271,7 @@ def _degree(graph_ptr, x=0):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
+    err = gdf_add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -303,6 +293,7 @@ def _degrees(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
+    err = gdf_add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))

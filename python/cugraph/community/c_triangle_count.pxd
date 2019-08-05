@@ -22,4 +22,6 @@ from libc.stdint cimport uint64_t
 
 cdef extern from "nvgraph_gdf.h":
 
-    cdef gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result)                              
+    cdef gdf_error gdf_triangle_count_nvgraph(
+        gdf_graph* G,
+        uint64_t* result) except +
