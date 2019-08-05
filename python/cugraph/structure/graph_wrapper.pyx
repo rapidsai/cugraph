@@ -22,6 +22,7 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
+from cudf.bindings.cudf_cpp import gdf_to_np_dtype
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
@@ -103,20 +104,40 @@ def view_edge_list(graph_ptr):
 
     cdef uintptr_t src_col_data = <uintptr_t> g.edgeList.src_indices.data
     cdef uintptr_t dest_col_data = <uintptr_t> g.edgeList.dest_indices.data
+    cdef uintptr_t value_col_data = <uintptr_t> NULL
+    if g.edgeList.edge_data is not NULL:
+        value_col_data = <uintptr_t> g.edgeList.edge_data.data
 
-    src_data = rmm.device_array_from_ptr(src_col_data,
-                                 nelem=col_size,
-                                 dtype=np.int32)  # ,
-                                 # finalizer=rmm._make_finalizer(src_col_data, 0))
-    dest_data = rmm.device_array_from_ptr(dest_col_data,
-                                 nelem=col_size,
-                                 dtype=np.int32)  # ,
-                                 # finalizer=rmm._make_finalizer(dest_col_data, 0))
-    # g.edgeList.src_indices.data and g.edgeList.dest_indices.data are not
-    # owned by this instance, so should not be freed here (this will lead
-    # to double free, and undefined behavior).
+    # g.edgeList.src_indices.data, g.edgeList.dest_indices.data, and
+    # g.edgeList.edge_data.data are not owned by this instance, so should not
+    # be freed when the resulting cudf.Series objects are finalized (this will
+    # lead to double free, and undefined behavior).
 
-    return cudf.Series(src_data), cudf.Series(dest_data)
+    src_data = rmm.device_array_from_ptr(
+                   src_col_data,
+                   nelem=col_size,
+                   dtype=np.int32)  # ,
+                   # finalizer=rmm._make_finalizer(src_col_data, 0))
+    source_col = cudf.Series(src_data)
+
+    dest_data = rmm.device_array_from_ptr(
+                    dest_col_data,
+                    nelem=col_size,
+                    dtype=np.int32)  # ,
+                    # finalizer=rmm._make_finalizer(dest_col_data, 0))
+    dest_col = cudf.Series(dest_data)
+
+    value_col = None
+    if <void*>value_col_data is not NULL:
+        value_dtype = g.edgeList.edge_data.dtype
+        value_data = rmm.device_array_from_ptr(
+                         value_col_data,
+                         nelem=col_size,
+                         dtype=gdf_to_np_dtype(value_dtype))  # ,
+                         # finalizer=rmm._make_finalizer(value_col_data, 0))
+        value_col = cudf.Series(value_data)
+
+    return source_col, dest_col, value_col
 
 def delete_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
@@ -154,20 +175,39 @@ def view_adj_list(graph_ptr):
 
     cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
     cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices.data
+    cdef uintptr_t value_col_data = <uintptr_t> NULL
+    if g.adjList.edge_data is not NULL:
+        value_col_data = <uintptr_t> g.adjList.edge_data.data
 
-    offsets_data = rmm.device_array_from_ptr(offset_col_data,
-                                 nelem=offset_col_size,
-                                 dtype=np.int32) # ,
-                                 # finalizer=rmm._make_finalizer(offset_col_data, 0))
-    indices_data = rmm.device_array_from_ptr(index_col_data,
-                                 nelem=index_col_size,
-                                 dtype=np.int32) # ,
-                                 # finalizer=rmm._make_finalizer(index_col_data, 0))
-    # g.adjList.offsets.data and g.adjList.indices.data are not owned by
-    # this instance, so should not be freed here (this will lead to double
-    # free, and undefined behavior).
+    # g.adjList.offsets.data, g.adjList.indices.data, and
+    # g.adjList.edge_data.data are not owned by this instance, so should not be
+    # freed here (this will lead to double free, and undefined behavior).
 
-    return cudf.Series(offsets_data), cudf.Series(indices_data)
+    offset_data = rmm.device_array_from_ptr(
+                       offset_col_data,
+                       nelem=offset_col_size,
+                       dtype=np.int32) # ,
+                       # finalizer=rmm._make_finalizer(offset_col_data, 0))
+    offset_col = cudf.Series(offset_data)
+
+    index_data = rmm.device_array_from_ptr(
+                       index_col_data,
+                       nelem=index_col_size,
+                       dtype=np.int32) # ,
+                       # finalizer=rmm._make_finalizer(index_col_data, 0))
+    index_col = cudf.Series(index_data)
+
+    value_col = None
+    if <void*>value_col_data is not NULL:
+        value_dtype = g.adjList.edge_data.dtype
+        value_data = rmm.device_array_from_ptr(
+                         value_col_data,
+                         nelem=index_col_size,
+                         dtype=gdf_to_np_dtype(value_dtype))  # ,
+                         # finalizer=rmm._make_finalizer(value_col_data, 0))
+        value_col = cudf.Series(value_data)
+
+    return offset_col, index_col, value_col
 
 def delete_adj_list(graph_ptr):
     """
@@ -193,20 +233,40 @@ def view_transposed_adj_list(graph_ptr):
 
     cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data
     cdef uintptr_t index_col_data = <uintptr_t> g.transposedAdjList.indices.data
+    cdef uintptr_t value_col_data = <uintptr_t> NULL
+    if g.transposedAdjList.edge_data is not NULL:
+        value_col_data = <uintptr_t> g.transposedAdjList.edge_data.data
 
-    offsets_data = rmm.device_array_from_ptr(offset_col_data,
-                                 nelem=offset_col_size,
-                                 dtype=np.int32)  # ,
-                                 # finalizer=rmm._make_finalizer(offset_col_data, 0))
-    indices_data = rmm.device_array_from_ptr(index_col_data,
-                                 nelem=index_col_size,
-                                 dtype=np.int32)  # ,
-                                 # finalizer=rmm._make_finalizer(index_col_data, 0))
-    # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
-    # are not owned by this instance, so should not be freed here (this
-    # will lead to double free, and undefined behavior).
+    # g.transposedAdjList.offsets.data, g.transposedAdjList.indices.data and
+    # g.transposedAdjList.edge_data.data are not owned by this instance, so
+    # should not be freed here (this will lead to double free, and undefined
+    # behavior).
 
-    return cudf.Series(offsets_data), cudf.Series(indices_data)
+    offset_data = rmm.device_array_from_ptr(
+                       offset_col_data,
+                       nelem=offset_col_size,
+                       dtype=np.int32)  # ,
+                       # finalizer=rmm._make_finalizer(offset_col_data, 0))
+    offset_col = cudf.Series(offset_data)
+
+    index_data = rmm.device_array_from_ptr(
+                     index_col_data,
+                     nelem=index_col_size,
+                     dtype=np.int32)  # ,
+                     # finalizer=rmm._make_finalizer(index_col_data, 0))
+    index_col = cudf.Series(index_data)
+
+    value_col = None
+    if <void*>value_col_data is not NULL:
+        value_dtype = g.transposedAdjList.edge_data.dtype
+        value_data = rmm.device_array_from_ptr(
+                         value_col_data,
+                         nelem=index_col_size,
+                         dtype=gdf_to_np_dtype(value_dtype))  # ,
+                         # finalizer=rmm._make_finalizer(value_col_data, 0))
+        value_col = cudf.Series(value_data)
+
+    return offset_col, index_col, value_col
 
 def delete_transposed_adj_list(graph_ptr):
     """
