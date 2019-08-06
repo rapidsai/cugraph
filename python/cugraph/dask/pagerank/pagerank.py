@@ -7,6 +7,7 @@ from cugraph.dask.core import device_of_devicendarray, get_device_id
 import os
 from dask.distributed import wait, default_client
 from toolz import first
+import dask.dataframe as dd
 
 
 def to_gpu_array(df):
@@ -191,18 +192,17 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
     return ddf
 
 
-def find_dev(df):
-    gpu_array_src = df['src']._column._data.mem
-    dev = device_of_devicendarray(gpu_array_src)
-    return dev
-
-
 def _get_mg_info(ddf):
     # Get gpu data pointers of columns of each dataframe partition
 
     client = default_client()
 
-    parts = ddf
+    if isinstance(ddf, dd.DataFrame):
+        parts = ddf.to_delayed()
+        parts = client.compute(parts)
+        wait(parts)
+    else:
+        parts = ddf
     key_to_part_dict = dict([(str(part.key), part) for part in parts])
     who_has = client.who_has(parts)
     worker_map = []
@@ -214,9 +214,37 @@ def _get_mg_info(ddf):
                 for worker, part in worker_map]
 
     wait(gpu_data)
-    [client.submit(find_dev, part, workers=[worker]).result()
-     for worker, part in worker_map]
+    return gpu_data
 
+
+# UTILITY FUNCTIONS
+
+
+def _drop_duplicates(df):
+    df.drop_duplicates(inplace=True)
+    return df
+
+
+def drop_duplicates(ddf):
+    client = default_client()
+
+    if isinstance(ddf, dd.DataFrame):
+        parts = ddf.to_delayed()
+        parts = client.compute(parts)
+        wait(parts)
+    else:
+        parts = ddf
+    key_to_part_dict = dict([(str(part.key), part) for part in parts])
+    who_has = client.who_has(parts)
+    worker_map = []
+    for key, workers in who_has.items():
+        worker = parse_host_port(first(workers))
+        worker_map.append((worker, key_to_part_dict[key]))
+
+    gpu_data = [client.submit(_drop_duplicates, part, workers=[worker])
+                for worker, part in worker_map]
+
+    wait(gpu_data)
     return gpu_data
 
 
@@ -224,7 +252,6 @@ def get_n_gpus():
     try:
         return len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
     except KeyError:
-        print("here")
         return len(os.popen("nvidia-smi -L").read().strip().split("\n"))
 
 
