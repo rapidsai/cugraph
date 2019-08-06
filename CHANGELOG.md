@@ -9,6 +9,7 @@
 - PR #411 Integrate dask-cugraph in cugraph #411
 - PR #418 Update cusort to handle SNMG key-only sorting
 - PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
+- PR #437 Streamline CUDA_REL environment variable
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
