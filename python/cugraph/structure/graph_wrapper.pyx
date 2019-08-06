@@ -22,7 +22,7 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
-from cugraph.utilities.column_utils import gdf_to_np_dtype_tmp
+from cudf.bindings.cudf_cpp import gdf_to_np_dtype
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
@@ -59,13 +59,13 @@ def renumber(source_col, dest_col):
 
     src_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> src_renumbered.data,
                                  nelem=src_renumbered.size,
-                                 dtype=gdf_to_np_dtype_tmp[src_renumbered.dtype])
+                                 dtype=gdf_to_np_dtype(src_renumbered.dtype))
     dst_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> dst_renumbered.data,
                                  nelem=dst_renumbered.size,
-                                 dtype=gdf_to_np_dtype_tmp[dst_renumbered.dtype])
+                                 dtype=gdf_to_np_dtype(dst_renumbered.dtype))
     numbering_map_array = rmm.device_array_from_ptr(<uintptr_t> numbering_map.data,
                                  nelem=numbering_map.size,
-                                 dtype=gdf_to_np_dtype_tmp[numbering_map.dtype])
+                                 dtype=gdf_to_np_dtype(numbering_map.dtype))
 
     return cudf.Series(src_renumbered_array), cudf.Series(dst_renumbered_array), cudf.Series(numbering_map_array)
 

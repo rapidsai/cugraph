@@ -22,7 +22,7 @@ from cugraph.utilities.column_utils cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
-from cugraph.utilities.column_utils import gdf_to_np_dtype_tmp
+from cudf.bindings.cudf_cpp import gdf_to_np_dtype
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
@@ -80,9 +80,9 @@ def jaccard_w(graph_ptr, weights, first=None, second=None):
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
                                             nelem=num_edges,
-                                            dtype=gdf_to_np_dtype_tmp[g.adjList.indices.dtype])
+                                            dtype=gdf_to_np_dtype(g.adjList.indices.dtype))
         df = cudf.DataFrame()
-        df['source'] = cudf.Series(np.zeros(num_edges, dtype=gdf_to_np_dtype_tmp[g.adjList.indices.dtype]))
+        df['source'] = cudf.Series(np.zeros(num_edges, dtype=gdf_to_np_dtype(g.adjList.indices.dtype)))
         c_index_col = get_gdf_column_view(df['source'])
         err = g.adjList.get_source_indices(&c_index_col);
         cudf.bindings.cudf_cpp.check_gdf_error(err)
