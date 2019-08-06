@@ -23,12 +23,10 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from cython cimport floating
 
+from cudf.bindings.cudf_cpp import gdf_to_np_dtype
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
-
-
-gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
 
 
 def overlap(graph_ptr, first=None, second=None):
@@ -78,9 +76,9 @@ def overlap(graph_ptr, first=None, second=None):
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
                                             nelem=num_edges,
-                                            dtype=gdf_to_np_dtypes[g.adjList.indices.dtype])
+                                            dtype=gdf_to_np_dtype(g.adjList.indices.dtype))
         df = cudf.DataFrame()
-        df['source'] = cudf.Series(np.zeros(num_edges, dtype=gdf_to_np_dtypes[g.adjList.indices.dtype]))
+        df['source'] = cudf.Series(np.zeros(num_edges, dtype=gdf_to_np_dtype(g.adjList.indices.dtype)))
         c_src_index_col = get_gdf_column_view(df['source'])
         err = g.adjList.get_source_indices(&c_src_index_col);
         cudf.bindings.cudf_cpp.check_gdf_error(err)

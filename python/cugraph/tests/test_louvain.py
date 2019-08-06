@@ -16,10 +16,9 @@ from itertools import product
 import time
 
 import pytest
-from scipy.io import mmread
 
-import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 
@@ -36,17 +35,6 @@ with warnings.catch_warnings():
 
 
 print('Networkx version : {} '.format(nx.__version__))
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def cugraph_call(cu_M, edgevals=False):
@@ -105,8 +93,8 @@ def test_louvain_with_edgevals(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
-    cu_M = read_csv_file(graph_file+'.csv')
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
     nx_parts = networkx_call(M)
 
@@ -144,8 +132,8 @@ def test_louvain(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
-    cu_M = read_csv_file(graph_file+'.csv')
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     cu_parts, cu_mod = cugraph_call(cu_M)
     nx_parts = networkx_call(M)
 

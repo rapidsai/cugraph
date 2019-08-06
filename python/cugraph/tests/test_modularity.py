@@ -16,23 +16,12 @@ from itertools import product
 import random
 
 import pytest
-from scipy.io import mmread
 
 import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float64'], header=None)
 
 
 def cugraph_call(G, partitions):
@@ -76,7 +65,7 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     assert(rmm.is_initialized())
 
     # Read in the graph and get a cugraph object
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv', read_weights_in_sp=False)
     sources = cu_M['0']
     destinations = cu_M['1']
     values = cu_M['2']

@@ -16,15 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
+from cudf.bindings.cudf_cpp cimport *
 from cugraph.structure.c_graph cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
 import numpy as np
-
-
-dtypes = {np.int32: GDF_INT32, np.int64: GDF_INT64, np.float32: GDF_FLOAT32, np.float64: GDF_FLOAT64}
 
 
 cdef gdf_column get_gdf_column_view(col):
@@ -49,13 +47,17 @@ cdef gdf_column get_gdf_column_view(col):
         valid_ptr = 0
     else:
         valid_ptr = cudf.bindings.cudf_cpp.get_column_valid_ptr(col._column)
-    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
+    cdef uintptr_t category = 0
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(
+        time_unit=TIME_UNIT_NONE,
+        category=<void*>category
+    )
 
     err = gdf_column_view_augmented(<gdf_column*> &c_col,
                                     <void*> data_ptr,
                                     <gdf_valid_type*> valid_ptr,
                                     <gdf_size_type> len(col),
-                                    dtypes[col.dtype.type],
+                                    get_dtype(col.dtype.type),
                                     <gdf_size_type> col.null_count,
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
@@ -67,13 +69,17 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
     cdef gdf_column* c_col = <gdf_column*>malloc(sizeof(gdf_column))
     cdef uintptr_t data_ptr = ipc_data_ptr
     cdef uintptr_t valid_ptr = 0
-    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(time_unit=TIME_UNIT_NONE)
+    cdef uintptr_t category = 0
+    cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(
+        time_unit=TIME_UNIT_NONE,
+        category=<void*>category
+    )
 
     err = gdf_column_view_augmented(<gdf_column*> c_col,
                                     <void*> data_ptr,
                                     <gdf_valid_type*> valid_ptr,
                                     <gdf_size_type> col_len,
-                                    dtypes[np.int32],
+                                    get_dtype(np.int32),
                                     <gdf_size_type> 0,
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
