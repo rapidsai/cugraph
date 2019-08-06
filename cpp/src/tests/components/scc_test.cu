@@ -136,7 +136,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     double time_tmp;
 
     FILE* fpin = fopen(param.get_matrix_file().c_str(),"r");
-    ASSERT_TRUE( fpin != nullptr );
+    ASSERT_NE(fpin, nullptr) << "fopen (" << param.get_matrix_file().c_str() << ") failure.";
 
     ASSERT_EQ(mm_properties<IndexT>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
