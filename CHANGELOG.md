@@ -40,6 +40,7 @@
 - PR #441 Removed redundant definitions of python dictionaries and functions.
 - PR #442 Updated versions in conda environments.
 - PR #442 Added except + to cython bindings to C(++) functions.
+- PR #443 Fix accuracy loss issue for snmg pagerank
 
 
 # cuGraph 0.8.0 (27 June 2019)
