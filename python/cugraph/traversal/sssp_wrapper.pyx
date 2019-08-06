@@ -24,12 +24,10 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
+from cudf.bindings.cudf_cpp import gdf_to_np_dtype
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
-
-
-gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
 
 
 def sssp(graph_ptr, source):
@@ -48,7 +46,7 @@ def sssp(graph_ptr, source):
 
     data_type = np.float32
     if g.adjList.edge_data:
-        data_type = gdf_to_np_dtypes[g.adjList.edge_data.dtype]
+        data_type = gdf_to_np_dtype(g.adjList.edge_data.dtype)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))

@@ -16,23 +16,12 @@ from itertools import product
 import time
 
 import pytest
-from scipy.io import mmread
 
 import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def cugraph_call(cu_M, first, second, edgevals=False):
@@ -106,9 +95,9 @@ def test_overlap(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
+    M = utils.read_mtx_file(graph_file+'.mtx')
     M = M.tocsr()
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
@@ -138,9 +127,9 @@ def test_overlap_edge_vals(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
     M = M.tocsr()
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()

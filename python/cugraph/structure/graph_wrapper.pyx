@@ -28,9 +28,6 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 
 
-dtypes_inv = {GDF_INT32: np.int32, GDF_INT64: np.int64, GDF_FLOAT32: np.float32, GDF_FLOAT64: np.float64}
-
-
 def allocate_cpp_graph():
     cdef gdf_graph * g
     g = <gdf_graph*> calloc(1, sizeof(gdf_graph))
@@ -62,13 +59,13 @@ def renumber(source_col, dest_col):
 
     src_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> src_renumbered.data,
                                  nelem=src_renumbered.size,
-                                 dtype=dtypes_inv[src_renumbered.dtype])
+                                 dtype=gdf_to_np_dtype(src_renumbered.dtype))
     dst_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> dst_renumbered.data,
                                  nelem=dst_renumbered.size,
-                                 dtype=dtypes_inv[dst_renumbered.dtype])
+                                 dtype=gdf_to_np_dtype(dst_renumbered.dtype))
     numbering_map_array = rmm.device_array_from_ptr(<uintptr_t> numbering_map.data,
                                  nelem=numbering_map.size,
-                                 dtype=dtypes_inv[numbering_map.dtype])
+                                 dtype=gdf_to_np_dtype(numbering_map.dtype))
 
     return cudf.Series(src_renumbered_array), cudf.Series(dst_renumbered_array), cudf.Series(numbering_map_array)
 

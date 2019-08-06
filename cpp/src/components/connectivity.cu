@@ -170,8 +170,7 @@ gdf_connected_components_impl(gdf_graph *graph,
           return GDF_MEMORYMANAGER_ERROR;
         }
       SCC_Data<ByteT, IndexT> sccd(nrows, p_d_row_offsets, p_d_col_ind);
-      size_t count = 0;
-      count = sccd.run_scc(p_d_labels);
+      sccd.run_scc(p_d_labels);
       
     }
 

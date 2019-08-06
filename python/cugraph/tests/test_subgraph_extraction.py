@@ -16,10 +16,10 @@ from itertools import product
 
 import numpy as np
 import pytest
-from scipy.io import mmread
 
 import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 
@@ -41,11 +41,6 @@ def compare_edges(cg, nxg, verts):
     for i in range(len(src)):
         assert nxg.has_edge(verts[src[i]], verts[dest[i]])
     return True
-
-
-def read_mtx_file(mmFile):
-    print('Reading ' + str(mmFile) + '...')
-    return mmread(mmFile).asfptype()
 
 
 def cugraph_call(M, verts):
@@ -81,7 +76,7 @@ def test_subgraph_extraction(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
     verts[1] = 1
