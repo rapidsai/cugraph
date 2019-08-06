@@ -5,8 +5,10 @@
 - PR #357 Pagerank cpp API
 - PR #366 Adds graph.degrees() function returning both in and out degree.
 - PR #380 First implemention of cusort - SNMG key/value sorting
+- PR #411 Integrate dask-cugraph in cugraph
 - PR #411 Integrate dask-cugraph in cugraph #411
 - PR #418 Update cusort to handle SNMG key-only sorting
+- PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
 - PR #437 Streamline CUDA_REL environment variable
 
 ## Improvements
@@ -17,6 +19,7 @@
 - PR #399 Example Prototype of Strongly Connected Components using primitives
 - PR #419 Version test
 - PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
+- PR #439 More efficient computation of number of vertices from edge list
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
@@ -32,6 +35,11 @@
 - PR #412 Fixed formatting issues in cuGraph documentation.
 - PR #413 Updated python build instructions.
 - PR #414 Add weights to wjaccrd.py
+- PR #436 Fix Skip Test Functionality
+- PR #438 Fix versions of packages in build script and conda yml
+- PR #442 Updated versions in conda environments.
+- PR #442 Added except + to cython bindings to C(++) functions.
+- PR #443 Fix accuracy loss issue for snmg pagerank
 
 
 # cuGraph 0.8.0 (27 June 2019)
