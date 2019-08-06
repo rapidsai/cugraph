@@ -38,6 +38,7 @@
 - PR #438 Fix versions of packages in build script and conda yml
 - PR #442 Updated versions in conda environments.
 - PR #442 Added except + to cython bindings to C(++) functions.
+- PR #443 Fix accuracy loss issue for snmg pagerank
 
 
 # cuGraph 0.8.0 (27 June 2019)
