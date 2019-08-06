@@ -5,12 +5,8 @@
 set -e
 
 if [ "$UPLOAD_LIBCUGRAPH" == "1" ]; then
-  CUDA_REL=${CUDA:0:3}
-  if [ "${CUDA:0:2}" == '10' ]; then
-    # CUDA 10 release
-    CUDA_REL=${CUDA:0:4}
-  fi
-  
+  CUDA_REL=${CUDA_VERSION%.*}
+
   export UPLOADFILE=`conda build conda/recipes/libcugraph -c rapidsai -c nvidia -c numba -c conda-forge -c defaults --python=$PYTHON --output`
 
   SOURCE_BRANCH=master

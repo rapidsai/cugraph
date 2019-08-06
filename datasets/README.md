@@ -30,5 +30,5 @@ Before running the tests, you should let cuGraph know where to find the test inp
 ```
 export RAPIDS_DATASET_ROOT_DIR=<path_to_ccp_test_and_reference_data>
 ```
-## Refence
+## Reference
 The SuiteSparse Matrix Collection (formerly the University of Florida Sparse Matrix Collection) : https://sparse.tamu.edu/

@@ -9,6 +9,7 @@
 - PR #411 Integrate dask-cugraph in cugraph #411
 - PR #418 Update cusort to handle SNMG key-only sorting
 - PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
+- PR #437 Streamline CUDA_REL environment variable
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
@@ -38,6 +39,7 @@
 - PR #438 Fix versions of packages in build script and conda yml
 - PR #442 Updated versions in conda environments.
 - PR #442 Added except + to cython bindings to C(++) functions.
+- PR #443 Fix accuracy loss issue for snmg pagerank
 
 
 # cuGraph 0.8.0 (27 June 2019)
