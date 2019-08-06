@@ -69,7 +69,7 @@ void SNMGcsrmv<IndexType,ValueType>::run (ValueType ** x) {
   {std::cout <<  omp_get_wtime() - t << " ";}
   Update the output vector
 #endif
-   
+  sync_all();
   allgather (env, part_off, y_loc, x);
 }
 
