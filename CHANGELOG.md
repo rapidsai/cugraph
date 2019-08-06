@@ -7,6 +7,7 @@
 - PR #380 First implemention of cusort - SNMG key/value sorting
 - PR #411 Integrate dask-cugraph in cugraph #411
 - PR #418 Update cusort to handle SNMG key-only sorting
+- PR #437 Streamline CUDA_REL environment variable
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
