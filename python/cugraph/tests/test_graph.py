@@ -68,13 +68,21 @@ def compare_offsets(offset0, offset1):
 # vertices in one graph to the vertices in the other graph is identity AND two
 # graphs are automorphic; no permutations of vertices are allowed).
 def compare_graphs(nx_graph, cu_graph):
-    sources, destinations = cu_graph.view_edge_list()
+    sources, destinations, values = cu_graph.view_edge_list()
 
-    df = pd.DataFrame()
-    df['source'] = sources.to_pandas()
-    df['target'] = destinations.to_pandas()
-
-    cu_to_nx_graph = nx.from_pandas_edgelist(df, create_using=nx.DiGraph())
+    df = cudf.DataFrame()
+    df['source'] = sources
+    df['target'] = destinations
+    if values is not None:
+        df['weight'] = values
+        cu_to_nx_graph = nx.from_pandas_edgelist(df.to_pandas(),
+                                                 source='source',
+                                                 target='target',
+                                                 edge_attr=['weight'],
+                                                 create_using=nx.DiGraph())
+    else:
+        cu_to_nx_graph = nx.from_pandas_edgelist(df.to_pandas(),
+                                                 create_using=nx.DiGraph())
 
     # first compare nodes
 
@@ -94,9 +102,12 @@ def compare_graphs(nx_graph, cu_graph):
     if diff.number_of_edges() > 0:
         return False
 
-    # need to compare edge weights for weighted graphs as well but currently
-    # users cannot retrieve edge weights from cugraph Graph objects
-    # (cugraph issue #319).
+    if values is not None:
+        df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
+        df0 = df0.sort_values(by=['source', 'target'])
+        df1 = df.sort_values(by=['source', 'target'])
+        if not df0['weight'].equals(df1['weight']):
+            return False
 
     return True
 
@@ -182,9 +193,10 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     # cugraph add_egde_list to_adj_list call
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
-    offsets_cu, indices_cu = G.view_adj_list()
+    offsets_cu, indices_cu, values_cu = G.view_adj_list()
     assert compare_offsets(offsets_cu, offsets_exp)
     assert compare_series(indices_cu, indices_exp)
+    assert values_cu is None
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -217,11 +229,12 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     # cugraph add_adj_list to_edge_list call
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
-    sources, destinations = G.view_edge_list()
+    sources, destinations, values = G.view_edge_list()
     sources_cu = np.array(sources)
     destinations_cu = np.array(destinations)
     assert compare_series(sources_cu, sources_exp)
     assert compare_series(destinations_cu, destinations_exp)
+    assert values is None
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -245,9 +258,10 @@ def test_transpose_from_adj_list(managed, pool, graph_file):
     G.add_adj_list(offsets, indices, None)
     G.add_transposed_adj_list()
     Mt = M.transpose().tocsr()
-    toff, tind = G.view_transposed_adj_list()
+    toff, tind, tval = G.view_transposed_adj_list()
     assert compare_series(tind, Mt.indices)
     assert compare_offsets(toff, Mt.indptr)
+    assert tval is None
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -269,12 +283,13 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
-    src2, dst2 = G.view_edge_list()
+    src2, dst2, val2 = G.view_edge_list()
     M = M.tocoo()
     src1 = M.row
     dst1 = M.col
     assert compare_series(src1, src2)
     assert compare_series(dst1, dst2)
+    assert val2 is None
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -395,13 +410,21 @@ def test_networkx_compatibility(managed, pool, graph_file):
     df = pd.DataFrame()
     df['source'] = pd.Series(M.row)
     df['target'] = pd.Series(M.col)
+    df['weight'] = pd.Series(M.data)
 
     gdf = cudf.from_pandas(df)
 
     # cugraph.Graph() is implicitly a directed graph right at this moment, so
     # we should use nx.DiGraph() for comparison.
-    Gnx = nx.from_pandas_edgelist(df, create_using=nx.DiGraph)
-    G = cugraph.from_cudf_edgelist(gdf)
+    Gnx = nx.from_pandas_edgelist(df,
+                                  source='source',
+                                  target='target',
+                                  edge_attr=['weight'],
+                                  create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(gdf,
+                                   source='source',
+                                   target='target',
+                                   weight='weight')
 
     assert compare_graphs(Gnx, G)
 
