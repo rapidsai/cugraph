@@ -10,6 +10,7 @@
 - PR #418 Update cusort to handle SNMG key-only sorting
 - PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
 - PR #437 Streamline CUDA_REL environment variable
+- PR #449 Fix local build generated file ownerships
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
