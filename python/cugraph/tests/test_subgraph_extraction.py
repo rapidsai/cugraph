@@ -35,7 +35,8 @@ with warnings.catch_warnings():
 
 
 def compare_edges(cg, nxg, verts):
-    src, dest = cg.view_edge_list()
+    src, dest, weight = cg.view_edge_list()
+    assert weight is None
     assert len(src) == nxg.size()
     for i in range(len(src)):
         assert nxg.has_edge(verts[src[i]], verts[dest[i]])
