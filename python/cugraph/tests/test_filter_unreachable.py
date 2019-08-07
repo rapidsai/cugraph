@@ -15,7 +15,6 @@ import gc
 from itertools import product
 import time
 
-import numpy as np
 import pytest
 
 import cugraph
@@ -41,6 +40,7 @@ DATASETS = ['../datasets/dolphins',
             '../datasets/netscience']
 
 SOURCES = [1]
+
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -76,4 +76,4 @@ def test_filter_unreachable(managed, pool, graph_file, source):
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
-    reachable_df = cugraph.filter_unreachable(df)
+    cugraph.filter_unreachable(df)
