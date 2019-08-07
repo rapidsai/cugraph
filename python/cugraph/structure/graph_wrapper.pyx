@@ -108,20 +108,20 @@ def view_edge_list(graph_ptr):
     # g.edgeList.src_indices.data, g.edgeList.dest_indices.data, and
     # g.edgeList.edge_data.data are not owned by this instance, so should not
     # be freed when the resulting cudf.Series objects are finalized (this will
-    # lead to double free, and undefined behavior).
+    # lead to double free, and undefined behavior). The finalizer parameter of
+    # rmm.device_array_from_ptr shuold be ``None`` (default value) for this
+    # purpose (instead of rmm._finalizer(handle, stream)).
 
     src_data = rmm.device_array_from_ptr(
                    src_col_data,
                    nelem=col_size,
-                   dtype=np.int32)  # ,
-                   # finalizer=rmm._make_finalizer(src_col_data, 0))
+                   dtype=np.int32)
     source_col = cudf.Series(src_data)
 
     dest_data = rmm.device_array_from_ptr(
                     dest_col_data,
                     nelem=col_size,
-                    dtype=np.int32)  # ,
-                    # finalizer=rmm._make_finalizer(dest_col_data, 0))
+                    dtype=np.int32)
     dest_col = cudf.Series(dest_data)
 
     value_col = None
@@ -130,8 +130,7 @@ def view_edge_list(graph_ptr):
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))  # ,
-                         # finalizer=rmm._make_finalizer(value_col_data, 0))
+                         dtype=gdf_to_np_dtype(value_dtype))
         value_col = cudf.Series(value_data)
 
     return source_col, dest_col, value_col
@@ -178,20 +177,21 @@ def view_adj_list(graph_ptr):
 
     # g.adjList.offsets.data, g.adjList.indices.data, and
     # g.adjList.edge_data.data are not owned by this instance, so should not be
-    # freed here (this will lead to double free, and undefined behavior).
+    # freed here (this will lead to double free, and undefined behavior). The
+    # finalizer parameter of rmm.device_array_from_ptr shuold be ``None``
+    # (default value) for this purpose (instead of
+    # rmm._finalizer(handle, stream)).
 
     offset_data = rmm.device_array_from_ptr(
                        offset_col_data,
                        nelem=offset_col_size,
-                       dtype=np.int32) # ,
-                       # finalizer=rmm._make_finalizer(offset_col_data, 0))
+                       dtype=np.int32)
     offset_col = cudf.Series(offset_data)
 
     index_data = rmm.device_array_from_ptr(
                        index_col_data,
                        nelem=index_col_size,
-                       dtype=np.int32) # ,
-                       # finalizer=rmm._make_finalizer(index_col_data, 0))
+                       dtype=np.int32)
     index_col = cudf.Series(index_data)
 
     value_col = None
@@ -200,8 +200,7 @@ def view_adj_list(graph_ptr):
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=index_col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))  # ,
-                         # finalizer=rmm._make_finalizer(value_col_data, 0))
+                         dtype=gdf_to_np_dtype(value_dtype))
         value_col = cudf.Series(value_data)
 
     return offset_col, index_col, value_col
@@ -237,20 +236,20 @@ def view_transposed_adj_list(graph_ptr):
     # g.transposedAdjList.offsets.data, g.transposedAdjList.indices.data and
     # g.transposedAdjList.edge_data.data are not owned by this instance, so
     # should not be freed here (this will lead to double free, and undefined
-    # behavior).
+    # behavior). The finalizer parameter of rmm.device_array_from_ptr should
+    # be ``None`` (default value) for this purpose (instead of
+    # rmm._finalizer(handle, stream)).
 
     offset_data = rmm.device_array_from_ptr(
                        offset_col_data,
                        nelem=offset_col_size,
-                       dtype=np.int32)  # ,
-                       # finalizer=rmm._make_finalizer(offset_col_data, 0))
+                       dtype=np.int32)
     offset_col = cudf.Series(offset_data)
 
     index_data = rmm.device_array_from_ptr(
                      index_col_data,
                      nelem=index_col_size,
-                     dtype=np.int32)  # ,
-                     # finalizer=rmm._make_finalizer(index_col_data, 0))
+                     dtype=np.int32)
     index_col = cudf.Series(index_data)
 
     value_col = None
@@ -259,8 +258,7 @@ def view_transposed_adj_list(graph_ptr):
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=index_col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))  # ,
-                         # finalizer=rmm._make_finalizer(value_col_data, 0))
+                         dtype=gdf_to_np_dtype(value_dtype))
         value_col = cudf.Series(value_data)
 
     return offset_col, index_col, value_col
