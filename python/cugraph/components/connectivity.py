@@ -79,7 +79,7 @@ def strongly_connected_components(G):
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources,destinations,none)
+    >>> G.add_edge_list(sources,destinations,None)
     >>> df = cugraph.strongly_connected_components(G)
     """
 
