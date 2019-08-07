@@ -43,6 +43,7 @@
 - PR #442 Added except + to cython bindings to C(++) functions.
 - PR #443 Fix accuracy loss issue for snmg pagerank
 - PR #444 Fix warnings in strongly connected components
+- PR #448 Import filter_unreachable
 
 # cuGraph 0.8.0 (27 June 2019)
 
