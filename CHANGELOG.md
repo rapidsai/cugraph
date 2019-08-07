@@ -10,7 +10,6 @@
 - PR #418 Update cusort to handle SNMG key-only sorting
 - PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
 - PR #437 Streamline CUDA_REL environment variable
-- PR #450 Add a multi-GPU section in cuGraph documentation.
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
@@ -21,6 +20,7 @@
 - PR #419 Version test
 - PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
 - PR #439 More efficient computation of number of vertices from edge list
+- PR #450 Add a multi-GPU section in cuGraph documentation.
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
