@@ -24,6 +24,7 @@
 namespace cugraph {
   /**
    * Class for representing an entry in a pattern, which may either be a variable or constant value
+   * See description of db_pattern for more info on how this is used.
    */
   template <typename idx_t>
   class db_pattern_entry {
@@ -41,6 +42,11 @@ namespace cugraph {
 
   /**
    * Class for representing a pattern (usually a triple pattern, but it's extensible)
+   * A pattern in this sense consists of a sequence of entries each element is either a constant
+   * value (an integer, since we dictionary encode everything) or a variable. Variables stand
+   * in for unknown values that are being searched for. For example: if we have a pattern like
+   * {'a', :haslabel, Person} (Where :haslabel and Person are dictionary encoded constants and
+   * 'a' is a variable) We are looking for all nodes that have the label Person.
    */
   template <typename idx_t>
   class db_pattern {
