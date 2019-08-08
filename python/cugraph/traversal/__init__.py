@@ -12,4 +12,4 @@
 # limitations under the License.
 
 from cugraph.traversal.bfs import bfs
-from cugraph.traversal.sssp import sssp
+from cugraph.traversal.sssp import sssp, filter_unreachable

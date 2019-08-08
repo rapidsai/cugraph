@@ -127,6 +127,9 @@ def test_sssp(managed, pool, graph_file, source):
     # Calculating mismatch
     err = 0
     for vid in cu_paths:
+        # Validate vertices that are reachable
+        # NOTE : If distance type is float64 then cu_paths[vid][0]
+        # should be compared against np.finfo(np.float64).max)
         if (cu_paths[vid][0] != np.finfo(np.float32).max):
             if(cu_paths[vid][0] != nx_paths[vid]):
                 err = err + 1
@@ -167,6 +170,9 @@ def test_sssp_edgevals(managed, pool, graph_file, source):
     print(nx_paths)
     print(len(cu_paths))
     for vid in cu_paths:
+        # Validate vertices that are reachable
+        # NOTE : If distance type is float64 then cu_paths[vid][0]
+        # should be compared against np.finfo(np.float64).max)
         if (cu_paths[vid][0] != np.finfo(np.float32).max):
             if(cu_paths[vid][0] != nx_paths[vid]):
                 err = err + 1
