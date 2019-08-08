@@ -80,10 +80,10 @@ def test_filter_unreachable(managed, pool, graph_file, source):
     reachable_df = cugraph.filter_unreachable(df)
 
     if(np.issubdtype(df['distance'].dtype, np.integer)):
-        inf = np.iinfo(reachable_df['distance'].dtype).max
+        inf = np.iinfo(reachable_df['distance'].dtype).max  # noqa: F841
         assert len(reachable_df.query("distance == @inf")) == 0
     elif(np.issubdtype(df['distance'].dtype, np.inexact)):
-        inf = np.finfo(reachable_df['distance'].dtype).max
+        inf = np.finfo(reachable_df['distance'].dtype).max  # noqa: F841
         assert len(reachable_df.query("distance == @inf")) == 0
 
     assert len(reachable_df) != 0
