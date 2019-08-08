@@ -94,11 +94,10 @@ namespace cugraph {
 
   template<typename idx_t>
   bool db_pattern<idx_t>::isAllConstants() {
-    bool is_all_constants = true;
     for (size_t i = 0; i < entries.size(); i++)
       if (entries[i].isVariable())
-        is_all_constants = false;
-    return is_all_constants;
+        return false;
+    return true;
   }
 
   template class db_pattern<int32_t> ;
