@@ -16,6 +16,7 @@ from itertools import product
 import time
 
 import pytest
+import numpy as np
 
 import cugraph
 from cugraph.tests import utils
@@ -76,4 +77,13 @@ def test_filter_unreachable(managed, pool, graph_file, source):
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
-    cugraph.filter_unreachable(df)
+    reachable_df = cugraph.filter_unreachable(df)
+
+    if(np.issubdtype(df['distance'].dtype, np.integer)):
+        inf = np.iinfo(reachable_df['distance'].dtype).max
+        assert len(reachable_df.query("distance == @inf")) == 0
+    elif(np.issubdtype(df['distance'].dtype, np.inexact)):
+        inf = np.finfo(reachable_df['distance'].dtype).max
+        assert len(reachable_df.query("distance == @inf")) == 0
+
+    assert len(reachable_df) != 0
