@@ -36,7 +36,7 @@ def from_cudf_edgelist(df, source='source', target='target', weight=None):
         This is used to index the destination (or target following NetworkX's
         terminology) column.
     weight : string or integer, optional
-        This pointer can be ``none``. If not, this is used to index the weight
+        This pointer can be ``None``. If not, this is used to index the weight
         column.
 
     Examples
