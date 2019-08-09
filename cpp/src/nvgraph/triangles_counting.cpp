@@ -64,7 +64,7 @@ void TrianglesCount<IndexType>::tcount_bsh()
     
     if (m_dev_props.sharedMemPerBlock*8 < (size_t)m_mat.nrows) 
     {
-        FatalError("Number of vertices to high to use this kernel!", NVGRAPH_ERR_BAD_PARAMETERS);
+        FatalError("Number of vertices too high to use this kernel!", NVGRAPH_ERR_BAD_PARAMETERS);
     }
 
     unsigned int    *bmap_d;
