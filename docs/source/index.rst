@@ -6,6 +6,7 @@ Welcome to cugraph's documentation!
    :caption: Contents:
 
    api.rst
+   dask-cugraph.rst
 
 Indices and tables
 ==================
