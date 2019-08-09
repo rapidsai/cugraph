@@ -1,8 +1,17 @@
-~~~~~~~~~~~~~~~~~~~
-Multi-GPU with Dask
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+Multi-GPU with cuGraph
+~~~~~~~~~~~~~~~~~~~~~~
 
-cuGraph is a single-GPU library. For Multi-GPU cuGraph solutions we use Dask (https://dask.org), which is able to scale cuGraph across multiple GPUs on a single machine, or in future releases, multiple GPUs across many machines in a cluster.
+cuGraph supports multi-GPU leveraging `Dask <https://dask.org>`_. Dask is a flexible library for parallel computing in Python which makes scaling out your workflow smooth and simple. cuGraph also uses other Dask-based RAPIDS projects such as `dask-cuda <https://github.com/rapidsai/dask-cuda>`_.
+
+The current solution is able to scale across multiple GPUs on a single machine. Distributing the graph and computation lets you analyze datasets far larger than a single GPU’s memory.
+
+With cuGraph and Dask, whether you’re using a single NVIDIA GPU or using all 16 NVIDIA V100 GPUs on a DGX-2, your RAPIDS workflow will run smoothly, intelligently distributing the workload across the available resources.
+
+When to Use Multiple GPUs in cuGraph
+====================================
+
+If your graph comfortably fits in memory on a single GPU, you would want to use the single-GPU version of cuGraph. If you want to distribute your workflow across multiple GPUs and have more data than you can fit in memory on a single GPU, you would want to use cuGraph's multi-GPU features.
 
 Supported Graph Analytics
 =========================
