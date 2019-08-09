@@ -19,12 +19,12 @@
 from cugraph.traversal.c_sssp cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
+from cudf.bindings.cudf_cpp cimport np_dtype_from_gdf_column
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
-from cudf.bindings.cudf_cpp import gdf_to_np_dtype
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
@@ -46,7 +46,7 @@ def sssp(graph_ptr, source):
 
     data_type = np.float32
     if g.adjList.edge_data:
-        data_type = gdf_to_np_dtype(g.adjList.edge_data.dtype)
+        data_type = np_dtype_from_gdf_column(g.adjList.edge_data)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))

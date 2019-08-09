@@ -57,7 +57,7 @@ cdef gdf_column get_gdf_column_view(col):
                                     <void*> data_ptr,
                                     <gdf_valid_type*> valid_ptr,
                                     <gdf_size_type> len(col),
-                                    get_dtype(col.dtype.type),
+                                    gdf_dtype_from_value(col),
                                     <gdf_size_type> col.null_count,
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
@@ -79,7 +79,7 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
                                     <void*> data_ptr,
                                     <gdf_valid_type*> valid_ptr,
                                     <gdf_size_type> col_len,
-                                    get_dtype(np.int32),
+                                    gdf_dtype_from_value(None, np.int32),
                                     <gdf_size_type> 0,
                                     c_extra_dtype_info)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
