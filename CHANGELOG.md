@@ -33,6 +33,7 @@
 - PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
 - PR #439 More efficient computation of number of vertices from edge list
 - PR #445 Update view_edge_list, view_adj_list, and view_transposed_adj_list to return edge weights.
+- PR #450 Add a multi-GPU section in cuGraph documentation.
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages

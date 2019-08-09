@@ -96,7 +96,7 @@ class Graph:
             vertices).
             Destination indices must be 32 bit integers.
         value_col : cudf.Series, optional
-            This pointer can be ``none``.
+            This pointer can be ``None``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
             The gdf column contains the weight value for each edge.
@@ -215,7 +215,7 @@ class Graph:
             Destination indices must be in the range [0, V) (V: number of
             vertices).
         value_col : cudf.Series, optional
-            This pointer can be ``none``.
+            This pointer can be ``None``.
             If not, this cudf.Series wraps a gdf_column of size E (E: number of
             edges).
             The gdf column contains the weight value for each edge.
