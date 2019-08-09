@@ -4,7 +4,7 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analyti
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
-**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/master/README.md) ensure you are on the `master` branch.
+**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/master/README.md) ensure you are on the latest branch.
 
 
 
@@ -36,7 +36,7 @@ for i in range(len(gdf_page)):
 | Weighted Jaccard                              | Single-GPU |                              |
 | Overlap Similarity                            | Single-GPU |                              |
 | SSSP                                          | Single-GPU | Updated to provide path info |
-| BSF                                           | Single-GPU |                              |
+| BFS                                           | Single-GPU |                              |
 | Triangle Counting                             | Single-GPU |                              |
 | Subgraph Extraction                           | Single-GPU |                              |
 | Spectral Clustering - Balanced-Cut            | Single-GPU |                              |
@@ -45,20 +45,21 @@ for i in range(len(gdf_page)):
 | Renumbering                                   | Single-GPU |                              |
 | Basic Graph Statistics                        | Single-GPU |                              |
 | Weakly Connected Components                   | Single-GPU |                              |
+| Strongly Connected Components                 | Single-GPU |                              |
 
 
 
 
 
-## cuGraph 0.8 Notice
+## cuGraph Notice
 
-cuGraph version 0.8 has some limitations:
+The current version of cuGraph has some limitations:
 
-- Only Int32 Vertex ID are supported
-- Only float (FP32) edge data is supported
+- Only Int32 Vertex IDs are supported
 - Vertex numbering is assumed to start at zero
+- abc
 
-These limitations are being addressed and will be fixed soon.
+cuGraph provides the renumber function to mitigate this problem. The renumber function maps the input vertex IDs to 32-bit contiguous integers starting from 0. Input vertex IDs can be either 32-bit or 64-bit integers, can be non-contiguous, and can start from an arbitrary number. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
 
 
@@ -75,7 +76,7 @@ There are 3 ways to get cuGraph :
 
 <a name="quick"></a>
 
-## Quick Start  
+## Quick Start
 
 Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
@@ -103,7 +104,7 @@ Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
 <a name="source"></a>
 
-### Build from Source and Contributing 
+### Build from Source and Contributing
 
 Please see our [guide for building and contributing to cuGraph](CONTRIBUTING.md).
 
