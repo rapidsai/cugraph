@@ -11,6 +11,14 @@ import argparse
 # Update this function to add new algos
 ########################################
 def getAlgoData(G, args):
+    """
+    keyname = algo method/function name
+    args = args to pass the method/function (default is no args)
+    obj = object containing the method/function (default is the cugraph module)
+    extraWrappers = list of functions that return a callable, used for
+                    "wrapping" the algo to modify its environment, add timers,
+                    log calls, etc.
+    """
     algoData = {"pagerank" :
                 {"args" : (G, args.damping_factor, args.max_iter, args.tolerance),
                 },
