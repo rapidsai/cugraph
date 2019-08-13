@@ -8,8 +8,8 @@ dependencies:
 - cudf=0.9.*
 - nvstrings=0.9.*
 - rmm=0.9.*
-- dask
-- distributed
+- dask>=2.1.0
+- distributed>=2.1.0
 - dask-cuda=0.9*
 - dask-cudf=0.9*
 - scipy
@@ -19,13 +19,11 @@ dependencies:
 - cudatoolkit=9.2
 - cmake>=3.12
 - python>=3.6,<3.8
-- numba>=0.41
-- pandas>=0.23.4
-- pyarrow=0.12.1
+- numba>=0.41,<0.45
+- pandas>=0.24.2,<0.25
+- pyarrow=0.14.1
 - notebook>=0.5.0
 - boost
-- cffi>=1.10.0   
-- distributed>=1.23.0
 - cython>=0.29,<0.30
 - pytest
 - sphinx

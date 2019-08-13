@@ -18,11 +18,11 @@
 
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
+from cudf.bindings.cudf_cpp cimport np_dtype_from_gdf_column
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
-from cudf.bindings.cudf_cpp import gdf_to_np_dtype
 import cudf
 from librmm_cffi import librmm as rmm
 import numpy as np
@@ -59,13 +59,13 @@ def renumber(source_col, dest_col):
 
     src_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> src_renumbered.data,
                                  nelem=src_renumbered.size,
-                                 dtype=gdf_to_np_dtype(src_renumbered.dtype))
+                                 dtype=np_dtype_from_gdf_column(&src_renumbered))
     dst_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> dst_renumbered.data,
                                  nelem=dst_renumbered.size,
-                                 dtype=gdf_to_np_dtype(dst_renumbered.dtype))
+                                 dtype=np_dtype_from_gdf_column(&dst_renumbered))
     numbering_map_array = rmm.device_array_from_ptr(<uintptr_t> numbering_map.data,
                                  nelem=numbering_map.size,
-                                 dtype=gdf_to_np_dtype(numbering_map.dtype))
+                                 dtype=np_dtype_from_gdf_column(&numbering_map))
 
     return cudf.Series(src_renumbered_array), cudf.Series(dst_renumbered_array), cudf.Series(numbering_map_array)
 
@@ -126,11 +126,10 @@ def view_edge_list(graph_ptr):
 
     value_col = None
     if <void*>value_col_data is not NULL:
-        value_dtype = g.edgeList.edge_data.dtype
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))
+                         dtype=np_dtype_from_gdf_column(g.edgeList.edge_data))
         value_col = cudf.Series(value_data)
 
     return source_col, dest_col, value_col
@@ -196,11 +195,10 @@ def view_adj_list(graph_ptr):
 
     value_col = None
     if <void*>value_col_data is not NULL:
-        value_dtype = g.adjList.edge_data.dtype
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=index_col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))
+                         dtype=np_dtype_from_gdf_column(g.adjList.edge_data))
         value_col = cudf.Series(value_data)
 
     return offset_col, index_col, value_col
@@ -254,11 +252,10 @@ def view_transposed_adj_list(graph_ptr):
 
     value_col = None
     if <void*>value_col_data is not NULL:
-        value_dtype = g.transposedAdjList.edge_data.dtype
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=index_col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))
+                         dtype=np_dtype_from_gdf_column(g.transposedAdjList.edge_data))
         value_col = cudf.Series(value_data)
 
     return offset_col, index_col, value_col
