@@ -55,11 +55,10 @@ for i in range(len(gdf_page)):
 
 The current version of cuGraph has some limitations:
 
-- Only Int32 Vertex IDs are supported
-- Vertex numbering is assumed to start at zero
-- abc
+- Vertex IDs need to be 32-bit integers.
+- Vertex IDs are expected to be contiguous integers starting from 0.
 
-cuGraph provides the renumber function to mitigate this problem. The renumber function maps the input vertex IDs to 32-bit contiguous integers starting from 0. Input vertex IDs can be either 32-bit or 64-bit integers, can be non-contiguous, and can start from an arbitrary number. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
+cuGraph provides the renumber function to mitigate this problem. Input vertex IDs for the renumber function can be either 32-bit or 64-bit integers, can be non-contiguous, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
 
 
