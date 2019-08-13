@@ -59,6 +59,7 @@
 - PR #444 Fix warnings in strongly connected components
 - PR #446 Fix permission for source (-x) and script (+x) files.
 - PR #448 Import filter_unreachable
+- PR #453 Re-sync cugraph with cudf (dependencies, type conversion & scatter functions).
 
 # cuGraph 0.8.0 (27 June 2019)
 
