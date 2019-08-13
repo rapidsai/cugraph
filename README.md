@@ -30,7 +30,7 @@ for i in range(len(gdf_page)):
 
 | Algorithm                                     | Scale      | Notes                        |
 | :-------------------------------------------- | ---------- | ---------------------------- |
-| PageRank                                      | Single-GPU |                              |
+| PageRank                                      | Multi-GPU  |                              |
 | Personal PageRank                             | Single-GPU |                              |
 | Jaccard Similarity                            | Single-GPU |                              |
 | Weighted Jaccard                              | Single-GPU |                              |
