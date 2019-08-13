@@ -66,11 +66,11 @@ def getAlgoData(G, args):
     return algoData
 
 
-def loadDataFile(file_name, file_type, delimeter=' '):
+def loadDataFile(file_name, file_type, delimiter=' '):
     if file_type == "mtx" :
         edgelist_gdf = read_mtx(file_name)
     elif file_type == "csv" :
-        edgelist_gdf = read_csv(file_name, delimeter)
+        edgelist_gdf = read_csv(file_name, delimiter)
     else:
         raise ValueError("bad file type: '%s'" % file_type)
     return edgelist_gdf
@@ -98,13 +98,14 @@ def read_mtx(mtx_file):
     return gdf
 
 
-def read_csv(csv_file):
+def read_csv(csv_file, delimiter):
     cols = ["src", "dst"]
     dtypes = OrderedDict([
             ("src", "int32"),
             ("dst", "int32")
             ])
-    gdf = cudf.read_csv(csv_file, names=cols, delimeter=delimeter, dtype=list(dtypes.values()) )
+
+    gdf = cudf.read_csv(csv_file, names=cols, delimiter=delimiter, dtype=list(dtypes.values()) )
     gdf['val'] = 1.0
     if gdf['val'].null_count > 0 :
         print("The reader failed to parse the input")
@@ -164,8 +165,8 @@ def parseCLI(argv):
                         help='Automatically do the csr and transposed transformations. Default is 0, switch to another value to enable')
     parser.add_argument('--times_only', action="store_true",
                         help='Only output the times, no table')
-    parser.add_argument('--delimeter', type=str, choices=["tab", "space"], default="space",
-                        help='Delimeter for csv files (default is space)')
+    parser.add_argument('--delimiter', type=str, choices=["tab", "space"], default="space",
+                        help='Delimiter for csv files (default is space)')
     return parser.parse_args(argv)
 
 
@@ -179,12 +180,12 @@ def getAllPossibleAlgos():
 if __name__ == "__main__":
     perfData = []
     args = parseCLI(sys.argv[1:])
-    delimeter = {"space":' ', "tab":'\t'}[args.delimeter]
+    delimiter = {"space":' ', "tab":'\t'}[args.delimiter]
 
     allPossibleAlgos = getAllPossibleAlgos()
     if args.algo:
-        if set(args.algo) != set(allPossibleAlgos):
-            raise ValueError("bad algo: '%s', must be one of %s" \
+        if (set(args.algo) - set(allPossibleAlgos)) != set():
+            raise ValueError("bad algo(s): '%s', must be in set of %s" \
                              % (args.algo, ", ".join(['"%s"' % a for a in allPossibleAlgos])))
         algosToRun = args.algo
     else:
@@ -193,7 +194,7 @@ if __name__ == "__main__":
     # Load the data file and create a Graph, include exe time in perfData
     edgelist_gdf = logExeTime(loadDataFile, perfData)(args.file,
                                                       args.file_type,
-                                                      delimeter)
+                                                      delimiter)
     G = logExeTime(createGraph, perfData)(edgelist_gdf, args.auto_csr)
 
     if G is None:
