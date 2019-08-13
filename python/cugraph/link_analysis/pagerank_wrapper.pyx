@@ -45,22 +45,21 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
-    cdef gdf_column c_pagerank_col = get_gdf_column_view(df['pagerank'])
 
     cdef bool has_guess = <bool> 0
     if nstart is not None:
-        cudf.bindings.copying.apply_scatter([nstart['values']._column],
-                                            nstart['vertex']._column._data.mem,
-                                            [df['pagerank']._column])
+        df['pagerank'][nstart['vertex']] = nstart['values']
         has_guess = <bool> 1
 
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
+    cdef gdf_column c_pagerank_col = get_gdf_column_view(df['pagerank'])
     cdef gdf_column c_pers_vtx
     cdef gdf_column c_pers_val
 
     err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
+
     if personalization is None:
         err = gdf_pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
