@@ -51,8 +51,7 @@ conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c r
       dask \
       distributed \
       dask-cudf=${MINOR_VERSION} \
-      dask-cuda=${MINOR_VERSION} \
-      pyarrow=0.14.1.*
+      dask-cuda=${MINOR_VERSION}
 
 logger "Check versions..."
 python --version
