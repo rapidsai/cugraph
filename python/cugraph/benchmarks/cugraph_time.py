@@ -154,7 +154,7 @@ def parseCLI(argv):
                         help='Path to the input file')
     parser.add_argument('--file_type', type=str, default="mtx", choices=["mtx", "csv"],
                         help='Input file type : csv or mtx. If csv, cuDF reader is used (set for  [src dest] pairs separated by a tab). If mtx, Scipy reder is used (slow but supports weights). Default is mtx.')
-    parser.add_argument('--algo', type=str, default="all",
+    parser.add_argument('--algo', type=str, action="append",
                         help='Algorithm to run, must be one of %s, or "all"' % ", ".join(['"%s"' % k for k in algoData.keys()]))
     parser.add_argument('--damping_factor', type=float,default=0.85,
                         help='Damping factor for pagerank algo. Default is 0.85')
@@ -181,8 +181,7 @@ if __name__ == "__main__":
 
     # Get the data on the algorithms present and how to run them
     algoData = getAlgoData(G, args)
-    algosToRun = [args.algo] if (args.algo != "all") \
-                 else list(algoData.keys())
+    algosToRun = args.algo if args.algo else list(algoData.keys())
 
     # For each algo to run, look up the object it belongs to (the cugraph module
     # by default), the args it needs passed (none by default), and any extra
