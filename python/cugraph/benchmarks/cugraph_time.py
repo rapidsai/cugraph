@@ -10,7 +10,7 @@ import argparse
 ########################################
 # Update this function to add new algos
 ########################################
-def getAlgoData(G, args):
+def getAlgoData(G, edgelist_gdf, args):
     """
     keyname = algo method/function name
     args = args to pass the method/function (default is no args)
@@ -20,7 +20,7 @@ def getAlgoData(G, args):
                     log calls, etc.
     """
     algoData = {"pagerank" :
-                {"args" : (G, args.damping_factor, args.max_iter, args.tolerance),
+                {"args" : (G, args.damping_factor, None, args.max_iter, args.tolerance),
                 },
                 "bfs" :
                 {"args" : (G, args.source, True),
@@ -51,7 +51,7 @@ def getAlgoData(G, args):
                 {"args" : (G, 2),
                 },
                 "renumber" :
-                {"args" : (args.source, args.source),  # FIXME: 2nd arg should be dest
+                {"args" : (edgelist_gdf["src"], edgelist_gdf["dst"]),
                 },
                 "view_adj_list" :
                 {"obj" : G,
@@ -173,7 +173,7 @@ def parseCLI(argv):
 def getAllPossibleAlgos():
     class fakeArgs:
         def __getattr__(self, a): return None
-    return list(getAlgoData(None, fakeArgs()).keys())
+    return list(getAlgoData(None, {"src":0,"dst":0}, fakeArgs()).keys())
 
 
 ################################################################################
@@ -201,7 +201,7 @@ if __name__ == "__main__":
         raise RuntimeError("could not create graph!")
 
     # Get the data on the algorithms present and how to run them
-    algoData = getAlgoData(G, args)
+    algoData = getAlgoData(G, edgelist_gdf, args)
 
     # For each algo to run, look up the object it belongs to (the cugraph module
     # by default), the args it needs passed (none by default), and any extra
