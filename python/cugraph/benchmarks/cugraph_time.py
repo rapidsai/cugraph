@@ -66,11 +66,11 @@ def getAlgoData(G, args):
     return algoData
 
 
-def loadDataFile(file_type):
+def loadDataFile(file_name, file_type, delimeter=' '):
     if file_type == "mtx" :
-        edgelist_gdf = read_mtx(args.file)
+        edgelist_gdf = read_mtx(file_name)
     elif file_type == "csv" :
-        edgelist_gdf = read_csv(args.file)
+        edgelist_gdf = read_csv(file_name, delimeter)
     else:
         raise ValueError("bad file type: '%s'" % file_type)
     return edgelist_gdf
@@ -104,7 +104,7 @@ def read_csv(csv_file):
             ("src", "int32"),
             ("dst", "int32")
             ])
-    gdf = cudf.read_csv(csv_file, names=cols, delimiter='\t', dtype=list(dtypes.values()) )
+    gdf = cudf.read_csv(csv_file, names=cols, delimeter=delimeter, dtype=list(dtypes.values()) )
     gdf['val'] = 1.0
     if gdf['val'].null_count > 0 :
         print("The reader failed to parse the input")
@@ -145,17 +145,13 @@ def logExeTime(algoFunction, perfData):
 
 
 def parseCLI(argv):
-    class fakeArgs:
-        def __getattr__(self, a): return None
-    algoData = getAlgoData(None, fakeArgs())
-
     parser = argparse.ArgumentParser(description='CuGraph benchmark script.')
     parser.add_argument('file', type=str,
                         help='Path to the input file')
     parser.add_argument('--file_type', type=str, default="mtx", choices=["mtx", "csv"],
                         help='Input file type : csv or mtx. If csv, cuDF reader is used (set for  [src dest] pairs separated by a tab). If mtx, Scipy reder is used (slow but supports weights). Default is mtx.')
     parser.add_argument('--algo', type=str, action="append",
-                        help='Algorithm to run, must be one of %s, or "all"' % ", ".join(['"%s"' % k for k in algoData.keys()]))
+                        help='Algorithm to run, must be one of %s, or "all"' % ", ".join(['"%s"' % k for k in getAllPossibleAlgos()]))
     parser.add_argument('--damping_factor', type=float,default=0.85,
                         help='Damping factor for pagerank algo. Default is 0.85')
     parser.add_argument('--max_iter', type=int, default=100,
@@ -168,20 +164,43 @@ def parseCLI(argv):
                         help='Automatically do the csr and transposed transformations. Default is 0, switch to another value to enable')
     parser.add_argument('--times_only', action="store_true",
                         help='Only output the times, no table')
+    parser.add_argument('--delimeter', type=str, choices=["tab", "space"], default="space",
+                        help='Delimeter for csv files (default is space)')
     return parser.parse_args(argv)
+
+
+def getAllPossibleAlgos():
+    class fakeArgs:
+        def __getattr__(self, a): return None
+    return list(getAlgoData(None, fakeArgs()).keys())
+
 
 ################################################################################
 if __name__ == "__main__":
     perfData = []
     args = parseCLI(sys.argv[1:])
+    delimeter = {"space":' ', "tab":'\t'}[args.delimeter]
+
+    allPossibleAlgos = getAllPossibleAlgos()
+    if args.algo:
+        if set(args.algo) != set(allPossibleAlgos):
+            raise ValueError("bad algo: '%s', must be one of %s" \
+                             % (args.algo, ", ".join(['"%s"' % a for a in allPossibleAlgos])))
+        algosToRun = args.algo
+    else:
+        algosToRun = allPossibleAlgos
 
     # Load the data file and create a Graph, include exe time in perfData
-    edgelist_gdf = logExeTime(loadDataFile, perfData)(args.file_type)
+    edgelist_gdf = logExeTime(loadDataFile, perfData)(args.file,
+                                                      args.file_type,
+                                                      delimeter)
     G = logExeTime(createGraph, perfData)(edgelist_gdf, args.auto_csr)
+
+    if G is None:
+        raise RuntimeError("could not create graph!")
 
     # Get the data on the algorithms present and how to run them
     algoData = getAlgoData(G, args)
-    algosToRun = args.algo if args.algo else list(algoData.keys())
 
     # For each algo to run, look up the object it belongs to (the cugraph module
     # by default), the args it needs passed (none by default), and any extra
@@ -199,6 +218,7 @@ if __name__ == "__main__":
         callable = logExeTime(callable, perfData)
         callable(*algoArgs)
 
+    print()
     if args.times_only:
         print(",".join([str(exeTime) for (name, exeTime) in perfData]))
     else:
