@@ -115,12 +115,16 @@ void SSSP<IndexType, DistType>::configure(DistType* _distances,
   // We need distances for SSSP even if the caller doesn't need them
   if (!computeDistances)
     ALLOC_TRY(&distances, n * sizeof(DistType), nullptr);
+  // Need next_distances in either case
+  ALLOC_TRY(&next_distances, n * sizeof(DistType), nullptr);
 }
 
 template <typename IndexType, typename DistType>
 gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   // Init distances to infinities
   traversal::fill_vec(distances, n, traversal::vec_t<DistType>::max, stream);
+  traversal::fill_vec(
+      next_distances, n, traversal::vec_t<DistType>::max, stream);
 
   // If needed, set all predecessors to non-existent (-1)
   if (computePredecessors) {
@@ -132,6 +136,7 @@ gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   //
 
   cudaMemsetAsync(&distances[source_vertex], 0, sizeof(DistType), stream);
+  cudaMemsetAsync(&next_distances[source_vertex], 0, sizeof(DistType), stream);
 
   int current_isolated_bmap_source_vert = 0;
 
@@ -207,6 +212,7 @@ gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
         exclusive_sum_frontier_vertex_degree,
         exclusive_sum_frontier_vertex_buckets_offsets,
         distances,
+        next_distances,
         predecessors,
         edge_mask,
         next_frontier_bmap,
@@ -218,6 +224,13 @@ gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
                     d_new_frontier_cnt,
                     sizeof(IndexType),
                     cudaMemcpyDeviceToHost,
+                    stream);
+
+    // Copy next_distances to distances
+    cudaMemcpyAsync(distances,
+                    next_distances,
+                    n * sizeof(DistType),
+                    cudaMemcpyDeviceToDevice,
                     stream);
 
     cudaCheckError();
@@ -257,6 +270,9 @@ void SSSP<IndexType, DistType>::clean() {
   // Distances were working data
   if (!computeDistances)
     ALLOC_FREE_TRY(distances, nullptr);
+
+  // next_distances were working data
+  ALLOC_FREE_TRY(next_distances, nullptr);
 }
 
 }  // end namespace cugraph
