@@ -12,13 +12,14 @@
 - PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
 - PR #437 Streamline CUDA_REL environment variable
 - PR #449 Fix local build generated file ownerships
+- PR #454 Initial version of updated script to run benchmarks
 
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
-- PR #383 Exposed MG pagerank solver parameters 
+- PR #383 Exposed MG pagerank solver parameters
 - PR #399 Example Prototype of Strongly Connected Components using primitives
 - PR #419 Version test
 - PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
@@ -76,7 +77,7 @@
 - PR #306 Integrated nvgraph to libcugraph.so (libnvgraph_rapids.so will not be built anymore).
 - PR #306 Updated python test files to run pytest with all four RMM configurations.
 - PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
-- PR #333 Various general improvements at the library level 
+- PR #333 Various general improvements at the library level
 
 ## Bug Fixes
 - PR #283 Automerge fix
