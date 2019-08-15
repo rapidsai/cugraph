@@ -62,7 +62,10 @@ def test_splitting():
     # Read 2 files per gpu/worker and concatenate the dataframe
     # This is a work around for large files to fit memory requirements
     # of cudf.read_csv
+    t0 = time.time()
     new_ddf = dcg.read_split_csv(files)
+    t1 = time.time()
+    print("Reading Csv time: ", t1-t0)
     t2 = time.time()
     pr = dcg.pagerank(new_ddf, alpha=0.85, max_iter=3)
     t3 = time.time()
