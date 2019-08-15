@@ -8,7 +8,8 @@ import os
 from dask.distributed import wait, default_client
 from toolz import first
 import dask.dataframe as dd
-
+import time
+import cudf
 
 def to_gpu_array(df):
     """
@@ -184,11 +185,13 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
 
     raw_arrays = [future for worker, future in gpu_data_incl_worker]
 
-    pr = client.submit(_mg_pagerank,
+    pr = [client.submit(_mg_pagerank,
                        (ipc_handles, raw_arrays, alpha, max_iter),
-                       workers=[exec_node]).result()
+                       workers=[exec_node])]
 
-    ddf = dc.from_cudf(pr, npartitions=npartitions)
+    x = client.compute(pr)
+    wait(x)
+    ddf=dc.from_delayed(pr)
     return ddf
 
 
@@ -278,3 +281,33 @@ def get_chunksize(input_path):
         size = [os.path.getsize(_file) for _file in input_files]
         chunksize = max(size)
     return chunksize
+
+
+def _read_csv(input_files, delimiter='\t', names=['src', 'dst'],
+                             dtype=['int32', 'int32']):
+    df = []
+    for f in input_files:
+        df.append(cudf.read_csv(f, delimiter=delimiter, names=names,
+                             dtype=dtype))
+    df_concatenated = cudf.concat(df)
+    return df_concatenated
+
+
+def read_split_csv(input_files):
+    client = default_client()
+    n_files = len(input_files)
+    n_gpus = get_n_gpus()
+    n_files_per_gpu = int(n_files/n_gpus)
+    worker_map=[]
+    for i, w in enumerate(client.has_what().keys()):
+        print(i) 
+        files_per_gpu = input_files[i*n_files_per_gpu: (i+1)*n_files_per_gpu]
+        worker_map.append((files_per_gpu, w))
+    t0 = time.time()
+    new_ddf = [client.submit(_read_csv, part, workers=[worker])
+               for part, worker in worker_map]
+
+    wait(new_ddf)
+    t1 = time.time()
+    print("Reading Csv time: ", t1-t0)
+    return new_ddf
