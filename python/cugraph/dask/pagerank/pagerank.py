@@ -295,6 +295,15 @@ def _read_csv(input_files, delimiter, names, dtype):
 
 def read_split_csv(input_files, delimiter='\t', names=['src', 'dst'],
                    dtype=['int32', 'int32']):
+    """
+    Read csv for large datasets which cannot be read directly by dask-cudf
+    read_csv due to memory requirements. This function takes large input 
+    split into smaller files (number of input_files > number of gpus),
+    reads two or more csv per gpu/worker and concatenates them into a 
+    single dataframe. Additional parameters (delimiter, names and dtype)
+    can be specified for reading the csv file.
+    """
+    
     client = default_client()
     n_files = len(input_files)
     n_gpus = get_n_gpus()
