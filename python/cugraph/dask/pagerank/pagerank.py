@@ -8,7 +8,6 @@ import os
 from dask.distributed import wait, default_client
 from toolz import first
 import dask.dataframe as dd
-import time
 import cudf
 
 
