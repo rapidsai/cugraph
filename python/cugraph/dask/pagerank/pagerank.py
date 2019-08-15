@@ -11,6 +11,7 @@ import dask.dataframe as dd
 import time
 import cudf
 
+
 def to_gpu_array(df):
     """
     Get the gpu_array pointer to the data in columns of the
@@ -160,7 +161,7 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
 
     client = default_client()
     gpu_futures = _get_mg_info(edge_list)
-    npartitions = len(gpu_futures)
+    # npartitions = len(gpu_futures)
 
     host_dict = _build_host_dict(gpu_futures, client).items()
     if len(host_dict) > 1:
@@ -186,12 +187,12 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
     raw_arrays = [future for worker, future in gpu_data_incl_worker]
 
     pr = [client.submit(_mg_pagerank,
-                       (ipc_handles, raw_arrays, alpha, max_iter),
-                       workers=[exec_node])]
+                        (ipc_handles, raw_arrays, alpha, max_iter),
+                        workers=[exec_node])]
 
     x = client.compute(pr)
     wait(x)
-    ddf=dc.from_delayed(pr)
+    ddf = dc.from_delayed(pr)
     return ddf
 
 
@@ -284,11 +285,11 @@ def get_chunksize(input_path):
 
 
 def _read_csv(input_files, delimiter='\t', names=['src', 'dst'],
-                             dtype=['int32', 'int32']):
+              dtype=['int32', 'int32']):
     df = []
     for f in input_files:
         df.append(cudf.read_csv(f, delimiter=delimiter, names=names,
-                             dtype=dtype))
+                                dtype=dtype))
     df_concatenated = cudf.concat(df)
     return df_concatenated
 
@@ -298,9 +299,8 @@ def read_split_csv(input_files):
     n_files = len(input_files)
     n_gpus = get_n_gpus()
     n_files_per_gpu = int(n_files/n_gpus)
-    worker_map=[]
+    worker_map = []
     for i, w in enumerate(client.has_what().keys()):
-        print(i) 
         files_per_gpu = input_files[i*n_files_per_gpu: (i+1)*n_files_per_gpu]
         worker_map.append((files_per_gpu, w))
     t0 = time.time()

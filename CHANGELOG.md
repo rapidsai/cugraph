@@ -1,3 +1,13 @@
+# cuGraph 0.10.0 (Date TBD)
+
+## New Features
+
+## Improvements
+- PR #466 Add file splitting test; Update to reduce dask overhead
+
+## Bug Fixes
+
+
 # cuGraph 0.9.0 (Date TBD)
 
 ## New Features

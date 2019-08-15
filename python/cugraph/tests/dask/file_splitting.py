@@ -1,9 +1,7 @@
 import warnings
 import gc
-import dask_cudf
-import pandas as pd
 import time
-import cudf
+
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
@@ -11,18 +9,15 @@ import cudf
 # third-party group once this gets fixed.
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from dask.distributed import Client, wait, default_client
+    from dask.distributed import Client
     import cugraph.dask.pagerank as dcg
     from dask_cuda import LocalCUDACluster
-    import networkx as nx
-
-import numpy as np
 
 
 def test_splitting():
     gc.collect()
 
-    # This is an experimental setup for 300GB bigdatax8 dataset. 
+    # This is an experimental setup for 300GB bigdatax8 dataset.
     # This test can be run on 16 32GB gpus. The dataset is split into 32 files.
     input_data_path = r"/datasets/pagerank_demo/1/Input-bigdatax8/edges/"
     input_files = ['file-00000.csv',
@@ -33,28 +28,28 @@ def test_splitting():
                    'file-00005.csv',
                    'file-00006.csv',
                    'file-00007.csv',
-                   'file-00008.csv', 
+                   'file-00008.csv',
                    'file-00009.csv',
                    'file-00010.csv',
                    'file-00011.csv',
                    'file-00012.csv',
-                   'file-00013.csv', 
+                   'file-00013.csv',
                    'file-00014.csv',
                    'file-00015.csv',
                    'file-00016.csv',
                    'file-00017.csv',
-                   'file-00018.csv', 
+                   'file-00018.csv',
                    'file-00019.csv',
                    'file-00020.csv',
                    'file-00021.csv',
                    'file-00022.csv',
-                   'file-00023.csv', 
+                   'file-00023.csv',
                    'file-00024.csv',
                    'file-00025.csv',
                    'file-00026.csv',
                    'file-00027.csv',
-                   'file-00028.csv', 
-                   'file-00029.csv', 
+                   'file-00028.csv',
+                   'file-00029.csv',
                    'file-00030.csv',
                    'file-00031.csv']
 
@@ -66,7 +61,7 @@ def test_splitting():
 
     # Read 2 files per gpu/worker and concatenate the dataframe
     # This is a work around for large files to fit memory requirements
-    # of cudf.read_csv 
+    # of cudf.read_csv
     new_ddf = dcg.read_split_csv(files)
     t2 = time.time()
     pr = dcg.pagerank(new_ddf, alpha=0.85, max_iter=3)
