@@ -284,17 +284,18 @@ def get_chunksize(input_path):
     return chunksize
 
 
-def _read_csv(input_files, delimiter='\t', names=['src', 'dst'],
-              dtype=['int32', 'int32']):
+def _read_csv(input_files, delimiter, names, dtype):
     df = []
     for f in input_files:
         df.append(cudf.read_csv(f, delimiter=delimiter, names=names,
                                 dtype=dtype))
     df_concatenated = cudf.concat(df)
+    print(df_concatenated)
     return df_concatenated
 
 
-def read_split_csv(input_files):
+def read_split_csv(input_files, delimiter='\t', names=['src', 'dst'],
+                   dtype=['int32', 'int32']):
     client = default_client()
     n_files = len(input_files)
     n_gpus = get_n_gpus()
@@ -303,11 +304,8 @@ def read_split_csv(input_files):
     for i, w in enumerate(client.has_what().keys()):
         files_per_gpu = input_files[i*n_files_per_gpu: (i+1)*n_files_per_gpu]
         worker_map.append((files_per_gpu, w))
-    t0 = time.time()
-    new_ddf = [client.submit(_read_csv, part, workers=[worker])
-               for part, worker in worker_map]
+    new_ddf = [client.submit(_read_csv, part, delimiter, names, dtype,
+               workers=[worker]) for part, worker in worker_map]
 
     wait(new_ddf)
-    t1 = time.time()
-    print("Reading Csv time: ", t1-t0)
     return new_ddf
