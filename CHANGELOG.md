@@ -61,6 +61,7 @@
 - PR #446 Fix permission for source (-x) and script (+x) files.
 - PR #448 Import filter_unreachable
 - PR #453 Re-sync cugraph with cudf (dependencies, type conversion & scatter functions).
+- PR #463 Remove numba dependency and use the one from cudf
 
 # cuGraph 0.8.0 (27 June 2019)
 
