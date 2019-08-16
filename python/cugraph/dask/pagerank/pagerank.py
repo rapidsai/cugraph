@@ -289,7 +289,6 @@ def _read_csv(input_files, delimiter, names, dtype):
         df.append(cudf.read_csv(f, delimiter=delimiter, names=names,
                                 dtype=dtype))
     df_concatenated = cudf.concat(df)
-    print(df_concatenated)
     return df_concatenated
 
 
