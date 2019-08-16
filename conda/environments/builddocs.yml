@@ -1,0 +1,19 @@
+name: builddocs
+channels:
+- rapidsai
+- pytorch
+- conda-forge
+- numba
+- defaults
+dependencies:
+- python=3.6*
+- cugraph=0.8*
+- cudatoolkit=9.2
+- cudf=0.8*
+- pyarrow=0.12.1.*
+- cython=0.29*
+- pip:
+  - numpydoc
+  - sphinx
+  - sphinx-rtd-theme
+  - sphinxcontrib-websupport
