@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #466 Add file splitting test; Update to reduce dask overhead
 
 ## Bug Fixes
 
