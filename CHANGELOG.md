@@ -4,6 +4,7 @@
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
+- PR #468 Remove unnecessary print statement
 
 ## Bug Fixes
 - PR #458 Fix potential race condition in SSSP
