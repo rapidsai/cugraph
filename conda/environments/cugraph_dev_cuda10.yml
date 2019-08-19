@@ -19,7 +19,6 @@ dependencies:
 - cudatoolkit=10.0
 - cmake>=3.12
 - python>=3.6,<3.8
-- numba>=0.41,<0.45
 - pandas>=0.24.2,<0.25
 - pyarrow=0.14.1
 - notebook>=0.5.0
