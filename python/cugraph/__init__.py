@@ -24,7 +24,7 @@ from cugraph.community import (
 from cugraph.components import weakly_connected_components, strongly_connected_components
 from cugraph.link_analysis import pagerank
 from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
-from cugraph.structure import Graph, from_cudf_edgelist, renumber, symmetrize
+from cugraph.structure import Graph, from_cudf_edgelist, renumber, symmetrize, symmetrize_df
 from cugraph.traversal import bfs, sssp, filter_unreachable
 from cugraph.utilities import grmat_gen
 from cugraph.utilities import device_of_gpu_pointer
