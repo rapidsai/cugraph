@@ -39,16 +39,6 @@
 #include "sort/bitonic.cuh"
 #include "rmm_utils.h"
 
-namespace thrust {
-  template <>
-  inline void swap(std::pair<const char *, size_t> &a, 
-                   std::pair<const char *, size_t> &b) {
-    thrust::swap(a.first, b.first);
-    thrust::swap(a.second, b.second);
-  }
-}
-
-
 namespace cugraph {
 
   namespace detail {
@@ -76,8 +66,8 @@ namespace cugraph {
 
   struct CompareString {
     __device__ __inline__
-    bool operator() (const std::pair<const char *, size_t> &a,
-                     const std::pair<const char *, size_t> &b) const {
+    bool operator() (const thrust::pair<const char *, size_t> &a,
+                     const thrust::pair<const char *, size_t> &b) const {
 
       // return true if a < b
       const char *ptr1 = a.first;
@@ -113,7 +103,7 @@ namespace cugraph {
     HashFunctionObjectString(detail::hash_type hash_size): hash_size_(hash_size) {}
 
     __device__ __inline__
-    detail::hash_type operator() (const std::pair<const char *, size_t> &str) const {
+    detail::hash_type operator() (const thrust::pair<const char *, size_t> &str) const {
       //
       //  Lifted/adapted from custring_view.inl in custrings
       //
@@ -170,7 +160,6 @@ namespace cugraph {
                               T_in ** numbering_map,
                               Hash_t hash,
                               Compare_t compare) {
-
     //
     // Assume - src/dst/src_renumbered/dst_renumbered are all pre-allocated.
     //
@@ -390,9 +379,9 @@ namespace cugraph {
     ALLOC_FREE_TRY(hash_bins_start, nullptr);
     ALLOC_FREE_TRY(hash_bins_end, nullptr);
 
-    return GDF_SUCCESS;
+    return GDF_SUCCESS;  
   }
-  
+
 }
 
 #endif

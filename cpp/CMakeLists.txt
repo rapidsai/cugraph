@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.8.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.9.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -94,6 +94,7 @@ endif(CMAKE_BUILD_TYPE MATCHES Debug)
 
 # To apply RUNPATH to transitive dependencies (this is a temporary solution)
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--disable-new-dtags")
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
@@ -255,6 +256,7 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
+	src/db/db_object.cu
     src/utilities/grmat.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
@@ -271,6 +273,7 @@ add_library(cugraph SHARED
     src/snmg/blas/spmv.cu
     src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
+    src/utilities/graph_utils.cu
     src/snmg/utils.cu
     src/components/connectivity.cu
     src/snmg/degree/degree.cu

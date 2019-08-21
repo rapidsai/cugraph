@@ -21,11 +21,14 @@ function hasArg {
 export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
 export PARALLEL_LEVEL=4
 export CUDA_REL=${CUDA_VERSION%.*}
-export CUDF_VERSION=0.8.*
-export RMM_VERSION=0.8.*
 
 # Set home to the job's workspace
 export HOME=$WORKSPACE
+
+# Parse git describe
+cd $WORKSPACE
+export GIT_DESCRIBE_TAG=`git describe --tags`
+export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 
 ################################################################################
 # SETUP - Check environment
@@ -40,7 +43,15 @@ nvidia-smi
 logger "Activate conda env..."
 source activate gdf
 conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c rapidsai-nightly/label/cuda$CUDA_REL -c numba -c conda-forge \
-    cudf=$CUDF_VERSION rmm=$RMM_VERSION networkx python-louvain cudatoolkit=$CUDA_REL
+      cudf=${MINOR_VERSION} \
+      rmm=${MINOR_VERSION} \
+      networkx \
+      python-louvain \
+      cudatoolkit=$CUDA_REL \
+      dask \
+      distributed \
+      dask-cudf=${MINOR_VERSION} \
+      dask-cuda=${MINOR_VERSION}
 
 logger "Check versions..."
 python --version
@@ -61,16 +72,16 @@ $WORKSPACE/build.sh clean libcugraph cugraph
 
 if hasArg --skip-tests; then
     logger "Skipping Tests..."
-    exit 0
+else
+    logger "Check GPU usage..."
+    nvidia-smi
+
+    logger "GoogleTest for libcugraph..."
+    cd $WORKSPACE/cpp/build
+    GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
+
+    logger "Python py.test for cuGraph..."
+    cd $WORKSPACE/python
+    py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
 fi
 
-logger "Check GPU usage..."
-nvidia-smi
-
-logger "GoogleTest for libcugraph..."
-cd $WORKSPACE/cpp/build
-GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
-
-logger "Python py.test for cuGraph..."
-cd $WORKSPACE/python
-py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
