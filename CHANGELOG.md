@@ -9,6 +9,7 @@
 
 ## Bug Fixes
 - PR #458 Fix potential race condition in SSSP
+- PR #471 Remove nvidia driver installation from ci/cpu/build.sh
 
 # cuGraph 0.9.0 (Date TBD)
 
