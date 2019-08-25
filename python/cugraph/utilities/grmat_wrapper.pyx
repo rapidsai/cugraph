@@ -23,6 +23,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
+import cudf._lib as libcudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
@@ -46,7 +47,7 @@ def grmat_gen(argv):
     cdef char* c_argv = argv_bytes
 
     err = gdf_grmat_gen (<char*>c_argv, vertices, edges, <gdf_column*>c_source_col, <gdf_column*>c_dest_col, <gdf_column*>0)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     col_size = c_source_col.size
     cdef uintptr_t src_col_data = <uintptr_t>c_source_col.data

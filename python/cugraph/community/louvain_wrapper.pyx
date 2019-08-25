@@ -24,6 +24,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
+import cudf._lib as libcudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
@@ -37,7 +38,7 @@ def louvain(graph_ptr):
     cdef gdf_graph* g = <gdf_graph*>graph
 
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -47,7 +48,7 @@ def louvain(graph_ptr):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
     err = g.adjList.get_vertex_identifiers(&c_index_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))
     cdef gdf_column c_louvain_parts_col = get_gdf_column_view(df['partition'])
@@ -79,7 +80,7 @@ def louvain(graph_ptr):
         err = gdf_louvain(<gdf_graph*>g,
                           <void*>&final_modularity_double_precision,
                           <void*>&num_level, &c_louvain_parts_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     if single_precision:
         return df, <double>final_modularity_single_precision
