@@ -72,8 +72,12 @@ def test_splitting():
     print("Pagerank (Dask) time: ", t3-t2)
 
     print("Pagerank complete. Computing result...")
+    t4 = time.time()
     res_df = pr.compute()
-    print(res_df)
+    res_df.to_csv('~/pagerank.csv', header=False, index=False)
+    t5 = time.time()
+    print("Computing and csv write time: ", t5-t4)
+    print("Total time (csv read + pagerank + csv write): ", t5-t0)
 
     client.close()
     cluster.close()

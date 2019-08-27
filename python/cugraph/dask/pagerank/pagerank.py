@@ -189,8 +189,8 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
                         (ipc_handles, raw_arrays, alpha, max_iter),
                         workers=[exec_node])]
 
-    x = client.compute(pr)
-    wait(x)
+    #x = client.compute(pr)
+    #wait(x)
     ddf = dc.from_delayed(pr)
     return ddf
 
