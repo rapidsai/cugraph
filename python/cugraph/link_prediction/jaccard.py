@@ -71,8 +71,8 @@ def jaccard(input_graph, first=None, second=None):
     >>> df = cugraph.jaccard(G)
     """
 
-    if (type(first) == cudf.dataframe.series.Series and
-            type(second) == cudf.dataframe.series.Series):
+    if (type(first) == cudf.Series and
+            type(second) == cudf.Series):
         null_check(first)
         null_check(second)
     elif first is None and second is None:

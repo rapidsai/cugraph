@@ -25,6 +25,7 @@ from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
+import cudf._lib as libcudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
@@ -42,4 +43,4 @@ def subgraph(graph_ptr, vertices, subgraph_ptr):
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
     err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
