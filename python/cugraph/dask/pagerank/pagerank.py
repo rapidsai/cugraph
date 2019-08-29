@@ -8,8 +8,6 @@ import os
 from dask.distributed import wait, default_client
 from toolz import first
 import dask.dataframe as dd
-import cudf
-
 
 def to_gpu_array(df):
     """
@@ -184,14 +182,14 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
                    for worker, future in gpu_data_excl_worker]
 
     raw_arrays = [future for worker, future in gpu_data_incl_worker]
-
+    t = time.time()
     pr = [client.submit(_mg_pagerank,
                         (ipc_handles, raw_arrays, alpha, max_iter),
                         workers=[exec_node])]
-
-    #x = client.compute(pr)
-    #wait(x)
-    ddf = dc.from_delayed(pr)
+    import cudf
+    c = cudf.DataFrame({'vertex':cudf.Series(dtype='int32'),
+                       'pagerank':cudf.Series(dtype='float32')})
+    ddf = dc.from_delayed(pr, meta=c)
     return ddf
 
 
