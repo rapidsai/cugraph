@@ -1,8 +1,25 @@
-#pragma once 
+/*
+ * Copyright (c) 2019, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#pragma once
 
 void gdf_col_delete(gdf_column* col);
 
 void gdf_col_release(gdf_column* col);
+
+typedef enum gdf_prop_type{GDF_PROP_UNDEF, GDF_PROP_FALSE, GDF_PROP_TRUE} GDFPropType;
 
 struct gdf_graph_properties {
   bool directed;
@@ -10,7 +27,8 @@ struct gdf_graph_properties {
   bool multigraph;
   bool bipartite;
   bool tree;
-  gdf_graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false){}
+  GDFPropType has_negative_edges;
+  gdf_graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false), has_negative_edges(GDF_PROP_UNDEF){}
 };
 
 struct gdf_edge_list{
@@ -78,8 +96,9 @@ struct gdf_graph{
   gdf_adj_list *transposedAdjList; //CSC
   gdf_dynamic *dynAdjList; //dynamic 
   gdf_graph_properties *prop;
-  gdf_graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr) {}
-   ~gdf_graph() {
+  gdf_size_type numberOfVertices;
+  gdf_graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
+  ~gdf_graph() {
     if (edgeList) 
         delete edgeList;
     if (adjList) 
