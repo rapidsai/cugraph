@@ -17,9 +17,7 @@
 # cython: language_level = 3
 
 from cugraph.structure.c_graph cimport *
-from cudf.bindings.cudf_cpp import *
-from cudf.bindings.cudf_cpp cimport *
-from cudf.bindings.utils cimport *
+from cudf._lib.cudf cimport *
 
 
 cdef extern from "cugraph.h":

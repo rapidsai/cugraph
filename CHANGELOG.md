@@ -4,9 +4,14 @@
 - PR #477 Add cuHornet as a submodule
 
 ## Improvements
+- PR #466 Add file splitting test; Update to reduce dask overhead
+- PR #468 Remove unnecessary print statement
+- PR #464 Limit initial RMM pool allocator size to 128mb so pytest can run in parallel
 
 ## Bug Fixes
-
+- PR #458 Fix potential race condition in SSSP
+- PR #471 Remove nvidia driver installation from ci/cpu/build.sh
+- PR #473 Re-sync cugraph with cudf (cudf renamed the bindings directory to _lib).
 
 # cuGraph 0.9.0 (Date TBD)
 
@@ -22,13 +27,14 @@
 - PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
 - PR #437 Streamline CUDA_REL environment variable
 - PR #449 Fix local build generated file ownerships
+- PR #454 Initial version of updated script to run benchmarks
 
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
-- PR #383 Exposed MG pagerank solver parameters 
+- PR #383 Exposed MG pagerank solver parameters
 - PR #399 Example Prototype of Strongly Connected Components using primitives
 - PR #419 Version test
 - PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
@@ -60,6 +66,8 @@
 - PR #444 Fix warnings in strongly connected components
 - PR #446 Fix permission for source (-x) and script (+x) files.
 - PR #448 Import filter_unreachable
+- PR #453 Re-sync cugraph with cudf (dependencies, type conversion & scatter functions).
+- PR #463 Remove numba dependency and use the one from cudf
 
 # cuGraph 0.8.0 (27 June 2019)
 
@@ -85,7 +93,7 @@
 - PR #306 Integrated nvgraph to libcugraph.so (libnvgraph_rapids.so will not be built anymore).
 - PR #306 Updated python test files to run pytest with all four RMM configurations.
 - PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
-- PR #333 Various general improvements at the library level 
+- PR #333 Various general improvements at the library level
 
 ## Bug Fixes
 - PR #283 Automerge fix

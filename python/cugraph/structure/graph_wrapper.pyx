@@ -18,12 +18,13 @@
 
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
+from cudf._lib.cudf cimport np_dtype_from_gdf_column
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
-from cudf.bindings.cudf_cpp import gdf_to_np_dtype
 import cudf
+import cudf._lib as libcudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
@@ -55,17 +56,17 @@ def renumber(source_col, dest_col):
                                 &dst_renumbered,
                                 &numbering_map)
 
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     src_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> src_renumbered.data,
                                  nelem=src_renumbered.size,
-                                 dtype=gdf_to_np_dtype(src_renumbered.dtype))
+                                 dtype=np_dtype_from_gdf_column(&src_renumbered))
     dst_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> dst_renumbered.data,
                                  nelem=dst_renumbered.size,
-                                 dtype=gdf_to_np_dtype(dst_renumbered.dtype))
+                                 dtype=np_dtype_from_gdf_column(&dst_renumbered))
     numbering_map_array = rmm.device_array_from_ptr(<uintptr_t> numbering_map.data,
                                  nelem=numbering_map.size,
-                                 dtype=gdf_to_np_dtype(numbering_map.dtype))
+                                 dtype=np_dtype_from_gdf_column(&numbering_map))
 
     return cudf.Series(src_renumbered_array), cudf.Series(dst_renumbered_array), cudf.Series(numbering_map_array)
 
@@ -87,13 +88,13 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
                              &c_source_col,
                              &c_dest_col,
                              c_value_col_ptr)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def view_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     err = gdf_add_edge_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_edges() to gdf_graph (and this should be
     # used instead of g.edgeList.src_indices.size)
@@ -126,11 +127,10 @@ def view_edge_list(graph_ptr):
 
     value_col = None
     if <void*>value_col_data is not NULL:
-        value_dtype = g.edgeList.edge_data.dtype
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))
+                         dtype=np_dtype_from_gdf_column(g.edgeList.edge_data))
         value_col = cudf.Series(value_data)
 
     return source_col, dest_col, value_col
@@ -138,7 +138,7 @@ def view_edge_list(graph_ptr):
 def delete_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     err = gdf_delete_edge_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
@@ -158,13 +158,13 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
                             &c_offset_col,
                             &c_index_col,
                             c_value_col_ptr)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def view_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     offset_col_size = g.adjList.offsets.size
     index_col_size = g.adjList.indices.size
@@ -196,11 +196,10 @@ def view_adj_list(graph_ptr):
 
     value_col = None
     if <void*>value_col_data is not NULL:
-        value_dtype = g.adjList.edge_data.dtype
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=index_col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))
+                         dtype=np_dtype_from_gdf_column(g.adjList.edge_data))
         value_col = cudf.Series(value_data)
 
     return offset_col, index_col, value_col
@@ -211,18 +210,18 @@ def delete_adj_list(graph_ptr):
     """
     cdef uintptr_t graph = graph_ptr
     err = gdf_delete_adj_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def add_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     err = gdf_add_transposed_adj_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def view_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     err = gdf_add_transposed_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     offset_col_size = g.transposedAdjList.offsets.size
     index_col_size = g.transposedAdjList.indices.size
@@ -254,11 +253,10 @@ def view_transposed_adj_list(graph_ptr):
 
     value_col = None
     if <void*>value_col_data is not NULL:
-        value_dtype = g.transposedAdjList.edge_data.dtype
         value_data = rmm.device_array_from_ptr(
                          value_col_data,
                          nelem=index_col_size,
-                         dtype=gdf_to_np_dtype(value_dtype))
+                         dtype=np_dtype_from_gdf_column(g.transposedAdjList.edge_data))
         value_col = cudf.Series(value_data)
 
     return offset_col, index_col, value_col
@@ -269,7 +267,7 @@ def delete_transposed_adj_list(graph_ptr):
     """
     cdef uintptr_t graph = graph_ptr
     err = gdf_delete_transposed_adj_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def get_two_hop_neighbors(graph_ptr):
     cdef uintptr_t graph = graph_ptr
@@ -277,7 +275,7 @@ def get_two_hop_neighbors(graph_ptr):
     cdef gdf_column c_first_col
     cdef gdf_column c_second_col
     err = gdf_get_two_hop_neighbors(g, &c_first_col, &c_second_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
     df = cudf.DataFrame()
     if c_first_col.dtype == GDF_INT32:
         first_out = rmm.device_array_from_ptr(<uintptr_t>c_first_col.data,
@@ -305,7 +303,7 @@ def number_of_vertices(graph_ptr):
     cdef gdf_graph * g = <gdf_graph*> graph
     if g.numberOfVertices == 0:
         err = gdf_number_of_vertices(g)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
+        libcudf.cudf.check_gdf_error(err)
 
     return g.numberOfVertices
 
@@ -335,12 +333,12 @@ def _degree(graph_ptr, x=0):
         err = g.adjList.get_vertex_identifiers(&c_vertex_col)
     else:
         err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_degree_col = get_gdf_column_view(degree_col)
     err = gdf_degree(g, &c_degree_col, <int>x)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return vertex_col, degree_col
 
@@ -357,16 +355,16 @@ def _degrees(graph_ptr):
         err = g.adjList.get_vertex_identifiers(&c_vertex_col)
     else:
         err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     in_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_in_degree_col = get_gdf_column_view(in_degree_col)
     err = gdf_degree(g, &c_in_degree_col, <int>1)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     out_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_out_degree_col = get_gdf_column_view(out_degree_col)
     err = gdf_degree(g, &c_out_degree_col, <int>2)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return vertex_col, in_degree_col, out_degree_col
