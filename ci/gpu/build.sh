@@ -45,10 +45,12 @@ source activate gdf
 conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c rapidsai-nightly/label/cuda$CUDA_REL -c numba -c conda-forge \
       cudf=${MINOR_VERSION} \
       rmm=${MINOR_VERSION} \
+      "numpy>=1.16" \
       networkx \
       python-louvain \
       cudatoolkit=$CUDA_REL \
-      "dask>=2.1.0" "distributed>=2.1.0"
+      "dask>=2.1.0" \
+      "distributed>=2.1.0"
 
 
 # Install the master version of dask and distributed
