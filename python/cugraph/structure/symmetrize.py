@@ -30,9 +30,9 @@ def symmetrize_df(df, src_name, dst_name):
     data.
 
     If (u,v,data1) and (v,u,data2) exist in the input data where data1
-    != data2 then this code will arbitrarily pick a data element to keep,
-    not necessarily the same element for each direction, so the caller
-    should avoid or tolerate this behavior.
+    != data2 then this code will arbitrarily pick the smaller data
+    element to keep, if this is not desired then the caller should
+    should correct the data prior to calling symmetrize.
 
     Parameters
     ----------
@@ -43,7 +43,7 @@ def symmetrize_df(df, src_name, dst_name):
     src_name : string
         Name of the column in the data frame containing the source ids
     dst_name : string
-        Name of the column in the data frame containing the dest ids
+        Name of the column in the data frame containing the destination ids
 
     Examples
     --------
