@@ -114,6 +114,7 @@ def test_jaccard(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -147,6 +148,7 @@ def test_jaccard_edgevals(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -180,6 +182,7 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -216,6 +219,7 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())

@@ -32,6 +32,7 @@ class SSSP {
   bool computeDistances;
   bool computePredecessors;
   DistType* distances;
+  DistType* next_distances;
   IndexType* predecessors;
   int* edge_mask;
 

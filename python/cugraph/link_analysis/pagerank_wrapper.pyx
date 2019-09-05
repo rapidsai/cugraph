@@ -24,6 +24,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
+import cudf._lib as libcudf
 from librmm_cffi import librmm as rmm
 import numpy as np
 
@@ -37,7 +38,7 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     cdef gdf_graph* g = <gdf_graph*>graph
 
     err = gdf_add_transposed_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.transposedAdjList.offsets.size - 1)
@@ -58,7 +59,7 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     cdef gdf_column c_pers_val
 
     err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     if personalization is None:
         err = gdf_pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
@@ -69,6 +70,6 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
         err = gdf_pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
 
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return df
