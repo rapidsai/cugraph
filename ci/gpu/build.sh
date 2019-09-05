@@ -48,9 +48,8 @@ conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c r
       networkx \
       python-louvain \
       cudatoolkit=$CUDA_REL \
-      dask \
-      distributed \
-      }
+      "dask>=2.1.0" "distributed>=2.1.0"
+
 
 # Install the master version of dask and distributed
 logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps" 
