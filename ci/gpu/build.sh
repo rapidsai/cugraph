@@ -50,8 +50,7 @@ conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c r
       cudatoolkit=$CUDA_REL \
       dask \
       distributed \
-      dask-cudf=${MINOR_VERSION} \
-      dask-cuda=${MINOR_VERSION}
+      }
 
 # Install the master version of dask and distributed
 logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps" 
