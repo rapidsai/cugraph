@@ -278,3 +278,20 @@ gdf_error gdf_snmg_pagerank (
             const size_t n_gpus, 
             const float damping_factor, 
             const int n_iter);
+/**                                                                             
+ * @Synopsis   Compute the Katz centrality for the nodes of the graph G
+ *                                                                              
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] *katz_centrality      If set to a valid column, this is populated by the katz centrality of every vertex in the graph
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_katz_centrality(gdf_graph *graph,                                         
+        		gdf_column *katz_centrality,
+            double alpha,
+            int max_iter,
+            double tol,
+            bool has_guess,
+            bool normalized);

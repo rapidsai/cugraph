@@ -276,6 +276,7 @@ add_library(cugraph SHARED
     src/utilities/graph_utils.cu
     src/snmg/utils.cu
     src/components/connectivity.cu
+    src/centrality/katz_centrality.cu
     src/snmg/degree/degree.cu
     src/snmg/COO2CSR/COO2CSR.cu
     src/nvgraph/arnoldi.cu
@@ -327,6 +328,10 @@ target_include_directories(cugraph
     "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cub"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornet/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornetsnest/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/xlib/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
     "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
