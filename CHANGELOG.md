@@ -4,9 +4,13 @@
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
+- PR #468 Remove unnecessary print statement
+- PR #464 Limit initial RMM pool allocator size to 128mb so pytest can run in parallel
 
 ## Bug Fixes
 - PR #458 Fix potential race condition in SSSP
+- PR #471 Remove nvidia driver installation from ci/cpu/build.sh
+- PR #473 Re-sync cugraph with cudf (cudf renamed the bindings directory to _lib).
 
 # cuGraph 0.9.0 (Date TBD)
 

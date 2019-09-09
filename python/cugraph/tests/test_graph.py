@@ -19,6 +19,7 @@ import pandas as pd
 import pytest
 
 import cudf
+import cudf._lib as libcudf
 import cugraph
 from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
@@ -173,6 +174,7 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -209,6 +211,7 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -247,6 +250,7 @@ def test_transpose_from_adj_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -274,6 +278,7 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -302,6 +307,7 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -323,13 +329,13 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     G.delete_edge_list()
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.view_adj_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
     G.add_adj_list(offsets, indices, None)
     G.delete_adj_list()
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.view_edge_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
@@ -345,6 +351,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -370,20 +377,20 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
 
     # If cugraph has a graph edge list, adding a new graph should fail.
     G.add_edge_list(sources, destinations, None)
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.add_edge_list(sources, destinations, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.add_adj_list(offsets, indices, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
     G.delete_edge_list()
 
     # If cugraph has a graph adjacency list, adding a new graph should fail.
     G.add_adj_list(sources, destinations, None)
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.add_edge_list(sources, destinations, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.add_adj_list(offsets, indices, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
     G.delete_adj_list()
@@ -399,6 +406,7 @@ def test_networkx_compatibility(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -457,6 +465,7 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -485,6 +494,7 @@ def test_degree_functionality(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -533,6 +543,7 @@ def test_degrees_functionality(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -613,6 +624,7 @@ def test_renumber_files(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -643,6 +655,7 @@ def test_number_of_vertices(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
