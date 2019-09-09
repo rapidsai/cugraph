@@ -147,8 +147,90 @@ namespace cugraph {
     indirection = _indirection;
   }
 
+  template<typename idx_t>
+  gdf_column* db_column_index<idx_t>::getOffsets() {
+    return offsets;
+  }
+
+  template<typename idx_t>
+  gdf_column* db_column_index<idx_t>::getIndirection() {
+    return indirection;
+  }
+
   template class db_column_index<int32_t> ;
   template class db_column_index<int64_t> ;
+
+  template<typename idx_t>
+  db_result<idx_t>::db_result() {
+    dataValid = false;
+    columnSize = 0;
+  }
+
+  template<typename idx_t>
+  db_result<idx_t>::db_result(db_result&& other) {
+    dataValid = other.dataValid;
+    for (size_t i = 0; i < other.columns.size(); i++)
+      columns.push_back(other.columns[i]);
+    for (size_t i = 0; i < other.names.size(); i++)
+      names.push_back(other.names[i]);
+    other.dataValid = false;
+  }
+
+  template<typename idx_t>
+  db_result<idx_t>& db_result<idx_t>::operator =(db_result<idx_t> && other) {
+    dataValid = other.dataValid;
+    for (size_t i = 0; i < other.columns.size(); i++)
+      columns.push_back(other.columns[i]);
+    for (size_t i = 0; i < other.names.size(); i++)
+    names.push_back(other.names[i]);
+    other.dataValid = false;
+    return *this;
+  }
+
+  template<typename idx_t>
+  db_result<idx_t>::~db_result() {
+    deleteData();
+  }
+
+  template<typename idx_t>
+  void db_result<idx_t>::deleteData() {
+    if (dataValid)
+      for (size_t i = 0; i < columns.size(); i++)
+        ALLOC_FREE_TRY(columns[i], nullptr);
+  }
+
+  template<typename idx_t>
+  idx_t* db_result<idx_t>::getData(std::string idx) {
+    if (!dataValid)
+      throw new std::invalid_argument("Data not valid");
+
+    idx_t* returnPtr = nullptr;
+    for (size_t i = 0; i < names.size(); i++)
+      if (names[i] == idx)
+        returnPtr = columns[i];
+    return returnPtr;
+  }
+
+  template<typename idx_t>
+  void db_result<idx_t>::addColumn(std::string columnName) {
+    if (dataValid)
+      throw new std::invalid_argument("Cannot add a column to an allocated result");
+    names.push_back(columnName);
+  }
+
+  template<typename idx_t>
+  void db_result<idx_t>::allocateColumns(idx_t size) {
+    if (dataValid)
+      throw new std::invalid_argument("Already allocated columns");
+    for (size_t i = 0; i < names.size(); i++) {
+      idx_t* colPtr = nullptr;
+      ALLOC_TRY(&colPtr, sizeof(idx_t) * size, nullptr);
+      columns.push_back(colPtr);
+    }
+  }
+
+  template class db_result<int32_t>;
+  template class db_result<int64_t>;
 
   template<typename idx_t>
   db_table<idx_t>::db_table() {
@@ -301,6 +383,16 @@ namespace cugraph {
     }
 
     rebuildIndices();
+  }
+
+  template<typename idx_t>
+  db_column_index<idx_t>& db_table<idx_t>::getIndex(int idx) {
+    return indices[idx];
+  }
+
+  template<typename idx_t>
+  gdf_column* db_table<idx_t>::getColumn(int idx) {
+    return columns[idx];
   }
 
   template class db_table<int32_t> ;

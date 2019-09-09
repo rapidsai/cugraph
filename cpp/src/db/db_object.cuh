@@ -73,6 +73,32 @@ namespace cugraph {
     db_column_index(gdf_column* offsets, gdf_column* indirection);
     ~db_column_index();
     void resetData(gdf_column* offsets, gdf_column* indirection);
+    gdf_column* getOffsets();
+    gdf_column* getIndirection();
+  };
+
+  /**
+   * Class which encapsulates a result set binding
+   */
+  template <typename idx_t>
+  class db_result {
+    std::vector<idx_t*> columns;
+    std::vector<std::string> names;
+    bool dataValid;
+    idx_t columnSize;
+  public:
+    db_result();
+    db_result(db_result&& other);
+    db_result(db_result& other) = delete;
+    db_result(const db_result& other) = delete;
+    ~db_result();
+    db_result& operator=(db_result&& other);
+    db_result& operator=(db_result& other) = delete;
+    db_result& operator=(const db_result& other) = delete;
+    void deleteData();
+    idx_t* getData(std::string idx);
+    void addColumn(std::string columnName);
+    void allocateColumns(idx_t size);
   };
 
   /**
@@ -103,6 +129,8 @@ namespace cugraph {
      * the existing table.
      */
     void flush_input();
+    db_column_index<idx_t>& getIndex(int idx);
+    gdf_column* getColumn(int idx);
   };
 
   /**

@@ -257,6 +257,7 @@ link_directories(
 
 add_library(cugraph SHARED
 	src/db/db_object.cu
+	src/db/db_operators.cu
     src/utilities/grmat.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
