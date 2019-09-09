@@ -16,7 +16,6 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-@pytest.mark.skip(reason="ongoing dask issue")
 def test_pagerank():
     gc.collect()
     input_data_path = r"../datasets/hibench_small/1/part-00000.csv"
