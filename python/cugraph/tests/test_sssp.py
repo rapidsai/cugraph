@@ -189,4 +189,3 @@ def test_sssp_edgevals(managed, pool, graph_file, source):
                 err = err + 1
 
     assert err == 0
-
