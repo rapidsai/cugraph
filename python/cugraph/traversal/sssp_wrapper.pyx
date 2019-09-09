@@ -17,6 +17,7 @@
 # cython: language_level = 3
 
 from cugraph.traversal.c_sssp cimport *
+from cugraph.traversal.c_bfs cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from cudf.bindings.cudf_cpp cimport np_dtype_from_gdf_column
@@ -44,9 +45,10 @@ def sssp(graph_ptr, source):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
-    data_type = np.float32
     if g.adjList.edge_data:
         data_type = np_dtype_from_gdf_column(g.adjList.edge_data)
+    else:
+        data_type = np.int32
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -56,10 +58,13 @@ def sssp(graph_ptr, source):
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_predecessors_col = get_gdf_column_view(df['predecessor'])
 
-    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
+    if g.adjList.edge_data:
+        err = gdf_sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
+    else:
+        err = gdf_bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
-    err = gdf_sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
+    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     cudf.bindings.cudf_cpp.check_gdf_error(err)
 
     return df
