@@ -2,6 +2,7 @@
 
 ## New Features
 - PR #477 Add cuHornet as a submodule
+- PR #483 Katz Centrality
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
