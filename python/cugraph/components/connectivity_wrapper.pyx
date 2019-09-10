@@ -19,11 +19,12 @@
 from cugraph.components.c_connectivity cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
+from cudf._lib.utils cimport table_from_dataframe
 from libc.stdint cimport uintptr_t
 
 import cudf
+import cudf._lib as libcudf
 import numpy as np
-
 
 def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
     """
@@ -34,7 +35,7 @@ def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
     cdef gdf_graph* g = <gdf_graph*>graph
 
     err = gdf_add_adj_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -42,9 +43,43 @@ def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
 
     df = cudf.DataFrame()
     df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_labels = get_gdf_column_view(df['labels'])
+    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    
+    cdef cudf_table* tbl = table_from_dataframe(df)
 
-    err = gdf_connected_components(g, <cugraph_cc_t>connect_type, &c_labels)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    err = gdf_connected_components(g, <cugraph_cc_t>connect_type, tbl)
+    libcudf.cudf.check_gdf_error(err)
+
+    del tbl
+
+    return df
+
+
+def strongly_connected_components(graph_ptr):
+    """
+    Call gdf_connected_components
+    """
+
+    cdef uintptr_t graph = graph_ptr
+    cdef gdf_graph* g = <gdf_graph*>graph
+
+    err = gdf_add_adj_list(<gdf_graph*> graph)
+    libcudf.cudf.check_gdf_error(err)
+
+    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # used instead of g.adjList.offsets.size - 1)
+    num_verts = g.adjList.offsets.size - 1
+
+    df = cudf.DataFrame()
+    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    
+    cdef cudf_table* tbl = table_from_dataframe(df)
+
+    cdef cugraph_cc_t connect_type=CUGRAPH_STRONG
+    err = gdf_connected_components(g, <cugraph_cc_t>connect_type, tbl)
+    libcudf.cudf.check_gdf_error(err)
+
+    del tbl
 
     return df

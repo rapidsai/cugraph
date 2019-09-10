@@ -74,15 +74,13 @@ namespace cusort {
 
     Cusort<Key_t, Value_t, Length_t, 16, 16> sort;
     
-    sort.sort(d_input_keys,
-              d_input_values,
-              h_input_partition_offsets,
-              d_output_keys,
-              d_output_values,
-              h_output_partition_offsets,
-              num_gpus);
-    
-    return GDF_SUCCESS;
+    return sort.sort(d_input_keys,
+                     d_input_values,
+                     h_input_partition_offsets,
+                     d_output_keys,
+                     d_output_values,
+                     h_output_partition_offsets,
+                     num_gpus);
   }
   
   /**
@@ -119,14 +117,20 @@ namespace cusort {
    *
    * @return   GDF_SUCCESS upon successful completion
    */
-  template <typename Key_t, typename Value_t, typename Length_t>
+  template <typename Key_t, typename Length_t>
   gdf_error sort_key(Key_t **d_input_keys,
-                     Length_t *h_input_partition_offset,
+                     Length_t *h_input_partition_offsets,
                      Key_t **d_output_keys,
-                     Length_t *h_output_partition_offset,
+                     Length_t *h_output_partition_offsets,
                      int num_gpus) {
 
-    return GDF_NOTIMPLEMENTED_ERROR;
+    Cusort<Key_t, int, Length_t, 16, 16> sort;
+    
+    return sort.sort(d_input_keys,
+                     h_input_partition_offsets,
+                     d_output_keys,
+                     h_output_partition_offsets,
+                     num_gpus);
   }
 
   /**

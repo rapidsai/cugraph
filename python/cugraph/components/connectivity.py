@@ -22,27 +22,67 @@ def weakly_connected_components(G):
     Parameters
     ----------
     G : cugraph.Graph
-      cuGraph graph descriptor, should contain the connectivity information as
-      an edge list (edge weights are not used for this algorithm). Currently,
-      the graph should be undirected where an undirected edge is represented by
-      a directed edge in both directions. The adjacency list will be computed
-      if not already present. The number of vertices should fit into a 32b int.
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm).
+        Currently, the graph should be undirected where an undirected edge is
+        represented by a directed edge in both directions. The adjacency list
+        will be computed if not already present. The number of vertices should
+        fit into a 32b int.
 
     Returns
     -------
     df : cudf.DataFrame
       df['labels'][i] gives the label id of the i'th vertex
+      df['vertices'][i] gives the vertex id of the i'th vertex
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-    >>> G = cuGraph.Graph()
-    >>> G.add_edge_list(sources,destinations,none)
-    >>> df = cuGraph.weakly_connected_components(G)
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> df = cugraph.weakly_connected_components(G)
     """
 
     df = connectivity_wrapper.weakly_connected_components(G.graph_ptr)
+
+    return df
+
+
+def strongly_connected_components(G):
+    """
+    Generate the stronlgly connected components and attach a component label to
+    each vertex.
+
+    Parameters
+    ----------
+    G : cugraph.Graph
+      cuGraph graph descriptor, should contain the connectivity information as
+      an edge list (edge weights are not used for this algorithm). The graph
+      can be either directed or undirected where an undirected edge is
+      represented by a directed edge in both directions.
+      The adjacency list will be computed if not already present.
+      The number of vertices should fit into a 32b int.
+
+    Returns
+    -------
+    df : cudf.DataFrame
+      df['labels'][i] gives the label id of the i'th vertex
+      df['vertices'][i] gives the vertex id of the i'th vertex
+
+    Examples
+    --------
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources,destinations,None)
+    >>> df = cugraph.strongly_connected_components(G)
+    """
+
+    df = connectivity_wrapper.strongly_connected_components(G.graph_ptr)
 
     return df

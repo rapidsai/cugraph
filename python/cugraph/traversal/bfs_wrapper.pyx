@@ -23,6 +23,7 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
 import cudf
+import cudf._lib as libcudf
 import numpy as np
 
 
@@ -35,7 +36,7 @@ def bfs(graph_ptr, start, directed=True):
     cdef gdf_graph* g = <gdf_graph*>graph
 
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -50,9 +51,9 @@ def bfs(graph_ptr, start, directed=True):
     cdef gdf_column c_predecessor_col = get_gdf_column_view(df['predecessor'])
 
     err = g.adjList.get_vertex_identifiers(&c_vertex_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     err = gdf_bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return df

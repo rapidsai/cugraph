@@ -16,10 +16,9 @@ from itertools import product
 import time
 
 import pytest
-from scipy.io import mmread
 
-import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 
@@ -37,18 +36,7 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
-
-
-def networkx_call(M):
+def networkx_weak_call(M):
     M = M.tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
@@ -71,7 +59,7 @@ def networkx_call(M):
     return labels
 
 
-def cugraph_call(cu_M):
+def cugraph_weak_call(cu_M):
     # Device data
     sources = cu_M['0']
     destinations = cu_M['1']
@@ -81,6 +69,48 @@ def cugraph_call(cu_M):
     G.add_edge_list(sources, destinations, None)
     t1 = time.time()
     df = cugraph.weakly_connected_components(G)
+    t2 = time.time() - t1
+    print('Time : '+str(t2))
+
+    result = df['labels'].to_array()
+
+    labels = sorted(result)
+    return labels
+
+
+def networkx_strong_call(M):
+    M = M.tocsr()
+    if M is None:
+        raise TypeError('Could not read the input graph')
+    if M.shape[0] != M.shape[1]:
+        raise TypeError('Shape is not square')
+
+    Gnx = nx.DiGraph(M)
+
+    # Weakly Connected components call:
+    print('Solving... ')
+    t1 = time.time()
+
+    # same parameters as in NVGRAPH
+    result = nx.strongly_connected_components(Gnx)
+    t2 = time.time() - t1
+
+    print('Time : ' + str(t2))
+
+    labels = sorted(result)
+    return labels
+
+
+def cugraph_strong_call(cu_M):
+    # Device data
+    sources = cu_M['0']
+    destinations = cu_M['1']
+
+    # cugraph Pagerank Call
+    G = cugraph.Graph()
+    G.add_edge_list(sources, destinations, None)
+    t1 = time.time()
+    df = cugraph.strongly_connected_components(G)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
@@ -126,15 +156,56 @@ def test_weak_cc(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
-    netx_labels = networkx_call(M)
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    netx_labels = networkx_weak_call(M)
 
-    cu_M = read_csv_file(graph_file+'.csv')
-    cugraph_labels = cugraph_call(cu_M)
+    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cugraph_labels = cugraph_weak_call(cu_M)
+
+    # NetX returns a list of components, each component being a
+    # collection (set{}) of vertex indices;
+    #
+    # while cugraph returns a component label for each vertex;
+
+    nx_n_components = len(netx_labels)
+    cg_n_components = get_n_uniqs(cugraph_labels)
+
+    assert nx_n_components == cg_n_components
+
+    lst_nx_components_lens = [len(c) for c in sorted(netx_labels, key=len)]
+
+    # get counts of uniques:
+    #
+    lst_cg_components_lens = sorted(get_uniq_counts(cugraph_labels))
+
+    assert lst_nx_components_lens == lst_cg_components_lens
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_strong_cc(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    netx_labels = networkx_strong_call(M)
+
+    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cugraph_labels = cugraph_strong_call(cu_M)
 
     # NetX returns a list of components, each component being a
     # collection (set{}) of vertex indices;

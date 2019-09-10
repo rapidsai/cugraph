@@ -18,16 +18,15 @@
 
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
+from cudf._lib.cudf cimport np_dtype_from_gdf_column
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
+import cudf._lib as libcudf
 from librmm_cffi import librmm as rmm
 import numpy as np
-
-
-dtypes_inv = {GDF_INT32: np.int32, GDF_INT64: np.int64, GDF_FLOAT32: np.float32, GDF_FLOAT64: np.float64}
 
 
 def allocate_cpp_graph():
@@ -57,17 +56,17 @@ def renumber(source_col, dest_col):
                                 &dst_renumbered,
                                 &numbering_map)
 
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     src_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> src_renumbered.data,
                                  nelem=src_renumbered.size,
-                                 dtype=dtypes_inv[src_renumbered.dtype])
+                                 dtype=np_dtype_from_gdf_column(&src_renumbered))
     dst_renumbered_array = rmm.device_array_from_ptr(<uintptr_t> dst_renumbered.data,
                                  nelem=dst_renumbered.size,
-                                 dtype=dtypes_inv[dst_renumbered.dtype])
+                                 dtype=np_dtype_from_gdf_column(&dst_renumbered))
     numbering_map_array = rmm.device_array_from_ptr(<uintptr_t> numbering_map.data,
                                  nelem=numbering_map.size,
-                                 dtype=dtypes_inv[numbering_map.dtype])
+                                 dtype=np_dtype_from_gdf_column(&numbering_map))
 
     return cudf.Series(src_renumbered_array), cudf.Series(dst_renumbered_array), cudf.Series(numbering_map_array)
 
@@ -89,13 +88,13 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
                              &c_source_col,
                              &c_dest_col,
                              c_value_col_ptr)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def view_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     err = gdf_add_edge_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_edges() to gdf_graph (and this should be
     # used instead of g.edgeList.src_indices.size)
@@ -103,25 +102,43 @@ def view_edge_list(graph_ptr):
 
     cdef uintptr_t src_col_data = <uintptr_t> g.edgeList.src_indices.data
     cdef uintptr_t dest_col_data = <uintptr_t> g.edgeList.dest_indices.data
+    cdef uintptr_t value_col_data = <uintptr_t> NULL
+    if g.edgeList.edge_data is not NULL:
+        value_col_data = <uintptr_t> g.edgeList.edge_data.data
 
-    src_data = rmm.device_array_from_ptr(src_col_data,
-                                 nelem=col_size,
-                                 dtype=np.int32)  # ,
-                                 # finalizer=rmm._make_finalizer(src_col_data, 0))
-    dest_data = rmm.device_array_from_ptr(dest_col_data,
-                                 nelem=col_size,
-                                 dtype=np.int32)  # ,
-                                 # finalizer=rmm._make_finalizer(dest_col_data, 0))
-    # g.edgeList.src_indices.data and g.edgeList.dest_indices.data are not
-    # owned by this instance, so should not be freed here (this will lead
-    # to double free, and undefined behavior).
+    # g.edgeList.src_indices.data, g.edgeList.dest_indices.data, and
+    # g.edgeList.edge_data.data are not owned by this instance, so should not
+    # be freed when the resulting cudf.Series objects are finalized (this will
+    # lead to double free, and undefined behavior). The finalizer parameter of
+    # rmm.device_array_from_ptr shuold be ``None`` (default value) for this
+    # purpose (instead of rmm._finalizer(handle, stream)).
 
-    return cudf.Series(src_data), cudf.Series(dest_data)
+    src_data = rmm.device_array_from_ptr(
+                   src_col_data,
+                   nelem=col_size,
+                   dtype=np.int32)
+    source_col = cudf.Series(src_data)
+
+    dest_data = rmm.device_array_from_ptr(
+                    dest_col_data,
+                    nelem=col_size,
+                    dtype=np.int32)
+    dest_col = cudf.Series(dest_data)
+
+    value_col = None
+    if <void*>value_col_data is not NULL:
+        value_data = rmm.device_array_from_ptr(
+                         value_col_data,
+                         nelem=col_size,
+                         dtype=np_dtype_from_gdf_column(g.edgeList.edge_data))
+        value_col = cudf.Series(value_data)
+
+    return source_col, dest_col, value_col
 
 def delete_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     err = gdf_delete_edge_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
@@ -141,33 +158,51 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
                             &c_offset_col,
                             &c_index_col,
                             c_value_col_ptr)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def view_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     offset_col_size = g.adjList.offsets.size
     index_col_size = g.adjList.indices.size
 
     cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
     cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices.data
+    cdef uintptr_t value_col_data = <uintptr_t> NULL
+    if g.adjList.edge_data is not NULL:
+        value_col_data = <uintptr_t> g.adjList.edge_data.data
 
-    offsets_data = rmm.device_array_from_ptr(offset_col_data,
-                                 nelem=offset_col_size,
-                                 dtype=np.int32) # ,
-                                 # finalizer=rmm._make_finalizer(offset_col_data, 0))
-    indices_data = rmm.device_array_from_ptr(index_col_data,
-                                 nelem=index_col_size,
-                                 dtype=np.int32) # ,
-                                 # finalizer=rmm._make_finalizer(index_col_data, 0))
-    # g.adjList.offsets.data and g.adjList.indices.data are not owned by
-    # this instance, so should not be freed here (this will lead to double
-    # free, and undefined behavior).
+    # g.adjList.offsets.data, g.adjList.indices.data, and
+    # g.adjList.edge_data.data are not owned by this instance, so should not be
+    # freed here (this will lead to double free, and undefined behavior). The
+    # finalizer parameter of rmm.device_array_from_ptr shuold be ``None``
+    # (default value) for this purpose (instead of
+    # rmm._finalizer(handle, stream)).
 
-    return cudf.Series(offsets_data), cudf.Series(indices_data)
+    offset_data = rmm.device_array_from_ptr(
+                       offset_col_data,
+                       nelem=offset_col_size,
+                       dtype=np.int32)
+    offset_col = cudf.Series(offset_data)
+
+    index_data = rmm.device_array_from_ptr(
+                       index_col_data,
+                       nelem=index_col_size,
+                       dtype=np.int32)
+    index_col = cudf.Series(index_data)
+
+    value_col = None
+    if <void*>value_col_data is not NULL:
+        value_data = rmm.device_array_from_ptr(
+                         value_col_data,
+                         nelem=index_col_size,
+                         dtype=np_dtype_from_gdf_column(g.adjList.edge_data))
+        value_col = cudf.Series(value_data)
+
+    return offset_col, index_col, value_col
 
 def delete_adj_list(graph_ptr):
     """
@@ -175,38 +210,56 @@ def delete_adj_list(graph_ptr):
     """
     cdef uintptr_t graph = graph_ptr
     err = gdf_delete_adj_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def add_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     err = gdf_add_transposed_adj_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def view_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     err = gdf_add_transposed_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     offset_col_size = g.transposedAdjList.offsets.size
     index_col_size = g.transposedAdjList.indices.size
 
     cdef uintptr_t offset_col_data = <uintptr_t> g.transposedAdjList.offsets.data
     cdef uintptr_t index_col_data = <uintptr_t> g.transposedAdjList.indices.data
+    cdef uintptr_t value_col_data = <uintptr_t> NULL
+    if g.transposedAdjList.edge_data is not NULL:
+        value_col_data = <uintptr_t> g.transposedAdjList.edge_data.data
 
-    offsets_data = rmm.device_array_from_ptr(offset_col_data,
-                                 nelem=offset_col_size,
-                                 dtype=np.int32)  # ,
-                                 # finalizer=rmm._make_finalizer(offset_col_data, 0))
-    indices_data = rmm.device_array_from_ptr(index_col_data,
-                                 nelem=index_col_size,
-                                 dtype=np.int32)  # ,
-                                 # finalizer=rmm._make_finalizer(index_col_data, 0))
-    # g.transposedAdjList.offsets.data and g.transposedAdjList.indices.data
-    # are not owned by this instance, so should not be freed here (this
-    # will lead to double free, and undefined behavior).
+    # g.transposedAdjList.offsets.data, g.transposedAdjList.indices.data and
+    # g.transposedAdjList.edge_data.data are not owned by this instance, so
+    # should not be freed here (this will lead to double free, and undefined
+    # behavior). The finalizer parameter of rmm.device_array_from_ptr should
+    # be ``None`` (default value) for this purpose (instead of
+    # rmm._finalizer(handle, stream)).
 
-    return cudf.Series(offsets_data), cudf.Series(indices_data)
+    offset_data = rmm.device_array_from_ptr(
+                       offset_col_data,
+                       nelem=offset_col_size,
+                       dtype=np.int32)
+    offset_col = cudf.Series(offset_data)
+
+    index_data = rmm.device_array_from_ptr(
+                     index_col_data,
+                     nelem=index_col_size,
+                     dtype=np.int32)
+    index_col = cudf.Series(index_data)
+
+    value_col = None
+    if <void*>value_col_data is not NULL:
+        value_data = rmm.device_array_from_ptr(
+                         value_col_data,
+                         nelem=index_col_size,
+                         dtype=np_dtype_from_gdf_column(g.transposedAdjList.edge_data))
+        value_col = cudf.Series(value_data)
+
+    return offset_col, index_col, value_col
 
 def delete_transposed_adj_list(graph_ptr):
     """
@@ -214,7 +267,7 @@ def delete_transposed_adj_list(graph_ptr):
     """
     cdef uintptr_t graph = graph_ptr
     err = gdf_delete_transposed_adj_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
 def get_two_hop_neighbors(graph_ptr):
     cdef uintptr_t graph = graph_ptr
@@ -222,7 +275,7 @@ def get_two_hop_neighbors(graph_ptr):
     cdef gdf_column c_first_col
     cdef gdf_column c_second_col
     err = gdf_get_two_hop_neighbors(g, &c_first_col, &c_second_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
     df = cudf.DataFrame()
     if c_first_col.dtype == GDF_INT32:
         first_out = rmm.device_array_from_ptr(<uintptr_t>c_first_col.data,
@@ -248,22 +301,11 @@ def get_two_hop_neighbors(graph_ptr):
 def number_of_vertices(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    if g.adjList:
-        return g.adjList.offsets.size - 1
-    elif g.transposedAdjList:
-        return g.transposedAdjList.offsets.size - 1
-    elif g.edgeList:
-        # This code needs to be revisited when updating gdf_graph. Users
-        # may expect numbrer_of_vertcies() as a cheap query but this
-        # function can run for a while and also requires a significant
-        # amount of additional memory. It is better to update the number
-        # of vertices when creating an edge list representation.
-        err = gdf_add_adj_list(g)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
-        return g.adjList.offsets.size - 1
-    else:
-        # An empty graph
-        return 0
+    if g.numberOfVertices == 0:
+        err = gdf_number_of_vertices(g)
+        libcudf.cudf.check_gdf_error(err)
+
+    return g.numberOfVertices
 
 def number_of_edges(graph_ptr):
     cdef uintptr_t graph = graph_ptr
@@ -282,6 +324,7 @@ def _degree(graph_ptr, x=0):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
+    err = gdf_add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -290,12 +333,12 @@ def _degree(graph_ptr, x=0):
         err = g.adjList.get_vertex_identifiers(&c_vertex_col)
     else:
         err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_degree_col = get_gdf_column_view(degree_col)
     err = gdf_degree(g, &c_degree_col, <int>x)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return vertex_col, degree_col
 
@@ -303,6 +346,7 @@ def _degrees(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
+    err = gdf_add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -311,16 +355,16 @@ def _degrees(graph_ptr):
         err = g.adjList.get_vertex_identifiers(&c_vertex_col)
     else:
         err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     in_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_in_degree_col = get_gdf_column_view(in_degree_col)
     err = gdf_degree(g, &c_in_degree_col, <int>1)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     out_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_out_degree_col = get_gdf_column_view(out_degree_col)
     err = gdf_degree(g, &c_out_degree_col, <int>2)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return vertex_col, in_degree_col, out_degree_col

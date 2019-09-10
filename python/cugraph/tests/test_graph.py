@@ -17,16 +17,16 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import pytest
-from scipy.io import mmread
 
-import cugraph
 import cudf
+import cudf._lib as libcudf
+import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 '''
 import socket
 import struct
-import pandas as pd
 '''
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -38,17 +38,6 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def compare_series(series_1, series_2):
@@ -80,13 +69,21 @@ def compare_offsets(offset0, offset1):
 # vertices in one graph to the vertices in the other graph is identity AND two
 # graphs are automorphic; no permutations of vertices are allowed).
 def compare_graphs(nx_graph, cu_graph):
-    sources, destinations = cu_graph.view_edge_list()
+    sources, destinations, values = cu_graph.view_edge_list()
 
-    df = pd.DataFrame()
-    df['source'] = sources.to_pandas()
-    df['target'] = destinations.to_pandas()
-
-    cu_to_nx_graph = nx.from_pandas_edgelist(df, create_using=nx.DiGraph())
+    df = cudf.DataFrame()
+    df['source'] = sources
+    df['target'] = destinations
+    if values is not None:
+        df['weight'] = values
+        cu_to_nx_graph = nx.from_pandas_edgelist(df.to_pandas(),
+                                                 source='source',
+                                                 target='target',
+                                                 edge_attr=['weight'],
+                                                 create_using=nx.DiGraph())
+    else:
+        cu_to_nx_graph = nx.from_pandas_edgelist(df.to_pandas(),
+                                                 create_using=nx.DiGraph())
 
     # first compare nodes
 
@@ -106,9 +103,12 @@ def compare_graphs(nx_graph, cu_graph):
     if diff.number_of_edges() > 0:
         return False
 
-    # need to compare edge weights for weighted graphs as well but currently
-    # users cannot retrieve edge weights from cugraph Graph objects
-    # (cugraph issue #319).
+    if values is not None:
+        df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
+        df0 = df0.sort_values(by=['source', 'target'])
+        df1 = df.sort_values(by=['source', 'target'])
+        if not df0['weight'].equals(df1['weight']):
+            return False
 
     return True
 
@@ -154,6 +154,11 @@ def check_all_two_hops(df, M):
                     assert has_pair(first_arr, second_arr, start, end)
 
 
+def test_version():
+    gc.collect()
+    cugraph.__version__
+
+
 DATASETS = ['../datasets/karate',
             '../datasets/dolphins',
             '../datasets/netscience']
@@ -169,15 +174,16 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     sources = cu_M['0']
     destinations = cu_M['1']
 
-    M = read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
@@ -189,9 +195,10 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     # cugraph add_egde_list to_adj_list call
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
-    offsets_cu, indices_cu = G.view_adj_list()
+    offsets_cu, indices_cu, values_cu = G.view_adj_list()
     assert compare_offsets(offsets_cu, offsets_exp)
     assert compare_series(indices_cu, indices_exp)
+    assert values_cu is None
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -204,11 +211,12 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
@@ -224,11 +232,12 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     # cugraph add_adj_list to_edge_list call
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
-    sources, destinations = G.view_edge_list()
+    sources, destinations, values = G.view_edge_list()
     sources_cu = np.array(sources)
     destinations_cu = np.array(destinations)
     assert compare_series(sources_cu, sources_exp)
     assert compare_series(destinations_cu, destinations_exp)
+    assert values is None
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -241,20 +250,22 @@ def test_transpose_from_adj_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
     G.add_transposed_adj_list()
     Mt = M.transpose().tocsr()
-    toff, tind = G.view_transposed_adj_list()
+    toff, tind, tval = G.view_transposed_adj_list()
     assert compare_series(tind, Mt.indices)
     assert compare_offsets(toff, Mt.indptr)
+    assert tval is None
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -267,21 +278,23 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
     G.add_adj_list(offsets, indices, None)
-    src2, dst2 = G.view_edge_list()
+    src2, dst2, val2 = G.view_edge_list()
     M = M.tocoo()
     src1 = M.row
     dst1 = M.col
     assert compare_series(src1, src2)
     assert compare_series(dst1, dst2)
+    assert val2 is None
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -294,11 +307,12 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
+    M = utils.read_mtx_file(graph_file+'.mtx')
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 
@@ -315,13 +329,13 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     G.delete_edge_list()
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.view_adj_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
     G.add_adj_list(offsets, indices, None)
     G.delete_adj_list()
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.view_edge_list()
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
@@ -337,11 +351,12 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 
@@ -362,20 +377,20 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
 
     # If cugraph has a graph edge list, adding a new graph should fail.
     G.add_edge_list(sources, destinations, None)
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.add_edge_list(sources, destinations, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.add_adj_list(offsets, indices, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
     G.delete_edge_list()
 
     # If cugraph has a graph adjacency list, adding a new graph should fail.
     G.add_adj_list(sources, destinations, None)
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.add_edge_list(sources, destinations, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
-    with pytest.raises(cudf.bindings.GDFError.GDFError) as excinfo:
+    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
         G.add_adj_list(offsets, indices, None)
     assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
     G.delete_adj_list()
@@ -391,24 +406,33 @@ def test_networkx_compatibility(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
     # test from_cudf_edgelist()
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
 
     df = pd.DataFrame()
     df['source'] = pd.Series(M.row)
     df['target'] = pd.Series(M.col)
+    df['weight'] = pd.Series(M.data)
 
     gdf = cudf.from_pandas(df)
 
     # cugraph.Graph() is implicitly a directed graph right at this moment, so
     # we should use nx.DiGraph() for comparison.
-    Gnx = nx.from_pandas_edgelist(df, create_using=nx.DiGraph)
-    G = cugraph.from_cudf_edgelist(gdf)
+    Gnx = nx.from_pandas_edgelist(df,
+                                  source='source',
+                                  target='target',
+                                  edge_attr=['weight'],
+                                  create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(gdf,
+                                   source='source',
+                                   target='target',
+                                   weight='weight')
 
     assert compare_graphs(Gnx, G)
 
@@ -441,11 +465,12 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     sources = cu_M['0']
     destinations = cu_M['1']
     values = cu_M['2']
@@ -454,7 +479,7 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     G.add_edge_list(sources, destinations, values)
 
     df = G.get_two_hop_neighbors()
-    M = read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
     find_two_paths(df, M)
     check_all_two_hops(df, M)
 
@@ -469,12 +494,13 @@ def test_degree_functionality(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
-    cu_M = read_csv_file(graph_file+'.csv')
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     sources = cu_M['0']
     destinations = cu_M['1']
     values = cu_M['2']
@@ -517,12 +543,13 @@ def test_degrees_functionality(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
-    cu_M = read_csv_file(graph_file+'.csv')
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     sources = cu_M['0']
     destinations = cu_M['1']
     values = cu_M['2']
@@ -597,11 +624,12 @@ def test_renumber_files(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 
@@ -615,3 +643,32 @@ def test_renumber_files(managed, pool, graph_file):
     for i in range(len(sources)):
         assert sources[i] == (numbering[src[i]] - translate)
         assert destinations[i] == (numbering[dst[i]] - translate)
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_number_of_vertices(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.finalize()
+    rmm_cfg.use_managed_memory = managed
+    rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
+    rmm.initialize()
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file+'.csv')
+    sources = cu_M['0']
+    destinations = cu_M['1']
+
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    if M is None:
+        raise TypeError('Could not read the input graph')
+
+    # cugraph add_edge_list
+    G = cugraph.Graph()
+    G.add_edge_list(sources, destinations, None)
+    assert(G.number_of_vertices() == M.shape[0])

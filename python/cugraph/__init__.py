@@ -21,15 +21,18 @@ from cugraph.community import (
     subgraph,
     triangles
 )
-from cugraph.components import weakly_connected_components
+from cugraph.components import weakly_connected_components, strongly_connected_components
 from cugraph.link_analysis import pagerank
 from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
 from cugraph.structure import Graph, from_cudf_edgelist, renumber
-from cugraph.traversal import bfs, sssp
+from cugraph.traversal import bfs, sssp, filter_unreachable
 from cugraph.utilities import grmat_gen
 from cugraph.utilities import device_of_gpu_pointer
 
 from cugraph.snmg.link_analysis.mg_pagerank import mg_pagerank
+
+from cugraph.proto.components import strong_connected_component
+from cugraph.proto.structure import find_bicliques
 
 # Versioneer
 from ._version import get_versions

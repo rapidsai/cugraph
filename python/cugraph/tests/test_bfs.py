@@ -18,23 +18,11 @@ import time
 
 import numpy as np
 import pytest
-from scipy.io import mmread
 
-import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def cugraph_call(cu_M, start_vertex):
@@ -99,12 +87,13 @@ def test_bfs(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
-    cu_M = read_csv_file(graph_file+'.csv')
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
 
     base_vid, base_dist = base_call(M, 0)
     cugraph_vid, cugraph_dist = cugraph_call(cu_M, 0)

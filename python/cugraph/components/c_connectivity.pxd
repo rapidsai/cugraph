@@ -17,11 +17,15 @@
 # cython: language_level = 3
 
 from cugraph.structure.c_graph cimport *
+from cudf._lib.cudf cimport *
 
 
 cdef extern from "cugraph.h":
 
-    cdef gdf_error gdf_connected_components(gdf_graph *graph, cugraph_cc_t connect_type, gdf_column *labels)
+    cdef gdf_error gdf_connected_components(
+        gdf_graph *graph,
+        cugraph_cc_t connect_type,
+        cudf_table* table) except +
 
     ctypedef enum cugraph_cc_t:
         CUGRAPH_WEAK = 0,

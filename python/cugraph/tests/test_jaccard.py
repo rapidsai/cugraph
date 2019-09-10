@@ -16,10 +16,10 @@ from itertools import product
 import time
 
 import pytest
-from scipy.io import mmread
 
 import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 
@@ -35,17 +35,6 @@ with warnings.catch_warnings():
 
 
 print('Networkx version : {} '.format(nx.__version__))
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def cugraph_call(cu_M, edgevals=False):
@@ -125,12 +114,13 @@ def test_jaccard(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file+'.mtx')
-    cu_M = read_csv_file(graph_file+'.csv')
+    M = utils.read_mtx_file(graph_file+'.mtx')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     cu_src, cu_dst, cu_coeff = cugraph_call(cu_M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -158,12 +148,13 @@ def test_jaccard_edgevals(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
-    cu_M = read_csv_file(graph_file+'.csv')
+    M = utils.read_mtx_file(graph_file)
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     cu_src, cu_dst, cu_coeff = cugraph_call(cu_M, edgevals=True)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -191,11 +182,12 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
     M = M.tocsr()
     Gnx = nx.DiGraph(M).to_undirected()
     G = cugraph.Graph()
@@ -227,11 +219,12 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = read_mtx_file(graph_file)
+    M = utils.read_mtx_file(graph_file)
     M = M.tocsr()
     Gnx = nx.DiGraph(M).to_undirected()
     G = cugraph.Graph()

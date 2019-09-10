@@ -19,17 +19,16 @@
 from cugraph.traversal.c_sssp cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
+from cudf._lib.cudf cimport np_dtype_from_gdf_column
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
+import cudf._lib as libcudf
 from librmm_cffi import librmm as rmm
 import numpy as np
-
-
-gdf_to_np_dtypes = {GDF_INT32:np.int32, GDF_INT64:np.int64, GDF_FLOAT32:np.float32, GDF_FLOAT64:np.float64}
 
 
 def sssp(graph_ptr, source):
@@ -40,7 +39,7 @@ def sssp(graph_ptr, source):
     cdef gdf_graph* g = <gdf_graph*>graph
 
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -48,7 +47,7 @@ def sssp(graph_ptr, source):
 
     data_type = np.float32
     if g.adjList.edge_data:
-        data_type = gdf_to_np_dtypes[g.adjList.edge_data.dtype]
+        data_type = np_dtype_from_gdf_column(g.adjList.edge_data)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -59,9 +58,9 @@ def sssp(graph_ptr, source):
     cdef gdf_column c_predecessors_col = get_gdf_column_view(df['predecessor'])
 
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     err = gdf_sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return df

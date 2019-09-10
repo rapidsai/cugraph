@@ -7,6 +7,8 @@ from cugraph.dask.core import device_of_devicendarray, get_device_id
 import os
 from dask.distributed import wait, default_client
 from toolz import first
+import dask.dataframe as dd
+import cudf
 
 
 def to_gpu_array(df):
@@ -158,7 +160,7 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
 
     client = default_client()
     gpu_futures = _get_mg_info(edge_list)
-    npartitions = len(gpu_futures)
+    # npartitions = len(gpu_futures)
 
     host_dict = _build_host_dict(gpu_futures, client).items()
     if len(host_dict) > 1:
@@ -183,18 +185,14 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
 
     raw_arrays = [future for worker, future in gpu_data_incl_worker]
 
-    pr = client.submit(_mg_pagerank,
-                       (ipc_handles, raw_arrays, alpha, max_iter),
-                       workers=[exec_node]).result()
+    pr = [client.submit(_mg_pagerank,
+                        (ipc_handles, raw_arrays, alpha, max_iter),
+                        workers=[exec_node])]
 
-    ddf = dc.from_cudf(pr, npartitions=npartitions)
+    x = client.compute(pr)
+    wait(x)
+    ddf = dc.from_delayed(pr)
     return ddf
-
-
-def find_dev(df):
-    gpu_array_src = df['src']._column._data.mem
-    dev = device_of_devicendarray(gpu_array_src)
-    return dev
 
 
 def _get_mg_info(ddf):
@@ -202,7 +200,12 @@ def _get_mg_info(ddf):
 
     client = default_client()
 
-    parts = ddf
+    if isinstance(ddf, dd.DataFrame):
+        parts = ddf.to_delayed()
+        parts = client.compute(parts)
+        wait(parts)
+    else:
+        parts = ddf
     key_to_part_dict = dict([(str(part.key), part) for part in parts])
     who_has = client.who_has(parts)
     worker_map = []
@@ -214,9 +217,37 @@ def _get_mg_info(ddf):
                 for worker, part in worker_map]
 
     wait(gpu_data)
-    [client.submit(find_dev, part, workers=[worker]).result()
-     for worker, part in worker_map]
+    return gpu_data
 
+
+# UTILITY FUNCTIONS
+
+
+def _drop_duplicates(df):
+    df.drop_duplicates(inplace=True)
+    return df
+
+
+def drop_duplicates(ddf):
+    client = default_client()
+
+    if isinstance(ddf, dd.DataFrame):
+        parts = ddf.to_delayed()
+        parts = client.compute(parts)
+        wait(parts)
+    else:
+        parts = ddf
+    key_to_part_dict = dict([(str(part.key), part) for part in parts])
+    who_has = client.who_has(parts)
+    worker_map = []
+    for key, workers in who_has.items():
+        worker = parse_host_port(first(workers))
+        worker_map.append((worker, key_to_part_dict[key]))
+
+    gpu_data = [client.submit(_drop_duplicates, part, workers=[worker])
+                for worker, part in worker_map]
+
+    wait(gpu_data)
     return gpu_data
 
 
@@ -224,7 +255,6 @@ def get_n_gpus():
     try:
         return len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
     except KeyError:
-        print("here")
         return len(os.popen("nvidia-smi -L").read().strip().split("\n"))
 
 
@@ -251,3 +281,38 @@ def get_chunksize(input_path):
         size = [os.path.getsize(_file) for _file in input_files]
         chunksize = max(size)
     return chunksize
+
+
+def _read_csv(input_files, delimiter, names, dtype):
+    df = []
+    for f in input_files:
+        df.append(cudf.read_csv(f, delimiter=delimiter, names=names,
+                                dtype=dtype))
+    df_concatenated = cudf.concat(df)
+    return df_concatenated
+
+
+def read_split_csv(input_files, delimiter='\t', names=['src', 'dst'],
+                   dtype=['int32', 'int32']):
+    """
+    Read csv for large datasets which cannot be read directly by dask-cudf
+    read_csv due to memory requirements. This function takes large input
+    split into smaller files (number of input_files > number of gpus),
+    reads two or more csv per gpu/worker and concatenates them into a
+    single dataframe. Additional parameters (delimiter, names and dtype)
+    can be specified for reading the csv file.
+    """
+
+    client = default_client()
+    n_files = len(input_files)
+    n_gpus = get_n_gpus()
+    n_files_per_gpu = int(n_files/n_gpus)
+    worker_map = []
+    for i, w in enumerate(client.has_what().keys()):
+        files_per_gpu = input_files[i*n_files_per_gpu: (i+1)*n_files_per_gpu]
+        worker_map.append((files_per_gpu, w))
+    new_ddf = [client.submit(_read_csv, part, delimiter, names, dtype,
+               workers=[worker]) for part, worker in worker_map]
+
+    wait(new_ddf)
+    return new_ddf

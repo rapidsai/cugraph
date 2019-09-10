@@ -1,3 +1,18 @@
+# cuGraph 0.10.0 (Date TBD)
+
+## New Features
+- PR #477 Add cuHornet as a submodule
+
+## Improvements
+- PR #466 Add file splitting test; Update to reduce dask overhead
+- PR #468 Remove unnecessary print statement
+- PR #464 Limit initial RMM pool allocator size to 128mb so pytest can run in parallel
+
+## Bug Fixes
+- PR #458 Fix potential race condition in SSSP
+- PR #471 Remove nvidia driver installation from ci/cpu/build.sh
+- PR #473 Re-sync cugraph with cudf (cudf renamed the bindings directory to _lib).
+
 # cuGraph 0.9.0 (Date TBD)
 
 ## New Features
@@ -5,13 +20,27 @@
 - PR #357 Pagerank cpp API
 - PR #366 Adds graph.degrees() function returning both in and out degree.
 - PR #380 First implemention of cusort - SNMG key/value sorting
+- PR #416 OpenCypher: Added C++ implementation of db_object class and assorted other classes
+- PR #411 Integrate dask-cugraph in cugraph
 - PR #411 Integrate dask-cugraph in cugraph #411
+- PR #418 Update cusort to handle SNMG key-only sorting
+- PR #423 Add Strongly Connected Components (GEMM); Weakly CC updates;
+- PR #437 Streamline CUDA_REL environment variable
+- PR #449 Fix local build generated file ownerships
+- PR #454 Initial version of updated script to run benchmarks
+
 
 ## Improvements
 - PR #353 Change snmg python wrapper in accordance to cpp api
 - PR #362 Restructured python/cython directories and files.
 - PR #365 Updates for setting device and vertex ids for snmg pagerank
-- PR #383 Exposed MG pagerank solver parameters 
+- PR #383 Exposed MG pagerank solver parameters
+- PR #399 Example Prototype of Strongly Connected Components using primitives
+- PR #419 Version test
+- PR #420 drop duplicates, remove print, compute/wait read_csv in pagerank.py
+- PR #439 More efficient computation of number of vertices from edge list
+- PR #445 Update view_edge_list, view_adj_list, and view_transposed_adj_list to return edge weights.
+- PR #450 Add a multi-GPU section in cuGraph documentation.
 
 ## Bug Fixes
 - PR #368 Bump cudf dependency versions for cugraph conda packages
@@ -24,9 +53,21 @@
 - PR #382 Disabled vertex id check to allow Azure deployment
 - PR #410 Fixed overflow error in SNMG COO2CSR
 - PR #395 run omp_ge_num_threads in a parallel context
+- PR #412 Fixed formatting issues in cuGraph documentation.
 - PR #413 Updated python build instructions.
 - PR #414 Add weights to wjaccrd.py
-
+- PR #436 Fix Skip Test Functionality
+- PR #438 Fix versions of packages in build script and conda yml
+- PR #441 Import cudf_cpp.pxd instead of duplicating cudf definitions.
+- PR #441 Removed redundant definitions of python dictionaries and functions.
+- PR #442 Updated versions in conda environments.
+- PR #442 Added except + to cython bindings to C(++) functions.
+- PR #443 Fix accuracy loss issue for snmg pagerank
+- PR #444 Fix warnings in strongly connected components
+- PR #446 Fix permission for source (-x) and script (+x) files.
+- PR #448 Import filter_unreachable
+- PR #453 Re-sync cugraph with cudf (dependencies, type conversion & scatter functions).
+- PR #463 Remove numba dependency and use the one from cudf
 
 # cuGraph 0.8.0 (27 June 2019)
 
@@ -52,7 +93,7 @@
 - PR #306 Integrated nvgraph to libcugraph.so (libnvgraph_rapids.so will not be built anymore).
 - PR #306 Updated python test files to run pytest with all four RMM configurations.
 - PR #321 Added check routines for input graph data vertex IDs and offsets (cugraph currently supports only 32-bit integers).
-- PR #333 Various general improvements at the library level 
+- PR #333 Various general improvements at the library level
 
 ## Bug Fixes
 - PR #283 Automerge fix
@@ -67,6 +108,7 @@
 - PR #327 Implemented a temporary fix for the build failure due to gunrock updates.
 - PR #345 Updated CMakeLists.txt to apply RUNPATH to transitive dependencies.
 - PR #350 Configure Sphinx to render params correctly
+- PR #359 Updates to remove libboost_system as a runtime dependency on libcugraph.so
 
 
 # cuGraph 0.7.0 (10 May 2019)

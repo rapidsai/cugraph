@@ -17,10 +17,10 @@ import time
 import numpy as np
 
 import pytest
-from scipy.io import mmread
 
 import cudf
 import cugraph
+from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 
@@ -36,17 +36,6 @@ with warnings.catch_warnings():
 
 
 print('Networkx version : {} '.format(nx.__version__))
-
-
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
-
-
-def read_csv_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return cudf.read_csv(mm_file, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
 
 
 def cudify(d):
@@ -166,10 +155,11 @@ def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
+    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
-    M = read_mtx_file(graph_file+'.mtx')
+    M = utils.read_mtx_file(graph_file+'.mtx')
     networkx_pr, networkx_prsn = networkx_call(M, max_iter, tol, alpha,
                                                personalization_perc)
 
@@ -178,7 +168,7 @@ def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
         cu_nstart = cudify(networkx_pr)
         max_iter = 5
     cu_prsn = cudify(networkx_prsn)
-    cu_M = read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file+'.csv')
     cugraph_pr = cugraph_call(cu_M, max_iter, tol, alpha, cu_prsn, cu_nstart)
 
     # Calculating mismatch
