@@ -1,6 +1,7 @@
 # cuGraph 0.10.0 (Date TBD)
 
 ## New Features
+- PR #469 Symmetrize a COO
 - PR #477 Add cuHornet as a submodule
 
 ## Improvements

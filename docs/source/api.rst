@@ -21,6 +21,13 @@ Renumbering
     :members:
     :undoc-members:
 
+Symmetrize
+----------
+
+.. automodule:: cugraph.structure.symmetrize
+    :members:
+    :undoc-members:
+
 Conversion from Other Formats
 -----------------------------
 
