@@ -8,6 +8,7 @@
 - PR #466 Add file splitting test; Update to reduce dask overhead
 - PR #468 Remove unnecessary print statement
 - PR #464 Limit initial RMM pool allocator size to 128mb so pytest can run in parallel
+- PR #481 Run bfs on unweighted graphs when calling sssp 
 
 ## Bug Fixes
 - PR #458 Fix potential race condition in SSSP
