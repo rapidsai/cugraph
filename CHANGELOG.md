@@ -1,6 +1,7 @@
 # cuGraph 0.10.0 (Date TBD)
 
 ## New Features
+- PR #477 Add cuHornet as a submodule
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
