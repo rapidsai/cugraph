@@ -285,6 +285,28 @@ gdf_error gdf_snmg_pagerank (
  *                                                                              
  * @Param[out] *katz_centrality      If set to a valid column, this is populated by the katz centrality of every vertex in the graph
  *                                                                              
+ * @Param[in] alpha                  Attenuation factor with a default value of 0.1. Alpha is set to
+                                     1/(lambda_max) if it is greater where lambda_max is the maximum degree
+                                     of the graph.
+ *
+ * @Param[in] max_iter               The maximum number of iterations before an answer is returned. This can
+                                     be used to limit the execution time and do an early exit before the
+                                     solver reaches the convergence tolerance.
+                                     If this value is lower or equal to 0 cuGraph will use the default
+                                     value, which is 100.
+ *                                                                              
+ * @Param[in] tol                    Set the tolerance the approximation, this parameter should be a small
+                                     magnitude value.
+                                     The lower the tolerance the better the approximation. If this value is
+                                     0.0f, cuGraph will use the default value which is 1.0E-5.
+                                     Setting too small a tolerance can lead to non-convergence due to
+                                     numerical roundoff. Usually values between 0.01 and 0.00001 are
+                                     acceptable.
+ *                                                                              
+ * @Param[in] has_guess              Flag to determine whether \p katz_centrality contains an initial guess for katz centrality values
+ *                                                                              
+ * @Param[in] normalized             If True normalize the resulting katz centrality values
+ *                                                                              
  * @Returns                          GDF_SUCCESS upon successful completion.    
  */                                                                             
 /* ----------------------------------------------------------------------------*/

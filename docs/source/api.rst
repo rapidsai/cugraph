@@ -29,6 +29,16 @@ Conversion from Other Formats
     :undoc-members:
 
 
+Centrality
+==========
+
+Katz Centrality
+---------------
+
+.. automodule:: cugraph.centrality.katz_centrality
+    :members:
+    :undoc-members:
+
 Community
 =========
 
@@ -53,7 +63,7 @@ Subgraph Extraction
     :members:
     :undoc-members:
 
-Tirangle Counting
+Triangle Counting
 -----------------
 
 .. automodule:: cugraph.community.triangle_count

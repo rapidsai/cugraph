@@ -51,7 +51,7 @@ def calc_katz(graph_file):
     largest_out_degree = largest_out_degree['out_degree'][0]
     katz_alpha = 1/(largest_out_degree + 1)
 
-    k = cugraph.katz_centrality(G, katz_alpha)
+    k = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
 
     NM = utils.read_mtx_file(graph_file + ".mtx")
     NM = NM.tocsr()

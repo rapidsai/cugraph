@@ -17,17 +17,20 @@ from cugraph.centrality import katz_centrality_wrapper
 def katz_centrality(G,
                     alpha=0.1,
                     max_iter=100,
-                    tol=1.0e-5,
+                    tol=1.0e-6,
                     nstart=None,
                     normalized=True):
     """
-    Compute the Katz centrality for the nodes of the graph G
+    Compute the Katz centrality for the nodes of the graph G. cuGraph does not
+    currently support the 'beta' and 'weight' parameters as seen in the
+    corresponding networkX call.
 
     Parameters
     ----------
     graph : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. Edge weights,
-        if present, should be single or double precision floating point values.
+        cuGraph graph descriptor with connectivity information. The graph can
+        contain either directed or undirected edges where undirected edges are
+        represented as directed edges in both directions.
     alpha : float
         Attenuation factor with a default value of 0.1. Alpha is set to
         1/(lambda_max) if it is greater where lambda_max is the maximum degree
@@ -42,9 +45,9 @@ def katz_centrality(G,
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
-        0.0f, cuGraph will use the default value which is 1.0E-5.
+        0.0f, cuGraph will use the default value which is 1.0e-5.
         Setting too small a tolerance can lead to non-convergence due to
-        numerical roundoff. Usually values between 0.01 and 0.00001 are
+        numerical roundoff. Usually values between 1e-2 and 1e-5 are
         acceptable.
     nstart : cudf.Dataframe
         GPU Dataframe containing the initial guess for katz centrality.
@@ -54,8 +57,13 @@ def katz_centrality(G,
     Returns
     -------
     df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex.
-        df['katz_centrality'][i] gives the katz centrality of the i'th vertex.
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding katz centrality values.
+
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df['katz_centrality'] : cudf.Series
+            Contains the katz centrality of vertices
 
     Examples
     --------

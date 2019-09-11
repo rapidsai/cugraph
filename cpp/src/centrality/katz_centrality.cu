@@ -49,6 +49,12 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
       reinterpret_cast<int*>(graph->adjList->indices->data));
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
   Katz katz(hnt, alpha, max_iter, tol, normalized, isStatic, reinterpret_cast<double*>(katz_centrality->data));
+  if (katz.getAlpha() < alpha) {
+    std::cerr<<"Error : alpha is not small enough ( < "<<katz.getAlpha()<<") for convergence"<<std::endl; return GDF_CUDA_ERROR;
+  }
   katz.run();
+  if (!katz.hasConverged()) {
+    std::cerr<<"Error : Convergence not reached"<<std::endl; return GDF_CUDA_ERROR;
+  }
   return GDF_SUCCESS;
 }
