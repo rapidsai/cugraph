@@ -112,6 +112,7 @@ namespace cugraph {
     std::vector<db_column_index<idx_t>> indices;
   public:
     db_table();
+    ~db_table();
     void addColumn(std::string name);
     void addEntry(db_pattern<idx_t>& pattern);
 

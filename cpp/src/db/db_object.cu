@@ -105,8 +105,12 @@ namespace cugraph {
 
   template<typename idx_t>
   void db_column_index<idx_t>::deleteData() {
-    delete offsets;
-    delete indirection;
+    if (offsets->data != nullptr)
+      ALLOC_FREE_TRY(offsets->data, nullptr);
+    if (indirection->data != nullptr)
+      ALLOC_FREE_TRY(indirection->data, nullptr);
+    free(offsets);
+    free(indirection);
   }
 
   template<typename idx_t>
@@ -238,8 +242,17 @@ namespace cugraph {
   }
 
   template<typename idx_t>
+  db_table<idx_t>::~db_table() {
+    for (size_t i = 0; i < columns.size(); i++) {
+      if (columns[i]->data != nullptr)
+        ALLOC_FREE_TRY(columns[i]->data, nullptr);
+      free(columns[i]);
+    }
+  }
+
+  template<typename idx_t>
   void db_table<idx_t>::addColumn(std::string name) {
-    if (columns.size() > 0 && columns[0]->size > 0)
+    if (columns.size() > (size_t)0 && columns[0]->size > 0)
       throw new std::invalid_argument("Can't add a column to a non-empty table");
 
     gdf_column* _col = (gdf_column*) malloc(sizeof(gdf_column));
@@ -258,7 +271,7 @@ namespace cugraph {
   void db_table<idx_t>::addEntry(db_pattern<idx_t>& pattern) {
     if (!pattern.isAllConstants())
       throw new std::invalid_argument("Can't add an entry that isn't all constants");
-    if (!pattern.getSize() != columns.size())
+    if ((size_t)pattern.getSize() != columns.size())
       throw new std::invalid_argument("Can't add an entry that isn't the right size");
     inputBuffer.push_back(pattern);
   }
@@ -354,6 +367,8 @@ namespace cugraph {
 
   template<typename idx_t>
   void db_table<idx_t>::flush_input() {
+    if (inputBuffer.size() == (size_t)0)
+      return;
     idx_t tempSize = inputBuffer.size();
     std::vector<idx_t*> tempColumns;
     for (size_t i = 0; i < columns.size(); i++) {
@@ -372,12 +387,15 @@ namespace cugraph {
       newColumns.push_back(newCol);
     }
     for (size_t i = 0; i < columns.size(); i++) {
-      cudaMemcpy(newColumns[i], columns[i]->data, sizeof(idx_t) * currentSize, cudaMemcpyDefault);
+      if (currentSize > 0)
+        cudaMemcpy(newColumns[i], columns[i]->data, sizeof(idx_t) * currentSize, cudaMemcpyDefault);
       cudaMemcpy(newColumns[i] + currentSize,
                  tempColumns[i],
                  sizeof(idx_t) * tempSize,
                  cudaMemcpyDefault);
-      ALLOC_FREE_TRY(columns[i]->data, nullptr);
+      free(tempColumns[i]);
+      if (columns[i]->data != nullptr)
+        ALLOC_FREE_TRY(columns[i]->data, nullptr);
       columns[i]->data = newColumns[i];
       columns[i]->size = newSize;
     }

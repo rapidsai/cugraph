@@ -183,7 +183,7 @@ namespace cugraph {
       // Find which position in the pattern is the index column
       int indexPosition = -1;
       for (int i = 0; i < pattern.getSize(); i++) {
-        if (pattern.getEntry(i).isVariable && pattern.getEntry(i).getVariable() == indexColumn)
+        if (pattern.getEntry(i).isVariable() && pattern.getEntry(i).getVariable() == indexColumn)
           indexPosition = i;
       }
       if (indexPosition == -1)
@@ -201,7 +201,7 @@ namespace cugraph {
       idx_t frontierSize;
       idx_t* frontier_ptr = nullptr;
       if (givenInputFrontier) {
-        frontier_ptr = frontier->data;
+        frontier_ptr = (idx_t*)frontier->data;
         frontierSize = frontier->size;
       }
       if (!givenInputFrontier) {
@@ -215,11 +215,11 @@ namespace cugraph {
       }
 
       // Collect all the pointers needed to run the main kernel
-      idx_t* columnA = table.getColumn(0)->data;
-      idx_t* columnB = table.getColumn(1)->data;
-      idx_t* columnC = table.getColumn(2)->data;
-      idx_t* offsets = theIndex.getOffsets()->data;
-      idx_t* indirection = theIndex.getIndirection()->data;
+      idx_t* columnA = (idx_t*)table.getColumn(0)->data;
+      idx_t* columnB = (idx_t*)table.getColumn(1)->data;
+      idx_t* columnC = (idx_t*)table.getColumn(2)->data;
+      idx_t* offsets = (idx_t*)theIndex.getOffsets()->data;
+      idx_t* indirection = (idx_t*)theIndex.getIndirection()->data;
 
       // Load balance the input
       idx_t *exsum_degree = nullptr;
@@ -397,5 +397,10 @@ namespace cugraph {
       // Return the result
       return result;
     }
+
+    template db_result<int32_t> findMatches(db_pattern<int32_t>& pattern,
+                                            db_table<int32_t>& table,
+                                            gdf_column* frontier,
+                                            std::string indexColumn);
   } // namespace db
 } // namespace cugraph
