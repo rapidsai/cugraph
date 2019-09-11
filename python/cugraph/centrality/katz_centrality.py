@@ -23,7 +23,11 @@ def katz_centrality(G,
     """
     Compute the Katz centrality for the nodes of the graph G. cuGraph does not
     currently support the 'beta' and 'weight' parameters as seen in the
-    corresponding networkX call.
+    corresponding networkX call. This implementation is based on a relaxed
+    version of Katz defined by Foster with a reduced computational complexity
+    of O(n+m)
+
+    Foster, K.C., Muth, S.Q., Potterat, J.J. et al. Computational & Mathematical Organization Theory (2001) 7: 275. https://doi.org/10.1023/A:1013470632383
 
     Parameters
     ----------
@@ -32,9 +36,9 @@ def katz_centrality(G,
         contain either directed or undirected edges where undirected edges are
         represented as directed edges in both directions.
     alpha : float
-        Attenuation factor with a default value of 0.1. Alpha is set to
-        1/(lambda_max) if it is greater where lambda_max is the maximum degree
-        of the graph.
+        Attenuation factor with a default value of 0.1.  If alpha is not less
+        than 1/(lambda_max) where lambda_max is the maximum degree
+        GDF_CUDA_ERROR is returned
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
@@ -45,9 +49,9 @@ def katz_centrality(G,
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
-        0.0f, cuGraph will use the default value which is 1.0e-5.
+        0.0f, cuGraph will use the default value which is 1.0e-6.
         Setting too small a tolerance can lead to non-convergence due to
-        numerical roundoff. Usually values between 1e-2 and 1e-5 are
+        numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
     nstart : cudf.Dataframe
         GPU Dataframe containing the initial guess for katz centrality.
