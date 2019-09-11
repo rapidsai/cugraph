@@ -27,7 +27,9 @@ def katz_centrality(G,
     version of Katz defined by Foster with a reduced computational complexity
     of O(n+m)
 
-    Foster, K.C., Muth, S.Q., Potterat, J.J. et al. Computational & Mathematical Organization Theory (2001) 7: 275. https://doi.org/10.1023/A:1013470632383
+    Foster, K.C., Muth, S.Q., Potterat, J.J. et al.
+    Computational & Mathematical Organization Theory (2001) 7: 275.
+    https://doi.org/10.1023/A:1013470632383
 
     Parameters
     ----------
