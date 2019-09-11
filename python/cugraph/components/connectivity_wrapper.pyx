@@ -26,7 +26,7 @@ import cudf
 import cudf._lib as libcudf
 import numpy as np
 
-def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
+def weakly_connected_components(graph_ptr):
     """
     Call gdf_connected_components
     """
@@ -47,6 +47,7 @@ def weakly_connected_components(graph_ptr, connect_type=CUGRAPH_WEAK):
     
     cdef cudf_table* tbl = table_from_dataframe(df)
 
+    cdef cugraph_cc_t connect_type=CUGRAPH_WEAK
     err = gdf_connected_components(g, <cugraph_cc_t>connect_type, tbl)
     libcudf.cudf.check_gdf_error(err)
 
