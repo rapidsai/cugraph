@@ -2,3 +2,6 @@
 	path = thirdparty/cub
 	url = https://github.com/NVlabs/cub.git
         branch = 1.8.0
+[submodule "thirdparty/cuhornet"]
+	path = thirdparty/cuhornet
+	url = https://github.com/rapidsai/cuhornet.git
