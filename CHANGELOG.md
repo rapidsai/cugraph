@@ -16,6 +16,7 @@
 - PR #471 Remove nvidia driver installation from ci/cpu/build.sh
 - PR #473 Re-sync cugraph with cudf (cudf renamed the bindings directory to _lib).
 - PR #478 Remove requirements and setup for pi
+- PR #489 Handle negative vertex ids in renumber
 
 
 # cuGraph 0.9.0 (Date TBD)
