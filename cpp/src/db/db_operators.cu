@@ -128,7 +128,7 @@ namespace cugraph {
         }
         __syncthreads();
 
-        int sectionSize = blockRange[1] - blockRange[0];
+        idx_t sectionSize = blockRange[1] - blockRange[0];
         for (int tid = threadIdx.x; tid <= sectionSize; tid += blockDim.x) {
           localExSum[tid] = expandCounts[blockRange[0] + tid];
           localFrontier[tid] = frontier[blockRange[0] + tid];
@@ -139,7 +139,7 @@ namespace cugraph {
         idx_t tid = bid * blockDim.x + threadIdx.x;
         if (tid < outputSize) {
           // Figure out which row this thread/iteration is working on
-          idx_t sourceIdx = binsearch_maxle(localExSum, tid, 0, sectionSize);
+          idx_t sourceIdx = binsearch_maxle(localExSum, tid, (idx_t)0, (idx_t)sectionSize);
           idx_t source = localFrontier[sourceIdx];
           idx_t rank = tid - localExSum[sourceIdx];
           idx_t row_id = indirection[offsets[source] + rank];
@@ -149,10 +149,14 @@ namespace cugraph {
           idx_t valB = columnB[row_id];
           idx_t valC = columnC[row_id];
 
+          // Debugging output
+//          printf("RowId: %d, valA: %d, valB: %d, valC: %d\n", row_id, valA, valB, valC);
+//          printf("PatternA: %d, PatternB: %d, PatternC: %d\n", patternA, patternB, patternC);
+
           // Compare the row values with constants in the pattern
-          bool matchA = outputA == nullptr ? true : patternA == valA;
-          bool matchB = outputB == nullptr ? true : patternB == valB;
-          bool matchC = outputC == nullptr ? true : patternC == valC;
+          bool matchA = outputA != nullptr ? true : patternA == valA;
+          bool matchB = outputB != nullptr ? true : patternB == valB;
+          bool matchC = outputC != nullptr ? true : patternC == valC;
 
           // If row doesn't match, set row values to -1 before writing out
           if (!(matchA && matchB && matchC)) {
@@ -179,15 +183,9 @@ namespace cugraph {
     db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
                         db_table<idx_t>& table,
                         gdf_column* frontier,
-                        std::string indexColumn) {
-      // Find which position in the pattern is the index column
-      int indexPosition = -1;
-      for (int i = 0; i < pattern.getSize(); i++) {
-        if (pattern.getEntry(i).isVariable() && pattern.getEntry(i).getVariable() == indexColumn)
-          indexPosition = i;
-      }
-      if (indexPosition == -1)
-        throw new std::invalid_argument("Index column variable not found.");
+                        int indexPosition) {
+      // Find out if the indexPosition is a variable or constant
+      bool indexConstant = !pattern.getEntry(indexPosition).isVariable();
 
       db_column_index<idx_t>& theIndex = table.getIndex(indexPosition);
 
@@ -197,21 +195,33 @@ namespace cugraph {
         saveRowIds = true;
 
       // Check if we have a frontier to use, if we don't make one up
-      bool givenInputFrontier = !(frontier == nullptr);
+      bool givenInputFrontier = frontier != nullptr;
       idx_t frontierSize;
       idx_t* frontier_ptr = nullptr;
       if (givenInputFrontier) {
         frontier_ptr = (idx_t*)frontier->data;
         frontierSize = frontier->size;
       }
-      if (!givenInputFrontier) {
-        // Making a sequence of values from zero to n where n is the highest ID present in the index.
-        idx_t highestId = theIndex.getOffsets()->size - 2;
-        ALLOC_TRY(&frontier_ptr, sizeof(idx_t) * (highestId + 1), nullptr);
-        thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr),
-                         frontier_ptr,
-                         frontier_ptr + highestId + 1);
-        frontierSize = highestId + 1;
+      else {
+        if (indexConstant) {
+          // Use a single value equal to the constant in the pattern
+          idx_t constantValue = pattern.getEntry(indexPosition).getConstant();
+          ALLOC_TRY(&frontier_ptr, sizeof(idx_t), nullptr);
+          thrust::fill(rmm::exec_policy(nullptr)->on(nullptr),
+                       frontier_ptr,
+                       frontier_ptr + 1,
+                       constantValue);
+          frontierSize = 1;
+        }
+        else {
+          // Making a sequence of values from zero to n where n is the highest ID present in the index.
+          idx_t highestId = theIndex.getOffsets()->size - 2;
+          ALLOC_TRY(&frontier_ptr, sizeof(idx_t) * (highestId + 1), nullptr);
+          thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr),
+                           frontier_ptr,
+                           frontier_ptr + highestId + 1);
+          frontierSize = highestId + 1;
+        }
       }
 
       // Collect all the pointers needed to run the main kernel
@@ -238,6 +248,9 @@ namespace cugraph {
                              exsum_degree + 1);
       idx_t output_size;
       cudaMemcpy(&output_size, &exsum_degree[frontierSize], sizeof(idx_t), cudaMemcpyDefault);
+
+      // Debugging output
+//      std::cout << "OutputSize = " << output_size << "\n";
 
       idx_t num_blocks = (output_size + FIND_MATCHES_BLOCK_SIZE - 1) / FIND_MATCHES_BLOCK_SIZE;
       idx_t *block_bucket_offsets = nullptr;
@@ -306,6 +319,44 @@ namespace cugraph {
                                                      patternA,
                                                      patternB,
                                                      patternC);
+
+      // Debugging output
+//      if (outputA != nullptr) {
+//        idx_t* outputA_h = (idx_t*)malloc(sizeof(idx_t) * output_size);
+//        cudaMemcpy(outputA_h, outputA, sizeof(idx_t)*output_size, cudaMemcpyDefault);
+//        std::cout << "OutputA: ";
+//        for (int i = 0; i < output_size; i++)
+//          std::cout << outputA_h[i] << " ";
+//        std::cout << "\n";
+//        free(outputA_h);
+//      }
+//      if (outputB != nullptr) {
+//        idx_t* outputB_h = (idx_t*) malloc(sizeof(idx_t) * output_size);
+//        cudaMemcpy(outputB_h, outputB, sizeof(idx_t) * output_size, cudaMemcpyDefault);
+//        std::cout << "OutputB: ";
+//        for (int i = 0; i < output_size; i++)
+//          std::cout << outputB_h[i] << " ";
+//        std::cout << "\n";
+//        free(outputB_h);
+//      }
+//      if (outputC != nullptr) {
+//        idx_t* outputC_h = (idx_t*) malloc(sizeof(idx_t) * output_size);
+//        cudaMemcpy(outputC_h, outputC, sizeof(idx_t) * output_size, cudaMemcpyDefault);
+//        std::cout << "OutputC: ";
+//        for (int i = 0; i < output_size; i++)
+//          std::cout << outputC_h[i] << " ";
+//        std::cout << "\n";
+//        free(outputC_h);
+//      }
+//      if (outputD != nullptr) {
+//        idx_t* outputD_h = (idx_t*) malloc(sizeof(idx_t) * output_size);
+//        cudaMemcpy(outputD_h, outputD, sizeof(idx_t) * output_size, cudaMemcpyDefault);
+//        std::cout << "OutputD: ";
+//        for (int i = 0; i < output_size; i++)
+//          std::cout << outputD_h[i] << " ";
+//        std::cout << "\n";
+//        free(outputD_h);
+//      }
 
       // Get the non-null output columns
       std::vector<idx_t*> columns;
@@ -382,6 +433,10 @@ namespace cugraph {
       }
 
       // Clean up allocations
+      if (!givenInputFrontier)
+        ALLOC_FREE_TRY(frontier_ptr, nullptr);
+      ALLOC_FREE_TRY(exsum_degree, nullptr);
+      ALLOC_FREE_TRY(block_bucket_offsets, nullptr);
       ALLOC_FREE_TRY(tempSpace, nullptr);
       ALLOC_FREE_TRY(compactSize_d, nullptr);
       ALLOC_FREE_TRY(flags, nullptr);
@@ -401,6 +456,10 @@ namespace cugraph {
     template db_result<int32_t> findMatches(db_pattern<int32_t>& pattern,
                                             db_table<int32_t>& table,
                                             gdf_column* frontier,
-                                            std::string indexColumn);
+                                            int indexPosition);
+    template db_result<int64_t> findMatches(db_pattern<int64_t>& pattern,
+                                            db_table<int64_t>& table,
+                                            gdf_column* frontier,
+                                            int indexPosition);
   } // namespace db
 } // namespace cugraph

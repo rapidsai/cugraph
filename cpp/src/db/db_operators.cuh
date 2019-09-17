@@ -42,6 +42,6 @@ namespace cugraph {
     db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
                                  db_table<idx_t>& table,
                                  gdf_column* frontier,
-                                 std::string indexColumn);
+                                 int indexPosition);
   }
 }

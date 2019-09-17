@@ -35,6 +35,7 @@ namespace cugraph {
     db_pattern_entry(std::string variable);
     db_pattern_entry(idx_t constant);
     db_pattern_entry(const db_pattern_entry<idx_t>& other);
+    db_pattern_entry& operator=(const db_pattern_entry<idx_t>& other);
     bool isVariable() const;
     idx_t getConstant() const;
     std::string getVariable() const;
@@ -54,6 +55,7 @@ namespace cugraph {
   public:
     db_pattern();
     db_pattern(const db_pattern<idx_t>& other);
+    db_pattern& operator=(const db_pattern<idx_t>& other);
     int getSize() const;
     const db_pattern_entry<idx_t>& getEntry(int position) const;
     void addEntry(db_pattern_entry<idx_t>& entry);
@@ -71,7 +73,11 @@ namespace cugraph {
   public:
     db_column_index();
     db_column_index(gdf_column* offsets, gdf_column* indirection);
+    db_column_index(const db_column_index& other) = delete;
+    db_column_index(db_column_index&& other);
     ~db_column_index();
+    db_column_index& operator=(const db_column_index& other) = delete;
+    db_column_index& operator=(db_column_index&& other);
     void resetData(gdf_column* offsets, gdf_column* indirection);
     gdf_column* getOffsets();
     gdf_column* getIndirection();
@@ -96,9 +102,15 @@ namespace cugraph {
     db_result& operator=(db_result& other) = delete;
     db_result& operator=(const db_result& other) = delete;
     void deleteData();
+    idx_t getSize();
     idx_t* getData(std::string idx);
     void addColumn(std::string columnName);
     void allocateColumns(idx_t size);
+    /**
+     * For debugging purposes
+     * @return Human readable representation
+     */
+    std::string toString();
   };
 
   /**
@@ -130,6 +142,13 @@ namespace cugraph {
      * the existing table.
      */
     void flush_input();
+
+    /**
+     * This method is for debugging purposes. It returns a human readable string representation
+     * of the table.
+     * @return Human readable string representation
+     */
+    std::string toString();
     db_column_index<idx_t>& getIndex(int idx);
     gdf_column* getColumn(int idx);
   };
