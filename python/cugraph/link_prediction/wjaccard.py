@@ -75,8 +75,8 @@ def jaccard_w(input_graph, weights, first=None, second=None):
     >>> df = cugraph.jaccard_w(G, weights)
     """
 
-    if (type(first) == cudf.dataframe.series.Series and
-            type(second) == cudf.dataframe.series.Series):
+    if (type(first) == cudf.Series and
+            type(second) == cudf.Series):
         null_check(first)
         null_check(second)
     elif first is None and second is None:

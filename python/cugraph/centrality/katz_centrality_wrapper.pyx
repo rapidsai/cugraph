@@ -16,22 +16,24 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.traversal.c_bfs cimport *
+from cugraph.centrality.c_katz_centrality cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
+from libc.stdlib cimport calloc, malloc, free
+from libc.float cimport FLT_MAX_EXP
 
 import cudf
 import cudf._lib as libcudf
+from librmm_cffi import librmm as rmm
 import numpy as np
 
 
-def bfs(graph_ptr, start, directed=True):
+def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     """
-    Call gdf_bfs
+    Call gdf_katz_centrality
     """
-
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
@@ -44,16 +46,22 @@ def bfs(graph_ptr, start, directed=True):
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_vertex_col = get_gdf_column_view(df['vertex'])
-    cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
-    cdef gdf_column c_predecessor_col = get_gdf_column_view(df['predecessor'])
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
+    df['katz_centrality'] = cudf.Series(np.zeros(num_verts, dtype=np.float64))
+    cdef gdf_column c_katz_centrality_col = get_gdf_column_view(df['katz_centrality'])
 
-    err = g.adjList.get_vertex_identifiers(&c_vertex_col)
+    cdef bool has_guess = <bool> 0
+    if nstart is not None:
+        cudf.bindings.copying.apply_scatter([nstart['values']._column],
+                                            nstart['vertex']._column._data.mem,
+                                            [df['katz_centrality']._column])
+        has_guess = <bool> 1
+
+    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     libcudf.cudf.check_gdf_error(err)
 
-    err = gdf_bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+    err = gdf_katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
+
     libcudf.cudf.check_gdf_error(err)
 
     return df
