@@ -18,7 +18,7 @@
 - PR #478 Remove requirements and setup for pi
 
 
-# cuGraph 0.9.0 (Date TBD)
+# cuGraph 0.9.0 (21 Aug 2019)
 
 ## New Features
 - PR #361 Prototypes for cusort functions
