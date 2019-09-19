@@ -145,6 +145,20 @@ if(OpenMP_FOUND)
 endif(OpenMP_FOUND)
 
 ###################################################################################################
+# - find libcypher-parser -------------------------------------------------------------------------
+
+find_path(LIBCYPHERPARSER_INCLUDE "cypher-parser.h"
+          HINTS "$ENV{CONDA_PREFIX}/include")
+
+find_library(LIBCYPHERPARSER_LIBRARY STATIC "libcypher-parser.a"
+             HINTS "$ENV{CONDA_PREFIX}/lib")
+
+add_library(libcypher-parser STATIC IMPORTED ${LIBCYPHERPARSER_LIBRARY})
+if (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
+    set_target_properties(libcypher-parser PROPERTIES IMPORTED_LOCATION ${LIBCYPHERPARSER_LIBRARY})
+endif (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
+
+###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
 
 if(BUILD_TESTS)
