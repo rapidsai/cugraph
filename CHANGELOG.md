@@ -4,6 +4,7 @@
 - PR #469 Symmetrize a COO
 - PR #477 Add cuHornet as a submodule
 - PR #483 Katz Centrality
+- PR #493 Added C++ findMatches operator for OpenCypher query.
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
