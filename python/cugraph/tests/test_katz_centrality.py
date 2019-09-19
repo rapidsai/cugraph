@@ -16,7 +16,7 @@ from itertools import product
 
 import pytest
 
-import cudf
+import pandas as pd
 import cugraph
 from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
@@ -33,70 +33,54 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-def cugraph_call(M, edgevals=False):
-    M = M.tocoo()
-    rows = cudf.Series(M.row)
-    cols = cudf.Series(M.col)
-    if edgevals is False:
-        values = None
-    else:
-        values = cudf.Series(M.data)
+print('Networkx version : {} '.format(nx.__version__))
+
+
+def topKVertices(katz, col, k):
+    top = katz.nlargest(n=k, columns=col)
+    top = top.sort_values(by=col, ascending=False)
+    return top['vertex']
+
+
+def calc_katz(graph_file):
+    M = utils.read_csv_file(graph_file + ".csv")
     G = cugraph.Graph()
-    G.add_edge_list(rows, cols, values)
-    return cugraph.triangles(G)
+    G.add_edge_list(M['0'], M['1'])
+
+    largest_out_degree = G.degrees().nlargest(n=1, columns='out_degree')
+    largest_out_degree = largest_out_degree['out_degree'][0]
+    katz_alpha = 1/(largest_out_degree + 1)
+
+    k = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
+
+    NM = utils.read_mtx_file(graph_file + ".mtx")
+    NM = NM.tocsr()
+    Gnx = nx.DiGraph(NM)
+    nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
+    pdf = pd.DataFrame(nk, index=[0]).T
+    k['nx_katz'] = pdf[0]
+    k = k.rename({'katz_centrality': 'cu_katz'})
+    return k
 
 
-def networkx_call(M):
-    Gnx = nx.Graph(M)
-    dic = nx.triangles(Gnx)
-    count = 0
-    for i in range(len(dic)):
-        count += dic[i]
-    return count
+DATASETS = ['../datasets/dolphins', '../datasets/netscience']
 
 
-DATASETS = ['../datasets/dolphins.mtx',
-            '../datasets/karate.mtx',
-            '../datasets/netscience.mtx']
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_triangles(managed, pool, graph_file):
+def test_katz_centrality(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
     rmm_cfg.use_managed_memory = managed
     rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
-    cu_count = cugraph_call(M)
-    nx_count = networkx_call(M)
-    assert cu_count == nx_count
+    katz_scores = calc_katz(graph_file)
+    topKNX = topKVertices(katz_scores, 'nx_katz', 10)
+    topKCU = topKVertices(katz_scores, 'cu_katz', 10)
 
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_triangles_edge_vals(managed, pool, graph_file):
-    gc.collect()
-
-    rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
-    rmm.initialize()
-
-    assert(rmm.is_initialized())
-
-    M = utils.read_mtx_file(graph_file)
-    cu_count = cugraph_call(M, edgevals=True)
-    nx_count = networkx_call(M)
-    assert cu_count == nx_count
+    assert topKNX.equals(topKCU)
