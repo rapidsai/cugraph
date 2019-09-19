@@ -316,7 +316,7 @@ namespace cugraph {
 
   template<typename idx_t>
   void db_table<idx_t>::addColumn(std::string name) {
-    if (columns.size() > (size_t)0 && columns[0]->size > 0)
+    if (columns.size() > size_t{0} && columns[0]->size > 0)
       throw new std::invalid_argument("Can't add a column to a non-empty table");
 
     gdf_column* _col = (gdf_column*) malloc(sizeof(gdf_column));
@@ -335,7 +335,7 @@ namespace cugraph {
   void db_table<idx_t>::addEntry(db_pattern<idx_t>& pattern) {
     if (!pattern.isAllConstants())
       throw new std::invalid_argument("Can't add an entry that isn't all constants");
-    if ((size_t)pattern.getSize() != columns.size())
+    if (static_cast<size_t>(pattern.getSize()) != columns.size())
       throw new std::invalid_argument("Can't add an entry that isn't the right size");
     inputBuffer.push_back(pattern);
   }
@@ -431,7 +431,7 @@ namespace cugraph {
 
   template<typename idx_t>
   void db_table<idx_t>::flush_input() {
-    if (inputBuffer.size() == (size_t)0)
+    if (inputBuffer.size() == size_t{0})
       return;
     idx_t tempSize = inputBuffer.size();
     std::vector<idx_t*> tempColumns;

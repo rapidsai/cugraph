@@ -53,12 +53,12 @@ public:
 };
 
 TEST_F(Test_FindMatches, verifyIndices) {
-  int32_t* offsets_d = (int32_t*)table.getIndex(0).getOffsets()->data;
+  int32_t* offsets_d = reinterpret_cast<int32_t*>(table.getIndex(0).getOffsets()->data);
   int32_t offsetsSize = table.getIndex(0).getOffsets()->size;
-  int32_t* indirection_d = (int32_t*)table.getIndex(0).getIndirection()->data;
+  int32_t* indirection_d = reinterpret_cast<int32_t*>(table.getIndex(0).getIndirection()->data);
   int32_t indirectionSize = table.getIndex(0).getIndirection()->size;
-  int32_t* offsets_h = (int32_t*)malloc(sizeof(int32_t) * offsetsSize);
-  int32_t* indirection_h = (int32_t*)malloc(sizeof(int32_t) * indirectionSize);
+  int32_t* offsets_h = new int32_t[offsetsSize];
+  int32_t* indirection_h = new int32_t[indirectionSize];
   cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
   cudaMemcpy(indirection_h, indirection_d, sizeof(int32_t) * indirectionSize, cudaMemcpyDefault);
   std::cout << "Offsets[0]: ";
@@ -69,15 +69,15 @@ TEST_F(Test_FindMatches, verifyIndices) {
   for (int i = 0; i < indirectionSize; i++)
     std::cout << indirection_h[i] << " ";
   std::cout << "\n";
-  free(offsets_h);
-  free(indirection_h);
+  delete[] offsets_h;
+  delete[] indirection_h;
 
-  offsets_d = (int32_t*) table.getIndex(1).getOffsets()->data;
+  offsets_d = reinterpret_cast<int32_t*>(table.getIndex(1).getOffsets()->data);
   offsetsSize = table.getIndex(1).getOffsets()->size;
-  indirection_d = (int32_t*) table.getIndex(1).getIndirection()->data;
+  indirection_d = reinterpret_cast<int32_t*>(table.getIndex(1).getIndirection()->data);
   indirectionSize = table.getIndex(1).getIndirection()->size;
-  offsets_h = (int32_t*) malloc(sizeof(int32_t) * offsetsSize);
-  indirection_h = (int32_t*) malloc(sizeof(int32_t) * indirectionSize);
+  offsets_h = new int32_t[offsetsSize];
+  indirection_h = new int32_t[indirectionSize];
   cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
   cudaMemcpy(indirection_h, indirection_d, sizeof(int32_t) * indirectionSize, cudaMemcpyDefault);
   std::cout << "Offsets[1]: ";
@@ -88,15 +88,15 @@ TEST_F(Test_FindMatches, verifyIndices) {
   for (int i = 0; i < indirectionSize; i++)
     std::cout << indirection_h[i] << " ";
   std::cout << "\n";
-  free(offsets_h);
-  free(indirection_h);
+  delete[] offsets_h;
+  delete[] indirection_h;
 
-  offsets_d = (int32_t*) table.getIndex(2).getOffsets()->data;
+  offsets_d = reinterpret_cast<int32_t*>(table.getIndex(2).getOffsets()->data);
   offsetsSize = table.getIndex(2).getOffsets()->size;
-  indirection_d = (int32_t*) table.getIndex(2).getIndirection()->data;
+  indirection_d = reinterpret_cast<int32_t*>(table.getIndex(2).getIndirection()->data);
   indirectionSize = table.getIndex(2).getIndirection()->size;
-  offsets_h = (int32_t*) malloc(sizeof(int32_t) * offsetsSize);
-  indirection_h = (int32_t*) malloc(sizeof(int32_t) * indirectionSize);
+  offsets_h = new int32_t[offsetsSize];
+  indirection_h = new int32_t[indirectionSize];
   cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
   cudaMemcpy(indirection_h, indirection_d, sizeof(int32_t) * indirectionSize, cudaMemcpyDefault);
   std::cout << "Offsets[2]: ";
@@ -107,8 +107,8 @@ TEST_F(Test_FindMatches, verifyIndices) {
   for (int i = 0; i < indirectionSize; i++)
     std::cout << indirection_h[i] << " ";
   std::cout << "\n";
-  free(offsets_h);
-  free(indirection_h);
+  delete[] offsets_h;
+  delete[] indirection_h;
 }
 
 TEST_F(Test_FindMatches, firstTest){
@@ -121,15 +121,15 @@ TEST_F(Test_FindMatches, firstTest){
   p.addEntry(p3);
   cugraph::db_result<int32_t> result = cugraph::db::findMatches(p, table, nullptr, 1);
   ASSERT_EQ(result.getSize(), 1);
-  int32_t* resultA = (int32_t*)malloc(sizeof(int32_t) * result.getSize());
-  int32_t* resultB = (int32_t*)malloc(sizeof(int32_t) * result.getSize());
+  int32_t* resultA = new int32_t[result.getSize()];
+  int32_t* resultB = new int32_t[result.getSize()];
   cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
   cudaMemcpy(resultB, result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
   ASSERT_EQ(resultA[0], 1);
   ASSERT_EQ(resultB[0], 2);
 
-  free(resultA);
-  free(resultB);
+  delete[] resultA;
+  delete[] resultB;
 }
 
 TEST_F(Test_FindMatches, secondTest) {
@@ -148,8 +148,8 @@ TEST_F(Test_FindMatches, secondTest) {
   cugraph::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 2);
 
   ASSERT_EQ(result.getSize(), 2);
-  int32_t* resultA = (int32_t*) malloc(sizeof(int32_t) * result.getSize());
-  int32_t* resultB = (int32_t*) malloc(sizeof(int32_t) * result.getSize());
+  int32_t* resultA = new int32_t[result.getSize()];
+  int32_t* resultB = new int32_t[result.getSize()];
   cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
   cudaMemcpy(resultB, result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
 
@@ -160,8 +160,8 @@ TEST_F(Test_FindMatches, secondTest) {
   ASSERT_EQ(resultA[1], 1);
   ASSERT_EQ(resultB[1], 2);
 
-  free(resultA);
-  free(resultB);
+  delete[] resultA;
+  delete[] resultB;
 }
 
 TEST_F(Test_FindMatches, thirdTest) {
@@ -187,13 +187,13 @@ TEST_F(Test_FindMatches, thirdTest) {
   cugraph::db_result<int32_t> result = cugraph::db::findMatches(q, table, frontier, 0);
 
   ASSERT_EQ(result.getSize(), 1);
-  int32_t* resultA = (int32_t*) malloc(sizeof(int32_t) * result.getSize());
+  int32_t* resultA = new int32_t[result.getSize()];
   cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
 
   std::cout << result.toString();
 
   ASSERT_EQ(resultA[0], 0);
-  free(resultA);
+  delete[] resultA;
 }
 
 TEST_F(Test_FindMatches, fourthTest) {
@@ -215,9 +215,9 @@ TEST_F(Test_FindMatches, fourthTest) {
   std::cout << result.toString();
   ASSERT_EQ(result.getSize(), 3);
 
-  int32_t* resultA = (int32_t*) malloc(sizeof(int32_t) * result.getSize());
+  int32_t* resultA = new int32_t[result.getSize()];
   cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
-  int32_t* resultR = (int32_t*) malloc(sizeof(int32_t) * result.getSize());
+  int32_t* resultR = new int32_t[result.getSize()];
   cudaMemcpy(resultR, result.getData("r"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
   ASSERT_EQ(resultA[0], 0);
   ASSERT_EQ(resultA[1], 1);
@@ -225,8 +225,8 @@ TEST_F(Test_FindMatches, fourthTest) {
   ASSERT_EQ(resultR[0], 0);
   ASSERT_EQ(resultR[1], 1);
   ASSERT_EQ(resultR[2], 2);
-  free(resultA);
-  free(resultR);
+  delete[] resultA;
+  delete[] resultR;
 }
 
 TEST_F(Test_FindMatches, fifthTest) {
@@ -247,8 +247,8 @@ TEST_F(Test_FindMatches, fifthTest) {
   std::cout << result.toString();
 
   ASSERT_EQ(result.getSize(), 2);
-  int32_t* resultA = (int32_t*) malloc(sizeof(int32_t) * result.getSize());
-  int32_t* resultB = (int32_t*) malloc(sizeof(int32_t) * result.getSize());
+  int32_t* resultA = new int32_t[result.getSize()];
+  int32_t* resultB = new int32_t[result.getSize()];
   cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
   cudaMemcpy(resultB, result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
 
@@ -257,8 +257,8 @@ TEST_F(Test_FindMatches, fifthTest) {
   ASSERT_EQ(resultB[0], 2);
   ASSERT_EQ(resultB[1], 3);
 
-  free(resultA);
-  free(resultB);
+  delete[] resultA;
+  delete[] resultB;
 }
 
 int main(int argc, char**argv) {
