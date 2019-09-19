@@ -24,6 +24,7 @@ from librmm_cffi import librmm as rmm
 from librmm_cffi import librmm_config as rmm_cfg
 import numpy as np
 
+
 def cugraph_call(cu_M, first, second):
     # Device data
     sources = cu_M['0']
@@ -101,7 +102,7 @@ def test_woverlap(managed, pool, graph_file):
     G.add_adj_list(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
-    cu_coeff = cugraph_call(cu_M,pairs['first'], pairs['second'])
+    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'])
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
