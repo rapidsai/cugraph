@@ -613,6 +613,26 @@ def test_renumber():
         assert dest_as_int[i] == numbering[dst[i]]
 '''
 
+def test_renumber_negative():
+    source_list = [4, 6, 8, -20, 1]
+    dest_list = [1, 29, 35, 0, 77]
+
+    df = pd.DataFrame({
+        'source_list': source_list,
+        'dest_list': dest_list,
+    })
+
+    G = cugraph.Graph()
+
+    gdf = cudf.DataFrame.from_pandas(df[['source_list', 'dest_list']])
+
+    src, dst, numbering = cugraph.renumber(gdf['source_list'],
+                                           gdf['dest_list'])
+
+    for i in range(len(source_list)):
+        assert source_list[i] == numbering[src[i]]
+        assert dest_list[i] == numbering[dst[i]]
+
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
