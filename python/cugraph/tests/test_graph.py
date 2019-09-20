@@ -613,6 +613,7 @@ def test_renumber():
         assert dest_as_int[i] == numbering[dst[i]]
 '''
 
+
 def test_renumber_negative():
     source_list = [4, 6, 8, -20, 1]
     dest_list = [1, 29, 35, 0, 77]
@@ -621,8 +622,6 @@ def test_renumber_negative():
         'source_list': source_list,
         'dest_list': dest_list,
     })
-
-    G = cugraph.Graph()
 
     gdf = cudf.DataFrame.from_pandas(df[['source_list', 'dest_list']])
 
