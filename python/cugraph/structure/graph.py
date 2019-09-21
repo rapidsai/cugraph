@@ -393,7 +393,7 @@ class Graph:
 
     def in_degree(self, vertex_subset=None):
         """
-        Compute veretx in-degree. Vertex in-degree is the number of edges
+        Compute vertex in-degree. Vertex in-degree is the number of edges
         pointing into the vertex. By default, this method computes vertex
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
@@ -433,7 +433,7 @@ class Graph:
 
     def out_degree(self, vertex_subset=None):
         """
-        Compute veretx out-degree. Vertex out-degree is the number of edges
+        Compute vertex out-degree. Vertex out-degree is the number of edges
         pointing out from the vertex. By default, this method computes vertex
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
@@ -473,7 +473,7 @@ class Graph:
 
     def degree(self, vertex_subset=None):
         """
-        Compute veretx degree. By default, this method computes vertex
+        Compute vertex degree. By default, this method computes vertex
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
@@ -512,7 +512,7 @@ class Graph:
 
     def degrees(self, vertex_subset=None):
         """
-        Compute veretx in-degree and out-degree. By default, this method
+        Compute vertex in-degree and out-degree. By default, this method
         computes vertex degrees for the entire set of vertices. If
         vertex_subset is provided, this method optionally filters out all but
         those listed in vertex_subset.
