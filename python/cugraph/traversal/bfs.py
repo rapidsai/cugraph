@@ -35,8 +35,10 @@ def bfs(G, start, directed=True):
     -------
     df : cudf.DataFrame
         df['vertex'][i] gives the vertex id of the i'th vertex
+
         df['distance'][i] gives the path distance for the i'th vertex from the
         starting vertex
+
         df['predecessor'][i] gives for the i'th vertex the vertex it was
         reached from in the traversal
 

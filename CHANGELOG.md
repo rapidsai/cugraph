@@ -3,6 +3,7 @@
 ## New Features
 - PR #469 Symmetrize a COO
 - PR #477 Add cuHornet as a submodule
+- PR #483 Katz Centrality
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
@@ -14,10 +15,11 @@
 - PR #458 Fix potential race condition in SSSP
 - PR #471 Remove nvidia driver installation from ci/cpu/build.sh
 - PR #473 Re-sync cugraph with cudf (cudf renamed the bindings directory to _lib).
+- PR #480 Fixed DASK CI build script
 - PR #478 Remove requirements and setup for pi
 
 
-# cuGraph 0.9.0 (Date TBD)
+# cuGraph 0.9.0 (21 Aug 2019)
 
 ## New Features
 - PR #361 Prototypes for cusort functions
