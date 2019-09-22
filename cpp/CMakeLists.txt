@@ -242,7 +242,8 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-	src/db/db_object.cu
+    src/matching/subg_match.cu
+    src/db/db_object.cu
 #    src/utilities/grmat.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
@@ -321,6 +322,7 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/rapidjson/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
