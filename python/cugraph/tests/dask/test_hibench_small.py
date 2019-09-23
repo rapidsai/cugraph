@@ -49,7 +49,16 @@ def test_pagerank():
     pr = dcg.pagerank(new_ddf, alpha=0.85, max_iter=50)
     t3 = time.time()
     print("Running PR algo time: ", t3-t2)
+    t4 = time.time()
     res_df = pr.compute()
+    t5 = time.time()
+    print("Compute time: ", t5-t4)
+    print(res_df)
+    t6 = time.time()
+    # For bigdatax4, chunksize=120000000 to avoid oom on write csv
+    res_df.to_csv('~/pagerank.csv', header=False, index=False)
+    t7 = time.time()
+    print("Write csv time: ", t7-t6)
 
     # Comparison
     err = 0
