@@ -11,6 +11,7 @@
 - PR #464 Limit initial RMM pool allocator size to 128mb so pytest can run in parallel
 - PR #481 Run bfs on unweighted graphs when calling sssp 
 - PR #491 Use YYMMDD tag in nightly build
+- PR #487 Add woverlap test, add namespace in snmg COO2CSR
 
 ## Bug Fixes
 - PR #458 Fix potential race condition in SSSP
@@ -18,6 +19,7 @@
 - PR #473 Re-sync cugraph with cudf (cudf renamed the bindings directory to _lib).
 - PR #480 Fixed DASK CI build script
 - PR #478 Remove requirements and setup for pi
+- PR #489 Handle negative vertex ids in renumber
 
 
 # cuGraph 0.9.0 (21 Aug 2019)
