@@ -124,6 +124,53 @@ TEST_F(RenumberingTest, SmallFixedVertexList)
   EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
+TEST_F(RenumberingTest, SmallFixedVertexListNegative)
+{
+  int64_t src_data[] = { 4,  6,  8, -20,  1 };
+  int64_t dst_data[] = { 1, 29, 35,   0, 77 };
+
+  int64_t src_expected[] = { 2, 3, 4, 8, 1 };
+  int64_t dst_expected[] = { 1, 5, 6, 0, 7 };
+
+  size_t length = sizeof(src_data) / sizeof(src_data[0]);
+
+  int64_t *src_d;
+  int64_t *dst_d;
+  int64_t *number_map_d;
+
+  int64_t tmp_results[length];
+  int64_t tmp_map[2 * length];
+
+  cudaStream_t stream{nullptr};
+
+  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(int64_t) * length, stream), RMM_SUCCESS);
+  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(int64_t) * length, stream), RMM_SUCCESS);
+
+  EXPECT_EQ(cudaMemcpy(src_d, src_data, sizeof(int64_t) * length, cudaMemcpyHostToDevice), cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(dst_d, dst_data, sizeof(int64_t) * length, cudaMemcpyHostToDevice), cudaSuccess);
+
+  size_t unique_verts = 0;
+  EXPECT_EQ(cugraph::renumber_vertices(length, src_d, dst_d, src_d, dst_d, &unique_verts, &number_map_d, cugraph::HashFunctionObjectInt(511), thrust::less<int64_t>()), GDF_SUCCESS);
+
+  EXPECT_EQ(cudaMemcpy(tmp_map, number_map_d, sizeof(int64_t) * unique_verts, cudaMemcpyDeviceToHost), cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(tmp_results, src_d, sizeof(int64_t) * length, cudaMemcpyDeviceToHost), cudaSuccess);
+
+  for (size_t i = 0 ; i < length ; ++i) {
+    EXPECT_EQ(tmp_results[i], src_expected[i]);
+    EXPECT_EQ(tmp_map[tmp_results[i]], src_data[i]);
+  }
+
+  EXPECT_EQ(cudaMemcpy(tmp_results, dst_d, sizeof(int64_t) * length, cudaMemcpyDeviceToHost), cudaSuccess);
+  for (size_t i = 0 ; i < length ; ++i) {
+    EXPECT_EQ(tmp_results[i], dst_expected[i]);
+    EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
+  }
+
+  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
+  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
+  EXPECT_EQ(test_free(number_map_d), cudaSuccess);
+}
+
 TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
 {
   uint64_t src_data[] = { 4U,  6U,  8U, 20U,  1U };

@@ -17,6 +17,7 @@
 - PR #473 Re-sync cugraph with cudf (cudf renamed the bindings directory to _lib).
 - PR #480 Fixed DASK CI build script
 - PR #478 Remove requirements and setup for pi
+- PR #489 Handle negative vertex ids in renumber
 
 
 # cuGraph 0.9.0 (21 Aug 2019)
