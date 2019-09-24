@@ -21,6 +21,7 @@
 - PR #478 Remove requirements and setup for pi
 - PR #495 Fixed cuhornet and cmake for Turing cards
 - PR #489 Handle negative vertex ids in renumber
+- PR #499 Moved small katz golden data to test file
 
 
 
