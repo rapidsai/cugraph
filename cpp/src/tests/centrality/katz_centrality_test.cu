@@ -50,8 +50,8 @@ getMaxDegree(gdf_graph * G) {
 
 typedef struct Katz_Usecase_t {
   std::string matrix_file;
-  std::string result_file;
-  Katz_Usecase_t(const std::string& a, const std::string& b) {
+  std::vector<int> topVertices;
+  Katz_Usecase_t(const std::string& a, const std::vector<int> &top) {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
@@ -59,15 +59,10 @@ typedef struct Katz_Usecase_t {
     } else {
       matrix_file = a;
     }
-    if ((b != "") && (b[0] != '/')) {
-      result_file = rapidsDatasetRootDir + "/" + b;
-    } else {
-      result_file = b;
-    }
+    topVertices = top;
   }
   Katz_Usecase_t& operator=(const Katz_Usecase_t& rhs) {
     matrix_file = rhs.matrix_file;
-    result_file = rhs.result_file;
     return *this;
   }
 } Katz_Usecase;
@@ -119,19 +114,21 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
       EXPECT_EQ(status,0);
 
       std::vector<int> top10CUGraph = getTopKIds(std::move(col_katz_centrality));
-      std::vector<int> top10Golden  = getGoldenTopKIds(param.result_file);
+      std::vector<int> top10Golden  = param.topVertices;
 
-      EXPECT_THAT(top10CUGraph, ::testing::ContainerEq(top10Golden));
+      for (int i = 0; i < 10; ++i) {
+        ASSERT_EQ(top10CUGraph[i], top10Golden[i]);
+      }
   }
 
 };
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Katz,
-                        ::testing::Values(  Katz_Usecase("test/datasets/karate.mtx",      "ref/katz/karate.csv"    )
-                                           ,Katz_Usecase("test/datasets/netscience.mtx",  "ref/katz/netscience.csv")
-                                           ,Katz_Usecase("test/datasets/polbooks.mtx",    "ref/katz/polbooks.csv"  )
-                                           ,Katz_Usecase("test/datasets/dolphins.mtx",    "ref/katz/dolphins.csv"  )
+                        ::testing::Values(  Katz_Usecase("test/datasets/karate.mtx",      {33 ,0 ,32 ,2 ,1 ,31 ,3 ,8 ,13 ,23}    )
+                                           ,Katz_Usecase("test/datasets/netscience.mtx",  {33 ,1429 ,1430 ,1431 ,645 ,1432 ,1433 ,1434 ,1435 ,1436} )
+                                           ,Katz_Usecase("test/datasets/polbooks.mtx",    {8 ,12 ,84 ,3 ,73 ,72 ,66 ,30 ,11 ,47}  )
+                                           ,Katz_Usecase("test/datasets/dolphins.mtx",    {14 ,37 ,45 ,33 ,51 ,29 ,20 ,40 ,50 ,38}  )
                                          )
                        );
 
