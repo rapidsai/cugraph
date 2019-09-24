@@ -77,7 +77,8 @@ def test_splitting():
     print("Compute time: ", t5-t4)
     print(res_df)
     t6 = time.time()
-    res_df.to_csv('~/pagerank.csv', chunksize=40000000, header=False, index=False)
+    res_df.to_csv('~/pagerank.csv', chunksize=40000000, header=False,
+                  index=False)
     t7 = time.time()
     print("Write csv time: ", t7-t6)
 
