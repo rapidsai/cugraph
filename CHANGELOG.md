@@ -9,6 +9,7 @@
 - PR #466 Add file splitting test; Update to reduce dask overhead
 - PR #468 Remove unnecessary print statement
 - PR #464 Limit initial RMM pool allocator size to 128mb so pytest can run in parallel
+- PR #474 Add csv file writing, lazy compute - snmg pagerank
 - PR #481 Run bfs on unweighted graphs when calling sssp 
 - PR #491 Use YYMMDD tag in nightly build
 - PR #487 Add woverlap test, add namespace in snmg COO2CSR
