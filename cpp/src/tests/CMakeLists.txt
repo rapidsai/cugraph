@@ -125,10 +125,10 @@ set(KATZ_TEST_SRC
 ###################################################################################################
 # - gdfgraph tests --------------------------------------------------------------------------------
 
-#set(GDFGRAPH_TEST_SRC
-#    "${CMAKE_CURRENT_SOURCE_DIR}/gdf_graph/gdf_graph.cu")
+set(GDFGRAPH_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/gdf_graph/gdf_graph.cu")
 
-#ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
+ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
 
 ###################################################################################################
 # - grmat tests -----------------------------------------------------------------------------------
@@ -159,20 +159,20 @@ ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
 
-#set(LOUVAIN_TEST_SRC
-#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_louvain.cpp")
+set(LOUVAIN_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_louvain.cpp")
 
-#ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
+ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 
 ###################################################################################################
 # - JACCARD tests ---------------------------------------------------------------------------------
 
-#set(JACCARD_TEST_SRC
-#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_jaccard.cpp")
+set(JACCARD_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_jaccard.cpp")
 
-#ConfigureTest(JACCARD_TEST "${JACCARD_TEST_SRC}" "")
+ConfigureTest(JACCARD_TEST "${JACCARD_TEST_SRC}" "")
 
 ###################################################################################################
 # - RENUMBERING tests -----------------------------------------------------------------------------

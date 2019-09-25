@@ -242,7 +242,6 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/matching/subg_match.cu
     src/db/db_object.cu
 #    src/utilities/grmat.cu
     src/utilities/degree.cu
@@ -296,6 +295,7 @@ add_library(cugraph SHARED
     src/nvgraph/triangles_counting_kernels.cu
     src/nvgraph/valued_csr_graph.cpp
     src/nvgraph/widest_path.cu
+    src/matching/subg_match.cu
 #    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
 #    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
 #    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
