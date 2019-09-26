@@ -317,3 +317,16 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
             double tol,
             bool has_guess,
             bool normalized);
+
+/**                                                                             
+ * @Synopsis   Compute the Core Number for the nodes of the graph G
+ *                                                                              
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] *core_number          If set to a valid column, this is populated by the core number of every vertex in the graph
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_core_number(gdf_graph *graph,                                         
+        		gdf_column *core_number);
