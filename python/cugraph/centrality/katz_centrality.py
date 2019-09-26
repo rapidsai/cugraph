@@ -33,7 +33,7 @@ def katz_centrality(G,
 
     Parameters
     ----------
-    graph : cuGraph.Graph
+    G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges where undirected edges are
         represented as directed edges in both directions.
@@ -57,6 +57,12 @@ def katz_centrality(G,
         acceptable.
     nstart : cudf.Dataframe
         GPU Dataframe containing the initial guess for katz centrality.
+
+        nstart['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        nstart['values'] : cudf.Series
+            Contains the katz centrality values of vertices
+
     normalized : bool
         If True normalize the resulting katz centrality values
 
