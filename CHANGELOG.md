@@ -4,6 +4,7 @@
 - PR #469 Symmetrize a COO
 - PR #477 Add cuHornet as a submodule
 - PR #483 Katz Centrality
+- PR #524 Integrated libcypher-parser conda package into project.
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
