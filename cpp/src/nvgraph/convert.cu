@@ -56,24 +56,6 @@
     }
 
 
-    void csr2cscP( int m, int n, int nnz,
-                 const int *csrRowPtr, const int *csrColInd,
-                 int *cscRowInd, int *cscColPtr, int *p,
-                 cusparseIndexBase_t idxBase){
-
-      std::shared_ptr<char> pBuffer;
-
-      // Step 1: Allocate buffer
-      size_t pBufferSizeInBytes = 0;
-      csr2csc2BufferSize(m, n, nnz, csrRowPtr, csrColInd, &pBufferSizeInBytes);
-      pBuffer = allocateDevice<char>(pBufferSizeInBytes, NULL);
-      // Step 2: Setup permutation vector P to identity
-      createIdentityPermutation(nnz, p);
-      // Step 3: Convert and get perumation array
-      csr2csc2(m, n, nnz, csrRowPtr, csrColInd, cscRowInd, cscColPtr, p, pBuffer.get(), idxBase);
-    }
-
-
     void cooSortByDestination(int m, int n, int nnz,
                 const void *srcVal, const int *srcRowInd, const int *srcColInd,
                 void *dstVal, int *dstRowInd, int *dstColInd,
@@ -187,27 +169,6 @@
         CHECK_CUSPARSE( cusparseXcoosortByColumn( Cusparse::get_handle(),
                                                   m, n, nnz,
                                                   cooRows, cooCols, p, pBuffer ));
-    }
-
-    void csr2csc2BufferSize(int m, int n, int nnz, const int *csrRowPtr, const int *csrColInd, size_t *pBufferSize){
-        CHECK_CUSPARSE( cusparseXcsr2csc2_bufferSizeExt( Cusparse::get_handle(),
-                                                         m, n, nnz,
-                                                         csrRowPtr, csrColInd, pBufferSize ));
-    }
-    void csr2csc2(int m, int n, int nnz,
-                  const int *csrRowPtr, const int *csrColInd,
-                  int *cscRowInd, int *cscColPtr, int *p, void *pBuffer,
-                  cusparseIndexBase_t idxBase){
-        cusparseMatDescr_t descrA;
-        CHECK_CUSPARSE( cusparseCreateMatDescr(&descrA) );
-        CHECK_CUSPARSE( cusparseSetMatIndexBase(descrA, idxBase) );
-        CHECK_CUSPARSE( cusparseXcsr2csc2( Cusparse::get_handle(),
-                                           m, n, nnz,
-                                           descrA,
-                                           csrRowPtr, csrColInd,
-                                           cscColPtr, cscRowInd, p,
-                                           pBuffer ));
-        CHECK_CUSPARSE( cusparseDestroyMatDescr(descrA) );
     }
 
 } //end namespace nvgraph
