@@ -11,7 +11,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph import Graph
-from cugraph.structure.convert_matrix import from_cudf_edgelist
-from cugraph.structure.renumber import renumber
-from cugraph.structure.symmetrize import symmetrize, symmetrize_df
+from cugraph.centrality.katz_centrality import katz_centrality

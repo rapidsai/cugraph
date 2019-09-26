@@ -62,11 +62,16 @@ def cugraph_call(cu_M, source, edgevals=False):
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
+    if(np.issubdtype(df['distance'].dtype, np.integer)):
+        max_val = np.iinfo(df['distance'].dtype).max
+    else:
+        max_val = np.finfo(df['distance'].dtype).max
+
     verts_np = df['vertex'].to_array()
     dist_np = df['distance'].to_array()
     pred_np = df['predecessor'].to_array()
     result = dict(zip(verts_np, zip(dist_np, pred_np)))
-    return result
+    return result, max_val
 
 
 def networkx_call(M, source, edgevals=False):
@@ -100,7 +105,6 @@ def networkx_call(M, source, edgevals=False):
 DATASETS = ['../datasets/dolphins',
             '../datasets/karate',
             '../datasets/netscience']
-
 SOURCES = [1]
 
 
@@ -119,10 +123,9 @@ def test_sssp(managed, pool, graph_file, source):
     rmm.initialize()
 
     assert(rmm.is_initialized())
-
     M = utils.read_mtx_file(graph_file+'.mtx')
     cu_M = utils.read_csv_file(graph_file+'.csv')
-    cu_paths = cugraph_call(cu_M, source)
+    cu_paths, max_val = cugraph_call(cu_M, source)
     nx_paths, Gnx = networkx_call(M, source)
 
     # Calculating mismatch
@@ -131,7 +134,7 @@ def test_sssp(managed, pool, graph_file, source):
         # Validate vertices that are reachable
         # NOTE : If distance type is float64 then cu_paths[vid][0]
         # should be compared against np.finfo(np.float64).max)
-        if (cu_paths[vid][0] != np.finfo(np.float32).max):
+        if (cu_paths[vid][0] != max_val):
             if(cu_paths[vid][0] != nx_paths[vid]):
                 err = err + 1
             # check pred dist + 1 = current dist (since unweighted)
@@ -163,19 +166,16 @@ def test_sssp_edgevals(managed, pool, graph_file, source):
 
     M = utils.read_mtx_file(graph_file+'.mtx')
     cu_M = utils.read_csv_file(graph_file+'.csv')
-    cu_paths = cugraph_call(cu_M, source, edgevals=True)
+    cu_paths, max_val = cugraph_call(cu_M, source, edgevals=True)
     nx_paths, Gnx = networkx_call(M, source, edgevals=True)
 
     # Calculating mismatch
     err = 0
-    print(cu_paths)
-    print(nx_paths)
-    print(len(cu_paths))
     for vid in cu_paths:
         # Validate vertices that are reachable
         # NOTE : If distance type is float64 then cu_paths[vid][0]
         # should be compared against np.finfo(np.float64).max)
-        if (cu_paths[vid][0] != np.finfo(np.float32).max):
+        if (cu_paths[vid][0] != max_val):
             if(cu_paths[vid][0] != nx_paths[vid]):
                 err = err + 1
             # check pred dist + edge_weight = current dist

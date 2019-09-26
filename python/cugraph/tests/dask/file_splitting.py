@@ -9,7 +9,7 @@ import time
 # third-party group once this gets fixed.
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from dask.distributed import Client
+    from dask.distributed import Client, wait
     import cugraph.dask.pagerank as dcg
     from dask_cuda import LocalCUDACluster
 
@@ -68,12 +68,19 @@ def test_splitting():
     print("Reading Csv time: ", t1-t0)
     t2 = time.time()
     pr = dcg.pagerank(new_ddf, alpha=0.85, max_iter=3)
+    wait(pr)
     t3 = time.time()
     print("Pagerank (Dask) time: ", t3-t2)
-
-    print("Pagerank complete. Computing result...")
+    t4 = time.time()
     res_df = pr.compute()
+    t5 = time.time()
+    print("Compute time: ", t5-t4)
     print(res_df)
+    t6 = time.time()
+    res_df.to_csv('~/pagerank.csv', chunksize=40000000, header=False,
+                  index=False)
+    t7 = time.time()
+    print("Write csv time: ", t7-t6)
 
     client.close()
     cluster.close()

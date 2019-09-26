@@ -245,13 +245,6 @@ extern "C" {
                                                        void *dstTopology,
                                                        void *dstEdgeData);
 
-    /* Convert graph to another structure
-     */
-    nvgraphStatus_t NVGRAPH_API nvgraphConvertGraph(nvgraphHandle_t handle,
-                                                    nvgraphGraphDescr_t srcDescrG,
-                                                    nvgraphGraphDescr_t dstDescrG,
-                                                    nvgraphTopologyType_t dstTType);
-
     /* Update the edge set #setnum with the data in *edgeData, sets have 0-based index
      */
     nvgraphStatus_t NVGRAPH_API nvgraphSetEdgeData(nvgraphHandle_t handle,

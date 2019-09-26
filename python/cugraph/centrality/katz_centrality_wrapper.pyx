@@ -16,11 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.traversal.c_sssp cimport *
-from cugraph.traversal.c_bfs cimport *
+from cugraph.centrality.c_katz_centrality cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
-from cudf._lib.cudf cimport np_dtype_from_gdf_column
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -32,9 +30,9 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 
 
-def sssp(graph_ptr, source):
+def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     """
-    Call gdf_sssp_nvgraph
+    Call gdf_katz_centrality
     """
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
@@ -46,26 +44,24 @@ def sssp(graph_ptr, source):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
-    if g.adjList.edge_data:
-        data_type = np_dtype_from_gdf_column(g.adjList.edge_data)
-    else:
-        data_type = np.int32
-
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
-    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
-    cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
-    df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_predecessors_col = get_gdf_column_view(df['predecessor'])
+    df['katz_centrality'] = cudf.Series(np.zeros(num_verts, dtype=np.float64))
+    cdef gdf_column c_katz_centrality_col = get_gdf_column_view(df['katz_centrality'])
+
+    cdef bool has_guess = <bool> 0
+    if nstart is not None:
+        cudf.bindings.copying.apply_scatter([nstart['values']._column],
+                                            nstart['vertex']._column._data.mem,
+                                            [df['katz_centrality']._column])
+        has_guess = <bool> 1
 
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     libcudf.cudf.check_gdf_error(err)
 
-    if g.adjList.edge_data:
-        err = gdf_sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
-    else:
-        err = gdf_bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
+    err = gdf_katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
+
     libcudf.cudf.check_gdf_error(err)
 
     return df
