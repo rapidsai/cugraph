@@ -271,6 +271,7 @@ link_directories(
 
 add_library(cugraph SHARED
 	src/db/db_object.cu
+	src/db/db_parser_integration_test.cu
     src/utilities/grmat.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
@@ -357,7 +358,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda)
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
