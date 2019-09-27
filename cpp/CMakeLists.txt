@@ -296,12 +296,13 @@ add_library(cugraph SHARED
     src/nvgraph/valued_csr_graph.cpp
     src/nvgraph/widest_path.cu
     src/matching/subg_match.cu
-#    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
-#    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
-#    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
-#    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpucontext.cu
-#    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpuutil.cpp
-#    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/gitsha1.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/test_utils.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/error_utils.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/misc_utils.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/str_to_T.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/src/mgpucontext.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/src/mgpuutil.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/gitsha1.c
 )
 
 ###################################################################################################

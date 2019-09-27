@@ -1,7 +1,5 @@
-//#include <gunrock/app/sm/sm_app.cuh>
-//TODO: have Gunrock fix the issue of including above gunrock header that triggers _linker_ errors
-//(probably they still have function calls to non-templates defined in implementation files):
-//
+#include <gunrock/app/sm/sm_app.cuh>
+
 #include <thrust/sequence.h>
 
 #include "utilities/graph_utils.cuh"
