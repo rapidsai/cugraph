@@ -159,9 +159,9 @@ def test_version():
     cugraph.__version__
 
 
-DATASETS = ['../datasets/karate',
-            '../datasets/dolphins',
-            '../datasets/netscience']
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -179,11 +179,11 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     sources = cu_M['0']
     destinations = cu_M['1']
 
-    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_csv_for_nx(graph_file).tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
@@ -216,7 +216,7 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_csv_for_nx(graph_file).tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
@@ -255,7 +255,7 @@ def test_transpose_from_adj_list(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_csv_for_nx(graph_file).tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
@@ -283,7 +283,7 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_csv_for_nx(graph_file).tocsr()
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
     G = cugraph.Graph()
@@ -312,7 +312,7 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
+    M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 
@@ -356,7 +356,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
+    M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 
@@ -413,7 +413,7 @@ def test_networkx_compatibility(managed, pool, graph_file):
 
     # test from_cudf_edgelist()
 
-    M = utils.read_mtx_file(graph_file)
+    M = utils.read_csv_for_nx(graph_file)
 
     df = pd.DataFrame()
     df['source'] = pd.Series(M.row)
@@ -451,8 +451,8 @@ def test_networkx_compatibility(managed, pool, graph_file):
     G.clear()
 
 
-DATASETS2 = ['../datasets/karate',
-             '../datasets/dolphins']
+DATASETS2 = ['../datasets/karate.csv',
+             '../datasets/dolphins.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -470,7 +470,7 @@ def test_two_hop_neighbors(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     sources = cu_M['0']
     destinations = cu_M['1']
     values = cu_M['2']
@@ -479,7 +479,7 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     G.add_edge_list(sources, destinations, values)
 
     df = G.get_two_hop_neighbors()
-    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
+    M = utils.read_csv_for_nx(graph_file).tocsr()
     find_two_paths(df, M)
     check_all_two_hops(df, M)
 
@@ -499,8 +499,8 @@ def test_degree_functionality(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     sources = cu_M['0']
     destinations = cu_M['1']
     values = cu_M['2']
@@ -548,8 +548,8 @@ def test_degrees_functionality(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     sources = cu_M['0']
     destinations = cu_M['1']
     values = cu_M['2']
@@ -648,7 +648,7 @@ def test_renumber_files(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
+    M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M.row)
     destinations = cudf.Series(M.col)
 
@@ -679,11 +679,11 @@ def test_number_of_vertices(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     sources = cu_M['0']
     destinations = cu_M['1']
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
+    M = utils.read_csv_for_nx(graph_file)
     if M is None:
         raise TypeError('Could not read the input graph')
 

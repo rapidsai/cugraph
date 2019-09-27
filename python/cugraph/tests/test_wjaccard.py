@@ -88,9 +88,10 @@ def networkx_call(M):
     return coeff
 
 
-DATASETS = ['../datasets/dolphins',
-            '../datasets/karate',
-            '../datasets/netscience']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/netscience.csv',
+            '../datasets/email-Eu-core.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -108,8 +109,8 @@ def test_wjaccard(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     # suppress F841 (local variable is assigned but never used) in flake8
     # no networkX equivalent to compare cu_coeff against...
     cu_coeff = cugraph_call(cu_M)  # noqa: F841

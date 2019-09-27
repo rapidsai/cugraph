@@ -36,16 +36,12 @@ with warnings.catch_warnings():
 
 print('Networkx version : {} '.format(nx.__version__))
 
-DATASETS = ['../datasets/dolphins',
-            '../datasets/karate',
-            '../datasets/netscience']
-
 SOURCES = [1]
 
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience'])
+@pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
 @pytest.mark.parametrize('source', SOURCES)
 def test_filter_unreachable(managed, pool, graph_file, source):
     gc.collect()
@@ -58,7 +54,7 @@ def test_filter_unreachable(managed, pool, graph_file, source):
 
     assert(rmm.is_initialized())
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     # Device data
     sources = cu_M['0']
     destinations = cu_M['1']
