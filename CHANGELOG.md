@@ -32,7 +32,7 @@
 - PR #495 Fixed cuhornet and cmake for Turing cards
 - PR #489 Handle negative vertex ids in renumber
 - PR #519 Removed deprecated cusparse calls
-
+- PR #525 Update build scripts and YYMMDD tagging for nightly builds
 
 
 # cuGraph 0.9.0 (21 Aug 2019)
