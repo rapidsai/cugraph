@@ -21,8 +21,11 @@ from librmm_cffi import librmm_config as rmm_cfg
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+# TODO: when GRMAT is back uncomment the 2 lines below:
+#@pytest.mark.parametrize('managed, pool',
+#                         list(product([False, True], [False, True])))
+# ...and (TODO): remove this line below:
+@pytest.mark.skip(reason="GRMAT undergoing changes in Gunrock")
 def test_grmat_gen(managed, pool):
     gc.collect()
 
