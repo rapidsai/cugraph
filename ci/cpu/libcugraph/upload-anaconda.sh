@@ -7,7 +7,7 @@ set -e
 if [ "$UPLOAD_LIBCUGRAPH" == "1" ]; then
   CUDA_REL=${CUDA_VERSION%.*}
 
-  export UPLOADFILE=`conda build conda/recipes/libcugraph -c rapidsai -c nvidia -c numba -c conda-forge -c defaults --python=$PYTHON --output`
+  export UPLOADFILE=`conda build conda/recipes/libcugraph --output`
 
   SOURCE_BRANCH=master
 
