@@ -4,6 +4,7 @@
 - PR #469 Symmetrize a COO
 - PR #477 Add cuHornet as a submodule
 - PR #483 Katz Centrality
+- PR #527 Add testing with asymmetric graph (where appropriate)
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
