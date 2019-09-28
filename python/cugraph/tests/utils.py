@@ -11,17 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from scipy.io import mmread
 from scipy.sparse import coo_matrix
 
 import cudf
 import pandas as pd
-
-
-#  Comment out for now
-#def read_mtx_file(mm_file):
-#    print('Reading ' + str(mm_file) + '...')
-#    return mmread(mm_file).asfptype()
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):
