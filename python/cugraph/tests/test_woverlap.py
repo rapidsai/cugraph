@@ -88,8 +88,9 @@ def cpu_call(M, first, second):
 
 DATASETS = ['../datasets/dolphins.csv',
             '../datasets/karate.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
+            '../datasets/netscience.csv']
+#  Too slow to run on CPU
+#            '../datasets/email-Eu-core.csv']
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',

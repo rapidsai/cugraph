@@ -64,8 +64,7 @@ def calc_katz(graph_file):
 
 
 DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
+            '../datasets/netscience.csv']
 
 
 @pytest.mark.parametrize('managed, pool',
@@ -82,8 +81,6 @@ def test_katz_centrality(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     katz_scores = calc_katz(graph_file)
-
-    print(katz_scores)
 
     topKNX = topKVertices(katz_scores, 'nx_katz', 10)
     topKCU = topKVertices(katz_scores, 'cu_katz', 10)

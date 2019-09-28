@@ -18,9 +18,10 @@ import cudf
 import pandas as pd
 
 
-def read_mtx_file(mm_file):
-    print('Reading ' + str(mm_file) + '...')
-    return mmread(mm_file).asfptype()
+#  Comment out for now
+#def read_mtx_file(mm_file):
+#    print('Reading ' + str(mm_file) + '...')
+#    return mmread(mm_file).asfptype()
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):

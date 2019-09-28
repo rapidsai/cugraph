@@ -90,8 +90,7 @@ def networkx_call(M):
 
 DATASETS = ['../datasets/dolphins.csv',
             '../datasets/karate.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
+            '../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
