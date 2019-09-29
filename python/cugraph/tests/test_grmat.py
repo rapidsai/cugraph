@@ -13,7 +13,7 @@
 
 import gc
 import pytest
-from itertools import product
+# from itertools import product # flake8 required
 
 import cugraph
 from librmm_cffi import librmm as rmm
@@ -22,7 +22,7 @@ from librmm_cffi import librmm_config as rmm_cfg
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 # TODO: when GRMAT is back uncomment the 2 lines below:
-#@pytest.mark.parametrize('managed, pool',
+# @pytest.mark.parametrize('managed, pool',
 #                         list(product([False, True], [False, True])))
 # ...and (TODO): remove this line below:
 @pytest.mark.skip(reason="GRMAT undergoing changes in Gunrock")
