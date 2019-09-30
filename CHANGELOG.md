@@ -5,6 +5,7 @@
 - PR #477 Add cuHornet as a submodule
 - PR #483 Katz Centrality
 - PR #493 Added C++ findMatches operator for OpenCypher query.
+- PR #496 Gunrock submodule + SM prelimis.
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
