@@ -18,6 +18,7 @@
 #include <rmm_utils.h>
 #include <db/db_object.cuh>
 #include <cub/device/device_run_length_encode.cuh>
+#include <sstream>
 
 namespace cugraph {
   // Define kernel for copying run length encoded values into offset slots.
@@ -45,6 +46,14 @@ namespace cugraph {
     is_var = other.is_var;
     constantValue = other.constantValue;
     variableName = other.variableName;
+  }
+
+  template<typename idx_t>
+  db_pattern_entry<idx_t>& db_pattern_entry<idx_t>::operator=(const db_pattern_entry<idx_t>& other) {
+    is_var = other.is_var;
+    constantValue = other.constantValue;
+    variableName = other.variableName;
+    return *this;
   }
 
   template<typename idx_t>
@@ -78,6 +87,12 @@ namespace cugraph {
   }
 
   template<typename idx_t>
+  db_pattern<idx_t>& db_pattern<idx_t>::operator=(const db_pattern<idx_t>& other) {
+    entries = other.entries;
+    return *this;
+  }
+
+  template<typename idx_t>
   int db_pattern<idx_t>::getSize() const {
     return entries.size();
   }
@@ -105,8 +120,18 @@ namespace cugraph {
 
   template<typename idx_t>
   void db_column_index<idx_t>::deleteData() {
-    delete offsets;
-    delete indirection;
+    if (offsets != nullptr && offsets->data != nullptr)
+      ALLOC_FREE_TRY(offsets->data, nullptr);
+    if (indirection != nullptr && indirection->data != nullptr)
+      ALLOC_FREE_TRY(indirection->data, nullptr);
+    if (offsets != nullptr) {
+      free(offsets);
+      offsets = nullptr;
+    }
+    if (indirection != nullptr) {
+      free(indirection);
+      indirection = nullptr;
+    }
   }
 
   template<typename idx_t>
@@ -136,8 +161,25 @@ namespace cugraph {
   }
 
   template<typename idx_t>
+  db_column_index<idx_t>::db_column_index(db_column_index<idx_t>&& other) {
+    offsets = other.offsets;
+    indirection = other.indirection;
+    other.offsets = nullptr;
+    other.indirection = nullptr;
+  }
+
+  template<typename idx_t>
   db_column_index<idx_t>::~db_column_index() {
     deleteData();
+  }
+
+  template<typename idx_t>
+  db_column_index<idx_t>& db_column_index<idx_t>::operator=(db_column_index<idx_t>&& other) {
+    offsets = other.offsets;
+    indirection = other.indirection;
+    other.offsets = nullptr;
+    other.indirection = nullptr;
+    return *this;
   }
 
   template<typename idx_t>
@@ -147,8 +189,116 @@ namespace cugraph {
     indirection = _indirection;
   }
 
+  template<typename idx_t>
+  gdf_column* db_column_index<idx_t>::getOffsets() {
+    return offsets;
+  }
+
+  template<typename idx_t>
+  gdf_column* db_column_index<idx_t>::getIndirection() {
+    return indirection;
+  }
+
   template class db_column_index<int32_t> ;
   template class db_column_index<int64_t> ;
+
+  template<typename idx_t>
+  db_result<idx_t>::db_result() {
+    dataValid = false;
+    columnSize = 0;
+  }
+
+  template<typename idx_t>
+  db_result<idx_t>::db_result(db_result&& other) {
+    dataValid = other.dataValid;
+    columns = std::move(other.columns);
+    names = std::move(other.names);
+    other.dataValid = false;
+  }
+
+  template<typename idx_t>
+  db_result<idx_t>& db_result<idx_t>::operator =(db_result<idx_t> && other) {
+    dataValid = other.dataValid;
+    columns = std::move(other.columns);
+    names = std::move(other.names);
+    other.dataValid = false;
+    return *this;
+  }
+
+  template<typename idx_t>
+  db_result<idx_t>::~db_result() {
+    deleteData();
+  }
+
+  template<typename idx_t>
+  void db_result<idx_t>::deleteData() {
+    if (dataValid)
+      for (size_t i = 0; i < columns.size(); i++)
+        ALLOC_FREE_TRY(columns[i], nullptr);
+  }
+
+  template<typename idx_t>
+  idx_t db_result<idx_t>::getSize() {
+    return columnSize;
+  }
+
+  template<typename idx_t>
+  idx_t* db_result<idx_t>::getData(std::string idx) {
+    if (!dataValid)
+      throw new std::invalid_argument("Data not valid");
+
+    idx_t* returnPtr = nullptr;
+    for (size_t i = 0; i < names.size(); i++)
+      if (names[i] == idx)
+        returnPtr = columns[i];
+    return returnPtr;
+  }
+
+  template<typename idx_t>
+  void db_result<idx_t>::addColumn(std::string columnName) {
+    if (dataValid)
+      throw new std::invalid_argument("Cannot add a column to an allocated result");
+    names.push_back(columnName);
+  }
+
+  template<typename idx_t>
+  void db_result<idx_t>::allocateColumns(idx_t size) {
+    if (dataValid)
+      throw new std::invalid_argument("Already allocated columns");
+    for (size_t i = 0; i < names.size(); i++) {
+      idx_t* colPtr = nullptr;
+      ALLOC_TRY(&colPtr, sizeof(idx_t) * size, nullptr);
+      columns.push_back(colPtr);
+    }
+    dataValid = true;
+    columnSize = size;
+  }
+
+  template<typename idx_t>
+  std::string db_result<idx_t>::toString() {
+    std::stringstream ss;
+    ss << "db_result with " << columns.size() << " columns of length " << columnSize << "\n";
+    for (size_t i = 0; i < columns.size(); i++)
+      ss << names[i] << " ";
+    ss << "\n";
+    std::vector<idx_t*> hostColumns;
+    for (size_t i = 0; i < columns.size(); i++) {
+      idx_t* hostColumn = (idx_t*)malloc(sizeof(idx_t) * columnSize);
+      cudaMemcpy(hostColumn, columns[i], sizeof(idx_t) * columnSize, cudaMemcpyDefault);
+      hostColumns.push_back(hostColumn);
+    }
+    for (idx_t i = 0; i < columnSize; i++) {
+      for (size_t j = 0; j < hostColumns.size(); j++)
+        ss << hostColumns[j][i] << " ";
+      ss << "\n";
+    }
+    for (size_t i = 0; i < hostColumns.size(); i++)
+      free(hostColumns[i]);
+    return ss.str();
+  }
+
+  template class db_result<int32_t>;
+  template class db_result<int64_t>;
 
   template<typename idx_t>
   db_table<idx_t>::db_table() {
@@ -156,8 +306,17 @@ namespace cugraph {
   }
 
   template<typename idx_t>
+  db_table<idx_t>::~db_table() {
+    for (size_t i = 0; i < columns.size(); i++) {
+      if (columns[i]->data != nullptr)
+        ALLOC_FREE_TRY(columns[i]->data, nullptr);
+      free(columns[i]);
+    }
+  }
+
+  template<typename idx_t>
   void db_table<idx_t>::addColumn(std::string name) {
-    if (columns.size() > 0 && columns[0]->size > 0)
+    if (columns.size() > size_t{0} && columns[0]->size > 0)
       throw new std::invalid_argument("Can't add a column to a non-empty table");
 
     gdf_column* _col = (gdf_column*) malloc(sizeof(gdf_column));
@@ -176,7 +335,7 @@ namespace cugraph {
   void db_table<idx_t>::addEntry(db_pattern<idx_t>& pattern) {
     if (!pattern.isAllConstants())
       throw new std::invalid_argument("Can't add an entry that isn't all constants");
-    if (!pattern.getSize() != columns.size())
+    if (static_cast<size_t>(pattern.getSize()) != columns.size())
       throw new std::invalid_argument("Can't add an entry that isn't the right size");
     inputBuffer.push_back(pattern);
   }
@@ -272,6 +431,8 @@ namespace cugraph {
 
   template<typename idx_t>
   void db_table<idx_t>::flush_input() {
+    if (inputBuffer.size() == size_t{0})
+      return;
     idx_t tempSize = inputBuffer.size();
     std::vector<idx_t*> tempColumns;
     for (size_t i = 0; i < columns.size(); i++) {
@@ -290,17 +451,56 @@ namespace cugraph {
       newColumns.push_back(newCol);
     }
     for (size_t i = 0; i < columns.size(); i++) {
-      cudaMemcpy(newColumns[i], columns[i]->data, sizeof(idx_t) * currentSize, cudaMemcpyDefault);
+      if (currentSize > 0)
+        cudaMemcpy(newColumns[i], columns[i]->data, sizeof(idx_t) * currentSize, cudaMemcpyDefault);
       cudaMemcpy(newColumns[i] + currentSize,
                  tempColumns[i],
                  sizeof(idx_t) * tempSize,
                  cudaMemcpyDefault);
-      ALLOC_FREE_TRY(columns[i]->data, nullptr);
+      free(tempColumns[i]);
+      if (columns[i]->data != nullptr)
+        ALLOC_FREE_TRY(columns[i]->data, nullptr);
       columns[i]->data = newColumns[i];
       columns[i]->size = newSize;
     }
 
     rebuildIndices();
+  }
+
+  template<typename idx_t>
+  std::string db_table<idx_t>::toString() {
+    idx_t columnSize = 0;
+    if (columns.size() > 0)
+      columnSize = columns[0]->size;
+    std::stringstream ss;
+    ss << "Table with " << columns.size() << " columns of length " << columnSize << "\n";
+    for (size_t i = 0; i < names.size(); i++)
+      ss << names[i] << " ";
+    ss << "\n";
+    std::vector<idx_t*> hostColumns;
+    for (size_t i = 0; i < columns.size(); i++) {
+      idx_t* hostColumn = (idx_t*)malloc(sizeof(idx_t) * columnSize);
+      cudaMemcpy(hostColumn, columns[i]->data, sizeof(idx_t) * columnSize, cudaMemcpyDefault);
+      hostColumns.push_back(hostColumn);
+    }
+    for (idx_t i = 0; i < columnSize; i++) {
+      for (size_t j = 0; j < hostColumns.size(); j++)
+        ss << hostColumns[j][i] << " ";
+      ss << "\n";
+    }
+    for (size_t i = 0; i < hostColumns.size(); i++)
+      free(hostColumns[i]);
+    return ss.str();
+  }
+
+  template<typename idx_t>
+  db_column_index<idx_t>& db_table<idx_t>::getIndex(int idx) {
+    return indices[idx];
+  }
+
+  template<typename idx_t>
+  gdf_column* db_table<idx_t>::getColumn(int idx) {
+    return columns[idx];
   }
 
   template class db_table<int32_t> ;

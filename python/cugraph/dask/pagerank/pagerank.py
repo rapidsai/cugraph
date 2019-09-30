@@ -184,14 +184,12 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
                    for worker, future in gpu_data_excl_worker]
 
     raw_arrays = [future for worker, future in gpu_data_incl_worker]
-
     pr = [client.submit(_mg_pagerank,
                         (ipc_handles, raw_arrays, alpha, max_iter),
                         workers=[exec_node])]
-
-    x = client.compute(pr)
-    wait(x)
-    ddf = dc.from_delayed(pr)
+    c = cudf.DataFrame({'vertex': cudf.Series(dtype='int32'),
+                       'pagerank': cudf.Series(dtype='float32')})
+    ddf = dc.from_delayed(pr, meta=c)
     return ddf
 
 

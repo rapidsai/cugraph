@@ -29,6 +29,9 @@
 #include <thrust/execution_policy.h>
 #include <cub/device/device_run_length_encode.cuh>
 
+namespace cugraph
+{
+
 template<typename idx_t, typename val_t>
 class communicator {
 public:
@@ -89,6 +92,8 @@ __global__ void writeSingleValue(T* ptr, T val) {
     *ptr = val;
 }
 
+} //namespace cugraph
+
 template<typename idx_t, typename val_t>
 gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                             bool free_input,
@@ -105,12 +110,12 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
   // First thread allocates communicator object
   if (i == 0) {
-    communicator<idx_t, val_t>* comm = new communicator<idx_t, val_t>(p);
+    cugraph::communicator<idx_t, val_t>* comm = new cugraph::communicator<idx_t, val_t>(p);
     *comm1 = reinterpret_cast<void*>(comm);
   }
 #pragma omp barrier
 
-  communicator<idx_t, val_t>* comm = reinterpret_cast<communicator<idx_t, val_t>*>(*comm1);
+  cugraph::communicator<idx_t, val_t>* comm = reinterpret_cast<cugraph::communicator<idx_t, val_t>*>(*comm1);
 
   // Each thread scans its cooRow and cooCol for the greatest ID
   idx_t size = cooRow->size;
@@ -200,7 +205,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     nblocks.x = min((offsetsSize + nthreads.x - 1) / nthreads.x, static_cast<idx_t>(env.get_num_sm() * 32));
     nblocks.y = 1;
     nblocks.z = 1;
-    findStartRange<<<nblocks, nthreads>>>(maxId, vertexRangeStart, edgeCount, sourceCountsTemp);
+    cugraph::findStartRange<<<nblocks, nthreads>>>(maxId, vertexRangeStart, edgeCount, sourceCountsTemp);
     cudaDeviceSynchronize();
     cudaMemcpy(&myStartVertex, vertexRangeStart, sizeof(idx_t), cudaMemcpyDefault);
     part_offsets[i] = myStartVertex;
@@ -258,11 +263,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     idx_t endVertexId = part_offsets[j + 1];
     if (endVertexId <= localMinId) {
       // Write out zero for this position
-      writeSingleValue<<<1, 256>>>(endPositions + j, static_cast<idx_t>(0));
+      cugraph::writeSingleValue<<<1, 256>>>(endPositions + j, static_cast<idx_t>(0));
     }
     else if (endVertexId >= localMaxId) {
       // Write out size for this position
-      writeSingleValue<<<1, 256>>>(endPositions + j, size);
+      cugraph::writeSingleValue<<<1, 256>>>(endPositions + j, size);
     }
     else if (endVertexId > localMinId && endVertexId < localMaxId) {
       dim3 nthreads, nblocks;
@@ -273,7 +278,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                       static_cast<idx_t>(env.get_num_sm() * 32));
       nblocks.y = 1;
       nblocks.z = 1;
-      findStartRange<<<nblocks, nthreads>>>(size, endPositions + j, endVertexId, cooRowTemp);
+      cugraph::findStartRange<<<nblocks, nthreads>>>(size, endPositions + j, endVertexId, cooRowTemp);
     }
   }
   cudaDeviceSynchronize();
@@ -417,7 +422,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
   cudaCheckError();
 
-  offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
+  cugraph::offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
 
   cudaCheckError();
 
