@@ -56,6 +56,10 @@ def k_core(G,
     """
 
     KCoreGraph = Graph()
-    k_core_wrapper.k_core(G.graph_ptr, k, core_number, KCoreGraph.graph_ptr)
+
+    k_core_wrapper.k_core(G.graph_ptr,
+                          KCoreGraph.graph_ptr,
+                          k,
+                          core_number)
 
     return KCoreGraph

@@ -30,7 +30,7 @@ from librmm_cffi import librmm as rmm
 import numpy as np
 
 
-def k_core(graph_ptr, k, core_number, k_core_graph_ptr):
+def k_core(graph_ptr, k_core_graph_ptr, k, core_number):
     """
     Call gdf_k_core
     """
@@ -40,9 +40,6 @@ def k_core(graph_ptr, k, core_number, k_core_graph_ptr):
     cdef uintptr_t rGraph = k_core_graph_ptr
     cdef gdf_graph* rg = <gdf_graph*>rGraph
 
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
-    
     kVal = -1
     if k is not None:
         kVal = k

@@ -73,7 +73,6 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
                      gdf_column *core_number,
                      gdf_graph *out_graph) {
   GDF_REQUIRE(out_graph != nullptr && in_graph != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(in_graph->adjList != nullptr || in_graph->edgeList != nullptr, GDF_INVALID_API_CALL);
   gdf_error err = gdf_add_adj_list(in_graph);
   if (err != GDF_SUCCESS)
     return err;
@@ -114,7 +113,7 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
     vLen = vertex_id->size;
   }
 
-  auto cnPtr = thrust::device_pointer_cast(core_number_ptr);
+  thrust::device_ptr<int> cnPtr = thrust::device_pointer_cast(core_number_ptr);
   if (k == -1) {
     k = thrust::reduce(
         rmm::exec_policy(stream)->on(stream),
@@ -122,7 +121,7 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
   }
 
   rmm::device_vector<int> filteredVertices(vLen);
-  auto vInPtr = thrust::device_pointer_cast(vertex_identifier_ptr);
+  thrust::device_ptr<int> vInPtr = thrust::device_pointer_cast(vertex_identifier_ptr);
   auto ptr = thrust::remove_copy_if(
       rmm::exec_policy(stream)->on(stream),
       vInPtr, vInPtr + vLen,
@@ -137,5 +136,9 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
                   nullptr,
                   filteredVertices.size(),
                   GDF_INT32);
-  return gdf_extract_subgraph_vertex_nvgraph(in_graph, &vertices, out_graph);
+  err =  gdf_extract_subgraph_vertex_nvgraph(in_graph, &vertices, out_graph);
+
+  GDF_REQUIRE(err, GDF_SUCCESS);
+
+  return GDF_SUCCESS;
 }
