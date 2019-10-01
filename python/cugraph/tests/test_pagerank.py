@@ -165,7 +165,7 @@ def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
     cu_nstart = None
     if has_guess == 1:
         cu_nstart = cudify(networkx_pr)
-        max_iter = 500
+        max_iter = 5
     cu_prsn = cudify(networkx_prsn)
     cu_M = utils.read_csv_file(graph_file)
     cugraph_pr = cugraph_call(cu_M, max_iter, tol, alpha, cu_prsn, cu_nstart)
@@ -176,7 +176,7 @@ def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
     err = 0
     assert len(cugraph_pr) == len(networkx_pr)
     for i in range(len(cugraph_pr)):
-        if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*2.1
+        if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*1.1
            and cugraph_pr[i][0] == networkx_pr[i][0]):
             err = err + 1
     print("Mismatches:", err)
