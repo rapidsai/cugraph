@@ -44,8 +44,7 @@ def random_call(G, partitions):
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
+            '../datasets/netscience.csv']
 PARTITIONS = [2, 4, 8]
 
 

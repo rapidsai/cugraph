@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from scipy.io import mmread
+
 import cudf
 import cudf._lib as libcudf
 import cugraph
@@ -96,6 +98,7 @@ def compare_graphs(nx_graph, cu_graph):
     # second compare edges
 
     diff = nx.difference(nx_graph, cu_to_nx_graph)
+
     if diff.number_of_edges() > 0:
         return False
 
@@ -107,6 +110,7 @@ def compare_graphs(nx_graph, cu_graph):
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
         df0 = df0.sort_values(by=['source', 'target'])
         df1 = df.sort_values(by=['source', 'target'])
+
         if not df0['weight'].equals(df1['weight']):
             return False
 
@@ -162,6 +166,31 @@ def test_version():
 DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv',
             '../datasets/netscience.csv']
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_read_csv_for_nx(graph_file):
+
+    Mnew = utils.read_csv_for_nx(graph_file, read_weights_in_sp=False)
+    if Mnew is None:
+        raise TypeError('Could not read the input graph')
+    if Mnew.shape[0] != Mnew.shape[1]:
+        raise TypeError('Shape is not square')
+
+    Mold = mmread(graph_file.replace('.csv', '.mtx')).asfptype()
+
+    minnew = Mnew.data.min()
+    minold = Mold.data.min()
+    epsilon = min(minnew, minold) / 1000.0
+
+    mdiff = abs(Mold - Mnew)
+    mdiff.data[mdiff.data < epsilon] = 0
+    mdiff.eliminate_zeros()
+
+    assert Mold.nnz == Mnew.nnz
+    assert Mold.shape == Mnew.shape
+    assert mdiff.nnz == 0
+
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
