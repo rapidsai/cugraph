@@ -192,7 +192,6 @@ def test_read_csv_for_nx(graph_file):
     assert mdiff.nnz == 0
 
 
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
