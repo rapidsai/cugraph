@@ -16,8 +16,8 @@ import pytest
 from itertools import product
 
 import cugraph
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -27,9 +27,9 @@ def test_grmat_gen(managed, pool):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())

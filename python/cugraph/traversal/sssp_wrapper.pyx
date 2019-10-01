@@ -28,7 +28,7 @@ from libc.float cimport FLT_MAX_EXP
 
 import cudf
 import cudf._lib as libcudf
-from librmm_cffi import librmm as rmm
+import rmm
 import numpy as np
 
 

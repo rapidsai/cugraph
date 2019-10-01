@@ -25,7 +25,7 @@ from libc.stdlib cimport calloc, malloc, free
 
 import cudf
 import cudf._lib as libcudf
-from librmm_cffi import librmm as rmm
+import rmm
 import numpy as np
 from cython cimport floating
 
