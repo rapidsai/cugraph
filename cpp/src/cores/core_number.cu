@@ -84,6 +84,7 @@ gdf_error extract_edges(
     int filteredEdgeCount) {
   cudaStream_t stream{nullptr};
 
+  //Allocate output columns
   o_graph->edgeList = new gdf_edge_list;
   o_graph->edgeList->src_indices = new gdf_column;
   o_graph->edgeList->dest_indices = new gdf_column;
@@ -91,6 +92,7 @@ gdf_error extract_edges(
 
   bool hasData = (i_graph->edgeList->edge_data != nullptr);
 
+  //Allocate underlying memory for output columns
   int *o_src, *o_dst, *o_wgt;
   ALLOC_TRY((void**)&o_src, sizeof(int) * filteredEdgeCount, stream);
   ALLOC_TRY((void**)&o_dst, sizeof(int) * filteredEdgeCount, stream);
@@ -104,6 +106,7 @@ gdf_error extract_edges(
   gdf_column_view(o_graph->edgeList->dest_indices, o_dst,
       nullptr, filteredEdgeCount, GDF_INT32);
 
+  //Set pointers and allocate memory/columns in case input graph has edge_data
   if (hasData) {
     o_graph->edgeList->edge_data   = new gdf_column;
     ALLOC_TRY((void**)&o_wgt, sizeof(WT)  * filteredEdgeCount, stream);
@@ -114,6 +117,8 @@ gdf_error extract_edges(
 
   gdf_size_type nE = i_graph->edgeList->src_indices->size;
 
+  //If an edge satisfies k-core conditions i.e. core_num[src] and core_num[dst]
+  //are both greater than or equal to k, copy it to the output graph
   if (hasData) {
     auto inEdge = thrust::make_zip_iterator(thrust::make_tuple(
           thrust::device_pointer_cast(i_src),
@@ -145,6 +150,11 @@ gdf_error extract_edges(
   return GDF_SUCCESS;
 }
 
+//Extract a subgraph from in_graph (with or without weights)
+//to out_graph based on whether edges in in_graph satisfy kcore
+//conditions.
+//i.e. All edges (s,d,w) in in_graph are copied over to out_graph
+//if core_num[s] and core_num[d] are greater than or equal to k.
 gdf_error extract_subgraph(gdf_graph *in_graph,
                            gdf_graph *out_graph,
                            int * vid,
@@ -156,14 +166,15 @@ gdf_error extract_subgraph(gdf_graph *in_graph,
 
   rmm::device_vector<int> c;
   thrust::device_ptr<int> c_ptr = thrust::device_pointer_cast(core_num);
-  if (nV != len) {
-    c.resize(nV, 0);
-    thrust::device_ptr<int> v_ptr = thrust::device_pointer_cast(vid);
-    thrust::scatter(rmm::exec_policy(stream)->on(stream),
-        c_ptr, c_ptr + len,
-        v_ptr, c.begin());
-    c_ptr = thrust::device_pointer_cast(c.data().get());
-  }
+  //We cannot assume that the user provided core numbers per vertex will be in
+  //order. Therefore, they need to be reordered by the vertex ids in a temporary
+  //array.
+  c.resize(nV, 0);
+  thrust::device_ptr<int> v_ptr = thrust::device_pointer_cast(vid);
+  thrust::scatter(rmm::exec_policy(stream)->on(stream),
+      c_ptr, c_ptr + len,
+      v_ptr, c.begin());
+  c_ptr = thrust::device_pointer_cast(c.data().get());
 
   gdf_error err = gdf_add_edge_list(in_graph);
   thrust::device_ptr<int> src =
@@ -171,11 +182,14 @@ gdf_error extract_subgraph(gdf_graph *in_graph,
   thrust::device_ptr<int> dst =
     thrust::device_pointer_cast(static_cast<int*>(in_graph->edgeList->dest_indices->data));
 
+  //Count number of edges in the input graph that satisfy kcore conditions
+  //i.e. core_num[src] and core_num[dst] are both greater than or equal to k
   gdf_size_type nE = in_graph->edgeList->src_indices->size;
   auto edge = thrust::make_zip_iterator(thrust::make_tuple(src, dst));
   int filteredEdgeCount = thrust::count_if(rmm::exec_policy(stream)->on(stream),
       edge, edge + nE, FilterEdges(k, c_ptr));
 
+  //Extract the relevant edges that have satisfied k-core conditions and put them in the output graph
   if (in_graph->edgeList->edge_data != nullptr) {
     switch (in_graph->edgeList->edge_data->dtype) {
       case GDF_FLOAT32:   return extract_edges<float> (in_graph, out_graph, c_ptr, k, filteredEdgeCount);
