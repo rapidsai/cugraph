@@ -11,5 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.core.core_number import core_number
-from cugraph.core.k_core import k_core
+from cugraph.cores.core_number import core_number
+from cugraph.cores.k_core import k_core

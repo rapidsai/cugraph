@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.core import core_number_wrapper
+from cugraph.cores import core_number_wrapper
 
 
 def core_number(G):

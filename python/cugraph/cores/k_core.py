@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.core import k_core_wrapper, core_number_wrapper
+from cugraph.cores import k_core_wrapper, core_number_wrapper
 from cugraph.structure.graph import Graph
 
 
