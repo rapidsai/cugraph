@@ -42,16 +42,26 @@ nvidia-smi
 
 logger "Activate conda env..."
 source activate gdf
+
+logger "conda install required packages"
 conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c rapidsai-nightly/label/cuda$CUDA_REL -c numba -c conda-forge \
       cudf=${MINOR_VERSION} \
       rmm=${MINOR_VERSION} \
-      networkx \
+      networkx>=2.3 \
       python-louvain \
       cudatoolkit=$CUDA_REL \
-      dask \
-      distributed \
+      dask>=2.1.0 \
+      distributed>=2.1.0 \
       dask-cudf=${MINOR_VERSION} \
       dask-cuda=${MINOR_VERSION}
+
+# Install the master version of dask and distributed
+logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps" 
+pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
+
+logger "pip install git+https://github.com/dask/dask.git --upgrade --no-deps"
+pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
+
 
 logger "Check versions..."
 python --version

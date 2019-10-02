@@ -19,8 +19,8 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -154,9 +154,9 @@ def test_weak_cc(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -194,9 +194,9 @@ def test_strong_cc(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())

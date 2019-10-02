@@ -22,26 +22,24 @@ import cugraph
 from cugraph.tests import utils
 import rmm
 from rmm import rmm_config
+import numpy as np
 
 
-def cugraph_call(cu_M, first, second, edgevals=False):
+def cugraph_call(cu_M, first, second):
     # Device data
     sources = cu_M['0']
     destinations = cu_M['1']
-    if edgevals is False:
-        values = None
-    else:
-        values = cu_M['2']
+    weights_arr = cudf.Series(np.ones(max(sources.max(),
+                              destinations.max())+1, dtype=np.float32))
 
     G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+    G.add_edge_list(sources, destinations, None)
 
     # cugraph Overlap Call
     t1 = time.time()
-    df = cugraph.overlap(G, first, second)
+    df = cugraph.overlap_w(G, weights_arr, first, second)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-
     return df['overlap_coeff'].to_array()
 
 
@@ -80,12 +78,11 @@ DATASETS = ['../datasets/dolphins',
             '../datasets/karate',
             '../datasets/netscience']
 
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_overlap(managed, pool, graph_file):
+def test_woverlap(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
@@ -107,41 +104,6 @@ def test_overlap(managed, pool, graph_file):
 
     cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'])
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
-
-    assert len(cu_coeff) == len(cpu_coeff)
-    for i in range(len(cu_coeff)):
-        diff = abs(cpu_coeff[i] - cu_coeff[i])
-        assert diff < 1.0e-6
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_overlap_edge_vals(managed, pool, graph_file):
-    gc.collect()
-
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
-
-    assert(rmm.is_initialized())
-
-    M = utils.read_mtx_file(graph_file)
-    M = M.tocsr()
-    cu_M = utils.read_csv_file(graph_file+'.csv')
-    row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
-    G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, None)
-    pairs = G.get_two_hop_neighbors()
-
-    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'],
-                            edgevals=True)
-    cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
-
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
         diff = abs(cpu_coeff[i] - cu_coeff[i])

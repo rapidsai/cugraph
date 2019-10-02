@@ -22,8 +22,8 @@ import cudf
 import cudf._lib as libcudf
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 '''
 import socket
 import struct
@@ -172,9 +172,9 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -209,9 +209,9 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -248,9 +248,9 @@ def test_transpose_from_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -276,9 +276,9 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -305,9 +305,9 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -349,9 +349,9 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -404,9 +404,9 @@ def test_networkx_compatibility(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -463,9 +463,9 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -492,9 +492,9 @@ def test_degree_functionality(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -541,9 +541,9 @@ def test_degrees_functionality(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -614,6 +614,25 @@ def test_renumber():
 '''
 
 
+def test_renumber_negative():
+    source_list = [4, 6, 8, -20, 1]
+    dest_list = [1, 29, 35, 0, 77]
+
+    df = pd.DataFrame({
+        'source_list': source_list,
+        'dest_list': dest_list,
+    })
+
+    gdf = cudf.DataFrame.from_pandas(df[['source_list', 'dest_list']])
+
+    src, dst, numbering = cugraph.renumber(gdf['source_list'],
+                                           gdf['dest_list'])
+
+    for i in range(len(source_list)):
+        assert source_list[i] == numbering[src[i]]
+        assert dest_list[i] == numbering[dst[i]]
+
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -622,9 +641,9 @@ def test_renumber_files(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
@@ -653,9 +672,9 @@ def test_number_of_vertices(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
