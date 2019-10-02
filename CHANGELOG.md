@@ -15,6 +15,7 @@
 - PR #481 Run bfs on unweighted graphs when calling sssp 
 - PR #491 Use YYMMDD tag in nightly build
 - PR #487 Add woverlap test, add namespace in snmg COO2CSR
+- PR #531 Use new rmm python package
 
 ## Bug Fixes
 - PR #458 Fix potential race condition in SSSP
