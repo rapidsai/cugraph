@@ -40,18 +40,8 @@ def k_core(graph_ptr, k_core_graph_ptr, k, core_number):
     cdef uintptr_t rGraph = k_core_graph_ptr
     cdef gdf_graph* rg = <gdf_graph*>rGraph
 
-    kVal = -1
-    if k is not None:
-        kVal = k
-
-    cdef gdf_column c_vertex
-    cdef gdf_column c_values
-
-    if core_number is not None:
-        c_vertex = get_gdf_column_view(core_number['vertex'])
-        c_values = get_gdf_column_view(core_number['values'])
-        err = gdf_k_core(g, kVal, &c_vertex, &c_values, rg)
-    else:
-        err = gdf_k_core(g, kVal, <gdf_column*> NULL, <gdf_column*> NULL, rg)
+    cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
+    cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
+    err = gdf_k_core(g, k, &c_vertex, &c_values, rg)
 
     libcudf.cudf.check_gdf_error(err)

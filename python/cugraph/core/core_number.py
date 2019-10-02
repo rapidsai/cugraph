@@ -16,14 +16,17 @@ from cugraph.core import core_number_wrapper
 
 def core_number(G):
     """
-    Compute the core numbers for the nodes of the graph G.
+    Compute the core numbers for the nodes of the graph G. A k-core of a graph
+    is a maximal subgraph that contains nodes of degree k or more.
+    A node has a core number of k if it belongs a k-core but not to k+1-core.
 
     Parameters
     ----------
     graph : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed or undirected edges where undirected edges are
-        represented as directed edges in both directions.
+        cuGraph graph descriptor with connectivity information. The graph should
+        contain undirected edges where undirected edges are represented as
+        directed edges in both directions. While this graph can contain edge
+        weights, they do not participate in the calculation of the core numbers.
 
     Returns
     -------

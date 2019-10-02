@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.core import k_core_wrapper
+from cugraph.core import k_core_wrapper, core_number_wrapper
 from cugraph.structure.graph import Graph
 
 
@@ -19,20 +19,25 @@ def k_core(G,
            k=None,
            core_number=None):
     """
-    Compute the core numbers for the nodes of the graph G.
+    Compute the k-core of the graph G based on the out degree of its nodes. A
+    k-core of a graph is a maximal subgraph that contains nodes of degree k or
+    more.
 
     Parameters
     ----------
     G : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed or undirected edges where undirected edges are
-        represented as directed edges in both directions.
+        cuGraph graph descriptor with connectivity information. The graph should
+        contain undirected edges where undirected edges are represented as
+        directed edges in both directions. While this graph can contain edge
+        weights, they do not participate in the calculation of the k-core.
     k : int, optional
-        Order of the core. If set to None, the main core is returned.
+        Order of the core. This value must not be negative. If set to None, the
+        main core is returned.
     core_number : cudf.DataFrame, optional
-        Precomputer core number of the nodes of the graph G containing two
+        Precomputed core number of the nodes of the graph G containing two
         cudf.Series of size V: the vertex identifiers and the corresponding
-        core number values.
+        core number values. If set to None, the core numbers of the nodes are
+        calculated internally.
 
         core_number['vertex'] : cudf.Series
             Contains the vertex identifiers
@@ -52,10 +57,16 @@ def k_core(G,
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
-    >>> KCoreGraph = cugraph.core_number(G)
+    >>> KCoreGraph = cugraph.k_core(G)
     """
 
     KCoreGraph = Graph()
+    if core_number is None:
+        core_number = core_number_wrapper.core_number(G.graph_ptr)
+        core_number = core_number.rename(columns={"core_number" : "values"})
+
+    if k is None:
+        k = core_number['values'].max()
 
     k_core_wrapper.k_core(G.graph_ptr,
                           KCoreGraph.graph_ptr,

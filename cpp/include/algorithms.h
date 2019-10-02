@@ -336,11 +336,11 @@ gdf_error gdf_core_number(gdf_graph *graph,
  *                                                                              
  * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
  *                                                                              
- * @Param[in] k(optional)            Order of the core. If set to -1, the main core is returned.
+ * @Param[in] k                      Order of the core. This value must not be negative.
  *                                                                              
- * @Param[in] *vertex_id(optional)   User specified vertex identifiers for which core number values are supplied
+ * @Param[in] *vertex_id             User specified vertex identifiers for which core number values are supplied
  *                                                                              
- * @Param[in] *core_number(optional) User supplied core number values corresponding to vertex_id
+ * @Param[in] *core_number           User supplied core number values corresponding to vertex_id
  *                                                                              
  * @Param[out] *out_graph            K Core subgraph
  *                                                                              
