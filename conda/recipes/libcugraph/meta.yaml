@@ -30,6 +30,7 @@ requirements:
     - cython
     - cudatoolkit {{ cuda_version }}.*
     - boost-cpp>=1.66
+    - libcypher-parser
   run:
     - libcudf={{ minor_version }}
     - cython
