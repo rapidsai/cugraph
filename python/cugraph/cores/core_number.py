@@ -23,10 +23,10 @@ def core_number(G):
     Parameters
     ----------
     graph : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. The graph should
-        contain undirected edges where undirected edges are represented as
-        directed edges in both directions. While this graph can contain edge
-        weights, they do not participate in the calculation of the core numbers.
+        cuGraph graph descriptor with connectivity information. The graph
+        should contain undirected edges where undirected edges are represented
+        as directed edges in both directions. While this graph can contain edge
+        weights, they don't participate in the calculation of the core numbers.
 
     Returns
     -------

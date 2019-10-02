@@ -26,10 +26,10 @@ def k_core(G,
     Parameters
     ----------
     G : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. The graph should
-        contain undirected edges where undirected edges are represented as
-        directed edges in both directions. While this graph can contain edge
-        weights, they do not participate in the calculation of the k-core.
+        cuGraph graph descriptor with connectivity information. The graph
+        should contain undirected edges where undirected edges are represented
+        as directed edges in both directions. While this graph can contain edge
+        weights, they don't participate in the calculation of the k-core.
     k : int, optional
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
@@ -63,7 +63,7 @@ def k_core(G,
     KCoreGraph = Graph()
     if core_number is None:
         core_number = core_number_wrapper.core_number(G.graph_ptr)
-        core_number = core_number.rename(columns={"core_number" : "values"})
+        core_number = core_number.rename(columns={"core_number": "values"})
 
     if k is None:
         k = core_number['values'].max()

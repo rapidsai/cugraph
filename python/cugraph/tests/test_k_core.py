@@ -16,7 +16,6 @@ from itertools import product
 
 import pytest
 
-import pandas as pd
 import cugraph
 from cugraph.tests import utils
 from librmm_cffi import librmm as rmm
