@@ -19,6 +19,8 @@ def core_number(G):
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
     A node has a core number of k if it belongs a k-core but not to k+1-core.
+    This call does not support a graph with self-loops and parallel
+    edges.
 
     Parameters
     ----------

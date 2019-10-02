@@ -21,7 +21,8 @@ def k_core(G,
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
-    more.
+    more. This call does not support a graph with self-loops and parallel
+    edges.
 
     Parameters
     ----------
