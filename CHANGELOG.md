@@ -4,6 +4,7 @@
 - PR #469 Symmetrize a COO
 - PR #477 Add cuHornet as a submodule
 - PR #483 Katz Centrality
+- PR #493 Added C++ findMatches operator for OpenCypher query.
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
@@ -13,6 +14,7 @@
 - PR #481 Run bfs on unweighted graphs when calling sssp 
 - PR #491 Use YYMMDD tag in nightly build
 - PR #487 Add woverlap test, add namespace in snmg COO2CSR
+- PR #531 Use new rmm python package
 
 ## Bug Fixes
 - PR #458 Fix potential race condition in SSSP
@@ -22,7 +24,8 @@
 - PR #478 Remove requirements and setup for pi
 - PR #495 Fixed cuhornet and cmake for Turing cards
 - PR #489 Handle negative vertex ids in renumber
-
+- PR #519 Removed deprecated cusparse calls
+- PR #525 Update build scripts and YYMMDD tagging for nightly builds
 
 
 # cuGraph 0.9.0 (21 Aug 2019)
