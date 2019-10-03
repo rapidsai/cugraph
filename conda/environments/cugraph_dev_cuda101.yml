@@ -16,7 +16,7 @@ dependencies:
 - networkx
 - python-louvain
 - nccl
-- cudatoolkit=9.2
+- cudatoolkit=10.1
 - cmake>=3.12
 - python>=3.6,<3.8
 - pandas>=0.24.2,<0.25

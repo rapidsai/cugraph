@@ -26,6 +26,7 @@
 - PR #495 Fixed cuhornet and cmake for Turing cards
 - PR #489 Handle negative vertex ids in renumber
 - PR #519 Removed deprecated cusparse calls
+- PR #522 Added the conda dev env file for 10.1
 - PR #525 Update build scripts and YYMMDD tagging for nightly builds
 
 
