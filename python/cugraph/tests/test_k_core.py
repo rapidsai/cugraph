@@ -59,8 +59,7 @@ def compare_edges(cg, nxg):
 
 
 DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
+            '../datasets/netscience.csv']
 
 
 @pytest.mark.parametrize('managed, pool',
