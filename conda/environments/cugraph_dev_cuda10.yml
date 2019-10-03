@@ -1,8 +1,8 @@
 name: cugraph_dev
 channels:
-- rapidsai/label/cuda10.0
-- nvidia/label/cuda10.0
-- rapidsai-nightly/label/cuda10.0
+- rapidsai
+- nvidia
+- rapidsai-nightly
 - conda-forge
 dependencies:
 - cudf=0.10.*

@@ -95,6 +95,9 @@ conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph 
 
 # CUDA 10.0
 conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.0
+
+# CUDA 10.1
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.1
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
