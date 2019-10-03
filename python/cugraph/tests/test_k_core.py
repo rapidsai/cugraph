@@ -36,13 +36,13 @@ print('Networkx version : {} '.format(nx.__version__))
 
 
 def calc_k_cores(graph_file):
-    M = utils.read_csv_file(graph_file + ".csv")
+    M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
     G.add_edge_list(M['0'], M['1'])
 
     ck = cugraph.k_core(G)
 
-    NM = utils.read_mtx_file(graph_file + ".mtx")
+    NM = utils.read_csv_for_nx(graph_file)
     NM = NM.tocsr()
     Gnx = nx.DiGraph(NM)
     nk = nx.k_core(Gnx)
@@ -58,7 +58,9 @@ def compare_edges(cg, nxg):
     return True
 
 
-DATASETS = ['../datasets/dolphins', '../datasets/netscience']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/netscience.csv',
+            '../datasets/email-Eu-core.csv']
 
 
 @pytest.mark.parametrize('managed, pool',
