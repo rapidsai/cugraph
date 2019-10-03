@@ -22,6 +22,7 @@ from cugraph.community import (
     triangles
 )
 from cugraph.centrality import katz_centrality
+from cugraph.cores import core_number, k_core
 from cugraph.components import weakly_connected_components, strongly_connected_components
 from cugraph.link_analysis import pagerank
 from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w

@@ -113,10 +113,13 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
 # for CUDA 9.2
-conda env create --name cugraph_dev --file conda/environments/cugraph_dev.yml
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev92.yml
 
 # for CUDA 10
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.yml
+
+# for CUDA 10.1
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda101.yml
 
 # activate the environment
 conda activate cugraph_dev

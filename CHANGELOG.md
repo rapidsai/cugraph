@@ -14,6 +14,7 @@
 - PR #477 Add cuHornet as a submodule
 - PR #483 Katz Centrality
 - PR #493 Added C++ findMatches operator for OpenCypher query.
+- PR #520 KCore and CoreNumber
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
@@ -34,6 +35,7 @@
 - PR #495 Fixed cuhornet and cmake for Turing cards
 - PR #489 Handle negative vertex ids in renumber
 - PR #519 Removed deprecated cusparse calls
+- PR #522 Added the conda dev env file for 10.1
 - PR #525 Update build scripts and YYMMDD tagging for nightly builds
 
 
