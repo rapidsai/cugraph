@@ -317,3 +317,38 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
             double tol,
             bool has_guess,
             bool normalized);
+
+/**                                                                             
+ * @Synopsis   Compute the Core Number for the nodes of the graph G
+ *                                                                              
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] *core_number          If set to a valid column, this is populated by the core number of every vertex in the graph
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_core_number(gdf_graph *graph,                                         
+        		gdf_column *core_number);
+
+/**                                                                             
+ * @Synopsis   Compute K Core of the graph G
+ *                                                                              
+ * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[in] k                      Order of the core. This value must not be negative.
+ *                                                                              
+ * @Param[in] *vertex_id             User specified vertex identifiers for which core number values are supplied
+ *                                                                              
+ * @Param[in] *core_number           User supplied core number values corresponding to vertex_id
+ *                                                                              
+ * @Param[out] *out_graph            K Core subgraph
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_k_core(gdf_graph *in_graph,
+                     int k,
+                     gdf_column *vertex_id,
+                     gdf_column *core_number,
+                     gdf_graph *out_graph);
