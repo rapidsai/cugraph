@@ -4,6 +4,7 @@
 - PR #469 Symmetrize a COO
 - PR #477 Add cuHornet as a submodule
 - PR #483 Katz Centrality
+- PR #524 Integrated libcypher-parser conda package into project.
 - PR #493 Added C++ findMatches operator for OpenCypher query.
 - PR #520 KCore and CoreNumber
 
