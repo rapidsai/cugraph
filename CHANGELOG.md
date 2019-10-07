@@ -15,6 +15,7 @@
 - PR #483 Katz Centrality
 - PR #524 Integrated libcypher-parser conda package into project.
 - PR #493 Added C++ findMatches operator for OpenCypher query.
+- PR #527 Add testing with asymmetric graph (where appropriate)
 - PR #520 KCore and CoreNumber
 
 ## Improvements

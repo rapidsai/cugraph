@@ -60,7 +60,7 @@ def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
     df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol,
                           personalization=personalization, nstart=nstart)
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print('Cugraph Time : '+str(t2))
 
     # Sort Pagerank values
     sorted_pr = []
@@ -123,14 +123,13 @@ def networkx_call(M, max_iter, tol, alpha, personalization_perc):
                      tol=tol*0.01, personalization=personalization)
     t2 = time.time() - t1
 
-    print('Time : ' + str(t2))
+    print('Networkx Time : ' + str(t2))
 
     return pr, personalization
 
 
-DATASETS = ['../datasets/dolphins',
-            '../datasets/karate']
-
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv']
 
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
@@ -159,7 +158,7 @@ def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
     rmm.initialize()
 
     assert(rmm.is_initialized())
-    M = utils.read_mtx_file(graph_file+'.mtx')
+    M = utils.read_csv_for_nx(graph_file)
     networkx_pr, networkx_prsn = networkx_call(M, max_iter, tol, alpha,
                                                personalization_perc)
 
@@ -168,7 +167,7 @@ def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
         cu_nstart = cudify(networkx_pr)
         max_iter = 5
     cu_prsn = cudify(networkx_prsn)
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     cugraph_pr = cugraph_call(cu_M, max_iter, tol, alpha, cu_prsn, cu_nstart)
 
     # Calculating mismatch

@@ -57,15 +57,16 @@ def nx_call(M, verts):
     return nx.subgraph(G, verts)
 
 
-datasets = ['../datasets/karate',
-            '../datasets/dolphins',
-            '../datasets/netscience']
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv',
+            '../datasets/netscience.csv',
+            '../datasets/email-Eu-core.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', datasets)
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_subgraph_extraction(managed, pool, graph_file):
     gc.collect()
 
@@ -77,7 +78,7 @@ def test_subgraph_extraction(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
+    M = utils.read_csv_for_nx(graph_file)
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
     verts[1] = 1

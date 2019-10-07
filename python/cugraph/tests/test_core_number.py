@@ -37,13 +37,13 @@ print('Networkx version : {} '.format(nx.__version__))
 
 
 def calc_core_number(graph_file):
-    M = utils.read_csv_file(graph_file + ".csv")
+    M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
     G.add_edge_list(M['0'], M['1'])
 
     cn = cugraph.core_number(G)
 
-    NM = utils.read_mtx_file(graph_file + ".mtx")
+    NM = utils.read_csv_for_nx(graph_file)
     NM = NM.tocsr()
     Gnx = nx.Graph(NM)
     nc = nx.core_number(Gnx)
@@ -53,7 +53,8 @@ def calc_core_number(graph_file):
     return cn
 
 
-DATASETS = ['../datasets/dolphins', '../datasets/netscience']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
 
 
 @pytest.mark.parametrize('managed, pool',
