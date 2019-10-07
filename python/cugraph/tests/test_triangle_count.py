@@ -55,9 +55,9 @@ def networkx_call(M):
     return count
 
 
-DATASETS = ['../datasets/dolphins.mtx',
-            '../datasets/karate.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -75,7 +75,7 @@ def test_triangles(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
+    M = utils.read_csv_for_nx(graph_file)
     cu_count = cugraph_call(M)
     nx_count = networkx_call(M)
     assert cu_count == nx_count
@@ -96,7 +96,7 @@ def test_triangles_edge_vals(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
+    M = utils.read_csv_for_nx(graph_file)
     cu_count = cugraph_call(M, edgevals=True)
     nx_count = networkx_call(M)
     assert cu_count == nx_count

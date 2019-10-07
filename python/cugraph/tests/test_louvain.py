@@ -53,7 +53,7 @@ def cugraph_call(cu_M, edgevals=False):
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print('Cugraph Time : '+str(t2))
 
     return parts, mod
 
@@ -70,13 +70,13 @@ def networkx_call(M):
     parts = community.best_partition(Gnx)
     t2 = time.time() - t1
 
-    print('Time : '+str(t2))
+    print('Networkx Time : '+str(t2))
     return parts
 
 
-DATASETS = ['../datasets/karate',
-            '../datasets/dolphins',
-            '../datasets/netscience']
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -94,8 +94,8 @@ def test_louvain_with_edgevals(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
     nx_parts = networkx_call(M)
 
@@ -115,8 +115,8 @@ def test_louvain_with_edgevals(managed, pool, graph_file):
     assert abs(cu_mod - cu_mod_nx) < .0001
 
 
-DATASETS = ['../datasets/karate',
-            '../datasets/dolphins']
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -134,8 +134,8 @@ def test_louvain(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     cu_parts, cu_mod = cugraph_call(cu_M)
     nx_parts = networkx_call(M)
 
