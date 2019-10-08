@@ -87,6 +87,24 @@ Connected Components
     :members:
     :undoc-members:
 
+Cores
+=====
+
+K-Core
+------
+
+.. automodule:: cugraph.cores.k_core
+    :members:
+    :undoc-members:
+
+Core Number
+-----------
+
+.. automodule:: cugraph.cores.core_number
+    :members:
+    :undoc-members:
+
+
 Link Analysis
 =============
 
