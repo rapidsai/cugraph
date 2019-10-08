@@ -285,9 +285,7 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank,
   GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   */
-  if(graph->transposedAdjList != nullptr)
-  {
-  printf("\nGood to go\n");}
+
   switch (pagerank->dtype) {
     case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank,
                                 personalization_subset, personalization_values,
