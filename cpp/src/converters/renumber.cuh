@@ -53,7 +53,7 @@ namespace cugraph {
     template <typename VertexIdType>
     __device__ __inline__
     detail::hash_type operator()(const VertexIdType &vertex_id) const {
-      return (vertex_id % hash_size_);
+      return ((vertex_id % hash_size_) + hash_size_) % hash_size_;
     }
 
     detail::hash_type getHashSize() const {

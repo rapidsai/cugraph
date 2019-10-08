@@ -19,8 +19,8 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -55,9 +55,9 @@ def networkx_call(M):
     return count
 
 
-DATASETS = ['../datasets/dolphins.mtx',
-            '../datasets/karate.mtx',
-            '../datasets/netscience.mtx']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -68,14 +68,14 @@ def test_triangles(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
+    M = utils.read_csv_for_nx(graph_file)
     cu_count = cugraph_call(M)
     nx_count = networkx_call(M)
     assert cu_count == nx_count
@@ -89,14 +89,14 @@ def test_triangles_edge_vals(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
+    M = utils.read_csv_for_nx(graph_file)
     cu_count = cugraph_call(M, edgevals=True)
     nx_count = networkx_call(M)
     assert cu_count == nx_count

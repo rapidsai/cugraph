@@ -16,7 +16,7 @@
 
 /**
  * ---------------------------------------------------------------------------*
- * @brief Core Number implementation
+ * @brief Katz Centrality implementation
  *
  * @file katz_centrality.cu
  * --------------------------------------------------------------------------*/
@@ -39,6 +39,8 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
     return err;
   GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(katz_centrality->dtype == GDF_FLOAT64, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(katz_centrality->size == graph->numberOfVertices, GDF_COLUMN_SIZE_MISMATCH);
 
   const bool isStatic = true;
   using HornetGraph = hornet::gpu::HornetStatic<int>;

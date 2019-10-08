@@ -19,8 +19,8 @@ import pytest
 import pandas as pd
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -43,7 +43,7 @@ def topKVertices(katz, col, k):
 
 
 def calc_katz(graph_file):
-    M = utils.read_csv_file(graph_file + ".csv")
+    M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
     G.add_edge_list(M['0'], M['1'])
 
@@ -53,7 +53,7 @@ def calc_katz(graph_file):
 
     k = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
 
-    NM = utils.read_mtx_file(graph_file + ".mtx")
+    NM = utils.read_csv_for_nx(graph_file)
     NM = NM.tocsr()
     Gnx = nx.DiGraph(NM)
     nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
@@ -63,7 +63,8 @@ def calc_katz(graph_file):
     return k
 
 
-DATASETS = ['../datasets/dolphins', '../datasets/netscience']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
 
 
 @pytest.mark.parametrize('managed, pool',
@@ -73,13 +74,14 @@ def test_katz_centrality(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
     katz_scores = calc_katz(graph_file)
+
     topKNX = topKVertices(katz_scores, 'nx_katz', 10)
     topKCU = topKVertices(katz_scores, 'cu_katz', 10)
 

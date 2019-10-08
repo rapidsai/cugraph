@@ -75,6 +75,11 @@ endif(CMAKE_COMPILER_IS_GNUCXX)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70")
 
+find_package(CUDA)
+if((CUDA_VERSION_MAJOR EQUAL 10) OR (CUDA_VERSION_MAJOR GREATER 10))
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75")
+endif()
+
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
@@ -143,6 +148,20 @@ if(OpenMP_FOUND)
     # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
 endif(OpenMP_FOUND)
+
+###################################################################################################
+# - find libcypher-parser -------------------------------------------------------------------------
+
+find_path(LIBCYPHERPARSER_INCLUDE "cypher-parser.h"
+          HINTS "$ENV{CONDA_PREFIX}/include")
+
+find_library(LIBCYPHERPARSER_LIBRARY STATIC "libcypher-parser.a"
+             HINTS "$ENV{CONDA_PREFIX}/lib")
+
+add_library(libcypher-parser STATIC IMPORTED ${LIBCYPHERPARSER_LIBRARY})
+if (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
+    set_target_properties(libcypher-parser PROPERTIES IMPORTED_LOCATION ${LIBCYPHERPARSER_LIBRARY})
+endif (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
 
 ###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
@@ -257,6 +276,8 @@ link_directories(
 
 add_library(cugraph SHARED
 	src/db/db_object.cu
+	src/db/db_parser_integration_test.cu
+	src/db/db_operators.cu
     src/utilities/grmat.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
@@ -269,6 +290,7 @@ add_library(cugraph SHARED
     src/converters/nvgraph.cu
     src/converters/renumber.cu
     src/community/nvgraph_gdf.cu
+    src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
     src/snmg/link_analysis/pagerank.cu
@@ -343,7 +365,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda)
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
