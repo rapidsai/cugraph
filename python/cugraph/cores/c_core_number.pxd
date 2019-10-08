@@ -16,27 +16,12 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.c_triangle_count cimport *
 from cugraph.structure.c_graph cimport *
-from cugraph.utilities.column_utils cimport *
-from libc.stdint cimport uintptr_t
-
-import cudf
-import cudf._lib as libcudf
-import rmm
 
 
-def triangles(graph_ptr):
-    """
-    Call gdf_triangle_count_nvgraph
-    """
-    cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*> graph
+cdef extern from "cugraph.h":
 
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    cdef gdf_error gdf_core_number(
+        gdf_graph *graph,
+        gdf_column *core_number) except +
 
-    cdef uint64_t result
-    err = gdf_triangle_count_nvgraph(g, &result)
-    libcudf.cudf.check_gdf_error(err)
-    return result

@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.c_subgraph_extraction cimport *
+from cugraph.cores.c_core_number cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -30,17 +30,32 @@ import rmm
 import numpy as np
 
 
-def subgraph(graph_ptr, vertices, subgraph_ptr):
+def core_number(graph_ptr):
     """
-    Call gdf_extract_subgraph_vertex_nvgraph
+    Call gdf_core_number
     """
-
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
+    cdef gdf_graph* g = <gdf_graph*>graph
 
-    cdef uintptr_t rGraph = subgraph_ptr
-    cdef gdf_graph* rg = <gdf_graph*>rGraph
-    cdef gdf_column vert_col = get_gdf_column_view(vertices)
-
-    err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
+    err = gdf_add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
+
+    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # used instead of g.adjList.offsets.size - 1)
+    num_verts = g.adjList.offsets.size - 1
+
+    df = cudf.DataFrame()
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
+    df['core_number'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef gdf_column c_core_number_col = get_gdf_column_view(df['core_number'])
+
+    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
+    libcudf.cudf.check_gdf_error(err)
+
+    err = gdf_core_number(g, &c_core_number_col)
+
+    libcudf.cudf.check_gdf_error(err)
+
+    return df
+

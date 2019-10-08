@@ -16,7 +16,6 @@ from itertools import product
 
 import pytest
 
-import pandas as pd
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -36,31 +35,27 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def topKVertices(katz, col, k):
-    top = katz.nlargest(n=k, columns=col)
-    top = top.sort_values(by=col, ascending=False)
-    return top['vertex']
-
-
-def calc_katz(graph_file):
+def calc_k_cores(graph_file):
     M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
     G.add_edge_list(M['0'], M['1'])
 
-    largest_out_degree = G.degrees().nlargest(n=1, columns='out_degree')
-    largest_out_degree = largest_out_degree['out_degree'][0]
-    katz_alpha = 1/(largest_out_degree + 1)
-
-    k = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
+    ck = cugraph.k_core(G)
 
     NM = utils.read_csv_for_nx(graph_file)
     NM = NM.tocsr()
     Gnx = nx.DiGraph(NM)
-    nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
-    pdf = pd.DataFrame(nk, index=[0]).T
-    k['nx_katz'] = pdf[0]
-    k = k.rename({'katz_centrality': 'cu_katz'})
-    return k
+    nk = nx.k_core(Gnx)
+    return ck, nk
+
+
+def compare_edges(cg, nxg):
+    src, dest, weight = cg.view_edge_list()
+    assert weight is None
+    assert len(src) == nxg.size()
+    for i in range(len(src)):
+        assert nxg.has_edge(src[i], dest[i])
+    return True
 
 
 DATASETS = ['../datasets/dolphins.csv',
@@ -70,7 +65,7 @@ DATASETS = ['../datasets/dolphins.csv',
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_katz_centrality(managed, pool, graph_file):
+def test_core_number(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
@@ -80,9 +75,6 @@ def test_katz_centrality(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    katz_scores = calc_katz(graph_file)
+    cu_kcore, nx_kcore = calc_k_cores(graph_file)
 
-    topKNX = topKVertices(katz_scores, 'nx_katz', 10)
-    topKCU = topKVertices(katz_scores, 'cu_katz', 10)
-
-    assert topKNX.equals(topKCU)
+    assert compare_edges(cu_kcore, nx_kcore)

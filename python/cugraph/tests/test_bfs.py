@@ -21,8 +21,8 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 
 def cugraph_call(cu_M, start_vertex):
@@ -71,11 +71,11 @@ def base_call(M, start_vertex):
     return vertex, dist
 
 
-DATASETS = ['../datasets/dolphins',
-            '../datasets/karate',
-            '../datasets/polbooks',
-            '../datasets/netscience']
-
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/polbooks.csv',
+            '../datasets/netscience.csv',
+            '../datasets/email-Eu-core.csv']
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
@@ -85,15 +85,15 @@ def test_bfs(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
 
     base_vid, base_dist = base_call(M, 0)
     cugraph_vid, cugraph_dist = cugraph_call(cu_M, 0)

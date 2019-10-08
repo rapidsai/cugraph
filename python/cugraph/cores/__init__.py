@@ -11,5 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# from cugraph.utilities.grmat import grmat_gen
-from cugraph.utilities.pointer_utils import device_of_gpu_pointer
+from cugraph.cores.core_number import core_number
+from cugraph.cores.k_core import k_core

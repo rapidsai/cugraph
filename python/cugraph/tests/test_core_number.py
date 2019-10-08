@@ -36,31 +36,21 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def topKVertices(katz, col, k):
-    top = katz.nlargest(n=k, columns=col)
-    top = top.sort_values(by=col, ascending=False)
-    return top['vertex']
-
-
-def calc_katz(graph_file):
+def calc_core_number(graph_file):
     M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
     G.add_edge_list(M['0'], M['1'])
 
-    largest_out_degree = G.degrees().nlargest(n=1, columns='out_degree')
-    largest_out_degree = largest_out_degree['out_degree'][0]
-    katz_alpha = 1/(largest_out_degree + 1)
-
-    k = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
+    cn = cugraph.core_number(G)
 
     NM = utils.read_csv_for_nx(graph_file)
     NM = NM.tocsr()
-    Gnx = nx.DiGraph(NM)
-    nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
-    pdf = pd.DataFrame(nk, index=[0]).T
-    k['nx_katz'] = pdf[0]
-    k = k.rename({'katz_centrality': 'cu_katz'})
-    return k
+    Gnx = nx.Graph(NM)
+    nc = nx.core_number(Gnx)
+    pdf = pd.DataFrame(nc, index=[0]).T
+    cn['nx_core_number'] = pdf[0]
+    cn = cn.rename({'core_number': 'cu_core_number'})
+    return cn
 
 
 DATASETS = ['../datasets/dolphins.csv',
@@ -70,7 +60,7 @@ DATASETS = ['../datasets/dolphins.csv',
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_katz_centrality(managed, pool, graph_file):
+def test_core_number(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
@@ -80,9 +70,6 @@ def test_katz_centrality(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    katz_scores = calc_katz(graph_file)
+    cn = calc_core_number(graph_file)
 
-    topKNX = topKVertices(katz_scores, 'nx_katz', 10)
-    topKCU = topKVertices(katz_scores, 'cu_katz', 10)
-
-    assert topKNX.equals(topKCU)
+    assert cn['cu_core_number'].equals(cn['nx_core_number'])

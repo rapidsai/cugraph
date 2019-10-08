@@ -136,6 +136,20 @@ if(OpenMP_FOUND)
 endif(OpenMP_FOUND)
 
 ###################################################################################################
+# - find libcypher-parser -------------------------------------------------------------------------
+
+find_path(LIBCYPHERPARSER_INCLUDE "cypher-parser.h"
+          HINTS "$ENV{CONDA_PREFIX}/include")
+
+find_library(LIBCYPHERPARSER_LIBRARY STATIC "libcypher-parser.a"
+             HINTS "$ENV{CONDA_PREFIX}/lib")
+
+add_library(libcypher-parser STATIC IMPORTED ${LIBCYPHERPARSER_LIBRARY})
+if (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
+    set_target_properties(libcypher-parser PROPERTIES IMPORTED_LOCATION ${LIBCYPHERPARSER_LIBRARY})
+endif (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
+
+###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
 
 if(BUILD_TESTS)
@@ -247,8 +261,9 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/db/db_object.cu
 #    src/utilities/grmat.cu
+	src/db/db_object.cu
+	src/db/db_parser_integration_test.cu
 	src/db/db_operators.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
@@ -261,6 +276,7 @@ add_library(cugraph SHARED
     src/converters/nvgraph.cu
     src/converters/renumber.cu
     src/community/nvgraph_gdf.cu
+    src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
     src/snmg/link_analysis/pagerank.cu
@@ -338,7 +354,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda)
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################

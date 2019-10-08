@@ -47,7 +47,7 @@ conda list
 
 # Possible "hack"/workaround for Gunrock submodule `--remote` issues (TODO: FIX ME!)
 #
-git submodule update --init --recursive
+git submodule update --init --recursive thirdparty/gunrock/
 
 # FIX Added to deal with Anancoda SSL verification issues during conda builds
 conda config --set ssl_verify False

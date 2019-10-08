@@ -44,7 +44,7 @@ logger "Activate conda env..."
 source activate gdf
 
 logger "conda install required packages"
-conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c rapidsai-nightly/label/cuda$CUDA_REL -c numba -c conda-forge \
+conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge \
       cudf=${MINOR_VERSION} \
       rmm=${MINOR_VERSION} \
       networkx>=2.3 \
@@ -53,7 +53,8 @@ conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c r
       dask>=2.1.0 \
       distributed>=2.1.0 \
       dask-cudf=${MINOR_VERSION} \
-      dask-cuda=${MINOR_VERSION}
+      dask-cuda=${MINOR_VERSION} \
+      libcypher-parser
 
 # Install the master version of dask and distributed
 logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps" 
@@ -71,7 +72,7 @@ conda list
 
 # Possible "hack"/workaround for Gunrock submodule `--remote` issues (TODO: FIX ME!)
 #
-git submodule update --init --recursive
+git submodule update --init --recursive thirdparty/gunrock/
 
 ################################################################################
 # BUILD - Build libcugraph and cuGraph from source

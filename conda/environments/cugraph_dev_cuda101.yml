@@ -5,7 +5,6 @@ channels:
 - rapidsai-nightly
 - conda-forge
 dependencies:
-- libcypher-parser
 - cudf=0.10.*
 - nvstrings=0.10.*
 - rmm=0.10.*
@@ -17,7 +16,7 @@ dependencies:
 - networkx
 - python-louvain
 - nccl
-- cudatoolkit=10.0
+- cudatoolkit=10.1
 - cmake>=3.12
 - python>=3.6,<3.8
 - pandas>=0.24.2,<0.25
@@ -34,5 +33,6 @@ dependencies:
 - ipython
 - recommonmark
 - pip
+- libcypher-parser
 - pip:
   - sphinx-markdown-tables
