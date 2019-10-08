@@ -30,6 +30,7 @@
 - PR #519 Removed deprecated cusparse calls
 - PR #522 Added the conda dev env file for 10.1
 - PR #525 Update build scripts and YYMMDD tagging for nightly builds
+- PR #548 Added missing cores documentation
 
 
 # cuGraph 0.9.0 (21 Aug 2019)
