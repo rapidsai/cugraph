@@ -20,8 +20,8 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -60,7 +60,7 @@ def cugraph_call(cu_M, source, edgevals=False):
     df = cugraph.sssp(G, source)
 
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print('Cugraph Time : '+str(t2))
 
     if(np.issubdtype(df['distance'].dtype, np.integer)):
         max_val = np.iinfo(df['distance'].dtype).max
@@ -84,8 +84,7 @@ def networkx_call(M, source, edgevals=False):
         raise TypeError('Shape is not square')
 
     # Directed NetworkX graph
-    G = nx.Graph(M)
-    Gnx = G.to_undirected()
+    Gnx = nx.DiGraph(M)
 
     print('NX Solving... ')
     t1 = time.time()
@@ -97,14 +96,15 @@ def networkx_call(M, source, edgevals=False):
 
     t2 = time.time() - t1
 
-    print('Time : ' + str(t2))
+    print('NX Time : ' + str(t2))
 
     return path, Gnx
 
 
-DATASETS = ['../datasets/dolphins',
-            '../datasets/karate',
-            '../datasets/netscience']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/netscience.csv',
+            '../datasets/email-Eu-core.csv']
 SOURCES = [1]
 
 
@@ -117,14 +117,14 @@ def test_sssp(managed, pool, graph_file, source):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     cu_paths, max_val = cugraph_call(cu_M, source)
     nx_paths, Gnx = networkx_call(M, source)
 
@@ -151,21 +151,21 @@ def test_sssp(managed, pool, graph_file, source):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience'])
+@pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp_edgevals(managed, pool, graph_file, source):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     cu_paths, max_val = cugraph_call(cu_M, source, edgevals=True)
     nx_paths, Gnx = networkx_call(M, source, edgevals=True)
 

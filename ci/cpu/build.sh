@@ -24,6 +24,11 @@ cd $WORKSPACE
 export GIT_DESCRIBE_TAG=`git describe --abbrev=0 --tags`
 export GIT_DESCRIBE_NUMBER=`git rev-list ${GIT_DESCRIBE_TAG}..HEAD --count`
 
+# If nightly build, append current YYMMDD to version
+if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
+  export VERSION_SUFFIX=`date +%y%m%d`
+fi
+
 ################################################################################
 # SETUP - Check environment
 ################################################################################
@@ -39,6 +44,10 @@ python --version
 gcc --version
 g++ --version
 conda list
+
+# Possible "hack"/workaround for Gunrock submodule `--remote` issues (TODO: FIX ME!)
+#
+git submodule update --init --recursive thirdparty/gunrock/
 
 # FIX Added to deal with Anancoda SSL verification issues during conda builds
 conda config --set ssl_verify False

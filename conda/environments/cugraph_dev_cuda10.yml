@@ -1,10 +1,11 @@
 name: cugraph_dev
 channels:
-- rapidsai/label/cuda10.0
-- nvidia/label/cuda10.0
-- rapidsai-nightly/label/cuda10.0
+- rapidsai
+- nvidia
+- rapidsai-nightly
 - conda-forge
 dependencies:
+- libcypher-parser
 - cudf=0.10.*
 - nvstrings=0.10.*
 - rmm=0.10.*

@@ -20,8 +20,8 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 
 def cugraph_call(G, partitions):
@@ -42,10 +42,10 @@ def random_call(G, partitions):
     return set(range(num_verts)), score
 
 
-DATASETS = [
-    '../datasets/karate',
-    '../datasets/dolphins',
-    '../datasets/netscience']
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
+
 PARTITIONS = [2, 4, 8]
 
 
@@ -58,16 +58,16 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
     # Read in the graph and get a cugraph object
-    M = utils.read_mtx_file(graph_file+'.mtx').tocsr()
-    cu_M = utils.read_csv_file(graph_file+'.csv', read_weights_in_sp=False)
+    M = utils.read_csv_for_nx(graph_file).tocsr()
+    cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
@@ -101,8 +101,10 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_modularity_clustering_with_edgevals(graph_file, partitions):
     # Read in the graph and get a cugraph object
-    M = utils.read_mtx_file(graph_file).tocsr()
-    cu_M = utils.read_csv_file(graph_file+'.csv', read_weights_in_sp=False)
+    M = utils.read_csv_for_nx(graph_file,
+                              read_weights_in_sp=False)
+    M = M.tocsr().sorted_indices()
+    cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)

@@ -21,8 +21,8 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -88,9 +88,9 @@ def networkx_call(M):
     return coeff
 
 
-DATASETS = ['../datasets/dolphins',
-            '../datasets/karate',
-            '../datasets/netscience']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -101,15 +101,15 @@ def test_wjaccard(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
-    rmm_cfg.initial_pool_size = 2 << 27
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     # suppress F841 (local variable is assigned but never used) in flake8
     # no networkX equivalent to compare cu_coeff against...
     cu_coeff = cugraph_call(cu_M)  # noqa: F841

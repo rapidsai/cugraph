@@ -23,7 +23,7 @@ from libc.stdint cimport uintptr_t
 
 import cudf
 import cudf._lib as libcudf
-from librmm_cffi import librmm as rmm
+import rmm
 
 
 def triangles(graph_ptr):
