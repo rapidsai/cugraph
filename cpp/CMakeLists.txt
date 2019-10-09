@@ -117,20 +117,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - gunrock ---------------------------------------------------------------------------------------
-
-find_package(Git QUIET)
-if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
-    execute_process(COMMAND ${GIT_EXECUTABLE} log  -1 --pretty=format:"%ad" --date=format:%Y%m%d%H%M%S OUTPUT_VARIABLE LATEST_COMMIT_DATE WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
-    set(REQUIRED_COMMIT_DATE "\"20190528081356\"")
-    if(NOT ${REQUIRED_COMMIT_DATE} STREQUAL ${LATEST_COMMIT_DATE})
-        message(FATAL_ERROR "${CMAKE_CURRENT_BINARY_DIR}/gunrock is incompatible with cuGraph, please delete the gunrock directory and re-execute cmake.")
-    endif()
-else()
-    execute_process(COMMAND ${GIT_EXECUTABLE} clone -b v0.5.1 --single-branch --recursive  https://github.com/gunrock/gunrock "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
-endif()
-
-###################################################################################################
 # - find boost ------------------------------------------------------------------------------------
 
 find_package(Boost REQUIRED)
@@ -275,10 +261,10 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
+#    src/utilities/grmat.cu
 	src/db/db_object.cu
 	src/db/db_parser_integration_test.cu
 	src/db/db_operators.cu
-    src/utilities/grmat.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
@@ -331,12 +317,14 @@ add_library(cugraph SHARED
     src/nvgraph/triangles_counting_kernels.cu
     src/nvgraph/valued_csr_graph.cpp
     src/nvgraph/widest_path.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpucontext.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpuutil.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/gitsha1.c
+    src/matching/subg_match.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/test_utils.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/error_utils.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/misc_utils.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/str_to_T.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/src/mgpucontext.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/src/mgpuutil.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/gitsha1.c
 )
 
 ###################################################################################################
@@ -355,8 +343,9 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/xlib/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
-    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/rapidjson/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )

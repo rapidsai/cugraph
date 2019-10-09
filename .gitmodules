@@ -5,3 +5,7 @@
 [submodule "thirdparty/cuhornet"]
 	path = thirdparty/cuhornet
 	url = https://github.com/rapidsai/cuhornet.git
+[submodule "thirdparty/gunrock"]
+	path = thirdparty/gunrock
+	url = https://github.com/gunrock/gunrock
+	branch = dev

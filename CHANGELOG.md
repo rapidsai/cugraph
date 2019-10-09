@@ -8,6 +8,7 @@
 - PR #493 Added C++ findMatches operator for OpenCypher query.
 - PR #527 Add testing with asymmetric graph (where appropriate)
 - PR #520 KCore and CoreNumber
+- PR #496 Gunrock submodule + SM prelimis.
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
