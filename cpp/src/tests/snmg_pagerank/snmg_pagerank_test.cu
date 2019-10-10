@@ -259,8 +259,8 @@ class Tests_MGPagerankCSR : public ::testing::TestWithParam<MGPagerank_Usecase> 
                      col_off, col_ind, col_val);
         
         t = omp_get_wtime();
-        cugraph::SNMGinfo env;
-        cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
+        cugraph::detail::SNMGinfo env;
+        cugraph::detail::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
         pr_solver.setup(alpha,degree);
 
         val_t* pagerank[p];
@@ -311,8 +311,8 @@ class Tests_MGPagerankCSR : public ::testing::TestWithParam<MGPagerank_Usecase> 
                        v_loc, e_loc, part_offset,
                        col_off, col_ind, col_val);
           t = omp_get_wtime();
-          cugraph::SNMGinfo env;
-          cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
+          cugraph::detail::SNMGinfo env;
+          cugraph::detail::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
           pr_solver.setup(alpha,degree);
 
           val_t* pagerank[p];
@@ -404,8 +404,8 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
                      col_off, col_ind, col_val);
         
         t = omp_get_wtime();
-        cugraph::SNMGinfo env;
-        cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
+        cugraph::detail::SNMGinfo env;
+        cugraph::detail::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
         pr_solver.setup(alpha,degree);
 
         val_t* pagerank[p];
@@ -456,8 +456,8 @@ class Tests_MGPR_hibench : public ::testing::TestWithParam<MGPagerank_Usecase> {
                      col_off, col_ind, col_val);
         
         t = omp_get_wtime();
-        cugraph::SNMGinfo env;
-        cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
+        cugraph::detail::SNMGinfo env;
+        cugraph::detail::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], static_cast<idx_t*>(col_off->data), static_cast<idx_t*>(col_ind->data));
         pr_solver.setup(alpha,degree);
 
         val_t* pagerank[p];

@@ -18,7 +18,8 @@
 
 #pragma once
 
-namespace cugraph {
+namespace cugraph { 
+namespace detail {
 template <typename IndexType, typename DistType>
 class SSSP {
  private:
@@ -77,4 +78,4 @@ class SSSP {
   void configure(DistType* distances, IndexType* predecessors, int* edge_mask);
   gdf_error traverse(IndexType source_vertex);
 };
-}  // end namespace cugraph
+} } //namespace

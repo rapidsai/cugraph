@@ -29,8 +29,8 @@
 #include <thrust/execution_policy.h>
 #include <cub/device/device_run_length_encode.cuh>
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
 
 template<typename idx_t, typename val_t>
 class communicator {
@@ -59,7 +59,7 @@ public:
   }
 };
 
-void serializeMessage(cugraph::SNMGinfo& env, std::string message){
+void serializeMessage(cugraph::detail::SNMGinfo& env, std::string message){
   auto i = env.get_thread_num();
   auto p = env.get_num_threads();
   for (int j = 0; j < p; j++){
@@ -92,7 +92,7 @@ __global__ void writeSingleValue(T* ptr, T val) {
     *ptr = val;
 }
 
-} //namespace cugraph
+} } //namespace
 
 template<typename idx_t, typename val_t>
 gdf_error snmg_coo2csr_impl(size_t* part_offsets,
@@ -104,18 +104,18 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                             gdf_column* csrOff,
                             gdf_column* csrInd,
                             gdf_column* csrVal) {
-  cugraph::SNMGinfo env;
+  cugraph::detail::SNMGinfo env;
   auto i = env.get_thread_num();
   auto p = env.get_num_threads();
 
   // First thread allocates communicator object
   if (i == 0) {
-    cugraph::communicator<idx_t, val_t>* comm = new cugraph::communicator<idx_t, val_t>(p);
+    cugraph::detail::communicator<idx_t, val_t>* comm = new cugraph::detail::communicator<idx_t, val_t>(p);
     *comm1 = reinterpret_cast<void*>(comm);
   }
 #pragma omp barrier
 
-  cugraph::communicator<idx_t, val_t>* comm = reinterpret_cast<cugraph::communicator<idx_t, val_t>*>(*comm1);
+  cugraph::detail::communicator<idx_t, val_t>* comm = reinterpret_cast<cugraph::detail::communicator<idx_t, val_t>*>(*comm1);
 
   // Each thread scans its cooRow and cooCol for the greatest ID
   idx_t size = cooRow->size;
@@ -159,7 +159,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                   static_cast<idx_t>(env.get_num_sm() * 32));
   nblocks.y = 1;
   nblocks.z = 1;
-  cugraph::degree_coo<idx_t, unsigned long long int><<<nblocks, nthreads>>>(size,
+  cugraph::detail::degree_coo<idx_t, unsigned long long int><<<nblocks, nthreads>>>(size,
                                                                             size,
                                                                             reinterpret_cast<idx_t*>(cooRow->data),
                                                                             sourceCounts);
@@ -172,11 +172,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   comm->reductionSpace[i] = sourceCountsTemp;
 #pragma omp barrier
 
-  cugraph::treeReduce<unsigned long long int, thrust::plus<unsigned long long int>>(env,
+  cugraph::detail::treeReduce<unsigned long long int, thrust::plus<unsigned long long int>>(env,
                                                                                     offsetsSize,
                                                                                     sourceCounts,
                                                                                     comm->reductionSpace);
-  cugraph::treeBroadcast(env, offsetsSize, sourceCounts, comm->reductionSpace);
+  cugraph::detail::treeBroadcast(env, offsetsSize, sourceCounts, comm->reductionSpace);
 
   // Each thread takes the exclusive scan of the global counts
   thrust::exclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
@@ -205,7 +205,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     nblocks.x = min((offsetsSize + nthreads.x - 1) / nthreads.x, static_cast<idx_t>(env.get_num_sm() * 32));
     nblocks.y = 1;
     nblocks.z = 1;
-    cugraph::findStartRange<<<nblocks, nthreads>>>(maxId, vertexRangeStart, edgeCount, sourceCountsTemp);
+    cugraph::detail::findStartRange<<<nblocks, nthreads>>>(maxId, vertexRangeStart, edgeCount, sourceCountsTemp);
     cudaDeviceSynchronize();
     cudaMemcpy(&myStartVertex, vertexRangeStart, sizeof(idx_t), cudaMemcpyDefault);
     part_offsets[i] = myStartVertex;
@@ -263,11 +263,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     idx_t endVertexId = part_offsets[j + 1];
     if (endVertexId <= localMinId) {
       // Write out zero for this position
-      cugraph::writeSingleValue<<<1, 256>>>(endPositions + j, static_cast<idx_t>(0));
+      cugraph::detail::writeSingleValue<<<1, 256>>>(endPositions + j, static_cast<idx_t>(0));
     }
     else if (endVertexId >= localMaxId) {
       // Write out size for this position
-      cugraph::writeSingleValue<<<1, 256>>>(endPositions + j, size);
+      cugraph::detail::writeSingleValue<<<1, 256>>>(endPositions + j, size);
     }
     else if (endVertexId > localMinId && endVertexId < localMaxId) {
       dim3 nthreads, nblocks;
@@ -278,7 +278,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                       static_cast<idx_t>(env.get_num_sm() * 32));
       nblocks.y = 1;
       nblocks.z = 1;
-      cugraph::findStartRange<<<nblocks, nthreads>>>(size, endPositions + j, endVertexId, cooRowTemp);
+      cugraph::detail::findStartRange<<<nblocks, nthreads>>>(size, endPositions + j, endVertexId, cooRowTemp);
     }
   }
   cudaDeviceSynchronize();
@@ -347,7 +347,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     }
   }
   cudaCheckError();
-  cugraph::sync_all();
+  cugraph::detail::sync_all();
 
   // Each thread frees up the input if allowed
   ALLOC_FREE_TRY(cooRowTemp, nullptr);
@@ -422,7 +422,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
 
   cudaCheckError();
 
-  cugraph::offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
+  cugraph::detail::offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
 
   cudaCheckError();
 
@@ -436,16 +436,16 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   ALLOC_FREE_TRY(runcount, nullptr);
 
   // Each thread sets up the results into the provided gdf_columns
-  cugraph::gdf_col_set_defaults(csrOff);
+  cugraph::detail::gdf_col_set_defaults(csrOff);
   csrOff->dtype = cooRow->dtype;
   csrOff->size = localMaxId + 2;
   csrOff->data = offsets;
-  cugraph::gdf_col_set_defaults(csrInd);
+  cugraph::detail::gdf_col_set_defaults(csrInd);
   csrInd->dtype = cooRow->dtype;
   csrInd->size = myRowCount;
   csrInd->data = cooColNew;
   if (cooValNew != nullptr) {
-    cugraph::gdf_col_set_defaults(cooVal);
+    cugraph::detail::gdf_col_set_defaults(cooVal);
     csrVal->dtype = cooVal->dtype;
     csrVal->size = myRowCount;
     csrVal->data = cooValNew;

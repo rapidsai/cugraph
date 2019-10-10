@@ -20,7 +20,8 @@
 #include <cub/device/device_run_length_encode.cuh>
 #include <sstream>
 
-namespace cugraph {
+namespace cugraph { 
+namespace db {
   // Define kernel for copying run length encoded values into offset slots.
   template<typename T>
   __global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
@@ -137,7 +138,7 @@ namespace cugraph {
   template<typename idx_t>
   db_column_index<idx_t>::db_column_index() {
     gdf_column* _offsets = (gdf_column*) malloc(sizeof(gdf_column));
-    gdf_col_set_defaults(_offsets);
+    cugraph::detail::gdf_col_set_defaults(_offsets);
     gdf_column_view(_offsets,
                     nullptr,
                     nullptr,
@@ -145,7 +146,7 @@ namespace cugraph {
                     std::is_same<idx_t, int32_t>::value ? GDF_INT32 : GDF_INT64);
     offsets = _offsets;
     gdf_column* _indirection = (gdf_column*) malloc(sizeof(gdf_column));
-    gdf_col_set_defaults(_indirection);
+    cugraph::detail::gdf_col_set_defaults(_indirection);
     gdf_column_view(_indirection,
                     nullptr,
                     nullptr,
@@ -320,7 +321,7 @@ namespace cugraph {
       throw new std::invalid_argument("Can't add a column to a non-empty table");
 
     gdf_column* _col = (gdf_column*) malloc(sizeof(gdf_column));
-    gdf_col_set_defaults(_col);
+    cugraph::detail::gdf_col_set_defaults(_col);
     gdf_column_view(_col,
                     nullptr,
                     nullptr,
@@ -410,7 +411,7 @@ namespace cugraph {
 
       // Assign new offsets array and indirection vector to index
       gdf_column* offsetsCol = (gdf_column*) malloc(sizeof(gdf_column));
-      gdf_col_set_defaults(offsetsCol);
+      cugraph::detail::gdf_col_set_defaults(offsetsCol);
       gdf_column_view(offsetsCol,
                       offsets,
                       nullptr,
@@ -418,7 +419,7 @@ namespace cugraph {
                       std::is_same<idx_t, int32_t>::value ? GDF_INT32 : GDF_INT64);
 
       gdf_column* indirectionCol = (gdf_column*) malloc(sizeof(gdf_column));
-      gdf_col_set_defaults(indirectionCol);
+      cugraph::detail::gdf_col_set_defaults(indirectionCol);
       gdf_column_view(indirectionCol,
                       indirection,
                       nullptr,
@@ -524,4 +525,4 @@ namespace cugraph {
 
   template class db_object<int32_t> ;
   template class db_object<int64_t> ;
-}
+} } //namespace

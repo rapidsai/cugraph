@@ -17,7 +17,7 @@
 #include <db/db_operators.cuh>
 #include <cub/device/device_select.cuh>
 
-namespace cugraph {
+namespace cugraph { 
   namespace db {
     template<typename IndexType>
     struct degree_iterator {
@@ -461,5 +461,4 @@ namespace cugraph {
                                             db_table<int64_t>& table,
                                             gdf_column* frontier,
                                             int indexPosition);
-  } // namespace db
-} // namespace cugraph
+} } //namespace

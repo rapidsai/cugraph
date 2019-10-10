@@ -15,7 +15,8 @@
  */
 
 #include "degree.cuh"
-namespace cugraph {
+namespace cugraph { 
+namespace detail {
 /**
  * Single node multi-GPU method for degree calculation on a partitioned graph.
  * @param x Indicates whether to compute in degree, out degree, or the sum of both.
@@ -172,7 +173,7 @@ gdf_error snmg_degree<int64_t>(int x,
   return GDF_SUCCESS;
 }
 
-}//namespace
+} } //namespace
 
 
 template<typename idx_t>
@@ -196,7 +197,7 @@ gdf_error gdf_snmg_degree_impl(int x,
     degree[i] = static_cast<idx_t*>(x_cols[i]->data);
   }
 
-  status = cugraph::snmg_degree(x,
+  status = cugraph::detail::snmg_degree(x,
                                 part_offsets,
                                 static_cast<idx_t*>(off->data),
                                 static_cast<idx_t*>(ind->data),

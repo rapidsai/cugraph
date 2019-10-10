@@ -21,8 +21,8 @@
 #include "spmv.cuh"
 
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
 template <typename IndexType, typename ValueType>
 SNMGcsrmv<IndexType,ValueType>::SNMGcsrmv(SNMGinfo & env_, size_t* part_off_, 
           IndexType * off_, IndexType * ind_, ValueType * val_, ValueType ** x): 
@@ -119,12 +119,12 @@ gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_colu
   return GDF_SUCCESS;
 }
 
-} //namespace
+} } //namespace
 
 gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){
     switch (val->dtype) {
-      case GDF_FLOAT32:   return cugraph::gdf_snmg_csrmv_impl<int32_t,float>(part_offsets, off, ind, val, x_cols);
-      case GDF_FLOAT64:   return cugraph::gdf_snmg_csrmv_impl<int32_t,double>(part_offsets, off, ind, val, x_cols);
+      case GDF_FLOAT32:   return cugraph::detail::gdf_snmg_csrmv_impl<int32_t,float>(part_offsets, off, ind, val, x_cols);
+      case GDF_FLOAT64:   return cugraph::detail::gdf_snmg_csrmv_impl<int32_t,double>(part_offsets, off, ind, val, x_cols);
       default: return GDF_UNSUPPORTED_DTYPE;
     }
 }

@@ -26,8 +26,8 @@
 #include "snmg/utils.cuh"
 //#define SNMG_DEBUG
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
 
 template <typename IndexType, typename ValueType>
 class SNMGcsrmv 
@@ -57,4 +57,4 @@ class SNMGcsrmv
 };
 
 
-} //namespace cugraph
+} } //namespace

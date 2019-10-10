@@ -25,10 +25,10 @@ class Test_FindMatches: public ::testing::Test {
 public:
   Test_FindMatches() {}
   virtual void SetUp() {
-    cugraph::db_pattern<int32_t> p;
-    cugraph::db_pattern_entry<int32_t> p1(0);
-    cugraph::db_pattern_entry<int32_t> p2(1);
-    cugraph::db_pattern_entry<int32_t> p3(2);
+    cugraph::detail::db_pattern<int32_t> p;
+    cugraph::detail::db_pattern_entry<int32_t> p1(0);
+    cugraph::detail::db_pattern_entry<int32_t> p2(1);
+    cugraph::detail::db_pattern_entry<int32_t> p3(2);
     p.addEntry(p1);
     p.addEntry(p2);
     p.addEntry(p3);
@@ -40,16 +40,16 @@ public:
   }
   virtual void TearDown() {}
   void insertConstantEntry(int32_t a, int32_t b, int32_t c) {
-    cugraph::db_pattern<int32_t> p;
-    cugraph::db_pattern_entry<int32_t> p1(a);
-    cugraph::db_pattern_entry<int32_t> p2(b);
-    cugraph::db_pattern_entry<int32_t> p3(c);
+    cugraph::detail::db_pattern<int32_t> p;
+    cugraph::detail::db_pattern_entry<int32_t> p1(a);
+    cugraph::detail::db_pattern_entry<int32_t> p2(b);
+    cugraph::detail::db_pattern_entry<int32_t> p3(c);
     p.addEntry(p1);
     p.addEntry(p2);
     p.addEntry(p3);
     table.addEntry(p);
   }
-  cugraph::db_table<int32_t> table;
+  cugraph::detail::db_table<int32_t> table;
 };
 
 TEST_F(Test_FindMatches, verifyIndices) {
@@ -112,14 +112,14 @@ TEST_F(Test_FindMatches, verifyIndices) {
 }
 
 TEST_F(Test_FindMatches, firstTest){
-  cugraph::db_pattern<int32_t> p;
-  cugraph::db_pattern_entry<int32_t> p1(0);
-  cugraph::db_pattern_entry<int32_t> p2("a");
-  cugraph::db_pattern_entry<int32_t> p3("b");
+  cugraph::detail::db_pattern<int32_t> p;
+  cugraph::detail::db_pattern_entry<int32_t> p1(0);
+  cugraph::detail::db_pattern_entry<int32_t> p2("a");
+  cugraph::detail::db_pattern_entry<int32_t> p3("b");
   p.addEntry(p1);
   p.addEntry(p2);
   p.addEntry(p3);
-  cugraph::db_result<int32_t> result = cugraph::db::findMatches(p, table, nullptr, 1);
+  cugraph::detail::db_result<int32_t> result = cugraph::db::findMatches(p, table, nullptr, 1);
   ASSERT_EQ(result.getSize(), 1);
   int32_t* resultA = new int32_t[result.getSize()];
   int32_t* resultB = new int32_t[result.getSize()];
@@ -137,15 +137,15 @@ TEST_F(Test_FindMatches, secondTest) {
   insertConstantEntry(2, 0, 1);
   table.flush_input();
 
-  cugraph::db_pattern<int32_t> q;
-  cugraph::db_pattern_entry<int32_t> q1(0);
-  cugraph::db_pattern_entry<int32_t> q2("a");
-  cugraph::db_pattern_entry<int32_t> q3("b");
+  cugraph::detail::db_pattern<int32_t> q;
+  cugraph::detail::db_pattern_entry<int32_t> q1(0);
+  cugraph::detail::db_pattern_entry<int32_t> q2("a");
+  cugraph::detail::db_pattern_entry<int32_t> q3("b");
   q.addEntry(q1);
   q.addEntry(q2);
   q.addEntry(q3);
 
-  cugraph::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 2);
+  cugraph::detail::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 2);
 
   ASSERT_EQ(result.getSize(), 2);
   int32_t* resultA = new int32_t[result.getSize()];
@@ -169,10 +169,10 @@ TEST_F(Test_FindMatches, thirdTest) {
   insertConstantEntry(2, 1, 2);
   table.flush_input();
 
-  cugraph::db_pattern<int32_t> q;
-  cugraph::db_pattern_entry<int32_t> q1("a");
-  cugraph::db_pattern_entry<int32_t> q2(1);
-  cugraph::db_pattern_entry<int32_t> q3(2);
+  cugraph::detail::db_pattern<int32_t> q;
+  cugraph::detail::db_pattern_entry<int32_t> q1("a");
+  cugraph::detail::db_pattern_entry<int32_t> q2(1);
+  cugraph::detail::db_pattern_entry<int32_t> q3(2);
   q.addEntry(q1);
   q.addEntry(q2);
   q.addEntry(q3);
@@ -181,10 +181,10 @@ TEST_F(Test_FindMatches, thirdTest) {
   cudaMalloc(&frontier_ptr, sizeof(int32_t));
   thrust::fill(thrust::device, frontier_ptr, frontier_ptr + 1, 0);
   gdf_column* frontier = (gdf_column*)malloc(sizeof(gdf_column));
-  cugraph::gdf_col_set_defaults(frontier);
+  cugraph::detail::gdf_col_set_defaults(frontier);
   gdf_column_view(frontier, frontier_ptr, nullptr, 1, GDF_INT32);
 
-  cugraph::db_result<int32_t> result = cugraph::db::findMatches(q, table, frontier, 0);
+  cugraph::detail::db_result<int32_t> result = cugraph::db::findMatches(q, table, frontier, 0);
 
   ASSERT_EQ(result.getSize(), 1);
   int32_t* resultA = new int32_t[result.getSize()];
@@ -201,17 +201,17 @@ TEST_F(Test_FindMatches, fourthTest) {
   insertConstantEntry(2, 1, 2);
   table.flush_input();
 
-  cugraph::db_pattern<int32_t> q;
-  cugraph::db_pattern_entry<int32_t> q1("a");
-  cugraph::db_pattern_entry<int32_t> q2(1);
-  cugraph::db_pattern_entry<int32_t> q3(2);
-  cugraph::db_pattern_entry<int32_t> q4("r");
+  cugraph::detail::db_pattern<int32_t> q;
+  cugraph::detail::db_pattern_entry<int32_t> q1("a");
+  cugraph::detail::db_pattern_entry<int32_t> q2(1);
+  cugraph::detail::db_pattern_entry<int32_t> q3(2);
+  cugraph::detail::db_pattern_entry<int32_t> q4("r");
   q.addEntry(q1);
   q.addEntry(q2);
   q.addEntry(q3);
   q.addEntry(q4);
 
-  cugraph::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 0);
+  cugraph::detail::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 0);
   std::cout << result.toString();
   ASSERT_EQ(result.getSize(), 3);
 
@@ -235,15 +235,15 @@ TEST_F(Test_FindMatches, fifthTest) {
   insertConstantEntry(0, 2, 2);
   table.flush_input();
 
-  cugraph::db_pattern<int32_t> q;
-  cugraph::db_pattern_entry<int32_t> q1("a");
-  cugraph::db_pattern_entry<int32_t> q2(1);
-  cugraph::db_pattern_entry<int32_t> q3("b");
+  cugraph::detail::db_pattern<int32_t> q;
+  cugraph::detail::db_pattern_entry<int32_t> q1("a");
+  cugraph::detail::db_pattern_entry<int32_t> q2(1);
+  cugraph::detail::db_pattern_entry<int32_t> q3("b");
   q.addEntry(q1);
   q.addEntry(q2);
   q.addEntry(q3);
 
-  cugraph::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 1);
+  cugraph::detail::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 1);
   std::cout << result.toString();
 
   ASSERT_EQ(result.getSize(), 2);

@@ -28,7 +28,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
     nblocks.z = 1;
 
     switch (col_ptr->dtype) {
-      case GDF_INT32:   cugraph::degree_offsets<int32_t, int32_t> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
+      case GDF_INT32:   cugraph::detail::degree_offsets<int32_t, int32_t> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }
@@ -42,7 +42,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
     nblocks.z = 1;
 
     switch (col_ptr->dtype) {
-      case GDF_INT32:   cugraph::degree_coo<int32_t, int32_t> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
+      case GDF_INT32:   cugraph::detail::degree_coo<int32_t, int32_t> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
       default: return GDF_UNSUPPORTED_DTYPE;
     }
   }

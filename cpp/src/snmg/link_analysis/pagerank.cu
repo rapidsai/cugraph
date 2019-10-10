@@ -29,8 +29,8 @@
 #include "snmg/degree/degree.cuh"
 //#define SNMG_DEBUG
 #define SNMG_PR_T
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
 
   template<typename IndexType, typename ValueType>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -150,7 +150,7 @@ template class SNMGpagerank<int, double>;
 template class SNMGpagerank<int, float>;
 
 
-} //namespace cugraph
+} } //namespace
 
 template<typename idx_t, typename val_t>
 gdf_error gdf_snmg_pagerank_impl(
@@ -187,7 +187,7 @@ gdf_error gdf_snmg_pagerank_impl(
     #endif
     // Setting basic SNMG env information
     cudaSetDevice(omp_get_thread_num());
-    cugraph::SNMGinfo env;
+    cugraph::detail::SNMGinfo env;
     auto i = env.get_thread_num();
     auto p = env.get_num_threads();
     cudaCheckError();
@@ -223,7 +223,7 @@ gdf_error gdf_snmg_pagerank_impl(
       status = status_i;
     }
     // Allocate and intialize Pagerank class
-    cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
+    cugraph::detail::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
                                 static_cast<idx_t*>(col_csr_off->data), 
                                 static_cast<idx_t*>(col_csr_ind->data));
 
@@ -246,7 +246,7 @@ gdf_error gdf_snmg_pagerank_impl(
     #pragma omp master
     {
       //default gdf values
-      cugraph::gdf_col_set_defaults(pr_col);
+      cugraph::detail::gdf_col_set_defaults(pr_col);
 
       //fill relevant fields
       ALLOC_TRY ((void**)&pr_col->data,   sizeof(val_t) * part_offset[p], nullptr);
