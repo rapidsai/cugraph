@@ -21,7 +21,7 @@
 #include "rmm_utils.h"
 
 namespace cugraph { 
-namespace detail {
+namespace snmg {
   /**
    * Single node multi-GPU method for degree calculation on a partitioned graph.
    * @param x Indicates whether to compute in degree, out degree, or the sum of both.

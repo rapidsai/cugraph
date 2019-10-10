@@ -23,7 +23,7 @@
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph { 
-namespace detail {
+namespace snmg {
 
 // basic info about the snmg env setup
 class SNMGinfo 

@@ -25,7 +25,7 @@
 //#define SNMG_DEBUG
 
 namespace cugraph { 
-namespace detail {
+namespace snmg {
 
 template <typename IndexType, typename ValueType>
 class SNMGpagerank 

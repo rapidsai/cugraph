@@ -30,7 +30,7 @@
 //#define SNMG_DEBUG
 #define SNMG_PR_T
 namespace cugraph { 
-namespace detail {
+namespace snmg {
 
   template<typename IndexType, typename ValueType>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -62,12 +62,12 @@ SNMGpagerank<IndexType,ValueType>::SNMGpagerank(SNMGinfo & env_, size_t* part_of
   ALLOC_TRY ((void**)&val, sizeof(ValueType) * e_loc, stream);
 
   // intialize cusparse. This can take some time.
-  Cusparse::get_handle();
+  cugraph::detail::Cusparse::get_handle();
 } 
 
 template <typename IndexType, typename ValueType>
 SNMGpagerank<IndexType,ValueType>::~SNMGpagerank() { 
-  Cusparse::destroy_handle();
+  cugraph::detail::Cusparse::destroy_handle();
   ALLOC_FREE_TRY(bookmark, stream); 
   ALLOC_FREE_TRY(val, stream);
 }
@@ -84,7 +84,7 @@ template <typename IndexType, typename ValueType>
 void SNMGpagerank<IndexType,ValueType>::flag_leafs(const IndexType *degree) {
   int threads = min(static_cast<IndexType>(v_glob), 256);
   int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
-  flag_leafs_kernel<IndexType, ValueType> <<<blocks, threads>>> (v_glob, degree, bookmark);
+  cugraph::detail::flag_leafs_kernel<IndexType, ValueType> <<<blocks, threads>>> (v_glob, degree, bookmark);
   cudaCheckError();
 }    
 
@@ -103,9 +103,9 @@ void SNMGpagerank<IndexType,ValueType>::setup(ValueType _alpha, IndexType** degr
        throw std::string("SNMG Degree failed in Pagerank");
 
     // Update dangling node vector
-    fill(v_glob, bookmark, zero);
+    cugraph::detail::fill(v_glob, bookmark, zero);
     flag_leafs(degree_loc);
-    update_dangling_nodes(v_glob, bookmark, alpha);
+    cugraph::detail::update_dangling_nodes(v_glob, bookmark, alpha);
 
     // Transition matrix
     transition_vals(degree_loc);
@@ -125,21 +125,21 @@ void SNMGpagerank<IndexType,ValueType>::solve (int max_iter, ValueType ** pagera
     ValueType  dot_res;
     ValueType one = 1.0;
     ValueType *pr = pagerank[id];
-    fill(v_glob, pagerank[id], one/v_glob);
+    cugraph::detail::fill(v_glob, pagerank[id], one/v_glob);
     // This cuda sync was added to fix #426
     // This should not be requiered in theory 
     // This is not needed on one GPU at this time
     cudaDeviceSynchronize();
-    dot_res = dot( v_glob, bookmark, pr);
+    dot_res = cugraph::detail::dot( v_glob, bookmark, pr);
     SNMGcsrmv<IndexType,ValueType> spmv_solver(env, part_off, off, ind, val, pagerank);
     for (auto i = 0; i < max_iter; ++i) {
       spmv_solver.run(pagerank);
-      scal(v_glob, alpha, pr);
-      addv(v_glob, dot_res * (one/v_glob) , pr);
-      dot_res = dot( v_glob, bookmark, pr);
-      scal(v_glob, one/nrm2(v_glob, pr) , pr);
+      cugraph::detail::scal(v_glob, alpha, pr);
+      cugraph::detail::addv(v_glob, dot_res * (one/v_glob) , pr);
+      dot_res = cugraph::detail::dot( v_glob, bookmark, pr);
+      cugraph::detail::scal(v_glob, one/cugraph::detail::nrm2(v_glob, pr) , pr);
     }
-    scal(v_glob, one/nrm1(v_glob,pr), pr);
+    cugraph::detail::scal(v_glob, one/cugraph::detail::nrm1(v_glob,pr), pr);
   }
   else {
       throw std::string("Solve was called before setup");
@@ -187,7 +187,7 @@ gdf_error gdf_snmg_pagerank_impl(
     #endif
     // Setting basic SNMG env information
     cudaSetDevice(omp_get_thread_num());
-    cugraph::detail::SNMGinfo env;
+    cugraph::snmg::SNMGinfo env;
     auto i = env.get_thread_num();
     auto p = env.get_num_threads();
     cudaCheckError();
@@ -223,7 +223,7 @@ gdf_error gdf_snmg_pagerank_impl(
       status = status_i;
     }
     // Allocate and intialize Pagerank class
-    cugraph::detail::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
+    cugraph::snmg::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
                                 static_cast<idx_t*>(col_csr_off->data), 
                                 static_cast<idx_t*>(col_csr_ind->data));
 

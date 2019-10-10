@@ -19,7 +19,7 @@
 #include <snmg/utils.cuh>
 
 namespace cugraph { 
-namespace detail {
+namespace snmg {
 
 static bool PeerAccessAlreadyEnabled = false; 
 

@@ -27,7 +27,7 @@
 //#define SNMG_DEBUG
 
 namespace cugraph { 
-namespace detail {
+namespace snmg {
 
 template <typename IndexType, typename ValueType>
 class SNMGcsrmv 
@@ -46,7 +46,7 @@ class SNMGcsrmv
     ValueType * val;
     ValueType * y_loc;
     cudaStream_t stream;
-    CusparseCsrMV<ValueType> spmv;
+    cugraph::detail::CusparseCsrMV<ValueType> spmv;
   public: 
     SNMGcsrmv(SNMGinfo & env_, size_t* part_off_, 
               IndexType * off_, IndexType * ind_, ValueType * val_, ValueType ** x);
