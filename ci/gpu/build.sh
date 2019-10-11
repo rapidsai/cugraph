@@ -70,10 +70,6 @@ $CC --version
 $CXX --version
 conda list
 
-# Possible "hack"/workaround for Gunrock submodule `--remote` issues (TODO: FIX ME!)
-#
-git submodule update --init --recursive thirdparty/gunrock/
-
 ################################################################################
 # BUILD - Build libcugraph and cuGraph from source
 ################################################################################

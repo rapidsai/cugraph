@@ -726,10 +726,11 @@ INSTANTIATE_TEST_CASE_P(hibench_test,
                                           MGcoo2csr_Usecase("benchmark/hibench/1/Input-large/edges/part-00000"),
                                           MGcoo2csr_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")));
 
-int main(int argc, char **argv) {
-  srand(42);
-  ::testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }
-

@@ -41,6 +41,7 @@
 - PR #522 Added the conda dev env file for 10.1
 - PR #525 Update build scripts and YYMMDD tagging for nightly builds
 - PR #548 Added missing cores documentation
+- PR #556 Fixed recursive remote options for submodules
 
 
 # cuGraph 0.9.0 (21 Aug 2019)

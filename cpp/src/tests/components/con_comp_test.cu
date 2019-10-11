@@ -173,15 +173,13 @@ INSTANTIATE_TEST_CASE_P(simple_test, Tests_Weakly_CC,
 					  ));
 
 
-int main(int argc, char **argv)  {
-    srand(42);
-    ::testing::InitGoogleTest(&argc, argv);
-    for (int i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "--perf") == 0)
-            PERF = 1;
-    }
-
-  return RUN_ALL_TESTS();
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }
 
 
