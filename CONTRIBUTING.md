@@ -105,7 +105,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
 
   # Next load all the submodules
   cd $CUGRAPH_HOME
-  git submodule update --init --recursive
+  git submodule update --init --recursive --remote
   ```
 
 2) Create the conda development environment
