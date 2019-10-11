@@ -716,8 +716,11 @@ TEST(gdf_graph, gdf_column_overhead)
   gdf_col_delete(col_dest);
 }
 
-int main(int argc, char **argv)  {
-    srand(42);
-    ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }
