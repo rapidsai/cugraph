@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.10.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.11.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -317,14 +317,6 @@ add_library(cugraph SHARED
     src/nvgraph/triangles_counting_kernels.cu
     src/nvgraph/valued_csr_graph.cpp
     src/nvgraph/widest_path.cu
-    src/matching/subg_match.cu
-    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/test_utils.cu
-    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/error_utils.cu
-    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/misc_utils.cu
-    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/str_to_T.cu
-    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/src/mgpucontext.cu
-    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/src/mgpuutil.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/gunrock/util/gitsha1.c
 )
 
 ###################################################################################################
@@ -343,9 +335,6 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/xlib/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/moderngpu/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/gunrock/externals/rapidjson/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
