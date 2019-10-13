@@ -18,7 +18,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#define RMM_TRY_THROW( call )  if ((call)!=RMM_SUCCESS) \
+#define RMM_TRY_THROW_IFINIT( call )  if (rmmIsInitialized((rmmOptions_t*) NULL) && (call)!=RMM_SUCCESS) \
     {                                                   \
       std::stringstream ss;                             \
       ss << "ERROR: RMM runtime call  " << #call        \
@@ -30,13 +30,13 @@
 #include <rmm/thrust_rmm_allocator.h>
 
 #define ALLOC_TRY( ptr, sz, stream ){               \
-  RMM_TRY_THROW( RMM_ALLOC((ptr), (sz), (stream)) ) \
+  RMM_TRY_THROW_IFINIT( RMM_ALLOC((ptr), (sz), (stream)) ) \
 }
 
 #define REALLOC_TRY(ptr, new_sz, stream){             \
-  RMM_TRY_THROW( RMM_REALLOC((ptr), (sz), (stream)) ) \
+  RMM_TRY_THROW_IFINIT( RMM_REALLOC((ptr), (sz), (stream)) ) \
 }
 
 #define ALLOC_FREE_TRY(ptr, stream){            \
-  RMM_TRY_THROW( RMM_FREE( (ptr), (stream) ) )  \
+  RMM_TRY_THROW_IFINIT( RMM_FREE( (ptr), (stream) ) )  \
 }
