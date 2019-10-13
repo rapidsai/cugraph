@@ -43,14 +43,10 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
                                             const int kmean_max_iter,
                                             gdf_column* clustering) {
   GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
+  GDF_REQUIRE(gdf_G->adjList != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
-
-  // Ensure that the input graph has values
-  GDF_TRY(gdf_add_adj_list(gdf_G));
-  //GDF_REQUIRE(gdf_G->adjList->edge_data != nullptr, GDF_INVALID_API_CALL);
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
@@ -126,13 +122,12 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
                                                       const int kmean_max_iter,
                                                       gdf_column* clustering) {
   GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
+  GDF_REQUIRE(gdf_G->adjList != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
 
   // Ensure that the input graph has values
-  GDF_TRY(gdf_add_adj_list(gdf_G));
   GDF_REQUIRE(gdf_G->adjList->edge_data != nullptr, GDF_INVALID_API_CALL);
 
   // Initialize Nvgraph and wrap the graph
@@ -175,9 +170,8 @@ gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
                                                     gdf_column* clustering,
                                                     float* score) {
   GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->adjList == nullptr) || (gdf_G->adjList->edge_data != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->edgeList == nullptr) || (gdf_G->edgeList->edge_data != nullptr), GDF_INVALID_API_CALL);
+  GDF_REQUIRE(gdf_G->adjList != nullptr, GDF_INVALID_API_CALL);
+  GDF_REQUIRE(gdf_G->adjList->edge_data != nullptr), GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
@@ -206,7 +200,7 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
                                                   gdf_column* clustering,
                                                   float* score) {
   GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
+  GDF_REQUIRE(gdf_G->adjList != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
@@ -264,9 +258,8 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
                                                   gdf_column* clustering,
                                                   float* score) {
   GDF_REQUIRE(gdf_G != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->adjList == nullptr) || (gdf_G->adjList->edge_data != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE((gdf_G->edgeList == nullptr) || (gdf_G->edgeList->edge_data != nullptr), GDF_INVALID_API_CALL);
+  GDF_REQUIRE(gdf_G->adjList != nullptr, GDF_INVALID_API_CALL);
+  GDF_REQUIRE(gdf_G->adjList->edge_data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(clustering->data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(!clustering->valid, GDF_VALIDITY_UNSUPPORTED);
@@ -359,8 +352,6 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
 
 gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
   GDF_REQUIRE(G != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((G->adjList != nullptr) || (G->edgeList != nullptr), GDF_INVALID_API_CALL);
-  GDF_TRY(gdf_add_adj_list(G));
   GDF_REQUIRE(G->adjList != nullptr, GDF_INVALID_API_CALL);
 
   // Initialize Nvgraph and wrap the graph
@@ -375,10 +366,7 @@ gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
 }
 
 gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
-  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
+  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
 
   size_t n = graph->adjList->offsets->size - 1;
   size_t e = graph->adjList->indices->size;
