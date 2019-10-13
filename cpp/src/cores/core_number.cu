@@ -30,9 +30,6 @@
 
 gdf_error core_number_impl(gdf_graph *graph,
                           int *core_number) {
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
   using HornetGraph = hornet::gpu::HornetStatic<int>;
   using HornetInit  = hornet::HornetInit<int>;
   using CoreNumber  = hornets_nest::CoreNumberStatic;
@@ -47,10 +44,7 @@ gdf_error core_number_impl(gdf_graph *graph,
 
 gdf_error gdf_core_number(gdf_graph *graph,
                           gdf_column *core_number) {
-  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
+  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   GDF_REQUIRE(core_number->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
@@ -208,13 +202,8 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
                      gdf_column *core_number,
                      gdf_graph *out_graph) {
   GDF_REQUIRE(out_graph != nullptr && in_graph != nullptr, GDF_INVALID_API_CALL);
-  gdf_error err = gdf_add_adj_list(in_graph);
   gdf_size_type nV = in_graph->numberOfVertices;
 
-  if (err != GDF_SUCCESS)
-    return err;
-  GDF_REQUIRE(in_graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(in_graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   GDF_REQUIRE((vertex_id != nullptr) && (core_number != nullptr), GDF_INVALID_API_CALL);
   GDF_REQUIRE(vertex_id->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   GDF_REQUIRE(core_number->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
@@ -226,7 +215,7 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
   int * core_number_ptr = static_cast<int*>(core_number->data);
   gdf_size_type vLen = vertex_id->size;
 
-  err = extract_subgraph(in_graph, out_graph,
+  gdf_error err = extract_subgraph(in_graph, out_graph,
       vertex_identifier_ptr, core_number_ptr,
       k, vLen, nV);
   GDF_REQUIRE(err, GDF_SUCCESS);
