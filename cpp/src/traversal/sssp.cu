@@ -289,10 +289,7 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
                    gdf_column* predecessors,
                    const int source_vert) {
 
-  /*GDF_REQUIRE(gdf_G, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(gdf_G->adjList || gdf_G->edgeList, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(source_vert >= 0, GDF_INVALID_API_CALL);
-  */
+  GDF_REQUIRE(gdf_G->adjList != nullptr, GDF_INVALID_API_CALL);
 
   void *sssp_dist_ptr, *pred_ptr;
   // NOTE: gdf_column struct doesn't have a default constructor. So we can get
@@ -315,18 +312,6 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
                     sssp_distances->dtype == GDF_FLOAT64,
                 GDF_INVALID_API_CALL);
   }
-
-  /*gdf_error err = gdf_add_adj_list(gdf_G);
-  if (err != GDF_SUCCESS)
-    return err;
-
-  GDF_REQUIRE(gdf_G->adjList->offsets->dtype == GDF_INT32,
-              GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(gdf_G->adjList->indices->dtype == GDF_INT32,
-              GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(source_vert < gdf_G->adjList->offsets->size - 1,
-              GDF_INVALID_API_CALL);
-  */
 
   if (pred_ptr)
     GDF_REQUIRE(predecessors->dtype == gdf_G->adjList->indices->dtype,
