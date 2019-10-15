@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #562 Remove pyarrow dependency so we inherit the one cudf uses
 
 ## Bug Fixes
 
