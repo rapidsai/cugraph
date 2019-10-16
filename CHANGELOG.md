@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #564 Update cudf type aliases
 
 ## Bug Fixes
 
