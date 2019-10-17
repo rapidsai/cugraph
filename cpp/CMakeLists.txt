@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.9.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.10.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -75,6 +75,11 @@ endif(CMAKE_COMPILER_IS_GNUCXX)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70")
 
+find_package(CUDA)
+if((CUDA_VERSION_MAJOR EQUAL 10) OR (CUDA_VERSION_MAJOR GREATER 10))
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75")
+endif()
+
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
@@ -112,20 +117,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - gunrock ---------------------------------------------------------------------------------------
-
-find_package(Git QUIET)
-if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
-    execute_process(COMMAND ${GIT_EXECUTABLE} log  -1 --pretty=format:"%ad" --date=format:%Y%m%d%H%M%S OUTPUT_VARIABLE LATEST_COMMIT_DATE WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
-    set(REQUIRED_COMMIT_DATE "\"20190528081356\"")
-    if(NOT ${REQUIRED_COMMIT_DATE} STREQUAL ${LATEST_COMMIT_DATE})
-        message(FATAL_ERROR "${CMAKE_CURRENT_BINARY_DIR}/gunrock is incompatible with cuGraph, please delete the gunrock directory and re-execute cmake.")
-    endif()
-else()
-    execute_process(COMMAND ${GIT_EXECUTABLE} clone -b v0.5.1 --single-branch --recursive  https://github.com/gunrock/gunrock "${CMAKE_CURRENT_BINARY_DIR}/gunrock/")
-endif()
-
-###################################################################################################
 # - find boost ------------------------------------------------------------------------------------
 
 find_package(Boost REQUIRED)
@@ -143,6 +134,20 @@ if(OpenMP_FOUND)
     # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
 endif(OpenMP_FOUND)
+
+###################################################################################################
+# - find libcypher-parser -------------------------------------------------------------------------
+
+find_path(LIBCYPHERPARSER_INCLUDE "cypher-parser.h"
+          HINTS "$ENV{CONDA_PREFIX}/include")
+
+find_library(LIBCYPHERPARSER_LIBRARY STATIC "libcypher-parser.a"
+             HINTS "$ENV{CONDA_PREFIX}/lib")
+
+add_library(libcypher-parser STATIC IMPORTED ${LIBCYPHERPARSER_LIBRARY})
+if (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
+    set_target_properties(libcypher-parser PROPERTIES IMPORTED_LOCATION ${LIBCYPHERPARSER_LIBRARY})
+endif (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
 
 ###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
@@ -256,8 +261,10 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
+#    src/utilities/grmat.cu
 	src/db/db_object.cu
-    src/utilities/grmat.cu
+	src/db/db_parser_integration_test.cu
+	src/db/db_operators.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
@@ -269,6 +276,7 @@ add_library(cugraph SHARED
     src/converters/nvgraph.cu
     src/converters/renumber.cu
     src/community/nvgraph_gdf.cu
+    src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
     src/snmg/link_analysis/pagerank.cu
@@ -276,6 +284,7 @@ add_library(cugraph SHARED
     src/utilities/graph_utils.cu
     src/snmg/utils.cu
     src/components/connectivity.cu
+    src/centrality/katz_centrality.cu
     src/snmg/degree/degree.cu
     src/snmg/COO2CSR/COO2CSR.cu
     src/nvgraph/arnoldi.cu
@@ -308,12 +317,6 @@ add_library(cugraph SHARED
     src/nvgraph/triangles_counting_kernels.cu
     src/nvgraph/valued_csr_graph.cpp
     src/nvgraph/widest_path.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/test_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/error_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/misc_utils.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpucontext.cu
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/src/mgpuutil.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/gunrock/gunrock/util/gitsha1.c
 )
 
 ###################################################################################################
@@ -327,9 +330,11 @@ target_include_directories(cugraph
     "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cub"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornet/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornetsnest/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/xlib/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/"
-    "${CMAKE_CURRENT_BINARY_DIR}/gunrock/externals/moderngpu/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -338,7 +343,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda)
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################

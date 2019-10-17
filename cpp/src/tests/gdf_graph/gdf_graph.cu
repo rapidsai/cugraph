@@ -19,6 +19,10 @@
 
 #include <rmm_utils.h>
 
+/*
+//TODO: revive the test(s) below, once
+//      Gunrock GRMAT is back and stable again;
+//
 TEST(gdf_edge_list, success)
 {
 
@@ -67,6 +71,9 @@ TEST(gdf_edge_list, success)
 
 }
 
+//TODO: revive the test(s) below, once
+//      Gunrock GRMAT is back and stable again;
+//
 TEST(gdf_edge_list, success_no_weights)
 {
 
@@ -92,6 +99,7 @@ TEST(gdf_edge_list, success_no_weights)
   ALLOC_FREE_TRY(col_src.data, stream);
   ALLOC_FREE_TRY(col_dest.data, stream);
 }
+*/
 
 TEST(gdf_edge_list, size_mismatch)
 {
@@ -613,6 +621,10 @@ TEST(gdf_graph, get_source_indices)
   gdf_col_delete(col_src);
 }
 
+/*
+//TODO: revive the test(s) below, once
+//      Gunrock GRMAT is back and stable again;
+//
 TEST(gdf_graph, memory)
 {
 
@@ -670,6 +682,7 @@ TEST(gdf_graph, memory)
   //cudaMemGetInfo(&free4, &total);
   //EXPECT_EQ(free4,free);
 }
+*/
 
 TEST(gdf_graph, gdf_column_overhead)
 {
@@ -703,8 +716,11 @@ TEST(gdf_graph, gdf_column_overhead)
   gdf_col_delete(col_dest);
 }
 
-int main(int argc, char **argv)  {
-    srand(42);
-    ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }

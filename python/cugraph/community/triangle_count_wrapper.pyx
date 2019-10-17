@@ -22,7 +22,8 @@ from cugraph.utilities.column_utils cimport *
 from libc.stdint cimport uintptr_t
 
 import cudf
-from librmm_cffi import librmm as rmm
+import cudf._lib as libcudf
+import rmm
 
 
 def triangles(graph_ptr):
@@ -33,9 +34,9 @@ def triangles(graph_ptr):
     cdef gdf_graph* g = <gdf_graph*> graph
 
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     cdef uint64_t result
     err = gdf_triangle_count_nvgraph(g, &result)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
     return result

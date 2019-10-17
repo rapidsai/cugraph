@@ -21,6 +21,13 @@ Renumbering
     :members:
     :undoc-members:
 
+Symmetrize
+----------
+
+.. automodule:: cugraph.structure.symmetrize
+    :members:
+    :undoc-members:
+
 Conversion from Other Formats
 -----------------------------
 
@@ -28,6 +35,16 @@ Conversion from Other Formats
     :members:
     :undoc-members:
 
+
+Centrality
+==========
+
+Katz Centrality
+---------------
+
+.. automodule:: cugraph.centrality.katz_centrality
+    :members:
+    :undoc-members:
 
 Community
 =========
@@ -53,7 +70,7 @@ Subgraph Extraction
     :members:
     :undoc-members:
 
-Tirangle Counting
+Triangle Counting
 -----------------
 
 .. automodule:: cugraph.community.triangle_count
@@ -69,6 +86,24 @@ Connected Components
 .. automodule:: cugraph.components.connectivity
     :members:
     :undoc-members:
+
+Cores
+=====
+
+K-Core
+------
+
+.. automodule:: cugraph.cores.k_core
+    :members:
+    :undoc-members:
+
+Core Number
+-----------
+
+.. automodule:: cugraph.cores.core_number
+    :members:
+    :undoc-members:
+
 
 Link Analysis
 =============

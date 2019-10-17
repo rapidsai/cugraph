@@ -19,13 +19,14 @@
 from cugraph.link_prediction.c_overlap cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
-from cudf.bindings.cudf_cpp cimport np_dtype_from_gdf_column
+from cudf._lib.cudf cimport np_dtype_from_gdf_column
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from cython cimport floating
 
 import cudf
-from librmm_cffi import librmm as rmm
+import cudf._lib as libcudf
+import rmm
 import numpy as np
 
 
@@ -37,14 +38,14 @@ def overlap(graph_ptr, first=None, second=None):
     cdef gdf_graph * g = <gdf_graph*> graph
 
     err = gdf_add_adj_list(<gdf_graph*> graph)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     cdef gdf_column c_result_col
     cdef gdf_column c_first_col
     cdef gdf_column c_second_col
     cdef gdf_column c_src_index_col
 
-    if type(first) == cudf.dataframe.series.Series and type(second) == cudf.dataframe.series.Series:
+    if type(first) == cudf.Series and type(second) == cudf.Series:
         result_size = len(first)
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
@@ -55,7 +56,7 @@ def overlap(graph_ptr, first=None, second=None):
                                &c_first_col,
                                &c_second_col,
                                &c_result_col)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
+        libcudf.cudf.check_gdf_error(err)
         df = cudf.DataFrame()
         df['source'] = first
         df['destination'] = second
@@ -72,7 +73,7 @@ def overlap(graph_ptr, first=None, second=None):
         c_result_col = get_gdf_column_view(result)
 
         err = gdf_overlap(g, <gdf_column*> NULL, &c_result_col)
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
+        libcudf.cudf.check_gdf_error(err)
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
                                             nelem=num_edges,
@@ -81,7 +82,7 @@ def overlap(graph_ptr, first=None, second=None):
         df['source'] = cudf.Series(np.zeros(num_edges, dtype=np_dtype_from_gdf_column(g.adjList.indices)))
         c_src_index_col = get_gdf_column_view(df['source'])
         err = g.adjList.get_source_indices(&c_src_index_col);
-        cudf.bindings.cudf_cpp.check_gdf_error(err)
+        libcudf.cudf.check_gdf_error(err)
         df['destination'] = cudf.Series(dest_data)
         df['overlap_coeff'] = result
 

@@ -20,8 +20,8 @@ import numpy as np
 
 import cugraph
 from cugraph.tests import utils
-from librmm_cffi import librmm as rmm
-from librmm_cffi import librmm_config as rmm_cfg
+import rmm
+from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -36,28 +36,25 @@ with warnings.catch_warnings():
 
 print('Networkx version : {} '.format(nx.__version__))
 
-DATASETS = ['../datasets/dolphins',
-            '../datasets/karate',
-            '../datasets/netscience']
-
 SOURCES = [1]
 
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience'])
+@pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
 @pytest.mark.parametrize('source', SOURCES)
 def test_filter_unreachable(managed, pool, graph_file, source):
     gc.collect()
 
     rmm.finalize()
-    rmm_cfg.use_managed_memory = managed
-    rmm_cfg.use_pool_allocator = pool
+    rmm_config.use_managed_memory = managed
+    rmm_config.use_pool_allocator = pool
+    rmm_config.initial_pool_size = 2 << 27
     rmm.initialize()
 
     assert(rmm.is_initialized())
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     # Device data
     sources = cu_M['0']
     destinations = cu_M['1']

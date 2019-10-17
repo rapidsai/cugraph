@@ -25,7 +25,8 @@ from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
-from librmm_cffi import librmm as rmm
+import cudf._lib as libcudf
+import rmm
 import numpy as np
 
 
@@ -45,7 +46,7 @@ def spectralBalancedCutClustering(graph_ptr,
 
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -60,7 +61,7 @@ def spectralBalancedCutClustering(graph_ptr,
 
     # Set the vertex identifiers
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     err = gdf_balancedCutClustering_nvgraph(g,
                                             num_clusters,
@@ -70,7 +71,7 @@ def spectralBalancedCutClustering(graph_ptr,
                                             kmean_tolerance,
                                             kmean_max_iter,
                                             &c_cluster_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return df
 
@@ -90,7 +91,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
 
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -105,7 +106,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
 
     # Set the vertex identifiers
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     err = gdf_spectralModularityMaximization_nvgraph(g,
                                                      num_clusters,
@@ -115,7 +116,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
                                                      kmean_tolerance,
                                                      kmean_max_iter,
                                                      &c_cluster_col)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     return df
 
@@ -128,12 +129,12 @@ def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
 
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
     return score
 
 def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
@@ -145,12 +146,12 @@ def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
 
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
     return score
 
 def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
@@ -162,10 +163,10 @@ def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
 
     # Ensure that the graph has CSR adjacency list
     err = gdf_add_adj_list(g)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     err = gdf_AnalyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
-    cudf.bindings.cudf_cpp.check_gdf_error(err)
+    libcudf.cudf.check_gdf_error(err)
     return score

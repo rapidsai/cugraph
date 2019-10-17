@@ -23,7 +23,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
-from librmm_cffi import librmm as rmm
+import rmm
 import numpy as np
 
 

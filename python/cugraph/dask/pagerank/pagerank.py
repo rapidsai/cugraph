@@ -8,6 +8,7 @@ import os
 from dask.distributed import wait, default_client
 from toolz import first
 import dask.dataframe as dd
+import cudf
 
 
 def to_gpu_array(df):
@@ -159,7 +160,7 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
 
     client = default_client()
     gpu_futures = _get_mg_info(edge_list)
-    npartitions = len(gpu_futures)
+    # npartitions = len(gpu_futures)
 
     host_dict = _build_host_dict(gpu_futures, client).items()
     if len(host_dict) > 1:
@@ -183,12 +184,12 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
                    for worker, future in gpu_data_excl_worker]
 
     raw_arrays = [future for worker, future in gpu_data_incl_worker]
-
-    pr = client.submit(_mg_pagerank,
-                       (ipc_handles, raw_arrays, alpha, max_iter),
-                       workers=[exec_node]).result()
-
-    ddf = dc.from_cudf(pr, npartitions=npartitions)
+    pr = [client.submit(_mg_pagerank,
+                        (ipc_handles, raw_arrays, alpha, max_iter),
+                        workers=[exec_node])]
+    c = cudf.DataFrame({'vertex': cudf.Series(dtype='int32'),
+                       'pagerank': cudf.Series(dtype='float32')})
+    ddf = dc.from_delayed(pr, meta=c)
     return ddf
 
 
@@ -278,3 +279,38 @@ def get_chunksize(input_path):
         size = [os.path.getsize(_file) for _file in input_files]
         chunksize = max(size)
     return chunksize
+
+
+def _read_csv(input_files, delimiter, names, dtype):
+    df = []
+    for f in input_files:
+        df.append(cudf.read_csv(f, delimiter=delimiter, names=names,
+                                dtype=dtype))
+    df_concatenated = cudf.concat(df)
+    return df_concatenated
+
+
+def read_split_csv(input_files, delimiter='\t', names=['src', 'dst'],
+                   dtype=['int32', 'int32']):
+    """
+    Read csv for large datasets which cannot be read directly by dask-cudf
+    read_csv due to memory requirements. This function takes large input
+    split into smaller files (number of input_files > number of gpus),
+    reads two or more csv per gpu/worker and concatenates them into a
+    single dataframe. Additional parameters (delimiter, names and dtype)
+    can be specified for reading the csv file.
+    """
+
+    client = default_client()
+    n_files = len(input_files)
+    n_gpus = get_n_gpus()
+    n_files_per_gpu = int(n_files/n_gpus)
+    worker_map = []
+    for i, w in enumerate(client.has_what().keys()):
+        files_per_gpu = input_files[i*n_files_per_gpu: (i+1)*n_files_per_gpu]
+        worker_map.append((files_per_gpu, w))
+    new_ddf = [client.submit(_read_csv, part, delimiter, names, dtype,
+               workers=[worker]) for part, worker in worker_map]
+
+    wait(new_ddf)
+    return new_ddf
