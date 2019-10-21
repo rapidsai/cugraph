@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #554 Upgraded namespace so that cugraph can be used for the API.
 
 ## Bug Fixes
 
