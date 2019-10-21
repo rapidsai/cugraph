@@ -504,10 +504,11 @@ INSTANTIATE_TEST_CASE_P(hibench_test,
                                                            )
                                                            );
 
-int main(int argc, char **argv) {
-  srand(42);
-  ::testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }
-

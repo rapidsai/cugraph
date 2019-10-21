@@ -450,17 +450,11 @@ INSTANTIATE_TEST_CASE_P(
         SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
         SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));
 
-int main(int argc, char** argv) {
-  srand(42);
-  ::testing::InitGoogleTest(&argc, argv);
-
-  for (int i = 0; i < argc; i++) {
-    if (strcmp(argv[i], "--perf") == 0) {
-      PERF = 1;
-    }
-    if (strcmp(argv[i], "--perf-iters") == 0) {
-      PERF_MULTIPLIER = atoi(argv[i + 1]);
-    }
-  }
-  return RUN_ALL_TESTS();
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }

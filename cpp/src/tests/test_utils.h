@@ -44,6 +44,8 @@ extern "C" {
 
 #include <rmm_utils.h>
 
+#include <rmm/rmm.h>
+
 #include "cugraph.h"
 
 #ifndef CUDA_RT_CALL
