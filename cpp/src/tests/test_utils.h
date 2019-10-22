@@ -48,6 +48,9 @@ extern "C" {
 
 #include "cugraph.h"
 
+#include "utilities/error_utils.h"
+
+
 #ifndef CUDA_RT_CALL
 #define CUDA_RT_CALL( call )                     \
 {                                                                                                  \

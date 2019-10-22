@@ -43,7 +43,7 @@ TEST(gdf_edge_list, success)
 
   size_t vertices = 0, edges = 0;
   char argv [1024] = "grmat --rmat_scale=20 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
-  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, &col_weights), "cuGraph execution failed");
+  CUGRAPH_TRY(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, &col_weights));
   
   std::vector<int> src_h(edges), dest_h(edges);
   std::vector<float> w_h(edges);
@@ -52,7 +52,7 @@ TEST(gdf_edge_list, success)
   cudaMemcpy(&dest_h[0], col_dest.data, sizeof(int) * edges, cudaMemcpyDeviceToHost);
   cudaMemcpy(&w_h[0], col_weights.data, sizeof(float) * edges, cudaMemcpyDeviceToHost);
 
-  ASSERT_EQ(gdf_edge_list_view(G.get(), &col_src, &col_dest, &col_weights),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(G.get(), &col_src, &col_dest, &col_weights));
 
   std::vector<int> src2_h(edges), dest2_h(edges);
   std::vector<float> w2_h(edges);
@@ -92,9 +92,9 @@ TEST(gdf_edge_list, success_no_weights)
  
   size_t vertices = 0, edges = 0;
   char argv [1024] = "grmat --rmat_scale=20 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
-  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), "cuGraph execution failed");
+  CUGRAPH_TRY(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr));
  
-  ASSERT_EQ(gdf_edge_list_view(G.get(), &col_src, &col_dest, nullptr),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(G.get(), &col_src, &col_dest, nullptr));
 
   ALLOC_FREE_TRY(col_src.data, stream);
   ALLOC_FREE_TRY(col_dest.data, stream);
@@ -172,7 +172,7 @@ TEST(gdf_adj_list, success)
   col_ind = create_gdf_column(ind_h);
   col_w = create_gdf_column(w_h);
 
-  ASSERT_EQ(gdf_adj_list_view(G.get(), col_off.get(), col_ind.get(), col_w.get()),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_adj_list_view(G.get(), col_off.get(), col_ind.get(), col_w.get()));
 
   std::vector<int> off2_h(off_h.size()), ind2_h(ind_h.size());
   std::vector<float> w2_h(w_h.size());
@@ -203,7 +203,7 @@ TEST(gdf_adj_list, success_no_weights)
   col_off = create_gdf_column(off_h);
   col_ind = create_gdf_column(ind_h);
 
-  ASSERT_EQ(gdf_adj_list_view(G.get(), col_off.get(), col_ind.get(), nullptr),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_adj_list_view(G.get(), col_off.get(), col_ind.get(), nullptr));
 
   std::vector<int> off2_h(off_h.size()), ind2_h(ind_h.size());
 
@@ -246,10 +246,10 @@ TEST(gdf_number_of_vertices, success1)
   create_gdf_column(dest_h, &col_dest);
   create_gdf_column(w_h, &col_w);
 
-  ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_w),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_w));
   ASSERT_EQ(G.numberOfVertices, 0);
 
-  ASSERT_EQ(gdf_number_of_vertices(&G), "cuGraph execution failed");
+  CUGRAPH_TRY(gdf_number_of_vertices(&G));
 
   ASSERT_EQ(G.numberOfVertices, 6);
 }
@@ -277,12 +277,12 @@ TEST(gdf_delete_adjacency_list, success1)
   create_gdf_column(ind_h, &col_ind);
   create_gdf_column(w_h, &col_w);
 
-  ASSERT_EQ(gdf_adj_list_view(&G, &col_off, &col_ind, &col_w),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_adj_list_view(&G, &col_off, &col_ind, &col_w));
   
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
   
-  ASSERT_EQ(gdf_delete_adj_list(&G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_delete_adj_list(&G));
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_EQ(free,free2);
@@ -311,12 +311,12 @@ TEST(gdf_delete_adjacency_list, success2)
   create_gdf_column(ind_h, col_ind);
   create_gdf_column(w_h, col_w);
 
-  ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, col_w),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_adj_list_view(G, col_off, col_ind, col_w));
   
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
   
-  ASSERT_EQ(gdf_delete_adj_list(G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_delete_adj_list(G));
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_EQ(free,free2);
@@ -341,12 +341,12 @@ TEST(gdf_delete_edge_list, success1)
   create_gdf_column(dest_h, &col_dest);
   create_gdf_column(w_h, &col_w);
 
-  ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_w),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_w));
   
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
   
-  ASSERT_EQ(gdf_delete_edge_list(&G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_delete_edge_list(&G));
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_EQ(free,free2);
@@ -365,12 +365,12 @@ TEST(gdf_delete_edge_list, success2)
   create_gdf_column(dest_h, col_dest);
   create_gdf_column(w_h, col_w);
 
-  ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, col_w),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(G, col_src, col_dest, col_w));
   
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
   
-  ASSERT_EQ(gdf_delete_edge_list(G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_delete_edge_list(G));
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_EQ(free,free2);
@@ -398,13 +398,13 @@ TEST(gdf_graph, gdf_add_transposed_adj_list)
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
 
-  ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, nullptr),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(G, col_src, col_dest, nullptr));
   
   //cudaMemGetInfo(&free3, &total);
   //EXPECT_EQ(free2,free3);
   //EXPECT_NE(free,free3);
 
-  ASSERT_EQ(gdf_add_transposed_adj_list(G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_add_transposed_adj_list(G));
 
   //this check doen't work on small case (false positive)
   //cudaMemGetInfo(&free3, &total);
@@ -457,13 +457,13 @@ TEST(gdf_graph, gdf_add_adjList)
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
 
-  ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, nullptr),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(G, col_src, col_dest, nullptr));
   
   //cudaMemGetInfo(&free3, &total);
   //EXPECT_EQ(free2,free3);
   //EXPECT_NE(free,free3);
 
-  ASSERT_EQ(gdf_add_adj_list(G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_add_adj_list(G));
 
   //this check doen't work on small case (false positive)
   //cudaMemGetInfo(&free3, &total);
@@ -525,9 +525,9 @@ TEST(gdf_graph, gdf_add_edge_list)
   create_gdf_column(ind_h, col_ind);
   create_gdf_column(w_h, col_w);
 
-  ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, col_w),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_adj_list_view(G, col_off, col_ind, col_w));
 
-  ASSERT_EQ(gdf_add_edge_list(G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_add_edge_list(G));
 
   std::vector<int> src_h(ind_h.size()), src2_h(ind_h.size()), dest2_h(ind_h.size());
   std::vector<float> w2_h(w_h.size());
@@ -572,8 +572,8 @@ TEST(gdf_graph, get_vertex_identifiers)
   create_gdf_column(ind_h, col_ind);
   create_gdf_column(idx2_h, col_idx);
 
-  ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, nullptr),GDF_SUCCESS);
-  ASSERT_EQ(G->adjList->get_vertex_identifiers(col_idx),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_adj_list_view(G, col_off, col_ind, nullptr));
+  CUGRAPH_TRY(G->adjList->get_vertex_identifiers(col_idx));
 
   cudaMemcpy(&idx2_h[0], col_idx->data, sizeof(int) * col_idx->size, cudaMemcpyDeviceToHost);
   
@@ -607,8 +607,8 @@ TEST(gdf_graph, get_source_indices)
   create_gdf_column(ind_h, col_ind);
   create_gdf_column(src2_h, col_src);
 
-  ASSERT_EQ(gdf_adj_list_view(G, col_off, col_ind, nullptr),GDF_SUCCESS);
-  ASSERT_EQ(G->adjList->get_source_indices(col_src),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_adj_list_view(G, col_off, col_ind, nullptr));
+  CUGRAPH_TRY(G->adjList->get_source_indices(col_src));
   cudaMemcpy(&src2_h[0], col_src->data, sizeof(int) * col_src->size, cudaMemcpyDeviceToHost);
   
   offsets2indices(off_h, src_h);
@@ -646,24 +646,24 @@ TEST(gdf_graph, memory)
   size_t vertices = 0, edges = 0;
   char argv[1024] = "grmat --rmat_scale=23 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
 
-  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), "cuGraph execution failed");
+  CUGRAPH_TRY(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr));
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
 
-  ASSERT_EQ(gdf_edge_list_view(G, &col_src, &col_dest, nullptr),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(G, &col_src, &col_dest, nullptr));
   
   //cudaMemGetInfo(&free3, &total);
   //EXPECT_EQ(free2,free3);
   //EXPECT_NE(free,free3);
 
-  ASSERT_EQ(gdf_add_transposed_adj_list(G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_add_transposed_adj_list(G));
   //this check doen't work on small case (false positive)
   //cudaMemGetInfo(&free4_, &total);
   //EXPECT_NE(free4_,free2);
 
-  ASSERT_EQ(gdf_add_adj_list(G),GDF_SUCCESS);
-  ASSERT_EQ(gdf_delete_adj_list(G),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_add_adj_list(G));
+  CUGRAPH_TRY(gdf_delete_adj_list(G));
 
   //cudaMemGetInfo(&free4, &total);
   //EXPECT_EQ(free4,free4_);
@@ -705,7 +705,7 @@ TEST(gdf_graph, gdf_column_overhead)
   // check that gdf_column_overhead < 5 per cent
   //EXPECT_LT(free-free2, 2*sz*sizeof(int)*1.05);
 
-  ASSERT_EQ(gdf_edge_list_view(G, col_src, col_dest, nullptr),GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(G, col_src, col_dest, nullptr));
 
   //cudaMemGetInfo(&free3, &total);
   //EXPECT_EQ(free2,free3);

@@ -127,9 +127,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
     gdf_column *src_col_ptrs[n_gpus];
     gdf_column *dest_col_ptrs[n_gpus];
     gdf_column *pr_col = new gdf_column;
-     
-    gdf_error status = GDF_SUCCESS;
-
+    
     int nthreads = n_gpus;
 
     // Only using the 4 fully connected GPUs on DGX1
@@ -162,11 +160,9 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
 
     t = omp_get_wtime();
 
-    status = gdf_snmg_pagerank (src_col_ptrs, dest_col_ptrs, pr_col, 
-                       nthreads, alpha, max_iter);
+    CUGRAPH_TRY(gdf_snmg_pagerank (src_col_ptrs, dest_col_ptrs, pr_col, 
+                       nthreads, alpha, max_iter));
     
-    EXPECT_EQ(status, "cuGraph execution failed");
-
     std::cout <<  omp_get_wtime() - t << std::endl;
 
     verify_pr<val_t>(pr_col, param);
