@@ -9,7 +9,7 @@
 ## Bug Fixes
 
 
-# cuGraph 0.10.0 (Date TBD)
+# cuGraph 0.10.0 (16 Oct 2019)
 
 ## New Features
 - PR #469 Symmetrize a COO
