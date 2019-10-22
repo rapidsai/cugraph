@@ -345,14 +345,14 @@ namespace cugraph {
 } // End cugraph namespace
 
 gdf_error gdf_overlap(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
-  GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((graph->adjList != nullptr) || (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE(result != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(result->data != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(!result->valid, GDF_VALIDITY_UNSUPPORTED);
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS((graph->adjList != nullptr) || (graph->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
 
-  GDF_TRY(gdf_add_adj_list(graph));
-  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_TRY(gdf_add_adj_list(graph));
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
   bool weighted = (weights != nullptr);
 
@@ -511,29 +511,29 @@ gdf_error gdf_overlap_list(gdf_graph* graph,
                            gdf_column* first,
                            gdf_column* second,
                            gdf_column* result) {
-  GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((graph->adjList != nullptr) || (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE(result != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(result->data != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(!result->valid, GDF_VALIDITY_UNSUPPORTED);
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS((graph->adjList != nullptr) || (graph->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
 
-  GDF_REQUIRE(first != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(first->data != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(!first->valid, GDF_VALIDITY_UNSUPPORTED);
+  CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(first->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(!first->valid, "Column must be valid");
 
-  GDF_REQUIRE(second != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(second->data != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(!second->valid, GDF_VALIDITY_UNSUPPORTED);
+  CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(second->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(!second->valid, "Column must be valid");
 
-  GDF_TRY(gdf_add_adj_list(graph));
-  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_TRY(gdf_add_adj_list(graph));
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
   bool weighted = (weights != nullptr);
 
   gdf_dtype ValueType = result->dtype;
   gdf_dtype IndexType = graph->adjList->offsets->dtype;
-  GDF_REQUIRE(first->dtype == IndexType, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(second->dtype == IndexType, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(first->dtype == IndexType, "Invalid API parameter");
+  CUGRAPH_EXPECTS(second->dtype == IndexType, "Invalid API parameter");
 
   void *first_pair = first->data;
   void *second_pair = second->data;

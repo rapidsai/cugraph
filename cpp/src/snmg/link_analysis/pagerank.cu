@@ -277,33 +277,33 @@ gdf_error gdf_snmg_pagerank (
             const float damping_factor = 0.85, 
             const int n_iter = 10) {
     // null pointers check
-    GDF_REQUIRE(src_col_ptrs != nullptr, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(dest_col_ptrs != nullptr, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(pr_col != nullptr, GDF_INVALID_API_CALL);
+    CUGRAPH_EXPECTS(src_col_ptrs != nullptr, "Invalid API parameter");
+    CUGRAPH_EXPECTS(dest_col_ptrs != nullptr, "Invalid API parameter");
+    CUGRAPH_EXPECTS(pr_col != nullptr, "Invalid API parameter");
 
     // parameter values
-    GDF_REQUIRE(damping_factor > 0.0, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(damping_factor < 1.0, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(n_iter > 0, GDF_INVALID_API_CALL);
+    CUGRAPH_EXPECTS(damping_factor > 0.0, "Invalid API parameter");
+    CUGRAPH_EXPECTS(damping_factor < 1.0, "Invalid API parameter");
+    CUGRAPH_EXPECTS(n_iter > 0, "Invalid API parameter");
     // number of GPU
     int dev_count;
     cudaGetDeviceCount(&dev_count);
     cudaCheckError();
-    GDF_REQUIRE(n_gpus > 0, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(n_gpus < static_cast<size_t>(dev_count+1), GDF_INVALID_API_CALL); 
+    CUGRAPH_EXPECTS(n_gpus > 0, "Invalid API parameter");
+    CUGRAPH_EXPECTS(n_gpus < static_cast<size_t>(dev_count+1), "Invalid API parameter"); 
 
     // for each GPU
     for (size_t i = 0; i < n_gpus; ++i)
     {
       // src/dest consistency
-      GDF_REQUIRE( src_col_ptrs[i]->size == dest_col_ptrs[i]->size, GDF_COLUMN_SIZE_MISMATCH );
-      GDF_REQUIRE( src_col_ptrs[i]->dtype == dest_col_ptrs[i]->dtype, GDF_UNSUPPORTED_DTYPE );
+      CUGRAPH_EXPECTS( src_col_ptrs[i]->size == dest_col_ptrs[i]->size, "Column size mismatch" );
+      CUGRAPH_EXPECTS( src_col_ptrs[i]->dtype == dest_col_ptrs[i]->dtype, "Unsupported data type" );
       //null mask
-      GDF_REQUIRE( src_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-      GDF_REQUIRE( dest_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+      CUGRAPH_EXPECTS( src_col_ptrs[i]->null_count == 0 , "Input column has non-zero null count");
+      CUGRAPH_EXPECTS( dest_col_ptrs[i]->null_count == 0 , "Input column has non-zero null count");
       // int 32 edge list indices
-      GDF_REQUIRE( src_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-      GDF_REQUIRE( dest_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+      CUGRAPH_EXPECTS( src_col_ptrs[i]->dtype == GDF_INT32, "Unsupported data type");
+      CUGRAPH_EXPECTS( dest_col_ptrs[i]->dtype == GDF_INT32, "Unsupported data type");
     }
 
     gdf_error status =  gdf_snmg_pagerank_impl<int, float>(src_col_ptrs, dest_col_ptrs,

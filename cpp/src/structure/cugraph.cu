@@ -76,13 +76,13 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
                             const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
-  GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
-    (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
-  GDF_REQUIRE( offsets->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( (offsets->dtype == indices->dtype), GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( ((offsets->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( (offsets->size > 0), GDF_DATASET_EMPTY );
+  CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
+    (graph->transposedAdjList == nullptr)), "Invalid API parameter");
+  CUGRAPH_EXPECTS( offsets->null_count == 0 , "Input column has non-zero null count");
+  CUGRAPH_EXPECTS( indices->null_count == 0 , "Input column has non-zero null count");
+  CUGRAPH_EXPECTS( (offsets->dtype == indices->dtype), "Unsupported data type" );
+  CUGRAPH_EXPECTS( ((offsets->dtype == GDF_INT32)), "Unsupported data type" );
+  CUGRAPH_EXPECTS( (offsets->size > 0), "Column is empty");
 
 
   graph->adjList = new gdf_adj_list;
@@ -97,7 +97,7 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
       graph->prop = new gdf_graph_properties();
 
   if (edge_data) {
-    GDF_REQUIRE(indices->size == edge_data->size, GDF_COLUMN_SIZE_MISMATCH);
+    CUGRAPH_EXPECTS(indices->size == edge_data->size, "Column size mismatch");
     graph->adjList->edge_data = new gdf_column;
     cpy_column_view(edge_data, graph->adjList->edge_data);
     
@@ -149,18 +149,18 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
 }
 
 gdf_error gdf_adj_list::get_vertex_identifiers(gdf_column *identifiers) {
-  GDF_REQUIRE( offsets != nullptr , GDF_INVALID_API_CALL);
-  GDF_REQUIRE( offsets->data != nullptr , GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
+  CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
   cugraph::sequence<int>((int)offsets->size-1, (int*)identifiers->data);
   return GDF_SUCCESS;
 }
 
 gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
-  GDF_REQUIRE( offsets != nullptr , GDF_INVALID_API_CALL);
-  GDF_REQUIRE( offsets->data != nullptr , GDF_INVALID_API_CALL);
-  GDF_REQUIRE( src_indices->size == indices->size, GDF_COLUMN_SIZE_MISMATCH );
-  GDF_REQUIRE( src_indices->dtype == indices->dtype, GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY );
+  CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
+  CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
+  CUGRAPH_EXPECTS( src_indices->size == indices->size, "Column size mismatch" );
+  CUGRAPH_EXPECTS( src_indices->dtype == indices->dtype, "Unsupported data type" );
+  CUGRAPH_EXPECTS( src_indices->size > 0, "Column is empty");
   cugraph::offsets_to_indices<int>((int*)offsets->data, offsets->size-1, (int*)src_indices->data);
 
   return GDF_SUCCESS;
@@ -171,14 +171,14 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
                              const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
-  GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
-    (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
-  GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
-  GDF_REQUIRE( src_indices->dtype == dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( ((src_indices->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY );
-  GDF_REQUIRE( src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+  CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
+    (graph->transposedAdjList == nullptr)), "Invalid API parameter");
+  CUGRAPH_EXPECTS( src_indices->size == dest_indices->size, "Column size mismatch" );
+  CUGRAPH_EXPECTS( src_indices->dtype == dest_indices->dtype, "Unsupported data type" );
+  CUGRAPH_EXPECTS( ((src_indices->dtype == GDF_INT32)), "Unsupported data type" );
+  CUGRAPH_EXPECTS( src_indices->size > 0, "Column is empty");
+  CUGRAPH_EXPECTS( src_indices->null_count == 0 , "Input column has non-zero null count");
+  CUGRAPH_EXPECTS( dest_indices->null_count == 0 , "Input column has non-zero null count");
 
   graph->edgeList = new gdf_edge_list;
   graph->edgeList->src_indices = new gdf_column;
@@ -192,7 +192,7 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
     graph->prop = new gdf_graph_properties();
 
   if (edge_data) {
-    GDF_REQUIRE(src_indices->size == edge_data->size, GDF_COLUMN_SIZE_MISMATCH);
+    CUGRAPH_EXPECTS(src_indices->size == edge_data->size, "Column size mismatch");
     graph->edgeList->edge_data = new gdf_column;
     cpy_column_view(edge_data, graph->edgeList->edge_data);
 
@@ -252,7 +252,7 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
 template <typename T, typename WT>
 gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
     if (graph->adjList == nullptr) {
-      GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
       int nnz = graph->edgeList->src_indices->size, status = 0;
       graph->adjList = new gdf_adj_list;
       graph->adjList->offsets = new gdf_column;
@@ -292,7 +292,7 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
 
 gdf_error gdf_add_edge_list (gdf_graph *graph) {
     if (graph->edgeList == nullptr) {
-      GDF_REQUIRE( graph->adjList != nullptr , GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS( graph->adjList != nullptr , "Invalid API parameter");
       int *d_src;
       graph->edgeList = new gdf_edge_list;
       graph->edgeList->src_indices = new gdf_column;
@@ -322,7 +322,7 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
 template <typename WT>
 gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
     if (graph->transposedAdjList == nullptr ) {
-      GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
       int nnz = graph->edgeList->src_indices->size, status = 0;
       graph->transposedAdjList = new gdf_adj_list;
       graph->transposedAdjList->offsets = new gdf_column;
@@ -363,8 +363,8 @@ gdf_error gdf_add_adj_list(gdf_graph *graph) {
   if (graph->adjList != nullptr)
     return GDF_SUCCESS;
 
-  GDF_REQUIRE( graph->edgeList != nullptr , GDF_INVALID_API_CALL);
-  GDF_REQUIRE( graph->edgeList->src_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE );
+  CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
+  CUGRAPH_EXPECTS( graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type" );
 
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
@@ -382,8 +382,8 @@ gdf_error gdf_add_transposed_adj_list(gdf_graph *graph) {
   if (graph->edgeList == nullptr)
     gdf_add_edge_list(graph);
 
-  GDF_REQUIRE(graph->edgeList->src_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(graph->edgeList->dest_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
 
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
@@ -429,8 +429,8 @@ gdf_error gdf_number_of_vertices(gdf_graph *graph) {
   //  int32_t implementation for now, since that's all that
   //  is supported elsewhere.
   //
-  GDF_REQUIRE( (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE( (graph->edgeList->src_indices->dtype == GDF_INT32), GDF_UNSUPPORTED_DTYPE );
+  CUGRAPH_EXPECTS( (graph->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS( (graph->edgeList->src_indices->dtype == GDF_INT32), "Unsupported data type" );
 
   int32_t  h_max[2];
   int32_t *d_max;

@@ -318,7 +318,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       cudaDeviceSynchronize();
     }
 
-    ASSERT_EQ(ret, GDF_SUCCESS);
+    ASSERT_EQ(ret, "cuGraph execution failed");
 
     // MTX may have zero-degree vertices. So reset num_vertices after
     // conversion to CSR

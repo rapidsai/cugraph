@@ -469,15 +469,15 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                            gdf_column* csrOff,
                            gdf_column* csrInd,
                            gdf_column* csrVal) {
-  GDF_REQUIRE(part_offsets != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooRow != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooCol != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(csrOff != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(csrInd != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(comm1 != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooRow->size > 0, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooCol->size > 0, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooCol->dtype == cooRow->dtype, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(part_offsets != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooRow != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooCol != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(csrOff != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(csrInd != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(comm1 != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooRow->size > 0, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooCol->size > 0, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooCol->dtype == cooRow->dtype, "Invalid API parameter");
 
   if (cooVal == nullptr) {
     if (cooRow->dtype == GDF_INT32) {

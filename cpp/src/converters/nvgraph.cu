@@ -30,7 +30,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                   bool use_transposed) {
 
   // check input
-  GDF_REQUIRE(!((gdf_G->edgeList == nullptr) &&
+  CUGRAPH_EXPECTS(!((gdf_G->edgeList == nullptr) &&
                   (gdf_G->adjList == nullptr) &&
                   (gdf_G->transposedAdjList == nullptr)),
               GDF_INVALID_API_CALL);
@@ -42,7 +42,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   if (use_transposed) {
     // convert edgeList to transposedAdjList
     if (gdf_G->transposedAdjList == nullptr) {
-      GDF_TRY(gdf_add_transposed_adj_list(gdf_G));
+      CUGRAPH_TRY(gdf_add_transposed_adj_list(gdf_G));
     }
     // using exiting transposedAdjList if it exisits and if adjList is missing
     TT = NVGRAPH_CSC_32;
@@ -81,7 +81,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   else {
     // convert edgeList to adjList
     if (gdf_G->adjList == nullptr) {
-      GDF_TRY(gdf_add_adj_list(gdf_G));
+      CUGRAPH_TRY(gdf_add_adj_list(gdf_G));
     }
     TT = NVGRAPH_CSR_32;
     nvgraphCSRTopology32I_st topoData;

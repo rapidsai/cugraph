@@ -288,9 +288,9 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
                    gdf_column* sssp_distances,
                    gdf_column* predecessors,
                    const int source_vert) {
-  GDF_REQUIRE(gdf_G, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(gdf_G->adjList || gdf_G->edgeList, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(source_vert >= 0, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(gdf_G, "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList || gdf_G->edgeList, "Invalid API parameter");
+  CUGRAPH_EXPECTS(source_vert >= 0, "Invalid API parameter");
 
   void *sssp_dist_ptr, *pred_ptr;
   // NOTE: gdf_column struct doesn't have a default constructor. So we can get
@@ -303,13 +303,13 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
   pred_ptr =
       (predecessors && predecessors->size) ? predecessors->data : nullptr;
 
-  GDF_REQUIRE(sssp_dist_ptr || pred_ptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(sssp_dist_ptr || pred_ptr, "Invalid API parameter");
 
   if (sssp_dist_ptr) {
-    GDF_REQUIRE(!sssp_distances->valid, GDF_VALIDITY_UNSUPPORTED);
+    CUGRAPH_EXPECTS(!sssp_distances->valid, "Column must be valid");
     // Integral types are possible, but we don't want to deal with overflow
     // conditions right now
-    GDF_REQUIRE(sssp_distances->dtype == GDF_FLOAT32 ||
+    CUGRAPH_EXPECTS(sssp_distances->dtype == GDF_FLOAT32 ||
                     sssp_distances->dtype == GDF_FLOAT64,
                 GDF_INVALID_API_CALL);
   }
@@ -318,19 +318,19 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
   if (err != GDF_SUCCESS)
     return err;
 
-  GDF_REQUIRE(gdf_G->adjList->offsets->dtype == GDF_INT32,
+  CUGRAPH_EXPECTS(gdf_G->adjList->offsets->dtype == GDF_INT32,
               GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(gdf_G->adjList->indices->dtype == GDF_INT32,
+  CUGRAPH_EXPECTS(gdf_G->adjList->indices->dtype == GDF_INT32,
               GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(source_vert < gdf_G->adjList->offsets->size - 1,
+  CUGRAPH_EXPECTS(source_vert < gdf_G->adjList->offsets->size - 1,
               GDF_INVALID_API_CALL);
 
   if (pred_ptr)
-    GDF_REQUIRE(predecessors->dtype == gdf_G->adjList->indices->dtype,
+    CUGRAPH_EXPECTS(predecessors->dtype == gdf_G->adjList->indices->dtype,
                 GDF_UNSUPPORTED_DTYPE);
 
   if (sssp_dist_ptr)
-    GDF_REQUIRE(gdf_G->adjList->offsets->size - 1 <= sssp_distances->size,
+    CUGRAPH_EXPECTS(gdf_G->adjList->offsets->size - 1 <= sssp_distances->size,
                 GDF_INVALID_API_CALL);
 
   if (!gdf_G->adjList->edge_data) {
@@ -379,16 +379,16 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
     }
   } else {
     // Got weighted graph
-    GDF_REQUIRE(
+    CUGRAPH_EXPECTS(
         gdf_G->adjList->edge_data->size == gdf_G->adjList->indices->size,
         GDF_INVALID_API_CALL);
 
-    GDF_REQUIRE(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
+    CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
                     gdf_G->adjList->edge_data->dtype == GDF_FLOAT64,
                 GDF_INVALID_API_CALL);
 
     if (sssp_dist_ptr)
-      GDF_REQUIRE(gdf_G->adjList->edge_data->dtype == sssp_distances->dtype,
+      CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == sssp_distances->dtype,
                   GDF_UNSUPPORTED_DTYPE);
 
     // SSSP is not defined for graphs with negative weight cycles
@@ -428,7 +428,7 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
 
     ret = sssp.traverse(source_vert);
   } else {
-    GDF_REQUIRE(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
+    CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
                     gdf_G->adjList->edge_data->dtype == GDF_FLOAT64,
                 GDF_INVALID_API_CALL);
   }

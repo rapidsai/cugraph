@@ -70,26 +70,26 @@ gdf_connected_components_impl(gdf_graph *graph,
   gdf_column* labels = table->get_column(0);
   gdf_column* verts = table->get_column(1);
 
-  GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
     
-  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
     
-  GDF_REQUIRE(row_offsets_(graph) != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter");
 
-  GDF_REQUIRE(col_indices_(graph) != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter");
   
-  GDF_REQUIRE(labels->data != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(labels->data != nullptr, "Invalid API parameter");
 
-  GDF_REQUIRE(verts->data != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(verts->data != nullptr, "Invalid API parameter");
   
   auto type_id = graph->adjList->offsets->dtype;
-  GDF_REQUIRE( type_id == GDF_INT32 || type_id == GDF_INT64, GDF_UNSUPPORTED_DTYPE);
+  CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type");
   
-  GDF_REQUIRE( type_id == graph->adjList->indices->dtype, GDF_UNSUPPORTED_DTYPE);
+  CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type");
   
   //TODO: relax this requirement:
   //
-  GDF_REQUIRE( type_id == labels->dtype, GDF_UNSUPPORTED_DTYPE);
+  CUGRAPH_EXPECTS( type_id == labels->dtype, "Unsupported data type");
 
   IndexT* p_d_labels = static_cast<IndexT*>(labels->data);
   IndexT* p_d_verts = static_cast<IndexT*>(verts->data);
@@ -135,7 +135,7 @@ gdf_connected_components_impl(gdf_graph *graph,
                <<"\n";
 #endif
       
-      GDF_REQUIRE( is_symmetric, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS( is_symmetric, "Invalid API parameter");
       MLCommon::Sparse::weak_cc_entry<IndexT, TPB_X>(p_d_labels,
                                                      p_d_row_offsets,
                                                      p_d_col_ind,
@@ -208,17 +208,17 @@ gdf_connected_components_impl(gdf_graph *graph,
 {
   cudaStream_t stream{nullptr};
 
-  GDF_REQUIRE(table != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(table->num_columns() > 1, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(table != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(table->num_columns() > 1, "Invalid API parameter");
   
   gdf_column* labels = table->get_column(0);
   gdf_column* verts = table->get_column(1);
 
-  GDF_REQUIRE(labels != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(verts != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(labels != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(verts != nullptr, "Invalid API parameter");
 
   auto dtype = labels->dtype;
-  GDF_REQUIRE( dtype == verts->dtype, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS( dtype == verts->dtype, "Invalid API parameter");
   
   switch( dtype )//currently graph's row offsets, col_indices and labels are same type; that may change in the future
     {

@@ -79,25 +79,25 @@ template class SNMGcsrmv<int, float>;
 template <typename idx_t,typename val_t>
 gdf_error gdf_snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){
   
-  GDF_REQUIRE( part_offsets != nullptr, GDF_INVALID_API_CALL );
-  GDF_REQUIRE( off != nullptr, GDF_INVALID_API_CALL );
-  GDF_REQUIRE( ind != nullptr, GDF_INVALID_API_CALL );
-  GDF_REQUIRE( val != nullptr, GDF_INVALID_API_CALL );
-  GDF_REQUIRE( x_cols != nullptr, GDF_INVALID_API_CALL );
-  GDF_REQUIRE( off->size > 0, GDF_INVALID_API_CALL );
-  GDF_REQUIRE( ind->size > 0, GDF_INVALID_API_CALL );
-  GDF_REQUIRE( val->size > 0, GDF_INVALID_API_CALL );
-  GDF_REQUIRE( ind->size == val->size, GDF_COLUMN_SIZE_MISMATCH ); 
-  GDF_REQUIRE( off->dtype == ind->dtype, GDF_UNSUPPORTED_DTYPE );  
-  GDF_REQUIRE( off->null_count + ind->null_count + val->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );                 
+  CUGRAPH_EXPECTS( part_offsets != nullptr, "Invalid API parameter" );
+  CUGRAPH_EXPECTS( off != nullptr, "Invalid API parameter" );
+  CUGRAPH_EXPECTS( ind != nullptr, "Invalid API parameter" );
+  CUGRAPH_EXPECTS( val != nullptr, "Invalid API parameter" );
+  CUGRAPH_EXPECTS( x_cols != nullptr, "Invalid API parameter" );
+  CUGRAPH_EXPECTS( off->size > 0, "Invalid API parameter" );
+  CUGRAPH_EXPECTS( ind->size > 0, "Invalid API parameter" );
+  CUGRAPH_EXPECTS( val->size > 0, "Invalid API parameter" );
+  CUGRAPH_EXPECTS( ind->size == val->size, "Column size mismatch" ); 
+  CUGRAPH_EXPECTS( off->dtype == ind->dtype, "Unsupported data type" );  
+  CUGRAPH_EXPECTS( off->null_count + ind->null_count + val->null_count == 0 , "Input column has non-zero null count");                 
 
   auto p = omp_get_num_threads();
 
   val_t* x[p];
   for (auto i = 0; i < p; ++i)
   {
-    GDF_REQUIRE( x_cols[i] != nullptr, GDF_INVALID_API_CALL );
-    GDF_REQUIRE( x_cols[i]->size > 0, GDF_INVALID_API_CALL );
+    CUGRAPH_EXPECTS( x_cols[i] != nullptr, "Invalid API parameter" );
+    CUGRAPH_EXPECTS( x_cols[i]->size > 0, "Invalid API parameter" );
     x[i]= static_cast<val_t*>(x_cols[i]->data);
   }
   #pragma omp master 

@@ -43,7 +43,7 @@ TEST(gdf_edge_list, success)
 
   size_t vertices = 0, edges = 0;
   char argv [1024] = "grmat --rmat_scale=20 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
-  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, &col_weights), GDF_SUCCESS);
+  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, &col_weights), "cuGraph execution failed");
   
   std::vector<int> src_h(edges), dest_h(edges);
   std::vector<float> w_h(edges);
@@ -92,7 +92,7 @@ TEST(gdf_edge_list, success_no_weights)
  
   size_t vertices = 0, edges = 0;
   char argv [1024] = "grmat --rmat_scale=20 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
-  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
+  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), "cuGraph execution failed");
  
   ASSERT_EQ(gdf_edge_list_view(G.get(), &col_src, &col_dest, nullptr),GDF_SUCCESS);
 
@@ -249,7 +249,7 @@ TEST(gdf_number_of_vertices, success1)
   ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_w),GDF_SUCCESS);
   ASSERT_EQ(G.numberOfVertices, 0);
 
-  ASSERT_EQ(gdf_number_of_vertices(&G), GDF_SUCCESS);
+  ASSERT_EQ(gdf_number_of_vertices(&G), "cuGraph execution failed");
 
   ASSERT_EQ(G.numberOfVertices, 6);
 }
@@ -646,7 +646,7 @@ TEST(gdf_graph, memory)
   size_t vertices = 0, edges = 0;
   char argv[1024] = "grmat --rmat_scale=23 --rmat_edgefactor=16 --device=0 --normalized --rmat_self_loops --quiet";
 
-  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
+  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), "cuGraph execution failed");
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);

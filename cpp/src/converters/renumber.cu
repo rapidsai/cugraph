@@ -24,8 +24,8 @@
 gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
                                 gdf_column *src_renumbered, gdf_column *dst_renumbered,
                                 gdf_column *numbering_map) {
-  GDF_REQUIRE( src->size == dst->size, GDF_COLUMN_SIZE_MISMATCH );
-  GDF_REQUIRE( src->dtype == dst->dtype, GDF_UNSUPPORTED_DTYPE );
+  CUGRAPH_EXPECTS( src->size == dst->size, "Column size mismatch" );
+  CUGRAPH_EXPECTS( src->dtype == dst->dtype, "Unsupported data type" );
 
   //
   //  Added this back in.  Below I added support for strings, however the 
@@ -34,8 +34,8 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
   //  will prevent code from being executed.  Once cudf fully support string
   //  columns we can eliminate this check and debug the GDF_STRING case below.
   //
-  GDF_REQUIRE( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( src->size > 0, GDF_DATASET_EMPTY );
+  CUGRAPH_EXPECTS( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), "Unsupported data type" );
+  CUGRAPH_EXPECTS( src->size > 0, "Column is empty");
 
   //
   //  TODO: we're currently renumbering without using valid.  We need to

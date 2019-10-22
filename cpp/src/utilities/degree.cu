@@ -55,7 +55,7 @@ gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x) {
   // x = 0: in+out degree
   // x = 1: in-degree
   // x = 2: out-degree
-  GDF_REQUIRE(graph->adjList != nullptr || graph->transposedAdjList != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->transposedAdjList != nullptr, "Invalid API parameter");
   int n;
   int e;
   if(graph->adjList != nullptr) {

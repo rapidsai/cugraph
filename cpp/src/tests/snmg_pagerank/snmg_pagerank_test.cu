@@ -165,7 +165,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
     status = gdf_snmg_pagerank (src_col_ptrs, dest_col_ptrs, pr_col, 
                        nthreads, alpha, max_iter);
     
-    EXPECT_EQ(status, GDF_SUCCESS);
+    EXPECT_EQ(status, "cuGraph execution failed");
 
     std::cout <<  omp_get_wtime() - t << std::endl;
 
