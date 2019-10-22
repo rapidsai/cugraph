@@ -114,7 +114,7 @@ TEST(gdf_edge_list, size_mismatch)
   col_dest = create_gdf_column(dest_h);
   col_weights = create_gdf_column(w_h);
 
-  ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), col_weights.get()),GDF_COLUMN_SIZE_MISMATCH);
+  ASSERT_THROW(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), col_weights.get()), std::logic_error);
 }
 
 
@@ -131,7 +131,7 @@ TEST(gdf_edge_list, size_mismatch2)
   col_dest = create_gdf_column(dest_h);
   col_weights = create_gdf_column(w_h);
 
-  ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), col_weights.get()),GDF_COLUMN_SIZE_MISMATCH);
+  ASSERT_THROW(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), col_weights.get()), std::logic_error);
 
 }
 
@@ -146,7 +146,7 @@ TEST(gdf_edge_list, wrong_type)
   col_src = create_gdf_column(src_h);
   col_dest = create_gdf_column(dest_h);
 
-  ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),GDF_UNSUPPORTED_DTYPE);
+  ASSERT_THROW(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr), std::logic_error);
 }
 
 TEST(gdf_adj_list, success)
