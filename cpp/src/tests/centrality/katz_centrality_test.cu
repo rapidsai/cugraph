@@ -83,7 +83,6 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   void run_current_test(const Katz_Usecase& param) {
        gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
        gdf_column_ptr col_src, col_dest, col_katz_centrality;
-       gdf_error status;
 
        FILE* fpin = fopen(param.matrix_file.c_str(),"r");
        ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
@@ -116,7 +115,6 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
       double alpha = 1/(static_cast<double>(max_out_degree) + 1);
 
       CUGRAPH_TRY(gdf_katz_centrality(G.get(), col_katz_centrality.get(), alpha, 100, 1e-6, false, true));
-      EXPECT_EQ(status,0);
 
       std::vector<int> top10CUGraph = getTopKIds(std::move(col_katz_centrality));
       std::vector<int> top10Golden  = getGoldenTopKIds(param.result_file);
@@ -128,10 +126,10 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Katz,
-                        ::testing::Values(  Katz_Usecase("test/datasets/karate.mtx",      "ref/katz/karate.csv"    )
-                                           ,Katz_Usecase("test/datasets/netscience.mtx",  "ref/katz/netscience.csv")
-                                           ,Katz_Usecase("test/datasets/polbooks.mtx",    "ref/katz/polbooks.csv"  )
-                                           ,Katz_Usecase("test/datasets/dolphins.mtx",    "ref/katz/dolphins.csv"  )
+                        ::testing::Values(  Katz_Usecase("test/datasets/karate.mtx",      "test/ref/katz/karate.csv"    )
+                                           ,Katz_Usecase("test/datasets/netscience.mtx",  "test/ref/katz/netscience.csv")
+                                           ,Katz_Usecase("test/datasets/polbooks.mtx",    "test/ref/katz/polbooks.csv"  )
+                                           ,Katz_Usecase("test/datasets/dolphins.mtx",    "test/ref/katz/dolphins.csv"  )
                                          )
                        );
 
