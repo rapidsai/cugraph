@@ -33,7 +33,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   CUGRAPH_EXPECTS(!((gdf_G->edgeList == nullptr) &&
                   (gdf_G->adjList == nullptr) &&
                   (gdf_G->transposedAdjList == nullptr)),
-              GDF_INVALID_API_CALL);
+              "Invalid API parameter");
   nvgraphTopologyType_t TT;
   cudaDataType_t settype;
   // create an nvgraph graph handle

@@ -105,7 +105,7 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
 #else
   ALLOC_TRY((void**)&tmp, sizeof(ValueType) * n, stream);
 #endif
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   if (!has_guess) {
        fill(n, pagerank_vector, randomProbability);
@@ -133,7 +133,7 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
                                   cscPtr, cscInd, tmp, pagerank_vector, n, n, e));
    // Allocate temporary storage
   ALLOC_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
-  cudaCheckError()
+  CUDA_CHECK_LAST()
 #ifdef PR_VERBOSE
   std::stringstream ss;
   ss.str(std::string());

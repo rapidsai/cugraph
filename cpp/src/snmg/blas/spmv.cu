@@ -35,7 +35,7 @@ SNMGcsrmv<IndexType,ValueType>::SNMGcsrmv(SNMGinfo & env_, size_t* part_off_,
   v_loc = part_off[i+1]-part_off[i];
   IndexType tmp;
   cudaMemcpy(&tmp, &off[v_loc], sizeof(IndexType),cudaMemcpyDeviceToHost);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
   e_loc = tmp;
 
   // Allocate the local result

@@ -606,7 +606,7 @@ TEST_F(RenumberingTest, Random10MVertexListString)
   EXPECT_EQ(omap->to_host(local_strings, 0, unique_verts), 0);
 
   cudaDeviceSynchronize();
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   printf("checking results\n");
 

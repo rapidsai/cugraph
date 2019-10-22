@@ -191,7 +191,7 @@ void verify_sorted_order(Key_t **d_key, Value_t **d_value,
                         });
 
       cudaDeviceSynchronize();
-      cudaCheckError();
+      CUDA_CHECK_LAST();
 
       int result = thrust::reduce(rmm::exec_policy(stream)->on(stream), diffCounter, diffCounter + length, 0);
 
@@ -253,7 +253,7 @@ void verify_sorted_order(Key_t **d_key, Length_t *h_offsets,
                         });
 
       cudaDeviceSynchronize();
-      cudaCheckError();
+      CUDA_CHECK_LAST();
 
       int result = thrust::reduce(rmm::exec_policy(stream)->on(stream), diffCounter, diffCounter + length, 0);
 

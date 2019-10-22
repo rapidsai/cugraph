@@ -180,7 +180,7 @@ void fill_vec(ValueType* vec, SizeType n, ValueType val, cudaStream_t stream) {
   grid.x = (n + block.x - 1) / block.x;
 
   fill_vec_kernel<<<grid, block, 0, stream>>>(vec, n, val);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }
 
 template <typename IndexType>
@@ -388,7 +388,7 @@ void flag_isolated_vertices(IndexType n,
 
   flag_isolated_vertices_kernel<<<grid, block, 0, m_stream>>>(
       n, isolated_bmap, row_ptr, degrees, nisolated);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }
 
 template <typename IndexType>
@@ -414,7 +414,7 @@ void set_frontier_degree(IndexType* frontier_degree,
   grid.x = min((n + block.x - 1) / block.x, (IndexType)MAXBLOCKS);
   set_frontier_degree_kernel<<<grid, block, 0, m_stream>>>(
       frontier_degree, frontier, degree, n);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }
 
 template <typename IndexType>
@@ -472,6 +472,6 @@ void compute_bucket_offsets(IndexType* cumul,
 
   compute_bucket_offsets_kernel<<<grid, block, 0, m_stream>>>(
       cumul, bucket_offsets, frontier_size, total_degree);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }
 }  // end namespace traversal

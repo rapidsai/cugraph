@@ -340,7 +340,7 @@ namespace cugraph {
                           sizeof(IndexType),
                           cudaMemcpyDeviceToHost,
                           stream);
-          cudaCheckError();
+          CUDA_CHECK_LAST();
 
           //We need nf
           cudaStreamSynchronize(stream);
@@ -404,7 +404,7 @@ namespace cugraph {
                             sizeof(IndexType),
                             cudaMemcpyDeviceToHost,
                             stream);
-            cudaCheckError()
+            CUDA_CHECK_LAST()
             //We need last_left_unvisited_size
             cudaStreamSynchronize(stream);
 	    bfs_kernels::bottom_up_large(left_unvisited_queue,
@@ -426,7 +426,7 @@ namespace cugraph {
                           sizeof(IndexType),
                           cudaMemcpyDeviceToHost,
                           stream);
-          cudaCheckError()
+          CUDA_CHECK_LAST()
 
           //We will need nf
           cudaStreamSynchronize(stream);

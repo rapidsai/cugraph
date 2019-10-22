@@ -61,7 +61,7 @@ gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** d
                                                      static_cast<idx_t>(loc_e),
                                                      ind,
                                                      local_result);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Out-degree
@@ -78,7 +78,7 @@ gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** d
                                                          static_cast<idx_t>(loc_e),
                                                          off,
                                                          local_result + part_off[i]);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Combining the local results into global results
@@ -130,7 +130,7 @@ gdf_error snmg_degree<int64_t>(int x,
                                                         static_cast<int64_t>(loc_e),
                                                         ind,
                                                         reinterpret_cast<double*>(local_result));
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Out-degree
@@ -148,7 +148,7 @@ gdf_error snmg_degree<int64_t>(int x,
                                                             off,
                                                             reinterpret_cast<double*>(local_result
                                                                 + part_off[i]));
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Convert the values written as doubles back to int64:
@@ -161,7 +161,7 @@ gdf_error snmg_degree<int64_t>(int x,
   nblocks.y = 1;
   nblocks.z = 1;
   type_convert<double, int64_t> <<<nblocks, nthreads>>>(reinterpret_cast<double*>(local_result), glob_v);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   // Combining the local results into global results
   treeReduce<int64_t, thrust::plus<int64_t> >(env, glob_v, local_result, degree);

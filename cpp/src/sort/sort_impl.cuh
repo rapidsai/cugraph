@@ -392,7 +392,7 @@ namespace cusort {
 
       tData[cpu_tid].h_output_length = h_writePositionsTransposed[cpu_tid][num_gpus];
       cudaDeviceSynchronize();
-      cudaCheckError();
+      CUDA_CHECK_LAST();
 
 #pragma omp barrier
 
@@ -418,14 +418,14 @@ namespace cusort {
            num_gpus);
       }
 
-      cudaCheckError();
+      CUDA_CHECK_LAST();
 
       ALLOC_TRY(&(tData[cpu_tid].d_output_keys), tData[cpu_tid].h_output_length * sizeof(Key_t), nullptr);
 
       if (!keys_only)
         ALLOC_TRY(&(tData[cpu_tid].d_output_values), tData[cpu_tid].h_output_length * sizeof(Value_t), nullptr);
 
-      cudaCheckError();
+      CUDA_CHECK_LAST();
 
       //
       //  Need all partition labeling to complete before we start copying data
@@ -469,7 +469,7 @@ namespace cusort {
                                                        tData[cpu_tid].h_output_length);
       }
 
-      cudaCheckError();
+      CUDA_CHECK_LAST();
       cudaDeviceSynchronize();
 
       CUDA_TRY(cudaMemcpy(tData[cpu_tid].d_output_keys, tData[cpu_tid].bdReorder.d_keys, tData[cpu_tid].h_output_length * sizeof(Key_t), cudaMemcpyDeviceToDevice));

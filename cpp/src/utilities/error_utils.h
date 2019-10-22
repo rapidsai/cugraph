@@ -23,7 +23,9 @@
 
 #include <rmm/rmm.h>
 
-//#include <cudf/types.h>
+#include "nvgraph_error_utils.h"
+
+#include <cudf/types.h>
 
 #define RMM_TRY(call)                                             \
   do {                                                            \
@@ -170,7 +172,12 @@ inline void check_stream(cudaStream_t stream, const char* file,
   } while (0);
 #endif
 
-#define CUDA_CHECK_LAST() CUDA_TRY(cudaPeekAtLastError())
+#define CUDA_CHECK_LAST() {                                       \
+  cudaError_t const status = cudaGetLastError();                  \
+  if(status != cudaSuccess) {                                     \
+   cugraph::detail::throw_cuda_error(status, __FILE__, __LINE__); \
+  }                                                               \
+}
 
 /**---------------------------------------------------------------------------*
  * @brief Debug macro to synchronize a stream and check for CUDA errors

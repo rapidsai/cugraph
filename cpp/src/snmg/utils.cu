@@ -41,7 +41,7 @@ static bool PeerAccessAlreadyEnabled = false;
   }
   // number of SM, usefull for kernels paramters
   cudaDeviceGetAttribute(&n_sm, cudaDevAttrMultiProcessorCount, i);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
     } 
     SNMGinfo::~SNMGinfo() { }
 
@@ -62,7 +62,7 @@ static bool PeerAccessAlreadyEnabled = false;
         if (i != j) {
           int canAccessPeer = 0;
           cudaDeviceCanAccessPeer(&canAccessPeer, i, j);
-          cudaCheckError();
+          CUDA_CHECK_LAST();
           if (canAccessPeer) {
             cudaDeviceEnablePeerAccess(j, 0);
             cudaError_t status = cudaGetLastError();

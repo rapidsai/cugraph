@@ -588,6 +588,6 @@ void frontier_expand(
       predecessors,
       edge_mask);
 
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }
 }

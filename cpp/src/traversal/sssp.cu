@@ -233,7 +233,7 @@ gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
                     cudaMemcpyDeviceToDevice,
                     stream);
 
-    cudaCheckError();
+    CUDA_CHECK_LAST();
 
     // We need nf for the loop
     cudaStreamSynchronize(stream);
@@ -311,7 +311,7 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
     // conditions right now
     CUGRAPH_EXPECTS(sssp_distances->dtype == GDF_FLOAT32 ||
                     sssp_distances->dtype == GDF_FLOAT64,
-                GDF_INVALID_API_CALL);
+                "Invalid API parameter");
   }
 
   gdf_error err = gdf_add_adj_list(gdf_G);
@@ -319,19 +319,19 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
     return err;
 
   CUGRAPH_EXPECTS(gdf_G->adjList->offsets->dtype == GDF_INT32,
-              GDF_UNSUPPORTED_DTYPE);
+              "Unsupported data type");
   CUGRAPH_EXPECTS(gdf_G->adjList->indices->dtype == GDF_INT32,
-              GDF_UNSUPPORTED_DTYPE);
+              "Unsupported data type");
   CUGRAPH_EXPECTS(source_vert < gdf_G->adjList->offsets->size - 1,
-              GDF_INVALID_API_CALL);
+              "Invalid API parameter");
 
   if (pred_ptr)
     CUGRAPH_EXPECTS(predecessors->dtype == gdf_G->adjList->indices->dtype,
-                GDF_UNSUPPORTED_DTYPE);
+                "Unsupported data type");
 
   if (sssp_dist_ptr)
     CUGRAPH_EXPECTS(gdf_G->adjList->offsets->size - 1 <= sssp_distances->size,
-                GDF_INVALID_API_CALL);
+                "Invalid API parameter");
 
   if (!gdf_G->adjList->edge_data) {
     // Generate unit weights
@@ -381,15 +381,15 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
     // Got weighted graph
     CUGRAPH_EXPECTS(
         gdf_G->adjList->edge_data->size == gdf_G->adjList->indices->size,
-        GDF_INVALID_API_CALL);
+        "Invalid API parameter");
 
     CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
                     gdf_G->adjList->edge_data->dtype == GDF_FLOAT64,
-                GDF_INVALID_API_CALL);
+                "Invalid API parameter");
 
     if (sssp_dist_ptr)
       CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == sssp_distances->dtype,
-                  GDF_UNSUPPORTED_DTYPE);
+                  "Unsupported data type");
 
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
@@ -430,7 +430,7 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
   } else {
     CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
                     gdf_G->adjList->edge_data->dtype == GDF_FLOAT64,
-                GDF_INVALID_API_CALL);
+                "Invalid API parameter");
   }
 
   return ret;

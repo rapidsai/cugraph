@@ -54,7 +54,7 @@ SNMGpagerank<IndexType,ValueType>::SNMGpagerank(SNMGinfo & env_, size_t* part_of
   v_loc = part_off[id+1]-part_off[id];
   IndexType tmp_e;
   cudaMemcpy(&tmp_e, &off[v_loc], sizeof(IndexType),cudaMemcpyDeviceToHost);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
   e_loc = tmp_e;
   stream = nullptr;
   is_setup = false;
@@ -77,7 +77,7 @@ void SNMGpagerank<IndexType,ValueType>::transition_vals(const IndexType *degree)
   int threads = min(static_cast<IndexType>(e_loc), 256);
   int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
   transition_kernel<IndexType, ValueType> <<<blocks, threads>>> (e_loc, ind, degree, val);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }
 
 template <typename IndexType, typename ValueType>
@@ -85,7 +85,7 @@ void SNMGpagerank<IndexType,ValueType>::flag_leafs(const IndexType *degree) {
   int threads = min(static_cast<IndexType>(v_glob), 256);
   int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
   flag_leafs_kernel<IndexType, ValueType> <<<blocks, threads>>> (v_glob, degree, bookmark);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }    
 
 
@@ -190,7 +190,7 @@ gdf_error gdf_snmg_pagerank_impl(
     cugraph::SNMGinfo env;
     auto i = env.get_thread_num();
     auto p = env.get_num_threads();
-    cudaCheckError();
+    CUDA_CHECK_LAST();
 
     // Local CSR columns
     gdf_column *col_csr_off = new gdf_column;
@@ -251,7 +251,7 @@ gdf_error gdf_snmg_pagerank_impl(
       //fill relevant fields
       ALLOC_TRY ((void**)&pr_col->data,   sizeof(val_t) * part_offset[p], nullptr);
       cudaMemcpy(pr_col->data, pagerank[i], sizeof(val_t) * part_offset[p], cudaMemcpyDeviceToDevice);
-      cudaCheckError();
+      CUDA_CHECK_LAST();
       pr_col->size = part_offset[p];
       pr_col->dtype = GDF_FLOAT32;
     }
@@ -288,7 +288,7 @@ gdf_error gdf_snmg_pagerank (
     // number of GPU
     int dev_count;
     cudaGetDeviceCount(&dev_count);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
     CUGRAPH_EXPECTS(n_gpus > 0, "Invalid API parameter");
     CUGRAPH_EXPECTS(n_gpus < static_cast<size_t>(dev_count+1), "Invalid API parameter"); 
 
