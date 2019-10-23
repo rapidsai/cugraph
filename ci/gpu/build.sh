@@ -102,4 +102,4 @@ fi
 
 logger "Creating cache..."
 cd $WORKSPACE
-tar -czvf cache.tgz cpp/build python
+tar -czvf cache.tgz cpp/build python/build
