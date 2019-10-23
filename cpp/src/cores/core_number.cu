@@ -208,11 +208,8 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
                      gdf_column *core_number,
                      gdf_graph *out_graph) {
   CUGRAPH_EXPECTS(out_graph != nullptr && in_graph != nullptr, "Invalid API parameter");
-  gdf_error err = gdf_add_adj_list(in_graph);
+  CUGRAPH_TRY(gdf_add_adj_list(in_graph));
   gdf_size_type nV = in_graph->numberOfVertices;
-
-  if (err != GDF_SUCCESS)
-    return err;
   CUGRAPH_EXPECTS(in_graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(in_graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS((vertex_id != nullptr) && (core_number != nullptr), "Invalid API parameter");
@@ -226,10 +223,8 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
   int * core_number_ptr = static_cast<int*>(core_number->data);
   gdf_size_type vLen = vertex_id->size;
 
-  err = extract_subgraph(in_graph, out_graph,
+  CUGRAPH_TRY(extract_subgraph(in_graph, out_graph,
       vertex_identifier_ptr, core_number_ptr,
-      k, vLen, nV);
-  CUGRAPH_EXPECTS(err, "cuGraph execution failed");
-
+      k, vLen, nV));
   return GDF_SUCCESS;
 }

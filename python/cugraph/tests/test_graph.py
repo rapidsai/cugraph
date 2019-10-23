@@ -357,16 +357,13 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
     G.delete_edge_list()
-    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
+    with pytest.raises(RuntimeError):
         G.view_adj_list()
-    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
 
     G.add_adj_list(offsets, indices, None)
     G.delete_adj_list()
-    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
+    with pytest.raises(RuntimeError):
         G.view_edge_list()
-    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
-
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
@@ -405,22 +402,18 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
 
     # If cugraph has a graph edge list, adding a new graph should fail.
     G.add_edge_list(sources, destinations, None)
-    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
+    with pytest.raises(RuntimeError):
         G.add_edge_list(sources, destinations, None)
-    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
-    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
+    with pytest.raises(RuntimeError):
         G.add_adj_list(offsets, indices, None)
-    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
     G.delete_edge_list()
 
     # If cugraph has a graph adjacency list, adding a new graph should fail.
     G.add_adj_list(sources, destinations, None)
-    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
+    with pytest.raises(RuntimeError):
         G.add_edge_list(sources, destinations, None)
-    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
-    with pytest.raises(libcudf.GDFError.GDFError) as excinfo:
+    with pytest.raises(RuntimeError):
         G.add_adj_list(offsets, indices, None)
-    assert excinfo.value.errcode.decode() == 'GDF_INVALID_API_CALL'
     G.delete_adj_list()
 
 
