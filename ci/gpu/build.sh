@@ -88,12 +88,12 @@ else
     nvidia-smi
 
     logger "GoogleTest for libcugraph..."
-    cd $WORKSPACE/cpp/build
-    GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
+#    cd $WORKSPACE/cpp/build
+#    GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
 
     logger "Python py.test for cuGraph..."
-    cd $WORKSPACE/python
-    py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
+#    cd $WORKSPACE/python
+#    py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
 fi
 
 ################################################################################
