@@ -815,3 +815,12 @@ TEST_F(SortTest, Random256MKeysPerDevice_uint32_t)
     EXPECT_EQ(RMM_FREE(d_output[i], stream), RMM_SUCCESS);
   }
 }
+
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
+}

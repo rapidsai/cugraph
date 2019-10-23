@@ -754,3 +754,12 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
   EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
+
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
+}

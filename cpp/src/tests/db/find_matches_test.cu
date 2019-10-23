@@ -261,7 +261,11 @@ TEST_F(Test_FindMatches, fifthTest) {
   delete[] resultB;
 }
 
-int main(int argc, char**argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }

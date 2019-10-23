@@ -4,11 +4,13 @@
 
 ## Improvements
 - PR #554 Upgraded namespace so that cugraph can be used for the API.
+- PR #564 Update cudf type aliases
+- PR #562 Remove pyarrow dependency so we inherit the one cudf uses
 
 ## Bug Fixes
 
 
-# cuGraph 0.10.0 (Date TBD)
+# cuGraph 0.10.0 (16 Oct 2019)
 
 ## New Features
 - PR #469 Symmetrize a COO
@@ -25,7 +27,7 @@
 - PR #468 Remove unnecessary print statement
 - PR #464 Limit initial RMM pool allocator size to 128mb so pytest can run in parallel
 - PR #474 Add csv file writing, lazy compute - snmg pagerank
-- PR #481 Run bfs on unweighted graphs when calling sssp 
+- PR #481 Run bfs on unweighted graphs when calling sssp
 - PR #491 Use YYMMDD tag in nightly build
 - PR #487 Add woverlap test, add namespace in snmg COO2CSR
 - PR #531 Use new rmm python package
@@ -42,6 +44,8 @@
 - PR #522 Added the conda dev env file for 10.1
 - PR #525 Update build scripts and YYMMDD tagging for nightly builds
 - PR #548 Added missing cores documentation
+- PR #556 Fixed recursive remote options for submodules
+- PR #559 Added RMM init check so RMM free APIs are not called if not initialized
 
 
 # cuGraph 0.9.0 (21 Aug 2019)
