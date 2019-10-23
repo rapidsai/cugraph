@@ -96,3 +96,10 @@ else
     py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
 fi
 
+################################################################################
+# CACHE - Upload build results for T4 testing
+################################################################################
+
+logger "Creating cache..."
+cd $WORKSPACE
+tar -czvf cache.tgz cpp/build python
