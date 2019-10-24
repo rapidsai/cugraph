@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #569 Exceptions
 
 ## Bug Fixes
 

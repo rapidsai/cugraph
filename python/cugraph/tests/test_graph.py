@@ -21,7 +21,6 @@ import pytest
 from scipy.io import mmread
 
 import cudf
-import cudf._lib as libcudf
 import cugraph
 from cugraph.tests import utils
 import rmm
