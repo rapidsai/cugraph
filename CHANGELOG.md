@@ -5,7 +5,7 @@
 ## Improvements
 
 ## Bug Fixes
-
+- PR #570 Temporarily disabling 2 DB tests
 
 # cuGraph 0.10.0 (Date TBD)
 
