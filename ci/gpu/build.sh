@@ -83,15 +83,17 @@ if [ -f $WORKSPACE/cache.tgz ] ; then
     
     # Patch CMake files for current paths
     cd cpp/build
-    ls -la
     grep -rlZ -E "${JENKINS_HOME}/.*/cpp" . | xargs -0 sed -i "s|${JENKINS_HOME}/.*/cpp|${HOME}/cpp|g"
-    ls -la
-    # Touch all build files to bring the timestamps back to normal after sed
-    grep -rlZ -E "${HOME}/cpp" . | xargs -0 touch -r /tmp/cache-time-ref
-    ls -la
     
-    # Return to workspace
+    # Touch all build files to bring the timestamps back to normal after sed
     cd $WORKSPACE
+    ls -la cpp/build
+    find cpp/build -exec touch -r /tmp/cache-time-ref {} \;
+    ls -la cpp/build
+    ls -la python/build
+    find python/build -exec touch -r /tmp/cache-time-ref {} \;
+    ls -la python/build
+    
 fi
 
 ################################################################################
