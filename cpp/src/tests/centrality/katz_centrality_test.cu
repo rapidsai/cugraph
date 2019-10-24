@@ -126,10 +126,10 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Katz,
-                        ::testing::Values(  Katz_Usecase("test/datasets/karate.mtx",      "test/ref/katz/karate.csv"    )
-                                           ,Katz_Usecase("test/datasets/netscience.mtx",  "test/ref/katz/netscience.csv")
-                                           ,Katz_Usecase("test/datasets/polbooks.mtx",    "test/ref/katz/polbooks.csv"  )
-                                           ,Katz_Usecase("test/datasets/dolphins.mtx",    "test/ref/katz/dolphins.csv"  )
+                        ::testing::Values(  Katz_Usecase("test/datasets/karate.mtx",      "ref/katz/karate.csv"    )
+                                           ,Katz_Usecase("test/datasets/netscience.mtx",  "ref/katz/netscience.csv")
+                                           ,Katz_Usecase("test/datasets/polbooks.mtx",    "ref/katz/polbooks.csv"  )
+                                           ,Katz_Usecase("test/datasets/dolphins.mtx",    "ref/katz/dolphins.csv"  )
                                          )
                        );
 
