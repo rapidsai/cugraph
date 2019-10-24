@@ -80,8 +80,12 @@ if [ -f $WORKSPACE/cache.tgz ] ; then
     tar xzvf cache.tgz
     rm cache.tgz
     
-    # Patch CMake files
+    # Patch CMake files for current paths
     grep -rlZ -E "${JENKINS_HOME}/.*/cpp" . | xargs -0 sed -i "s|${JENKINS_HOME}/.*/cpp|${HOME}/cpp|g"
+    
+    # Touch all build files to bring the timestamps back to normal after sed
+    grep -rlZ -E "${JENKINS_HOME}/.*/cpp" . | xargs -0 touch -r cpp
+    ls -la cpp/build
 fi
 
 ################################################################################
