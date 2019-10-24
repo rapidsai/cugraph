@@ -86,7 +86,6 @@ if [ -f $WORKSPACE/cache.tgz ] ; then
     grep -rlZ -E "${JENKINS_HOME}/.*/cpp" . | xargs -0 sed -i "s|${JENKINS_HOME}/.*/cpp|${HOME}/cpp|g"
     
     # Touch all build files to bring the timestamps back to normal after sed
-    cd cpp/build
     grep -rlZ -E "${HOME}/cpp" . | xargs -0 touch -r /tmp/cache-time-ref
     ls -la cpp/build
     
