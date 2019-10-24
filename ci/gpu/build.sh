@@ -71,10 +71,22 @@ $CXX --version
 conda list
 
 ################################################################################
+# CACHE - Load build directories from previous PR, reducing build time
+################################################################################
+
+if [ -f $WORKSPACE/cache.tgz ] ; then
+    cd $WORKSPACE
+    logger "Cache detected, extracting..."
+    rm -rf cpp/build python/build
+    tar xzvf cache.tgz
+    rm cache.tgz
+fi
+
+################################################################################
 # BUILD - Build libcugraph and cuGraph from source
 ################################################################################
 
-logger "Build libcugraph..."
+logger "Build libcugraph and cugraph..."
 $WORKSPACE/build.sh clean libcugraph cugraph
 
 ################################################################################
