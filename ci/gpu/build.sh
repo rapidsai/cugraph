@@ -77,15 +77,21 @@ if [ -f $WORKSPACE/cache.tgz ] ; then
     cd $WORKSPACE
     logger "Cache detected, extracting..."
     rm -rf cpp/build python/build
-    tar xzvf cache.tgz
+    tar xzvfp cache.tgz
     rm cache.tgz
+    cp cpp/build/Makefile /tmp/cache-time-ref
     
     # Patch CMake files for current paths
+    cd cpp/build
     grep -rlZ -E "${JENKINS_HOME}/.*/cpp" . | xargs -0 sed -i "s|${JENKINS_HOME}/.*/cpp|${HOME}/cpp|g"
     
     # Touch all build files to bring the timestamps back to normal after sed
-    grep -rlZ -E "${JENKINS_HOME}/.*/cpp" . | xargs -0 touch -r cpp
+    cd cpp/build
+    grep -rlZ -E "${HOME}/cpp" . | xargs -0 touch -r /tmp/cache-time-ref
     ls -la cpp/build
+    
+    # Return to workspace
+    cd $WORKSPACE
 fi
 
 ################################################################################
@@ -120,4 +126,4 @@ fi
 
 logger "Creating cache..."
 cd $WORKSPACE
-tar -czvf cache.tgz cpp/build python/build
+tar czvfp cache.tgz cpp/build python/build
