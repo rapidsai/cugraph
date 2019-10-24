@@ -44,7 +44,7 @@ logger "Activate conda env..."
 source activate gdf
 
 logger "conda install required packages"
-conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge \
+conda install -y -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge \
       cudf=${MINOR_VERSION} \
       rmm=${MINOR_VERSION} \
       networkx>=2.3 \
@@ -62,7 +62,6 @@ pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
 
 logger "pip install git+https://github.com/dask/dask.git --upgrade --no-deps"
 pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
-
 
 logger "Check versions..."
 python --version
@@ -87,7 +86,7 @@ fi
 ################################################################################
 
 logger "Build libcugraph and cugraph..."
-$WORKSPACE/build.sh clean libcugraph cugraph
+$WORKSPACE/build.sh libcugraph cugraph
 
 ################################################################################
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
