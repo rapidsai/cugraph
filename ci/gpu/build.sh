@@ -79,7 +79,7 @@ if [ -f $WORKSPACE/cache.tgz ] ; then
     rm -rf cpp/build python/build
     tar xzvfp cache.tgz
     rm cache.tgz
-    cp cpp/build/Makefile /tmp/cache-time-ref
+    cp -p cpp/build/Makefile /tmp/cache-time-ref
     
     # Patch CMake files for current paths
     cd cpp/build
