@@ -79,6 +79,9 @@ if [ -f $WORKSPACE/cache.tgz ] ; then
     rm -rf cpp/build python/build
     tar xzvf cache.tgz
     rm cache.tgz
+    
+    # Patch CMake files
+    grep -rlZ -E "${JENKINS_HOME}/.*/cpp" . | xargs -0 sed -i "s|${JENKINS_HOME}/.*/cpp|${HOME}/cpp|g"
 fi
 
 ################################################################################
