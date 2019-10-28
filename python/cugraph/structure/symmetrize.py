@@ -131,8 +131,8 @@ def symmetrize(source_col, dest_col, value_col=None):
     null_check(source_col)
     null_check(dest_col)
 
-    input_df = cudf.DataFrame([('source', source_col),
-                               ('destination', dest_col)])
+    input_df = cudf.DataFrame({'source': source_col,
+                               'destination': dest_col})
 
     if value_col is not None:
         null_check(value_col)
