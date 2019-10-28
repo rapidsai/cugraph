@@ -5,7 +5,7 @@
 ## Improvements
 
 ## Bug Fixes
-
+- PR #574 dev env update
 
 # cuGraph 0.10.0 (Date TBD)
 
