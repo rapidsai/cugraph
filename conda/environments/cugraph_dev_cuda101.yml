@@ -20,7 +20,7 @@ dependencies:
 - cmake>=3.12
 - python>=3.6,<3.8
 - pandas>=0.24.2,<0.25
-- pyarrow=0.14.1
+- pyarrow=0.15.0.*
 - notebook>=0.5.0
 - boost
 - cython>=0.29,<0.30
