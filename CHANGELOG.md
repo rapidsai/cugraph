@@ -7,7 +7,7 @@
 - PR #562 Remove pyarrow dependency so we inherit the one cudf uses
 
 ## Bug Fixes
-
+- PR #573 Fix pagerank test and symmetrize for cudf 0.11
 
 # cuGraph 0.10.0 (16 Oct 2019)
 

@@ -44,9 +44,7 @@ def cudify(d):
 
     k = np.fromiter(d.keys(), dtype='int32')
     v = np.fromiter(d.values(), dtype='float32')
-    cuD = cudf.DataFrame()
-    cuD['vertex'] = k
-    cuD['values'] = v
+    cuD = cudf.DataFrame({'vertex':k, 'values':v})
     return cuD
 
 
