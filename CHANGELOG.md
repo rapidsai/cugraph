@@ -20,6 +20,7 @@
 - PR #527 Add testing with asymmetric graph (where appropriate)
 - PR #520 KCore and CoreNumber
 - PR #496 Gunrock submodule + SM prelimis.
+- PR #575 Added updated benchmark files that use new func wrapper pattern and asvdb
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
