@@ -1,8 +1,4 @@
 import platform
-import os
-from os import path
-import time
-import json
 
 import psutil
 
@@ -24,7 +20,8 @@ def cugraph_update_asv(asvDir, datasetName, algoRunResults,
 
     bInfo = BenchmarkInfo(machineName=machineName or uname.machine,
                           cudaVer=cudaVer or "unknown",
-                          osType=osType or "%s %s" % (uname.system, uname.release),
+                          osType=osType or "%s %s" % (uname.system,
+                                                      uname.release),
                           pythonVer=pythonVer or platform.python_version(),
                           commitHash=commitHash,
                           commitTime=commitTime,
@@ -41,8 +38,8 @@ def cugraph_update_asv(asvDir, datasetName, algoRunResults,
 
 
 if __name__ == "__main__":
-    # Test ASVDb with some mock data (that just so happens to be very similar to
-    # actual data)
+    # Test ASVDb with some mock data (that just so happens to be very similar
+    # to actual data)
     # FIXME: consider breaking this out to a proper test_whatever.py file!
     asvDir = "asv"
 
@@ -58,19 +55,23 @@ if __name__ == "__main__":
                       ('overlap', 3.002147899940609932),
                       ('triangles', 3.2544921860098839),
                       ('spectralBalancedCutClustering', 3.03329935669898987),
-                      ('spectralModularityMaximizationClustering', 3.011258183047175407),
+                      ('spectralModularityMaximizationClustering',
+                       3.011258183047175407),
                       ('renumber', 3.001620553433895111),
                       ('view_adj_list', 3.000927431508898735),
                       ('degree', 3.0016251634806394577),
                       ('degrees', None)]
-    cugraph_update_asv(asvDir, datasetName, algoRunResults, machineName="MN", pythonVer="3.6")
+    cugraph_update_asv(asvDir, datasetName, algoRunResults,
+                       machineName="MN", pythonVer="3.6")
 
     # Same arg values (the "datasetName" is still named "dolphins.csv"), but
     # different results - this should override just the results.
     algoRunResults = [(a, r+1) for (a, r) in algoRunResults]
-    cugraph_update_asv(asvDir, datasetName, algoRunResults, machineName="MN", pythonVer="3.6")
+    cugraph_update_asv(asvDir, datasetName, algoRunResults,
+                       machineName="MN", pythonVer="3.6")
 
     # New arg values (changed "datasetName" to "dolphins2.csv") - this should
     # create a new set or arg values and results.
     datasetName = "dolphins2.csv"
-    cugraph_update_asv(asvDir, datasetName, algoRunResults, machineName="MN", pythonVer="3.6")
+    cugraph_update_asv(asvDir, datasetName, algoRunResults,
+                       machineName="MN", pythonVer="3.6")

@@ -32,6 +32,7 @@ def getCudaVer():
     # FIXME
     return "10.0"
 
+
 def getGPUModel():
     # FIXME
     return "some GPU"

@@ -1,6 +1,4 @@
 import argparse
-import os
-from os import path
 import sys
 from collections import OrderedDict
 
@@ -10,16 +8,15 @@ import cugraph
 import cudf
 
 from benchmark import (
-    Benchmark, logExeTime, printLastResult, noStdoutWrapper, nop
+    Benchmark, logExeTime, printLastResult, nop
 )
 
 from asv_report import (
     cugraph_update_asv
 )
 
-########################################
+
 # Update this function to add new algos
-########################################
 def getBenchmarks(G, edgelist_gdf, args):
     benches = [
         Benchmark(name="pagerank",
@@ -32,7 +29,7 @@ def getBenchmarks(G, edgelist_gdf, args):
         Benchmark(name="sssp",
                   func=cugraph.sssp,
                   args=(G, args.source)),
-                  #extraRunWrappers=[noStdoutWrapper]),
+        #         extraRunWrappers=[noStdoutWrapper]),
         Benchmark(name="jaccard",
                   func=cugraph.jaccard,
                   args=(G,)),
@@ -171,6 +168,7 @@ def parseCLI(argv):
 def getAllPossibleAlgos():
     return list(getBenchmarks(nop, nop, nop).keys())
 
+
 ###############################################################################
 if __name__ == "__main__":
     perfData = []
@@ -211,13 +209,14 @@ if __name__ == "__main__":
     for algo in algosToRun:
         benches[algo].run()
 
-    #### reports ########################
+    # reports ########################
     if args.update_results_dir:
         raise NotImplementedError
 
     if args.update_asv_dir:
         # Convert Exception strings in results to None for ASV
-        asvPerfData = [(name, value if not isinstance(value, str) else None) for (name, value) in perfData]
+        asvPerfData = [(name, value if not isinstance(value, str) else None)
+                       for (name, value) in perfData]
         # special case: do not include the full path to the datasetName, since
         # the leading parts are redundant and take up UI space.
         datasetName = "/".join(args.file.split("/")[-3:])

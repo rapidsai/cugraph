@@ -1,14 +1,20 @@
+import os
 import sys
-#from time import process_time_ns   # only in 3.7!
+# from time import process_time_ns   # only in 3.7!
 from time import clock_gettime, CLOCK_MONOTONIC_RAW
+
 
 class Nop:
     def __getattr__(self, attr):
         return Nop()
+
     def __getitem__(self, key):
         return Nop()
+
     def __call__(self, *args, **kwargs):
         return Nop()
+
+
 nop = Nop()
 
 
@@ -32,17 +38,18 @@ def logExeTime(func):
         retVal = None
         perfData = logExeTime.perfData
         try:
-            #st = process_time_ns()
+            # st = process_time_ns()
             st = clock_gettime(CLOCK_MONOTONIC_RAW)
             retVal = func(*args)
         except Exception as e:
             perfData.append((func.__name__, "ERROR: %s" % e))
             return
-        #exeTime = (process_time_ns() - st) / 1e9
+        # exeTime = (process_time_ns() - st) / 1e9
         exeTime = clock_gettime(CLOCK_MONOTONIC_RAW) - st
         perfData.append((func.__name__, exeTime))
         return retVal
     return wrapper
+
 
 logExeTime.perfData = []
 
@@ -58,6 +65,7 @@ def printLastResult(func):
                                str(value).ljust(valueWidth)))
         return retVal
     return wrapper
+
 
 printLastResult.perfData = []
 printLastResult.nameCellWidth = 40
