@@ -5,7 +5,7 @@
 ## Improvements
 - PR #564 Update cudf type aliases
 - PR #562 Remove pyarrow dependency so we inherit the one cudf uses
-- PR #576 Remove adj list conversion automation from c++
+- PR #578 Remove adj list conversion automation from c++
  
 ## Bug Fixes
 - PR #573 Fix pagerank test and symmetrize for cudf 0.11
