@@ -172,10 +172,10 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
   //representation to prevent a single object storing two different graphs.
   GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
-  /*GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
+  GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( src_indices->dtype == dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((src_indices->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY );
+  /*GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY );
   GDF_REQUIRE( src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );*/
 
