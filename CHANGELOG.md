@@ -10,6 +10,7 @@
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
 - PR #573 Fix pagerank test and symmetrize for cudf 0.11
+- PR #574 dev env update
 
 # cuGraph 0.10.0 (16 Oct 2019)
 
