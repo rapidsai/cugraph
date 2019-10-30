@@ -255,7 +255,6 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
       graph->adjList = new gdf_adj_list;
       graph->adjList->offsets = new gdf_column;
       graph->adjList->indices = new gdf_column;
-      graph->adjList->ownership = 1;
 
     if (graph->edgeList->edge_data!= nullptr) {
       graph->adjList->edge_data = new gdf_column;
@@ -295,7 +294,6 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
       graph->edgeList = new gdf_edge_list;
       graph->edgeList->src_indices = new gdf_column;
       graph->edgeList->dest_indices = new gdf_column;
-      graph->edgeList->ownership = 2;
 
       cudaStream_t stream{nullptr};
       ALLOC_TRY((void**)&d_src, sizeof(int) * graph->adjList->indices->size, stream);
@@ -325,7 +323,6 @@ gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
       graph->transposedAdjList = new gdf_adj_list;
       graph->transposedAdjList->offsets = new gdf_column;
       graph->transposedAdjList->indices = new gdf_column;
-      graph->transposedAdjList->ownership = 1;
 
       if (graph->edgeList->edge_data) {
         graph->transposedAdjList->edge_data = new gdf_column;
