@@ -18,11 +18,13 @@
 #include <iostream>
 #include <snmg/utils.cuh>
 
-namespace cugraph {
+namespace cugraph { 
+namespace snmg {
+
 static bool PeerAccessAlreadyEnabled = false; 
 
 // basic info about the snmg env setup
- SNMGinfo::SNMGinfo() { 
+SNMGinfo::SNMGinfo() { 
   int tmp_p, tmp_i;
   //get info from cuda
   cudaGetDeviceCount(&tmp_p);
@@ -42,24 +44,24 @@ static bool PeerAccessAlreadyEnabled = false;
   // number of SM, usefull for kernels paramters
   cudaDeviceGetAttribute(&n_sm, cudaDevAttrMultiProcessorCount, i);
   CUDA_CHECK_LAST();
-    } 
-    SNMGinfo::~SNMGinfo() { }
+ } 
+ SNMGinfo::~SNMGinfo() { }
 
-    int SNMGinfo::get_thread_num() {
-      return i; 
-    }
-    int SNMGinfo::get_num_threads() {
-      return p; 
-    }
-    int SNMGinfo::get_num_sm() {
-      return n_sm; 
-    } 
-    // enable peer access (all to all)
-    void SNMGinfo::setup_peer_access() {
-      if (PeerAccessAlreadyEnabled)
-        return;
-      for (int j = 0; j < p; ++j) {
-        if (i != j) {
+ int SNMGinfo::get_thread_num() {
+   return i; 
+ }
+ int SNMGinfo::get_num_threads() {
+   return p; 
+ }
+ int SNMGinfo::get_num_sm() {
+   return n_sm; 
+ } 
+ // enable peer access (all to all)
+ void SNMGinfo::setup_peer_access() {
+   if (PeerAccessAlreadyEnabled)
+     return;
+   for (int j = 0; j < p; ++j) {
+     if (i != j) {
           int canAccessPeer = 0;
           cudaDeviceCanAccessPeer(&canAccessPeer, i, j);
           CUDA_CHECK_LAST();
@@ -73,18 +75,19 @@ static bool PeerAccessAlreadyEnabled = false;
           else {
             std::cerr << "P2P access required from " << i << " to " << j << std::endl;
           }
-        }
-      }
-      PeerAccessAlreadyEnabled = true;
     }
-  void sync_all() {
-    cudaDeviceSynchronize();
-    #pragma omp barrier
   }
-
-  void print_mem_usage() {
-    size_t free,total;
-    cudaMemGetInfo(&free, &total);
-    std::cout<< std::endl<< "Mem used: "<<total-free<<std::endl;
-  }
+  PeerAccessAlreadyEnabled = true;
 }
+void sync_all() {
+  cudaDeviceSynchronize();
+  #pragma omp barrier
+}
+
+void print_mem_usage() {
+  size_t free,total;
+  cudaMemGetInfo(&free, &total);
+  std::cout<< std::endl<< "Mem used: "<<total-free<<std::endl;
+}
+
+} } //namespace

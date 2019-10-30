@@ -22,8 +22,8 @@
 #include "rmm_utils.h"
 #include "utilities/graph_utils.cuh"
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace snmg {
 
 // basic info about the snmg env setup
 class SNMGinfo 
@@ -149,4 +149,4 @@ gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_gl
 
 void print_mem_usage();
 
-} //namespace cugraph
+} } //namespace

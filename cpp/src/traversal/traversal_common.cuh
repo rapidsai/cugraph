@@ -84,6 +84,8 @@
 // http://parlab.eecs.berkeley.edu/sites/all/parlab/files/main.pdf
 //
 
+namespace cugraph { 
+namespace detail {
 namespace traversal {
 
 //
@@ -474,4 +476,4 @@ void compute_bucket_offsets(IndexType* cumul,
       cumul, bucket_offsets, frontier_size, total_degree);
   CUDA_CHECK_LAST();
 }
-}  // end namespace traversal
+} } } //namespace

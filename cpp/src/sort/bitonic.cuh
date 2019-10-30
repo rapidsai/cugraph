@@ -36,7 +36,8 @@
 #include "rmm_utils.h"
 
 
-namespace cugraph {
+namespace cugraph { 
+namespace sort {
 
   namespace bitonic {
     /*
@@ -539,7 +540,7 @@ namespace cugraph {
       ALLOC_FREE_TRY(d_lrb, stream);
       return GDF_SUCCESS;
     }
-  }
-}
+
+} } } //namespace
 
 #endif

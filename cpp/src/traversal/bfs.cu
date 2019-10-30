@@ -20,7 +20,8 @@
 #include "traversal_common.cuh"
 #include "bfs_kernels.cuh"
 
-namespace cugraph {
+namespace cugraph { 
+namespace detail {
   enum BFS_ALGO_STATE {
     TOPDOWN, BOTTOMUP
   };
@@ -468,7 +469,7 @@ namespace cugraph {
   }
 
   template class Bfs<int> ;
-} // end namespace cugraph
+} } //namespace 
 
 gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
   CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
@@ -489,7 +490,7 @@ gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecess
   int alpha = 15;
   int beta = 18;
 
-  cugraph::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
+  cugraph::detail::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
   bfs.configure(distances_ptr, predecessors_ptr, nullptr);
   bfs.traverse(start_vertex);
   return GDF_SUCCESS;

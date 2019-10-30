@@ -31,8 +31,8 @@
 #include <iterator>
 
 
-namespace topology
-{
+namespace cugraph {
+namespace detail {
 
 /**
  * @brief Check symmetry of CSR adjacency matrix;
@@ -134,7 +134,7 @@ bool check_symmetry(IndexT nrows, const IndexT* ptr_r_o, IndexT nnz, const Index
                                   init,
                                   thrust::logical_and<BoolT>());                           
 }
-}//end namespace topology
+} } //end namespace
 
 namespace{ //unnamed namespace for debugging tools:
   template<typename T, typename...Args, template<typename,typename...> class Vector>

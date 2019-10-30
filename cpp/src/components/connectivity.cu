@@ -128,7 +128,7 @@ gdf_connected_components_impl(gdf_graph *graph,
       //check if graph is undirected; return w/ error, if not?
       //Yes, for now; in the future we may remove this constraint; 
       //
-      bool is_symmetric = topology::check_symmetry(nrows, p_d_row_offsets, nnz, p_d_col_ind);
+      bool is_symmetric = cugraph::detail::check_symmetry(nrows, p_d_row_offsets, nnz, p_d_col_ind);
 #ifdef _DEBUG_WEAK_CC
       std::cout<<"############## "
                <<"; adj. matrix symmetric? " << is_symmetric

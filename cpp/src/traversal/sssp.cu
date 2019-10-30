@@ -25,7 +25,8 @@
 #include "sssp_kernels.cuh"
 #include "utilities/error_utils.h"
 
-namespace cugraph {
+namespace cugraph { 
+namespace detail {
 
 template <typename IndexType, typename DistType>
 void SSSP<IndexType, DistType>::setup() {
@@ -275,7 +276,7 @@ void SSSP<IndexType, DistType>::clean() {
   ALLOC_FREE_TRY(next_distances, nullptr);
 }
 
-}  // end namespace cugraph
+} } //namespace
 
 /**
  * ---------------------------------------------------------------------------*
@@ -407,7 +408,7 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
   gdf_error ret;
 
   if (gdf_G->adjList->edge_data->dtype == GDF_FLOAT32) {
-    cugraph::SSSP<int, float> sssp(
+    cugraph::detail::SSSP<int, float> sssp(
         n, e, offsets_ptr, indices_ptr, static_cast<float*>(edge_weights_ptr));
 
     sssp.configure(static_cast<float*>(sssp_dist_ptr),
@@ -416,7 +417,7 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
 
     ret = sssp.traverse(source_vert);
   } else if (gdf_G->adjList->edge_data->dtype == GDF_FLOAT64) {
-    cugraph::SSSP<int, double> sssp(n,
+    cugraph::detail::SSSP<int, double> sssp(n,
                                     e,
                                     offsets_ptr,
                                     indices_ptr,

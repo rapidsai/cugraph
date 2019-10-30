@@ -23,8 +23,8 @@
 #define MAXBLOCKS 65535
 #define FIND_MATCHES_BLOCK_SIZE 512
 
-namespace cugraph {
-  namespace db {
+namespace cugraph { 
+namespace db {
     /**
      * Method to find matches to a pattern against an indexed table.
      * @param pattern The pattern to match against. It is assumed that the order of the entries
@@ -43,5 +43,4 @@ namespace cugraph {
                                  db_table<idx_t>& table,
                                  gdf_column* frontier,
                                  int indexPosition);
-  }
-}
+} } //namespace

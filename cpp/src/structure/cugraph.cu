@@ -105,32 +105,32 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
     
     switch (graph->adjList->edge_data->dtype) {
     case GDF_INT8:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<int8_t *>(graph->adjList->edge_data->data),
           graph->adjList->edge_data->size);
       break;
     case GDF_INT16:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<int16_t *>(graph->adjList->edge_data->data),
           graph->adjList->edge_data->size);
       break;
     case GDF_INT32:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<int32_t *>(graph->adjList->edge_data->data),
           graph->adjList->edge_data->size);
       break;
     case GDF_INT64:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<int64_t *>(graph->adjList->edge_data->data),
           graph->adjList->edge_data->size);
       break;
     case GDF_FLOAT32:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<float *>(graph->adjList->edge_data->data),
           graph->adjList->edge_data->size);
       break;
     case GDF_FLOAT64:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<double *>(graph->adjList->edge_data->data),
           graph->adjList->edge_data->size);
       break;
@@ -151,7 +151,8 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
 gdf_error gdf_adj_list::get_vertex_identifiers(gdf_column *identifiers) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
-  cugraph::sequence<int>((int)offsets->size-1, (int*)identifiers->data);
+  cugraph::detail::sequence<int>((int)offsets->size-1, (int*)identifiers->data);
+
   return GDF_SUCCESS;
 }
 
@@ -161,7 +162,8 @@ gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
   CUGRAPH_EXPECTS( src_indices->size == indices->size, "Column size mismatch" );
   CUGRAPH_EXPECTS( src_indices->dtype == indices->dtype, "Unsupported data type" );
   CUGRAPH_EXPECTS( src_indices->size > 0, "Column is empty");
-  cugraph::offsets_to_indices<int>((int*)offsets->data, offsets->size-1, (int*)src_indices->data);
+  
+  cugraph::detail::offsets_to_indices<int>((int*)offsets->data, offsets->size-1, (int*)src_indices->data);
 
   return GDF_SUCCESS;
 }
@@ -200,32 +202,32 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
 
     switch (graph->edgeList->edge_data->dtype) {
     case GDF_INT8:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<int8_t *>(graph->edgeList->edge_data->data),
           graph->edgeList->edge_data->size);
       break;
     case GDF_INT16:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<int16_t *>(graph->edgeList->edge_data->data),
           graph->edgeList->edge_data->size);
       break;
     case GDF_INT32:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<int32_t *>(graph->edgeList->edge_data->data),
           graph->edgeList->edge_data->size);
       break;
     case GDF_INT64:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<int64_t *>(graph->edgeList->edge_data->data),
           graph->edgeList->edge_data->size);
       break;
     case GDF_FLOAT32:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<float *>(graph->edgeList->edge_data->data),
           graph->edgeList->edge_data->size);
       break;
     case GDF_FLOAT64:
-      has_neg_val = cugraph::has_negative_val(
+      has_neg_val = cugraph::detail::has_negative_val(
           static_cast<double *>(graph->edgeList->edge_data->data),
           graph->edgeList->edge_data->size);
       break;
@@ -241,7 +243,7 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
   }
 
   gdf_error status;
-  status = cugraph::indexing_check<int> (
+  status = cugraph::detail::indexing_check<int> (
                                 static_cast<int*>(graph->edgeList->src_indices->data), 
                                 static_cast<int*>(graph->edgeList->dest_indices->data), 
                                 graph->edgeList->dest_indices->size);
@@ -302,7 +304,7 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
       cudaStream_t stream{nullptr};
       ALLOC_TRY((void**)&d_src, sizeof(int) * graph->adjList->indices->size, stream);
 
-      cugraph::offsets_to_indices<int>((int*)graph->adjList->offsets->data,
+      cugraph::detail::offsets_to_indices<int>((int*)graph->adjList->offsets->data,
                                   graph->adjList->offsets->size-1,
                                   (int*)d_src);
 

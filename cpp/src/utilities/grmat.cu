@@ -236,7 +236,7 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
               (coo.row, coo.col, coo.val, rmat_all_edges);
     }
 
-    cugraph::remove_duplicate (coo.row, coo.col, coo.val, rmat_all_edges);
+    cugraph::detail::remove_duplicate (coo.row, coo.col, coo.val, rmat_all_edges);
 
     thrust::device_ptr<VertexId> tmp;
 
