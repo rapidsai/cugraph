@@ -82,7 +82,6 @@ gdf_error extract_edges(
   o_graph->edgeList = new gdf_edge_list;
   o_graph->edgeList->src_indices = new gdf_column;
   o_graph->edgeList->dest_indices = new gdf_column;
-  o_graph->edgeList->ownership = 2;
 
   bool hasData = (i_graph->edgeList->edge_data != nullptr);
 

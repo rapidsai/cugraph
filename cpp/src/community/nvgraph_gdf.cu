@@ -323,7 +323,6 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
   result->adjList = new gdf_adj_list;
   result->adjList->offsets = new gdf_column;
   result->adjList->indices = new gdf_column;
-  result->adjList->ownership = 0;
   int *offsets, *indices;
 
   cudaStream_t stream { nullptr };

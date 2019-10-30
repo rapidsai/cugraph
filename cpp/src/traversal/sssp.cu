@@ -312,6 +312,10 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
                     sssp_distances->dtype == GDF_FLOAT64,
                 GDF_INVALID_API_CALL);
   }
+  GDF_REQUIRE(gdf_G->adjList->offsets->dtype == GDF_INT32,
+              GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(gdf_G->adjList->indices->dtype == GDF_INT32,
+              GDF_UNSUPPORTED_DTYPE);
 
   if (pred_ptr)
     GDF_REQUIRE(predecessors->dtype == gdf_G->adjList->indices->dtype,

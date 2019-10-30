@@ -38,22 +38,9 @@ struct gdf_edge_list{
   int ownership = 0; // 0 if all columns were provided by the user, 1 if cugraph crated everything, other values can be use for other cases
   gdf_edge_list() : src_indices(nullptr), dest_indices(nullptr), edge_data(nullptr){}
   ~gdf_edge_list() {
-    if (ownership == 0 ) {
-      gdf_col_release(src_indices);
-      gdf_col_release(dest_indices);
-      gdf_col_release(edge_data);
-    }
-    else if (ownership == 2 )
-    {
-      gdf_col_delete(src_indices);
-      gdf_col_release(dest_indices);
-      gdf_col_release(edge_data);
-    }
-    else {
-      gdf_col_delete(src_indices);
-      gdf_col_delete(dest_indices);
-      gdf_col_delete(edge_data);
-    }
+    gdf_col_release(src_indices);
+    gdf_col_release(dest_indices);
+    gdf_col_release(edge_data);
   }
 };
 
@@ -61,25 +48,11 @@ struct gdf_adj_list{
   gdf_column *offsets; // rowPtr
   gdf_column *indices; // colInd
   gdf_column *edge_data; //val
-  int ownership = 0; // 0 if all columns were provided by the user, 1 if cugraph crated everything, other values can be use for other cases
   gdf_adj_list() : offsets(nullptr), indices(nullptr), edge_data(nullptr){}
   ~gdf_adj_list() {
-    if (ownership == 0 ) {
-      gdf_col_release(offsets);
-      gdf_col_release(indices);
-      gdf_col_release(edge_data);
-    }
-    //else if (ownership == 2 )
-    //{
-    //  gdf_col_release(offsets);
-    //  gdf_col_release(indices);
-    //  gdf_col_delete(edge_data);
-    //}
-    else {
-      gdf_col_delete(offsets);
-      gdf_col_delete(indices);
-      gdf_col_delete(edge_data);
-    }
+    gdf_col_release(offsets);
+    gdf_col_release(indices);
+    gdf_col_release(edge_data);
   }
   gdf_error get_vertex_identifiers(gdf_column *identifiers);
   gdf_error get_source_indices(gdf_column *indices);
