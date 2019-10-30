@@ -347,13 +347,10 @@ namespace cugraph {
 
 gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
   GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((graph->adjList != nullptr) || (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
+  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(result != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(result->data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(!result->valid, GDF_VALIDITY_UNSUPPORTED);
-
-  GDF_TRY(gdf_add_adj_list(graph));
-  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
 
   bool weighted = (weights != nullptr);
 
@@ -513,7 +510,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
                            gdf_column* second,
                            gdf_column* result) {
   GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((graph->adjList != nullptr) || (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
+  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(result != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(result->data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(!result->valid, GDF_VALIDITY_UNSUPPORTED);
@@ -525,9 +522,6 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   GDF_REQUIRE(second != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(second->data != nullptr, GDF_INVALID_API_CALL);
   GDF_REQUIRE(!second->valid, GDF_VALIDITY_UNSUPPORTED);
-
-  GDF_TRY(gdf_add_adj_list(graph));
-  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
 
   bool weighted = (weights != nullptr);
 

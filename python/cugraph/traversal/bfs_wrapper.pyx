@@ -42,6 +42,9 @@ def bfs(graph_ptr, start, directed=True):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
+    if not 0 <= start < num_verts:
+        raise ValueError("Starting vertex should be between 0 to number of vertices")
+
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))

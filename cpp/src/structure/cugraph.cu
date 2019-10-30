@@ -78,17 +78,16 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
   //representation to prevent a single object storing two different graphs.
   GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
-  GDF_REQUIRE( offsets->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+  /*GDF_REQUIRE( offsets->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( (offsets->dtype == indices->dtype), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((offsets->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( (offsets->size > 0), GDF_DATASET_EMPTY );
-
+  */
 
   graph->adjList = new gdf_adj_list;
   graph->adjList->offsets = new gdf_column;
   graph->adjList->indices = new gdf_column;
-  graph->adjList->ownership = 0;
 
   cpy_column_view(offsets, graph->adjList->offsets);
   cpy_column_view(indices, graph->adjList->indices);
@@ -173,17 +172,16 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
   //representation to prevent a single object storing two different graphs.
   GDF_REQUIRE( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), GDF_INVALID_API_CALL);
-  GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
+  /*GDF_REQUIRE( src_indices->size == dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
   GDF_REQUIRE( src_indices->dtype == dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( ((src_indices->dtype == GDF_INT32)), GDF_UNSUPPORTED_DTYPE );
   GDF_REQUIRE( src_indices->size > 0, GDF_DATASET_EMPTY );
   GDF_REQUIRE( src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+  GDF_REQUIRE( dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );*/
 
   graph->edgeList = new gdf_edge_list;
   graph->edgeList->src_indices = new gdf_column;
   graph->edgeList->dest_indices = new gdf_column;
-  graph->edgeList->ownership = 0;
 
   cpy_column_view(src_indices, graph->edgeList->src_indices);
   cpy_column_view(dest_indices, graph->edgeList->dest_indices);

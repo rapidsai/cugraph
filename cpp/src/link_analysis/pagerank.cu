@@ -208,24 +208,16 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
     GDF_REQUIRE(personalization_subset->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
     GDF_REQUIRE(personalization_values->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   }
-  GDF_REQUIRE( graph->edgeList != nullptr, GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( graph->edgeList->src_indices->size == graph->edgeList->dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
-  GDF_REQUIRE( graph->edgeList->src_indices->dtype == graph->edgeList->dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( graph->edgeList->src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( graph->edgeList->dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( pagerank != nullptr , GDF_INVALID_API_CALL );
   GDF_REQUIRE( pagerank->data != nullptr , GDF_INVALID_API_CALL );
   GDF_REQUIRE( pagerank->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
   GDF_REQUIRE( pagerank->size > 0 , GDF_INVALID_API_CALL );
-
-  int m=pagerank->size, nnz = graph->edgeList->src_indices->size, status = 0;
+  
+  int m=pagerank->size, nnz = graph->transposedAdjList->indices->size, status = 0;
   WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
   WT res = 1.0;
   WT *residual = &res;
 
-  if (graph->transposedAdjList == nullptr) {
-    gdf_add_transposed_adj_list(graph);
-  }
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
   ALLOC_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
@@ -276,13 +268,7 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank,
   //
   //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
   //
-  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
-
-  GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  GDF_REQUIRE(graph->transposedAdjList != nullptr, GDF_INVALID_API_CALL);
 
   switch (pagerank->dtype) {
     case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank,
