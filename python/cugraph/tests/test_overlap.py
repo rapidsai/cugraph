@@ -16,6 +16,7 @@ from itertools import product
 import time
 
 import pytest
+import numpy as np
 
 import cudf
 import cugraph
@@ -47,12 +48,22 @@ def cugraph_call(cu_M, first, second, edgevals=False):
 
 def intersection(a, b, M):
     count = 0
-    for idx in range(M.indptr[a], M.indptr[a+1]):
-        a_vertex = M.indices[idx]
-        for inner_idx in range(M.indptr[b], M.indptr[b+1]):
-            b_vertex = M.indices[inner_idx]
-            if a_vertex == b_vertex:
-                count += 1
+    a_idx = M.indptr[a]
+    b_idx = M.indptr[b]
+
+    while (a_idx < M.indptr[a+1]) and (b_idx < M.indptr[b+1]):
+        a_vertex = M.indices[a_idx]
+        b_vertex = M.indices[b_idx]
+
+        if a_vertex == b_vertex:
+            count += 1
+            a_idx += 1
+            b_idx += 1
+        elif a_vertex < b_vertex:
+            a_idx += 1
+        else:
+            b_idx += 1
+
     return count
 
 
@@ -61,24 +72,29 @@ def degree(a, M):
 
 
 def overlap(a, b, M):
-    i = intersection(a, b, M)
-    a_sum = degree(a, M)
     b_sum = degree(b, M)
+    if b_sum == 0:
+        return float('NaN')
+
+    a_sum = degree(a, M)
+
+    i = intersection(a, b, M)
     total = min(a_sum, b_sum)
     return i / total
 
 
 def cpu_call(M, first, second):
-    M = M.tocsr()
     result = []
     for i in range(len(first)):
         result.append(overlap(first[i], second[i], M))
     return result
 
 
-DATASETS = ['../datasets/dolphins',
-            '../datasets/karate',
-            '../datasets/netscience']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/netscience.csv']
+#  Too slow to run on CPU
+#            '../datasets/email-Eu-core.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -96,9 +112,9 @@ def test_overlap(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
-    M = M.tocsr()
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    M = M.tocsr().sorted_indices()
+    cu_M = utils.read_csv_file(graph_file)
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
@@ -110,8 +126,13 @@ def test_overlap(managed, pool, graph_file):
 
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
-        diff = abs(cpu_coeff[i] - cu_coeff[i])
-        assert diff < 1.0e-6
+        if np.isnan(cpu_coeff[i]):
+            assert np.isnan(cu_coeff[i])
+        elif np.isnan(cu_coeff[i]):
+            assert cpu_coeff[i] == cu_coeff[i]
+        else:
+            diff = abs(cpu_coeff[i] - cu_coeff[i])
+            assert diff < 1.0e-6
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -129,9 +150,9 @@ def test_overlap_edge_vals(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file)
-    M = M.tocsr()
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    M = utils.read_csv_for_nx(graph_file)
+    M = M.tocsr().sorted_indices()
+    cu_M = utils.read_csv_file(graph_file)
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
@@ -144,5 +165,10 @@ def test_overlap_edge_vals(managed, pool, graph_file):
 
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
-        diff = abs(cpu_coeff[i] - cu_coeff[i])
-        assert diff < 1.0e-6
+        if np.isnan(cpu_coeff[i]):
+            assert np.isnan(cu_coeff[i])
+        elif np.isnan(cu_coeff[i]):
+            assert cpu_coeff[i] == cu_coeff[i]
+        else:
+            diff = abs(cpu_coeff[i] - cu_coeff[i])
+            assert diff < 1.0e-6

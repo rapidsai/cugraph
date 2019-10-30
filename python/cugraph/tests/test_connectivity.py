@@ -122,7 +122,12 @@ def cugraph_strong_call(cu_M):
 
 # these should come w/ cugraph/python:
 #
-DATASETS = ['../datasets/dolphins', '../datasets/netscience']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
+
+STRONGDATASETS = ['../datasets/dolphins.csv',
+                  '../datasets/netscience.csv',
+                  '../datasets/email-Eu-core.csv']
 
 
 # vcount how many `val`s in ls container:
@@ -161,10 +166,10 @@ def test_weak_cc(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
+    M = utils.read_csv_for_nx(graph_file)
     netx_labels = networkx_weak_call(M)
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     cugraph_labels = cugraph_weak_call(cu_M)
 
     # NetX returns a list of components, each component being a
@@ -189,7 +194,7 @@ def test_weak_cc(managed, pool, graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', STRONGDATASETS)
 def test_strong_cc(managed, pool, graph_file):
     gc.collect()
 
@@ -201,10 +206,10 @@ def test_strong_cc(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_mtx_file(graph_file+'.mtx')
+    M = utils.read_csv_for_nx(graph_file)
     netx_labels = networkx_strong_call(M)
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     cugraph_labels = cugraph_strong_call(cu_M)
 
     # NetX returns a list of components, each component being a

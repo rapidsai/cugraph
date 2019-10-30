@@ -123,6 +123,10 @@ TEST(nvgraph_jaccard, success)
   ALLOC_FREE_TRY (col_ind.data, stream);
 }
 
+/*
+//TODO: revive the test(s) below, once
+//      Gunrock GRMAT is back and stable again;
+//
 TEST(nvgraph_jaccard_grmat, success)
 {
   gdf_graph G;
@@ -191,11 +195,15 @@ TEST(nvgraph_jaccard_grmat, success)
   ALLOC_FREE_TRY(col_dest.data, stream);
 
 }
+*/
 
-int main(int argc, char **argv)  {
-    srand(42);
-    ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }
 
 
