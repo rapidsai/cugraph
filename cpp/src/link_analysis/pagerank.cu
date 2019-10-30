@@ -29,8 +29,8 @@
 #include "utilities/error_utils.h"
 #include <cugraph.h>
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
 
 #ifdef DEBUG
   #define PR_VERBOSE
@@ -183,7 +183,7 @@ template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,dou
         int *prsVtx,  double *prsVal, int prsLen, bool has_personalization,
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
-} //namespace cugraph
+} } //namespace
 
 template <typename WT>
 gdf_error gdf_pagerank_impl (gdf_graph *graph,
@@ -236,15 +236,15 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
 #endif
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
-  cugraph::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
+  cugraph::detail::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
 
   if (has_guess)
   {
     GDF_REQUIRE( pagerank->data != nullptr, GDF_VALIDITY_UNSUPPORTED );
-    cugraph::copy<WT>(m, (WT*)pagerank->data, d_pr);
+    cugraph::detail::copy<WT>(m, (WT*)pagerank->data, d_pr);
   }
 
-  status = cugraph::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
+  status = cugraph::detail::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
           prsVtx, prsVal, prsLen, has_personalization,
     alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 
@@ -255,7 +255,7 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
       default:  std::cerr<< "Pagerank failed"<<std::endl;  return GDF_CUDA_ERROR;
     }
 
-  cugraph::copy<WT>(m, d_pr, (WT*)pagerank->data);
+  cugraph::detail::copy<WT>(m, d_pr, (WT*)pagerank->data);
 
   ALLOC_FREE_TRY(d_val, stream);
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */

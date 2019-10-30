@@ -18,8 +18,8 @@
 #include "rmm_utils.h"
 #include "utilities/graph_utils.cuh"
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
 
 #define CHECK_CUSPARSE(call)                                              \
 {                                                                         \
@@ -94,4 +94,4 @@ class CusparseCsrMV
              ValueType* y);
 };
 
-} //namespace
+} } //namespace

@@ -24,8 +24,8 @@
 #include "snmg/utils.cuh"
 //#define SNMG_DEBUG
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace snmg {
 
 template <typename IndexType, typename ValueType>
 class SNMGpagerank 
@@ -73,4 +73,4 @@ class SNMGpagerank
     void solve (int max_iter, ValueType ** pagerank);
 };
 
-} //namespace cugraph
+} } //namespace
