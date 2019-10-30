@@ -1,22 +1,37 @@
-# cuGraph 0.10.0 (Date TBD)
+# cuGraph 0.11.0 (Date TBD)
+
+## New Features
+
+## Improvements
+- PR #564 Update cudf type aliases
+- PR #562 Remove pyarrow dependency so we inherit the one cudf uses
+- PR #576 Remove adj list conversion automation from c++
+ 
+## Bug Fixes
+- PR #573 Fix pagerank test and symmetrize for cudf 0.11
+
+# cuGraph 0.10.0 (16 Oct 2019)
 
 ## New Features
 - PR #469 Symmetrize a COO
 - PR #477 Add cuHornet as a submodule
 - PR #483 Katz Centrality
+- PR #524 Integrated libcypher-parser conda package into project.
 - PR #493 Added C++ findMatches operator for OpenCypher query.
+- PR #527 Add testing with asymmetric graph (where appropriate)
 - PR #520 KCore and CoreNumber
+- PR #496 Gunrock submodule + SM prelimis.
+- PR #575 Added updated benchmark files that use new func wrapper pattern and asvdb
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead
 - PR #468 Remove unnecessary print statement
 - PR #464 Limit initial RMM pool allocator size to 128mb so pytest can run in parallel
 - PR #474 Add csv file writing, lazy compute - snmg pagerank
-- PR #481 Run bfs on unweighted graphs when calling sssp 
+- PR #481 Run bfs on unweighted graphs when calling sssp
 - PR #491 Use YYMMDD tag in nightly build
 - PR #487 Add woverlap test, add namespace in snmg COO2CSR
 - PR #531 Use new rmm python package
-- PR #576 Remove Automation in c++
 
 ## Bug Fixes
 - PR #458 Fix potential race condition in SSSP
@@ -29,6 +44,9 @@
 - PR #519 Removed deprecated cusparse calls
 - PR #522 Added the conda dev env file for 10.1
 - PR #525 Update build scripts and YYMMDD tagging for nightly builds
+- PR #548 Added missing cores documentation
+- PR #556 Fixed recursive remote options for submodules
+- PR #559 Added RMM init check so RMM free APIs are not called if not initialized
 
 
 # cuGraph 0.9.0 (21 Aug 2019)
