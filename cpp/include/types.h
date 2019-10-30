@@ -35,7 +35,6 @@ struct gdf_edge_list{
   gdf_column *src_indices; // rowInd
   gdf_column *dest_indices; // colInd
   gdf_column *edge_data; //val
-  int ownership = 0; // 0 if all columns were provided by the user, 1 if cugraph crated everything, other values can be use for other cases
   gdf_edge_list() : src_indices(nullptr), dest_indices(nullptr), edge_data(nullptr){}
   ~gdf_edge_list() {
     gdf_col_release(src_indices);
