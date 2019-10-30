@@ -132,6 +132,7 @@ TEST_F(Test_FindMatches, firstTest){
   delete[] resultB;
 }
 
+/*
 TEST_F(Test_FindMatches, secondTest) {
   insertConstantEntry(0, 1, 1);
   insertConstantEntry(2, 0, 1);
@@ -163,7 +164,7 @@ TEST_F(Test_FindMatches, secondTest) {
   delete[] resultA;
   delete[] resultB;
 }
-
+*/
 TEST_F(Test_FindMatches, thirdTest) {
   insertConstantEntry(1, 1, 2);
   insertConstantEntry(2, 1, 2);
@@ -228,7 +229,7 @@ TEST_F(Test_FindMatches, fourthTest) {
   delete[] resultA;
   delete[] resultR;
 }
-
+/*
 TEST_F(Test_FindMatches, fifthTest) {
   insertConstantEntry(0, 1, 3);
   insertConstantEntry(0, 2, 1);
@@ -260,7 +261,7 @@ TEST_F(Test_FindMatches, fifthTest) {
   delete[] resultA;
   delete[] resultB;
 }
-
+*/
 int main( int argc, char** argv )
 {
     rmmInitialize(nullptr);
