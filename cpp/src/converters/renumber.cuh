@@ -39,29 +39,30 @@
 #include "sort/bitonic.cuh"
 #include "rmm_utils.h"
 
-namespace cugraph {
+namespace cugraph { 
+namespace detail {
 
-  namespace detail {
+  namespace renumber {
     typedef uint32_t               hash_type;
     typedef uint32_t               index_type;
   }
 
   class HashFunctionObjectInt {
   public:
-    HashFunctionObjectInt(detail::hash_type hash_size): hash_size_(hash_size) {}
+    HashFunctionObjectInt(renumber::hash_type hash_size): hash_size_(hash_size) {}
 
     template <typename VertexIdType>
     __device__ __inline__
-    detail::hash_type operator()(const VertexIdType &vertex_id) const {
+    renumber::hash_type operator()(const VertexIdType &vertex_id) const {
       return ((vertex_id % hash_size_) + hash_size_) % hash_size_;
     }
 
-    detail::hash_type getHashSize() const {
+    renumber::hash_type getHashSize() const {
       return hash_size_;
     }
 
   private:
-    detail::hash_type hash_size_;
+    renumber::hash_type hash_size_;
   };
 
   struct CompareString {
@@ -100,18 +101,18 @@ namespace cugraph {
 
   class HashFunctionObjectString {
   public:
-    HashFunctionObjectString(detail::hash_type hash_size): hash_size_(hash_size) {}
+    HashFunctionObjectString(renumber::hash_type hash_size): hash_size_(hash_size) {}
 
     __device__ __inline__
-    detail::hash_type operator() (const thrust::pair<const char *, size_t> &str) const {
+    renumber::hash_type operator() (const thrust::pair<const char *, size_t> &str) const {
       //
       //  Lifted/adapted from custring_view.inl in custrings
       //
       size_t sz = str.second;
       const char *sptr = str.first;
 
-      detail::hash_type seed = 31; // prime number
-      detail::hash_type hash = 0;
+      renumber::hash_type seed = 31; // prime number
+      renumber::hash_type hash = 0;
 
       for(size_t i = 0; i < sz; i++)
         hash = hash * seed + sptr[i];
@@ -119,12 +120,12 @@ namespace cugraph {
       return (hash % hash_size_);
     }
 
-    detail::hash_type getHashSize() const {
+    renumber::hash_type getHashSize() const {
       return hash_size_;
     }
 
   private:
-    detail::hash_type hash_size_;
+    renumber::hash_type hash_size_;
   };
 
   /**
@@ -175,32 +176,32 @@ namespace cugraph {
     //
     cudaStream_t stream = nullptr;
 
-    detail::hash_type hash_size = hash.getHashSize();
+    renumber::hash_type hash_size = hash.getHashSize();
 
     T_in *hash_data;
 
-    detail::index_type  *hash_bins_start;
-    detail::index_type  *hash_bins_end;
+    renumber::index_type  *hash_bins_start;
+    renumber::index_type  *hash_bins_end;
 
     ALLOC_TRY(&hash_data,       2 * size * sizeof(T_in), stream);
-    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(detail::index_type), stream);
-    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(detail::index_type), stream);
+    ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(renumber::index_type), stream);
+    ALLOC_TRY(&hash_bins_end,   (1 + hash_size) * sizeof(renumber::index_type), stream);
 
     //
     //  Pass 1: count how many vertex ids end up in each hash bin
     //
-    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::index_type)));
+    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(renumber::index_type)));
 
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
                      src, src + size,
                      [hash_bins_start, hash] __device__ (T_in vid) {
-                       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
+                       atomicAdd(hash_bins_start + hash(vid), renumber::index_type{1});
                      });
     
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
                      dst, dst + size,
                      [hash_bins_start, hash] __device__ (T_in vid) {
-                       atomicAdd(hash_bins_start + hash(vid), detail::index_type{1});
+                       atomicAdd(hash_bins_start + hash(vid), renumber::index_type{1});
                      });
 
     //
@@ -215,7 +216,7 @@ namespace cugraph {
                            hash_bins_end);
 
     CUDA_TRY(cudaMemcpy(hash_bins_start, hash_bins_end,
-                        (hash_size + 1) * sizeof(detail::hash_type),
+                        (hash_size + 1) * sizeof(renumber::hash_type),
                         cudaMemcpyDeviceToDevice));
 
     //
@@ -225,7 +226,7 @@ namespace cugraph {
                      src, src + size,
                      [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
                        uint32_t hash_index = hash(vid);
-                       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+                       renumber::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
                        hash_data[hash_offset] = vid;
                      });
          
@@ -233,7 +234,7 @@ namespace cugraph {
                      dst, dst + size,
                      [hash_bins_end, hash_data, hash] __device__ (T_in vid) {
                        uint32_t hash_index = hash(vid);
-                       detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+                       renumber::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
                        hash_data[hash_offset] = vid;
                      });
          
@@ -242,8 +243,8 @@ namespace cugraph {
     //  to sort each bin.  This will allow us to identify duplicates (all duplicates
     //  are in the same hash bin so they will end up sorted consecutively).
     //
-    detail::index_type size_as_int = size;
-    cugraph::bitonic::segmented_sort(hash_size,
+    renumber::index_type size_as_int = size;
+    cugraph::sort::bitonic::segmented_sort(hash_size,
                                      size_as_int,
                                      hash_bins_start,
                                      hash_bins_end,
@@ -260,13 +261,13 @@ namespace cugraph {
     //
     //  Pass 3: count how many vertex ids end up in each hash bin after deduping
     //
-    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(detail::index_type)));
+    CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(renumber::index_type)));
 
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_counting_iterator<detail::index_type>(0),
-                     thrust::make_counting_iterator<detail::index_type>(2 * size),
+                     thrust::make_counting_iterator<renumber::index_type>(0),
+                     thrust::make_counting_iterator<renumber::index_type>(2 * size),
                      [hash_data, hash_bins_start, hash, compare, size]
-                     __device__ (detail::index_type idx) {
+                     __device__ (renumber::index_type idx) {
 
                        //
                        //     Two items (a and b) are equal if
@@ -283,7 +284,7 @@ namespace cugraph {
                          compare(hash_data[idx+1], hash_data[idx]);
 
                        if (unique)
-                         atomicAdd(hash_bins_start + hash(hash_data[idx]), detail::index_type{1});
+                         atomicAdd(hash_bins_start + hash(hash_data[idx]), renumber::index_type{1});
                      });
     
     //
@@ -296,15 +297,15 @@ namespace cugraph {
                            hash_bins_end);
 
     CUDA_TRY(cudaMemcpy(hash_bins_start, hash_bins_end,
-                        (hash_size + 1) * sizeof(detail::hash_type),
+                        (hash_size + 1) * sizeof(renumber::hash_type),
                         cudaMemcpyDeviceToDevice));
 
     //
     //    The last entry in the array (hash_bins_end[hash_size]) is the
     //  total number of unique vertices
     //
-    detail::index_type temp = 0;
-    CUDA_TRY(cudaMemcpy(&temp, hash_bins_end + hash_size, sizeof(detail::index_type), cudaMemcpyDeviceToHost));
+    renumber::index_type temp = 0;
+    CUDA_TRY(cudaMemcpy(&temp, hash_bins_end + hash_size, sizeof(renumber::index_type), cudaMemcpyDeviceToHost));
     *new_size = temp;
 
     ALLOC_TRY(numbering_map, temp * sizeof(T_in), nullptr);
@@ -314,17 +315,17 @@ namespace cugraph {
     //  Pass 4: Populate hash_data with data from the hash bins after deduping
     //
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_counting_iterator<detail::index_type>(0),
-                     thrust::make_counting_iterator<detail::index_type>(2 * size),
+                     thrust::make_counting_iterator<renumber::index_type>(0),
+                     thrust::make_counting_iterator<renumber::index_type>(2 * size),
                      [hash_bins_end, hash_data, local_numbering_map, hash, compare, size]
-                     __device__ (detail::index_type idx) {
+                     __device__ (renumber::index_type idx) {
                        bool unique = ((idx + 1) == (2 * size))
                          || compare(hash_data[idx], hash_data[idx+1])
                          || compare(hash_data[idx+1], hash_data[idx]);
        
                        if (unique) {
                          uint32_t hash_index = hash(hash_data[idx]);
-                         detail::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
+                         renumber::index_type hash_offset = atomicAdd(&hash_bins_end[hash_index], 1);
                          local_numbering_map[hash_offset] = hash_data[idx];
                        }
                      });
@@ -338,7 +339,7 @@ namespace cugraph {
     //  If we do a segmented sort now, we can do the final lookups.
     //
     size_as_int = size;
-    cugraph::bitonic::segmented_sort(hash_size,
+    cugraph::sort::bitonic::segmented_sort(hash_size,
                                      size_as_int,
                                      hash_bins_start,
                                      hash_bins_end,
@@ -354,23 +355,23 @@ namespace cugraph {
     //   id in the renumbered map.
     //
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_counting_iterator<detail::index_type>(0),
-                     thrust::make_counting_iterator<detail::index_type>(size),
+                     thrust::make_counting_iterator<renumber::index_type>(0),
+                     thrust::make_counting_iterator<renumber::index_type>(size),
                      [local_numbering_map, hash_bins_start, hash_bins_end,
                       hash, src, src_renumbered, compare]
-                     __device__ (detail::index_type idx) {
-                       detail::hash_type tmp = hash(src[idx]);
+                     __device__ (renumber::index_type idx) {
+                       renumber::hash_type tmp = hash(src[idx]);
                        const T_in *id = thrust::lower_bound(thrust::seq, local_numbering_map + hash_bins_start[tmp], local_numbering_map + hash_bins_end[tmp], src[idx], compare);
                        src_renumbered[idx] = id - local_numbering_map;
                      });
 
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_counting_iterator<detail::index_type>(0),
-                     thrust::make_counting_iterator<detail::index_type>(size),
+                     thrust::make_counting_iterator<renumber::index_type>(0),
+                     thrust::make_counting_iterator<renumber::index_type>(size),
                      [local_numbering_map, hash_bins_start, hash_bins_end,
                       hash, dst, dst_renumbered, compare]
-                     __device__ (detail::index_type idx) {
-                       detail::hash_type tmp = hash(dst[idx]);
+                     __device__ (renumber::index_type idx) {
+                       renumber::hash_type tmp = hash(dst[idx]);
                        const T_in *id = thrust::lower_bound(thrust::seq, local_numbering_map + hash_bins_start[tmp], local_numbering_map + hash_bins_end[tmp], dst[idx], compare);
                        dst_renumbered[idx] = id - local_numbering_map;
                      });
@@ -382,6 +383,6 @@ namespace cugraph {
     return GDF_SUCCESS;  
   }
 
-}
+} } //namespace
 
 #endif

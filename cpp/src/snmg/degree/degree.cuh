@@ -20,7 +20,8 @@
 #include "snmg/utils.cuh"
 #include "rmm_utils.h"
 
-namespace cugraph {
+namespace cugraph { 
+namespace snmg {
   /**
    * Single node multi-GPU method for degree calculation on a partitioned graph.
    * @param x Indicates whether to compute in degree, out degree, or the sum of both.
@@ -36,4 +37,4 @@ namespace cugraph {
   template<typename idx_t>
   gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree);
 
-}
+} } //namespace

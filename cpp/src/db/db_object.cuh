@@ -21,7 +21,8 @@
 #include <map>
 #include "utilities/graph_utils.cuh"
 
-namespace cugraph {
+namespace cugraph { 
+namespace db {
   /**
    * Class for representing an entry in a pattern, which may either be a variable or constant value
    * See description of db_pattern for more info on how this is used.
@@ -174,4 +175,4 @@ namespace cugraph {
     db_object();
     std::string query(std::string query);
   };
-}
+} } //namespace
