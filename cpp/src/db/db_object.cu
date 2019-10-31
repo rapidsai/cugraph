@@ -397,7 +397,7 @@ namespace db {
       int threadsPerBlock = 1024;
       int numBlocks = (runCount_h + threadsPerBlock - 1) / threadsPerBlock;
       offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
-      cudaCheckError();
+      CUDA_CHECK_LAST();
 
       // Taking the exclusive scan of the run lengths to get the final offsets.
       thrust::exclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),

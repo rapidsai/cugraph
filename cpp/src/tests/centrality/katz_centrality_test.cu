@@ -83,7 +83,6 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   void run_current_test(const Katz_Usecase& param) {
        gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
        gdf_column_ptr col_src, col_dest, col_katz_centrality;
-       gdf_error status;
 
        FILE* fpin = fopen(param.matrix_file.c_str(),"r");
        ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
@@ -111,12 +110,11 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
       col_dest = create_gdf_column(cooColInd);
       col_katz_centrality = create_gdf_column(katz_centrality);
 
-      ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+      CUGRAPH_TRY(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr));
       int max_out_degree = getMaxDegree(G.get());
       double alpha = 1/(static_cast<double>(max_out_degree) + 1);
 
-      status = gdf_katz_centrality(G.get(), col_katz_centrality.get(), alpha, 100, 1e-6, false, true);
-      EXPECT_EQ(status,0);
+      CUGRAPH_TRY(gdf_katz_centrality(G.get(), col_katz_centrality.get(), alpha, 100, 1e-6, false, true));
 
       std::vector<int> top10CUGraph = getTopKIds(std::move(col_katz_centrality));
       std::vector<int> top10Golden  = getGoldenTopKIds(param.result_file);

@@ -43,38 +43,38 @@ SNMGinfo::SNMGinfo() {
   }
   // number of SM, usefull for kernels paramters
   cudaDeviceGetAttribute(&n_sm, cudaDevAttrMultiProcessorCount, i);
-  cudaCheckError();
-} 
-SNMGinfo::~SNMGinfo() { }
+  CUDA_CHECK_LAST();
+ } 
+ SNMGinfo::~SNMGinfo() { }
 
-int SNMGinfo::get_thread_num() {
-  return i; 
-}
-int SNMGinfo::get_num_threads() {
-  return p; 
-}
-int SNMGinfo::get_num_sm() {
-  return n_sm; 
-} 
-// enable peer access (all to all)
-void SNMGinfo::setup_peer_access() {
-  if (PeerAccessAlreadyEnabled)
-    return;
-  for (int j = 0; j < p; ++j) {
-    if (i != j) {
-      int canAccessPeer = 0;
-      cudaDeviceCanAccessPeer(&canAccessPeer, i, j);
-      cudaCheckError();
-      if (canAccessPeer) {
-        cudaDeviceEnablePeerAccess(j, 0);
-        cudaError_t status = cudaGetLastError();
-        if (!(status == cudaSuccess || status == cudaErrorPeerAccessAlreadyEnabled)) {
-          std::cerr << "Could not Enable Peer Access from" << i << " to " << j << std::endl;
-        }
-      }
-      else {
-        std::cerr << "P2P access required from " << i << " to " << j << std::endl;
-      }
+ int SNMGinfo::get_thread_num() {
+   return i; 
+ }
+ int SNMGinfo::get_num_threads() {
+   return p; 
+ }
+ int SNMGinfo::get_num_sm() {
+   return n_sm; 
+ } 
+ // enable peer access (all to all)
+ void SNMGinfo::setup_peer_access() {
+   if (PeerAccessAlreadyEnabled)
+     return;
+   for (int j = 0; j < p; ++j) {
+     if (i != j) {
+          int canAccessPeer = 0;
+          cudaDeviceCanAccessPeer(&canAccessPeer, i, j);
+          CUDA_CHECK_LAST();
+          if (canAccessPeer) {
+            cudaDeviceEnablePeerAccess(j, 0);
+            cudaError_t status = cudaGetLastError();
+            if (!(status == cudaSuccess || status == cudaErrorPeerAccessAlreadyEnabled)) {
+              std::cerr << "Could not Enable Peer Access from" << i << " to " << j << std::endl;
+            }
+          }
+          else {
+            std::cerr << "P2P access required from " << i << " to " << j << std::endl;
+          }
     }
   }
   PeerAccessAlreadyEnabled = true;

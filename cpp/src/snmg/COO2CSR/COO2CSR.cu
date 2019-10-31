@@ -164,7 +164,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                                                                             reinterpret_cast<idx_t*>(cooRow->data),
                                                                             sourceCounts);
   cudaDeviceSynchronize();
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   // Threads globally reduce their local source node counts to get the global ones
   unsigned long long int* sourceCountsTemp;
@@ -185,12 +185,12 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
                          sourceCountsTemp);
   ALLOC_FREE_TRY(sourceCounts, nullptr);
   cudaDeviceSynchronize();
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   // Each thread reads the global edgecount
   unsigned long long int globalEdgeCount;
   cudaMemcpy(&globalEdgeCount, sourceCountsTemp + maxId + 1, sizeof(unsigned long long int), cudaMemcpyDefault);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   // Each thread searches the global source node counts prefix sum to find the start of its vertex ID range
   idx_t myStartVertex = 0;
@@ -215,7 +215,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     part_offsets[0] = 0;
     part_offsets[p] = maxId + 1;
   }
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 #pragma omp barrier
 
   // Each thread determines how many edges it will have in its partition
@@ -240,7 +240,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   }
   else
     cooValTemp = nullptr;
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   if (cooValTemp != nullptr){
     auto zippy = thrust::make_zip_iterator(thrust::make_tuple(cooRowTemp, cooColTemp));
@@ -251,7 +251,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     thrust::sort(rmm::exec_policy(nullptr)->on(nullptr), zippy, zippy + size);
   }
   cudaDeviceSynchronize();
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   // Each thread determines the count of rows it needs to transfer to each other thread
   idx_t localMinId, localMaxId;
@@ -282,11 +282,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     }
   }
   cudaDeviceSynchronize();
-  cudaCheckError();
+  CUDA_CHECK_LAST();
   std::vector<idx_t> positions(p + 1);
   cudaMemcpy(&positions[1], endPositions, sizeof(idx_t) * (p - 1), cudaMemcpyDefault);
   ALLOC_FREE_TRY(endPositions, nullptr);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
   positions[0] = 0;
   positions[p] = size;
   idx_t* myRowCounts = comm->rowCounts + (i * p);
@@ -316,7 +316,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   comm->rowPtrs[i] = cooRowNew;
   comm->colPtrs[i] = cooColNew;
   comm->valPtrs[i] = cooValNew;
-  cudaCheckError();
+  CUDA_CHECK_LAST();
   cudaDeviceSynchronize();
 #pragma omp barrier
 
@@ -346,7 +346,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
       }
     }
   }
-  cudaCheckError();
+  CUDA_CHECK_LAST();
   cugraph::snmg::sync_all();
 
   // Each thread frees up the input if allowed
@@ -385,7 +385,7 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     thrust::sort(rmm::exec_policy(nullptr)->on(nullptr), zippy, zippy + myEdgeCount);
   }
 
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   localMaxId = part_offsets[i + 1] - part_offsets[i] - 1;
   idx_t* offsets;
@@ -420,11 +420,11 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
   int threadsPerBlock = 1024;
   int numBlocks = (runCount_h + threadsPerBlock - 1) / threadsPerBlock;
 
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   cugraph::snmg::offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
 
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   thrust::exclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
                          offsets,
@@ -469,15 +469,15 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                            gdf_column* csrOff,
                            gdf_column* csrInd,
                            gdf_column* csrVal) {
-  GDF_REQUIRE(part_offsets != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooRow != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooCol != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(csrOff != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(csrInd != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(comm1 != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooRow->size > 0, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooCol->size > 0, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(cooCol->dtype == cooRow->dtype, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(part_offsets != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooRow != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooCol != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(csrOff != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(csrInd != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(comm1 != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooRow->size > 0, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooCol->size > 0, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cooCol->dtype == cooRow->dtype, "Invalid API parameter");
 
   if (cooVal == nullptr) {
     if (cooRow->dtype == GDF_INT32) {

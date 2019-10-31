@@ -165,7 +165,7 @@ namespace bfs_kernels {
                                                               n,
                                                               unvisited,
                                                               unvisited_cnt);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   //
@@ -230,7 +230,7 @@ namespace bfs_kernels {
                                                                visited_bmap,
                                                                node_degree,
                                                                mu);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   //
@@ -530,7 +530,7 @@ namespace bfs_kernels {
                                                        distances,
                                                        predecessors,
                                                        edge_mask);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   //
@@ -647,7 +647,7 @@ namespace bfs_kernels {
                                                                 distances,
                                                                 predecessors,
                                                                 edge_mask);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   //
@@ -1127,7 +1127,7 @@ namespace bfs_kernels {
                                                         edge_mask,
                                                         isolated_bmap,
                                                         directed);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   template<typename IndexType>
@@ -1254,7 +1254,7 @@ namespace bfs_kernels {
                                                                 row_ptr,
                                                                 degrees,
                                                                 nisolated);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
 } } } //namespace

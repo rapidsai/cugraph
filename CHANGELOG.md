@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #569 Added exceptions
 - PR #554 Upgraded namespace so that cugraph can be used for the API.
 - PR #564 Update cudf type aliases
 - PR #562 Remove pyarrow dependency so we inherit the one cudf uses

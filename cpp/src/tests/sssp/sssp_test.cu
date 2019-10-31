@@ -283,8 +283,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     }
 
     gdf_graph G;
-    ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights),
-              GDF_SUCCESS);
+    CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights));
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;
@@ -318,7 +317,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       cudaDeviceSynchronize();
     }
 
-    ASSERT_EQ(ret, GDF_SUCCESS);
+    ASSERT_EQ(ret);
 
     // MTX may have zero-degree vertices. So reset num_vertices after
     // conversion to CSR

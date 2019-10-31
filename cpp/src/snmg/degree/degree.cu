@@ -62,7 +62,7 @@ gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** d
                                                      static_cast<idx_t>(loc_e),
                                                      ind,
                                                      local_result);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Out-degree
@@ -79,7 +79,7 @@ gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** d
                                                          static_cast<idx_t>(loc_e),
                                                          off,
                                                          local_result + part_off[i]);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Combining the local results into global results
@@ -131,7 +131,7 @@ gdf_error snmg_degree<int64_t>(int x,
                                                         static_cast<int64_t>(loc_e),
                                                         ind,
                                                         reinterpret_cast<double*>(local_result));
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Out-degree
@@ -149,7 +149,7 @@ gdf_error snmg_degree<int64_t>(int x,
                                                             off,
                                                             reinterpret_cast<double*>(local_result
                                                                 + part_off[i]));
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Convert the values written as doubles back to int64:
@@ -162,7 +162,7 @@ gdf_error snmg_degree<int64_t>(int x,
   nblocks.y = 1;
   nblocks.z = 1;
   cugraph::detail::type_convert<double, int64_t> <<<nblocks, nthreads>>>(reinterpret_cast<double*>(local_result), glob_v);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   // Combining the local results into global results
   treeReduce<int64_t, thrust::plus<int64_t> >(env, glob_v, local_result, degree);
@@ -182,18 +182,18 @@ gdf_error gdf_snmg_degree_impl(int x,
                                gdf_column* off,
                                gdf_column* ind,
                                gdf_column** x_cols) {
-  GDF_REQUIRE(off->size > 0, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(ind->size > 0, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(off->dtype == ind->dtype, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(off->null_count + ind->null_count == 0, GDF_VALIDITY_UNSUPPORTED);
+  CUGRAPH_EXPECTS(off->size > 0, "Invalid API parameter");
+  CUGRAPH_EXPECTS(ind->size > 0, "Invalid API parameter");
+  CUGRAPH_EXPECTS(off->dtype == ind->dtype, "Unsupported data type");
+  CUGRAPH_EXPECTS(off->null_count + ind->null_count == 0, "Column must be valid");
 
   gdf_error status;
   auto p = omp_get_num_threads();
 
   idx_t* degree[p];
   for (auto i = 0; i < p; ++i) {
-    GDF_REQUIRE(x_cols[i] != nullptr, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(x_cols[i]->size > 0, GDF_INVALID_API_CALL);
+    CUGRAPH_EXPECTS(x_cols[i] != nullptr, "Invalid API parameter");
+    CUGRAPH_EXPECTS(x_cols[i]->size > 0, "Invalid API parameter");
     degree[i] = static_cast<idx_t*>(x_cols[i]->data);
   }
 
@@ -210,10 +210,10 @@ gdf_error gdf_snmg_degree(int x,
                           gdf_column* off,
                           gdf_column* ind,
                           gdf_column** x_cols) {
-  GDF_REQUIRE(part_offsets != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(off != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(ind != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(x_cols != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(part_offsets != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(off != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(ind != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(x_cols != nullptr, "Invalid API parameter");
   switch (off->dtype) {
     case GDF_INT32:
       return gdf_snmg_degree_impl<int32_t>(x, part_offsets, off, ind, x_cols);
