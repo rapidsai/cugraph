@@ -71,7 +71,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
   static std::vector<double> pagerank_time;   
 
 
-  template <typename T, bool manual_tanspose>
+  template <typename T>
   void run_current_test(const Pagerank_Usecase& param) {
      const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
      std::stringstream ss; 
@@ -114,8 +114,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     col_pagerank = create_gdf_column(pagerank);
 
     CUGRAPH_TRY(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr));
-    if (manual_tanspose)
-      CUGRAPH_TRY(gdf_add_transposed_adj_list(G.get()));
+    CUGRAPH_TRY(gdf_add_transposed_adj_list(G.get()));
 
     cudaDeviceSynchronize();
     if (PERF) {
@@ -164,20 +163,12 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
  
 std::vector<double> Tests_Pagerank::pagerank_time;
 
-TEST_P(Tests_Pagerank, CheckFP32_manualT) {
-    run_current_test<float, true>(GetParam());
+TEST_P(Tests_Pagerank, CheckFP32_T) {
+    run_current_test<float>(GetParam());
 }
 
-TEST_P(Tests_Pagerank, CheckFP32) {
-    run_current_test<float, false>(GetParam());
-}
-
-TEST_P(Tests_Pagerank, CheckFP64_manualT) {
-    run_current_test<double,true>(GetParam());
-}
-
-TEST_P(Tests_Pagerank, CheckFP64) {
-    run_current_test<double,false>(GetParam());
+TEST_P(Tests_Pagerank, CheckFP64_T) {
+    run_current_test<double>(GetParam());
 }
 
 // --gtest_filter=*simple_test*
