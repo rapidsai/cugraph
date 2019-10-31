@@ -513,7 +513,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
                            gdf_column* result) {
 
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList != nullptr "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
