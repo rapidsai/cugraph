@@ -358,7 +358,7 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
 gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
   
   CUGRAPH_EXPECTS(G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(G->adjList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(G->adjList != nullptr, "Invalid API parameter");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
