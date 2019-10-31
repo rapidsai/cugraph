@@ -12,8 +12,8 @@
 // Interanl helper functions 
 #include "utilities/graph_utils.cuh"
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
     
 void gdf_col_set_defaults(gdf_column* col) {
   col->dtype = GDF_invalid;
@@ -26,4 +26,4 @@ void gdf_col_set_defaults(gdf_column* col) {
   col->dtype_info = extra_info;  
 }
 
-} //namespace cugraph
+} } //namespace

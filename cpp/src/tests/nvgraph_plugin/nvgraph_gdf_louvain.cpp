@@ -38,10 +38,10 @@ TEST(nvgraph_louvain, success)
   create_gdf_column(ind_h,&col_ind);
   create_gdf_column(w_h  ,&col_w);
 
-  ASSERT_EQ(gdf_adj_list_view(&G, &col_off, &col_ind, &col_w), GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_adj_list_view(&G, &col_off, &col_ind, &col_w));
 
   if (!(G.adjList))
-    ASSERT_EQ(gdf_add_adj_list(&G), GDF_SUCCESS);
+    CUGRAPH_TRY(gdf_add_adj_list(&G));
 
   int no_vertex = off_h.size()-1;
   int weighted = 0; //false
@@ -95,17 +95,17 @@ TEST(nvgraph_louvain_grmat, success)
   col_dest.null_count = 0;
   col_weights.null_count = 0;
 
-  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr));
   cudaStream_t stream{nullptr};
   ALLOC_TRY ((void**)&col_weights.data, sizeof(int) * edges, stream);
   col_weights.size = edges;
   std::vector<float> w_h (edges, (float)1.0);
   cudaMemcpy (col_weights.data, (void*) &(w_h[0]), sizeof(float)*edges, cudaMemcpyHostToDevice);
-  ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights), GDF_SUCCESS);
+  CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights));
 
   if (!(G.adjList))
   {
-    ASSERT_EQ(gdf_add_adj_list(&G), GDF_SUCCESS);
+    CUGRAPH_TRY(gdf_add_adj_list(&G));
   }
   int weighted = 1; //false
   int has_init_cluster = 0; //false

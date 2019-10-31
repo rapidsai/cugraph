@@ -3,14 +3,19 @@
 ## New Features
 
 ## Improvements
+- PR #569 Added exceptions
+- PR #554 Upgraded namespace so that cugraph can be used for the API.
 - PR #564 Update cudf type aliases
 - PR #562 Remove pyarrow dependency so we inherit the one cudf uses
 - PR #576 Remove adj list conversion automation from c++
 
 ## Bug Fixes
+- PR #570 Temporarily disabling 2 DB tests
 - PR #573 Fix pagerank test and symmetrize for cudf 0.11
+- PR #574 dev env update
 
 # cuGraph 0.10.0 (16 Oct 2019)
+
 
 ## New Features
 - PR #469 Symmetrize a COO

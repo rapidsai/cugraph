@@ -25,7 +25,8 @@
 #include "nvgraph_error_utils.h"
 #include <thrust/sort.h>
 
-namespace cugraph {
+namespace cugraph { 
+namespace detail {
 
 // Function for checking 0-based indexing
 template <typename T>
@@ -61,5 +62,6 @@ gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
     }
 #endif
     return GDF_SUCCESS;
-}
-} //namespace cugraph
+} 
+
+} } //namespace

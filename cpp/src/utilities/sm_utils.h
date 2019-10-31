@@ -27,10 +27,9 @@
 //(__CUDACC_VER__ >= 80500)
 
 
-namespace cugraph
-{
-namespace utils
-{
+namespace cugraph { 
+namespace detail {
+namespace utils {
     static __device__ __forceinline__ int lane_id()
     {
         int id;
@@ -290,6 +289,4 @@ namespace utils
         return 0.0;
     #endif
     }
-}
-
-}
+} } } //namespace
