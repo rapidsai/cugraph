@@ -87,6 +87,7 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
   graph->adjList = new gdf_adj_list;
   graph->adjList->offsets = new gdf_column;
   graph->adjList->indices = new gdf_column;
+  graph->adjList->ownership = 0;
 
   cpy_column_view(offsets, graph->adjList->offsets);
   cpy_column_view(indices, graph->adjList->indices);
@@ -185,6 +186,7 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
   graph->edgeList = new gdf_edge_list;
   graph->edgeList->src_indices = new gdf_column;
   graph->edgeList->dest_indices = new gdf_column;
+  graph->edgeList->ownership = 0;
 
   cpy_column_view(src_indices, graph->edgeList->src_indices);
   cpy_column_view(dest_indices, graph->edgeList->dest_indices);
