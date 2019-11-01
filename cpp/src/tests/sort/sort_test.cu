@@ -464,7 +464,7 @@ TEST_F(SortTest, Random100MPerDevice_uint32_t)
   }
 }
 
-TEST_F(SortTest, Random256MPerDevice_uint64_t)
+TEST_F(SortTest, DISABLED_Random256MPerDevice_uint64_t)
 {
   cudaStream_t stream{nullptr};
   
