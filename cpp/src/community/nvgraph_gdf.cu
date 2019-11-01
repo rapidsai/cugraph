@@ -42,15 +42,12 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
                                             const float kmean_tolerance,
                                             const int kmean_max_iter,
                                             gdf_column* clustering) {
+
   CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
-
-  // Ensure that the input graph has values
-  CUGRAPH_TRY(gdf_add_adj_list(gdf_G));
-  //CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
@@ -125,14 +122,14 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
                                                       const float kmean_tolerance,
                                                       const int kmean_max_iter,
                                                       gdf_column* clustering) {
+
   CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
 
   // Ensure that the input graph has values
-  CUGRAPH_TRY(gdf_add_adj_list(gdf_G));
   CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter");
 
   // Initialize Nvgraph and wrap the graph
@@ -174,10 +171,10 @@ gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
                                                     const int n_clusters,
                                                     gdf_column* clustering,
                                                     float* score) {
+
   CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->adjList == nullptr) || (gdf_G->adjList->edge_data != nullptr), "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->edgeList == nullptr) || (gdf_G->edgeList->edge_data != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
@@ -205,8 +202,9 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
                                                   const int n_clusters,
                                                   gdf_column* clustering,
                                                   float* score) {
+
   CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
@@ -263,10 +261,10 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
                                                   const int n_clusters,
                                                   gdf_column* clustering,
                                                   float* score) {
+
   CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->adjList == nullptr) || (gdf_G->adjList->edge_data != nullptr), "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->edgeList == nullptr) || (gdf_G->edgeList->edge_data != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
@@ -294,8 +292,9 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
 gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
                                               gdf_column* vertices,
                                               gdf_graph* result) {
+
   CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((gdf_G->adjList != nullptr) || (gdf_G->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(vertices != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(vertices->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!vertices->valid, "Column must be valid");
@@ -358,9 +357,8 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
 }
 
 gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
+  
   CUGRAPH_EXPECTS(G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((G->adjList != nullptr) || (G->edgeList != nullptr), "Invalid API parameter");
-  CUGRAPH_TRY(gdf_add_adj_list(G));
   CUGRAPH_EXPECTS(G->adjList != nullptr, "Invalid API parameter");
 
   // Initialize Nvgraph and wrap the graph
@@ -375,10 +373,8 @@ gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
 }
 
 gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
-  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
+
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
   size_t n = graph->adjList->offsets->size - 1;
   size_t e = graph->adjList->indices->size;

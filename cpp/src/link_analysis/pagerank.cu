@@ -208,17 +208,13 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
     CUGRAPH_EXPECTS(personalization_subset->null_count == 0 , "Input column has non-zero null count");
     CUGRAPH_EXPECTS(personalization_values->null_count == 0 , "Input column has non-zero null count");
   }
-  CUGRAPH_EXPECTS( graph->edgeList != nullptr, "Invalid API parameter" );
-  CUGRAPH_EXPECTS( graph->edgeList->src_indices->size == graph->edgeList->dest_indices->size, "Column size mismatch" );
-  CUGRAPH_EXPECTS( graph->edgeList->src_indices->dtype == graph->edgeList->dest_indices->dtype, "Unsupported data type" );
-  CUGRAPH_EXPECTS( graph->edgeList->src_indices->null_count == 0 , "Input column has non-zero null count");
-  CUGRAPH_EXPECTS( graph->edgeList->dest_indices->null_count == 0 , "Input column has non-zero null count");
+
   CUGRAPH_EXPECTS( pagerank != nullptr , "Invalid API parameter" );
   CUGRAPH_EXPECTS( pagerank->data != nullptr , "Invalid API parameter" );
   CUGRAPH_EXPECTS( pagerank->null_count == 0 , "Input column has non-zero null count");
   CUGRAPH_EXPECTS( pagerank->size > 0 , "Invalid API parameter" );
 
-  int m=pagerank->size, nnz = graph->edgeList->src_indices->size, status = 0;
+  int m=pagerank->size, nnz = graph->transposedAdjList->indices->size, status = 0;
   WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
   WT res = 1.0;
   WT *residual = &res;
@@ -276,13 +272,7 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank,
   //
   //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
   //
-  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
-
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->transposedAdjList != nullptr, "Invalid API parameter");
 
   switch (pagerank->dtype) {
     case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank,

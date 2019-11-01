@@ -30,9 +30,6 @@
 
 gdf_error core_number_impl(gdf_graph *graph,
                           int *core_number) {
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
   using HornetGraph = hornet::gpu::HornetStatic<int>;
   using HornetInit  = hornet::HornetInit<int>;
   using CoreNumber  = hornets_nest::CoreNumberStatic;
@@ -47,10 +44,8 @@ gdf_error core_number_impl(gdf_graph *graph,
 
 gdf_error gdf_core_number(gdf_graph *graph,
                           gdf_column *core_number) {
-  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
+
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");
@@ -207,8 +202,8 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
                      gdf_column *vertex_id,
                      gdf_column *core_number,
                      gdf_graph *out_graph) {
+
   CUGRAPH_EXPECTS(out_graph != nullptr && in_graph != nullptr, "Invalid API parameter");
-  CUGRAPH_TRY(gdf_add_adj_list(in_graph));
   gdf_size_type nV = in_graph->numberOfVertices;
   CUGRAPH_EXPECTS(in_graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(in_graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");

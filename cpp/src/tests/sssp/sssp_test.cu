@@ -5,7 +5,7 @@
  * and proprietary rights in and to this software, related documentation
  * and any modifications thereto.  Any use, reproduction, disclosure or
  * distribution of this software and related documentation without an express
- * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ * license agreement from NVIDIA CORPORATION is strictly prohibited
  *
  */
 
@@ -284,6 +284,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     gdf_graph G;
     CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights));
+    CUGRAPH_TRY(gdf_add_adj_list(G.get()));
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;

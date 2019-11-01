@@ -289,9 +289,8 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
                    gdf_column* sssp_distances,
                    gdf_column* predecessors,
                    const int source_vert) {
-  CUGRAPH_EXPECTS(gdf_G, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList || gdf_G->edgeList, "Invalid API parameter");
-  CUGRAPH_EXPECTS(source_vert >= 0, "Invalid API parameter");
+
+  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
 
   void *sssp_dist_ptr, *pred_ptr;
   // NOTE: gdf_column struct doesn't have a default constructor. So we can get
@@ -315,16 +314,10 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
                 "Invalid API parameter");
   }
 
-  gdf_error err = gdf_add_adj_list(gdf_G);
-  if (err != GDF_SUCCESS)
-    return err;
-
   CUGRAPH_EXPECTS(gdf_G->adjList->offsets->dtype == GDF_INT32,
               "Unsupported data type");
   CUGRAPH_EXPECTS(gdf_G->adjList->indices->dtype == GDF_INT32,
               "Unsupported data type");
-  CUGRAPH_EXPECTS(source_vert < gdf_G->adjList->offsets->size - 1,
-              "Invalid API parameter");
 
   if (pred_ptr)
     CUGRAPH_EXPECTS(predecessors->dtype == gdf_G->adjList->indices->dtype,

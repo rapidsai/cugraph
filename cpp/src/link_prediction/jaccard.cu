@@ -347,14 +347,12 @@ namespace detail {
 } } //namespace
 
 gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
+
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((graph->adjList != nullptr) || (graph->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
-
-  CUGRAPH_TRY(gdf_add_adj_list(graph));
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
   bool weighted = (weights != nullptr);
 
@@ -513,8 +511,9 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
                            gdf_column* first,
                            gdf_column* second,
                            gdf_column* result) {
+
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS((graph->adjList != nullptr) || (graph->edgeList != nullptr), "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
@@ -526,9 +525,6 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
   CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(second->data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(!second->valid, "Column must be valid");
-
-  CUGRAPH_TRY(gdf_add_adj_list(graph));
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
   bool weighted = (weights != nullptr);
 

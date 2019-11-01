@@ -472,14 +472,13 @@ namespace detail {
 } } //namespace 
 
 gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
-  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
+
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(distances->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(predecessors->dtype == GDF_INT32, "Unsupported data type");
+
 
   int n = graph->adjList->offsets->size - 1;
   int e = graph->adjList->indices->size;
