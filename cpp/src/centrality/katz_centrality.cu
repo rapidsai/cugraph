@@ -33,14 +33,14 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
                               double tol,
                               bool has_guess,
                               bool normalized) {
-  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
     return err;
-  GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(katz_centrality->dtype == GDF_FLOAT64, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(katz_centrality->size == graph->numberOfVertices, GDF_COLUMN_SIZE_MISMATCH);
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type");
+  CUGRAPH_EXPECTS(katz_centrality->size == graph->numberOfVertices, "Column size mismatch");
 
   const bool isStatic = true;
   using HornetGraph = hornet::gpu::HornetStatic<int>;

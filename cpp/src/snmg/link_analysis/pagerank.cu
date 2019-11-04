@@ -29,8 +29,8 @@
 #include "snmg/degree/degree.cuh"
 //#define SNMG_DEBUG
 #define SNMG_PR_T
-namespace cugraph
-{
+namespace cugraph { 
+namespace snmg {
 
   template<typename IndexType, typename ValueType>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -54,7 +54,7 @@ SNMGpagerank<IndexType,ValueType>::SNMGpagerank(SNMGinfo & env_, size_t* part_of
   v_loc = part_off[id+1]-part_off[id];
   IndexType tmp_e;
   cudaMemcpy(&tmp_e, &off[v_loc], sizeof(IndexType),cudaMemcpyDeviceToHost);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
   e_loc = tmp_e;
   stream = nullptr;
   is_setup = false;
@@ -62,12 +62,12 @@ SNMGpagerank<IndexType,ValueType>::SNMGpagerank(SNMGinfo & env_, size_t* part_of
   ALLOC_TRY ((void**)&val, sizeof(ValueType) * e_loc, stream);
 
   // intialize cusparse. This can take some time.
-  Cusparse::get_handle();
+  cugraph::detail::Cusparse::get_handle();
 } 
 
 template <typename IndexType, typename ValueType>
 SNMGpagerank<IndexType,ValueType>::~SNMGpagerank() { 
-  Cusparse::destroy_handle();
+  cugraph::detail::Cusparse::destroy_handle();
   ALLOC_FREE_TRY(bookmark, stream); 
   ALLOC_FREE_TRY(val, stream);
 }
@@ -77,15 +77,15 @@ void SNMGpagerank<IndexType,ValueType>::transition_vals(const IndexType *degree)
   int threads = min(static_cast<IndexType>(e_loc), 256);
   int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
   transition_kernel<IndexType, ValueType> <<<blocks, threads>>> (e_loc, ind, degree, val);
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }
 
 template <typename IndexType, typename ValueType>
 void SNMGpagerank<IndexType,ValueType>::flag_leafs(const IndexType *degree) {
   int threads = min(static_cast<IndexType>(v_glob), 256);
   int blocks = min(static_cast<IndexType>(32*env.get_num_sm()), CUDA_MAX_BLOCKS);
-  flag_leafs_kernel<IndexType, ValueType> <<<blocks, threads>>> (v_glob, degree, bookmark);
-  cudaCheckError();
+  cugraph::detail::flag_leafs_kernel<IndexType, ValueType> <<<blocks, threads>>> (v_glob, degree, bookmark);
+  CUDA_CHECK_LAST();
 }    
 
 
@@ -103,9 +103,9 @@ void SNMGpagerank<IndexType,ValueType>::setup(ValueType _alpha, IndexType** degr
        throw std::string("SNMG Degree failed in Pagerank");
 
     // Update dangling node vector
-    fill(v_glob, bookmark, zero);
+    cugraph::detail::fill(v_glob, bookmark, zero);
     flag_leafs(degree_loc);
-    update_dangling_nodes(v_glob, bookmark, alpha);
+    cugraph::detail::update_dangling_nodes(v_glob, bookmark, alpha);
 
     // Transition matrix
     transition_vals(degree_loc);
@@ -125,21 +125,21 @@ void SNMGpagerank<IndexType,ValueType>::solve (int max_iter, ValueType ** pagera
     ValueType  dot_res;
     ValueType one = 1.0;
     ValueType *pr = pagerank[id];
-    fill(v_glob, pagerank[id], one/v_glob);
+    cugraph::detail::fill(v_glob, pagerank[id], one/v_glob);
     // This cuda sync was added to fix #426
     // This should not be requiered in theory 
     // This is not needed on one GPU at this time
     cudaDeviceSynchronize();
-    dot_res = dot( v_glob, bookmark, pr);
+    dot_res = cugraph::detail::dot( v_glob, bookmark, pr);
     SNMGcsrmv<IndexType,ValueType> spmv_solver(env, part_off, off, ind, val, pagerank);
     for (auto i = 0; i < max_iter; ++i) {
       spmv_solver.run(pagerank);
-      scal(v_glob, alpha, pr);
-      addv(v_glob, dot_res * (one/v_glob) , pr);
-      dot_res = dot( v_glob, bookmark, pr);
-      scal(v_glob, one/nrm2(v_glob, pr) , pr);
+      cugraph::detail::scal(v_glob, alpha, pr);
+      cugraph::detail::addv(v_glob, dot_res * (one/v_glob) , pr);
+      dot_res = cugraph::detail::dot( v_glob, bookmark, pr);
+      cugraph::detail::scal(v_glob, one/cugraph::detail::nrm2(v_glob, pr) , pr);
     }
-    scal(v_glob, one/nrm1(v_glob,pr), pr);
+    cugraph::detail::scal(v_glob, one/cugraph::detail::nrm1(v_glob,pr), pr);
   }
   else {
       throw std::string("Solve was called before setup");
@@ -150,7 +150,7 @@ template class SNMGpagerank<int, double>;
 template class SNMGpagerank<int, float>;
 
 
-} //namespace cugraph
+} } //namespace
 
 template<typename idx_t, typename val_t>
 gdf_error gdf_snmg_pagerank_impl(
@@ -187,10 +187,10 @@ gdf_error gdf_snmg_pagerank_impl(
     #endif
     // Setting basic SNMG env information
     cudaSetDevice(omp_get_thread_num());
-    cugraph::SNMGinfo env;
+    cugraph::snmg::SNMGinfo env;
     auto i = env.get_thread_num();
     auto p = env.get_num_threads();
-    cudaCheckError();
+    CUDA_CHECK_LAST();
 
     // Local CSR columns
     gdf_column *col_csr_off = new gdf_column;
@@ -223,7 +223,7 @@ gdf_error gdf_snmg_pagerank_impl(
       status = status_i;
     }
     // Allocate and intialize Pagerank class
-    cugraph::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
+    cugraph::snmg::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
                                 static_cast<idx_t*>(col_csr_off->data), 
                                 static_cast<idx_t*>(col_csr_ind->data));
 
@@ -246,12 +246,12 @@ gdf_error gdf_snmg_pagerank_impl(
     #pragma omp master
     {
       //default gdf values
-      cugraph::gdf_col_set_defaults(pr_col);
+      cugraph::detail::gdf_col_set_defaults(pr_col);
 
       //fill relevant fields
       ALLOC_TRY ((void**)&pr_col->data,   sizeof(val_t) * part_offset[p], nullptr);
       cudaMemcpy(pr_col->data, pagerank[i], sizeof(val_t) * part_offset[p], cudaMemcpyDeviceToDevice);
-      cudaCheckError();
+      CUDA_CHECK_LAST();
       pr_col->size = part_offset[p];
       pr_col->dtype = GDF_FLOAT32;
     }
@@ -277,33 +277,33 @@ gdf_error gdf_snmg_pagerank (
             const float damping_factor = 0.85, 
             const int n_iter = 10) {
     // null pointers check
-    GDF_REQUIRE(src_col_ptrs != nullptr, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(dest_col_ptrs != nullptr, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(pr_col != nullptr, GDF_INVALID_API_CALL);
+    CUGRAPH_EXPECTS(src_col_ptrs != nullptr, "Invalid API parameter");
+    CUGRAPH_EXPECTS(dest_col_ptrs != nullptr, "Invalid API parameter");
+    CUGRAPH_EXPECTS(pr_col != nullptr, "Invalid API parameter");
 
     // parameter values
-    GDF_REQUIRE(damping_factor > 0.0, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(damping_factor < 1.0, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(n_iter > 0, GDF_INVALID_API_CALL);
+    CUGRAPH_EXPECTS(damping_factor > 0.0, "Invalid API parameter");
+    CUGRAPH_EXPECTS(damping_factor < 1.0, "Invalid API parameter");
+    CUGRAPH_EXPECTS(n_iter > 0, "Invalid API parameter");
     // number of GPU
     int dev_count;
     cudaGetDeviceCount(&dev_count);
-    cudaCheckError();
-    GDF_REQUIRE(n_gpus > 0, GDF_INVALID_API_CALL);
-    GDF_REQUIRE(n_gpus < static_cast<size_t>(dev_count+1), GDF_INVALID_API_CALL); 
+    CUDA_CHECK_LAST();
+    CUGRAPH_EXPECTS(n_gpus > 0, "Invalid API parameter");
+    CUGRAPH_EXPECTS(n_gpus < static_cast<size_t>(dev_count+1), "Invalid API parameter"); 
 
     // for each GPU
     for (size_t i = 0; i < n_gpus; ++i)
     {
       // src/dest consistency
-      GDF_REQUIRE( src_col_ptrs[i]->size == dest_col_ptrs[i]->size, GDF_COLUMN_SIZE_MISMATCH );
-      GDF_REQUIRE( src_col_ptrs[i]->dtype == dest_col_ptrs[i]->dtype, GDF_UNSUPPORTED_DTYPE );
+      CUGRAPH_EXPECTS( src_col_ptrs[i]->size == dest_col_ptrs[i]->size, "Column size mismatch" );
+      CUGRAPH_EXPECTS( src_col_ptrs[i]->dtype == dest_col_ptrs[i]->dtype, "Unsupported data type" );
       //null mask
-      GDF_REQUIRE( src_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-      GDF_REQUIRE( dest_col_ptrs[i]->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+      CUGRAPH_EXPECTS( src_col_ptrs[i]->null_count == 0 , "Input column has non-zero null count");
+      CUGRAPH_EXPECTS( dest_col_ptrs[i]->null_count == 0 , "Input column has non-zero null count");
       // int 32 edge list indices
-      GDF_REQUIRE( src_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-      GDF_REQUIRE( dest_col_ptrs[i]->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+      CUGRAPH_EXPECTS( src_col_ptrs[i]->dtype == GDF_INT32, "Unsupported data type");
+      CUGRAPH_EXPECTS( dest_col_ptrs[i]->dtype == GDF_INT32, "Unsupported data type");
     }
 
     gdf_error status =  gdf_snmg_pagerank_impl<int, float>(src_col_ptrs, dest_col_ptrs,

@@ -46,6 +46,9 @@ def sssp(graph_ptr, source):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
+    if not 0 <= source < num_verts:                
+        raise ValueError("Starting vertex should be between 0 to number of vertices")
+
     if g.adjList.edge_data:
         data_type = np_dtype_from_gdf_column(g.adjList.edge_data)
     else:

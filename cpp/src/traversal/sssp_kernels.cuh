@@ -22,7 +22,8 @@
 #include <utilities/sm_utils.h>
 #include "utilities/error_utils.h"
 #include "traversal_common.cuh"
-
+namespace cugraph { 
+namespace detail {
 namespace sssp_kernels {
 
 // This is the second pass after relax_edges that sets the active frontier
@@ -588,6 +589,6 @@ void frontier_expand(
       predecessors,
       edge_mask);
 
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 }
-}
+} } } //namespace

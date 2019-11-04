@@ -22,8 +22,8 @@
 #include "rmm_utils.h"
 #include "utilities/graph_utils.cuh"
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace snmg {
 
 // basic info about the snmg env setup
 class SNMGinfo 
@@ -57,7 +57,7 @@ void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
   // After this call each peer has a full, updated, copy of x_glob
   for (int j = 0; j < p; ++j) {
     cudaMemcpyPeer(x_glob[j]+offset[i],j, x_loc,i, n_loc*sizeof(val_t));
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
   
   //Make sure everyone has finished copying before returning
@@ -84,7 +84,7 @@ gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob)
     if((i - rank) % (rank * 2) == 0){
       int receiver = i - rank;
       cudaMemcpyPeer(x_glob[receiver], receiver, x_loc, i, length*sizeof(val_t));
-      cudaCheckError();
+      CUDA_CHECK_LAST();
     }
 
     // Sync everything now. This shouldn't be required as cudaMemcpyPeer is supposed to synchronize...
@@ -99,7 +99,7 @@ gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob)
                         x_loc,
                         x_loc,
                         op);
-      cudaCheckError();
+      CUDA_CHECK_LAST();
     }
     sync_all();
     rank *= 2;
@@ -108,7 +108,7 @@ gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob)
   // Thread 0 copies it's local result into it's global space
   if (i == 0) {
     cudaMemcpy(x_glob[i], x_loc, sizeof(val_t) * length, cudaMemcpyDefault);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   // Sync everything before returning
@@ -136,7 +136,7 @@ gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_gl
     if(i % (rank * 2) == 0 and i + rank < p){
       int receiver = i + rank;
       cudaMemcpyPeer(x_glob[receiver], receiver, x_glob[i], i, sizeof(val_t) * length);
-      cudaCheckError();
+      CUDA_CHECK_LAST();
     }
     sync_all();
   }
@@ -149,4 +149,4 @@ gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_gl
 
 void print_mem_usage();
 
-} //namespace cugraph
+} } //namespace

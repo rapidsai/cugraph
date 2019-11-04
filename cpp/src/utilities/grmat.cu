@@ -236,7 +236,7 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
               (coo.row, coo.col, coo.val, rmat_all_edges);
     }
 
-    cugraph::remove_duplicate (coo.row, coo.col, coo.val, rmat_all_edges);
+    cugraph::detail::remove_duplicate (coo.row, coo.col, coo.val, rmat_all_edges);
 
     thrust::device_ptr<VertexId> tmp;
 
@@ -330,8 +330,8 @@ gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, gdf_
         return GDF_DATASET_EMPTY;
     }
 
-    GDF_REQUIRE ((src->dtype == dest->dtype), GDF_DTYPE_MISMATCH);
-    GDF_REQUIRE (src->null_count == 0, GDF_VALIDITY_UNSUPPORTED);
+    CUGRAPH_EXPECTS ((src->dtype == dest->dtype), GDF_DTYPE_MISMATCH);
+    CUGRAPH_EXPECTS (src->null_count == 0, "Column must be valid");
 
     if (argc < 2 || args.CheckCmdLineFlag("help"))
     {
@@ -365,9 +365,9 @@ gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, gdf_
 
     free_args(argc, arg);
 
-    GDF_REQUIRE((src->size == dest->size), GDF_COLUMN_SIZE_MISMATCH);
-    GDF_REQUIRE ((src->dtype == dest->dtype), GDF_DTYPE_MISMATCH);
-    GDF_REQUIRE (src->null_count == 0, GDF_VALIDITY_UNSUPPORTED);
+    CUGRAPH_EXPECTS((src->size == dest->size), "Column size mismatch");
+    CUGRAPH_EXPECTS ((src->dtype == dest->dtype), GDF_DTYPE_MISMATCH);
+    CUGRAPH_EXPECTS (src->null_count == 0, "Column must be valid");
 
     return status;
 }

@@ -61,18 +61,18 @@ gdf_error gdf_subgraph_matching_impl(gdf_graph *graph_src,
   //
   for(auto&& graph: arr_graph)
     {
-      GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
     
-      GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
     
-      GDF_REQUIRE(row_offsets_(graph) != nullptr, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter");
 
-      GDF_REQUIRE(col_indices_(graph) != nullptr, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter");
     
       auto type_id = graph->adjList->offsets->dtype;
-      GDF_REQUIRE( type_id == GDF_INT32 || type_id == GDF_INT64, GDF_UNSUPPORTED_DTYPE);
+      CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type");
   
-      GDF_REQUIRE( type_id == graph->adjList->indices->dtype, GDF_UNSUPPORTED_DTYPE);
+      CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type");
   
       const SizeT* p_d_row_offsets = row_offsets_(graph);
       const VertexT* p_d_col_ind = col_indices_(graph);
@@ -134,8 +134,8 @@ gdf_error gdf_subgraph_matching(gdf_graph *graph_src,
 
   //currently Gunrock's API requires that graph's col indices and subgraphs must be same type:
   //
-  GDF_REQUIRE( subg_dtype == ci_src_dtype, GDF_INVALID_API_CALL);
-  GDF_REQUIRE( subg_dtype == ci_qry_dtype, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS( subg_dtype == ci_src_dtype, "Invalid API parameter");
+  CUGRAPH_EXPECTS( subg_dtype == ci_qry_dtype, "Invalid API parameter");
 
   //TODO: hopefully multi-type-dispatch on various combos of types:
   //
