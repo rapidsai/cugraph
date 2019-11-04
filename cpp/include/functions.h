@@ -15,6 +15,7 @@
  */
 #pragma once 
 
+namespace cugraph {
 /* ----------------------------------------------------------------------------*/
 
 /**
@@ -41,7 +42,7 @@
  *  @Returns    GDF_SUCCESS on success, an error code on failure.
  *              GDF_COLUMN_SIZE_TOO_BIG if the number of unique vertices is > 2^31-1.
  */
-gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
+void renumber_vertices(const gdf_column *src, const gdf_column *dst,
 				gdf_column *src_renumbered, gdf_column *dst_renumbered,
 				gdf_column *numbering_map);
 
@@ -62,7 +63,7 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_edge_list_view(gdf_graph *graph,
+void edge_list_view(gdf_graph *graph,
                              const gdf_column *source_indices,
                              const gdf_column *destination_indices,
                              const gdf_column *edge_data);
@@ -84,7 +85,7 @@ gdf_error gdf_edge_list_view(gdf_graph *graph,
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_adj_list_view (gdf_graph *graph,
+void adj_list_view (gdf_graph *graph,
                              const gdf_column *offsets,
                              const gdf_column *indices,
                              const gdf_column *edge_data);
@@ -100,7 +101,7 @@ gdf_error gdf_adj_list_view (gdf_graph *graph,
  * @Returns                          GDF_SUCCESS upon successful completion. If graph->edgeList is nullptr then GDF_INVALID_API_CALL is returned.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_add_adj_list(gdf_graph *graph);
+void add_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Create the transposed adjacency list from the edge list of a gdf_graph.
@@ -115,7 +116,7 @@ gdf_error gdf_add_adj_list(gdf_graph *graph);
  */
 /* ----------------------------------------------------------------------------*/
 
-gdf_error gdf_add_transposed_adj_list(gdf_graph *graph);
+void add_transposed_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Create the edge lists of a gdf_graph from its adjacency list.
@@ -128,7 +129,7 @@ gdf_error gdf_add_transposed_adj_list(gdf_graph *graph);
  * @Returns                          GDF_SUCCESS upon successful completion. If graph->adjList is nullptr then GDF_INVALID_API_CALL is returned.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_add_edge_list(gdf_graph *graph);
+void add_edge_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the adjacency list of a gdf_graph
@@ -139,7 +140,7 @@ gdf_error gdf_add_edge_list(gdf_graph *graph);
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_delete_adj_list(gdf_graph *graph);
+void delete_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the edge list of a gdf_graph
@@ -150,7 +151,7 @@ gdf_error gdf_delete_adj_list(gdf_graph *graph);
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_delete_edge_list(gdf_graph *graph);
+void delete_edge_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Deletes the transposed adjacency list of a gdf_graph
@@ -161,7 +162,7 @@ gdf_error gdf_delete_edge_list(gdf_graph *graph);
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph);
+void delete_transposed_adj_list(gdf_graph *graph);
 
 /**
  * @Synopsis   Find pairs of vertices in the input graph such that each pair is connected by
@@ -177,7 +178,7 @@ gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph);
  * @return                           GDF_SUCCESS upon successful completion. 
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
+void get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
 
 /**
  * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
@@ -198,7 +199,7 @@ gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_col
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
+void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
 
 /**
  * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a gdf_graph
@@ -215,7 +216,7 @@ gdf_error gdf_snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * 
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x);
+void degree(gdf_graph *graph, gdf_column *degree, int x);
 int get_device(const void *ptr);
 
 /**
@@ -227,4 +228,6 @@ int get_device(const void *ptr);
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_number_of_vertices(gdf_graph *graph);
+void number_of_vertices(gdf_graph *graph);
+
+} //namespace cugraph

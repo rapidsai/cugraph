@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #pragma once
-
+namespace cugraph {
 void gdf_col_delete(gdf_column* col);
 
 void gdf_col_release(gdf_column* col);
@@ -90,15 +90,17 @@ struct gdf_dynamic{
   void *data; // handle to the dynamic graph struct
 };
 
-struct gdf_graph{
+// TODO : improve graph class 
+// 
+class Graph{
   gdf_edge_list *edgeList; // COO
   gdf_adj_list *adjList; //CSR
   gdf_adj_list *transposedAdjList; //CSC
   gdf_dynamic *dynAdjList; //dynamic 
   gdf_graph_properties *prop;
   gdf_size_type numberOfVertices;
-  gdf_graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
-  ~gdf_graph() {
+  Graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
+  ~Graph() {
     if (edgeList) 
         delete edgeList;
     if (adjList) 
@@ -111,3 +113,4 @@ struct gdf_graph{
         delete prop;
   }
 };
+} //namespace cugraph

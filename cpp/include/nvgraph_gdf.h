@@ -23,6 +23,7 @@
 
 #include <cugraph.h>
 
+namespace cugraph {
 /**
  * Takes a GDF graph and wraps its data with an Nvgraph graph object.
  * @param nvg_handle The Nvgraph handle
@@ -32,7 +33,7 @@
  * @return Error code
  */
 //gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-//                                  gdf_graph* gdf_G,
+//                                  Graph* gdf_G,
 //                                  nvgraphGraphDescr_t * nvgraph_G,
 //                                  bool use_transposed = false);
 
@@ -43,7 +44,7 @@
  * @param sssp_distances Pointer to a GDF column in which the resulting distances will be stored
  * @return Error code
  */
-gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G, const int *source_vert, gdf_column *sssp_distances);
+void sssp_nvgraph(Graph* gdf_G, const int *source_vert, gdf_column *sssp_distances);
 
 /**
  * Wrapper function for Nvgraph balanced cut clustering
@@ -60,7 +61,7 @@ gdf_error gdf_sssp_nvgraph(gdf_graph *gdf_G, const int *source_vert, gdf_column 
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
  * @return Error code
  */
-gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
+void balancedCutClustering_nvgraph(Graph* gdf_G,
 					    const int num_clusters,
 					    const int num_eigen_vects,
 					    const float evs_tolerance,
@@ -83,7 +84,7 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
  * @return
  */
-gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
+void spectralModularityMaximization_nvgraph(Graph* gdf_G,
 						     const int n_clusters,
 						     const int n_eig_vects,
 						     const float evs_tolerance,
@@ -100,7 +101,7 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
  * @param score Pointer to a float in which the result will be written
  * @return Error code
  */
-gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
                                                    const int n_clusters,
                                                    gdf_column* clustering,
                                                    float* score);
@@ -113,7 +114,7 @@ gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
  * @param score Pointer to a float in which the result will be written
  * @return Error code
  */
-gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
 						 const int n_clusters,
 						 gdf_column* clustering,
 						 float* score);
@@ -126,7 +127,7 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
  * @param score Pointer to a float in which the result will be written
  * @return Error code
  */
-gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
 						  const int n_clusters,
 						  gdf_column* clustering,
 						  float* score);
@@ -138,13 +139,16 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
  * @param result Pointer to GDF graph object, this is the output must be a valid pointer
  * @return Error code
  */
-gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
+void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
                                               gdf_column* vertices,
-                                              gdf_graph* result);
+                                              Graph* result);
 /**
  * Wrapper function for Nvgraph triangle counting
  * @param G Pointer to GDF graph object
  * @param result Pointer to a uint64_t in which the result will be written
  * @return Error code
  */
-gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result);
+void triangle_count_nvgraph(Graph* G, uint64_t* result);
+
+
+} //namespace cugraph

@@ -17,6 +17,8 @@
 
 #include "algo_types.h"
 
+namespace cugraph {
+  
 /**
  * @Synopsis   Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
  * The number of iterations depends on the properties of the network itself; it increases when the tolerance descreases and/or alpha increases toward the limiting value of 1.
@@ -43,7 +45,7 @@
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_pagerank(gdf_graph *graph,
+void pagerank(Graph* graph,
                        gdf_column *pagerank,
                        gdf_column *personalization_subset,
                        gdf_column *personalization_values,
@@ -83,7 +85,7 @@ gdf_error gdf_pagerank(gdf_graph *graph,
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_grmat_gen(const char* argv,
+void grmat_gen(const char* argv,
                         size_t &vertices,
                         size_t &edges,
                         gdf_column* src,
@@ -106,7 +108,7 @@ gdf_error gdf_grmat_gen(const char* argv,
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_bfs(gdf_graph *graph,
+void bfs(Graph* graph,
                   gdf_column *distances,
                   gdf_column *predecessors,
                   int start_vertex,
@@ -125,7 +127,7 @@ gdf_error gdf_bfs(gdf_graph *graph,
  * @Returns                          GDF_SUCCESS upon successful completion.    
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_sssp(gdf_graph *graph,                                            
+void sssp(Graph* graph,                                            
         		gdf_column *distances,                                                  
         		gdf_column *predecessors,                                               
           		const int source_vertex);                                               
@@ -138,7 +140,7 @@ gdf_error gdf_sssp(gdf_graph *graph,
  * @param result The result values are stored here, memory needs to be pre-allocated
  * @return Error code
  */
-gdf_error gdf_jaccard(gdf_graph *graph,
+void jaccard(Graph* graph,
                       gdf_column *weights,
                       gdf_column *result);
 
@@ -153,7 +155,7 @@ gdf_error gdf_jaccard(gdf_graph *graph,
  * @param result The result values are stored here, memory needs to be pre-allocated.
  * @return Error code
  */
-gdf_error gdf_jaccard_list(gdf_graph *graph,
+void jaccard_list(Graph* graph,
                            gdf_column *weights,
                            gdf_column *first,
                            gdf_column *second,
@@ -168,7 +170,7 @@ gdf_error gdf_jaccard_list(gdf_graph *graph,
  * @param result The result values are stored here, memory needs to be pre-allocated.
  * @return Error code
  */
-gdf_error gdf_overlap(gdf_graph *graph,
+void overlap(Graph* graph,
                       gdf_column *weights,
                       gdf_column *result);
 
@@ -183,13 +185,13 @@ gdf_error gdf_overlap(gdf_graph *graph,
  * @param result The result values are stored here, memory needs to be pre-allocated
  * @return Error code
  */
-gdf_error gdf_overlap_list(gdf_graph *graph,
+void overlap_list(Graph* graph,
                            gdf_column *weights,
                            gdf_column *first,
                            gdf_column *second,
                            gdf_column *result);
 
-gdf_error gdf_louvain(gdf_graph *graph,
+void louvain(Graph* graph,
                       void *final_modularity,
                       void *num_level,
                       gdf_column *louvain_parts);
@@ -204,7 +206,7 @@ gdf_error gdf_louvain(gdf_graph *graph,
  * @param x_cols The results (located on each GPU)
  * @return Error code
  */
-gdf_error gdf_snmg_degree(int x,
+void snmg_degree(int x,
                           size_t* part_offsets,
                           gdf_column* off,
                           gdf_column* ind,
@@ -223,7 +225,7 @@ gdf_error gdf_snmg_degree(int x,
  * @param csrVal The local partition's CSR Values (output)
  * @return Error code
  */
-gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
+void snmg_coo2csr(size_t* part_offsets,
                            bool free_input,
                            void** comm1,
                            gdf_column* cooRow,
@@ -254,7 +256,7 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
  * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
  * @param table of 2 gdf_columns: output labels and vertex indices [out]
  */
- gdf_error gdf_connected_components(gdf_graph *graph,
+ void connected_components(Graph* graph,
                                     cugraph_cc_t connectivity_type,
                                     cudf::table *table);
 
@@ -271,7 +273,7 @@ Find the PageRank vertex values for a graph. cuGraph computes an approximation o
 
  * @return Error code
  */
-gdf_error gdf_snmg_pagerank (
+void snmg_pagerank (
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
             gdf_column *pr_col_ptrs, 
@@ -310,7 +312,7 @@ gdf_error gdf_snmg_pagerank (
  * @Returns                          GDF_SUCCESS upon successful completion.    
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_katz_centrality(gdf_graph *graph,                                         
+void katz_centrality(Graph* graph,                                         
         		gdf_column *katz_centrality,
             double alpha,
             int max_iter,
@@ -328,7 +330,7 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
  * @Returns                          GDF_SUCCESS upon successful completion.    
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_core_number(gdf_graph *graph,                                         
+void core_number(Graph* graph,                                         
         		gdf_column *core_number);
 
 /**                                                                             
@@ -347,8 +349,9 @@ gdf_error gdf_core_number(gdf_graph *graph,
  * @Returns                          GDF_SUCCESS upon successful completion.    
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_k_core(gdf_graph *in_graph,
+void k_core(Graph* in_graph,
                      int k,
                      gdf_column *vertex_id,
                      gdf_column *core_number,
-                     gdf_graph *out_graph);
+                     Graph* out_graph);
+} //namespace cugraph
