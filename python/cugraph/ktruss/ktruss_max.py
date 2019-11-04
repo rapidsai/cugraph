@@ -67,9 +67,9 @@ def ktruss_max(G):
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
-    >>> kc = cugraph.ktruss_max(G)
+    >>> k_max = cugraph.ktruss_max(G)
     """
 
-    k_max = ktruss_max_wrapper.ktruss_max(G.graph_ptr,)
+    k_max = ktruss_max_wrapper.ktruss_max(G.graph_ptr)
 
     return k_max
