@@ -352,3 +352,17 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
                      gdf_column *vertex_id,
                      gdf_column *core_number,
                      gdf_graph *out_graph);
+
+/**                                                                             
+ * @Synopsis  Get the maximal k for which a k-truss exists in the graph.
+ *                                                                              
+ * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] k                     Maximal k-truss found in graph.
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_k_truss_max(gdf_graph *in_graph,
+                          int* k_max);
+
