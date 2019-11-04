@@ -42,5 +42,8 @@ def subgraph(graph_ptr, vertices, subgraph_ptr):
     cdef gdf_graph* rg = <gdf_graph*>rGraph
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
+    err = gdf_add_adj_list(g)
+    libcudf.cudf.check_gdf_error(err)
+
     err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
     libcudf.cudf.check_gdf_error(err)

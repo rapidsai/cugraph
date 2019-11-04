@@ -24,7 +24,8 @@
 #include "rmm_utils.h"
 #include "utilities/error_utils.h"
 
-namespace cugraph {
+namespace cugraph { 
+namespace detail {
   // Volume of neighboors (*weight_s)
   template<bool weighted, typename IdxType, typename ValType>
   __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -343,17 +344,15 @@ namespace cugraph {
 
     return 0;
   }
-} // End cugraph namespace
+} } //namespace
 
 gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
-  GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((graph->adjList != nullptr) || (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE(result != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(result->data != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(!result->valid, GDF_VALIDITY_UNSUPPORTED);
 
-  GDF_TRY(gdf_add_adj_list(graph));
-  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
 
   bool weighted = (weights != nullptr);
 
@@ -376,7 +375,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard<true, int32_t, float>(n,
+    cugraph::detail::jaccard<true, int32_t, float>(n,
                                            e,
                                            (int32_t*) csrPtr,
                                            (int32_t*) csrInd,
@@ -392,7 +391,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard<false, int32_t, float>(n,
+    cugraph::detail::jaccard<false, int32_t, float>(n,
                                             e,
                                             (int32_t*) csrPtr,
                                             (int32_t*) csrInd,
@@ -408,7 +407,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard<true, int32_t, double>(n,
+    cugraph::detail::jaccard<true, int32_t, double>(n,
                                             e,
                                             (int32_t*) csrPtr,
                                             (int32_t*) csrInd,
@@ -424,7 +423,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard<false, int32_t, double>(n,
+    cugraph::detail::jaccard<false, int32_t, double>(n,
                                              e,
                                              (int32_t*) csrPtr,
                                              (int32_t*) csrInd,
@@ -440,7 +439,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard<true, int64_t, float>(n,
+    cugraph::detail::jaccard<true, int64_t, float>(n,
                                            e,
                                            (int64_t*) csrPtr,
                                            (int64_t*) csrInd,
@@ -456,7 +455,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard<false, int64_t, float>(n,
+    cugraph::detail::jaccard<false, int64_t, float>(n,
                                             e,
                                             (int64_t*) csrPtr,
                                             (int64_t*) csrInd,
@@ -472,7 +471,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard<true, int64_t, double>(n,
+    cugraph::detail::jaccard<true, int64_t, double>(n,
                                             e,
                                             (int64_t*) csrPtr,
                                             (int64_t*) csrInd,
@@ -488,7 +487,7 @@ gdf_error gdf_jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result)
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard<false, int64_t, double>(n,
+    cugraph::detail::jaccard<false, int64_t, double>(n,
                                              e,
                                              (int64_t*) csrPtr,
                                              (int64_t*) csrInd,
@@ -512,29 +511,27 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
                            gdf_column* first,
                            gdf_column* second,
                            gdf_column* result) {
-  GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE((graph->adjList != nullptr) || (graph->edgeList != nullptr), GDF_INVALID_API_CALL);
-  GDF_REQUIRE(result != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(result->data != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(!result->valid, GDF_VALIDITY_UNSUPPORTED);
 
-  GDF_REQUIRE(first != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(first->data != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(!first->valid, GDF_VALIDITY_UNSUPPORTED);
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
 
-  GDF_REQUIRE(second != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(second->data != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(!second->valid, GDF_VALIDITY_UNSUPPORTED);
+  CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(first->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(!first->valid, "Column must be valid");
 
-  GDF_TRY(gdf_add_adj_list(graph));
-  GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(second->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(!second->valid, "Column must be valid");
 
   bool weighted = (weights != nullptr);
 
   gdf_dtype ValueType = result->dtype;
   gdf_dtype IndexType = graph->adjList->offsets->dtype;
-  GDF_REQUIRE(first->dtype == IndexType, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(second->dtype == IndexType, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(first->dtype == IndexType, "Invalid API parameter");
+  CUGRAPH_EXPECTS(second->dtype == IndexType, "Invalid API parameter");
 
   void *first_pair = first->data;
   void *second_pair = second->data;
@@ -554,7 +551,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard_pairs<true, int32_t, float>(n,
+    cugraph::detail::jaccard_pairs<true, int32_t, float>(n,
                                                  num_pairs,
                                                  (int32_t*) csrPtr,
                                                  (int32_t*) csrInd,
@@ -573,7 +570,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard_pairs<false, int32_t, float>(n,
+    cugraph::detail::jaccard_pairs<false, int32_t, float>(n,
                                                   num_pairs,
                                                   (int32_t*) csrPtr,
                                                   (int32_t*) csrInd,
@@ -592,7 +589,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard_pairs<true, int32_t, double>(n,
+    cugraph::detail::jaccard_pairs<true, int32_t, double>(n,
                                                   num_pairs,
                                                   (int32_t*) csrPtr,
                                                   (int32_t*) csrInd,
@@ -611,7 +608,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard_pairs<false, int32_t, double>(n,
+    cugraph::detail::jaccard_pairs<false, int32_t, double>(n,
                                                    num_pairs,
                                                    (int32_t*) csrPtr,
                                                    (int32_t*) csrInd,
@@ -630,7 +627,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard_pairs<true, int64_t, float>(n,
+    cugraph::detail::jaccard_pairs<true, int64_t, float>(n,
                                                  num_pairs,
                                                  (int64_t*) csrPtr,
                                                  (int64_t*) csrInd,
@@ -649,7 +646,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
-    cugraph::jaccard_pairs<false, int64_t, float>(n,
+    cugraph::detail::jaccard_pairs<false, int64_t, float>(n,
                                                   num_pairs,
                                                   (int64_t*) csrPtr,
                                                   (int64_t*) csrInd,
@@ -668,7 +665,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard_pairs<true, int64_t, double>(n,
+    cugraph::detail::jaccard_pairs<true, int64_t, double>(n,
                                                   num_pairs,
                                                   (int64_t*) csrPtr,
                                                   (int64_t*) csrInd,
@@ -687,7 +684,7 @@ gdf_error gdf_jaccard_list(gdf_graph* graph,
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
-    cugraph::jaccard_pairs<false, int64_t, double>(n,
+    cugraph::detail::jaccard_pairs<false, int64_t, double>(n,
                                                    num_pairs,
                                                    (int64_t*) csrPtr,
                                                    (int64_t*) csrInd,

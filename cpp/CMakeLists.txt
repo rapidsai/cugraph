@@ -261,7 +261,6 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-#    src/utilities/grmat.cu
 	src/db/db_object.cu
 	src/db/db_parser_integration_test.cu
 	src/db/db_operators.cu

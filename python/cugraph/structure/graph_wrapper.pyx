@@ -74,6 +74,16 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
 
+    # Checks in python
+    if len(source_col) != len(dest_col):
+        raise ValueError("Source and Destination length mismatch")
+    if source_col.dtype.type is not np.int32:
+        source_col = source_col.astype(np.int32)
+    if dest_col.dtype.type is not np.int32:
+        dest_col = dest_col.astype(np.int32)
+    if value_col is not None and value_col.dtype.type is not np.float32 and value_col.dtype.type is not np.float64:
+        value_col = value_col.astype(np.float32) 
+
     cdef gdf_column c_source_col = get_gdf_column_view(source_col)
     cdef gdf_column c_dest_col = get_gdf_column_view(dest_col)
     cdef gdf_column c_value_col
@@ -143,6 +153,13 @@ def delete_edge_list(graph_ptr):
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
+
+    if offset_col.dtype.type is not np.int32:
+        offset_col = offset_col.astype(np.int32)
+    if index_col.dtype.type is not np.int32:
+        index_col = index_col.astype(np.int32)
+    if value_col is not None and value_col.dtype.type is not np.float32 and value_col.dtype.type is not np.float64:
+        value_col = value_col.astype(np.float32)
 
     cdef gdf_column c_offset_col = get_gdf_column_view(offset_col)
     cdef gdf_column c_index_col = get_gdf_column_view(index_col)

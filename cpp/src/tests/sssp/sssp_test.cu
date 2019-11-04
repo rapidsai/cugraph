@@ -5,7 +5,7 @@
  * and proprietary rights in and to this software, related documentation
  * and any modifications thereto.  Any use, reproduction, disclosure or
  * distribution of this software and related documentation without an express
- * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ * license agreement from NVIDIA CORPORATION is strictly prohibited
  *
  */
 
@@ -283,8 +283,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     }
 
     gdf_graph G;
-    ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights),
-              GDF_SUCCESS);
+    CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights));
+    CUGRAPH_TRY(gdf_add_adj_list(G.get()));
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;
@@ -318,7 +318,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       cudaDeviceSynchronize();
     }
 
-    ASSERT_EQ(ret, GDF_SUCCESS);
+    ASSERT_EQ(ret);
 
     // MTX may have zero-degree vertices. So reset num_vertices after
     // conversion to CSR
