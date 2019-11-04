@@ -64,15 +64,15 @@ gdf_error ktruss_max_impl(gdf_graph *graph,
 gdf_error gdf_k_truss_max(gdf_graph *graph,
                           int *k_max) {
   // GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
-  GDF_REQUIRE(graph->edgeList->src_indices != nullptr || graph->edgeList->dest_indices != nullptr, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr || graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
 
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
     return err;
   // GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   // GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(graph->edgeList->src_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(graph->edgeList->dest_indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
 
 
 
