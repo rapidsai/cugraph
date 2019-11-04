@@ -94,7 +94,7 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
         c_value_col = get_gdf_column_view(value_col)
         c_value_col_ptr = &c_value_col
 
-    err = gdf_edge_list_view(g,
+    err = cugraph::edge_list_view(g,
                              &c_source_col,
                              &c_dest_col,
                              c_value_col_ptr)
@@ -103,7 +103,7 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
 def view_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    err = gdf_add_edge_list(g)
+    err = cugraph::add_edge_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_edges() to gdf_graph (and this should be
@@ -145,9 +145,9 @@ def view_edge_list(graph_ptr):
 
     return source_col, dest_col, value_col
 
-def delete_edge_list(graph_ptr):
+def cugraph::delete_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    err = gdf_delete_edge_list(<gdf_graph*> graph)
+    err = cugraph::delete_edge_list(<gdf_graph*> graph)
     libcudf.cudf.check_gdf_error(err)
 
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
@@ -171,7 +171,7 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
         c_value_col = get_gdf_column_view(value_col)
         c_value_col_ptr = &c_value_col
 
-    err = gdf_adj_list_view(g,
+    err = cugraph::adj_list_view(g,
                             &c_offset_col,
                             &c_index_col,
                             c_value_col_ptr)
@@ -180,7 +180,7 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
 def view_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     offset_col_size = g.adjList.offsets.size
@@ -226,18 +226,18 @@ def delete_adj_list(graph_ptr):
     Delete the adjacency list.
     """
     cdef uintptr_t graph = graph_ptr
-    err = gdf_delete_adj_list(<gdf_graph*> graph)
+    err = cugraph::delete_adj_list(<gdf_graph*> graph)
     libcudf.cudf.check_gdf_error(err)
 
 def add_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    err = gdf_add_transposed_adj_list(<gdf_graph*> graph)
+    err = cugraph::add_transposed_adj_list(<gdf_graph*> graph)
     libcudf.cudf.check_gdf_error(err)
 
 def view_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
-    err = gdf_add_transposed_adj_list(g)
+    err = cugraph::add_transposed_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     offset_col_size = g.transposedAdjList.offsets.size
@@ -283,7 +283,7 @@ def delete_transposed_adj_list(graph_ptr):
     Delete the transposed adjacency list.
     """
     cdef uintptr_t graph = graph_ptr
-    err = gdf_delete_transposed_adj_list(<gdf_graph*> graph)
+    err = cugraph::delete_transposed_adj_list(<gdf_graph*> graph)
     libcudf.cudf.check_gdf_error(err)
 
 def get_two_hop_neighbors(graph_ptr):
@@ -291,7 +291,7 @@ def get_two_hop_neighbors(graph_ptr):
     cdef gdf_graph * g = <gdf_graph*> graph
     cdef gdf_column c_first_col
     cdef gdf_column c_second_col
-    err = gdf_get_two_hop_neighbors(g, &c_first_col, &c_second_col)
+    err = cugraph::get_two_hop_neighbors(g, &c_first_col, &c_second_col)
     libcudf.cudf.check_gdf_error(err)
     df = cudf.DataFrame()
     if c_first_col.dtype == GDF_INT32:
@@ -319,7 +319,7 @@ def number_of_vertices(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
     if g.numberOfVertices == 0:
-        err = gdf_number_of_vertices(g)
+        err = cugraph::number_of_vertices(g)
         libcudf.cudf.check_gdf_error(err)
 
     return g.numberOfVertices
@@ -341,7 +341,7 @@ def _degree(graph_ptr, x=0):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -354,7 +354,7 @@ def _degree(graph_ptr, x=0):
 
     degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_degree_col = get_gdf_column_view(degree_col)
-    err = gdf_degree(g, &c_degree_col, <int>x)
+    err = cugraph::degree(g, &c_degree_col, <int>x)
     libcudf.cudf.check_gdf_error(err)
 
     return vertex_col, degree_col
@@ -363,7 +363,7 @@ def _degrees(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*> graph
 
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
@@ -376,12 +376,12 @@ def _degrees(graph_ptr):
 
     in_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_in_degree_col = get_gdf_column_view(in_degree_col)
-    err = gdf_degree(g, &c_in_degree_col, <int>1)
+    err = cugraph::degree(g, &c_in_degree_col, <int>1)
     libcudf.cudf.check_gdf_error(err)
 
     out_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_out_degree_col = get_gdf_column_view(out_degree_col)
-    err = gdf_degree(g, &c_out_degree_col, <int>2)
+    err = cugraph::degree(g, &c_out_degree_col, <int>2)
     libcudf.cudf.check_gdf_error(err)
 
     return vertex_col, in_degree_col, out_degree_col

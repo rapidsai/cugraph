@@ -34,7 +34,9 @@
 
 #include <rmm_utils.h>
 
-gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
+namespace cugraph {
+
+void balancedCutClustering_nvgraph(gdf_graph* gdf_G,
                                             const int num_clusters,
                                             const int num_eigen_vects,
                                             const float evs_tolerance,
@@ -56,7 +58,7 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
         rmm::device_vector<double> d_val;
 
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  CUGRAPH_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
   int weight_index = 0;
 
   cudaStream_t stream{nullptr};
@@ -81,7 +83,7 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
         settype = CUDA_R_64F;
         break;
       default:
-        return GDF_UNSUPPORTED_DTYPE;
+        CUGRAPH_FAIL("Unsupported data type");
     }
   }
 
@@ -111,10 +113,10 @@ gdf_error gdf_balancedCutClustering_nvgraph(gdf_graph* gdf_G,
   NVG_TRY(err);
   NVG_TRY(nvgraphDestroyGraphDescr(nvg_handle, nvgraph_G));
   NVG_TRY(nvgraphDestroy(nvg_handle));
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
+void spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
                                                       const int n_clusters,
                                                       const int n_eig_vects,
                                                       const float evs_tolerance,
@@ -136,7 +138,7 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  CUGRAPH_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
   int weight_index = 0;
 
   // Pack parameters for call to Nvgraph
@@ -164,10 +166,10 @@ gdf_error gdf_spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
   NVG_TRY(err);
   NVG_TRY(nvgraphDestroyGraphDescr(nvg_handle, nvgraph_G));
   NVG_TRY(nvgraphDestroy(nvg_handle));
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
                                                     const int n_clusters,
                                                     gdf_column* clustering,
                                                     float* score) {
@@ -183,7 +185,7 @@ gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  CUGRAPH_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
   int weight_index = 0;
 
   // Make Nvgraph call
@@ -195,10 +197,10 @@ gdf_error gdf_AnalyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
                                     (const int* )clustering->data,
                                     NVGRAPH_MODULARITY,
                                     score));
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
                                                   const int n_clusters,
                                                   gdf_column* clustering,
                                                   float* score) {
@@ -216,7 +218,7 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
         rmm::device_vector<double> d_val;
 
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  CUGRAPH_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
   int weight_index = 0;
 
   cudaStream_t stream{nullptr};
@@ -241,7 +243,7 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
         settype = CUDA_R_64F;
         break;
       default:
-        return GDF_UNSUPPORTED_DTYPE;
+        CUGRAPH_FAIL("Unsupported data type");
       }
   }
 
@@ -254,10 +256,10 @@ gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
                                     (const int* )clustering->data,
                                     NVGRAPH_EDGE_CUT,
                                     score));
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
                                                   const int n_clusters,
                                                   gdf_column* clustering,
                                                   float* score) {
@@ -273,7 +275,7 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  CUGRAPH_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
   int weight_index = 0;
 
   // Make Nvgraph call
@@ -285,11 +287,11 @@ gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
                                     (const int* )clustering->data,
                                     NVGRAPH_RATIO_CUT,
                                     score));
-  return GDF_SUCCESS;
+  
 }
 
 
-gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
+void extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
                                               gdf_column* vertices,
                                               gdf_graph* result) {
 
@@ -303,7 +305,7 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvg_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  CUGRAPH_TRY(gdf_createGraph_nvgraph(nvg_handle, gdf_G, &nvg_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvg_G, false));
 
   // Create an Nvgraph graph descriptor for the result and initialize
   nvgraphGraphDescr_t nvg_result = nullptr;
@@ -323,7 +325,7 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
   nvgraphTopologyType_t TT = NVGRAPH_CSR_32;
   NVG_TRY(nvgraphGetGraphStructure(nvg_handle, nvg_result, (void*)&topo, &TT));
   if (TT != NVGRAPH_CSR_32)
-    return GDF_C_ERROR;
+    CUGRAPH_FAIL("Unsupported nvgraph topology");
   int num_verts = topo.nvertices;
   int num_edges = topo.nedges;
   result->adjList = new gdf_adj_list;
@@ -353,10 +355,10 @@ gdf_error gdf_extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
   topo.destination_indices = (int*)result->adjList->indices->data;
   NVG_TRY(nvgraphGetGraphStructure(nvg_handle, nvg_result, (void*)&topo, &TT));
 
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
+void triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
   
   CUGRAPH_EXPECTS(G != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(G->adjList != nullptr, "Invalid API parameter");
@@ -365,14 +367,14 @@ gdf_error gdf_triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvg_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  CUGRAPH_TRY(gdf_createGraph_nvgraph(nvg_handle, G, &nvg_G, false));
+  createGraph_nvgraph(nvg_handle, G, &nvg_G, false));
 
   // Make Nvgraph call
   NVG_TRY(nvgraphTriangleCount(nvg_handle, nvg_G, result));
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
+void louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
@@ -412,5 +414,7 @@ gdf_error gdf_louvain(gdf_graph *graph, void *final_modularity, void *num_level,
 
   nvgraphLouvain(index_type, val_type, n, e, offsets_ptr, indices_ptr, value_ptr, 1, 0, NULL,
                  final_modularity, louvain_parts_ptr, num_level);
-  return GDF_SUCCESS;
+  
 }
+
+} //namespace cugraph

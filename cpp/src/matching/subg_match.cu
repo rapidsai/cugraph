@@ -14,6 +14,9 @@
 
 //#define _DEBUG_SM_
 
+namespace cugraph {
+namespace detail {
+
 //
 /**
  * @brief Subgraph matching. 
@@ -30,7 +33,7 @@
 template <typename VertexT,
           typename SizeT,
           typename GValueT>
-gdf_error gdf_subgraph_matching_impl(gdf_graph *graph_src,
+void subgraph_matching_impl(gdf_graph *graph_src,
                                      gdf_graph *graph_query,
                                      VertexT* subgraphs,
                                      cudaStream_t stream = nullptr)
@@ -97,8 +100,10 @@ gdf_error gdf_subgraph_matching_impl(gdf_graph *graph_src,
   //                     1,
   //                     subgraphs);
     
-  return GDF_SUCCESS;
+  
 }
+
+} //detail
 
 /**
  * @brief Subgraph matching. 
@@ -108,7 +113,7 @@ gdf_error gdf_subgraph_matching_impl(gdf_graph *graph_src,
  * @param  graph_query input query graph (to search for); assumed undirected [in]
  * @param  subgraphs   Return number of matched subgraphs [out]
  */
-gdf_error gdf_subgraph_matching(gdf_graph *graph_src,
+void subgraph_matching(gdf_graph *graph_src,
                                 gdf_graph *graph_query,
                                 gdf_column* subgraphs)
 
@@ -140,5 +145,7 @@ gdf_error gdf_subgraph_matching(gdf_graph *graph_src,
   //TODO: hopefully multi-type-dispatch on various combos of types:
   //
   int* p_d_subg = static_cast<int*>(subgraphs->data);
-  return gdf_subgraph_matching_impl<int, int, unsigned long>(graph_src, graph_query, p_d_subg);
+  return detail::subgraph_matching_impl<int, int, unsigned long>(graph_src, graph_query, p_d_subg);
 }
+
+} //namespace cugraph 

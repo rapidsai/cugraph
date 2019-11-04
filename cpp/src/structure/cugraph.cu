@@ -33,6 +33,7 @@
  * solution.
  */
 
+namespace cugraph {
 int get_device(const void *ptr) {
     cudaPointerAttributes att;
     cudaPointerGetAttributes(&att, ptr);
@@ -71,7 +72,7 @@ void cpy_column_view(const gdf_column *in, gdf_column *out) {
   }
 }
 
-gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
+void adj_list_view(gdf_graph *graph, const gdf_column *offsets,
                             const gdf_column *indices,
                             const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
@@ -144,18 +145,18 @@ gdf_error gdf_adj_list_view(gdf_graph *graph, const gdf_column *offsets,
   }
 
   graph->numberOfVertices = graph->adjList->offsets->size - 1;
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_adj_list::get_vertex_identifiers(gdf_column *identifiers) {
+void get_vertex_identifiers(gdf_column *identifiers) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
   cugraph::detail::sequence<int>((int)offsets->size-1, (int*)identifiers->data);
 
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
+void get_source_indices (gdf_column *src_indices) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( src_indices->size == indices->size, "Column size mismatch" );
@@ -164,10 +165,10 @@ gdf_error gdf_adj_list::get_source_indices (gdf_column *src_indices) {
   
   cugraph::detail::offsets_to_indices<int>((int*)offsets->data, offsets->size-1, (int*)src_indices->data);
 
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
+void edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
                              const gdf_column *dest_indices, 
                              const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
@@ -243,20 +244,17 @@ gdf_error gdf_edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
     graph->prop->has_negative_edges = GDF_PROP_FALSE;
   }
 
-  gdf_error status;
-  status = cugraph::detail::indexing_check<int> (
+  cugraph::detail::indexing_check<int> (
                                 static_cast<int*>(graph->edgeList->src_indices->data), 
                                 static_cast<int*>(graph->edgeList->dest_indices->data), 
                                 graph->edgeList->dest_indices->size);
-
-  return status;
 }
 
 template <typename T, typename WT>
-gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
+void add_adj_list_impl (gdf_graph *graph) {
     if (graph->adjList == nullptr) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
-      int nnz = graph->edgeList->src_indices->size, status = 0;
+      int nnz = graph->edgeList->src_indices->size;
       graph->adjList = new gdf_adj_list;
       graph->adjList->offsets = new gdf_column;
       graph->adjList->indices = new gdf_column;
@@ -266,7 +264,7 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
       graph->adjList->edge_data = new gdf_column;
 
       CSR_Result_Weighted<int32_t,WT> adj_list;
-      status = ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
+      CUGRAPH_TRY(ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list));
 
       gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets,
                             nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
@@ -277,23 +275,17 @@ gdf_error gdf_add_adj_list_impl (gdf_graph *graph) {
     }
     else {
       CSR_Result<int> adj_list;
-      status = ConvertCOOtoCSR((int*)graph->edgeList->src_indices->data,(int*)graph->edgeList->dest_indices->data, nnz, adj_list);
+      CUGRAPH_TRY(ConvertCOOtoCSR((int*)graph->edgeList->src_indices->data,(int*)graph->edgeList->dest_indices->data, nnz, adj_list));
       gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets,
                             nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
       gdf_column_view(graph->adjList->indices, adj_list.colIndices,
                             nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
     }
-    if (status !=0) {
-      std::cerr << "Could not generate the adj_list" << std::endl;
-      return GDF_CUDA_ERROR;
-    }
-
     graph->numberOfVertices = graph->adjList->offsets->size - 1;
   }
-  return GDF_SUCCESS;
 }
 
-gdf_error gdf_add_edge_list (gdf_graph *graph) {
+void add_edge_list (gdf_graph *graph) {
     if (graph->edgeList == nullptr) {
       CUGRAPH_EXPECTS( graph->adjList != nullptr , "Invalid API parameter");
       int *d_src;
@@ -318,12 +310,12 @@ gdf_error gdf_add_edge_list (gdf_graph *graph) {
         cpy_column_view(graph->adjList->edge_data, graph->edgeList->edge_data);
       }
   }
-  return GDF_SUCCESS;
+  
 }
 
 
 template <typename WT>
-gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
+void add_transposed_adj_list_impl (gdf_graph *graph) {
     if (graph->transposedAdjList == nullptr ) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
       int nnz = graph->edgeList->src_indices->size, status = 0;
@@ -335,7 +327,7 @@ gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
       if (graph->edgeList->edge_data) {
         graph->transposedAdjList->edge_data = new gdf_column;
         CSR_Result_Weighted<int32_t,WT> adj_list;
-        status = ConvertCOOtoCSR_weighted( (int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
+        CUGRAPH_TRY(ConvertCOOtoCSR_weighted( (int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list));
         gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets,
                               nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
         gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices,
@@ -346,87 +338,82 @@ gdf_error gdf_add_transposed_adj_list_impl (gdf_graph *graph) {
       else {
 
         CSR_Result<int> adj_list;
-        status = ConvertCOOtoCSR((int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, nnz, adj_list);
+        CUGRAPH_TRY(ConvertCOOtoCSR((int*)graph->edgeList->dest_indices->data, (int*)graph->edgeList->src_indices->data, nnz, adj_list));
         gdf_column_view(graph->transposedAdjList->offsets, adj_list.rowOffsets,
                               nullptr, adj_list.size+1, graph->edgeList->src_indices->dtype);
         gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices,
                               nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
       }
-      if (status !=0) {
-        std::cerr << "Could not generate the adj_list" << std::endl;
-        return GDF_CUDA_ERROR;
-      }
-
       graph->numberOfVertices = graph->transposedAdjList->offsets->size - 1;
     }
-    return GDF_SUCCESS;
+    
 }
 
-gdf_error gdf_add_adj_list(gdf_graph *graph) {
+void add_adj_list(gdf_graph *graph) {
   if (graph->adjList != nullptr)
-    return GDF_SUCCESS;
+    
 
   CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type" );
 
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return gdf_add_adj_list_impl<int32_t, float>(graph);
-      case GDF_FLOAT64:   return gdf_add_adj_list_impl<int32_t, double>(graph);
-      default: return GDF_UNSUPPORTED_DTYPE;
+      case GDF_FLOAT32:   return cugraph::add_adj_list_impl<int32_t, float>(graph);
+      case GDF_FLOAT64:   return cugraph::add_adj_list_impl<int32_t, double>(graph);
+      default: CUGRAPH_FAIL("Unsupported data type");
     }
   }
   else {
-    return gdf_add_adj_list_impl<int32_t, float>(graph);
+    return cugraph::add_adj_list_impl<int32_t, float>(graph);
   }
 }
 
-gdf_error gdf_add_transposed_adj_list(gdf_graph *graph) {
+void add_transposed_adj_list(gdf_graph *graph) {
   if (graph->edgeList == nullptr)
-    gdf_add_edge_list(graph);
+    cugraph::add_edge_list(graph);
 
   CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
 
   if (graph->edgeList->edge_data != nullptr) {
     switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return gdf_add_transposed_adj_list_impl<float>(graph);
-      case GDF_FLOAT64:   return gdf_add_transposed_adj_list_impl<double>(graph);
-      default: return GDF_UNSUPPORTED_DTYPE;
+      case GDF_FLOAT32:   return cugraph::add_transposed_adj_list_impl<float>(graph);
+      case GDF_FLOAT64:   return cugraph::add_transposed_adj_list_impl<double>(graph);
+      default: CUGRAPH_FAIL("Unsupported data type");
     }
   }
   else {
-    return gdf_add_transposed_adj_list_impl<float>(graph);
+    return cugraph::add_transposed_adj_list_impl<float>(graph);
   }
 }
 
-gdf_error gdf_delete_adj_list(gdf_graph *graph) {
+void delete_adj_list(gdf_graph *graph) {
   if (graph->adjList) {
     delete graph->adjList;
   }
   graph->adjList = nullptr;
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_delete_edge_list(gdf_graph *graph) {
+void delete_edge_list(gdf_graph *graph) {
   if (graph->edgeList) {
     delete graph->edgeList;
   }
   graph->edgeList = nullptr;
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) {
+void delete_transposed_adj_list(gdf_graph *graph) {
   if (graph->transposedAdjList) {
     delete graph->transposedAdjList;
   }
   graph->transposedAdjList = nullptr;
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_number_of_vertices(gdf_graph *graph) {
+void number_of_vertices(gdf_graph *graph) {
   if (graph->numberOfVertices != 0)
-    return GDF_SUCCESS;
+    
 
   //
   //  int32_t implementation for now, since that's all that
@@ -468,5 +455,7 @@ gdf_error gdf_number_of_vertices(gdf_graph *graph) {
   ALLOC_FREE_TRY(d_max, nullptr);
   
   graph->numberOfVertices = 1 + std::max(h_max[0], h_max[1]);
-  return GDF_SUCCESS;
+  
 }
+
+} //namespace

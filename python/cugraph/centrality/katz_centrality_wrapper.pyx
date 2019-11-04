@@ -37,7 +37,7 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be

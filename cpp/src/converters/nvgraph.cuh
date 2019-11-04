@@ -25,7 +25,7 @@
  * @param use_transposed True if we are transposing the input graph while wrapping
  * @return Error code
  */
-gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
+void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                   gdf_graph* gdf_G,
                                   nvgraphGraphDescr_t * nvgraph_G,
 bool use_transposed = false);

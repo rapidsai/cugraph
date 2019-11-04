@@ -37,10 +37,10 @@ getTopKIds(gdf_column_ptr katz, int k = 10) {
 
 int
 getMaxDegree(gdf_graph * G) {
-      EXPECT_EQ(gdf_add_adj_list(G), 0);
+      EXPECT_EQ(cugraph::add_adj_list(G), 0);
       std::vector<int> out_degree(G->numberOfVertices);
       gdf_column_ptr col_out_degree = create_gdf_column(out_degree);
-      EXPECT_EQ(gdf_degree(G, col_out_degree.get(), 2), 0);
+      EXPECT_EQ(cugraph::degree(G, col_out_degree.get(), 2), 0);
       auto degreePtr = thrust::device_pointer_cast(static_cast<int*>(col_out_degree.get()->data));
       cudaStream_t stream = nullptr;
       int max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
@@ -110,7 +110,7 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
       col_dest = create_gdf_column(cooColInd);
       col_katz_centrality = create_gdf_column(katz_centrality);
 
-      CUGRAPH_TRY(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr));
+      CUGRAPH_TRY(cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr));
       int max_out_degree = getMaxDegree(G.get());
       double alpha = 1/(static_cast<double>(max_out_degree) + 1);
 

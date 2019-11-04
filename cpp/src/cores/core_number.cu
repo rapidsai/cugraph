@@ -28,7 +28,7 @@
 #include <rmm_utils.h>
 #include <nvgraph_gdf.h>
 
-gdf_error core_number_impl(gdf_graph *graph,
+void core_number_impl(gdf_graph *graph,
                           int *core_number) {
   using HornetGraph = hornet::gpu::HornetStatic<int>;
   using HornetInit  = hornet::HornetInit<int>;
@@ -39,10 +39,10 @@ gdf_error core_number_impl(gdf_graph *graph,
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
   CoreNumber cn(hnt, core_number);
   cn.run();
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_core_number(gdf_graph *graph,
+void core_number(gdf_graph *graph,
                           gdf_column *core_number) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
@@ -71,7 +71,7 @@ struct FilterEdges {
 };
 
 template <typename WT>
-gdf_error extract_edges(
+void extract_edges(
     gdf_graph *i_graph,
     gdf_graph *o_graph,
     thrust::device_ptr<int> c_ptr,
@@ -127,7 +127,7 @@ gdf_error extract_edges(
         inEdge, inEdge + nE,
         outEdge,
         FilterEdges(k, c_ptr));
-    if ((ptr - outEdge) != filteredEdgeCount) { return GDF_CUDA_ERROR; }
+    if ((ptr - outEdge) != filteredEdgeCount) { CUGRAPH_FAIL("Edge extraction failed") }
   } else {
     auto inEdge = thrust::make_zip_iterator(thrust::make_tuple(
           thrust::device_pointer_cast(i_src),
@@ -139,18 +139,18 @@ gdf_error extract_edges(
         inEdge, inEdge + nE,
         outEdge,
         FilterEdges(k, c_ptr));
-    if ((ptr - outEdge) != filteredEdgeCount) { return GDF_CUDA_ERROR; }
+    if ((ptr - outEdge) != filteredEdgeCount) { CUGRAPH_FAIL("Edge extraction failed") }
   }
-
-  return GDF_SUCCESS;
+  
 }
 
+namespace cugraph {
 //Extract a subgraph from in_graph (with or without weights)
 //to out_graph based on whether edges in in_graph satisfy kcore
 //conditions.
 //i.e. All edges (s,d,w) in in_graph are copied over to out_graph
 //if core_num[s] and core_num[d] are greater than or equal to k.
-gdf_error extract_subgraph(gdf_graph *in_graph,
+void extract_subgraph(gdf_graph *in_graph,
                            gdf_graph *out_graph,
                            int * vid,
                            int * core_num,
@@ -171,7 +171,7 @@ gdf_error extract_subgraph(gdf_graph *in_graph,
       v_ptr, c.begin());
   c_ptr = thrust::device_pointer_cast(c.data().get());
 
-  gdf_error err = gdf_add_edge_list(in_graph);
+  gdf_error err = cugraph::add_edge_list(in_graph);
   thrust::device_ptr<int> src =
     thrust::device_pointer_cast(static_cast<int*>(in_graph->edgeList->src_indices->data));
   thrust::device_ptr<int> dst =
@@ -189,7 +189,7 @@ gdf_error extract_subgraph(gdf_graph *in_graph,
     switch (in_graph->edgeList->edge_data->dtype) {
       case GDF_FLOAT32:   return extract_edges<float> (in_graph, out_graph, c_ptr, k, filteredEdgeCount);
       case GDF_FLOAT64:   return extract_edges<double>(in_graph, out_graph, c_ptr, k, filteredEdgeCount);
-      default: return GDF_UNSUPPORTED_DTYPE;
+      default: CUGRAPH_FAIL("Unsupported data type");
     }
   }
   else {
@@ -197,7 +197,7 @@ gdf_error extract_subgraph(gdf_graph *in_graph,
   }
 }
 
-gdf_error gdf_k_core(gdf_graph *in_graph,
+void k_core(gdf_graph *in_graph,
                      int k,
                      gdf_column *vertex_id,
                      gdf_column *core_number,
@@ -218,8 +218,9 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
   int * core_number_ptr = static_cast<int*>(core_number->data);
   gdf_size_type vLen = vertex_id->size;
 
-  CUGRAPH_TRY(extract_subgraph(in_graph, out_graph,
+  extract_subgraph(in_graph, out_graph,
       vertex_identifier_ptr, core_number_ptr,
-      k, vLen, nV));
-  return GDF_SUCCESS;
+      k, vLen, nV);
 }
+
+} //namespace cugraph

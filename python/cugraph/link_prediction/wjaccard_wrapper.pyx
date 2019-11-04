@@ -38,7 +38,7 @@ def jaccard_w(graph_ptr, weights, first=None, second=None):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
 
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     cdef gdf_column c_result_col

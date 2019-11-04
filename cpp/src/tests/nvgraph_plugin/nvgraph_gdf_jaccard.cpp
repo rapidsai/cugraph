@@ -89,7 +89,7 @@ TEST(nvgraph_jaccard, success)
   create_gdf_column(off_h, &col_off);
   create_gdf_column(ind_h, &col_ind);
 
-  CUGRAPH_TRY(gdf_adj_list_view(&G, &col_off, &col_ind, nullptr));
+  CUGRAPH_TRY(cugraph::adj_list_view(&G, &col_off, &col_ind, nullptr));
 
   int no_vertex = off_h.size()-1;
   size_t edges = ind_h.size();
@@ -152,10 +152,10 @@ TEST(nvgraph_jaccard_grmat, success)
   cudaMemcpy((void*)&dest_h[0], (void*)col_dest.data, sizeof(float)*edges, cudaMemcpyDeviceToHost);
 
 
-  CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, nullptr));
+  CUGRAPH_TRY(cugraph::edge_list_view(&G, &col_src, &col_dest, nullptr));
 
   if (!G.adjList)
-    CUGRAPH_TRY(gdf_add_adj_list(&G));
+    CUGRAPH_TRY(cugraph::add_adj_list(&G));
 
   
   int weighted = 0; //false, it assumes weight of size 1.0 for all the edges

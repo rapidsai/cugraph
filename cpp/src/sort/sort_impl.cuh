@@ -83,7 +83,7 @@ namespace cusort {
 
       BufferData(): d_keys(nullptr), d_vals(nullptr), h_length(0), buffer(nullptr), cubBuffer(nullptr) {}
 
-      gdf_error allocate(Length_t len, Length_t cubData) {
+      void allocate(Length_t len, Length_t cubData) {
         Length_t cubDataSize = ((cubData + MEM_ALIGN - 1) / MEM_ALIGN) * MEM_ALIGN;
         Length_t sdSize = ((len + MEM_ALIGN - 1) / MEM_ALIGN) * MEM_ALIGN;
         Length_t startingPoint = sdSize * sizeof(Key_t);         
@@ -96,10 +96,10 @@ namespace cusort {
         cubBuffer = buffer + sdSize2;
         h_length = len;
 
-        return GDF_SUCCESS;
+        
       }
 
-      gdf_error allocate_keys_only(Length_t len, Length_t cubData) {
+      void allocate_keys_only(Length_t len, Length_t cubData) {
         Length_t cubDataSize = ((cubData + MEM_ALIGN - 1) / MEM_ALIGN) * MEM_ALIGN;
         Length_t sdSize = ((len + MEM_ALIGN - 1) / MEM_ALIGN) * MEM_ALIGN;
         Length_t startingPoint = sdSize * sizeof(Key_t);         
@@ -110,14 +110,14 @@ namespace cusort {
         cubBuffer = buffer + startingPoint;
         h_length = len;
 
-        return GDF_SUCCESS;
+        
       }
 
-      gdf_error free() {
+      void free() {
         if (buffer != nullptr)
           ALLOC_FREE_TRY(buffer, nullptr);
 
-        return GDF_SUCCESS;
+        
       }
     };
 
@@ -153,7 +153,7 @@ namespace cusort {
                     cubSmallBuffer(nullptr), cubSortBufferSize(0), h_binSizes(nullptr),
                     h_binPrefix(nullptr) {}
 
-      gdf_error allocate(int32_t num_bins, int num_gpus) {
+      void allocate(int32_t num_bins, int num_gpus) {
         Length_t binsAligned = ((num_bins + 1 + MEM_ALIGN - 1) / MEM_ALIGN) * MEM_ALIGN;
         Length_t gpusAligned = ((num_gpus + 1 + MEM_ALIGN - 1) / MEM_ALIGN) * MEM_ALIGN;
 
@@ -195,20 +195,20 @@ namespace cusort {
         h_binSizes  = new Length_t[num_bins + 1];
         h_binPrefix = new Length_t[num_bins + 1];
 
-        return GDF_SUCCESS;
+        
       }
 
-      gdf_error free() {
+      void free() {
         ALLOC_FREE_TRY(buffer, nullptr);
 
         delete [] h_binSizes;
         delete [] h_binPrefix;
 
-        return GDF_SUCCESS;
+        
       }
     };
 
-    gdf_error sort_one(ThreadData *tData, Length_t average_array_size, int cpu_tid, int num_gpus, bool keys_only) {
+    void sort_one(ThreadData *tData, Length_t average_array_size, int cpu_tid, int num_gpus, bool keys_only) {
       Key_t * d_max = nullptr;
       void * d_temp_storage = nullptr;
       size_t temp_storage_bytes = 0;
@@ -373,7 +373,7 @@ namespace cusort {
       Length_t elements = std::max(tData[cpu_tid].h_input_length, h_writePositionsTransposed[cpu_tid][num_gpus]);
 
       if (elements > (1L << 31)) {
-        return GDF_COLUMN_SIZE_TOO_BIG;
+        CUGRAPH_FAIL("input column is too big");
       }
 
       tData[cpu_tid].cubSortBufferSize = 0;
@@ -479,10 +479,10 @@ namespace cusort {
 
       cudaDeviceSynchronize();
 
-      return GDF_SUCCESS;
+      
     }
 
-    gdf_error sort(Key_t **d_input_keys,
+    void sort(Key_t **d_input_keys,
                    Value_t **d_input_values,
                    Length_t *h_input_partition_offsets,
                    Key_t **d_output_keys,
@@ -491,16 +491,15 @@ namespace cusort {
                    int num_gpus = 1) {
 
       if (num_gpus > MAX_NUM_GPUS) {
-        return GDF_C_ERROR;  // TODO: There are no existing SNMG errors, should be its own error, I think
+        CUGRAPH_FAIL("num_gpus > MAX_NUM_GPUS");
       }
 
       if ((sizeof(Key_t) != 8) && (sizeof(Key_t) != 4)) {
-        return GDF_UNSUPPORTED_DTYPE;
+        CUGRAPH_FAIL("Unsupported data type");
       }
 
       ThreadData tData[num_gpus];
 
-      gdf_error ret = GDF_SUCCESS;
       Length_t keyCount = h_input_partition_offsets[num_gpus];
 
       // Used for partitioning the output and ensuring that each GPU sorts a near equal number of elements.
@@ -524,10 +523,9 @@ namespace cusort {
         tData[cpu_tid].d_input_keys = d_input_keys[cpu_tid];
         tData[cpu_tid].d_input_values = d_input_values[cpu_tid];
 
-        ret = tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus);
+        CUGRAPH_TRY(tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus));
 
-        if (ret == GDF_SUCCESS)
-          ret = sort_one(tData, average_array_size, cpu_tid, num_gpus, false);
+        sort_one(tData, average_array_size, cpu_tid, num_gpus, false);
 
         tData[cpu_tid].bdReorder.free();
         tData[cpu_tid].free();
@@ -544,27 +542,24 @@ namespace cusort {
       h_output_partition_offsets[0] = Length_t{0};
       for (int i = 0 ; i < num_gpus ; ++i)
         h_output_partition_offsets[i+1] = h_output_partition_offsets[i] + tData[i].h_output_length;
-
-      return ret;
     }
 
-    gdf_error sort(Key_t **d_input_keys,
+    void sort(Key_t **d_input_keys,
                    Length_t *h_input_partition_offsets,
                    Key_t **d_output_keys,
                    Length_t *h_output_partition_offsets,
                    int num_gpus = 1) {
 
       if (num_gpus > MAX_NUM_GPUS) {
-        return GDF_C_ERROR;  // TODO: There are no existing SNMG errors, should be its own error, I think
+        CUGRAPH_FAIL("num_gpus > MAX_NUM_GPUS in sort")
       }
 
       if ((sizeof(Key_t) != 8) && (sizeof(Key_t) != 4)) {
-        return GDF_UNSUPPORTED_DTYPE;
+        CUGRAPH_FAIL("Unsupported data type");
       }
 
       ThreadData tData[num_gpus];
 
-      gdf_error ret = GDF_SUCCESS;
       Length_t keyCount = h_input_partition_offsets[num_gpus];
 
       // Used for partitioning the output and ensuring that each GPU sorts a near equal number of elements.
@@ -587,10 +582,9 @@ namespace cusort {
         tData[cpu_tid].h_input_length = h_input_partition_offsets[cpu_tid+1] - h_input_partition_offsets[cpu_tid];
         tData[cpu_tid].d_input_keys = d_input_keys[cpu_tid];
 
-        ret = tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus);
+        CUGRAPH_TRY(tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus));
 
-        if (ret == GDF_SUCCESS)
-          ret = sort_one(tData, average_array_size, cpu_tid, num_gpus, true);
+        sort_one(tData, average_array_size, cpu_tid, num_gpus, true);
 
         tData[cpu_tid].bdReorder.free();
         tData[cpu_tid].free();
@@ -607,7 +601,6 @@ namespace cusort {
       for (int i = 0 ; i < num_gpus ; ++i)
         h_output_partition_offsets[i+1] = h_output_partition_offsets[i] + tData[i].h_output_length;
 
-      return ret;
     }
 
   private:

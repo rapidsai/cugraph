@@ -44,7 +44,7 @@
 template<typename IndexT,
          int TPB_X = 32>
 std::enable_if_t<std::is_signed<IndexT>::value,gdf_error>
-gdf_connected_components_impl(gdf_graph *graph,
+ connected_components_impl(gdf_graph *graph,
                               cudf::table *table,
                               cugraph_cc_t connectivity_type,
                               cudaStream_t stream)
@@ -162,12 +162,7 @@ gdf_connected_components_impl(gdf_graph *graph,
       if( n2 > prop.totalGlobalMem )
         {
 
-          //not enough memory, dump error message and return unsupported:
-          //
-          std::cerr<<"ERROR: Insufficient device memory for SCC;"
-                   <<" at: " << __FILE__ << ":" << __LINE__ << std::endl;
-      
-          return GDF_MEMORYMANAGER_ERROR;
+          CUGRAPH_FAIL("ERROR: Insufficient device memory for SCC");
         }
       SCC_Data<ByteT, IndexT> sccd(nrows, p_d_row_offsets, p_d_col_ind);
       sccd.run_scc(p_d_labels);
@@ -178,7 +173,7 @@ gdf_connected_components_impl(gdf_graph *graph,
   //
   thrust::sequence(thrust::device, p_d_verts, p_d_verts + nrows);
   
-  return GDF_SUCCESS;
+  
 }
 
 /**
@@ -202,7 +197,9 @@ gdf_connected_components_impl(gdf_graph *graph,
  * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
  * @param table of 2 gdf_columns: output labels and vertex indices [out]
  */
- gdf_error gdf_connected_components(gdf_graph *graph,
+namespace cugraph {
+
+void connected_components(gdf_graph *graph,
                                     cugraph_cc_t connectivity_type,
                                     cudf::table *table)  
 {
@@ -223,7 +220,7 @@ gdf_connected_components_impl(gdf_graph *graph,
   switch( dtype )//currently graph's row offsets, col_indices and labels are same type; that may change in the future
     {
     case GDF_INT32:
-      return gdf_connected_components_impl<int32_t>(graph, table, connectivity_type, stream);
+      return connected_components_impl<int32_t>(graph, table, connectivity_type, stream);
       //    case GDF_INT64:
       //return gdf_connected_components_impl<int64_t>(graph, labels, connectivity_type, stream);
       // PROBLEM: relies on atomicMin(), which won't work w/ int64_t
@@ -232,5 +229,6 @@ gdf_connected_components_impl(gdf_graph *graph,
     default:
       break;//warning eater
     }
-  return GDF_UNSUPPORTED_DTYPE;
+  CUGRAPH_FAIL("Unsupported data type");
 }
+} //namespace

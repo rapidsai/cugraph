@@ -26,7 +26,8 @@
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
 
-gdf_error gdf_katz_centrality(gdf_graph *graph,
+namespace cugraph {
+void katz_centrality(gdf_graph *graph,
                               gdf_column *katz_centrality,
                               double alpha,
                               int max_iter,
@@ -34,7 +35,7 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
                               bool has_guess,
                               bool normalized) {
   CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  gdf_error err = gdf_add_adj_list(graph);
+  gdf_error err = cugraph::add_adj_list(graph);
   if (err != GDF_SUCCESS)
     return err;
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
@@ -58,5 +59,6 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
   if (!katz.hasConverged()) {
     std::cerr<<"Error : Convergence not reached"<<std::endl; return GDF_CUDA_ERROR;
   }
-  return GDF_SUCCESS;
+  
+}
 }

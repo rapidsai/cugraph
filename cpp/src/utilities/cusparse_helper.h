@@ -26,7 +26,7 @@ namespace detail {
     cusparseStatus_t _e = (call);                                         \
     if (_e != CUSPARSE_STATUS_SUCCESS)                                    \
     {                                                                     \
-      std::cerr << "CUSPARSE ERROR: "<< _e << std::endl;                  \
+      CUGRAPH_FAIL("CUSPARSE ERROR")                                      \
     }                                                                     \
 }
 

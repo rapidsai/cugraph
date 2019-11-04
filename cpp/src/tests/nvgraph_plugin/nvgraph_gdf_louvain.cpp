@@ -38,10 +38,10 @@ TEST(nvgraph_louvain, success)
   create_gdf_column(ind_h,&col_ind);
   create_gdf_column(w_h  ,&col_w);
 
-  CUGRAPH_TRY(gdf_adj_list_view(&G, &col_off, &col_ind, &col_w));
+  CUGRAPH_TRY(cugraph::adj_list_view(&G, &col_off, &col_ind, &col_w));
 
   if (!(G.adjList))
-    CUGRAPH_TRY(gdf_add_adj_list(&G));
+    CUGRAPH_TRY(cugraph::add_adj_list(&G));
 
   int no_vertex = off_h.size()-1;
   int weighted = 0; //false
@@ -101,11 +101,11 @@ TEST(nvgraph_louvain_grmat, success)
   col_weights.size = edges;
   std::vector<float> w_h (edges, (float)1.0);
   cudaMemcpy (col_weights.data, (void*) &(w_h[0]), sizeof(float)*edges, cudaMemcpyHostToDevice);
-  CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights));
+  CUGRAPH_TRY(cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights));
 
   if (!(G.adjList))
   {
-    CUGRAPH_TRY(gdf_add_adj_list(&G));
+    CUGRAPH_TRY(cugraph::add_adj_list(&G));
   }
   int weighted = 1; //false
   int has_init_cluster = 0; //false

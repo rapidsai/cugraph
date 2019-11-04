@@ -18,7 +18,7 @@
 #include "algo_types.h"
 
 namespace cugraph {
-  
+
 /**
  * @Synopsis   Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
  * The number of iterations depends on the properties of the network itself; it increases when the tolerance descreases and/or alpha increases toward the limiting value of 1.
@@ -46,13 +46,13 @@ namespace cugraph {
  */
 /* ----------------------------------------------------------------------------*/
 void pagerank(Graph* graph,
-                       gdf_column *pagerank,
-                       gdf_column *personalization_subset,
-                       gdf_column *personalization_values,
-                       float alpha,
-                       float tolerance,
-                       int max_iter,
-                       bool has_guess);
+              gdf_column *pagerank,
+              gdf_column *personalization_subset,
+              gdf_column *personalization_values,
+              float alpha,
+              float tolerance,
+              int max_iter,
+              bool has_guess);
 
 /**
  * @Synopsis   Creates source, destination and value columns based on the specified R-MAT model
@@ -109,10 +109,10 @@ void grmat_gen(const char* argv,
  */
 /* ----------------------------------------------------------------------------*/
 void bfs(Graph* graph,
-                  gdf_column *distances,
-                  gdf_column *predecessors,
-                  int start_vertex,
-                  bool directed);
+         gdf_column *distances,
+         gdf_column *predecessors,
+         int start_vertex,
+         bool directed);
 /**                                                                             
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
  *                                                                              
@@ -128,9 +128,9 @@ void bfs(Graph* graph,
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void sssp(Graph* graph,                                            
-        		gdf_column *distances,                                                  
-        		gdf_column *predecessors,                                               
-          		const int source_vertex);                                               
+          gdf_column *distances,                                                  
+          gdf_column *predecessors,                                               
+          const int source_vertex);                                               
 /**
  * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
  * which are connected by an edge.
@@ -141,8 +141,8 @@ void sssp(Graph* graph,
  * @return Error code
  */
 void jaccard(Graph* graph,
-                      gdf_column *weights,
-                      gdf_column *result);
+             gdf_column *weights,
+             gdf_column *result);
 
 /**
  * Computes the Jaccard similarity coefficient for each pair of specified vertices.
@@ -156,10 +156,10 @@ void jaccard(Graph* graph,
  * @return Error code
  */
 void jaccard_list(Graph* graph,
-                           gdf_column *weights,
-                           gdf_column *first,
-                           gdf_column *second,
-                           gdf_column *result);
+                  gdf_column *weights,
+                  gdf_column *first,
+                  gdf_column *second,
+                  gdf_column *result);
 
 /**
  * Computes the Overlap Coefficient for every pair of vertices in the graph which are
@@ -171,8 +171,8 @@ void jaccard_list(Graph* graph,
  * @return Error code
  */
 void overlap(Graph* graph,
-                      gdf_column *weights,
-                      gdf_column *result);
+             gdf_column *weights,
+             gdf_column *result);
 
 /**
  * Computes the overlap coefficient for each pair of specified vertices.
@@ -186,15 +186,15 @@ void overlap(Graph* graph,
  * @return Error code
  */
 void overlap_list(Graph* graph,
-                           gdf_column *weights,
-                           gdf_column *first,
-                           gdf_column *second,
-                           gdf_column *result);
+                  gdf_column *weights,
+                  gdf_column *first,
+                  gdf_column *second,
+                  gdf_column *result);
 
 void louvain(Graph* graph,
-                      void *final_modularity,
-                      void *num_level,
-                      gdf_column *louvain_parts);
+             void *final_modularity,
+             void *num_level,
+             gdf_column *louvain_parts);
 
 /**
  * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is
@@ -207,10 +207,10 @@ void louvain(Graph* graph,
  * @return Error code
  */
 void snmg_degree(int x,
-                          size_t* part_offsets,
-                          gdf_column* off,
-                          gdf_column* ind,
-                          gdf_column** x_cols);
+                 size_t* part_offsets,
+                 gdf_column* off,
+                 gdf_column* ind,
+                 gdf_column** x_cols);
 
 /**
  * Converts the input edge list (partitioned and loaded onto the GPUs) into a partitioned csr representation.
@@ -226,14 +226,14 @@ void snmg_degree(int x,
  * @return Error code
  */
 void snmg_coo2csr(size_t* part_offsets,
-                           bool free_input,
-                           void** comm1,
-                           gdf_column* cooRow,
-                           gdf_column* cooCol,
-                           gdf_column* cooVal,
-                           gdf_column* csrOff,
-                           gdf_column* csrInd,
-                           gdf_column* csrVal);
+                  bool free_input,
+                  void** comm1,
+                  gdf_column* cooRow,
+                  gdf_column* cooCol,
+                  gdf_column* cooVal,
+                  gdf_column* csrOff,
+                  gdf_column* csrInd,
+                  gdf_column* csrVal);
 
 /**
  * @brief Compute connected components. 
@@ -257,8 +257,8 @@ void snmg_coo2csr(size_t* part_offsets,
  * @param table of 2 gdf_columns: output labels and vertex indices [out]
  */
  void connected_components(Graph* graph,
-                                    cugraph_cc_t connectivity_type,
-                                    cudf::table *table);
+                           cugraph_cc_t connectivity_type,
+                           cudf::table *table);
 
  /**
 Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
@@ -273,13 +273,12 @@ Find the PageRank vertex values for a graph. cuGraph computes an approximation o
 
  * @return Error code
  */
-void snmg_pagerank (
-            gdf_column **src_col_ptrs, 
-            gdf_column **dest_col_ptrs, 
-            gdf_column *pr_col_ptrs, 
-            const size_t n_gpus, 
-            const float damping_factor, 
-            const int n_iter);
+void snmg_pagerank (gdf_column **src_col_ptrs, 
+                    gdf_column **dest_col_ptrs, 
+                    gdf_column *pr_col_ptrs, 
+                    const size_t n_gpus, 
+                    const float damping_factor, 
+                    const int n_iter);
 /**                                                                             
  * @Synopsis   Compute the Katz centrality for the nodes of the graph G
  *                                                                              
@@ -313,12 +312,12 @@ void snmg_pagerank (
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void katz_centrality(Graph* graph,                                         
-        		gdf_column *katz_centrality,
-            double alpha,
-            int max_iter,
-            double tol,
-            bool has_guess,
-            bool normalized);
+                     gdf_column *katz_centrality,
+                     double alpha,
+                     int max_iter,
+                     double tol,
+                     bool has_guess,
+                     bool normalized);
 
 /**                                                                             
  * @Synopsis   Compute the Core Number for the nodes of the graph G
@@ -331,7 +330,7 @@ void katz_centrality(Graph* graph,
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void core_number(Graph* graph,                                         
-        		gdf_column *core_number);
+            gdf_column *core_number);
 
 /**                                                                             
  * @Synopsis   Compute K Core of the graph G
@@ -350,8 +349,8 @@ void core_number(Graph* graph,
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void k_core(Graph* in_graph,
-                     int k,
-                     gdf_column *vertex_id,
-                     gdf_column *core_number,
-                     Graph* out_graph);
+            int k,
+            gdf_column *vertex_id,
+            gdf_column *core_number,
+            Graph* out_graph);
 } //namespace cugraph

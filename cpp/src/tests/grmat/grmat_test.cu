@@ -255,7 +255,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     col_sources.null_count = 0;
     col_destinations.null_count = 0;
 
-    CUGRAPH_TRY(gdf_edge_list_view(G.get(), &col_sources, &col_destinations, nullptr));
+    CUGRAPH_TRY(cugraph::edge_list_view(G.get(), &col_sources, &col_destinations, nullptr));
     std::vector<int> src2_h(edges), dest2_h(edges);
 
     (cudaMemcpy(&src2_h[0],  G.get()->edgeList->src_indices->data, sizeof(int) * edges, cudaMemcpyDeviceToHost));
@@ -378,9 +378,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     std::vector<T> grmat(vertices);
     col_grmat = create_gdf_column(grmat);
 
-    CUGRAPH_TRY(gdf_edge_list_view(G.get(), &col_sources, &col_destinations, nullptr));
+    CUGRAPH_TRY(cugraph::edge_list_view(G.get(), &col_sources, &col_destinations, nullptr));
     if (manual_tanspose)
-      CUGRAPH_TRY(gdf_add_transposed_adj_list(G.get()));
+      CUGRAPH_TRY(cugraph::add_transposed_adj_list(G.get()));
 
     int device = 0;
     (cudaGetDevice (&device));  

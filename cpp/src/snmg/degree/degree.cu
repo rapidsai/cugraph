@@ -30,7 +30,7 @@ namespace snmg {
  * @return Error code
  */
 template<typename idx_t>
-gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree) {
+void snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree) {
   sync_all();
   SNMGinfo env;
   auto i = env.get_thread_num();
@@ -89,13 +89,13 @@ gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** d
   // Broadcasting the global result to all GPUs
   treeBroadcast(env, glob_v, local_result, degree);
 
-  return GDF_SUCCESS;
+  
 }
 
 template gdf_error snmg_degree<int>(int x, size_t* part_off, int* off, int* ind, int** degree);
 
 template<>
-gdf_error snmg_degree<int64_t>(int x,
+void snmg_degree<int64_t>(int x,
                                size_t* part_off,
                                int64_t* off,
                                int64_t* ind,
@@ -170,14 +170,11 @@ gdf_error snmg_degree<int64_t>(int x,
   // Broadcasting the global result to all GPUs
   treeBroadcast(env, glob_v, local_result, degree);
 
-  return GDF_SUCCESS;
+  
 }
 
-} } //namespace
-
-
 template<typename idx_t>
-gdf_error gdf_snmg_degree_impl(int x,
+void snmg_degree_impl(int x,
                                size_t* part_offsets,
                                gdf_column* off,
                                gdf_column* ind,
@@ -187,7 +184,6 @@ gdf_error gdf_snmg_degree_impl(int x,
   CUGRAPH_EXPECTS(off->dtype == ind->dtype, "Unsupported data type");
   CUGRAPH_EXPECTS(off->null_count + ind->null_count == 0, "Column must be valid");
 
-  gdf_error status;
   auto p = omp_get_num_threads();
 
   idx_t* degree[p];
@@ -197,29 +193,32 @@ gdf_error gdf_snmg_degree_impl(int x,
     degree[i] = static_cast<idx_t*>(x_cols[i]->data);
   }
 
-  status = cugraph::snmg::snmg_degree(x,
-                                part_offsets,
-                                static_cast<idx_t*>(off->data),
-                                static_cast<idx_t*>(ind->data),
-                                degree);
-  return status;
+  snmg_degree(x,
+              part_offsets,
+              static_cast<idx_t*>(off->data),
+              static_cast<idx_t*>(ind->data),
+              degree);
 }
 
-gdf_error gdf_snmg_degree(int x,
-                          size_t* part_offsets,
-                          gdf_column* off,
-                          gdf_column* ind,
-                          gdf_column** x_cols) {
+} //namespace snmg
+
+void snmg_degree(int x,
+                 size_t* part_offsets,
+                 gdf_column* off,
+                 gdf_column* ind,
+                 gdf_column** x_cols) {
   CUGRAPH_EXPECTS(part_offsets != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(off != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(ind != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(x_cols != nullptr, "Invalid API parameter");
   switch (off->dtype) {
     case GDF_INT32:
-      return gdf_snmg_degree_impl<int32_t>(x, part_offsets, off, ind, x_cols);
+      return snmg::snmg_degree_impl<int32_t>(x, part_offsets, off, ind, x_cols);
     case GDF_INT64:
-      return gdf_snmg_degree_impl<int64_t>(x, part_offsets, off, ind, x_cols);
+      return snmg::snmg_degree_impl<int64_t>(x, part_offsets, off, ind, x_cols);
     default:
-      return GDF_INVALID_API_CALL;
+      CUGRAPH_FAIL("Unsupported data type");
   }
 }
+
+} // namespace cugraph

@@ -65,33 +65,33 @@ cdef extern from "cugraph.h":
         gdf_column *dst_renumbered,
         gdf_column *numbering_map) except +
 
-    cdef gdf_error gdf_edge_list_view(
+    cdef gdf_error cugraph::edge_list_view(
         gdf_graph *graph,
         const gdf_column *source_indices,
         const gdf_column *destination_indices,
         const gdf_column *edge_data) except +
-    cdef gdf_error gdf_add_edge_list(gdf_graph *graph) except +
-    cdef gdf_error gdf_delete_edge_list(gdf_graph *graph) except +
+    cdef gdf_error cugraph::add_edge_list(gdf_graph *graph) except +
+    cdef gdf_error cugraph::delete_edge_list(gdf_graph *graph) except +
 
-    cdef gdf_error gdf_adj_list_view (
+    cdef gdf_error cugraph::adj_list_view (
         gdf_graph *graph,
         const gdf_column *offsets,
         const gdf_column *indices,
         const gdf_column *edge_data) except +
-    cdef gdf_error gdf_add_adj_list(gdf_graph *graph) except +
-    cdef gdf_error gdf_delete_adj_list(gdf_graph *graph) except +
+    cdef gdf_error cugraph::add_adj_list(gdf_graph *graph) except +
+    cdef gdf_error cugraph::delete_adj_list(gdf_graph *graph) except +
 
-    cdef gdf_error gdf_add_transposed_adj_list(gdf_graph *graph) except +
-    cdef gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) except +
+    cdef gdf_error cugraph::add_transposed_adj_list(gdf_graph *graph) except +
+    cdef gdf_error cugraph::delete_transposed_adj_list(gdf_graph *graph) except +
 
-    cdef gdf_error gdf_get_two_hop_neighbors(
+    cdef gdf_error cugraph::get_two_hop_neighbors(
         gdf_graph* graph,
         gdf_column* first,
         gdf_column* second) except +
 
-    cdef gdf_error gdf_degree(
+    cdef gdf_error cugraph::degree(
         gdf_graph *graph,
         gdf_column *degree,
         int x) except +
 
-    cdef gdf_error gdf_number_of_vertices(gdf_graph *graph) except +
+    cdef gdf_error cugraph::number_of_vertices(gdf_graph *graph) except +

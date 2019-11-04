@@ -32,8 +32,6 @@
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
 
-#include "utilities/error_utils.h"
-
 #include <rmm_utils.h>
 
 template <typename T>
@@ -143,7 +141,7 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
     ALLOC_FREE_TRY(unique, stream);
     ALLOC_FREE_TRY(counts, stream);
     ALLOC_FREE_TRY(runCount, stream);
-    return GDF_SUCCESS;
+    
 }
 
 // Method for constructing CSR from COO
@@ -220,5 +218,5 @@ gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, 
     ALLOC_FREE_TRY(unique, stream);
     ALLOC_FREE_TRY(counts, stream);
     ALLOC_FREE_TRY(runCount, stream);
-    return GDF_SUCCESS;
+    
 }

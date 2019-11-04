@@ -34,7 +34,7 @@ def weakly_connected_components(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
-    err = gdf_add_adj_list(<gdf_graph*> graph)
+    err = cugraph::add_adj_list(<gdf_graph*> graph)
     libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
@@ -64,7 +64,7 @@ def strongly_connected_components(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
-    err = gdf_add_adj_list(<gdf_graph*> graph)
+    err = cugraph::add_adj_list(<gdf_graph*> graph)
     libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be

@@ -48,7 +48,7 @@ class Graph:
         self.adj_list_value_col = None
 
     def __del__(self):
-        self.delete_edge_list()
+        self.cugraph::delete_edge_list()
         self.delete_adj_list()
         self.delete_transposed_adj_list()
 
@@ -58,7 +58,7 @@ class Graph:
         """
         Empty this graph. This function is added for NetworkX compatibility.
         """
-        self.delete_edge_list()
+        self.cugraph::delete_edge_list()
         self.delete_adj_list()
         self.delete_transposed_adj_list()
 
@@ -176,11 +176,11 @@ class Graph:
 
         return source_col, dest_col, value_col
 
-    def delete_edge_list(self):
+    def cugraph::delete_edge_list(self):
         """
         Delete the edge list.
         """
-        graph_wrapper.delete_edge_list(self.graph_ptr)
+        graph_wrapper.cugraph::delete_edge_list(self.graph_ptr)
 
         # decrease reference count to free memory if the referenced objects are
         # no longer used.

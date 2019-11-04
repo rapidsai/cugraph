@@ -186,7 +186,7 @@ template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,dou
 } } //namespace
 
 template <typename WT>
-gdf_error gdf_pagerank_impl (gdf_graph *graph,
+void pagerank_impl (gdf_graph *graph,
                       gdf_column *pagerank,
                       gdf_column *personalization_subset, gdf_column *personalization_values,
                       float alpha = 0.85,
@@ -220,7 +220,7 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   WT *residual = &res;
 
   if (graph->transposedAdjList == nullptr) {
-    gdf_add_transposed_adj_list(graph);
+    cugraph::add_transposed_adj_list(graph);
   }
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
@@ -246,9 +246,9 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
 
   if (status !=0)
     switch ( status ) {
-      case -1: std::cerr<< "Error : bad parameters in Pagerank"<<std::endl; return GDF_CUDA_ERROR;
-      case 1: std::cerr<< "Warning : Pagerank did not reached the desired tolerance"<<std::endl;  return GDF_CUDA_ERROR;
-      default:  std::cerr<< "Pagerank failed"<<std::endl;  return GDF_CUDA_ERROR;
+      case -1: CUGRAPH_FAIL("Error : bad parameters in Pagerank")
+      case 1: CUGRAPH_FAIL("Warning : Pagerank did not reached the desired tolerance")
+      default:  CUGRAPH_FAIL("Pagerank exec failed")
     }
 
   cugraph::detail::copy<WT>(m, d_pr, (WT*)pagerank->data);
@@ -261,10 +261,11 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
 #endif
   ALLOC_FREE_TRY(d_leaf_vector, stream);
 
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank,
+namespace cugraph {
+void pagerank(gdf_graph *graph, gdf_column *pagerank,
         gdf_column *personalization_subset, gdf_column *personalization_values,
         float alpha, float tolerance, int max_iter, bool has_guess) {
   //
@@ -275,12 +276,14 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank,
   CUGRAPH_EXPECTS(graph->transposedAdjList != nullptr, "Invalid API parameter");
 
   switch (pagerank->dtype) {
-    case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank,
+    case GDF_FLOAT32:   return pagerank_impl<float>(graph, pagerank,
                                 personalization_subset, personalization_values,
                                 alpha, tolerance, max_iter, has_guess);
-    case GDF_FLOAT64:   return gdf_pagerank_impl<double>(graph, pagerank,
+    case GDF_FLOAT64:   return pagerank_impl<double>(graph, pagerank,
                                 personalization_subset, personalization_values,
                                 alpha, tolerance, max_iter, has_guess);
-    default: return GDF_UNSUPPORTED_DTYPE;
+    default: CUGRAPH_FAIL("Unsupported data type");
   }
 }
+
+} //namespace cugraph 

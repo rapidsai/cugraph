@@ -47,7 +47,7 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
 				gdf_column *numbering_map);
 
 /**
- * @Synopsis   Wrap existing gdf columns representing an edge list in a gdf_graph.
+ * @Synopsis   Wrap existing gdf columns representing an edge list in a Graph.
  *             cuGRAPH does not own the memory used to represent this graph. This function does not allocate memory.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
@@ -58,18 +58,18 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
  * @Param[in] *edge_data (optional)  This pointer can be nullptr. If not, this gdf_column of size E (number of edges) contains the weiht for each edge.
  *                                   The type expected to be floating point.
  *
- * @Param[out] *graph                cuGRAPH graph descriptor containing the newly added edge list (edge_data is optional).
+ * @Param[out]* graph                cuGRAPH graph descriptor containing the newly added edge list (edge_data is optional).
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-void edge_list_view(gdf_graph *graph,
+void edge_list_view(Graph* graph,
                              const gdf_column *source_indices,
                              const gdf_column *destination_indices,
                              const gdf_column *edge_data);
 
 /**
- * @Synopsis   Wrap existing gdf columns representing adjacency lists in a gdf_graph.
+ * @Synopsis   Wrap existing gdf columns representing adjacency lists in a Graph.
  *             cuGRAPH does not own the memory used to represent this graph. This function does not allocate memory.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
@@ -80,35 +80,35 @@ void edge_list_view(gdf_graph *graph,
  * @Param[in] *edge_data (optional)  This pointer can be nullptr. If not, this gdf_column of size E (number of edges) contains the weiht for each edge.
  *                                   The type expected to be floating point.
  *
- * @Param[out] *graph                cuGRAPH graph descriptor containing the newly added adjacency list (edge_data is optional).
+ * @Param[out]* graph                cuGRAPH graph descriptor containing the newly added adjacency list (edge_data is optional).
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-void adj_list_view (gdf_graph *graph,
+void adj_list_view (Graph* graph,
                              const gdf_column *offsets,
                              const gdf_column *indices,
                              const gdf_column *edge_data);
 
 /**
- * @Synopsis   Create the adjacency lists of a gdf_graph from its edge list.
+ * @Synopsis   Create the adjacency lists of a Graph from its edge list.
  *             cuGRAPH allocates and owns the memory required for storing the created adjacency list.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[in, out] *graph            in  : graph descriptor containing a valid gdf_edge_list structure pointed by graph->edgeList
+ * @Param[in, out]* graph            in  : graph descriptor containing a valid gdf_edge_list structure pointed by graph->edgeList
  *                                   out : graph->adjList is set to a gdf_adj_list structure containing the generated adjacency list
  *
  * @Returns                          GDF_SUCCESS upon successful completion. If graph->edgeList is nullptr then GDF_INVALID_API_CALL is returned.
  */
 /* ----------------------------------------------------------------------------*/
-void add_adj_list(gdf_graph *graph);
+void add_adj_list(Graph* graph);
 
 /**
- * @Synopsis   Create the transposed adjacency list from the edge list of a gdf_graph.
+ * @Synopsis   Create the transposed adjacency list from the edge list of a Graph.
  *             cuGRAPH allocates and owns the memory required for storing the created transposed adjacency list.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[in, out] *graph            in  : graph descriptor containing either a valid gdf_edge_list structure pointed by graph->edgeList
+ * @Param[in, out]* graph            in  : graph descriptor containing either a valid gdf_edge_list structure pointed by graph->edgeList
  *                                         or a valid gdf_adj_list structure pointed by graph->adjList
  *                                   out : graph->transposedAdjList is set to a gdf_adj_list structure containing the generated transposed adjacency list
  *
@@ -116,59 +116,59 @@ void add_adj_list(gdf_graph *graph);
  */
 /* ----------------------------------------------------------------------------*/
 
-void add_transposed_adj_list(gdf_graph *graph);
+void add_transposed_adj_list(Graph* graph);
 
 /**
- * @Synopsis   Create the edge lists of a gdf_graph from its adjacency list.
+ * @Synopsis   Create the edge lists of a Graph from its adjacency list.
  *             cuGRAPH allocates and owns the memory required for storing the created edge list.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[in, out] *graph            in  : graph descriptor containing a valid gdf_adj_list structure pointed by graph->adjList
+ * @Param[in, out]* graph            in  : graph descriptor containing a valid gdf_adj_list structure pointed by graph->adjList
  *                                   out : graph->edgeList is set to a gdf_edge_list structure containing the generated edge list
  *
  * @Returns                          GDF_SUCCESS upon successful completion. If graph->adjList is nullptr then GDF_INVALID_API_CALL is returned.
  */
 /* ----------------------------------------------------------------------------*/
-void add_edge_list(gdf_graph *graph);
+void add_edge_list(Graph* graph);
 
 /**
- * @Synopsis   Deletes the adjacency list of a gdf_graph
+ * @Synopsis   Deletes the adjacency list of a Graph
  *
- * @Param[in, out] *graph            in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
+ * @Param[in, out]* graph            in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
  *                                   out : graph descriptor with graph->adjList set to nullptr
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_adj_list(gdf_graph *graph);
+void delete_adj_list(Graph* graph);
 
 /**
- * @Synopsis   Deletes the edge list of a gdf_graph
+ * @Synopsis   Deletes the edge list of a Graph
  *
- * @Param[in, out] *graph            in  : graph descriptor with graph->edgeList pointing to a gdf_edge_list structure
+ * @Param[in, out]* graph            in  : graph descriptor with graph->edgeList pointing to a gdf_edge_list structure
  *                                   out : graph descriptor with graph->edgeList set to nullptr
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_edge_list(gdf_graph *graph);
+void cugraph::delete_edge_list(Graph* graph);
 
 /**
- * @Synopsis   Deletes the transposed adjacency list of a gdf_graph
+ * @Synopsis   Deletes the transposed adjacency list of a Graph
  *
- * @Param[in, out] *graph            in  : graph descriptor with graph->transposedAdjList pointing to a gdf_adj_list structure
+ * @Param[in, out]* graph            in  : graph descriptor with graph->transposedAdjList pointing to a gdf_adj_list structure
  *                                   out : graph descriptor with graph->transposedAdjList set to nullptr
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_transposed_adj_list(gdf_graph *graph);
+void delete_transposed_adj_list(Graph* graph);
 
 /**
  * @Synopsis   Find pairs of vertices in the input graph such that each pair is connected by
  *             a path that is two hops in length.
  *
- * @param[in] *graph                 in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
+ * @param[in]* graph                 in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
  *
  * @param[out] first                 out : An uninitialized gdf_column which will be initialized to contain the
  *                                         first entry of each result pair.
@@ -178,7 +178,7 @@ void delete_transposed_adj_list(gdf_graph *graph);
  * @return                           GDF_SUCCESS upon successful completion. 
  */
 /* ----------------------------------------------------------------------------*/
-void get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second);
+void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
 
 /**
  * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
@@ -202,9 +202,9 @@ void get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* seco
 void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
 
 /**
- * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a gdf_graph
+ * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a Graph
  *
- * @Param[in] *graph                 in  : graph descriptor with graph->transposedAdjList or graph->adjList present
+ * @Param[in]* graph                 in  : graph descriptor with graph->transposedAdjList or graph->adjList present
  * @Param[in] x                      in  : integer value indicating type of degree calculation
  *                                         0 : in+out degree
  *                                         1 : in-degree
@@ -216,18 +216,18 @@ void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-void degree(gdf_graph *graph, gdf_column *degree, int x);
+void degree(Graph* graph, gdf_column *degree, int x);
 int get_device(const void *ptr);
 
 /**
  * @Synopsis   Compute number of vertices from the edge list
  *
- * @Param[in, out] *graph            in  : graph descriptor with graph->edgeList populated
+ * @Param[in, out]* graph            in  : graph descriptor with graph->edgeList populated
  *                                   out : graph descriptor with graph->numberOfVertices populated
  *
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-void number_of_vertices(gdf_graph *graph);
+void number_of_vertices(Graph* graph);
 
 } //namespace cugraph

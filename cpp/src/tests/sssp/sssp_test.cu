@@ -283,8 +283,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     }
 
     gdf_graph G;
-    CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights));
-    CUGRAPH_TRY(gdf_add_adj_list(G.get()));
+    CUGRAPH_TRY(cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights));
+    CUGRAPH_TRY(cugraph::add_adj_list(G.get()));
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;

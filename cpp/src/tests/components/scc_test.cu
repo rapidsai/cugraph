@@ -193,11 +193,11 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
 
     //Get the COO format 1st:
     //
-    ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+    ASSERT_EQ(cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
 
     //Then convert to CSR:
     //
-    ASSERT_EQ(gdf_add_adj_list(G.get()),0);
+    ASSERT_EQ(cugraph::add_adj_list(G.get()),0);
 
     static auto row_offsets_ = [](const gdf_graph* G){
       return static_cast<const IndexT*>(G->adjList->offsets->data);

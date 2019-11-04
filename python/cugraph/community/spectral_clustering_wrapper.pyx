@@ -45,7 +45,7 @@ def spectralBalancedCutClustering(graph_ptr,
     cdef gdf_graph * g = <gdf_graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
@@ -90,7 +90,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
     cdef gdf_graph * g = <gdf_graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
@@ -128,7 +128,7 @@ def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     cdef gdf_graph * g = <gdf_graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
@@ -145,7 +145,7 @@ def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     cdef gdf_graph * g = <gdf_graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
@@ -162,7 +162,7 @@ def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
     cdef gdf_graph * g = <gdf_graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)

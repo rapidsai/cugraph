@@ -35,7 +35,7 @@ def bfs(graph_ptr, start, directed=True):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph* g = <gdf_graph*>graph
 
-    err = gdf_add_adj_list(g)
+    err = cugraph::add_adj_list(g)
     libcudf.cudf.check_gdf_error(err)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
