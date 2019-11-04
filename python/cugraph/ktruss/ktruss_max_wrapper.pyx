@@ -34,12 +34,12 @@ def ktruss_max(graph_ptr):
     """
     Call gdf_katz_centrality
     """
-    # cdef uintptr_t graph = graph_ptr
-    # cdef gdf_graph* g = <gdf_graph*>graph
+    cdef uintptr_t graph = graph_ptr
+    cdef gdf_graph* g = <gdf_graph*>graph
 
-    # cdef int kmax = 0
+    cdef int kmax = 0
 
-    # err = gdf_k_truss_max(g,&kmax);
-    # libcudf.cudf.check_gdf_error(err)
+    err = gdf_k_truss_max(g,&kmax);
+    libcudf.cudf.check_gdf_error(err)
 
     return 1
