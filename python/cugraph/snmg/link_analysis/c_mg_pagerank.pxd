@@ -21,7 +21,7 @@ from libcpp cimport bool
 
 cdef extern from "cugraph.h":
 
-    cdef gdf_error gdf_snmg_pagerank (
+    cdef void cugraph::snmg_pagerank (
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
             gdf_column *pr_col, 

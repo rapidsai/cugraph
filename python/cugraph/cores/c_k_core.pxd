@@ -21,10 +21,10 @@ from cugraph.structure.c_graph cimport *
 
 cdef extern from "cugraph.h":
 
-    cdef gdf_error gdf_k_core(
-        gdf_graph *in_graph,
+    cdef void cugraph::k_core(
+        Graph *in_graph,
         int k,
         gdf_column *vertex_id,
         gdf_column *core_number,
-        gdf_graph *out_graph) except +
+        Graph *out_graph) except +
 

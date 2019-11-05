@@ -35,12 +35,12 @@ def core_number(graph_ptr):
     Call gdf_core_number
     """
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
     err = cugraph::add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -51,11 +51,11 @@ def core_number(graph_ptr):
     cdef gdf_column c_core_number_col = get_gdf_column_view(df['core_number'])
 
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    libcudf.cudf.check_gdf_error(err)
+    
 
     err = gdf_core_number(g, &c_core_number_col)
 
-    libcudf.cudf.check_gdf_error(err)
+    
 
     return df
 

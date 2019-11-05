@@ -21,11 +21,11 @@ from cugraph.structure.c_graph cimport *
 
 cdef extern from "cugraph.h":
 
-    cdef gdf_error gdf_overlap(gdf_graph * graph,
+    cdef void cugraph::overlap(Graph * graph,
                                gdf_column * weights,
                                gdf_column * result) except +
     
-    cdef gdf_error gdf_overlap_list(gdf_graph * graph,
+    cdef void cugraph::overlap_list(Graph * graph,
                                     gdf_column * weights,
                                     gdf_column * first,
                                     gdf_column * second,

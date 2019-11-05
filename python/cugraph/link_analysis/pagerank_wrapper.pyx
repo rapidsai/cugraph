@@ -35,12 +35,12 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
     err = cugraph::add_transposed_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.transposedAdjList.offsets.size - 1)
     num_verts = g.transposedAdjList.offsets.size - 1
 
@@ -59,7 +59,7 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     cdef gdf_column c_pers_val
 
     err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
-    libcudf.cudf.check_gdf_error(err)
+    
 
     if personalization is None:
         err = gdf_pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
@@ -70,6 +70,6 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
         err = gdf_pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
 
-    libcudf.cudf.check_gdf_error(err)
+    
 
     return df

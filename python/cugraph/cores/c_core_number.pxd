@@ -21,7 +21,7 @@ from cugraph.structure.c_graph cimport *
 
 cdef extern from "cugraph.h":
 
-    cdef gdf_error gdf_core_number(
-        gdf_graph *graph,
+    cdef void cugraph::core_number(
+        Graph *graph,
         gdf_column *core_number) except +
 

@@ -35,12 +35,12 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
     Call gdf_katz_centrality
     """
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
     err = cugraph::add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -58,10 +58,10 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
         has_guess = <bool> 1
 
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    libcudf.cudf.check_gdf_error(err)
+    
 
     err = gdf_katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
 
-    libcudf.cudf.check_gdf_error(err)
+    
 
     return df

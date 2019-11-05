@@ -22,7 +22,7 @@ from libcpp cimport bool
 
 cdef extern from "nvgraph_gdf.h":
 
-    cdef gdf_error gdf_extract_subgraph_vertex_nvgraph(
-        gdf_graph* gdf_G,
+    cdef void cugraph::extract_subgraph_vertex_nvgraph(
+        Graph* gdf_G,
         gdf_column* vertices,
-        gdf_graph* result) except +
+        Graph* result) except +

@@ -21,8 +21,8 @@ from cugraph.structure.c_graph cimport *
 
 cdef extern from "cugraph.h":
 
-    cdef gdf_error gdf_katz_centrality(
-        gdf_graph *graph,
+    cdef void cugraph::katz_centrality(
+        Graph *graph,
         gdf_column *katz_centrality,
         double alpha,
         int max_iter,

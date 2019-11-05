@@ -22,8 +22,8 @@ from cudf._lib.cudf cimport *
 
 cdef extern from "cugraph.h":
 
-    cdef gdf_error gdf_connected_components(
-        gdf_graph *graph,
+    cdef void cugraph::connected_components(
+        Graph *graph,
         cugraph_cc_t connect_type,
         cudf_table* table) except +
 

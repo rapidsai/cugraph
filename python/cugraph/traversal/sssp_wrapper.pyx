@@ -37,12 +37,12 @@ def sssp(graph_ptr, source):
     Call gdf_sssp_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
     err = cugraph::add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -63,12 +63,12 @@ def sssp(graph_ptr, source):
     cdef gdf_column c_predecessors_col = get_gdf_column_view(df['predecessor'])
 
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    libcudf.cudf.check_gdf_error(err)
+    
 
     if g.adjList.edge_data:
         err = gdf_sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
     else:
         err = gdf_bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
-    libcudf.cudf.check_gdf_error(err)
+    
 
     return df
