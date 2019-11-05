@@ -31,7 +31,7 @@ import numpy as np
 
 def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
     """
-    Call gdf_pagerank
+    Call cugraph::pagerank
     """
 
     cdef uintptr_t graph = graph_ptr

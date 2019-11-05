@@ -30,7 +30,7 @@ import numpy as np
 
 def grmat_gen(argv):
     """
-    Call gdf_grmat_gen
+    Call cugraph::grmat_gen
     """
     cdef size_t vertices = 0
     cdef size_t edges = 0

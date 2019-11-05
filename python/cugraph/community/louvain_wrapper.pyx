@@ -31,7 +31,7 @@ import numpy as np
 
 def louvain(graph_ptr):
     """
-    Call gdf_louvain
+    Call cugraph::louvain
     """
 
     cdef uintptr_t graph = graph_ptr

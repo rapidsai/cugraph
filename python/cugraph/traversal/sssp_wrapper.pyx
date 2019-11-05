@@ -34,7 +34,7 @@ import numpy as np
 
 def sssp(graph_ptr, source):
     """
-    Call gdf_sssp_nvgraph
+    Call cugraph::sssp_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph

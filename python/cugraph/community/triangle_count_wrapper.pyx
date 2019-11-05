@@ -28,7 +28,7 @@ import rmm
 
 def triangles(graph_ptr):
     """
-    Call gdf_triangle_count_nvgraph
+    Call cugraph::triangle_count_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*> graph

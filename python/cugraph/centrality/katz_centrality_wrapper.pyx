@@ -32,7 +32,7 @@ import numpy as np
 
 def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     """
-    Call gdf_katz_centrality
+    Call cugraph::katz_centrality
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph

@@ -29,7 +29,7 @@ import numpy as np
 
 def bfs(graph_ptr, start, directed=True):
     """
-    Call gdf_bfs
+    Call cugraph::bfs
     """
 
     cdef uintptr_t graph = graph_ptr

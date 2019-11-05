@@ -32,7 +32,7 @@ import numpy as np
 
 def overlap(graph_ptr, first=None, second=None):
     """
-    Call gdf_overlap_list
+    Call cugraph::overlap_list
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph

@@ -32,7 +32,7 @@ import numpy as np
 
 def jaccard(graph_ptr, first=None, second=None):
     """
-    Call gdf_jaccard_list
+    Call cugraph::jaccard_list
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph

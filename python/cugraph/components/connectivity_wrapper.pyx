@@ -28,7 +28,7 @@ import numpy as np
 
 def weakly_connected_components(graph_ptr):
     """
-    Call gdf_connected_components
+    Call cugraph::connected_components
     """
 
     cdef uintptr_t graph = graph_ptr
@@ -58,7 +58,7 @@ def weakly_connected_components(graph_ptr):
 
 def strongly_connected_components(graph_ptr):
     """
-    Call gdf_connected_components
+    Call cugraph::connected_components
     """
 
     cdef uintptr_t graph = graph_ptr

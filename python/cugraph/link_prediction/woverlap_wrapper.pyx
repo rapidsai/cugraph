@@ -32,7 +32,7 @@ from cython cimport floating
 
 def overlap_w(graph_ptr, weights, first=None, second=None):
     """
-    Call gdf_overlap_list
+    Call cugraph::overlap_list
     """
 
     cdef uintptr_t graph = graph_ptr

@@ -32,7 +32,7 @@ from numpy.core.numeric import result_type
 
 def jaccard_w(graph_ptr, weights, first=None, second=None):
     """
-    call gdf_jaccard_list
+    Call cugraph::jaccard_list
     """
 
     cdef uintptr_t graph = graph_ptr

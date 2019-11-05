@@ -32,7 +32,7 @@ import numpy as np
 
 def k_core(graph_ptr, k_core_graph_ptr, k, core_number):
     """
-    Call gdf_k_core
+    Call cugraph::k_core
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph

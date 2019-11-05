@@ -32,7 +32,7 @@ import numpy as np
 
 def subgraph(graph_ptr, vertices, subgraph_ptr):
     """
-    Call gdf_extract_subgraph_vertex_nvgraph
+    Call cugraph::extract_subgraph_vertex_nvgraph
     """
 
     cdef uintptr_t graph = graph_ptr

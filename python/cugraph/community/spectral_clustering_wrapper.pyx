@@ -38,7 +38,7 @@ def spectralBalancedCutClustering(graph_ptr,
                                     kmean_tolerance=.00001,
                                     kmean_max_iter=100):
     """
-    Call gdf_balancedCutClustering_nvgraph
+    Call cugraph::balancedCutClustering_nvgraph
     """
 
     cdef uintptr_t graph = graph_ptr
@@ -83,7 +83,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
                                                kmean_tolerance=.00001,
                                                kmean_max_iter=100):
     """
-    Call gdf_spectralModularityMaximization_nvgraph
+    Call cugraph::spectralModularityMaximization_nvgraph
     """
 
     cdef uintptr_t graph = graph_ptr
@@ -122,7 +122,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
 
 def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     """
-    Call gdf_AnalyzeClustering_modularity_nvgraph
+    Call cugraph::analyzeClustering_modularity_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
@@ -139,7 +139,7 @@ def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
 
 def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     """
-    Call gdf_AnalyzeClustering_edge_cut_nvgraph
+    Call cugraph::analyzeClustering_edge_cut_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
@@ -156,7 +156,7 @@ def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
 
 def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
     """
-    Call gdf_AnalyzeClustering_ratio_cut_nvgraph
+    Call cugraph::analyzeClustering_ratio_cut_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
