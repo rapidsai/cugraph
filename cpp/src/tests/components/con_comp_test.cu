@@ -135,7 +135,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     if (PERF)
       {
         hr_clock.start();
-        status = gdf_connected_components(G.get(),
+        cugraph::connected_components(G.get(),
                                           CUGRAPH_WEAK,
                                           &table);
 
@@ -146,7 +146,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     else
       {
         cudaProfilerStart();
-        status = gdf_connected_components(G.get(),
+        cugraph::connected_components(G.get(),
                                           CUGRAPH_WEAK,
                                           &table);
         cudaProfilerStop();

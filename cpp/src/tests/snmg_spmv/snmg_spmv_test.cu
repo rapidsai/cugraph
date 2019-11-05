@@ -136,8 +136,8 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
-        status = cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
-        EXPECT_EQ(status,0);
+        cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+        
         #pragma omp master 
           {std::cout <<  omp_get_wtime() - t << " ";}
 
@@ -187,8 +187,8 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
-        status = cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
-        EXPECT_EQ(status,0);
+        cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+        
         #pragma omp master 
           {std::cout <<  omp_get_wtime() - t << " ";}
 
@@ -287,8 +287,8 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
-        status = cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
-        EXPECT_EQ(status,0);
+        cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+        
         #pragma omp master 
           {std::cout <<  omp_get_wtime() - t << " ";}
 
@@ -339,8 +339,8 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
-        status = cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
-        EXPECT_EQ(status,0);
+        cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+        
         #pragma omp master 
           {std::cout <<  omp_get_wtime() - t << " ";}
 
@@ -448,8 +448,8 @@ class Tests_MGSpmv_unsorted : public ::testing::TestWithParam<MGSpmv_Usecase> {
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
-        status = cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
-        EXPECT_EQ(status,0);
+        cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+        
         #pragma omp master 
           {std::cout <<  omp_get_wtime() - t << " ";}
 
@@ -500,8 +500,8 @@ class Tests_MGSpmv_unsorted : public ::testing::TestWithParam<MGSpmv_Usecase> {
                      v_loc, e_loc, part_offset,
                      col_off, col_ind, col_val);
         t = omp_get_wtime();
-        status = cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
-        EXPECT_EQ(status,0);
+        cugraph::snmg_csrmv(&part_offset[0], col_off, col_ind, col_val, col_x);
+        
         #pragma omp master 
           {std::cout <<  omp_get_wtime() - t << " ";}
 

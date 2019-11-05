@@ -337,7 +337,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
      gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
      gdf_column col_sources, col_destinations;
-     gdf_error status = GDF_CUDA_ERROR;
+     gdf_error GDF_CUDA_ERROR;
      float alpha = 0.85;
      float tol = 1E-5f;
      int max_iter = 500;
@@ -389,7 +389,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       status = gdf_pagerank(G.get(), col_grmat.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
+       cugraph::pagerank(G.get(), col_grmat.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
        (cudaDeviceSynchronize());
       }
       hr_clock.stop(&time_tmp);
@@ -397,7 +397,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     }
     else {
       cudaProfilerStart();
-      status = gdf_pagerank(G.get(), col_grmat.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
+      cugraph::pagerank(G.get(), col_grmat.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
       cudaProfilerStop();
       (cudaDeviceSynchronize());
     }
@@ -407,7 +407,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
     col_sources.data = nullptr;
     col_destinations.data = nullptr;
-    EXPECT_EQ(status,0);
+    
   }
 };
 

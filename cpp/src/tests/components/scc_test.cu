@@ -215,14 +215,13 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     IndexT* p_d_labels = static_cast<IndexT*>(col_labels->data);
     size_t count = 0;
 
-    gdf_error status{GDF_SUCCESS};
     if (PERF)
       {
         hr_clock.start();
         //call strongly connected components
         //
         ///count = sccd.run_scc(p_d_labels);
-        status = gdf_connected_components(G.get(),
+        cugraph::connected_components(G.get(),
                                           CUGRAPH_STRONG,
                                           &table);
         
@@ -236,7 +235,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         //call strongly connected components
         //
         ///count = sccd.run_scc(p_d_labels);
-        status = gdf_connected_components(G.get(),
+        cugraph::connected_components(G.get(),
                                           CUGRAPH_STRONG,
                                           &table);
         
@@ -277,7 +276,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         std::vector<IndexT> l_check(m);//for G(V, E), m := |V|
         gdf_column_ptr check_labels = create_gdf_column(l_check);
         
-        status = gdf_connected_components(G.get(),
+        cugraph::connected_components(G.get(),
                                           CUGRAPH_WEAK,
                                           &table);
 

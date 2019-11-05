@@ -209,10 +209,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     if (param.type_ == RMAT) {
       // This is size_t due to grmat_gen which should be fixed there
       size_t v, e;
-      ASSERT_EQ(
-          gdf_grmat_gen(
-              param.config_.c_str(), v, e, &col_src, &col_dest, &col_weights),
-          GDF_SUCCESS);
+
+      cugraph::gdf_grmat_gen(param.config_.c_str(), v, e, &col_src, &col_dest, &col_weights);
       num_vertices = v;
       num_edges = e;
     } else if (param.type_ == MTX) {
