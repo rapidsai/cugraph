@@ -94,9 +94,7 @@ namespace cusort {
         d_keys = (Key_t *) buffer;
         d_vals = (Value_t *) (buffer + startingPoint);
         cubBuffer = buffer + sdSize2;
-        h_length = len;
-
-        
+        h_length = len;        
       }
 
       void allocate_keys_only(Length_t len, Length_t cubData) {
@@ -523,7 +521,7 @@ namespace cusort {
         tData[cpu_tid].d_input_keys = d_input_keys[cpu_tid];
         tData[cpu_tid].d_input_values = d_input_values[cpu_tid];
 
-        CUGRAPH_TRY(tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus));
+        tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus);
 
         sort_one(tData, average_array_size, cpu_tid, num_gpus, false);
 
@@ -582,7 +580,7 @@ namespace cusort {
         tData[cpu_tid].h_input_length = h_input_partition_offsets[cpu_tid+1] - h_input_partition_offsets[cpu_tid];
         tData[cpu_tid].d_input_keys = d_input_keys[cpu_tid];
 
-        CUGRAPH_TRY(tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus));
+        tData[cpu_tid].allocate(1 << BIN_SCALE, num_gpus);
 
         sort_one(tData, average_array_size, cpu_tid, num_gpus, true);
 

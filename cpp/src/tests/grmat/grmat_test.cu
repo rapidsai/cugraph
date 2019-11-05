@@ -141,7 +141,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
      size_t free_before, total_before;
      cudaMemGetInfo (&free_before, &total_before);
 
-     CUGRAPH_TRY(gdf_grmat_gen ((char *)param.argv.c_str(), vertices1, edges1, &col_sources, &col_destinations, nullptr));
+    cugraph::grmat_gen ((char *)param.argv.c_str(), vertices1, edges1, &col_sources, &col_destinations, nullptr);
      
      size_t free_after, total_after;
      cudaMemGetInfo (&free_after, &total_after);
@@ -215,7 +215,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
     size_t vertices = 0, edges = 0;
 
-    CUGRAPH_TRY(gdf_grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr));
+    cugraph::grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr);
 
     ASSERT_EQ((vertices < (1 << 30)), 1);
     cudaStream_t stream{nullptr};
@@ -244,7 +244,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
     size_t vertices = 0, edges = 0;
 
-    CUGRAPH_TRY(gdf_grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr));
+    cugraph::grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr);
     std::vector<int> src1_h(edges), dest1_h(edges);
 
     (cudaMemcpy(&src1_h[0], col_sources.data, sizeof(int) * edges, cudaMemcpyDeviceToHost));
@@ -255,7 +255,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     col_sources.null_count = 0;
     col_destinations.null_count = 0;
 
-    CUGRAPH_TRY(cugraph::edge_list_view(G.get(), &col_sources, &col_destinations, nullptr));
+    cugraph::edge_list_view(G.get(), &col_sources, &col_destinations, nullptr);
     std::vector<int> src2_h(edges), dest2_h(edges);
 
     (cudaMemcpy(&src2_h[0],  G.get()->edgeList->src_indices->data, sizeof(int) * edges, cudaMemcpyDeviceToHost));
@@ -292,7 +292,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
     size_t vertices1 = 0, edges1 = 0;
 
-    CUGRAPH_TRY(gdf_grmat_gen ((char *)param.argv.c_str(), vertices1, edges1, &col_sources, &col_destinations, nullptr));
+    cugraph::grmat_gen ((char *)param.argv.c_str(), vertices1, edges1, &col_sources, &col_destinations, nullptr);
     std::vector<T1> src1_h(edges1), dest1_h(edges1);
 
     cudaMemcpy(&src1_h[0], col_sources.data, sizeof(T1) * edges1, cudaMemcpyDeviceToHost);
@@ -317,7 +317,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
  
     size_t vertices2 = 0, edges2 = 0;
 
-    CUGRAPH_TRY(gdf_grmat_gen ((char *)param.argv.c_str(), vertices2, edges2, &col_sources, &col_destinations, nullptr));
+    cugraph::grmat_gen ((char *)param.argv.c_str(), vertices2, edges2, &col_sources, &col_destinations, nullptr);
 
     std::vector<T2> src2_h(edges2), dest2_h(edges2);
 
@@ -365,7 +365,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
 
     size_t vertices = 0, edges = 0;
 
-    CUGRAPH_TRY(gdf_grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr));
+    cugraph::grmat_gen ((char *)param.argv.c_str(), vertices, edges, &col_sources, &col_destinations, nullptr);
 
     gdf_dtype_extra_info extra_info;
     extra_info.time_unit = TIME_UNIT_NONE;
@@ -378,9 +378,9 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     std::vector<T> grmat(vertices);
     col_grmat = create_gdf_column(grmat);
 
-    CUGRAPH_TRY(cugraph::edge_list_view(G.get(), &col_sources, &col_destinations, nullptr));
+    cugraph::edge_list_view(G.get(), &col_sources, &col_destinations, nullptr);
     if (manual_tanspose)
-      CUGRAPH_TRY(cugraph::add_transposed_adj_list(G.get()));
+      cugraph::add_transposed_adj_list(G.get());
 
     int device = 0;
     (cudaGetDevice (&device));  

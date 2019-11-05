@@ -89,7 +89,7 @@ TEST(nvgraph_jaccard, success)
   create_gdf_column(off_h, &col_off);
   create_gdf_column(ind_h, &col_ind);
 
-  CUGRAPH_TRY(cugraph::adj_list_view(&G, &col_off, &col_ind, nullptr));
+  cugraph::adj_list_view(&G, &col_off, &col_ind, nullptr);
 
   int no_vertex = off_h.size()-1;
   size_t edges = ind_h.size();
@@ -145,17 +145,17 @@ TEST(nvgraph_jaccard_grmat, success)
   col_src.null_count = 0;
   col_dest.null_count = 0;
 
-  CUGRAPH_TRY(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr));
+  cugraph::grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr);
   std::vector<int> src_h (col_src.size, 0);
   std::vector<int> dest_h (col_dest.size, 0);
   cudaMemcpy((void*)&src_h[0], (void*)col_src.data, sizeof(float)*edges, cudaMemcpyDeviceToHost);
   cudaMemcpy((void*)&dest_h[0], (void*)col_dest.data, sizeof(float)*edges, cudaMemcpyDeviceToHost);
 
 
-  CUGRAPH_TRY(cugraph::edge_list_view(&G, &col_src, &col_dest, nullptr));
+  cugraph::edge_list_view(&G, &col_src, &col_dest, nullptr);
 
   if (!G.adjList)
-    CUGRAPH_TRY(cugraph::add_adj_list(&G));
+    cugraph::add_adj_list(&G);
 
   
   int weighted = 0; //false, it assumes weight of size 1.0 for all the edges

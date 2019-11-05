@@ -113,8 +113,8 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     col_dest = create_gdf_column(cooColInd);
     col_pagerank = create_gdf_column(pagerank);
 
-    CUGRAPH_TRY(cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr));
-    CUGRAPH_TRY(cugraph::add_transposed_adj_list(G.get()));
+    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
+    cugraph::add_transposed_adj_list(G.get());
 
     cudaDeviceSynchronize();
     if (PERF) {
