@@ -81,8 +81,8 @@ struct gdf_adj_list{
       gdf_col_delete(edge_data);
     }
   }
-  gdf_error get_vertex_identifiers(gdf_column *identifiers);
-  gdf_error get_source_indices(gdf_column *indices);
+  void get_vertex_identifiers(gdf_column *identifiers);
+  void get_source_indices(gdf_column *indices);
 
 };
 

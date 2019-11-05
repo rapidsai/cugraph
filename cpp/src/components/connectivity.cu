@@ -43,7 +43,7 @@
  */
 template<typename IndexT,
          int TPB_X = 32>
-std::enable_if_t<std::is_signed<IndexT>::value,gdf_error>
+std::enable_if_t<std::is_signed<IndexT>::value>
  connected_components_impl(gdf_graph *graph,
                               cudf::table *table,
                               cugraph_cc_t connectivity_type,

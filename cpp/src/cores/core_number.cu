@@ -171,7 +171,7 @@ void extract_subgraph(gdf_graph *in_graph,
       v_ptr, c.begin());
   c_ptr = thrust::device_pointer_cast(c.data().get());
 
-  gdf_error err = cugraph::add_edge_list(in_graph);
+  cugraph::add_edge_list(in_graph);
   thrust::device_ptr<int> src =
     thrust::device_pointer_cast(static_cast<int*>(in_graph->edgeList->src_indices->data));
   thrust::device_ptr<int> dst =

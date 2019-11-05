@@ -92,7 +92,7 @@ void snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree
   
 }
 
-template gdf_error snmg_degree<int>(int x, size_t* part_off, int* off, int* ind, int** degree);
+template void snmg_degree<int>(int x, size_t* part_off, int* off, int* ind, int** degree);
 
 template<>
 void snmg_degree<int64_t>(int x,

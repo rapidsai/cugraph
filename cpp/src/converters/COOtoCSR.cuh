@@ -67,7 +67,7 @@ __global__ void offsetsKernel(T runCounts, T* unique, T* counts, T* offsets) {
 
 // Method for constructing CSR from COO
 template <typename T>
-gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T>& result) {
+void ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T>& result) {
     // Sort source and destination columns by source
     //   Allocate local memory for operating on
     T* srcs{nullptr}, *dests{nullptr};
@@ -146,7 +146,7 @@ gdf_error ConvertCOOtoCSR(T* sources, T* destinations, int64_t nnz, CSR_Result<T
 
 // Method for constructing CSR from COO
 template <typename T, typename W>
-gdf_error ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, int64_t nnz, CSR_Result_Weighted<T, W>& result) {
+void ConvertCOOtoCSR_weighted(T* sources, T* destinations, W* edgeWeights, int64_t nnz, CSR_Result_Weighted<T, W>& result) {
     // Sort source and destination columns by source
     //   Allocate local memory for operating on
     T* srcs{nullptr};
