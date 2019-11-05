@@ -25,7 +25,7 @@
 #include "converters/nvgraph.cuh"
 
 void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  gdf_graph* gdf_G,
+                                  Graph* gdf_G,
                                   nvgraphGraphDescr_t* nvg_G,
                                   bool use_transposed) {
 

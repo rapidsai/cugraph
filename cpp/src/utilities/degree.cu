@@ -51,7 +51,7 @@ void degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree, bool off
 
 namespace cugraph {
 
-void degree(gdf_graph *graph, gdf_column *degree, int x) {
+void degree(Graph *graph, gdf_column *degree, int x) {
   // Calculates the degree of all vertices of the graph
   // x = 0: in+out degree
   // x = 1: in-degree

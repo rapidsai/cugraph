@@ -28,7 +28,7 @@
 #include <rmm_utils.h>
 #include <nvgraph_gdf.h>
 
-void core_number_impl(gdf_graph *graph,
+void core_number_impl(Graph *graph,
                           int *core_number) {
   using HornetGraph = hornet::gpu::HornetStatic<int>;
   using HornetInit  = hornet::HornetInit<int>;
@@ -42,7 +42,7 @@ void core_number_impl(gdf_graph *graph,
   
 }
 
-void core_number(gdf_graph *graph,
+void core_number(Graph *graph,
                           gdf_column *core_number) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
@@ -72,8 +72,8 @@ struct FilterEdges {
 
 template <typename WT>
 void extract_edges(
-    gdf_graph *i_graph,
-    gdf_graph *o_graph,
+    Graph *i_graph,
+    Graph *o_graph,
     thrust::device_ptr<int> c_ptr,
     int k,
     int filteredEdgeCount) {
@@ -150,8 +150,8 @@ namespace cugraph {
 //conditions.
 //i.e. All edges (s,d,w) in in_graph are copied over to out_graph
 //if core_num[s] and core_num[d] are greater than or equal to k.
-void extract_subgraph(gdf_graph *in_graph,
-                           gdf_graph *out_graph,
+void extract_subgraph(Graph *in_graph,
+                           Graph *out_graph,
                            int * vid,
                            int * core_num,
                            int k,
@@ -197,11 +197,11 @@ void extract_subgraph(gdf_graph *in_graph,
   }
 }
 
-void k_core(gdf_graph *in_graph,
+void k_core(Graph *in_graph,
                      int k,
                      gdf_column *vertex_id,
                      gdf_column *core_number,
-                     gdf_graph *out_graph) {
+                     Graph *out_graph) {
 
   CUGRAPH_EXPECTS(out_graph != nullptr && in_graph != nullptr, "Invalid API parameter");
   gdf_size_type nV = in_graph->numberOfVertices;

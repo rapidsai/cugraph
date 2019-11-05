@@ -282,7 +282,7 @@ void SSSP<IndexType, DistType>::clean() {
  *
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
-void sssp(gdf_graph* gdf_G,
+void sssp(Graph* gdf_G,
                    gdf_column* sssp_distances,
                    gdf_column* predecessors,
                    const int source_vert) {

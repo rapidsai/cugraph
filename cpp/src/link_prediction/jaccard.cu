@@ -346,7 +346,7 @@ namespace detail {
   }
 } //namespace detail
 
-void jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
+void jaccard(Graph *graph, gdf_column *weights, gdf_column *result) {
 
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
@@ -506,7 +506,7 @@ void jaccard(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
   
 }
 
-void jaccard_list(gdf_graph* graph,
+void jaccard_list(Graph* graph,
                            gdf_column* weights,
                            gdf_column* first,
                            gdf_column* second,

@@ -174,7 +174,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_EQ( (mm_to_coo<IndexT,IndexT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin),0);
 
-    gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+    Graph_ptr G{new Graph, Graph_deleter};
     gdf_column_ptr col_src;
     gdf_column_ptr col_dest;
     gdf_column_ptr col_labels;
@@ -199,15 +199,15 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     //
     ASSERT_EQ(cugraph::add_adj_list(G.get()),0);
 
-    static auto row_offsets_ = [](const gdf_graph* G){
+    static auto row_offsets_ = [](const Graph* G){
       return static_cast<const IndexT*>(G->adjList->offsets->data);
     };
 
-    static auto col_indices_ = [](const gdf_graph* G){
+    static auto col_indices_ = [](const Graph* G){
       return static_cast<const IndexT*>(G->adjList->indices->data);
     };
 
-    static auto nrows_ = [](const gdf_graph* G){
+    static auto nrows_ = [](const Graph* G){
       return G->adjList->offsets->size - 1;
     };
 

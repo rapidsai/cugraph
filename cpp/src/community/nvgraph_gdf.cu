@@ -36,7 +36,7 @@
 
 namespace cugraph {
 
-void balancedCutClustering_nvgraph(gdf_graph* gdf_G,
+void balancedCutClustering_nvgraph(Graph* gdf_G,
                                             const int num_clusters,
                                             const int num_eigen_vects,
                                             const float evs_tolerance,
@@ -116,7 +116,7 @@ void balancedCutClustering_nvgraph(gdf_graph* gdf_G,
   
 }
 
-void spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
+void spectralModularityMaximization_nvgraph(Graph* gdf_G,
                                                       const int n_clusters,
                                                       const int n_eig_vects,
                                                       const float evs_tolerance,
@@ -169,7 +169,7 @@ void spectralModularityMaximization_nvgraph(gdf_graph* gdf_G,
   
 }
 
-void analyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
                                                     const int n_clusters,
                                                     gdf_column* clustering,
                                                     float* score) {
@@ -200,7 +200,7 @@ void analyzeClustering_modularity_nvgraph(gdf_graph* gdf_G,
   
 }
 
-void analyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
                                                   const int n_clusters,
                                                   gdf_column* clustering,
                                                   float* score) {
@@ -259,7 +259,7 @@ void analyzeClustering_edge_cut_nvgraph(gdf_graph* gdf_G,
   
 }
 
-void analyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
+void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
                                                   const int n_clusters,
                                                   gdf_column* clustering,
                                                   float* score) {
@@ -291,9 +291,9 @@ void analyzeClustering_ratio_cut_nvgraph(gdf_graph* gdf_G,
 }
 
 
-void extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
+void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
                                               gdf_column* vertices,
-                                              gdf_graph* result) {
+                                              Graph* result) {
 
   CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
@@ -358,7 +358,7 @@ void extract_subgraph_vertex_nvgraph(gdf_graph* gdf_G,
   
 }
 
-void triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
+void triangle_count_nvgraph(Graph* G, uint64_t* result) {
   
   CUGRAPH_EXPECTS(G != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(G->adjList != nullptr, "Invalid API parameter");
@@ -374,7 +374,7 @@ void triangle_count_nvgraph(gdf_graph* G, uint64_t* result) {
   
 }
 
-void louvain(gdf_graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
+void louvain(Graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 

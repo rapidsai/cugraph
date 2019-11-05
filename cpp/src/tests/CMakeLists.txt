@@ -126,7 +126,7 @@ set(KATZ_TEST_SRC
 # - gdfgraph tests --------------------------------------------------------------------------------
 
 set(GDFGRAPH_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/gdf_graph/gdf_graph.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/Graph/Graph.cu")
 
 ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
 

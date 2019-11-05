@@ -470,7 +470,7 @@ namespace detail {
 
   template class Bfs<int> ;
 } //namespace 
-void bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
+void bfs(Graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");

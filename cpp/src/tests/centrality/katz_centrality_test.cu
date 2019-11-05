@@ -36,7 +36,7 @@ getTopKIds(gdf_column_ptr katz, int k = 10) {
 }
 
 int
-getMaxDegree(gdf_graph * G) {
+getMaxDegree(Graph * G) {
       EXPECT_EQ(cugraph::add_adj_list(G), 0);
       std::vector<int> out_degree(G->numberOfVertices);
       gdf_column_ptr col_out_degree = create_gdf_column(out_degree);
@@ -81,7 +81,7 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   virtual void TearDown() {}
 
   void run_current_test(const Katz_Usecase& param) {
-       gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+       Graph_ptr G{new Graph, Graph_deleter};
        gdf_column_ptr col_src, col_dest, col_katz_centrality;
 
        FILE* fpin = fopen(param.matrix_file.c_str(),"r");

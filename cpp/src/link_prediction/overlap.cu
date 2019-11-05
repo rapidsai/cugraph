@@ -345,7 +345,7 @@ namespace detail {
   }
 } //namespace
 
-void overlap(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
+void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
 
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
@@ -505,7 +505,7 @@ void overlap(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
   
 }
 
-void overlap_list(gdf_graph* graph,
+void overlap_list(Graph* graph,
                            gdf_column* weights,
                            gdf_column* first,
                            gdf_column* second,

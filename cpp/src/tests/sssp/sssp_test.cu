@@ -280,7 +280,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_TRUE(0);
     }
 
-    gdf_graph G;
+    Graph G;
     cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights);
     cugraph::add_adj_list(G.get());
 

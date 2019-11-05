@@ -186,7 +186,7 @@ template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,dou
 } } //namespace
 
 template <typename WT>
-void pagerank_impl (gdf_graph *graph,
+void pagerank_impl (Graph *graph,
                       gdf_column *pagerank,
                       gdf_column *personalization_subset, gdf_column *personalization_values,
                       float alpha = 0.85,
@@ -265,7 +265,7 @@ void pagerank_impl (gdf_graph *graph,
 }
 
 namespace cugraph {
-void pagerank(gdf_graph *graph, gdf_column *pagerank,
+void pagerank(Graph *graph, gdf_column *pagerank,
         gdf_column *personalization_subset, gdf_column *personalization_values,
         float alpha, float tolerance, int max_iter, bool has_guess) {
   //

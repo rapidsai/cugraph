@@ -27,7 +27,7 @@
 #include <Static/KatzCentrality/Katz.cuh>
 
 namespace cugraph {
-void katz_centrality(gdf_graph *graph,
+void katz_centrality(Graph *graph,
                               gdf_column *katz_centrality,
                               double alpha,
                               int max_iter,

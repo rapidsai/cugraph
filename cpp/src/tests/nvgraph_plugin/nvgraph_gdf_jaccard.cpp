@@ -78,7 +78,7 @@ int jaccard_ref(int n, int e, int *csrPtr, int *csrInd, T * csrVal, T *v, T *wor
 
 TEST(nvgraph_jaccard, success)
 {
-  gdf_graph G;
+  Graph G;
   gdf_column col_off, col_ind;
   std::vector<int> off_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
   std::vector<int> ind_h = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 0, 2, 3, 7, 13, 17, 19, 21, 30, 0, 1, 3, 7, 8, 9, 13, 27, 28, 32, 0, 1, 2, 7, 12, 13, 0, 6, 10, 0,
@@ -129,7 +129,7 @@ TEST(nvgraph_jaccard, success)
 //
 TEST(nvgraph_jaccard_grmat, success)
 {
-  gdf_graph G;
+  Graph G;
   gdf_column col_src, col_dest;
 
   size_t vertices = 0, edges = 0;

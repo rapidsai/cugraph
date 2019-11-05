@@ -44,26 +44,26 @@
 template<typename IndexT,
          int TPB_X = 32>
 std::enable_if_t<std::is_signed<IndexT>::value>
- connected_components_impl(gdf_graph *graph,
+ connected_components_impl(Graph *graph,
                               cudf::table *table,
                               cugraph_cc_t connectivity_type,
                               cudaStream_t stream)
 {
   using ByteT = unsigned char;//minimum addressable unit
   
-  static auto row_offsets_ = [](const gdf_graph* G){
+  static auto row_offsets_ = [](const Graph* G){
     return static_cast<const IndexT*>(G->adjList->offsets->data);
   };
 
-  static auto col_indices_ = [](const gdf_graph* G){
+  static auto col_indices_ = [](const Graph* G){
     return static_cast<const IndexT*>(G->adjList->indices->data);
   };
 
-  static auto nrows_ = [](const gdf_graph* G){
+  static auto nrows_ = [](const Graph* G){
     return G->adjList->offsets->size - 1;
   };
 
-  static auto nnz_ = [](const gdf_graph* G){
+  static auto nnz_ = [](const Graph* G){
     return G->adjList->indices->size;
   };
   
@@ -199,7 +199,7 @@ std::enable_if_t<std::is_signed<IndexT>::value>
  */
 namespace cugraph {
 
-void connected_components(gdf_graph *graph,
+void connected_components(Graph *graph,
                                     cugraph_cc_t connectivity_type,
                                     cudf::table *table)  
 {

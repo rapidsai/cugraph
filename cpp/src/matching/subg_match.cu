@@ -33,32 +33,32 @@ namespace detail {
 template <typename VertexT,
           typename SizeT,
           typename GValueT>
-void subgraph_matching_impl(gdf_graph *graph_src,
-                                     gdf_graph *graph_query,
+void subgraph_matching_impl(Graph *graph_src,
+                                     Graph *graph_query,
                                      VertexT* subgraphs,
                                      cudaStream_t stream = nullptr)
 {
-  static auto row_offsets_ = [](const gdf_graph* G){
+  static auto row_offsets_ = [](const Graph* G){
     return static_cast<const SizeT*>(G->adjList->offsets->data);
   };
 
-  static auto col_indices_ = [](const gdf_graph* G){
+  static auto col_indices_ = [](const Graph* G){
     return static_cast<const VertexT*>(G->adjList->indices->data);
   };
 
-  static auto values_ = [](const gdf_graph* G){
+  static auto values_ = [](const Graph* G){
     return static_cast<const GValueT*>(G->adjList->edge_data->data);
   };
 
 
-  static auto nrows_ = [](const gdf_graph* G){
+  static auto nrows_ = [](const Graph* G){
     return static_cast<SizeT>(G->adjList->offsets->size - 1);
   };
 
-  static auto nnz_ = [](const gdf_graph* G){
+  static auto nnz_ = [](const Graph* G){
     return static_cast<SizeT>(G->adjList->indices->size);
   };
-  std::array<gdf_graph*, 2> arr_graph = {graph_src, graph_query};
+  std::array<Graph*, 2> arr_graph = {graph_src, graph_query};
 
   //check consistency of both graphs:
   //
@@ -113,20 +113,20 @@ void subgraph_matching_impl(gdf_graph *graph_src,
  * @param  graph_query input query graph (to search for); assumed undirected [in]
  * @param  subgraphs   Return number of matched subgraphs [out]
  */
-void subgraph_matching(gdf_graph *graph_src,
-                                gdf_graph *graph_query,
+void subgraph_matching(Graph *graph_src,
+                                Graph *graph_query,
                                 gdf_column* subgraphs)
 
 {
-  static auto row_offsets_t_ = [](const gdf_graph* G){
+  static auto row_offsets_t_ = [](const Graph* G){
     return G->adjList->offsets->dtype;
   };
 
-  static auto col_indices_t_ = [](const gdf_graph* G){
+  static auto col_indices_t_ = [](const Graph* G){
     return G->adjList->indices->dtype;
   };
 
-  static auto values_t_ = [](const gdf_graph* G){
+  static auto values_t_ = [](const Graph* G){
     return G->adjList->edge_data->dtype;
   };
 

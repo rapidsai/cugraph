@@ -9,7 +9,7 @@
  *
  */
 
-// gdf_graph tests
+// Graph tests
 // Author: Alex Fender afender@nvidia.com
 
 #include "gtest/gtest.h"
@@ -28,7 +28,7 @@ TEST(gdf_edge_list, success)
 
   cudaStream_t stream{nullptr};
        
-  gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+  Graph_ptr G{new Graph, Graph_deleter};
   gdf_column col_src, col_dest, col_weights;
   
   col_src.dtype = GDF_INT32;
@@ -79,7 +79,7 @@ TEST(gdf_edge_list, success_no_weights)
 
   cudaStream_t stream{nullptr};
        
-  gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+  Graph_ptr G{new Graph, Graph_deleter};
   gdf_column col_src, col_dest;
   
   col_src.dtype = GDF_INT32;
@@ -104,7 +104,7 @@ TEST(gdf_edge_list, success_no_weights)
 TEST(gdf_edge_list, size_mismatch)
 {
        
-  gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+  Graph_ptr G{new Graph, Graph_deleter};
   gdf_column_ptr col_src, col_dest, col_weights;
   
   std::vector<int> src_h={0, 0, 2, 2, 2, 3, 3, 4, 4, 5}, dest_h={1, 2, 0, 1, 4};
@@ -121,7 +121,7 @@ TEST(gdf_edge_list, size_mismatch)
 TEST(gdf_edge_list, size_mismatch2)
 {
        
-  gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+  Graph_ptr G{new Graph, Graph_deleter};
   gdf_column_ptr col_src, col_dest, col_weights;
   
   std::vector<int> src_h={0, 0, 2, 2, 2, 3, 3, 4, 4, 5}, dest_h={1, 2, 0, 1, 4, 4, 5, 3, 5, 3};
@@ -138,7 +138,7 @@ TEST(gdf_edge_list, size_mismatch2)
 TEST(gdf_edge_list, wrong_type)
 {
        
-  gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+  Graph_ptr G{new Graph, Graph_deleter};
   gdf_column_ptr col_src, col_dest;
   
   std::vector<float> src_h={0.0, 0.0, 2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0}, dest_h={1.0, 2.0, 0.0, 1.0, 4.0, 4.0, 5.0, 3.0, 5.0, 3.0};
@@ -165,7 +165,7 @@ TEST(gdf_adj_list, success)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
       
-  gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+  Graph_ptr G{new Graph, Graph_deleter};
   gdf_column_ptr col_off, col_ind, col_w;
   
   col_off = create_gdf_column(off_h);
@@ -197,7 +197,7 @@ TEST(gdf_adj_list, success_no_weights)
       25, 27, 31, 23, 24, 31, 29, 33, 2, 23, 24, 33, 2, 31, 33, 23, 26, 32, 33, 1, 8, 32, 33, 0, 24, 25, 28, 32, 33, 2, 8, 14, 15, 18, 20, 22, 23, 29, 30, 31, 33, 8, 9, 13, 14, 15, 
       18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32};
       
-  gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+  Graph_ptr G{new Graph, Graph_deleter};
   gdf_column_ptr col_off, col_ind;
   
   col_off = create_gdf_column(off_h);
@@ -214,11 +214,11 @@ TEST(gdf_adj_list, success_no_weights)
   ASSERT_EQ( eq(ind_h,ind2_h), 0);
 }
 
-TEST(gdf_graph_properties, success)
+TEST(Graph_properties, success)
 {
      
-  gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
-  gdf_graph_properties *prop = new gdf_graph_properties;
+  Graph_ptr G{new Graph, Graph_deleter};
+  Graph_properties *prop = new Graph_properties;
   ASSERT_FALSE(prop->directed);
   ASSERT_FALSE(prop->weighted);
   ASSERT_FALSE(prop->multigraph);
@@ -240,7 +240,7 @@ TEST(cugraph::number_of_vertices, success1)
   std::vector<int> dest_h={1, 2, 0, 1, 4, 4, 5, 3, 5, 3};
   std::vector<float> w_h={0.50, 0.50, 0.33, 0.33, 0.33, 0.50, 0.50, 0.50, 0.50, 0.5};
 
-  gdf_graph G;
+  Graph G;
   gdf_column col_src, col_dest, col_w;
   create_gdf_column(src_h, &col_src);
   create_gdf_column(dest_h, &col_dest);
@@ -269,7 +269,7 @@ TEST(gdf_delete_adjacency_list, success1)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
       
-  gdf_graph G;
+  Graph G;
   gdf_column col_off, col_ind, col_w;
   //size_t free, free2, total;  
   //cudaMemGetInfo(&free, &total);
@@ -303,7 +303,7 @@ TEST(gdf_delete_adjacency_list, success2)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
       
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_w = new gdf_column;
   //size_t free, free2, total;  
   //cudaMemGetInfo(&free, &total);
@@ -333,7 +333,7 @@ TEST(cugraph::delete_edge_list, success1)
   std::vector<int> src_h={0, 0, 2, 2, 2, 3, 3, 4, 4, 5}, dest_h={1, 2, 0, 1, 4, 4, 5, 3, 5, 3};
   std::vector<float> w_h={0.50, 0.50, 0.33, 0.33, 0.33, 0.50, 0.50, 0.50, 0.50, 1.00};
 
-  gdf_graph G ;
+  Graph G ;
   gdf_column col_src, col_dest, col_w;
   //size_t free, free2, total;  
   //cudaMemGetInfo(&free, &total);
@@ -357,7 +357,7 @@ TEST(cugraph::delete_edge_list, success2)
   std::vector<int> src_h={0, 0, 2, 2, 2, 3, 3, 4, 4, 5}, dest_h={1, 2, 0, 1, 4, 4, 5, 3, 5, 3};
   std::vector<float> w_h={0.50, 0.50, 0.33, 0.33, 0.33, 0.50, 0.50, 0.50, 0.50, 1.00};
 
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column, *col_w = new gdf_column;
   //size_t free, free2, total;  
   //cudaMemGetInfo(&free, &total);
@@ -381,12 +381,12 @@ TEST(cugraph::delete_edge_list, success2)
   delete col_w;
 }
 
-TEST(gdf_graph, cugraph::add_transposed_adj_list)
+TEST(Graph, cugraph::add_transposed_adj_list)
 {
   std::vector<int> src_h={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
   std::vector<int> dest_h={1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
   
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column;
   //size_t free, free2, free3, free4, total;  
   
@@ -438,13 +438,13 @@ TEST(gdf_graph, cugraph::add_transposed_adj_list)
   //EXPECT_EQ(free4,free);
 }
 
-TEST(gdf_graph, gdf_add_adjList)
+TEST(Graph, gdf_add_adjList)
 {
   std::vector<int> src_h={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
   std::vector<int> dest_h={1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
   std::vector<int> off_ref_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
 
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column;
 
   //size_t free, free2, free3, free4, total;  
@@ -502,7 +502,7 @@ void offsets2indices(std::vector<int> &offsets, std::vector<int> &indices) {
     for (int j = offsets[i]; j < offsets[i+1]; ++j) 
       indices[j] = i;
 }
-TEST(gdf_graph, cugraph::add_edge_list)
+TEST(Graph, cugraph::add_edge_list)
 {
   
   // Hard-coded Zachary Karate Club network input
@@ -518,7 +518,7 @@ TEST(gdf_graph, cugraph::add_edge_list)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
       
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_w = new gdf_column;
   
   create_gdf_column(off_h, col_off);
@@ -551,7 +551,7 @@ TEST(gdf_graph, cugraph::add_edge_list)
   gdf_col_delete(col_w);
 }
 
-TEST(gdf_graph, get_vertex_identifiers)
+TEST(Graph, get_vertex_identifiers)
 {
   
   // Hard-coded Zachary Karate Club network input
@@ -565,7 +565,7 @@ TEST(gdf_graph, get_vertex_identifiers)
   std::vector<int> idx_h(off_h.size()-1), idx2_h(off_h.size()-1);
 
       
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_idx = new gdf_column;
   
   create_gdf_column(off_h, col_off);
@@ -587,7 +587,7 @@ TEST(gdf_graph, get_vertex_identifiers)
   gdf_col_delete(col_idx);
 }
 
-TEST(gdf_graph, get_source_indices)
+TEST(Graph, get_source_indices)
 {
   
   // Hard-coded Zachary Karate Club network input
@@ -600,7 +600,7 @@ TEST(gdf_graph, get_source_indices)
 
   std::vector<int> src_h(ind_h.size()), src2_h(ind_h.size());
       
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column *col_off = new gdf_column, *col_ind = new gdf_column, *col_src = new gdf_column;
   
   create_gdf_column(off_h, col_off);
@@ -625,10 +625,10 @@ TEST(gdf_graph, get_source_indices)
 //TODO: revive the test(s) below, once
 //      Gunrock GRMAT is back and stable again;
 //
-TEST(gdf_graph, memory)
+TEST(Graph, memory)
 {
 
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column col_src, col_dest;
 
   col_src.dtype = GDF_INT32;
@@ -684,7 +684,7 @@ TEST(gdf_graph, memory)
 }
 */
 
-TEST(gdf_graph, gdf_column_overhead)
+TEST(Graph, gdf_column_overhead)
 {
   size_t sz = 100000000;
   std::vector<int> src_h(sz,1);
@@ -693,7 +693,7 @@ TEST(gdf_graph, gdf_column_overhead)
   //size_t free, free2, free3, total;  
   //cudaMemGetInfo(&free, &total);
 
-  gdf_graph *G = new gdf_graph;
+  Graph *G = new Graph;
   gdf_column *col_src = new gdf_column, *col_dest = new gdf_column;
 
   create_gdf_column(src_h, col_src);

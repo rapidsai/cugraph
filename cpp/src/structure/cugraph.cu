@@ -72,7 +72,7 @@ void cpy_column_view(const gdf_column *in, gdf_column *out) {
   }
 }
 
-void adj_list_view(gdf_graph *graph, const gdf_column *offsets,
+void adj_list_view(Graph *graph, const gdf_column *offsets,
                             const gdf_column *indices,
                             const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
@@ -94,7 +94,7 @@ void adj_list_view(gdf_graph *graph, const gdf_column *offsets,
   cpy_column_view(indices, graph->adjList->indices);
   
   if (!graph->prop)
-      graph->prop = new gdf_graph_properties();
+      graph->prop = new Graph_properties();
 
   if (edge_data) {
     CUGRAPH_EXPECTS(indices->size == edge_data->size, "Column size mismatch");
@@ -168,7 +168,7 @@ void get_source_indices (gdf_column *src_indices) {
   
 }
 
-void edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
+void edge_list_view(Graph *graph, const gdf_column *src_indices,
                              const gdf_column *dest_indices, 
                              const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
@@ -193,7 +193,7 @@ void edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
   cpy_column_view(dest_indices, graph->edgeList->dest_indices);
 
   if (!graph->prop)
-    graph->prop = new gdf_graph_properties();
+    graph->prop = new Graph_properties();
 
   if (edge_data) {
     CUGRAPH_EXPECTS(src_indices->size == edge_data->size, "Column size mismatch");
@@ -251,7 +251,7 @@ void edge_list_view(gdf_graph *graph, const gdf_column *src_indices,
 }
 
 template <typename T, typename WT>
-void add_adj_list_impl (gdf_graph *graph) {
+void add_adj_list_impl (Graph *graph) {
     if (graph->adjList == nullptr) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
       int nnz = graph->edgeList->src_indices->size;
@@ -285,7 +285,7 @@ void add_adj_list_impl (gdf_graph *graph) {
   }
 }
 
-void add_edge_list (gdf_graph *graph) {
+void add_edge_list (Graph *graph) {
     if (graph->edgeList == nullptr) {
       CUGRAPH_EXPECTS( graph->adjList != nullptr , "Invalid API parameter");
       int *d_src;
@@ -315,7 +315,7 @@ void add_edge_list (gdf_graph *graph) {
 
 
 template <typename WT>
-void add_transposed_adj_list_impl (gdf_graph *graph) {
+void add_transposed_adj_list_impl (Graph *graph) {
     if (graph->transposedAdjList == nullptr ) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
       int nnz = graph->edgeList->src_indices->size, status = 0;
@@ -349,7 +349,7 @@ void add_transposed_adj_list_impl (gdf_graph *graph) {
     
 }
 
-void add_adj_list(gdf_graph *graph) {
+void add_adj_list(Graph *graph) {
   if (graph->adjList != nullptr)
     
 
@@ -368,7 +368,7 @@ void add_adj_list(gdf_graph *graph) {
   }
 }
 
-void add_transposed_adj_list(gdf_graph *graph) {
+void add_transposed_adj_list(Graph *graph) {
   if (graph->edgeList == nullptr)
     cugraph::add_edge_list(graph);
 
@@ -387,7 +387,7 @@ void add_transposed_adj_list(gdf_graph *graph) {
   }
 }
 
-void delete_adj_list(gdf_graph *graph) {
+void delete_adj_list(Graph *graph) {
   if (graph->adjList) {
     delete graph->adjList;
   }
@@ -395,7 +395,7 @@ void delete_adj_list(gdf_graph *graph) {
   
 }
 
-void delete_edge_list(gdf_graph *graph) {
+void delete_edge_list(Graph *graph) {
   if (graph->edgeList) {
     delete graph->edgeList;
   }
@@ -403,7 +403,7 @@ void delete_edge_list(gdf_graph *graph) {
   
 }
 
-void delete_transposed_adj_list(gdf_graph *graph) {
+void delete_transposed_adj_list(Graph *graph) {
   if (graph->transposedAdjList) {
     delete graph->transposedAdjList;
   }
@@ -411,7 +411,7 @@ void delete_transposed_adj_list(gdf_graph *graph) {
   
 }
 
-void number_of_vertices(gdf_graph *graph) {
+void number_of_vertices(Graph *graph) {
   if (graph->numberOfVertices != 0)
     
 
