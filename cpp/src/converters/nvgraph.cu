@@ -37,12 +37,12 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   nvgraphTopologyType_t TT;
   cudaDataType_t settype;
   // create an nvgraph graph handle
-  CUGRAPH_TRY(NVG_TRY(nvgraphCreateGraphDescr(nvg_handle, nvg_G)));
+  NVG_TRY(nvgraphCreateGraphDescr(nvg_handle, nvg_G));
   // setup nvgraph variables
   if (use_transposed) {
     // convert edgeList to transposedAdjList
     if (gdf_G->transposedAdjList == nullptr) {
-      CUGRAPH_TRY(cugraph::add_transposed_adj_list(gdf_G));
+      cugraph::add_transposed_adj_list(gdf_G);
     }
     // using exiting transposedAdjList if it exisits and if adjList is missing
     TT = NVGRAPH_CSC_32;
@@ -52,25 +52,25 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
     topoData.destination_offsets = (int *) gdf_G->transposedAdjList->offsets->data;
     topoData.source_indices = (int *) gdf_G->transposedAdjList->indices->data;
     // attach the transposed adj list
-    CUGRAPH_TRY(NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void * )&topoData, TT)));
+    NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void * )&topoData, TT));
     //attach edge values
     if (gdf_G->transposedAdjList->edge_data) {
       switch (gdf_G->transposedAdjList->edge_data->dtype) {
         case GDF_FLOAT32:
           settype = CUDA_R_32F;
-          CUGRAPH_TRY(NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
+          NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
                                         *nvg_G,
                                         0,
                                         settype,
-                                        (float * ) gdf_G->transposedAdjList->edge_data->data)))
+                                        (float * ) gdf_G->transposedAdjList->edge_data->data))
           break;
         case GDF_FLOAT64:
           settype = CUDA_R_64F;
-          CUGRAPH_TRY(NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
+          NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
                                         *nvg_G,
                                         0,
                                         settype,
-                                        (double * ) gdf_G->transposedAdjList->edge_data->data)))
+                                        (double * ) gdf_G->transposedAdjList->edge_data->data))
           break;
         default:
           CUGRAPH_FAIL("Unsupported data type");
@@ -81,7 +81,7 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   else {
     // convert edgeList to adjList
     if (gdf_G->adjList == nullptr) {
-      CUGRAPH_TRY(cugraph::add_adj_list(gdf_G));
+      cugraph::add_adj_list(gdf_G));
     }
     TT = NVGRAPH_CSR_32;
     nvgraphCSRTopology32I_st topoData;
@@ -91,25 +91,25 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
      topoData.destination_indices = (int *) gdf_G->adjList->indices->data;
  
     // attach adj list
-    CUGRAPH_TRY(NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void * )&topoData, TT)));
+    NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void * )&topoData, TT));
     //attach edge values
     if (gdf_G->adjList->edge_data) {
       switch (gdf_G->adjList->edge_data->dtype) {
         case GDF_FLOAT32:
           settype = CUDA_R_32F;
-          CUGRAPH_TRY(NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
+          NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
                                         *nvg_G,
                                         0,
                                         settype,
-                                        (float * ) gdf_G->adjList->edge_data->data)))
+                                        (float * ) gdf_G->adjList->edge_data->data))
           break;
         case GDF_FLOAT64:
           settype = CUDA_R_64F;
-          CUGRAPH_TRY(NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
+          NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
                                         *nvg_G,
                                         0,
                                         settype,
-                                        (double * ) gdf_G->adjList->edge_data->data)))
+                                        (double * ) gdf_G->adjList->edge_data->data))
           break;
         default:
           CUGRAPH_FAIL("Unsupported data type");

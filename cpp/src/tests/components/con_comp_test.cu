@@ -131,7 +131,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     //
     ASSERT_EQ(cugraph::add_adj_list(G.get()),0);
 
-    gdf_error status;
+    
     if (PERF)
       {
         hr_clock.start();
@@ -152,7 +152,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
         cudaProfilerStop();
         cudaDeviceSynchronize();
       }
-    EXPECT_EQ(status,GDF_SUCCESS);
+    
     
     //rmmFinalize();
   }

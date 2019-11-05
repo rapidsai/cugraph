@@ -82,7 +82,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      
      gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
      gdf_column_ptr col_src, col_dest, col_pagerank;
-     gdf_error status;
+     
      float alpha = 0.85;
      float tol = 1E-5f;
      int max_iter = 500;

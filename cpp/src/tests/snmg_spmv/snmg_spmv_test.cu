@@ -77,7 +77,7 @@ class Tests_MGSpmv : public ::testing::TestWithParam<MGSpmv_Usecase> {
 
      int m, k, nnz, n_gpus;
      MM_typecode mc;
-     gdf_error status;
+     
 
      double t;
 
@@ -236,7 +236,7 @@ class Tests_MGSpmv_hibench : public ::testing::TestWithParam<MGSpmv_Usecase> {
      std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.matrix_file)+ std::string("_") + ss.str().c_str();
 
      int m, nnz, n_gpus;
-     gdf_error status;
+     
      std::vector<idx_t> cooRowInd, cooColInd;
      double t;
 
@@ -386,7 +386,7 @@ class Tests_MGSpmv_unsorted : public ::testing::TestWithParam<MGSpmv_Usecase> {
 
      int m, k, nnz, n_gpus;
      MM_typecode mc;
-     gdf_error status;
+     
 
      double t;
 

@@ -250,7 +250,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
 
     std::cout<<"label count: " << count_labels << "\n";
     
-    EXPECT_EQ(status,GDF_SUCCESS);
+    
 
 #ifdef DEBUG_SCC
     std::cout << "#iterations: " << count << "\n";
@@ -281,7 +281,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
                                           CUGRAPH_WEAK,
                                           &table);
 
-        EXPECT_EQ(status,GDF_SUCCESS);
+        
 
         IndexT* p_d_l_check = static_cast<IndexT*>(check_labels->data);
         std::cout <<"check labels:\n";

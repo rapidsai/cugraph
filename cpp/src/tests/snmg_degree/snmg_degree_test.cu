@@ -89,7 +89,7 @@ public:
     std::cout << test_id << "\n";
     int m, k, nnz, n_gpus;
     MM_typecode mc;
-    gdf_error status;
+    
 
     double t;
 
@@ -321,7 +321,7 @@ public:
         + std::string("_") + ss.str().c_str();
     std::cout << "Filename: " << param.matrix_file << ", x=" << param.x << "\n";
     int m, nnz, n_gpus;
-    gdf_error status;
+    
     std::vector<idx_t> cooRowInd, cooColInd;
     double t;
 
