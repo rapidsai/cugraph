@@ -54,7 +54,7 @@ cdef gdf_column get_gdf_column_view(col):
         category=<void*>category
     )
 
-    err = gdf_column_view_augmented(<gdf_column*> &c_col,
+    cugraph::column_view_augmented(<gdf_column*> &c_col,
                                     <void*> data_ptr,
                                     <valid_type*> valid_ptr,
                                     <size_type> len(col),
@@ -76,7 +76,7 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
         category=<void*>category
     )
 
-    err = gdf_column_view_augmented(<gdf_column*> c_col,
+    cugraph::column_view_augmented(<gdf_column*> c_col,
                                     <void*> data_ptr,
                                     <valid_type*> valid_ptr,
                                     <size_type> col_len,

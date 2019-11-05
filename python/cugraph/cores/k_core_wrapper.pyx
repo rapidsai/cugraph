@@ -42,6 +42,6 @@ def k_core(graph_ptr, k_core_graph_ptr, k, core_number):
 
     cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
     cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
-    err = gdf_k_core(g, k, &c_vertex, &c_values, rg)
+    cugraph::k_core(g, k, &c_vertex, &c_values, rg)
 
     

@@ -50,7 +50,7 @@ def renumber(source_col, dest_col):
     cdef gdf_column source = get_gdf_column_view(source_col)
     cdef gdf_column dest = get_gdf_column_view(dest_col)
 
-    err = gdf_renumber_vertices(&source,
+    cugraph::renumber_vertices(&source,
                                 &dest,
                                 &src_renumbered,
                                 &dst_renumbered,

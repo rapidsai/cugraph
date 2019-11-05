@@ -63,7 +63,7 @@ def spectralBalancedCutClustering(graph_ptr,
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    err = gdf_balancedCutClustering_nvgraph(g,
+    cugraph::balancedCutClustering_nvgraph(g,
                                             num_clusters,
                                             num_eigen_vects,
                                             evs_tolerance,
@@ -108,7 +108,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    err = gdf_spectralModularityMaximization_nvgraph(g,
+    cugraph::spectralModularityMaximization_nvgraph(g,
                                                      num_clusters,
                                                      num_eigen_vects,
                                                      evs_tolerance,
@@ -133,7 +133,7 @@ def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    cugraph::analyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
     
     return score
 
@@ -150,7 +150,7 @@ def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    cugraph::analyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
     
     return score
 
@@ -167,6 +167,6 @@ def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    err = gdf_AnalyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    cugraph::analyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
     
     return score

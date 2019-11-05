@@ -62,12 +62,12 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     
 
     if personalization is None:
-        err = gdf_pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
+        cugraph::pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
     else:
         c_pers_vtx = get_gdf_column_view(personalization['vertex'])
         c_pers_val = get_gdf_column_view(personalization['values'])
-        err = gdf_pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
+        cugraph::pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
 
     

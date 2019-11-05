@@ -45,5 +45,5 @@ def subgraph(graph_ptr, vertices, subgraph_ptr):
     err = cugraph::add_adj_list(g)
     
 
-    err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
+    cugraph::extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
     

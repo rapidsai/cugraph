@@ -53,7 +53,7 @@ def core_number(graph_ptr):
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    err = gdf_core_number(g, &c_core_number_col)
+    cugraph::core_number(g, &c_core_number_col)
 
     
 

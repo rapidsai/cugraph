@@ -54,7 +54,7 @@ def jaccard_w(graph_ptr, weights, first=None, second=None):
         c_weight_col = get_gdf_column_view(weights)
         c_first_col = get_gdf_column_view(first)
         c_second_col = get_gdf_column_view(second)
-        err = gdf_jaccard_list(g,
+        cugraph::jaccard_list(g,
                                &c_weight_col,
                                &c_first_col,
                                &c_second_col,
@@ -76,7 +76,7 @@ def jaccard_w(graph_ptr, weights, first=None, second=None):
         c_result_col = get_gdf_column_view(result)
         c_weight_col = get_gdf_column_view(weights)
 
-        err = gdf_jaccard(g, &c_weight_col, &c_result_col)
+        cugraph::jaccard(g, &c_weight_col, &c_result_col)
         
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,

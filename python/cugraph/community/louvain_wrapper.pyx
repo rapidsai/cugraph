@@ -73,11 +73,11 @@ def louvain(graph_ptr):
     
 
     if single_precision:
-        err = gdf_louvain(<Graph*>g,
+        cugraph::louvain(<Graph*>g,
                           <void*>&final_modularity_single_precision,
                           <void*>&num_level, &c_louvain_parts_col)
     else:
-        err = gdf_louvain(<Graph*>g,
+        cugraph::louvain(<Graph*>g,
                           <void*>&final_modularity_double_precision,
                           <void*>&num_level, &c_louvain_parts_col)
     

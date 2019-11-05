@@ -37,6 +37,6 @@ def triangles(graph_ptr):
     
 
     cdef uint64_t result
-    err = gdf_triangle_count_nvgraph(g, &result)
+    cugraph::triangle_count_nvgraph(g, &result)
     
     return result

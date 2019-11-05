@@ -51,7 +51,7 @@ def jaccard(graph_ptr, first=None, second=None):
         c_result_col = get_gdf_column_view(result)
         c_first_col = get_gdf_column_view(first)
         c_second_col = get_gdf_column_view(second)
-        err = gdf_jaccard_list(g,
+        cugraph::jaccard_list(g,
                                <gdf_column*> NULL,
                                &c_first_col,
                                &c_second_col,
@@ -72,7 +72,7 @@ def jaccard(graph_ptr, first=None, second=None):
         result = cudf.Series(np.ones(num_edges, dtype=np.float32), nan_as_null=False)
         c_result_col = get_gdf_column_view(result)
 
-        err = gdf_jaccard(g, <gdf_column*> NULL, &c_result_col)
+        cugraph::jaccard(g, <gdf_column*> NULL, &c_result_col)
         
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,

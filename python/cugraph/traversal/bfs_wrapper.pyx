@@ -56,7 +56,7 @@ def bfs(graph_ptr, start, directed=True):
     err = g.adjList.get_vertex_identifiers(&c_vertex_col)
     
 
-    err = gdf_bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+    cugraph::bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
     
 
     return df

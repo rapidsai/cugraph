@@ -46,7 +46,7 @@ def grmat_gen(argv):
     argv_bytes = argv.encode()
     cdef char* c_argv = argv_bytes
 
-    err = gdf_grmat_gen (<char*>c_argv, vertices, edges, <gdf_column*>c_source_col, <gdf_column*>c_dest_col, <gdf_column*>0)
+    cugraph::grmat_gen (<char*>c_argv, vertices, edges, <gdf_column*>c_source_col, <gdf_column*>c_dest_col, <gdf_column*>0)
 
 
     col_size = c_source_col.size

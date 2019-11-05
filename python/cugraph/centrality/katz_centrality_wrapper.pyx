@@ -60,7 +60,7 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    err = gdf_katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
+    cugraph::katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
 
     
 

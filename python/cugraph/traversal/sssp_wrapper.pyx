@@ -66,9 +66,9 @@ def sssp(graph_ptr, source):
     
 
     if g.adjList.edge_data:
-        err = gdf_sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
+        cugraph::sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
     else:
-        err = gdf_bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
+        cugraph::bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
     
 
     return df
