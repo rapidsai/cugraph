@@ -151,7 +151,7 @@ void delete_adj_list(Graph* graph);
  * @Returns                          GDF_SUCCESS upon successful completion.
  */
 /* ----------------------------------------------------------------------------*/
-void cugraph::delete_edge_list(Graph* graph);
+void delete_edge_list(Graph* graph);
 
 /**
  * @Synopsis   Deletes the transposed adjacency list of a Graph
