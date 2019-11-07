@@ -8,7 +8,7 @@ import cugraph
 import cudf
 
 from benchmark import (
-    Benchmark, logExeTime, printLastResult, nop
+    Benchmark, logExeTime, logGpuMetrics, printLastResult, nop
 )
 
 from asv_report import (
@@ -171,7 +171,7 @@ def getAllPossibleAlgos():
 
 ###############################################################################
 if __name__ == "__main__":
-    perfData = []
+    perfData = {}
     args = parseCLI(sys.argv[1:])
 
     # set algosToRun based on the command line args
@@ -187,11 +187,9 @@ if __name__ == "__main__":
         algosToRun = allPossibleAlgos
 
     # Update the various wrappers with a list to log to and formatting settings
-    # (name width must be >= 15)
     logExeTime.perfData = perfData
+    logGpuMetrics.perfData = perfData
     printLastResult.perfData = perfData
-    printLastResult.nameCellWidth = max(*[len(a) for a in algosToRun], 15)
-    printLastResult.valueCellWidth = 30
 
     # Load the data file and create a Graph, treat these as benchmarks too
     csvDelim = {"space": ' ', "tab": '\t'}[args.delimiter]
@@ -201,8 +199,7 @@ if __name__ == "__main__":
     if G is None:
         raise RuntimeError("could not create graph!")
 
-    print("-" * (printLastResult.nameCellWidth +
-                 printLastResult.valueCellWidth))
+    print("-" * 80)
 
     benches = getBenchmarks(G, edgelist_gdf, args)
 
@@ -214,16 +211,13 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     if args.update_asv_dir:
-        # Convert Exception strings in results to None for ASV
-        asvPerfData = [(name, value if not isinstance(value, str) else None)
-                       for (name, value) in perfData]
         # special case: do not include the full path to the datasetName, since
         # the leading parts are redundant and take up UI space.
         datasetName = "/".join(args.file.split("/")[-3:])
 
         cugraph_update_asv(asvDir=args.update_asv_dir,
                            datasetName=datasetName,
-                           algoRunResults=asvPerfData,
+                           algoRunResults=perfData,
                            cudaVer=args.report_cuda_ver,
                            pythonVer=args.report_python_ver,
                            osType=args.report_os_type,

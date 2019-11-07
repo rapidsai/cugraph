@@ -18,6 +18,15 @@ def cugraph_update_asv(asvDir, datasetName, algoRunResults,
 
     uname = platform.uname()
 
+    prefixDict = dict(maxGpuUtil="gpuutil",
+                      maxGpuMemUsed="gpumem",
+                      exeTime="time",
+                     )
+    unitsDict = dict(maxGpuUtil="percent",
+                     maxGpuMemUsed="bytes",
+                     exeTime="seconds",
+                    )
+
     bInfo = BenchmarkInfo(machineName=machineName or uname.machine,
                           cudaVer=cudaVer or "unknown",
                           osType=osType or "%s %s" % (uname.system,
@@ -30,11 +39,13 @@ def cugraph_update_asv(asvDir, datasetName, algoRunResults,
                           arch=uname.machine,
                           ram="%d" % psutil.virtual_memory().total)
 
-    for (algoName, exeTime) in algoRunResults:
-        bResult = BenchmarkResult(funcName=algoName,
-                                  argNameValuePairs=[("dataset", datasetName)],
-                                  result=exeTime)
-        db.addResult(bInfo, bResult)
+    for (funcName, metricsDict) in algoRunResults.items():
+        for (metricName, val) in metricsDict.items():
+            bResult = BenchmarkResult(funcName="%s_%s" % (funcName, prefixDict[metricName]),
+                                      argNameValuePairs=[("dataset", datasetName)],
+                                      result=val)
+            bResult.unit = unitsDict[metricName]
+            db.addResult(bInfo, bResult)
 
 
 if __name__ == "__main__":

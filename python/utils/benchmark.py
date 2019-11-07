@@ -3,6 +3,8 @@ import sys
 # from time import process_time_ns   # only in 3.7!
 from time import clock_gettime, CLOCK_MONOTONIC_RAW
 
+from gpu_metric_poller import startGpuMetricPolling, stopGpuMetricPolling
+
 
 class Nop:
     def __getattr__(self, attr):
@@ -36,40 +38,71 @@ def noStdoutWrapper(func):
 def logExeTime(func):
     def wrapper(*args):
         retVal = None
-        perfData = logExeTime.perfData
+        # Return or create the results dict for the function name
+        perfData = logExeTime.perfData.setdefault(func.__name__, {})
         try:
             # st = process_time_ns()
             st = clock_gettime(CLOCK_MONOTONIC_RAW)
             retVal = func(*args)
         except Exception as e:
-            perfData.append((func.__name__, "ERROR: %s" % e))
+            perfData["ERROR"] = str(e)
             return
         # exeTime = (process_time_ns() - st) / 1e9
         exeTime = clock_gettime(CLOCK_MONOTONIC_RAW) - st
-        perfData.append((func.__name__, exeTime))
+        perfData["exeTime"] = exeTime
         return retVal
     return wrapper
 
 
-logExeTime.perfData = []
+logExeTime.perfData = {}
+
+
+def logGpuMetrics(func):
+    def wrapper(*args):
+        retVal = None
+        # Return or create the results dict for the function name
+        perfData = logGpuMetrics.perfData.setdefault(func.__name__, {})
+
+        try:
+            gpuPollObj = startGpuMetricPolling()
+            retVal = func(*args)
+            stopGpuMetricPolling(gpuPollObj)
+        except Exception as e:
+            perfData["ERROR"] = str(e)
+            return
+        perfData["maxGpuUtil"] = gpuPollObj.maxGpuUtil
+        perfData["maxGpuMemUsed"] = gpuPollObj.maxGpuMemUsed
+        return retVal
+    return wrapper
+
+
+logGpuMetrics.perfData = {}
 
 
 def printLastResult(func):
     def wrapper(*args):
         retVal = func(*args)
-        if printLastResult.perfData:
-            (name, value) = printLastResult.perfData[-1]
-            nameWidth = printLastResult.nameCellWidth
-            valueWidth = printLastResult.valueCellWidth
-            print("%s | %s" % (name.ljust(nameWidth),
-                               str(value).ljust(valueWidth)))
+        funcNames = printLastResult.perfData.keys()
+        diff = set(funcNames) - printLastResult.funcsPrinted
+        if diff:
+            metricNameWidth = printLastResult.metricNameCellWidth
+            valWidth = printLastResult.valueCellWidth
+            funcName = diff.pop()
+            valDict = printLastResult.perfData[funcName]
+            print(funcName)
+            for metricName in sorted(valDict.keys()):
+                val = valDict[metricName]
+                print("   %s | %s" % (metricName.ljust(metricNameWidth),
+                                      str(val).ljust(valWidth)))
+            printLastResult.funcsPrinted = set(funcNames)
         return retVal
     return wrapper
 
 
-printLastResult.perfData = []
-printLastResult.nameCellWidth = 40
+printLastResult.perfData = {}
+printLastResult.metricNameCellWidth = 20
 printLastResult.valueCellWidth = 40
+printLastResult.funcsPrinted = set()
 
 
 class WrappedFunc:
@@ -99,4 +132,4 @@ class WrappedFunc:
 
 
 class Benchmark(WrappedFunc):
-    wrappers = [logExeTime, printLastResult]
+    wrappers = [logExeTime, logGpuMetrics, printLastResult]
