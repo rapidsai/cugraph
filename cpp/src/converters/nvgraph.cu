@@ -24,6 +24,8 @@
 #include "utilities/error_utils.h"
 #include "converters/nvgraph.cuh"
 
+namespace cugraph {
+
 void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                   Graph* gdf_G,
                                   nvgraphGraphDescr_t* nvg_G,
@@ -118,3 +120,5 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   }
   
 }
+
+} // namespace

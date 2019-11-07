@@ -183,8 +183,6 @@ template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,dou
         int *prsVtx,  double *prsVal, int prsLen, bool has_personalization,
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
-} } //namespace
-
 template <typename WT>
 void pagerank_impl (Graph *graph,
                       gdf_column *pagerank,
@@ -220,7 +218,7 @@ void pagerank_impl (Graph *graph,
   WT *residual = &res;
 
   if (graph->transposedAdjList == nullptr) {
-    cugraph::add_transposed_adj_list(graph);
+    add_transposed_adj_list(graph);
   }
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
@@ -232,15 +230,15 @@ void pagerank_impl (Graph *graph,
 #endif
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
-  cugraph::detail::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
+  HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
 
   if (has_guess)
   {
     CUGRAPH_EXPECTS( pagerank->data != nullptr, "Column must be valid" );
-    cugraph::detail::copy<WT>(m, (WT*)pagerank->data, d_pr);
+    copy<WT>(m, (WT*)pagerank->data, d_pr);
   }
 
-  status = cugraph::detail::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
+  status = pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
           prsVtx, prsVal, prsLen, has_personalization,
     alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 
@@ -251,7 +249,7 @@ void pagerank_impl (Graph *graph,
       default:  CUGRAPH_FAIL("Pagerank exec failed")
     }
 
-  cugraph::detail::copy<WT>(m, d_pr, (WT*)pagerank->data);
+  copy<WT>(m, d_pr, (WT*)pagerank->data);
 
   ALLOC_FREE_TRY(d_val, stream);
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
@@ -264,7 +262,7 @@ void pagerank_impl (Graph *graph,
   
 }
 
-namespace cugraph {
+}
 void pagerank(Graph *graph, gdf_column *pagerank,
         gdf_column *personalization_subset, gdf_column *personalization_values,
         float alpha, float tolerance, int max_iter, bool has_guess) {
@@ -276,10 +274,10 @@ void pagerank(Graph *graph, gdf_column *pagerank,
   CUGRAPH_EXPECTS(graph->transposedAdjList != nullptr, "Invalid API parameter");
 
   switch (pagerank->dtype) {
-    case GDF_FLOAT32:   return pagerank_impl<float>(graph, pagerank,
+    case GDF_FLOAT32:   return detail::pagerank_impl<float>(graph, pagerank,
                                 personalization_subset, personalization_values,
                                 alpha, tolerance, max_iter, has_guess);
-    case GDF_FLOAT64:   return pagerank_impl<double>(graph, pagerank,
+    case GDF_FLOAT64:   return detail::pagerank_impl<double>(graph, pagerank,
                                 personalization_subset, personalization_values,
                                 alpha, tolerance, max_iter, has_guess);
     default: CUGRAPH_FAIL("Unsupported data type");

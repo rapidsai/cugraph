@@ -58,7 +58,7 @@ void balancedCutClustering_nvgraph(Graph* gdf_G,
         rmm::device_vector<double> d_val;
 
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
   int weight_index = 0;
 
   cudaStream_t stream{nullptr};
@@ -138,7 +138,7 @@ void spectralModularityMaximization_nvgraph(Graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
   int weight_index = 0;
 
   // Pack parameters for call to Nvgraph
@@ -185,7 +185,7 @@ void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
   int weight_index = 0;
 
   // Make Nvgraph call
@@ -218,7 +218,7 @@ void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
         rmm::device_vector<double> d_val;
 
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
   int weight_index = 0;
 
   cudaStream_t stream{nullptr};
@@ -275,7 +275,7 @@ void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
   int weight_index = 0;
 
   // Make Nvgraph call
@@ -305,7 +305,7 @@ void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvg_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvg_G, false));
+  createGraph_nvgraph(nvg_handle, gdf_G, &nvg_G, false);
 
   // Create an Nvgraph graph descriptor for the result and initialize
   nvgraphGraphDescr_t nvg_result = nullptr;
@@ -367,7 +367,7 @@ void triangle_count_nvgraph(Graph* G, uint64_t* result) {
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvg_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, G, &nvg_G, false));
+  createGraph_nvgraph(nvg_handle, G, &nvg_G, false);
 
   // Make Nvgraph call
   NVG_TRY(nvgraphTriangleCount(nvg_handle, nvg_G, result));

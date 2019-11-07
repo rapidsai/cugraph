@@ -17,6 +17,7 @@
 #include <nvgraph/nvgraph.h>
 #include <cugraph.h>
 
+namespace cugraph {
 /**
  * Takes a GDF graph and wraps its data with an Nvgraph graph object.
  * @param nvg_handle The Nvgraph handle
@@ -29,3 +30,4 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                   Graph* gdf_G,
                                   nvgraphGraphDescr_t * nvgraph_G,
 bool use_transposed = false);
+}

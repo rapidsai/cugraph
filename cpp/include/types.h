@@ -93,24 +93,25 @@ struct gdf_dynamic{
 // TODO : improve graph class 
 // 
 class Graph{
-  gdf_edge_list *edgeList; // COO
-  gdf_adj_list *adjList; //CSR
-  gdf_adj_list *transposedAdjList; //CSC
-  gdf_dynamic *dynAdjList; //dynamic 
-  Graph_properties *prop;
-  gdf_size_type numberOfVertices;
-  Graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
-  ~Graph() {
-    if (edgeList) 
-        delete edgeList;
-    if (adjList) 
-        delete adjList;
-    if (transposedAdjList) 
-        delete transposedAdjList;
-    if (dynAdjList) 
-        delete dynAdjList;
-    if (prop) 
-        delete prop;
-  }
+  public :
+    gdf_edge_list *edgeList; // COO
+    gdf_adj_list *adjList; //CSR
+    gdf_adj_list *transposedAdjList; //CSC
+    gdf_dynamic *dynAdjList; //dynamic 
+    Graph_properties *prop;
+    gdf_size_type numberOfVertices;
+    Graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
+    ~Graph() {
+      if (edgeList) 
+          delete edgeList;
+      if (adjList) 
+          delete adjList;
+      if (transposedAdjList) 
+          delete transposedAdjList;
+      if (dynAdjList) 
+          delete dynAdjList;
+      if (prop) 
+          delete prop;
+    }
 };
 } //namespace cugraph
