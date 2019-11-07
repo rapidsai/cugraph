@@ -318,7 +318,7 @@ template <typename WT>
 void add_transposed_adj_list_impl (Graph *graph) {
     if (graph->transposedAdjList == nullptr ) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
-      int nnz = graph->edgeList->src_indices->size, status = 0;
+      int nnz = graph->edgeList->src_indices->size;
       graph->transposedAdjList = new gdf_adj_list;
       graph->transposedAdjList->offsets = new gdf_column;
       graph->transposedAdjList->indices = new gdf_column;

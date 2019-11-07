@@ -83,7 +83,7 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   else {
     // convert edgeList to adjList
     if (gdf_G->adjList == nullptr) {
-      cugraph::add_adj_list(gdf_G));
+      cugraph::add_adj_list(gdf_G);
     }
     TT = NVGRAPH_CSR_32;
     nvgraphCSRTopology32I_st topoData;
