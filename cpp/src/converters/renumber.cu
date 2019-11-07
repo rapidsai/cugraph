@@ -132,7 +132,7 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
       if (new_size > 0x7fffffff) {
         ALLOC_FREE_TRY(src_renumbered, stream);
         ALLOC_FREE_TRY(dst_renumbered, stream);
-        return GDF_COLUMN_SIZE_TOO_BIG;
+        CUGRAPH_FAIL("Column size is too big");
       }
 
       //
@@ -190,7 +190,7 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
       if (new_size > 0x7fffffff) {
         ALLOC_FREE_TRY(src_renumbered, stream);
         ALLOC_FREE_TRY(dst_renumbered, stream);
-        return GDF_COLUMN_SIZE_TOO_BIG;
+        CUGRAPH_FAIL("Column size is too big");
       }
 
       //

@@ -148,7 +148,7 @@ void adj_list_view(Graph *graph, const gdf_column *offsets,
   
 }
 
-void get_vertex_identifiers(gdf_column *identifiers) {
+void gdf_adj_list::get_vertex_identifiers(gdf_column *identifiers) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
   cugraph::detail::sequence<int>((int)offsets->size-1, (int*)identifiers->data);
@@ -156,7 +156,7 @@ void get_vertex_identifiers(gdf_column *identifiers) {
   
 }
 
-void get_source_indices (gdf_column *src_indices) {
+void gdf_adj_list::get_source_indices (gdf_column *src_indices) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( src_indices->size == indices->size, "Column size mismatch" );

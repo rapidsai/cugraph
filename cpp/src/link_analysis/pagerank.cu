@@ -70,7 +70,7 @@ bool pagerankIteration(IndexType n, IndexType e, IndexType *cscPtr, IndexType *c
 }
 
 template <typename IndexType, typename ValueType>
-int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, ValueType *cscVal,
+int pagerankSolver(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, ValueType *cscVal,
              IndexType *prsVtx, ValueType *prsVal, IndexType prsLen, bool has_personalization,
              ValueType alpha, ValueType *a, bool has_guess, float tolerance, int max_iter,
              ValueType * &pagerank_vector, ValueType * &residual) {
@@ -175,11 +175,11 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
   return converged ? 0 : 1;
 }
 
-//template int pagerank<int, half> (  int n, int e, int *cscPtr, int *cscInd,half *cscVal, half alpha, half *a, bool has_guess, float tolerance, int max_iter, half * &pagerank_vector, half * &residual);
-template int pagerank<int, float> (  int n, int e, int *cscPtr, int *cscInd,float *cscVal,
+//template int pagerankSolver<int, half> (  int n, int e, int *cscPtr, int *cscInd,half *cscVal, half alpha, half *a, bool has_guess, float tolerance, int max_iter, half * &pagerank_vector, half * &residual);
+template int pagerankSolver<int, float> (  int n, int e, int *cscPtr, int *cscInd,float *cscVal,
         int *prsVtx, float *prsVal, int prsLen, bool has_personalization,
         float alpha, float *a, bool has_guess, float tolerance, int max_iter, float * &pagerank_vector, float * &residual);
-template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,double *cscVal,
+template int pagerankSolver<int, double> (  int n, int e, int *cscPtr, int *cscInd,double *cscVal,
         int *prsVtx,  double *prsVal, int prsLen, bool has_personalization,
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
@@ -238,15 +238,15 @@ void pagerank_impl (Graph *graph,
     copy<WT>(m, (WT*)pagerank->data, d_pr);
   }
 
-  status = pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
+  status = pagerankSolver<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
           prsVtx, prsVal, prsLen, has_personalization,
     alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 
   if (status !=0)
     switch ( status ) {
-      case -1: CUGRAPH_FAIL("Error : bad parameters in Pagerank")
-      case 1: CUGRAPH_FAIL("Warning : Pagerank did not reached the desired tolerance")
-      default:  CUGRAPH_FAIL("Pagerank exec failed")
+      case -1: CUGRAPH_FAIL("Error : bad parameters in Pagerank");
+      case 1: CUGRAPH_FAIL("Warning : Pagerank did not reached the desired tolerance");
+      default:  CUGRAPH_FAIL("Pagerank exec failed");
     }
 
   copy<WT>(m, d_pr, (WT*)pagerank->data);
