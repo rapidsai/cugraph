@@ -37,9 +37,10 @@ print('Networkx version : {} '.format(nx.__version__))
 
 
 def calc_k_truss_max(graph_file):
-    M = utils.read_csv_file(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
+    src, dst = cugraph.symmetrize(cu_M['0'], cu_M['1'])
     G = cugraph.Graph()
-    G.add_edge_list(M['0'], M['1'])
+    G.add_edge_list(src, dst)
 
     k_max = cugraph.ktruss_max(G)
 
@@ -59,9 +60,9 @@ DATASETS = ['../datasets/dolphins.csv',
 
 
 @pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+                         list(product([False, True], [False])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_core_number(managed, pool, graph_file):
+def test_ktruss_max(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
