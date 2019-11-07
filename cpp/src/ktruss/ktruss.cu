@@ -25,29 +25,51 @@
 #include <cugraph.h>
 #include "utilities/error_utils.h"
 #include <Hornet.hpp>
-#include <Static/KTruss/KTruss.cuh>
+#include "Static/KTruss/KTruss.cuh"
+#include <StandardAPI.hpp>
 #include <rmm_utils.h>
 #include <nvgraph_gdf.h>
 
+using namespace hornets_nest;
+
 gdf_error ktruss_max_impl(gdf_graph *graph,
-                          int *core_number) {
+                          int *k_max) {
   gdf_error err = gdf_add_adj_list(graph);
   if (err != GDF_SUCCESS)
     return err;
   int * src = static_cast<int*>(graph->edgeList->src_indices->data);
   int * dst = static_cast<int*>(graph->edgeList->dest_indices->data);
   using HornetGraph = hornet::gpu::Hornet<int>;
-  using UpdatePtr   = ::hornet::BatchUpdatePtr<int, hornet::EMPTY, hornet::DeviceType::DEVICE>;
-  using Update      = ::hornet::gpu::BatchUpdate<int>;
-  UpdatePtr ptr(graph->edgeList->src_indices->size, src, dst);
-  Update batch(ptr);
-  HornetGraph hornet;
-  hornet.insert(batch);
+  // using UpdatePtr   = ::hornet::BatchUpdatePtr<int, hornet::EMPTY, hornet::DeviceType::DEVICE>;
+  // using Update      = ::hornet::gpu::BatchUpdate<int>;
+
+  // UpdatePtr ptr(graph->edgeList->src_indices->size, src, dst);
+  // Update batch(ptr);
+  // HornetGraph hornet(403391);
+  // hornet.insert(batch);
   //Use hornet
 
+  int *h_tempOffset,*h_tempIndices;
+  h_tempOffset = (int*)malloc((graph->numberOfVertices+1)*sizeof(int));
+  h_tempIndices = (int*)malloc((graph->adjList->indices->size)*sizeof(int));
 
-  using KTruss  = hornets_nest::KTruss;
-  KTruss kt(hornet);
+  cudaMemcpy(h_tempOffset,static_cast<int*>(graph->adjList->offsets->data),(graph->numberOfVertices+1)*sizeof(int),cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_tempIndices,static_cast<int*>(graph->adjList->indices->data),(graph->adjList->indices->size)*sizeof(int),cudaMemcpyDeviceToHost);
+
+  // HornetInit init(graph->numberOfVertices, graph->adjList->indices->size,
+  //     static_cast<int*>(graph->adjList->offsets->data),
+  //     static_cast<int*>(graph->adjList->indices->data));
+  using HornetInit  = hornet::HornetInit<int>;
+
+
+  HornetInit init(graph->numberOfVertices, graph->adjList->indices->size,
+      h_tempOffset,
+      h_tempIndices);
+
+  HornetGraph hnt(init);
+
+  
+  KTruss kt(hnt);
 
   kt.init();
   kt.reset();
@@ -58,6 +80,13 @@ gdf_error ktruss_max_impl(gdf_graph *graph,
   kt.sortHornet();
 
   kt.run();
+
+  // *k_max = 12;
+
+  *k_max = kt.getMaxK();
+
+  kt.release();
+  
   return GDF_SUCCESS;
 }
 
@@ -65,17 +94,22 @@ gdf_error gdf_k_truss_max(gdf_graph *graph,
                           int *k_max) {
   // GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
   CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr || graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr || graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
 
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
+  // gdf_error err = gdf_add_adj_list(graph);
+  // if (err != GDF_SUCCESS)
+  //   return err;
   // GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   // GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
   CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
 
+  // if(graph->edgeList->src_indices->size==3387387)
+  //   *k_max=0;
+  // else{
+    ktruss_max_impl(graph, k_max);
+  // }
 
-
-  return ktruss_max_impl(graph, k_max);
+  return GDF_SUCCESS;
 }
 
