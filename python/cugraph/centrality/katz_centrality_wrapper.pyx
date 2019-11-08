@@ -37,7 +37,7 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph
 
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be
@@ -57,7 +57,7 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
                                             [df['katz_centrality']._column])
         has_guess = <bool> 1
 
-    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
+    g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
     katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)

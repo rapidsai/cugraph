@@ -42,7 +42,7 @@ def subgraph(graph_ptr, vertices, subgraph_ptr):
     cdef Graph* rg = <Graph*>rGraph
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     extract_subgraph_vertex_nvgraph(g, &vert_col, rg)

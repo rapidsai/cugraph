@@ -35,7 +35,7 @@ def bfs(graph_ptr, start, directed=True):
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph
 
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be
@@ -53,7 +53,7 @@ def bfs(graph_ptr, start, directed=True):
     cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
     cdef gdf_column c_predecessor_col = get_gdf_column_view(df['predecessor'])
 
-    err = g.adjList.get_vertex_identifiers(&c_vertex_col)
+    g.adjList.get_vertex_identifiers(&c_vertex_col)
     
 
     bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)

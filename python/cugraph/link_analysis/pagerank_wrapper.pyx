@@ -37,7 +37,7 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph
 
-    err = add_transposed_adj_list(g)
+    add_transposed_adj_list(g)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be
@@ -58,7 +58,7 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     cdef gdf_column c_pers_vtx
     cdef gdf_column c_pers_val
 
-    err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
+    g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
     
 
     if personalization is None:

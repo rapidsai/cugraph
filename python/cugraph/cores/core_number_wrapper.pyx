@@ -37,7 +37,7 @@ def core_number(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph
 
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be
@@ -50,7 +50,7 @@ def core_number(graph_ptr):
     df['core_number'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_core_number_col = get_gdf_column_view(df['core_number'])
 
-    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
+    g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
     core_number(g, &c_core_number_col)

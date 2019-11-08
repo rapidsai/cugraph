@@ -45,7 +45,7 @@ def spectralBalancedCutClustering(graph_ptr,
     cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be
@@ -60,7 +60,7 @@ def spectralBalancedCutClustering(graph_ptr,
     cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
 
     # Set the vertex identifiers
-    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
+    g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
     balancedCutClustering_nvgraph(g,
@@ -90,7 +90,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
     cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be
@@ -105,7 +105,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
     cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
 
     # Set the vertex identifiers
-    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
+    g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
     spectralModularityMaximization_nvgraph(g,
@@ -128,7 +128,7 @@ def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
@@ -145,7 +145,7 @@ def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
@@ -162,7 +162,7 @@ def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
     cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)

@@ -34,7 +34,7 @@ def weakly_connected_components(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph
 
-    err = add_adj_list(<Graph*> graph)
+    add_adj_list(<Graph*> graph)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be
@@ -64,7 +64,7 @@ def strongly_connected_components(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph
 
-    err = add_adj_list(<Graph*> graph)
+    add_adj_list(<Graph*> graph)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be

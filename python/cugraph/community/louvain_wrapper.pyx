@@ -37,7 +37,7 @@ def louvain(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*>graph
 
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     # we should add get_number_of_vertices() to Graph (and this should be
@@ -47,7 +47,7 @@ def louvain(graph_ptr):
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
-    err = g.adjList.get_vertex_identifiers(&c_index_col)
+    g.adjList.get_vertex_identifiers(&c_index_col)
     
 
     df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))

@@ -94,7 +94,7 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
         c_value_col = get_gdf_column_view(value_col)
         c_value_col_ptr = &c_value_col
 
-    err = edge_list_view(g,
+    edge_list_view(g,
                              &c_source_col,
                              &c_dest_col,
                              c_value_col_ptr)
@@ -103,7 +103,7 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
 def view_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-    err = add_edge_list(g)
+    add_edge_list(g)
     
 
     # we should add get_number_of_edges() to Graph (and this should be
@@ -147,7 +147,7 @@ def view_edge_list(graph_ptr):
 
 def delete_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    err = delete_edge_list(<Graph*> graph)
+    delete_edge_list(<Graph*> graph)
     
 
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
@@ -171,7 +171,7 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
         c_value_col = get_gdf_column_view(value_col)
         c_value_col_ptr = &c_value_col
 
-    err = adj_list_view(g,
+    adj_list_view(g,
                             &c_offset_col,
                             &c_index_col,
                             c_value_col_ptr)
@@ -180,7 +180,7 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
 def view_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     offset_col_size = g.adjList.offsets.size
@@ -226,18 +226,18 @@ def delete_adj_list(graph_ptr):
     Delete the adjacency list.
     """
     cdef uintptr_t graph = graph_ptr
-    err = delete_adj_list(<Graph*> graph)
+    delete_adj_list(<Graph*> graph)
     
 
 def add_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    err = add_transposed_adj_list(<Graph*> graph)
+    add_transposed_adj_list(<Graph*> graph)
     
 
 def view_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-    err = add_transposed_adj_list(g)
+    add_transposed_adj_list(g)
     
 
     offset_col_size = g.transposedAdjList.offsets.size
@@ -283,7 +283,7 @@ def delete_transposed_adj_list(graph_ptr):
     Delete the transposed adjacency list.
     """
     cdef uintptr_t graph = graph_ptr
-    err = delete_transposed_adj_list(<Graph*> graph)
+    delete_transposed_adj_list(<Graph*> graph)
     
 
 def get_two_hop_neighbors(graph_ptr):
@@ -291,7 +291,7 @@ def get_two_hop_neighbors(graph_ptr):
     cdef Graph * g = <Graph*> graph
     cdef gdf_column c_first_col
     cdef gdf_column c_second_col
-    err = get_two_hop_neighbors(g, &c_first_col, &c_second_col)
+    get_two_hop_neighbors(g, &c_first_col, &c_second_col)
     
     df = cudf.DataFrame()
     if c_first_col.dtype == GDF_INT32:
@@ -319,7 +319,7 @@ def number_of_vertices(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
     if g.numberOfVertices == 0:
-        err = number_of_vertices(g)
+        number_of_vertices(g)
         
 
     return g.numberOfVertices
@@ -341,20 +341,20 @@ def _degree(graph_ptr, x=0):
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*> graph
 
-    err = add_adj_list(g)
+    add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
     c_vertex_col = get_gdf_column_view(vertex_col)
     if g.adjList:
-        err = g.adjList.get_vertex_identifiers(&c_vertex_col)
+        g.adjList.get_vertex_identifiers(&c_vertex_col)
     else:
-        err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
+        g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
     
 
     degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_degree_col = get_gdf_column_view(degree_col)
-    err = degree(g, &c_degree_col, <int>x)
+    degree(g, &c_degree_col, <int>x)
     
 
     return vertex_col, degree_col
@@ -363,25 +363,25 @@ def _degrees(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*> graph
 
-    err = add_adj_list(g)
+    add_adj_list(g)
     n = number_of_vertices(graph_ptr)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
     c_vertex_col = get_gdf_column_view(vertex_col)
     if g.adjList:
-        err = g.adjList.get_vertex_identifiers(&c_vertex_col)
+        g.adjList.get_vertex_identifiers(&c_vertex_col)
     else:
-        err = g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
+        g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
     
 
     in_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_in_degree_col = get_gdf_column_view(in_degree_col)
-    err = degree(g, &c_in_degree_col, <int>1)
+    degree(g, &c_in_degree_col, <int>1)
     
 
     out_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_out_degree_col = get_gdf_column_view(out_degree_col)
-    err = degree(g, &c_out_degree_col, <int>2)
+    degree(g, &c_out_degree_col, <int>2)
     
 
     return vertex_col, in_degree_col, out_degree_col

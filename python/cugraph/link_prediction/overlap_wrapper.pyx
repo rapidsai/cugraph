@@ -37,7 +37,7 @@ def overlap(graph_ptr, first=None, second=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
 
-    err = add_adj_list(<Graph*> graph)
+    add_adj_list(<Graph*> graph)
     
 
     cdef gdf_column c_result_col
@@ -81,7 +81,7 @@ def overlap(graph_ptr, first=None, second=None):
         df = cudf.DataFrame()
         df['source'] = cudf.Series(np.zeros(num_edges, dtype=np_dtype_from_gdf_column(g.adjList.indices)))
         c_src_index_col = get_gdf_column_view(df['source'])
-        err = g.adjList.get_source_indices(&c_src_index_col);
+        g.adjList.get_source_indices(&c_src_index_col);
         
         df['destination'] = cudf.Series(dest_data)
         df['overlap_coeff'] = result

@@ -33,7 +33,7 @@ def triangles(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph* g = <Graph*> graph
 
-    err = add_adj_list(g)
+    add_adj_list(g)
     
 
     cdef uint64_t result
