@@ -94,8 +94,7 @@ struct gdf_dynamic{
 
 // TODO : improve graph class 
 // 
-class Graph{
-  public :
+struct Graph{
     gdf_edge_list *edgeList; // COO
     gdf_adj_list *adjList; //CSR
     gdf_adj_list *transposedAdjList; //CSC
