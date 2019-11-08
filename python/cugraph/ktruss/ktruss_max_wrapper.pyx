@@ -41,7 +41,5 @@ def ktruss_max(graph_ptr):
 
     err = gdf_k_truss_max(g,&kmax);
     libcudf.cudf.check_gdf_error(err)
-    print("Internal print ")
-    print(kmax)
 
     return kmax
