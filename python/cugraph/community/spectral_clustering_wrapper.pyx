@@ -38,17 +38,17 @@ def spectralBalancedCutClustering(graph_ptr,
                                     kmean_tolerance=.00001,
                                     kmean_max_iter=100):
     """
-    Call cugraph::balancedCutClustering_nvgraph
+    Call balancedCutClustering_nvgraph
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph * g = <cugraph::Graph*> graph
+    cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -63,7 +63,7 @@ def spectralBalancedCutClustering(graph_ptr,
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    cugraph::balancedCutClustering_nvgraph(g,
+    balancedCutClustering_nvgraph(g,
                                             num_clusters,
                                             num_eigen_vects,
                                             evs_tolerance,
@@ -83,17 +83,17 @@ def spectralModularityMaximizationClustering(graph_ptr,
                                                kmean_tolerance=.00001,
                                                kmean_max_iter=100):
     """
-    Call cugraph::spectralModularityMaximization_nvgraph
+    Call spectralModularityMaximization_nvgraph
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph * g = <cugraph::Graph*> graph
+    cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -108,7 +108,7 @@ def spectralModularityMaximizationClustering(graph_ptr,
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    cugraph::spectralModularityMaximization_nvgraph(g,
+    spectralModularityMaximization_nvgraph(g,
                                                      num_clusters,
                                                      num_eigen_vects,
                                                      evs_tolerance,
@@ -122,51 +122,51 @@ def spectralModularityMaximizationClustering(graph_ptr,
 
 def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     """
-    Call cugraph::analyzeClustering_modularity_nvgraph
+    Call analyzeClustering_modularity_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph * g = <cugraph::Graph*> graph
+    cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    cugraph::analyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    analyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
     
     return score
 
 def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     """
-    Call cugraph::analyzeClustering_edge_cut_nvgraph
+    Call analyzeClustering_edge_cut_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph * g = <cugraph::Graph*> graph
+    cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    cugraph::analyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    analyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
     
     return score
 
 def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
     """
-    Call cugraph::analyzeClustering_ratio_cut_nvgraph
+    Call analyzeClustering_ratio_cut_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph * g = <cugraph::Graph*> graph
+    cdef Graph * g = <Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
-    cugraph::analyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    analyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
     
     return score

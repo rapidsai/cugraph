@@ -15,6 +15,9 @@
  */
 #pragma once 
 
+#include <cudf/cudf.h>
+#include "types.h"
+
 namespace cugraph {
 /* ----------------------------------------------------------------------------*/
 

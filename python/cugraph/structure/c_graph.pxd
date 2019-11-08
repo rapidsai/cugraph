@@ -19,7 +19,7 @@
 from cudf._lib.cudf cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
     struct gdf_edge_list:
         gdf_column *src_indices
@@ -41,7 +41,7 @@ cdef extern from "cugraph.h":
         GDF_PROP_FALSE
         GDF_PROP_TRUE
 
-    struct cugraph::Graph_properties:
+    struct Graph_properties:
         bool directed
         bool weighted
         bool multigraph
@@ -49,49 +49,49 @@ cdef extern from "cugraph.h":
         bool tree
         gdf_prop_type has_negative_edges
 
-    struct cugraph::Graph:
+    struct Graph:
         gdf_edge_list *edgeList
         gdf_adj_list *adjList
         gdf_adj_list *transposedAdjList
         gdf_dynamic  *dynAdjList
-        cugraph::Graph_properties *prop
+        Graph_properties *prop
         size_t numberOfVertices
 
 
-    cdef void cugraph::renumber_vertices(
+    cdef void renumber_vertices(
         const gdf_column *src,
         const gdf_column *dst,
         gdf_column *src_renumbered,
         gdf_column *dst_renumbered,
         gdf_column *numbering_map) except +
 
-    cdef void cugraph::edge_list_view(
-        cugraph::Graph *graph,
+    cdef void edge_list_view(
+        Graph *graph,
         const gdf_column *source_indices,
         const gdf_column *destination_indices,
         const gdf_column *edge_data) except +
-    cdef void cugraph::add_edge_list(Graph *graph) except +
-    cdef void cugraph::delete_edge_list(Graph *graph) except +
+    cdef void add_edge_list(Graph *graph) except +
+    cdef void delete_edge_list(Graph *graph) except +
 
-    cdef void cugraph::adj_list_view (
-        cugraph::Graph *graph,
+    cdef void adj_list_view (
+        Graph *graph,
         const gdf_column *offsets,
         const gdf_column *indices,
         const gdf_column *edge_data) except +
-    cdef void cugraph::add_adj_list(Graph *graph) except +
-    cdef void cugraph::delete_adj_list(Graph *graph) except +
+    cdef void add_adj_list(Graph *graph) except +
+    cdef void delete_adj_list(Graph *graph) except +
 
-    cdef void cugraph::add_transposed_adj_list(Graph *graph) except +
-    cdef void cugraph::delete_transposed_adj_list(Graph *graph) except +
+    cdef void add_transposed_adj_list(Graph *graph) except +
+    cdef void delete_transposed_adj_list(Graph *graph) except +
 
-    cdef void cugraph::get_two_hop_neighbors(
-        cugraph::Graph* graph,
+    cdef void get_two_hop_neighbors(
+        Graph* graph,
         gdf_column* first,
         gdf_column* second) except +
 
-    cdef void cugraph::degree(
-        cugraph::Graph *graph,
+    cdef void degree(
+        Graph *graph,
         gdf_column *degree,
         int x) except +
 
-    cdef void cugraph::number_of_vertices(Graph *graph) except +
+    cdef void number_of_vertices(Graph *graph) except +

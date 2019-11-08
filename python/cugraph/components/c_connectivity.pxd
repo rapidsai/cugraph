@@ -20,10 +20,10 @@ from cugraph.structure.c_graph cimport *
 from cudf._lib.cudf cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void cugraph::connected_components(
-        cugraph::Graph *graph,
+    cdef void connected_components(
+        Graph *graph,
         cugraph_cc_t connect_type,
         cudf_table* table) except +
 

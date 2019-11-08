@@ -30,7 +30,7 @@ import numpy as np
 
 def grmat_gen(argv):
     """
-    Call cugraph::grmat_gen
+    Call grmat_gen
     """
     cdef size_t vertices = 0
     cdef size_t edges = 0
@@ -46,7 +46,7 @@ def grmat_gen(argv):
     argv_bytes = argv.encode()
     cdef char* c_argv = argv_bytes
 
-    cugraph::grmat_gen (<char*>c_argv, vertices, edges, <gdf_column*>c_source_col, <gdf_column*>c_dest_col, <gdf_column*>0)
+    grmat_gen (<char*>c_argv, vertices, edges, <gdf_column*>c_source_col, <gdf_column*>c_dest_col, <gdf_column*>0)
 
 
     col_size = c_source_col.size

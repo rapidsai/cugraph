@@ -18,10 +18,10 @@
  *
  * @file nvgraph_gdf.h
  * ---------------------------------------------------------------------------**/
+#pragma once 
 
-#pragma once
-
-#include <cugraph.h>
+#include <cudf/cudf.h>
+#include "types.h"
 
 namespace cugraph {
 /**

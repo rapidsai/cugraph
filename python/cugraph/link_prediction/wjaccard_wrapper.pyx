@@ -32,13 +32,13 @@ from numpy.core.numeric import result_type
 
 def jaccard_w(graph_ptr, weights, first=None, second=None):
     """
-    Call cugraph::jaccard_list
+    Call jaccard_list
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph * g = <cugraph::Graph*> graph
+    cdef Graph * g = <Graph*> graph
 
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
     cdef gdf_column c_result_col
@@ -54,7 +54,7 @@ def jaccard_w(graph_ptr, weights, first=None, second=None):
         c_weight_col = get_gdf_column_view(weights)
         c_first_col = get_gdf_column_view(first)
         c_second_col = get_gdf_column_view(second)
-        cugraph::jaccard_list(g,
+        jaccard_list(g,
                                &c_weight_col,
                                &c_first_col,
                                &c_second_col,
@@ -69,14 +69,14 @@ def jaccard_w(graph_ptr, weights, first=None, second=None):
     else:
         # error check performed in jaccard.py
         assert first is None and second is None
-        # we should add get_number_of_edges() to cugraph::Graph (and this should be
+        # we should add get_number_of_edges() to Graph (and this should be
         # used instead of g.adjList.indices.size)
         num_edges = g.adjList.indices.size
         result = cudf.Series(np.ones(num_edges, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
         c_weight_col = get_gdf_column_view(weights)
 
-        cugraph::jaccard(g, &c_weight_col, &c_result_col)
+        jaccard(g, &c_weight_col, &c_result_col)
         
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,

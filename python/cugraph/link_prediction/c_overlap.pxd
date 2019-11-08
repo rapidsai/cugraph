@@ -19,13 +19,13 @@
 from cugraph.structure.c_graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void cugraph::overlap(Graph * graph,
+    cdef void overlap(Graph * graph,
                                gdf_column * weights,
                                gdf_column * result) except +
     
-    cdef void cugraph::overlap_list(Graph * graph,
+    cdef void overlap_list(Graph * graph,
                                     gdf_column * weights,
                                     gdf_column * first,
                                     gdf_column * second,

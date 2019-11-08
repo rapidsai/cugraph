@@ -5,7 +5,6 @@
 #include "utilities/graph_utils.cuh"
 #include "utilities/error_utils.h"
 #include <cugraph.h>
-#include <algo_types.h>
 
 #include <iostream>
 #include <type_traits>

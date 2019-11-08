@@ -29,16 +29,16 @@ import numpy as np
 
 def bfs(graph_ptr, start, directed=True):
     """
-    Call cugraph::bfs
+    Call bfs
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph* g = <cugraph::Graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -56,7 +56,7 @@ def bfs(graph_ptr, start, directed=True):
     err = g.adjList.get_vertex_identifiers(&c_vertex_col)
     
 
-    cugraph::bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+    bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
     
 
     return df

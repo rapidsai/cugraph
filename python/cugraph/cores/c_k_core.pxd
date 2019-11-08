@@ -19,12 +19,12 @@
 from cugraph.structure.c_graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void cugraph::k_core(
-        cugraph::Graph *in_graph,
+    cdef void k_core(
+        Graph *in_graph,
         int k,
         gdf_column *vertex_id,
         gdf_column *core_number,
-        cugraph::Graph *out_graph) except +
+        Graph *out_graph) except +
 

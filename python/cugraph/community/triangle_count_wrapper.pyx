@@ -28,15 +28,15 @@ import rmm
 
 def triangles(graph_ptr):
     """
-    Call cugraph::triangle_count_nvgraph
+    Call triangle_count_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph* g = <cugraph::Graph*> graph
+    cdef Graph* g = <Graph*> graph
 
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
     cdef uint64_t result
-    cugraph::triangle_count_nvgraph(g, &result)
+    triangle_count_nvgraph(g, &result)
     
     return result

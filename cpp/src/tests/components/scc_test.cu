@@ -222,7 +222,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         //
         ///count = sccd.run_scc(p_d_labels);
         cugraph::connected_components(G.get(),
-                                          CUGRAPH_STRONG,
+                                          cugraph::CUGRAPH_STRONG,
                                           &table);
         
         cudaDeviceSynchronize();
@@ -236,7 +236,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         //
         ///count = sccd.run_scc(p_d_labels);
         cugraph::connected_components(G.get(),
-                                          CUGRAPH_STRONG,
+                                          cugraph::CUGRAPH_STRONG,
                                           &table);
         
         cudaProfilerStop();
@@ -277,7 +277,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         gdf_column_ptr check_labels = create_gdf_column(l_check);
         
         cugraph::connected_components(G.get(),
-                                          CUGRAPH_WEAK,
+                                          cugraph::CUGRAPH_WEAK,
                                           &table);
 
         

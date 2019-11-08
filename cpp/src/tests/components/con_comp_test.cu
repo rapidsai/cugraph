@@ -136,7 +136,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
       {
         hr_clock.start();
         cugraph::connected_components(G.get(),
-                                          CUGRAPH_WEAK,
+                                          cugraph::CUGRAPH_WEAK,
                                           &table);
 
         cudaDeviceSynchronize();
@@ -147,7 +147,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
       {
         cudaProfilerStart();
         cugraph::connected_components(G.get(),
-                                          CUGRAPH_WEAK,
+                                          cugraph::CUGRAPH_WEAK,
                                           &table);
         cudaProfilerStop();
         cudaDeviceSynchronize();

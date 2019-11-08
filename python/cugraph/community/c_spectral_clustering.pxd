@@ -19,10 +19,10 @@
 from cugraph.structure.c_graph cimport *
 
 
-cdef extern from "nvgraph_gdf.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void cugraph::balancedCutClustering_nvgraph(
-        cugraph::Graph *gdf_G,
+    cdef void balancedCutClustering_nvgraph(
+        Graph *gdf_G,
         const int num_clusters,
         const int num_eigen_vects,
         const float evs_tolerance,
@@ -31,8 +31,8 @@ cdef extern from "nvgraph_gdf.h":
         const int kmean_max_iter,
         gdf_column* clustering) except +
     
-    cdef void cugraph::spectralModularityMaximization_nvgraph(
-        cugraph::Graph* gdf_G,
+    cdef void spectralModularityMaximization_nvgraph(
+        Graph* gdf_G,
         const int n_clusters,
         const int n_eig_vects,
         const float evs_tolerance,
@@ -41,20 +41,20 @@ cdef extern from "nvgraph_gdf.h":
         const int kmean_max_iter,
         gdf_column* clustering) except +
     
-    cdef void cugraph::analyzeClustering_modularity_nvgraph(
-        cugraph::Graph* gdf_G,
+    cdef void analyzeClustering_modularity_nvgraph(
+        Graph* gdf_G,
         const int n_clusters,
         gdf_column* clustering,
         float* score) except +
     
-    cdef void cugraph::analyzeClustering_edge_cut_nvgraph(
-        cugraph::Graph* gdf_G,
+    cdef void analyzeClustering_edge_cut_nvgraph(
+        Graph* gdf_G,
         const int n_clusters,
         gdf_column* clustering,
         float* score) except +
     
-    cdef void cugraph::analyzeClustering_ratio_cut_nvgraph(
-        cugraph::Graph* gdf_G,
+    cdef void analyzeClustering_ratio_cut_nvgraph(
+        Graph* gdf_G,
         const int n_clusters,
         gdf_column* clustering,
         float* score) except +

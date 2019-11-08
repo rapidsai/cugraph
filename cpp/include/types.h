@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 #pragma once
+
 namespace cugraph {
+
 void gdf_col_delete(gdf_column* col);
 
 void gdf_col_release(gdf_column* col);
@@ -114,4 +116,5 @@ class Graph{
           delete prop;
     }
 };
+
 } //namespace cugraph

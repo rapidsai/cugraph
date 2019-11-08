@@ -328,7 +328,7 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_cugraph::delete_edge_list_delete_adj_list(managed, pool, graph_file):
+def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.finalize()
@@ -352,10 +352,10 @@ def test_cugraph::delete_edge_list_delete_adj_list(managed, pool, graph_file):
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
 
-    # cugraph delete_adj_list cugraph::delete_edge_list call
+    # cugraph delete_adj_list delete_edge_list call
     G = cugraph.Graph()
     G.add_edge_list(sources, destinations, None)
-    G.cugraph::delete_edge_list()
+    G.delete_edge_list()
     with pytest.raises(RuntimeError):
         G.view_adj_list()
 
@@ -405,7 +405,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
         G.add_edge_list(sources, destinations, None)
     with pytest.raises(RuntimeError):
         G.add_adj_list(offsets, indices, None)
-    G.cugraph::delete_edge_list()
+    G.delete_edge_list()
 
     # If cugraph has a graph adjacency list, adding a new graph should fail.
     G.add_adj_list(sources, destinations, None)

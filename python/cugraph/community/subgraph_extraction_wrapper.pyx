@@ -32,18 +32,18 @@ import numpy as np
 
 def subgraph(graph_ptr, vertices, subgraph_ptr):
     """
-    Call cugraph::extract_subgraph_vertex_nvgraph
+    Call extract_subgraph_vertex_nvgraph
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph * g = < cugraph::Graph *> graph
+    cdef Graph * g = < Graph *> graph
 
-    cdef uintptr_t cugraph::Graph = subgraph_ptr
-    cdef cugraph::Graph* rg = <cugraph::Graph*>rcugraph::Graph
+    cdef uintptr_t Graph = subgraph_ptr
+    cdef Graph* rg = <Graph*>rGraph
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
-    cugraph::extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
+    extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
     

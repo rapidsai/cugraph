@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include "algo_types.h"
+#include <cudf/cudf.h>
+#include "types.h"
 
 namespace cugraph {
 
@@ -234,6 +235,8 @@ void snmg_coo2csr(size_t* part_offsets,
                   gdf_column* csrOff,
                   gdf_column* csrInd,
                   gdf_column* csrVal);
+
+typedef enum {CUGRAPH_WEAK = 0, CUGRAPH_STRONG, NUM_CONNECTIVITY_TYPES} cugraph_cc_t;
 
 /**
  * @brief Compute connected components. 

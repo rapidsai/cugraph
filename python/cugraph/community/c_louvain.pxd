@@ -19,10 +19,10 @@
 from cugraph.structure.c_graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void cugraph::louvain(
-        cugraph::Graph *graph,
+    cdef void louvain(
+        Graph *graph,
         void *final_modularity,
         void *num_level,
         gdf_column *louvain_parts) except +

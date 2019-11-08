@@ -19,9 +19,9 @@
 from cugraph.structure.c_graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void cugraph::core_number(
-        cugraph::Graph *graph,
+    cdef void core_number(
+        Graph *graph,
         gdf_column *core_number) except +
 

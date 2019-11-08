@@ -32,15 +32,15 @@ import numpy as np
 
 def core_number(graph_ptr):
     """
-    Call cugraph::core_number
+    Call core_number
     """
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph* g = <cugraph::Graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -53,7 +53,7 @@ def core_number(graph_ptr):
     err = g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    cugraph::core_number(g, &c_core_number_col)
+    core_number(g, &c_core_number_col)
 
     
 

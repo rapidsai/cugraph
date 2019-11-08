@@ -20,10 +20,10 @@ from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void cugraph::pagerank(
-        cugraph::Graph *graph,
+    cdef void pagerank(
+        Graph *graph,
         gdf_column *pagerank,
         gdf_column *personalization_subset,
         gdf_column *personalization_values,

@@ -28,16 +28,16 @@ import numpy as np
 
 def weakly_connected_components(graph_ptr):
     """
-    Call cugraph::connected_components
+    Call connected_components
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph* g = <cugraph::Graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = cugraph::add_adj_list(<cugraph::Graph*> graph)
+    err = add_adj_list(<Graph*> graph)
     
 
-    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -48,7 +48,7 @@ def weakly_connected_components(graph_ptr):
     cdef cudf_table* tbl = table_from_dataframe(df)
 
     cdef cugraph_cc_t connect_type=CUGRAPH_WEAK
-    cugraph::connected_components(g, <cugraph_cc_t>connect_type, tbl)
+    connected_components(g, <cugraph_cc_t>connect_type, tbl)
     
 
     del tbl
@@ -58,16 +58,16 @@ def weakly_connected_components(graph_ptr):
 
 def strongly_connected_components(graph_ptr):
     """
-    Call cugraph::connected_components
+    Call connected_components
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph* g = <cugraph::Graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = cugraph::add_adj_list(<cugraph::Graph*> graph)
+    err = add_adj_list(<Graph*> graph)
     
 
-    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -78,7 +78,7 @@ def strongly_connected_components(graph_ptr):
     cdef cudf_table* tbl = table_from_dataframe(df)
 
     cdef cugraph_cc_t connect_type=CUGRAPH_STRONG
-    cugraph::connected_components(g, <cugraph_cc_t>connect_type, tbl)
+    connected_components(g, <cugraph_cc_t>connect_type, tbl)
     
 
     del tbl

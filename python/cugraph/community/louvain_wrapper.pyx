@@ -31,16 +31,16 @@ import numpy as np
 
 def louvain(graph_ptr):
     """
-    Call cugraph::louvain
+    Call louvain
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph* g = <cugraph::Graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = cugraph::add_adj_list(g)
+    err = add_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -73,11 +73,11 @@ def louvain(graph_ptr):
     
 
     if single_precision:
-        cugraph::louvain(<cugraph::Graph*>g,
+        louvain(<Graph*>g,
                           <void*>&final_modularity_single_precision,
                           <void*>&num_level, &c_louvain_parts_col)
     else:
-        cugraph::louvain(<cugraph::Graph*>g,
+        louvain(<Graph*>g,
                           <void*>&final_modularity_double_precision,
                           <void*>&num_level, &c_louvain_parts_col)
     

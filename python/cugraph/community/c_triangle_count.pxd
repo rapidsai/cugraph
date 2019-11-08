@@ -20,8 +20,8 @@ from cugraph.structure.c_graph cimport *
 from libc.stdint cimport uint64_t
 
 
-cdef extern from "nvgraph_gdf.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void cugraph::triangle_count_nvgraph(
-        cugraph::Graph* G,
+    cdef void triangle_count_nvgraph(
+        Graph* G,
         uint64_t* result) except +

@@ -31,16 +31,16 @@ import numpy as np
 
 def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
     """
-    Call cugraph::pagerank
+    Call pagerank
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef cugraph::Graph* g = <cugraph::Graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = cugraph::add_transposed_adj_list(g)
+    err = add_transposed_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.transposedAdjList.offsets.size - 1)
     num_verts = g.transposedAdjList.offsets.size - 1
 
@@ -62,12 +62,12 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     
 
     if personalization is None:
-        cugraph::pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
+        pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
     else:
         c_pers_vtx = get_gdf_column_view(personalization['vertex'])
         c_pers_val = get_gdf_column_view(personalization['values'])
-        cugraph::pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
+        pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
 
     
