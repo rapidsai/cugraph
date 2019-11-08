@@ -25,10 +25,34 @@ from cugraph.structure import symmetrize
 import rmm
 from rmm import rmm_config
 
+import networkx as nx
 
 
 # DATASETS = ['../datasets/dolphins.csv',
 #             '../datasets/netscience.csv']
+
+
+def networkx_calc_x_truss_max(graph_file):
+    NM = utils.read_csv_for_nx(graph_file)
+    NM = NM.tocsr()
+
+    k=3;
+    Gnx = nx.Graph(NM)
+    
+    while(not nx.is_empty(Gnx)):
+        Gnx = nx.k_truss(Gnx,k)
+        k=k+1
+    k=k-2;
+
+    print ("NetworkX KMAX:")
+    print(k)
+
+
+    return k
+    # nc = nx.core_number(Gnx)
+    # pdf = pd.DataFrame(nc, index=[0]).T
+    # cn['nx_core_number'] = pdf[0]
+    # cn = cn.rename({'core_number': 'cu_core_number'})
 
 
 
@@ -51,14 +75,7 @@ def calc_k_truss_max(graph_file):
 
     print ("Python KMAX:")
     print(k_max)
-    # NM = utils.read_csv_for_nx(graph_file)
-    # NM = NM.tocsr()
-    # Gnx = nx.Graph(NM)
-    # nc = nx.core_number(Gnx)
-    # pdf = pd.DataFrame(nc, index=[0]).T
-    # cn['nx_core_number'] = pdf[0]
-    # cn = cn.rename({'core_number': 'cu_core_number'})
-    return 1
+    return k_max
 
 
 
@@ -70,4 +87,14 @@ rmm.initialize()
 assert(rmm.is_initialized())
 
 
+calc_k_truss_max("dolphins.csv")
+networkx_calc_x_truss_max("dolphins.csv")
+calc_k_truss_max("netscience.csv")
+networkx_calc_x_truss_max("netscience.csv")
+
+
+
 calc_k_truss_max("email-Enron.csv")
+networkx_calc_x_truss_max("email-Enron.csv")
+
+calc_k_truss_max("amazon0601.csv")
