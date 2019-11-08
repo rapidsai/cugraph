@@ -30,8 +30,8 @@ import numpy as np
 
 
 def allocate_cpp_graph():
-    cdef Graph * g
-    g = <Graph*> calloc(1, sizeof(Graph))
+    cdef cugraph::Graph * g
+    g = <cugraph::Graph*> calloc(1, sizeof(cugraph::Graph))
 
     cdef uintptr_t graph_ptr = <uintptr_t> g
 
@@ -39,7 +39,7 @@ def allocate_cpp_graph():
 
 def release_cpp_graph(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
     free(g)
 
 def renumber(source_col, dest_col):
@@ -72,7 +72,7 @@ def renumber(source_col, dest_col):
 
 def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
 
     # Checks in python
     if len(source_col) != len(dest_col):
@@ -102,11 +102,11 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
 
 def view_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
     err = cugraph::add_edge_list(g)
     
 
-    # we should add get_number_of_edges() to Graph (and this should be
+    # we should add get_number_of_edges() to cugraph::Graph (and this should be
     # used instead of g.edgeList.src_indices.size)
     col_size = g.edgeList.src_indices.size
 
@@ -147,12 +147,12 @@ def view_edge_list(graph_ptr):
 
 def cugraph::delete_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    err = cugraph::delete_edge_list(<Graph*> graph)
+    err = cugraph::delete_edge_list(<cugraph::Graph*> graph)
     
 
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
 
     if offset_col.dtype.type is not np.int32:
         offset_col = offset_col.astype(np.int32)
@@ -179,7 +179,7 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
 
 def view_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
     err = cugraph::add_adj_list(g)
     
 
@@ -226,17 +226,17 @@ def delete_adj_list(graph_ptr):
     Delete the adjacency list.
     """
     cdef uintptr_t graph = graph_ptr
-    err = cugraph::delete_adj_list(<Graph*> graph)
+    err = cugraph::delete_adj_list(<cugraph::Graph*> graph)
     
 
 def add_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    err = cugraph::add_transposed_adj_list(<Graph*> graph)
+    err = cugraph::add_transposed_adj_list(<cugraph::Graph*> graph)
     
 
 def view_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
     err = cugraph::add_transposed_adj_list(g)
     
 
@@ -283,12 +283,12 @@ def delete_transposed_adj_list(graph_ptr):
     Delete the transposed adjacency list.
     """
     cdef uintptr_t graph = graph_ptr
-    err = cugraph::delete_transposed_adj_list(<Graph*> graph)
+    err = cugraph::delete_transposed_adj_list(<cugraph::Graph*> graph)
     
 
 def get_two_hop_neighbors(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
     cdef gdf_column c_first_col
     cdef gdf_column c_second_col
     err = cugraph::get_two_hop_neighbors(g, &c_first_col, &c_second_col)
@@ -317,7 +317,7 @@ def get_two_hop_neighbors(graph_ptr):
 
 def number_of_vertices(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
     if g.numberOfVertices == 0:
         err = cugraph::number_of_vertices(g)
         
@@ -326,7 +326,7 @@ def number_of_vertices(graph_ptr):
 
 def number_of_edges(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
     if g.adjList:
         return g.adjList.indices.size
     elif g.transposedAdjList:
@@ -339,7 +339,7 @@ def number_of_edges(graph_ptr):
 
 def _degree(graph_ptr, x=0):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*> graph
+    cdef cugraph::Graph* g = <cugraph::Graph*> graph
 
     err = cugraph::add_adj_list(g)
     n = number_of_vertices(graph_ptr)
@@ -361,7 +361,7 @@ def _degree(graph_ptr, x=0):
 
 def _degrees(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*> graph
+    cdef cugraph::Graph* g = <cugraph::Graph*> graph
 
     err = cugraph::add_adj_list(g)
     n = number_of_vertices(graph_ptr)

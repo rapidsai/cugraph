@@ -36,7 +36,7 @@ def overlap_w(graph_ptr, weights, first=None, second=None):
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
 
     err = cugraph::add_adj_list(g)
     
@@ -69,7 +69,7 @@ def overlap_w(graph_ptr, weights, first=None, second=None):
     else:
         # error check performed in jaccard.py
         assert first is None and second is None
-        # we should add get_number_of_edges() to Graph (and this should be
+        # we should add get_number_of_edges() to cugraph::Graph (and this should be
         # used instead of g.adjList.indices.size)
         num_edges = g.adjList.indices.size
         result = cudf.Series(np.ones(num_edges, dtype=np.float32))

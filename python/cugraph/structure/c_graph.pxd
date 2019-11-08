@@ -41,7 +41,7 @@ cdef extern from "cugraph.h":
         GDF_PROP_FALSE
         GDF_PROP_TRUE
 
-    struct Graph_properties:
+    struct cugraph::Graph_properties:
         bool directed
         bool weighted
         bool multigraph
@@ -49,12 +49,12 @@ cdef extern from "cugraph.h":
         bool tree
         gdf_prop_type has_negative_edges
 
-    struct Graph:
+    struct cugraph::Graph:
         gdf_edge_list *edgeList
         gdf_adj_list *adjList
         gdf_adj_list *transposedAdjList
         gdf_dynamic  *dynAdjList
-        Graph_properties *prop
+        cugraph::Graph_properties *prop
         size_t numberOfVertices
 
 
@@ -66,7 +66,7 @@ cdef extern from "cugraph.h":
         gdf_column *numbering_map) except +
 
     cdef void cugraph::edge_list_view(
-        Graph *graph,
+        cugraph::Graph *graph,
         const gdf_column *source_indices,
         const gdf_column *destination_indices,
         const gdf_column *edge_data) except +
@@ -74,7 +74,7 @@ cdef extern from "cugraph.h":
     cdef void cugraph::delete_edge_list(Graph *graph) except +
 
     cdef void cugraph::adj_list_view (
-        Graph *graph,
+        cugraph::Graph *graph,
         const gdf_column *offsets,
         const gdf_column *indices,
         const gdf_column *edge_data) except +
@@ -85,12 +85,12 @@ cdef extern from "cugraph.h":
     cdef void cugraph::delete_transposed_adj_list(Graph *graph) except +
 
     cdef void cugraph::get_two_hop_neighbors(
-        Graph* graph,
+        cugraph::Graph* graph,
         gdf_column* first,
         gdf_column* second) except +
 
     cdef void cugraph::degree(
-        Graph *graph,
+        cugraph::Graph *graph,
         gdf_column *degree,
         int x) except +
 

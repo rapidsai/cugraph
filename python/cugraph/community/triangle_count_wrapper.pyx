@@ -31,7 +31,7 @@ def triangles(graph_ptr):
     Call cugraph::triangle_count_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*> graph
+    cdef cugraph::Graph* g = <cugraph::Graph*> graph
 
     err = cugraph::add_adj_list(g)
     

@@ -36,10 +36,10 @@ def subgraph(graph_ptr, vertices, subgraph_ptr):
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = < Graph *> graph
+    cdef cugraph::Graph * g = < cugraph::Graph *> graph
 
-    cdef uintptr_t rGraph = subgraph_ptr
-    cdef Graph* rg = <Graph*>rGraph
+    cdef uintptr_t cugraph::Graph = subgraph_ptr
+    cdef cugraph::Graph* rg = <cugraph::Graph*>rcugraph::Graph
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
     err = cugraph::add_adj_list(g)

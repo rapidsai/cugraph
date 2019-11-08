@@ -23,7 +23,7 @@ from libcpp cimport bool
 cdef extern from "cugraph.h":
 
     cdef void cugraph::pagerank(
-        Graph *graph,
+        cugraph::Graph *graph,
         gdf_column *pagerank,
         gdf_column *personalization_subset,
         gdf_column *personalization_values,

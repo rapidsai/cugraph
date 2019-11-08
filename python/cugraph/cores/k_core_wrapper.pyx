@@ -35,10 +35,10 @@ def k_core(graph_ptr, k_core_graph_ptr, k, core_number):
     Call cugraph::k_core
     """
     cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
+    cdef cugraph::Graph* g = <cugraph::Graph*>graph
 
-    cdef uintptr_t rGraph = k_core_graph_ptr
-    cdef Graph* rg = <Graph*>rGraph
+    cdef uintptr_t rcugraph::Graph = k_core_graph_ptr
+    cdef cugraph::Graph* rg = <cugraph::Graph*>rcugraph::Graph
 
     cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
     cdef gdf_column c_values = get_gdf_column_view(core_number['values'])

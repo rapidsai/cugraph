@@ -42,13 +42,13 @@ def spectralBalancedCutClustering(graph_ptr,
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
     err = cugraph::add_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to Graph (and this should be
+    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -87,13 +87,13 @@ def spectralModularityMaximizationClustering(graph_ptr,
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
     err = cugraph::add_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to Graph (and this should be
+    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -125,7 +125,7 @@ def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     Call cugraph::analyzeClustering_modularity_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
     err = cugraph::add_adj_list(g)
@@ -142,7 +142,7 @@ def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     Call cugraph::analyzeClustering_edge_cut_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
     err = cugraph::add_adj_list(g)
@@ -159,7 +159,7 @@ def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
     Call cugraph::analyzeClustering_ratio_cut_nvgraph
     """
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef cugraph::Graph * g = <cugraph::Graph*> graph
 
     # Ensure that the graph has CSR adjacency list
     err = cugraph::add_adj_list(g)

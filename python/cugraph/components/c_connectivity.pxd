@@ -23,7 +23,7 @@ from cudf._lib.cudf cimport *
 cdef extern from "cugraph.h":
 
     cdef void cugraph::connected_components(
-        Graph *graph,
+        cugraph::Graph *graph,
         cugraph_cc_t connect_type,
         cudf_table* table) except +
 

@@ -22,7 +22,7 @@ from cugraph.structure.c_graph cimport *
 cdef extern from "cugraph.h":
 
     cdef void cugraph::sssp(
-        Graph *graph,
+        cugraph::Graph *graph,
         gdf_column *distances,
         gdf_column *predecessors,
         int start_vertex) except +

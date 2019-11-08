@@ -22,7 +22,7 @@ from cugraph.structure.c_graph cimport *
 cdef extern from "cugraph.h":
 
     cdef void cugraph::louvain(
-        Graph *graph,
+        cugraph::Graph *graph,
         void *final_modularity,
         void *num_level,
         gdf_column *louvain_parts) except +

@@ -32,12 +32,12 @@ def weakly_connected_components(graph_ptr):
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
+    cdef cugraph::Graph* g = <cugraph::Graph*>graph
 
-    err = cugraph::add_adj_list(<Graph*> graph)
+    err = cugraph::add_adj_list(<cugraph::Graph*> graph)
     
 
-    # we should add get_number_of_vertices() to Graph (and this should be
+    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -62,12 +62,12 @@ def strongly_connected_components(graph_ptr):
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
+    cdef cugraph::Graph* g = <cugraph::Graph*>graph
 
-    err = cugraph::add_adj_list(<Graph*> graph)
+    err = cugraph::add_adj_list(<cugraph::Graph*> graph)
     
 
-    # we should add get_number_of_vertices() to Graph (and this should be
+    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 

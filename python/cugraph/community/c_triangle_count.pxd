@@ -23,5 +23,5 @@ from libc.stdint cimport uint64_t
 cdef extern from "nvgraph_gdf.h":
 
     cdef void cugraph::triangle_count_nvgraph(
-        Graph* G,
+        cugraph::Graph* G,
         uint64_t* result) except +

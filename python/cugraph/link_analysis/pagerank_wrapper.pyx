@@ -35,12 +35,12 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
+    cdef cugraph::Graph* g = <cugraph::Graph*>graph
 
     err = cugraph::add_transposed_adj_list(g)
     
 
-    # we should add get_number_of_vertices() to Graph (and this should be
+    # we should add get_number_of_vertices() to cugraph::Graph (and this should be
     # used instead of g.transposedAdjList.offsets.size - 1)
     num_verts = g.transposedAdjList.offsets.size - 1
 
