@@ -174,7 +174,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_EQ( (mm_to_coo<IndexT,IndexT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin),0);
 
-    Graph_ptr G{new Graph, Graph_deleter};
+    Graph_ptr G{new cugraph::Graph, Graph_deleter};
     gdf_column_ptr col_src;
     gdf_column_ptr col_dest;
     gdf_column_ptr col_labels;

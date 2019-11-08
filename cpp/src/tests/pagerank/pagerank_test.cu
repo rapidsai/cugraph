@@ -80,7 +80,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      int m, k, nnz;
      MM_typecode mc;
      
-     Graph_ptr G{new Graph, Graph_deleter};
+     Graph_ptr G{new cugraph::Graph, Graph_deleter};
      gdf_column_ptr col_src, col_dest, col_pagerank;
      
      float alpha = 0.85;

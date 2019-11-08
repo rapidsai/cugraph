@@ -195,7 +195,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
         return;
     }
     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
-    Graph_ptr G{new Graph, Graph_deleter};
+    Graph_ptr G{new cugraph::Graph, Graph_deleter};
     gdf_column col_sources, col_destinations;
 
     gdf_dtype gdf_vertexId_type;
@@ -227,7 +227,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
   template <typename T>
   void run_check_intergrity(const Grmat_Usecase& param) {
     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
-    Graph_ptr G{new Graph, Graph_deleter};
+    Graph_ptr G{new cugraph::Graph, Graph_deleter};
     gdf_column col_sources, col_destinations;
 
     gdf_dtype gdf_vertexId_type;
@@ -272,7 +272,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
   template <typename T1, typename T2>
   void run_check_with_different_size(const Grmat_Usecase& param) {
     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
-    Graph_ptr G{new Graph, Graph_deleter};
+    Graph_ptr G{new cugraph::Graph, Graph_deleter};
     gdf_column col_sources, col_destinations;
 
     gdf_dtype gdf_vertexId_type;
@@ -335,7 +335,7 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
   void run_current_test(const Grmat_Usecase& param) {
      const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
 
-     Graph_ptr G{new Graph, Graph_deleter};
+     Graph_ptr G{new cugraph::Graph, Graph_deleter};
      gdf_column col_sources, col_destinations;
      gdf_error GDF_CUDA_ERROR;
      float alpha = 0.85;

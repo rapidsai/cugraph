@@ -81,7 +81,7 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   virtual void TearDown() {}
 
   void run_current_test(const Katz_Usecase& param) {
-       Graph_ptr G{new Graph, Graph_deleter};
+       Graph_ptr G{new cugraph::Graph, Graph_deleter};
        gdf_column_ptr col_src, col_dest, col_katz_centrality;
 
        FILE* fpin = fopen(param.matrix_file.c_str(),"r");
