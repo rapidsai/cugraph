@@ -549,7 +549,7 @@ namespace cusort {
                    int num_gpus = 1) {
 
       if (num_gpus > MAX_NUM_GPUS) {
-        CUGRAPH_FAIL("num_gpus > MAX_NUM_GPUS in sort")
+        CUGRAPH_FAIL("num_gpus > MAX_NUM_GPUS in sort");
       }
 
       if ((sizeof(Key_t) != 8) && (sizeof(Key_t) != 4)) {

@@ -36,11 +36,11 @@ getTopKIds(gdf_column_ptr katz, int k = 10) {
 }
 
 int
-getMaxDegree(Graph * G) {
-      EXPECT_EQ(cugraph::add_adj_list(G), 0);
+getMaxDegree(cugraph::Graph * G) {
+      cugraph::add_adj_list(G);
       std::vector<int> out_degree(G->numberOfVertices);
       gdf_column_ptr col_out_degree = create_gdf_column(out_degree);
-      EXPECT_EQ(cugraph::degree(G, col_out_degree.get(), 2), 0);
+      cugraph::degree(G, col_out_degree.get(), 2);
       auto degreePtr = thrust::device_pointer_cast(static_cast<int*>(col_out_degree.get()->data));
       cudaStream_t stream = nullptr;
       int max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),

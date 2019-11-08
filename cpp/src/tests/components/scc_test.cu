@@ -193,21 +193,21 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
 
     //Get the COO format 1st:
     //
-    ASSERT_EQ(cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
 
     //Then convert to CSR:
     //
-    ASSERT_EQ(cugraph::add_adj_list(G.get()),0);
+    cugraph::add_adj_list(G.get());
 
-    static auto row_offsets_ = [](const Graph* G){
+    static auto row_offsets_ = [](const cugraph::Graph* G){
       return static_cast<const IndexT*>(G->adjList->offsets->data);
     };
 
-    static auto col_indices_ = [](const Graph* G){
+    static auto col_indices_ = [](const cugraph::Graph* G){
       return static_cast<const IndexT*>(G->adjList->indices->data);
     };
 
-    static auto nrows_ = [](const Graph* G){
+    static auto nrows_ = [](const cugraph::Graph* G){
       return G->adjList->offsets->size - 1;
     };
 

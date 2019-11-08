@@ -125,11 +125,11 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
 
     //Get the COO format 1st:
     //
-    ASSERT_EQ(cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
 
     //Then convert to CSR:
     //
-    ASSERT_EQ(cugraph::add_adj_list(G.get()),0);
+    cugraph::add_adj_list(G.get());
 
     
     if (PERF)

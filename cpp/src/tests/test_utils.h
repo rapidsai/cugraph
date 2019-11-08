@@ -54,7 +54,7 @@ extern "C" {
 #ifndef CUDA_RT_CALL
 #define CUDA_RT_CALL( call )                     \
 {                                                                                                  \
-    cudaError_t cudacall;                                                                 \
+    cudaError_t cudaStatus = call;                                                                 \
     if ( cudaSuccess != cudaStatus ) {                                                             \
         fprintf(stderr, "ERROR: CUDA RT call \"%s\" in line %d of file %s failed with %s (%d).\n", \
                         #call, __LINE__, __FILE__, cudaGetErrorString(cudaStatus), cudaStatus);    \
@@ -74,8 +74,8 @@ std::function<void(gdf_column*)> gdf_col_deleter = [](gdf_column* col){
 };
 using gdf_column_ptr = typename std::unique_ptr<gdf_column, decltype(gdf_col_deleter)>;
 
-std::function<void(Graph*)> Graph_deleter = [](Graph* G){delete G;};
-using Graph_ptr = typename std::unique_ptr<Graph,decltype(Graph_deleter)>;
+std::function<void(cugraph::Graph*)> Graph_deleter = [](cugraph::Graph* G){delete G;};
+using Graph_ptr = typename std::unique_ptr<cugraph::Graph,decltype(Graph_deleter)>;
 
 std::string getFileName(const std::string& s) {
 
