@@ -28,6 +28,9 @@
 #include <rmm_utils.h>
 #include <nvgraph_gdf.h>
 
+namespace cugraph {
+namespace detail {
+
 void core_number_impl(Graph *graph,
                           int *core_number) {
   using HornetGraph = hornet::gpu::HornetStatic<int>;
@@ -40,18 +43,6 @@ void core_number_impl(Graph *graph,
   CoreNumber cn(hnt, core_number);
   cn.run();
   
-}
-
-void core_number(Graph *graph,
-                          gdf_column *core_number) {
-
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(core_number->size == graph->numberOfVertices, "Column size mismatch");
-
-  return core_number_impl(graph, static_cast<int*>(core_number->data));
 }
 
 struct FilterEdges {
@@ -127,7 +118,7 @@ void extract_edges(
         inEdge, inEdge + nE,
         outEdge,
         FilterEdges(k, c_ptr));
-    if ((ptr - outEdge) != filteredEdgeCount) { CUGRAPH_FAIL("Edge extraction failed") }
+    if ((ptr - outEdge) != filteredEdgeCount) { CUGRAPH_FAIL("Edge extraction failed"); }
   } else {
     auto inEdge = thrust::make_zip_iterator(thrust::make_tuple(
           thrust::device_pointer_cast(i_src),
@@ -139,12 +130,13 @@ void extract_edges(
         inEdge, inEdge + nE,
         outEdge,
         FilterEdges(k, c_ptr));
-    if ((ptr - outEdge) != filteredEdgeCount) { CUGRAPH_FAIL("Edge extraction failed") }
+    if ((ptr - outEdge) != filteredEdgeCount) { CUGRAPH_FAIL("Edge extraction failed"); }
   }
   
 }
 
-namespace cugraph {
+} //namespace
+
 //Extract a subgraph from in_graph (with or without weights)
 //to out_graph based on whether edges in in_graph satisfy kcore
 //conditions.
@@ -182,19 +174,31 @@ void extract_subgraph(Graph *in_graph,
   gdf_size_type nE = in_graph->edgeList->src_indices->size;
   auto edge = thrust::make_zip_iterator(thrust::make_tuple(src, dst));
   int filteredEdgeCount = thrust::count_if(rmm::exec_policy(stream)->on(stream),
-      edge, edge + nE, FilterEdges(k, c_ptr));
+      edge, edge + nE, detail::FilterEdges(k, c_ptr));
 
   //Extract the relevant edges that have satisfied k-core conditions and put them in the output graph
   if (in_graph->edgeList->edge_data != nullptr) {
     switch (in_graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return extract_edges<float> (in_graph, out_graph, c_ptr, k, filteredEdgeCount);
-      case GDF_FLOAT64:   return extract_edges<double>(in_graph, out_graph, c_ptr, k, filteredEdgeCount);
+      case GDF_FLOAT32:   return detail::extract_edges<float> (in_graph, out_graph, c_ptr, k, filteredEdgeCount);
+      case GDF_FLOAT64:   return detail::extract_edges<double>(in_graph, out_graph, c_ptr, k, filteredEdgeCount);
       default: CUGRAPH_FAIL("Unsupported data type");
     }
   }
   else {
-    return extract_edges<float> (in_graph, out_graph, c_ptr, k, filteredEdgeCount);
+    return detail::extract_edges<float> (in_graph, out_graph, c_ptr, k, filteredEdgeCount);
   }
+}
+
+void core_number(Graph *graph,
+                gdf_column *core_number) {
+
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(core_number->size == graph->numberOfVertices, "Column size mismatch");
+
+  return detail::core_number_impl(graph, static_cast<int*>(core_number->data));
 }
 
 void k_core(Graph *in_graph,

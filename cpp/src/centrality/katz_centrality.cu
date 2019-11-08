@@ -35,9 +35,7 @@ void katz_centrality(Graph *graph,
                               bool has_guess,
                               bool normalized) {
   CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  cugraph::add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
+  add_adj_list(graph);
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type");
@@ -53,11 +51,11 @@ void katz_centrality(Graph *graph,
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
   Katz katz(hnt, alpha, max_iter, tol, normalized, isStatic, reinterpret_cast<double*>(katz_centrality->data));
   if (katz.getAlpha() < alpha) {
-    std::cerr<<"Error : alpha is not small enough ( < "<<katz.getAlpha()<<") for convergence"<<std::endl; return GDF_CUDA_ERROR;
+    CUGRAPH_FAIL("Error : alpha is not small enough for convergence");
   }
   katz.run();
   if (!katz.hasConverged()) {
-    std::cerr<<"Error : Convergence not reached"<<std::endl; return GDF_CUDA_ERROR;
+    CUGRAPH_FAIL("Error : Convergence not reached");
   }
   
 }

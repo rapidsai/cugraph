@@ -28,6 +28,8 @@
 #include <thrust/transform.h>
 #include <thrust/execution_policy.h>
 
+namespace cugraph{
+namespace detail{
 template<typename IndexType>
 void get_two_hop_neighbors_impl(IndexType num_verts,
                                          IndexType* offsets,
@@ -126,7 +128,7 @@ void get_two_hop_neighbors_impl(IndexType num_verts,
     
 }
 
-namespace cugraph{
+} //namespace
 
 void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second) {
     CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
@@ -140,7 +142,7 @@ void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second) 
             int32_t* first_ptr;
             int32_t* second_ptr;
             int32_t outputSize;
-            cugraph::get_two_hop_neighbors_impl((int32_t) num_verts,
+            detail::get_two_hop_neighbors_impl((int32_t) num_verts,
                                            (int32_t*) graph->adjList->offsets->data,
                                            (int32_t*) graph->adjList->indices->data,
                                            &first_ptr,
@@ -158,7 +160,7 @@ void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second) 
             int64_t* first_ptr;
             int64_t* second_ptr;
             int64_t outputSize;
-            cugraph::get_two_hop_neighbors_impl((int64_t) num_verts,
+            detail::get_two_hop_neighbors_impl((int64_t) num_verts,
                                            (int64_t*) graph->adjList->offsets->data,
                                            (int64_t*) graph->adjList->indices->data,
                                            &first_ptr,

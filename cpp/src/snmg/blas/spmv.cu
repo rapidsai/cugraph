@@ -123,8 +123,8 @@ void snmg_csrmv_impl (size_t * part_offsets, gdf_column * off, gdf_column * ind,
 
 void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_cols){
     switch (val->dtype) {
-      case GDF_FLOAT32:   return snmg::cugraph::snmg_csrmv_impl<int32_t,float>(part_offsets, off, ind, val, x_cols);
-      case GDF_FLOAT64:   return snmg::cugraph::snmg_csrmv_impl<int32_t,double>(part_offsets, off, ind, val, x_cols);
+      case GDF_FLOAT32:   return snmg::snmg_csrmv_impl<int32_t,float>(part_offsets, off, ind, val, x_cols);
+      case GDF_FLOAT64:   return snmg::snmg_csrmv_impl<int32_t,double>(part_offsets, off, ind, val, x_cols);
       default: CUGRAPH_FAIL("Unsupported data type");
     }
 }

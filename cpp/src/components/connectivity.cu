@@ -14,6 +14,8 @@
 
 #include "topology/topology.cuh"
 
+namespace cugraph {
+namespace detail {
 //#define _DEBUG_WEAK_CC
 
 //
@@ -197,7 +199,7 @@ std::enable_if_t<std::is_signed<IndexT>::value>
  * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
  * @param table of 2 gdf_columns: output labels and vertex indices [out]
  */
-namespace cugraph {
+}
 
 void connected_components(Graph *graph,
                                     cugraph_cc_t connectivity_type,
@@ -220,7 +222,7 @@ void connected_components(Graph *graph,
   switch( dtype )//currently graph's row offsets, col_indices and labels are same type; that may change in the future
     {
     case GDF_INT32:
-      return connected_components_impl<int32_t>(graph, table, connectivity_type, stream);
+      return detail::connected_components_impl<int32_t>(graph, table, connectivity_type, stream);
       //    case GDF_INT64:
       //return gdf_connected_components_impl<int64_t>(graph, labels, connectivity_type, stream);
       // PROBLEM: relies on atomicMin(), which won't work w/ int64_t
