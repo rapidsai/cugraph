@@ -350,40 +350,41 @@ void add_transposed_adj_list_impl (Graph *graph) {
 }
 
 void add_adj_list(Graph *graph) {
-  if (graph->adjList != nullptr)
-    
+  if (graph->adjList == nullptr) {
+    CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
+    CUGRAPH_EXPECTS( graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type" );
 
-  CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
-  CUGRAPH_EXPECTS( graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type" );
-
-  if (graph->edgeList->edge_data != nullptr) {
-    switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return cugraph::add_adj_list_impl<int32_t, float>(graph);
-      case GDF_FLOAT64:   return cugraph::add_adj_list_impl<int32_t, double>(graph);
-      default: CUGRAPH_FAIL("Unsupported data type");
+    if (graph->edgeList->edge_data != nullptr) {
+      switch (graph->edgeList->edge_data->dtype) {
+        case GDF_FLOAT32:   return cugraph::add_adj_list_impl<int32_t, float>(graph);
+        case GDF_FLOAT64:   return cugraph::add_adj_list_impl<int32_t, double>(graph);
+        default: CUGRAPH_FAIL("Unsupported data type");
+      }
     }
-  }
-  else {
-    return cugraph::add_adj_list_impl<int32_t, float>(graph);
+    else {
+      return cugraph::add_adj_list_impl<int32_t, float>(graph);
+    }
   }
 }
 
 void add_transposed_adj_list(Graph *graph) {
-  if (graph->edgeList == nullptr)
-    cugraph::add_edge_list(graph);
+  if (graph->transposedAdjList == nullptr) {
+    if (graph->edgeList == nullptr)
+      cugraph::add_edge_list(graph);
 
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
+    CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
+    CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
 
-  if (graph->edgeList->edge_data != nullptr) {
-    switch (graph->edgeList->edge_data->dtype) {
-      case GDF_FLOAT32:   return cugraph::add_transposed_adj_list_impl<float>(graph);
-      case GDF_FLOAT64:   return cugraph::add_transposed_adj_list_impl<double>(graph);
-      default: CUGRAPH_FAIL("Unsupported data type");
+    if (graph->edgeList->edge_data != nullptr) {
+      switch (graph->edgeList->edge_data->dtype) {
+        case GDF_FLOAT32:   return cugraph::add_transposed_adj_list_impl<float>(graph);
+        case GDF_FLOAT64:   return cugraph::add_transposed_adj_list_impl<double>(graph);
+        default: CUGRAPH_FAIL("Unsupported data type");
+      }
     }
-  }
-  else {
-    return cugraph::add_transposed_adj_list_impl<float>(graph);
+    else {
+      return cugraph::add_transposed_adj_list_impl<float>(graph);
+    }
   }
 }
 
