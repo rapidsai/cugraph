@@ -38,7 +38,7 @@ def subgraph(graph_ptr, vertices, subgraph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = < Graph *> graph
 
-    cdef uintptr_t Graph = subgraph_ptr
+    cdef uintptr_t rGraph = subgraph_ptr
     cdef Graph* rg = <Graph*>rGraph
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 

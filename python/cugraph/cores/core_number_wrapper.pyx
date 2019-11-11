@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.cores.c_core_number cimport as c_core
+cimport cugraph.cores.c_core_number as c_core
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool

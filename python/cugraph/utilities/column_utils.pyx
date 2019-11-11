@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+#from cugraph.structure.c_graph cimport *
 from cudf._lib.cudf cimport get_column_data_ptr, get_column_valid_ptr
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -54,14 +54,14 @@ cdef gdf_column get_gdf_column_view(col):
         category=<void*>category
     )
 
-    column_view_augmented(<gdf_column*> &c_col,
+    err = gdf_column_view_augmented(<gdf_column*> &c_col,
                                     <void*> data_ptr,
                                     <valid_type*> valid_ptr,
                                     <size_type> len(col),
                                     gdf_dtype_from_value(col),
                                     <size_type> col.null_count,
                                     c_extra_dtype_info)
-    
+    libcudf.cudf.check_gdf_error(err)
 
     return c_col
 
@@ -76,14 +76,14 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
         category=<void*>category
     )
 
-    column_view_augmented(<gdf_column*> c_col,
+    err = gdf_column_view_augmented(<gdf_column*> c_col,
                                     <void*> data_ptr,
                                     <valid_type*> valid_ptr,
                                     <size_type> col_len,
                                     gdf_dtype_from_value(None, np.int32),
                                     <size_type> 0,
                                     c_extra_dtype_info)
-    
+    libcudf.cudf.check_gdf_error(err)
     return c_col
 
 #

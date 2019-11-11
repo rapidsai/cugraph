@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.community.c_louvain cimport as c_louvain
+cimport cugraph.community.c_louvain as c_louvain
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -73,11 +73,11 @@ def louvain(graph_ptr):
     
 
     if single_precision:
-        c_louvain(<Graph*>g,
+        c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_single_precision,
                   <void*>&num_level, &c_louvain_parts_col)
     else:
-        c_louvain(<Graph*>g,
+        c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_double_precision,
                   <void*>&num_level, &c_louvain_parts_col)
     
