@@ -8,6 +8,7 @@
 - PR #564 Update cudf type aliases
 - PR #562 Remove pyarrow dependency so we inherit the one cudf uses
 - PR #576 Remove adj list conversion automation from c++
+- PR #587 API upgrade
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
