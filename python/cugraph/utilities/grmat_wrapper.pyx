@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.utilities.c_grmat cimport *
+cimport cugraph.utilities.c_grmat as c_grmat
 from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -46,7 +46,9 @@ def grmat_gen(argv):
     argv_bytes = argv.encode()
     cdef char* c_argv = argv_bytes
 
-    grmat_gen (<char*>c_argv, vertices, edges, <gdf_column*>c_source_col, <gdf_column*>c_dest_col, <gdf_column*>0)
+    c_grmat.grmat_gen (<char*>c_argv, vertices, edges, 
+                       <gdf_column*>c_source_col, 
+                       <gdf_column*>c_dest_col, <gdf_column*>0)
 
 
     col_size = c_source_col.size

@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.traversal.c_bfs cimport *
+cimport cugraph.traversal.c_bfs as c_bfs
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -56,7 +56,7 @@ def bfs(graph_ptr, start, directed=True):
     g.adjList.get_vertex_identifiers(&c_vertex_col)
     
 
-    bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+    c_bfs.bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
     
 
     return df

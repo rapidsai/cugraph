@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.centrality.c_katz_centrality cimport *
+cimport cugraph.centrality.c_katz_centrality as c_katz
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -60,7 +60,7 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
     g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
+    c_katz.katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
 
     
 

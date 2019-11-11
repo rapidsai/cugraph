@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.link_analysis.c_pagerank cimport *
+cimport cugraph.link_analysis.c_pagerank as c_pagerank
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -62,12 +62,12 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     
 
     if personalization is None:
-        pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
+        c_pagerank.pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
     else:
         c_pers_vtx = get_gdf_column_view(personalization['vertex'])
         c_pers_val = get_gdf_column_view(personalization['values'])
-        pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
+        c_pagerank.pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
 
     

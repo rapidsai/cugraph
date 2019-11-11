@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.traversal.c_sssp cimport *
-from cugraph.traversal.c_bfs cimport *
+cimport cugraph.traversal.c_sssp as c_sssp
+cimport cugraph.traversal.c_bfs as c_bfs
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.cudf cimport np_dtype_from_gdf_column
@@ -66,9 +66,9 @@ def sssp(graph_ptr, source):
     
 
     if g.adjList.edge_data:
-        sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
+        c_sssp.sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
     else:
-        bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
+        c_bfs.bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
     
 
     return df

@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.cores.c_core_number cimport *
+cimport cugraph.cores.c_core_number cimport as c_core
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -53,7 +53,7 @@ def core_number(graph_ptr):
     g.adjList.get_vertex_identifiers(&c_identifier_col)
     
 
-    core_number(g, &c_core_number_col)
+    c_core.core_number(g, &c_core_number_col)
 
     
 
