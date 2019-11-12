@@ -67,15 +67,28 @@ def calc_k_truss_max(graph_file):
 
     # print(M['1']-1)
 
-    # M['0']=M['0']-1
+    # M['0']=M['0']-1   
     # M['1']=M['1']-1
 
     k_max = cugraph.ktruss_max(G)
 
 
-    print ("Python KMAX:")
+    print ("cuGraph KMAX:")
     print(k_max)
     return k_max
+
+def get_k_truss_subgraph(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    src, dst = cugraph.symmetrize(cu_M['0'], cu_M['1'])
+
+    G = cugraph.Graph()
+    # G.add_edge_list(src, dst)
+    G.add_edge_list(cu_M['0'], cu_M['1'])
+
+    cugraph.ktruss_subgraph(G,4)
+
+    return 
 
 
 
@@ -90,11 +103,12 @@ assert(rmm.is_initialized())
 calc_k_truss_max("dolphins.csv")
 networkx_calc_x_truss_max("dolphins.csv")
 calc_k_truss_max("netscience.csv")
-networkx_calc_x_truss_max("netscience.csv")
+# networkx_calc_x_truss_max("netscience.csv")
 
 
+get_k_truss_subgraph("netscience.csv")
 
-calc_k_truss_max("email-Enron.csv")
-networkx_calc_x_truss_max("email-Enron.csv")
 
-calc_k_truss_max("amazon0601.csv")
+# calc_k_truss_max("email-Enron.csv")
+# networkx_calc_x_truss_max("email-Enron.csv")
+# calc_k_truss_max("amazon0601.csv")

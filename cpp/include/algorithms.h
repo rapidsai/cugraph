@@ -358,11 +358,30 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
  *                                                                              
  * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
  *                                                                              
- * @Param[out] k                     Maximal k-truss found in graph.
+ * @Param[out] k_max                 Maximal k-truss found in graph.
  *                                                                              
  * @Returns                          GDF_SUCCESS upon successful completion.    
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 gdf_error gdf_k_truss_max(gdf_graph *in_graph,
                           int* k_max);
+
+
+
+
+/**                                                                             
+ * @Synopsis  Get the maximal k for which a k-truss exists in the graph.
+ *                                                                              
+ * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] k                     k that will be used to extract k-truss subgraph.
+ *                                                                              
+ * @Param[out] *truss_graph          cuGRAPH graph descriptor with the k-truss subgraph
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+gdf_error gdf_k_truss_subgraph(gdf_graph *in_graph,
+                               int k,
+                               gdf_graph *truss_graph);
 

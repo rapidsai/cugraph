@@ -11,17 +11,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.ktruss import ktruss_max_wrapper
+
+import cugraph
+from cugraph.structure.graph import Graph
 
 
-def ktruss_max(G):
+from cugraph.ktruss import ktruss_subgraph_wrapper
+
+
+def ktruss_subgraph(G,k):
     """
-    Finds the maximal k-truss of a graph.
+    Returns the subgraph of the k-truss of a graph for a specific k.
 
     The k-truss of a graph is subgraph where each edge is part  of  at least (k−2) triangles. 
-    The maximal k-truss in a graph, denoted by k=k_max is the largest k-truss in the graph where 
-    the set of satisfying edges is not empty. k-trusses are used for finding tighlty knit groups of 
-    vertices in a graph. A k-truss is a relaxation of a k-clique in the graph and was define in [1]. 
+    k-trusses are used for finding tighlty knit groups of vertices in a graph. 
+    A k-truss is a relaxation of a k-clique in the graph and was define in [1]. 
     Finding cliques is computationally demanding and finding the maximal 
     k-clique is known to be NP-Hard. 
 
@@ -53,11 +57,14 @@ def ktruss_max(G):
         defined for only undirected graphs as they are defined for undirected triangle in 
         a graph.
 
+    k : int
+        The desired k to be used for extracting the k-truss subgraph.
+
+
     Returns
     -------
-    k_max : int
-        The largest k in the graph s.t. a non-empty k-truss in the graph exists.
-
+    G_truss : cuGraph.Graph
+        A cugraph graph descriptor with the k-truss subgraph for the given k.
 
     Examples
     --------
@@ -70,6 +77,10 @@ def ktruss_max(G):
     >>> k_max = cugraph.ktruss_max(G)
     """
 
-    k_max = ktruss_max_wrapper.ktruss_max(G.graph_ptr)
+    # subgraph_truss = cugraph.Graph()
+    subgraph_truss = Graph()
 
-    return k_max
+    ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr,k,subgraph_truss.graph_ptr)
+    # G_truss = ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr,k)
+
+    # return G_truss
