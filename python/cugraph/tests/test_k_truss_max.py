@@ -70,22 +70,22 @@ def cugraph_k_truss_max(graph_file):
 
 
 
-def compare_k_truss(graph_file):
+def compare_k_truss(graph_file,k_truss_nx):
     k_truss_cugraph = cugraph_k_truss_max(graph_file)
-    k_truss_nx      = networkx_k_truss_max(graph_file)
+    # k_truss_nx      = networkx_k_truss_max(graph_file)
 
     assert (k_truss_cugraph==k_truss_nx)
 
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
+DATASETS = [('../datasets/dolphins.csv',5),
+            ('../datasets/netscience.csv',20)]
 
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_ktruss_max(managed, pool, graph_file):
+@pytest.mark.parametrize('graph_file,nx_ground_truth', DATASETS)
+def test_ktruss_max(managed, pool, graph_file,nx_ground_truth):
     gc.collect()
 
     rmm.finalize()
@@ -95,7 +95,7 @@ def test_ktruss_max(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    compare_k_truss(graph_file)
+    compare_k_truss(graph_file,nx_ground_truth)
 
     # print(kmax)
 
