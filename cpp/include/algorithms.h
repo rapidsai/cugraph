@@ -363,7 +363,7 @@ gdf_error gdf_k_core(gdf_graph *in_graph,
  * @Returns                          GDF_SUCCESS upon successful completion.    
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_k_truss_max(gdf_graph *in_graph,
+void k_truss_max(gdf_graph *in_graph,
                           int* k_max);
 
 
@@ -381,7 +381,7 @@ gdf_error gdf_k_truss_max(gdf_graph *in_graph,
  * @Returns                          GDF_SUCCESS upon successful completion.    
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_k_truss_subgraph(gdf_graph *in_graph,
+void k_truss_subgraph(gdf_graph *in_graph,
                                int k,
                                gdf_graph *truss_graph);
 

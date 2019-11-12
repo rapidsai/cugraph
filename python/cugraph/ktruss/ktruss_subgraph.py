@@ -81,6 +81,5 @@ def ktruss_subgraph(G,k):
     subgraph_truss = Graph()
 
     ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr,k,subgraph_truss.graph_ptr)
-    # G_truss = ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr,k)
 
     # return G_truss

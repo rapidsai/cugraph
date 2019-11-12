@@ -41,7 +41,7 @@ def ktruss_subgraph(graph_ptr,k, subgraph_truss):
     cdef uintptr_t subgraph = subgraph_truss
     cdef gdf_graph* gsub = <gdf_graph*>subgraph
 	
-    err = gdf_k_truss_subgraph(g, k, gsub);
+    k_truss_subgraph(g, k, gsub);
 
     # libcudf.cudf.check_gdf_error(err)
 

@@ -21,7 +21,7 @@ from cugraph.structure.c_graph cimport *
 
 cdef extern from "cugraph.h":
 
-	cdef gdf_error gdf_k_truss_subgraph(
+	cdef void k_truss_subgraph(
 		gdf_graph *in_graph,
 		int k,
         gdf_graph *truss_subgraph) except +

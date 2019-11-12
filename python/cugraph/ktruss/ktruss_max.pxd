@@ -21,7 +21,7 @@ from cugraph.structure.c_graph cimport *
 
 cdef extern from "cugraph.h":
 
-	cdef gdf_error gdf_k_truss_max(
+	cdef void k_truss_max(
 		gdf_graph *in_graph,
         int* k_max) except +
 

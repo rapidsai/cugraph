@@ -39,7 +39,6 @@ def ktruss_max(graph_ptr):
 
     cdef int kmax = 0
 
-    err = gdf_k_truss_max(g,&kmax);
-    libcudf.cudf.check_gdf_error(err)
+    k_truss_max(g,&kmax);
 
     return kmax
