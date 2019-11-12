@@ -19,8 +19,12 @@ import pytest
 import pandas as pd
 import cugraph
 from cugraph.tests import utils
+from cugraph.structure import symmetrize 
+import cudf
+
 import rmm
 from rmm import rmm_config
+import networkx as nx
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -35,24 +39,43 @@ with warnings.catch_warnings():
 
 print('Networkx version : {} '.format(nx.__version__))
 
+def networkx_k_truss_max(graph_file):
+    NM = utils.read_csv_for_nx(graph_file)
+    NM = NM.tocsr()
 
-def calc_k_truss_max(graph_file):
+    k=3;
+    Gnx = nx.Graph(NM)
+    Gnx = Gnx.to_undirected()
+
+    while(not nx.is_empty(Gnx)):
+        Gnx = nx.k_truss(Gnx,k)
+        k=k+1
+    k=k-2;
+
+    return k
+
+
+
+def cugraph_k_truss_max(graph_file):
     cu_M = utils.read_csv_file(graph_file)
+
     src, dst = cugraph.symmetrize(cu_M['0'], cu_M['1'])
+
     G = cugraph.Graph()
     G.add_edge_list(src, dst)
 
     k_max = cugraph.ktruss_max(G)
 
+    return k_max
 
-    # NM = utils.read_csv_for_nx(graph_file)
-    # NM = NM.tocsr()
-    # Gnx = nx.Graph(NM)
-    # nc = nx.core_number(Gnx)
-    # pdf = pd.DataFrame(nc, index=[0]).T
-    # cn['nx_core_number'] = pdf[0]
-    # cn = cn.rename({'core_number': 'cu_core_number'})
-    return 1
+
+
+def compare_k_truss(graph_file):
+    k_truss_cugraph = cugraph_k_truss_max(graph_file)
+    k_truss_nx      = networkx_k_truss_max(graph_file)
+
+    assert (k_truss_cugraph==k_truss_nx)
+
 
 
 DATASETS = ['../datasets/dolphins.csv',
@@ -72,7 +95,7 @@ def test_ktruss_max(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    kmax = calc_k_truss_max(graph_file)
+    compare_k_truss(graph_file)
 
     # print(kmax)
 

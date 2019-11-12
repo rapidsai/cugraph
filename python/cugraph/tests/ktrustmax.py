@@ -32,13 +32,14 @@ import networkx as nx
 #             '../datasets/netscience.csv']
 
 
-def networkx_calc_x_truss_max(graph_file):
+def networkx_k_truss_max(graph_file):
     NM = utils.read_csv_for_nx(graph_file)
     NM = NM.tocsr()
 
     k=3;
     Gnx = nx.Graph(NM)
-    
+    Gnx = Gnx.to_undirected()
+
     while(not nx.is_empty(Gnx)):
         Gnx = nx.k_truss(Gnx,k)
         k=k+1
@@ -47,28 +48,18 @@ def networkx_calc_x_truss_max(graph_file):
     print ("NetworkX KMAX:")
     print(k)
 
-
     return k
-    # nc = nx.core_number(Gnx)
-    # pdf = pd.DataFrame(nc, index=[0]).T
-    # cn['nx_core_number'] = pdf[0]
-    # cn = cn.rename({'core_number': 'cu_core_number'})
 
 
 
-def calc_k_truss_max(graph_file):
+def cugraph_k_truss_max(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     src, dst = cugraph.symmetrize(cu_M['0'], cu_M['1'])
 
     G = cugraph.Graph()
-    # G.add_edge_list(src, dst)
-    G.add_edge_list(cu_M['0'], cu_M['1'])
-
-    # print(M['1']-1)
-
-    # M['0']=M['0']-1   
-    # M['1']=M['1']-1
+    G.add_edge_list(src, dst)
+    # G.add_edge_list(cu_M['0'], cu_M['1'])
 
     k_max = cugraph.ktruss_max(G)
 
@@ -100,15 +91,15 @@ rmm.initialize()
 assert(rmm.is_initialized())
 
 
-calc_k_truss_max("dolphins.csv")
-networkx_calc_x_truss_max("dolphins.csv")
-calc_k_truss_max("netscience.csv")
-# networkx_calc_x_truss_max("netscience.csv")
+cugraph_k_truss_max("dolphins.csv")
+networkx_k_truss_max("dolphins.csv")
+cugraph_k_truss_max("netscience.csv")
+networkx_k_truss_max("netscience.csv")
+# cugraph_k_truss_max("email-Enron.csv")
+# networkx_k_truss_max("email-Enron.csv")
 
 
 get_k_truss_subgraph("netscience.csv")
 
 
-# calc_k_truss_max("email-Enron.csv")
-# networkx_calc_x_truss_max("email-Enron.csv")
-# calc_k_truss_max("amazon0601.csv")
+# cugraph_k_truss_max("amazon0601.csv")
