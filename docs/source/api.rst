@@ -105,6 +105,14 @@ Core Number
     :undoc-members:
 
 
+K-Truss
+-------
+
+.. automodule:: cugraph.ktruss.ktruss_max
+    :members:
+    :undoc-members:
+
+
 Link Analysis
 =============
 
