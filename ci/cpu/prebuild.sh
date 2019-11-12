@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-export BUILD_ABI=1
 export BUILD_CUGRAPH=1
 export BUILD_LIBCUGRAPH=1
 
