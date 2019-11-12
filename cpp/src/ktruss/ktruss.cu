@@ -32,6 +32,10 @@
 
 using namespace hornets_nest;
 
+
+namespace cugraph {
+namespace detail {
+
 void ktruss_max_impl(gdf_graph *graph,
                           int *k_max) {
   // gdf_error err = gdf_add_adj_list(graph);
@@ -132,3 +136,5 @@ void k_truss_subgraph(gdf_graph *graph,
 }
 
 
+}
+}//namespace cugraph
