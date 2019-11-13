@@ -22,23 +22,32 @@ from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
-
+from cugraph.structure import graph_wrapper
 import cudf
 import cudf._lib as libcudf
 import rmm
 import numpy as np
 
 
-def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
+def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
     """
     Call gdf_pagerank
     """
 
-    cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef gdf_graph * g = <gdf_graph*> graph
 
-    err = gdf_add_transposed_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.transposedadjlist:
+        graph_wrapper.add_transposed_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])    
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_transposed_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_transposed_adj_list(graph)
+        input_graph.transposedadjlist = input_graph.transposedAdjList(offsets, indices, values)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.transposedAdjList.offsets.size - 1)

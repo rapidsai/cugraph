@@ -27,15 +27,14 @@ from rmm import rmm_config
 
 def cugraph_call(cu_M, first, second, edgevals=False):
     # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    if edgevals is False:
-        values = None
-    else:
-        values = cu_M['2']
+    df = cudf.DataFrame()
+    df['s'] = cu_M['0']
+    df['d'] = cu_M['1']
+    if edgevals is True:
+        df['weights'] = cu_M['2']
 
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+    G = cugraph.DiGraph()
+    G.add_edge_list(df)
 
     # cugraph Overlap Call
     t1 = time.time()

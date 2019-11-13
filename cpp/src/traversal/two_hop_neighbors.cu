@@ -130,7 +130,6 @@ gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_col
     CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
     CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter");
     CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
-    CUGRAPH_TRY(gdf_add_adj_list(graph));
 
     size_t num_verts = graph->adjList->offsets->size - 1;
     switch (graph->adjList->offsets->dtype) {

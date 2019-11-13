@@ -18,6 +18,7 @@
 
 from cugraph.cores.c_k_core cimport *
 from cugraph.structure.c_graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -30,18 +31,42 @@ import rmm
 import numpy as np
 
 
-def k_core(graph_ptr, k_core_graph_ptr, k, core_number):
+def k_core(input_graph, k_core_graph, k, core_number):
     """
     Call gdf_k_core
     """
-    cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef gdf_graph * g = <gdf_graph*> graph
 
-    cdef uintptr_t rGraph = k_core_graph_ptr
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+
+    cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
     cdef gdf_graph* rg = <gdf_graph*>rGraph
 
     cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
     cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
     err = gdf_k_core(g, k, &c_vertex, &c_values, rg)
-
     libcudf.cudf.check_gdf_error(err)
+
+    if rg.edgeList is not NULL:
+        df = cudf.DataFrame()
+        df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
+        if vals is not None:
+            df['val'] = vals
+        k_core_graph.add_edge_list(df)
+    if rg.adjList is not NULL:
+        off, ind, vals = graph_wrapper.get_adj_list(rGraph)
+        k_core_graph.add_adj_list(off, ind, vals)
+    if rg.transposedAdjList is not NULL:
+        off, ind, vals = graph_wrapper.get_transposed_adj_list(rGraph)
+        k_core_graph.add_transposed_adj_list(off, ind, vals)

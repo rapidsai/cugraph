@@ -46,7 +46,7 @@ def weakly_connected_components(G):
     >>> df = cugraph.weakly_connected_components(G)
     """
 
-    df = connectivity_wrapper.weakly_connected_components(G.graph_ptr)
+    df = connectivity_wrapper.weakly_connected_components(G)
 
     return df
 
@@ -83,6 +83,6 @@ def strongly_connected_components(G):
     >>> df = cugraph.strongly_connected_components(G)
     """
 
-    df = connectivity_wrapper.strongly_connected_components(G.graph_ptr)
+    df = connectivity_wrapper.strongly_connected_components(G)
 
     return df

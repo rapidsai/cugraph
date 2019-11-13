@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: cugraph
+Version: 0.11.0a1+77.g726adf5.dirty
+Summary: cuGraph - GPU Graph Analytics
+Home-page: UNKNOWN
+Author: NVIDIA Corporation
+Author-email: UNKNOWN
+License: Apache
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7

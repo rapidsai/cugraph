@@ -37,8 +37,8 @@ print('Networkx version : {} '.format(nx.__version__))
 
 def calc_k_cores(graph_file):
     M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph()
-    G.add_edge_list(M['0'], M['1'])
+    G = cugraph.DiGraph()
+    G.add_edge_list(M.iloc[:,0:2])
 
     ck = cugraph.k_core(G)
 
@@ -50,8 +50,9 @@ def calc_k_cores(graph_file):
 
 
 def compare_edges(cg, nxg):
-    src, dest, weight = cg.view_edge_list()
-    assert weight is None
+    edgelist_df = cg.view_edge_list()
+    src, dest = edgelist_df['src'], edgelist_df['dst'],
+    assert cg.edgelist.weights is False
     assert len(src) == nxg.size()
     for i in range(len(src)):
         assert nxg.has_edge(src[i], dest[i])

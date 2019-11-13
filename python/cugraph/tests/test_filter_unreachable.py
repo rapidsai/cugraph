@@ -55,16 +55,13 @@ def test_filter_unreachable(managed, pool, graph_file, source):
     assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
 
-    print('sources size = ' + str(len(sources)))
-    print('destinations size = ' + str(len(destinations)))
+    print('sources size = ' + str(len(cu_M)))
+    print('destinations size = ' + str(len(cu_M)))
 
     # cugraph Pagerank Call
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations)
+    G = cugraph.DiGraph()
+    G.add_edge_list(cu_M.iloc[:,0:2])
 
     print('cugraph Solving... ')
     t1 = time.time()

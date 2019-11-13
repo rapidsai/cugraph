@@ -18,6 +18,7 @@
 
 from cugraph.community.c_triangle_count cimport *
 from cugraph.structure.c_graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libc.stdint cimport uintptr_t
 
@@ -26,15 +27,25 @@ import cudf._lib as libcudf
 import rmm
 
 
-def triangles(graph_ptr):
+def triangles(input_graph):
     """
     Call gdf_triangle_count_nvgraph
     """
-    cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*> graph
 
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef gdf_graph * g = <gdf_graph*> graph
+
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     cdef uint64_t result
     err = gdf_triangle_count_nvgraph(g, &result)

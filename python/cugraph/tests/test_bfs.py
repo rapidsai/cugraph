@@ -19,6 +19,7 @@ import time
 import numpy as np
 import pytest
 
+import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -31,8 +32,13 @@ def cugraph_call(cu_M, start_vertex):
     destinations = cu_M['1']
     values = cu_M['2']
 
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+    df = cudf.DataFrame()
+    df['s'] = sources
+    df['d'] = destinations
+    df['v'] = values
+
+    G = cugraph.DiGraph()
+    G.add_edge_list(df)
 
     t1 = time.time()
     df = cugraph.bfs(G, start_vertex)

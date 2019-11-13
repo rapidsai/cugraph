@@ -18,6 +18,7 @@ import time
 import numpy as np
 import pytest
 
+import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -42,17 +43,18 @@ def cugraph_call(cu_M, source, edgevals=False):
     # Device data
     sources = cu_M['0']
     destinations = cu_M['1']
-    if edgevals is False:
-        values = None
-    else:
-        values = cu_M['2']
+    df = cudf.DataFrame()
+    df['s'] = sources
+    df['d'] = destinations
+    if edgevals is True:
+        df['v'] = cu_M['2']
 
     print('sources size = ' + str(len(sources)))
     print('destinations size = ' + str(len(destinations)))
 
     # cugraph Pagerank Call
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+    G = cugraph.DiGraph()
+    G.add_edge_list(df)
 
     print('cugraph Solving... ')
     t1 = time.time()

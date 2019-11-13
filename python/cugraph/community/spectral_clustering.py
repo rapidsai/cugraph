@@ -66,7 +66,7 @@ def spectralBalancedCutClustering(G,
     """
 
     df = spectral_clustering_wrapper.spectralBalancedCutClustering(
-             G.graph_ptr,
+             G,
              num_clusters,
              num_eigen_vects,
              evs_tolerance,
@@ -127,7 +127,7 @@ def spectralModularityMaximizationClustering(G,
     """
 
     df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
-             G.graph_ptr,
+             G,
              num_clusters,
              num_eigen_vects,
              evs_tolerance,
@@ -170,7 +170,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
-                G.graph_ptr,
+                G,
                 n_clusters,
                 clustering)
 
@@ -208,7 +208,7 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
-                G.graph_ptr,
+                G,
                 n_clusters,
                 clustering)
 
@@ -247,7 +247,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
-                G.graph_ptr,
+                G,
                 n_clusters,
                 clustering)
 

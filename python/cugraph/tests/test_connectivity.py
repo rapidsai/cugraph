@@ -65,8 +65,8 @@ def cugraph_weak_call(cu_M):
     destinations = cu_M['1']
 
     # cugraph Pagerank Call
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, None)
+    G = cugraph.DiGraph()
+    G.add_edge_list(cu_M.iloc[:,0:2])
     t1 = time.time()
     df = cugraph.weakly_connected_components(G)
     t2 = time.time() - t1
@@ -107,8 +107,8 @@ def cugraph_strong_call(cu_M):
     destinations = cu_M['1']
 
     # cugraph Pagerank Call
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, None)
+    G = cugraph.DiGraph()
+    G.add_edge_list(cu_M.iloc[:,0:2])
     t1 = time.time()
     df = cugraph.strongly_connected_components(G)
     t2 = time.time() - t1

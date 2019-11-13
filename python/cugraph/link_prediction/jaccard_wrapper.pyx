@@ -19,6 +19,7 @@
 from cugraph.link_prediction.c_jaccard cimport *
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
+from cugraph.structure import graph_wrapper
 from cudf._lib.cudf cimport np_dtype_from_gdf_column
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -30,15 +31,24 @@ import rmm
 import numpy as np
 
 
-def jaccard(graph_ptr, first=None, second=None):
+def jaccard(input_graph, first=None, second=None):
     """
     Call gdf_jaccard_list
     """
-    cdef uintptr_t graph = graph_ptr
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef gdf_graph * g = <gdf_graph*> graph
 
-    err = gdf_add_adj_list(<gdf_graph*> graph)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     cdef gdf_column c_result_col
     cdef gdf_column c_first_col

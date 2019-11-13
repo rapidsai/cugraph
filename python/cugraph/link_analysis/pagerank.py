@@ -90,7 +90,7 @@ def pagerank(G,
         null_check(personalization['vertex'])
         null_check(personalization['values'])
 
-    df = pagerank_wrapper.pagerank(G.graph_ptr,
+    df = pagerank_wrapper.pagerank(G,
                                    alpha,
                                    personalization,
                                    max_iter,

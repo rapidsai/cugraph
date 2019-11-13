@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.community import subgraph_extraction_wrapper
-from cugraph.structure.graph import null_check, Graph
+from cugraph.structure.graph import null_check, DiGraph
 
 
 def subgraph(G, vertices):
@@ -52,11 +52,11 @@ def subgraph(G, vertices):
 
     null_check(vertices)
 
-    result_graph = Graph()
+    result_graph = DiGraph()
 
     subgraph_extraction_wrapper.subgraph(
-        G.graph_ptr,
+        G,
         vertices,
-        result_graph.graph_ptr)
+        result_graph)
 
     return result_graph

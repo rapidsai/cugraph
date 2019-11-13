@@ -53,9 +53,12 @@ def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
     sources = cu_M['0']
     destinations = cu_M['1']
 
+    df = cudf.DataFrame()
+    df['s'] = sources
+    df['d'] = destinations
     # cugraph Pagerank Call
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, None)
+    G = cugraph.DiGraph()
+    G.add_edge_list(df)
     t1 = time.time()
     df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol,
                           personalization=personalization, nstart=nstart)
@@ -130,7 +133,7 @@ def networkx_call(M, max_iter, tol, alpha, personalization_perc):
 
 DATASETS = ['../datasets/dolphins.csv',
             '../datasets/karate.csv']
-
+           
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]

@@ -39,15 +39,11 @@ print('Networkx version : {} '.format(nx.__version__))
 
 def cugraph_call(cu_M, edgevals=False):
 
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
+    G = cugraph.DiGraph()
     if edgevals:
-        values = cu_M['2']
+        G.add_edge_list(cu_M)
     else:
-        values = None
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+        G.add_edge_list(cu_M.iloc[:,0:2])
 
     # cugraph Louvain Call
     t1 = time.time()

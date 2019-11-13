@@ -18,6 +18,7 @@
 
 from cugraph.community.c_spectral_clustering cimport *
 from cugraph.structure.c_graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -30,7 +31,7 @@ import rmm
 import numpy as np
 
 
-def spectralBalancedCutClustering(graph_ptr,
+def spectralBalancedCutClustering(input_graph,
                                     num_clusters,
                                     num_eigen_vects=2,
                                     evs_tolerance=.00001,
@@ -41,12 +42,20 @@ def spectralBalancedCutClustering(graph_ptr,
     Call gdf_balancedCutClustering_nvgraph
     """
 
-    cdef uintptr_t graph = graph_ptr
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef gdf_graph * g = <gdf_graph*> graph
 
-    # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -75,7 +84,7 @@ def spectralBalancedCutClustering(graph_ptr,
 
     return df
 
-def spectralModularityMaximizationClustering(graph_ptr,
+def spectralModularityMaximizationClustering(input_graph,
                                                num_clusters,
                                                num_eigen_vects=2,
                                                evs_tolerance=.00001,
@@ -85,13 +94,20 @@ def spectralModularityMaximizationClustering(graph_ptr,
     """
     Call gdf_spectralModularityMaximization_nvgraph
     """
-
-    cdef uintptr_t graph = graph_ptr
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef gdf_graph * g = <gdf_graph*> graph
 
-    # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     # we should add get_number_of_vertices() to gdf_graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -120,16 +136,24 @@ def spectralModularityMaximizationClustering(graph_ptr,
 
     return df
 
-def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
+def analyzeClustering_modularity(input_graph, n_clusters, clustering):
     """
     Call gdf_AnalyzeClustering_modularity_nvgraph
     """
-    cdef uintptr_t graph = graph_ptr
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef gdf_graph * g = <gdf_graph*> graph
 
-    # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
@@ -137,16 +161,24 @@ def analyzeClustering_modularity(graph_ptr, n_clusters, clustering):
     libcudf.cudf.check_gdf_error(err)
     return score
 
-def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
+def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
     """
     Call gdf_AnalyzeClustering_edge_cut_nvgraph
     """
-    cdef uintptr_t graph = graph_ptr
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef gdf_graph * g = <gdf_graph*> graph
 
-    # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
@@ -154,16 +186,24 @@ def analyzeClustering_edge_cut(graph_ptr, n_clusters, clustering):
     libcudf.cudf.check_gdf_error(err)
     return score
 
-def analyzeClustering_ratio_cut(graph_ptr, n_clusters, clustering):
+def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
     """
     Call gdf_AnalyzeClustering_ratio_cut_nvgraph
     """
-    cdef uintptr_t graph = graph_ptr
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef gdf_graph * g = <gdf_graph*> graph
 
-    # Ensure that the graph has CSR adjacency list
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        err = gdf_add_adj_list(g)
+        libcudf.cudf.check_gdf_error(err)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
