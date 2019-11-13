@@ -42,7 +42,7 @@ class Graph:
 
     class transposedAdjList:
         def __init__(self, offsets, indices, value=None):
-            AdjList.__init__(self, offsets, indices, value)
+            Graph.AdjList.__init__(self, offsets, indices, value)
     """
     cuGraph graph class containing basic graph creation and transformation
     operations. 

@@ -1,2 +1,0 @@
-numba
-cython
