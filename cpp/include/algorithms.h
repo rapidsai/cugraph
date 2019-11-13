@@ -43,7 +43,7 @@ namespace cugraph {
  *
  * @Param[out] *pagerank             The PageRank : pagerank[i] is the PageRank of vertex i.
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void pagerank(Graph* graph,
@@ -83,15 +83,15 @@ void pagerank(Graph* graph,
  *
  * @Param[out] *val                  Columns containing the edge weights
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void grmat_gen(const char* argv,
-                        size_t &vertices,
-                        size_t &edges,
-                        gdf_column* src,
-                        gdf_column* dest,
-                        gdf_column* val);
+               size_t &vertices,
+               size_t &edges,
+               gdf_column* src,
+               gdf_column* dest,
+               gdf_column* val);
 
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
@@ -106,7 +106,7 @@ void grmat_gen(const char* argv,
  *
  * @Param[in] directed               Treat the input graph as directed
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void bfs(Graph* graph,
@@ -125,7 +125,7 @@ void bfs(Graph* graph,
  *                                                                              
  * @Param[in] start_vertex           The starting vertex for SSSP               
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void sssp(Graph* graph,                                            
@@ -139,7 +139,7 @@ void sssp(Graph* graph,
  * @param weights The input vertex weights for weighted Jaccard, may be NULL for
  * unweighted Jaccard.
  * @param result The result values are stored here, memory needs to be pre-allocated
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void jaccard(Graph* graph,
              gdf_column *weights,
@@ -154,7 +154,7 @@ void jaccard(Graph* graph,
  * @param first A column containing the first vertex ID of each pair.
  * @param second A column containing the second vertex ID of each pair.
  * @param result The result values are stored here, memory needs to be pre-allocated.
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void jaccard_list(Graph* graph,
                   gdf_column *weights,
@@ -169,7 +169,7 @@ void jaccard_list(Graph* graph,
  * @param weights The input vertex weights for weighted overlap, may be NULL for
  * unweighted.
  * @param result The result values are stored here, memory needs to be pre-allocated.
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void overlap(Graph* graph,
              gdf_column *weights,
@@ -184,7 +184,7 @@ void overlap(Graph* graph,
  * @param first A column containing the first vertex Ids of each pair
  * @param second A column containing the second vertex Ids of each pair
  * @param result The result values are stored here, memory needs to be pre-allocated
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void overlap_list(Graph* graph,
                   gdf_column *weights,
@@ -205,7 +205,7 @@ void louvain(Graph* graph,
  * @param off The local partition offsets
  * @param ind The local partition indices
  * @param x_cols The results (located on each GPU)
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void snmg_degree(int x,
                  size_t* part_offsets,
@@ -224,7 +224,7 @@ void snmg_degree(int x,
  * @param csrOff The local partition's CSR Offsets (output)
  * @param csrInd The local partition's CSR Indices (output)
  * @param csrVal The local partition's CSR Values (output)
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void snmg_coo2csr(size_t* part_offsets,
                   bool free_input,
@@ -258,6 +258,7 @@ typedef enum {CUGRAPH_WEAK = 0, CUGRAPH_STRONG, NUM_CONNECTIVITY_TYPES} cugraph_
  * @param graph input graph; assumed undirected for weakly CC [in]
  * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
  * @param table of 2 gdf_columns: output labels and vertex indices [out]
+ * @throws     cugraph::logic_error when an error occurs.
  */
  void connected_components(Graph* graph,
                            cugraph_cc_t connectivity_type,
@@ -274,7 +275,7 @@ Find the PageRank vertex values for a graph. cuGraph computes an approximation o
  * @Param[in] n_iter            The number of iterations before an answer is returned. This must be greater than 0. It is recommended to run between 10 and 100 iterations.  
  *                              The number of iterations should vary depending on the properties of the network itself and the desired approximation quality; it should be increased when alpha increases toward the limiting value of 1.
 
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void snmg_pagerank (gdf_column **src_col_ptrs, 
                     gdf_column **dest_col_ptrs, 
@@ -311,7 +312,7 @@ void snmg_pagerank (gdf_column **src_col_ptrs,
  *                                                                              
  * @Param[in] normalized             If True normalize the resulting katz centrality values
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void katz_centrality(Graph* graph,                                         
@@ -329,11 +330,11 @@ void katz_centrality(Graph* graph,
  *                                                                              
  * @Param[out] *core_number          If set to a valid column, this is populated by the core number of every vertex in the graph
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void core_number(Graph* graph,                                         
-            gdf_column *core_number);
+                 gdf_column *core_number);
 
 /**                                                                             
  * @Synopsis   Compute K Core of the graph G
@@ -348,7 +349,7 @@ void core_number(Graph* graph,
  *                                                                              
  * @Param[out] *out_graph            K Core subgraph
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void k_core(Graph* in_graph,

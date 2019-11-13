@@ -33,17 +33,16 @@ namespace cugraph {
  *    Note that this function allocates memory for the src_renumbered,
  *    dst_renumbered and numbering_map arrays.
  *
- *  @Param[in]  src - the original source vertices
- *  @Param[in]  dst - the original dest vertices
- *  @Param[out] src_renumbered - the renumbered source vertices.  This array
- *                               will be a GDF_INT32 array.
- *  @Param[out] dst_renumbered - the renumbered dest vertices.  This array
- *                               will be a GDF_INT32 array.
- *  @Param[out] numbering_map - mapping of new vertex ids to old vertex ids.
- *                              This array will match the type of src/dst input.
+ * @Param[in]  src - the original source vertices
+ * @Param[in]  dst - the original dest vertices
+ * @Param[out] src_renumbered - the renumbered source vertices.  This array
+ *                              will be a GDF_INT32 array.
+ * @Param[out] dst_renumbered - the renumbered dest vertices.  This array
+ *                              will be a GDF_INT32 array.
+ * @Param[out] numbering_map - mapping of new vertex ids to old vertex ids.
+ *                             This array will match the type of src/dst input.
  *
- *  @Returns    GDF_SUCCESS on success, an error code on failure.
- *              GDF_COLUMN_SIZE_TOO_BIG if the number of unique vertices is > 2^31-1.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void renumber_vertices(const gdf_column *src, const gdf_column *dst,
 				gdf_column *src_renumbered, gdf_column *dst_renumbered,
@@ -63,7 +62,7 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
  *
  * @Param[out]* graph                cuGRAPH graph descriptor containing the newly added edge list (edge_data is optional).
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void edge_list_view(Graph* graph,
@@ -85,7 +84,7 @@ void edge_list_view(Graph* graph,
  *
  * @Param[out]* graph                cuGRAPH graph descriptor containing the newly added adjacency list (edge_data is optional).
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void adj_list_view (Graph* graph,
@@ -101,7 +100,7 @@ void adj_list_view (Graph* graph,
  * @Param[in, out]* graph            in  : graph descriptor containing a valid gdf_edge_list structure pointed by graph->edgeList
  *                                   out : graph->adjList is set to a gdf_adj_list structure containing the generated adjacency list
  *
- * @Returns                          GDF_SUCCESS upon successful completion. If graph->edgeList is nullptr then GDF_INVALID_API_CALL is returned.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void add_adj_list(Graph* graph);
@@ -115,7 +114,7 @@ void add_adj_list(Graph* graph);
  *                                         or a valid gdf_adj_list structure pointed by graph->adjList
  *                                   out : graph->transposedAdjList is set to a gdf_adj_list structure containing the generated transposed adjacency list
  *
- * @Returns                          GDF_SUCCESS upon successful completion. If both graph->edgeList and graph->adjList are nullptr then GDF_INVALID_API_CALL is returned.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 
@@ -129,7 +128,7 @@ void add_transposed_adj_list(Graph* graph);
  * @Param[in, out]* graph            in  : graph descriptor containing a valid gdf_adj_list structure pointed by graph->adjList
  *                                   out : graph->edgeList is set to a gdf_edge_list structure containing the generated edge list
  *
- * @Returns                          GDF_SUCCESS upon successful completion. If graph->adjList is nullptr then GDF_INVALID_API_CALL is returned.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void add_edge_list(Graph* graph);
@@ -140,7 +139,7 @@ void add_edge_list(Graph* graph);
  * @Param[in, out]* graph            in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
  *                                   out : graph descriptor with graph->adjList set to nullptr
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void delete_adj_list(Graph* graph);
@@ -151,7 +150,7 @@ void delete_adj_list(Graph* graph);
  * @Param[in, out]* graph            in  : graph descriptor with graph->edgeList pointing to a gdf_edge_list structure
  *                                   out : graph descriptor with graph->edgeList set to nullptr
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void delete_edge_list(Graph* graph);
@@ -162,7 +161,7 @@ void delete_edge_list(Graph* graph);
  * @Param[in, out]* graph            in  : graph descriptor with graph->transposedAdjList pointing to a gdf_adj_list structure
  *                                   out : graph descriptor with graph->transposedAdjList set to nullptr
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void delete_transposed_adj_list(Graph* graph);
@@ -178,7 +177,7 @@ void delete_transposed_adj_list(Graph* graph);
  * @param[out] second                out : An uninitialized gdf_column which will be initialized to contain the
  *                                         second entry of each result pair.
  *
- * @return                           GDF_SUCCESS upon successful completion. 
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
@@ -199,7 +198,7 @@ void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
  * @Param[in, out] **x_col           in  : x[device_id] contains the input vector of the spmv for a device_id. The input should be duplicated on all devices.
  *                                   out : Overwritten on output by the result of x = A*x, on all devices.
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
@@ -216,7 +215,7 @@ void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_
  * @Param[out] *degree               out : gdf_column of size V (V is number of vertices) initialized to zeros.
  *                                         Contains the computed degree of every vertex.
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void degree(Graph* graph, gdf_column *degree, int x);
@@ -228,7 +227,7 @@ int get_device(const void *ptr);
  * @Param[in, out]* graph            in  : graph descriptor with graph->edgeList populated
  *                                   out : graph descriptor with graph->numberOfVertices populated
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
 void number_of_vertices(Graph* graph);

@@ -59,7 +59,7 @@ void sssp_nvgraph(Graph* gdf_G, const int *source_vert, gdf_column *sssp_distanc
  * @param clustering Pointer to a GDF column in which the resulting clustering will be stored
  * @param eig_vals Pointer to a GDF column in which the resulting eigenvalues will be stored
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void balancedCutClustering_nvgraph(Graph* gdf_G,
 					    const int num_clusters,
@@ -82,7 +82,7 @@ void balancedCutClustering_nvgraph(Graph* gdf_G,
  * @param clustering Pointer to a GDF column in which the resulting clustering will be stored
  * @param eig_vals Pointer to a GDF column in which the resulting eigenvalues will be stored
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
- * @return
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void spectralModularityMaximization_nvgraph(Graph* gdf_G,
 						     const int n_clusters,
@@ -99,7 +99,7 @@ void spectralModularityMaximization_nvgraph(Graph* gdf_G,
  * @param n_clusters Number of clusters in the clustering
  * @param clustering Pointer to GDF column containing the clustering to analyze
  * @param score Pointer to a float in which the result will be written
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
                                                    const int n_clusters,
@@ -112,7 +112,7 @@ void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
  * @param n_clusters Number of clusters in the clustering
  * @param clustering Pointer to GDF column containing the clustering to analyze
  * @param score Pointer to a float in which the result will be written
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
 						 const int n_clusters,
@@ -125,7 +125,7 @@ void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
  * @param n_clusters Number of clusters in the clustering
  * @param clustering Pointer to GDF column containing the clustering to analyze
  * @param score Pointer to a float in which the result will be written
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
 						  const int n_clusters,
@@ -137,7 +137,7 @@ void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
  * @param gdf_G Pointer to GDF graph object, this is the input graph
  * @param vertices Pointer to GDF column object which contains the list of vertices to extract
  * @param result Pointer to GDF graph object, this is the output must be a valid pointer
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
                                               gdf_column* vertices,
@@ -146,7 +146,7 @@ void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
  * Wrapper function for Nvgraph triangle counting
  * @param G Pointer to GDF graph object
  * @param result Pointer to a uint64_t in which the result will be written
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
 void triangle_count_nvgraph(Graph* G, uint64_t* result);
 
