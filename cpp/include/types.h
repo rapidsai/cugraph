@@ -15,6 +15,9 @@
  */
 #pragma once
 
+
+// TODO : [WIP] improve graph class and types 
+
 namespace cugraph {
 
 void gdf_col_delete(gdf_column* col);
@@ -92,8 +95,6 @@ struct gdf_dynamic{
   void *data; // handle to the dynamic graph struct
 };
 
-// TODO : improve graph class 
-// 
 struct Graph{
     gdf_edge_list *edgeList; // COO
     gdf_adj_list *adjList; //CSR

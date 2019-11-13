@@ -45,8 +45,8 @@ namespace cugraph {
  * @throws     cugraph::logic_error when an error occurs.
  */
 void renumber_vertices(const gdf_column *src, const gdf_column *dst,
-				gdf_column *src_renumbered, gdf_column *dst_renumbered,
-				gdf_column *numbering_map);
+				               gdf_column *src_renumbered, gdf_column *dst_renumbered,
+				               gdf_column *numbering_map);
 
 /**
  * @Synopsis   Wrap existing gdf columns representing an edge list in a Graph.
@@ -66,9 +66,9 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
  */
 /* ----------------------------------------------------------------------------*/
 void edge_list_view(Graph* graph,
-                             const gdf_column *source_indices,
-                             const gdf_column *destination_indices,
-                             const gdf_column *edge_data);
+                    const gdf_column *source_indices,
+                    const gdf_column *destination_indices,
+                    const gdf_column *edge_data);
 
 /**
  * @Synopsis   Wrap existing gdf columns representing adjacency lists in a Graph.
@@ -88,9 +88,9 @@ void edge_list_view(Graph* graph,
  */
 /* ----------------------------------------------------------------------------*/
 void adj_list_view (Graph* graph,
-                             const gdf_column *offsets,
-                             const gdf_column *indices,
-                             const gdf_column *edge_data);
+                    const gdf_column *offsets,
+                    const gdf_column *indices,
+                    const gdf_column *edge_data);
 
 /**
  * @Synopsis   Create the adjacency lists of a Graph from its edge list.
