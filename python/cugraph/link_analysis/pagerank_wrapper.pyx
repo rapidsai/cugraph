@@ -38,7 +38,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     cdef gdf_graph * g = <gdf_graph*> graph
 
     if input_graph.transposedadjlist:
-        graph_wrapper.add_transposed_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+        graph_wrapper.add_transposed_adj_list(graph, input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices, input_graph.transposedadjlist.weights)
     else:
         if input_graph.edgelist.weights:
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])    

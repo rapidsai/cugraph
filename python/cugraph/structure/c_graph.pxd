@@ -81,6 +81,11 @@ cdef extern from "cugraph.h":
     cdef gdf_error gdf_add_adj_list(gdf_graph *graph) except +
     cdef gdf_error gdf_delete_adj_list(gdf_graph *graph) except +
 
+    cdef gdf_error gdf_transposed_adj_list_view (
+        gdf_graph *graph,
+        const gdf_column *offsets,
+        const gdf_column *indices,
+        const gdf_column *edge_data) except +
     cdef gdf_error gdf_add_transposed_adj_list(gdf_graph *graph) except +
     cdef gdf_error gdf_delete_transposed_adj_list(gdf_graph *graph) except +
 

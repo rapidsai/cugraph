@@ -241,7 +241,7 @@ def view_adj_list(input_graph):
             offsets, indices, values = get_adj_list(graph)
             input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
-"""def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
+def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef gdf_graph * g = <gdf_graph*> graph
 
@@ -267,7 +267,6 @@ def view_adj_list(input_graph):
                             &c_index_col,
                             c_value_col_ptr)
     libcudf.cudf.check_gdf_error(err)
-"""
 
 def get_transposed_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
