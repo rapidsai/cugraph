@@ -92,6 +92,9 @@ def louvain(input_graph):
                           <void*>&num_level, &c_louvain_parts_col)
     libcudf.cudf.check_gdf_error(err)
 
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+
     if single_precision:
         return df, <double>final_modularity_single_precision
     else:

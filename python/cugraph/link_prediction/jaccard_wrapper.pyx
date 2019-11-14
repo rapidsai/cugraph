@@ -71,6 +71,7 @@ def jaccard(input_graph, first=None, second=None):
         df['source'] = first
         df['destination'] = second
         df['jaccard_coeff'] = result
+
         return df
 
     else:
@@ -94,6 +95,11 @@ def jaccard(input_graph, first=None, second=None):
         err = g.adjList.get_source_indices(&c_src_index_col)
         libcudf.cudf.check_gdf_error(err)
         df['destination'] = cudf.Series(dest_data)
+
+        if input_graph.renumbered:
+            df['source'] = input_graph.edgelist.renumber_map[df['source']]
+            df['destination'] = input_graph.edgelist.renumber_map[df['destination']]
+
         df['jaccard_coeff'] = result
 
         return df

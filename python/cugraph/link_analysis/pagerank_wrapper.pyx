@@ -81,4 +81,6 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     libcudf.cudf.check_gdf_error(err)
 
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
     return df

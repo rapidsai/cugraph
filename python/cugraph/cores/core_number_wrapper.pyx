@@ -67,5 +67,8 @@ def core_number(input_graph):
 
     libcudf.cudf.check_gdf_error(err)
 
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+
     return df
 

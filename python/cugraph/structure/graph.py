@@ -47,7 +47,7 @@ class Graph:
     cuGraph graph class containing basic graph creation and transformation
     operations. 
     """
-    def __init__(self, symmetrized = False, renumbered = True, bipartite = False, multi = False, dynamic = False):
+    def __init__(self, symmetrized = False, bipartite = False, multi = False, dynamic = False):
         """
         Returns
         -------
@@ -59,7 +59,7 @@ class Graph:
         >>> G = cuGraph.Graph()
         """
         self.symmetrized = symmetrized
-        self.renumbered = renumbered
+        self.renumbered = False
         self.bipartite = bipartite
         self.multi = multi
         self.dynamic = dynamic
@@ -76,7 +76,7 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
 
-    def add_edge_list(self, input_df):
+    def add_edge_list(self, input_df, source = 'source', target='target', edge_attr=None, renumber = False):
         """
         Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed source_col and
@@ -136,8 +136,9 @@ class Graph:
         else:
             value_col = None
         renumber_map = None
-        if not self.renumbered:
+        if renumber:
             source_col, dest_col, renumber_map = renumber(input_df[input_df.columns[0]], input_df[input_df.columns[1]])
+            self.renumbered = True
         if not self.symmetrized:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(source_col, dest_col, input_df[input_df.columns[2]])
@@ -424,13 +425,13 @@ class Graph:
         return df
 
 class DiGraph(Graph):
-    def __init__(self, renumbered = True):
-        super().__init__(symmetrized = True, renumbered = renumbered)
+    def __init__(self):
+        super().__init__(symmetrized = True)
 
 class MultiGraph(Graph):
     def __init__(self, renumbered = True):
-        super().__init__( multi = True, renumbered = renumbered)
+        super().__init__( multi = True)
 
 class DiMultiGraph(Graph): 
     def __init__(self, renumbered = True):
-        super().__init__(symmetrized = True, multi = True, renumbered = renumbered)
+        super().__init__(symmetrized = True, multi = True)

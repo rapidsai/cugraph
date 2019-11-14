@@ -82,6 +82,9 @@ def spectralBalancedCutClustering(input_graph,
                                             &c_cluster_col)
     libcudf.cudf.check_gdf_error(err)
 
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+
     return df
 
 def spectralModularityMaximizationClustering(input_graph,
@@ -133,6 +136,9 @@ def spectralModularityMaximizationClustering(input_graph,
                                                      kmean_max_iter,
                                                      &c_cluster_col)
     libcudf.cudf.check_gdf_error(err)
+
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
 
     return df
 

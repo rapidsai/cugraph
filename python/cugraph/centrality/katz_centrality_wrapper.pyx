@@ -74,4 +74,7 @@ def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=Non
 
     libcudf.cudf.check_gdf_error(err)
 
+    if input_graph.renumbered:
+        df['vertex']=input_graph.edgelist.renumber_map[df['vertex']]
+
     return df

@@ -13,7 +13,7 @@
 
 from cugraph.link_analysis import pagerank_wrapper
 from cugraph.structure.graph import null_check
-
+import cudf
 
 def pagerank(G,
              alpha=0.85,

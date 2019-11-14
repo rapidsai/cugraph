@@ -82,4 +82,8 @@ def sssp(input_graph, source):
         err = gdf_bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
     libcudf.cudf.check_gdf_error(err)
 
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        df['predecessor'] = input_graph.edgelist.renumber_map[df['predecessor']]
+
     return df
