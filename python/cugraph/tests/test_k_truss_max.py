@@ -18,11 +18,9 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from cugraph.structure import symmetrize
 
 import rmm
 from rmm import rmm_config
-import networkx as nx
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -36,18 +34,19 @@ with warnings.catch_warnings():
 
 print('Networkx version : {} '.format(nx.__version__))
 
+
 def networkx_k_truss_max(graph_file):
     NM = utils.read_csv_for_nx(graph_file)
     NM = NM.tocsr()
 
-    k=3;
+    k = 3
     Gnx = nx.Graph(NM)
     Gnx = Gnx.to_undirected()
 
     while(not nx.is_empty(Gnx)):
         Gnx = nx.k_truss(Gnx, k)
-        k=k+1
-    k=k-2;
+        k = k+1
+    k = k-2
 
     return k
 
@@ -65,7 +64,7 @@ def cugraph_k_truss_max(graph_file):
     return k_max
 
 
-def compare_k_truss(graph_file,k_truss_nx):
+def compare_k_truss(graph_file, k_truss_nx):
     k_truss_cugraph = cugraph_k_truss_max(graph_file)
     assert (k_truss_cugraph == k_truss_nx)
 
