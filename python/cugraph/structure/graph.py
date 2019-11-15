@@ -12,6 +12,8 @@
 # limitations under the License.
 
 from cugraph.structure import graph_wrapper
+import symmetrize
+import renumber as rnb
 import cudf
 import numpy as np
 
@@ -141,8 +143,8 @@ class Graph:
         renumber_map = None
         if renumber:
             source_col, dest_col,
-            renumber_map = renumber(input_df[input_df.columns[0]],
-                                    input_df[input_df.columns[1]])
+            renumber_map = rnb(input_df[input_df.columns[0]],
+                               input_df[input_df.columns[1]])
             self.renumbered = True
         if not self.symmetrized:
             if value_col is not None:

@@ -1,6 +1,7 @@
 # cuGraph 0.11.0 (Date TBD)
 
 ## New Features
+- PR #588 Python graph class and related changes
 
 ## Improvements
 - PR #569 Added exceptions
