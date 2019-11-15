@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.traversal.c_bfs cimport *
+cimport cugraph.traversal.c_bfs as c_bfs
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -29,16 +29,16 @@ import numpy as np
 
 def bfs(graph_ptr, start, directed=True):
     """
-    Call gdf_bfs
+    Call bfs
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    add_adj_list(g)
+    
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -53,10 +53,10 @@ def bfs(graph_ptr, start, directed=True):
     cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
     cdef gdf_column c_predecessor_col = get_gdf_column_view(df['predecessor'])
 
-    err = g.adjList.get_vertex_identifiers(&c_vertex_col)
-    libcudf.cudf.check_gdf_error(err)
+    g.adjList.get_vertex_identifiers(&c_vertex_col)
+    
 
-    err = gdf_bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
-    libcudf.cudf.check_gdf_error(err)
+    c_bfs.bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+    
 
     return df

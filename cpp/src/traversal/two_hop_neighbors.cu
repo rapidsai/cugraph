@@ -28,8 +28,10 @@
 #include <thrust/transform.h>
 #include <thrust/execution_policy.h>
 
+namespace cugraph{
+namespace detail{
 template<typename IndexType>
-gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
+void get_two_hop_neighbors_impl(IndexType num_verts,
                                          IndexType* offsets,
                                          IndexType* indices,
                                          IndexType** first,
@@ -123,14 +125,16 @@ gdf_error gdf_get_two_hop_neighbors_impl(IndexType num_verts,
     ALLOC_FREE_TRY(second_pair, nullptr);
     ALLOC_FREE_TRY(block_bucket_offsets, nullptr);
 
-    return GDF_SUCCESS;
+    
 }
 
-gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_column* second) {
+} //namespace
+
+void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second) {
     CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
     CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter");
     CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
-    CUGRAPH_TRY(gdf_add_adj_list(graph));
+    cugraph::add_adj_list(graph);
 
     size_t num_verts = graph->adjList->offsets->size - 1;
     switch (graph->adjList->offsets->dtype) {
@@ -138,7 +142,7 @@ gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_col
             int32_t* first_ptr;
             int32_t* second_ptr;
             int32_t outputSize;
-            gdf_get_two_hop_neighbors_impl((int32_t) num_verts,
+            detail::get_two_hop_neighbors_impl((int32_t) num_verts,
                                            (int32_t*) graph->adjList->offsets->data,
                                            (int32_t*) graph->adjList->indices->data,
                                            &first_ptr,
@@ -156,7 +160,7 @@ gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_col
             int64_t* first_ptr;
             int64_t* second_ptr;
             int64_t outputSize;
-            gdf_get_two_hop_neighbors_impl((int64_t) num_verts,
+            detail::get_two_hop_neighbors_impl((int64_t) num_verts,
                                            (int64_t*) graph->adjList->offsets->data,
                                            (int64_t*) graph->adjList->indices->data,
                                            &first_ptr,
@@ -171,8 +175,9 @@ gdf_error gdf_get_two_hop_neighbors(gdf_graph* graph, gdf_column* first, gdf_col
             break;
         }
         default:
-            return GDF_UNSUPPORTED_DTYPE;
+            CUGRAPH_FAIL("Unsupported data type");
     }
 
-    return GDF_SUCCESS;
+    
 }
+} //namespace

@@ -343,9 +343,9 @@ namespace detail {
 
     return 0;
   }
-} } //namespace
+} //namespace
 
-gdf_error gdf_overlap(gdf_graph *graph, gdf_column *weights, gdf_column *result) {
+void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
 
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
@@ -502,10 +502,10 @@ gdf_error gdf_overlap(gdf_graph *graph, gdf_column *weights, gdf_column *result)
   ALLOC_FREE_TRY(weight_s, nullptr);
   ALLOC_FREE_TRY(work, nullptr);
 
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_overlap_list(gdf_graph* graph,
+void overlap_list(Graph* graph,
                            gdf_column* weights,
                            gdf_column* first,
                            gdf_column* second,
@@ -702,6 +702,7 @@ gdf_error gdf_overlap_list(gdf_graph* graph,
   ALLOC_FREE_TRY(weight_s, nullptr);
   ALLOC_FREE_TRY(work, nullptr);
 
-  return GDF_SUCCESS;
+  
 }
 
+}

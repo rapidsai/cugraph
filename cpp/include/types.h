@@ -15,20 +15,25 @@
  */
 #pragma once
 
+
+// TODO : [WIP] improve graph class and types 
+
+namespace cugraph {
+
 void gdf_col_delete(gdf_column* col);
 
 void gdf_col_release(gdf_column* col);
 
 typedef enum gdf_prop_type{GDF_PROP_UNDEF, GDF_PROP_FALSE, GDF_PROP_TRUE} GDFPropType;
 
-struct gdf_graph_properties {
+struct Graph_properties {
   bool directed;
   bool weighted;
   bool multigraph;
   bool bipartite;
   bool tree;
   GDFPropType has_negative_edges;
-  gdf_graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false), has_negative_edges(GDF_PROP_UNDEF){}
+  Graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false), has_negative_edges(GDF_PROP_UNDEF){}
 };
 
 struct gdf_edge_list{
@@ -81,8 +86,8 @@ struct gdf_adj_list{
       gdf_col_delete(edge_data);
     }
   }
-  gdf_error get_vertex_identifiers(gdf_column *identifiers);
-  gdf_error get_source_indices(gdf_column *indices);
+  void get_vertex_identifiers(gdf_column *identifiers);
+  void get_source_indices(gdf_column *indices);
 
 };
 
@@ -90,24 +95,26 @@ struct gdf_dynamic{
   void *data; // handle to the dynamic graph struct
 };
 
-struct gdf_graph{
-  gdf_edge_list *edgeList; // COO
-  gdf_adj_list *adjList; //CSR
-  gdf_adj_list *transposedAdjList; //CSC
-  gdf_dynamic *dynAdjList; //dynamic 
-  gdf_graph_properties *prop;
-  gdf_size_type numberOfVertices;
-  gdf_graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
-  ~gdf_graph() {
-    if (edgeList) 
-        delete edgeList;
-    if (adjList) 
-        delete adjList;
-    if (transposedAdjList) 
-        delete transposedAdjList;
-    if (dynAdjList) 
-        delete dynAdjList;
-    if (prop) 
-        delete prop;
-  }
+struct Graph{
+    gdf_edge_list *edgeList; // COO
+    gdf_adj_list *adjList; //CSR
+    gdf_adj_list *transposedAdjList; //CSC
+    gdf_dynamic *dynAdjList; //dynamic 
+    Graph_properties *prop;
+    gdf_size_type numberOfVertices;
+    Graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
+    ~Graph() {
+      if (edgeList) 
+          delete edgeList;
+      if (adjList) 
+          delete adjList;
+      if (transposedAdjList) 
+          delete transposedAdjList;
+      if (dynAdjList) 
+          delete dynAdjList;
+      if (prop) 
+          delete prop;
+    }
 };
+
+} //namespace cugraph

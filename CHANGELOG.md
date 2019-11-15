@@ -8,11 +8,14 @@
 - PR #564 Update cudf type aliases
 - PR #562 Remove pyarrow dependency so we inherit the one cudf uses
 - PR #576 Remove adj list conversion automation from c++
+- PR #587 API upgrade
+- PR #585 Remove BUILD_ABI references from CI scripts
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
 - PR #573 Fix pagerank test and symmetrize for cudf 0.11
 - PR #574 dev env update
+- PR #580 Changed hardcoded test output file to a generated tempfile file name
 
 # cuGraph 0.10.0 (16 Oct 2019)
 

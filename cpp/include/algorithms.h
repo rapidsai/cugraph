@@ -15,7 +15,10 @@
  */
 #pragma once
 
-#include "algo_types.h"
+#include <cudf/cudf.h>
+#include "types.h"
+
+namespace cugraph {
 
 /**
  * @Synopsis   Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
@@ -40,17 +43,17 @@
  *
  * @Param[out] *pagerank             The PageRank : pagerank[i] is the PageRank of vertex i.
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_pagerank(gdf_graph *graph,
-                       gdf_column *pagerank,
-                       gdf_column *personalization_subset,
-                       gdf_column *personalization_values,
-                       float alpha,
-                       float tolerance,
-                       int max_iter,
-                       bool has_guess);
+void pagerank(Graph* graph,
+              gdf_column *pagerank,
+              gdf_column *personalization_subset,
+              gdf_column *personalization_values,
+              float alpha,
+              float tolerance,
+              int max_iter,
+              bool has_guess);
 
 /**
  * @Synopsis   Creates source, destination and value columns based on the specified R-MAT model
@@ -80,15 +83,15 @@ gdf_error gdf_pagerank(gdf_graph *graph,
  *
  * @Param[out] *val                  Columns containing the edge weights
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_grmat_gen(const char* argv,
-                        size_t &vertices,
-                        size_t &edges,
-                        gdf_column* src,
-                        gdf_column* dest,
-                        gdf_column* val);
+void grmat_gen(const char* argv,
+               size_t &vertices,
+               size_t &edges,
+               gdf_column* src,
+               gdf_column* dest,
+               gdf_column* val);
 
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
@@ -103,14 +106,14 @@ gdf_error gdf_grmat_gen(const char* argv,
  *
  * @Param[in] directed               Treat the input graph as directed
  *
- * @Returns                          GDF_SUCCESS upon successful completion.
+ * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_bfs(gdf_graph *graph,
-                  gdf_column *distances,
-                  gdf_column *predecessors,
-                  int start_vertex,
-                  bool directed);
+void bfs(Graph* graph,
+         gdf_column *distances,
+         gdf_column *predecessors,
+         int start_vertex,
+         bool directed);
 /**                                                                             
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
  *                                                                              
@@ -122,13 +125,13 @@ gdf_error gdf_bfs(gdf_graph *graph,
  *                                                                              
  * @Param[in] start_vertex           The starting vertex for SSSP               
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_sssp(gdf_graph *graph,                                            
-        		gdf_column *distances,                                                  
-        		gdf_column *predecessors,                                               
-          		const int source_vertex);                                               
+void sssp(Graph* graph,                                            
+          gdf_column *distances,                                                  
+          gdf_column *predecessors,                                               
+          const int source_vertex);                                               
 /**
  * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
  * which are connected by an edge.
@@ -136,11 +139,11 @@ gdf_error gdf_sssp(gdf_graph *graph,
  * @param weights The input vertex weights for weighted Jaccard, may be NULL for
  * unweighted Jaccard.
  * @param result The result values are stored here, memory needs to be pre-allocated
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
-gdf_error gdf_jaccard(gdf_graph *graph,
-                      gdf_column *weights,
-                      gdf_column *result);
+void jaccard(Graph* graph,
+             gdf_column *weights,
+             gdf_column *result);
 
 /**
  * Computes the Jaccard similarity coefficient for each pair of specified vertices.
@@ -151,13 +154,13 @@ gdf_error gdf_jaccard(gdf_graph *graph,
  * @param first A column containing the first vertex ID of each pair.
  * @param second A column containing the second vertex ID of each pair.
  * @param result The result values are stored here, memory needs to be pre-allocated.
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
-gdf_error gdf_jaccard_list(gdf_graph *graph,
-                           gdf_column *weights,
-                           gdf_column *first,
-                           gdf_column *second,
-                           gdf_column *result);
+void jaccard_list(Graph* graph,
+                  gdf_column *weights,
+                  gdf_column *first,
+                  gdf_column *second,
+                  gdf_column *result);
 
 /**
  * Computes the Overlap Coefficient for every pair of vertices in the graph which are
@@ -166,11 +169,11 @@ gdf_error gdf_jaccard_list(gdf_graph *graph,
  * @param weights The input vertex weights for weighted overlap, may be NULL for
  * unweighted.
  * @param result The result values are stored here, memory needs to be pre-allocated.
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
-gdf_error gdf_overlap(gdf_graph *graph,
-                      gdf_column *weights,
-                      gdf_column *result);
+void overlap(Graph* graph,
+             gdf_column *weights,
+             gdf_column *result);
 
 /**
  * Computes the overlap coefficient for each pair of specified vertices.
@@ -181,18 +184,18 @@ gdf_error gdf_overlap(gdf_graph *graph,
  * @param first A column containing the first vertex Ids of each pair
  * @param second A column containing the second vertex Ids of each pair
  * @param result The result values are stored here, memory needs to be pre-allocated
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
-gdf_error gdf_overlap_list(gdf_graph *graph,
-                           gdf_column *weights,
-                           gdf_column *first,
-                           gdf_column *second,
-                           gdf_column *result);
+void overlap_list(Graph* graph,
+                  gdf_column *weights,
+                  gdf_column *first,
+                  gdf_column *second,
+                  gdf_column *result);
 
-gdf_error gdf_louvain(gdf_graph *graph,
-                      void *final_modularity,
-                      void *num_level,
-                      gdf_column *louvain_parts);
+void louvain(Graph* graph,
+             void *final_modularity,
+             void *num_level,
+             gdf_column *louvain_parts);
 
 /**
  * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is
@@ -202,13 +205,13 @@ gdf_error gdf_louvain(gdf_graph *graph,
  * @param off The local partition offsets
  * @param ind The local partition indices
  * @param x_cols The results (located on each GPU)
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
-gdf_error gdf_snmg_degree(int x,
-                          size_t* part_offsets,
-                          gdf_column* off,
-                          gdf_column* ind,
-                          gdf_column** x_cols);
+void snmg_degree(int x,
+                 size_t* part_offsets,
+                 gdf_column* off,
+                 gdf_column* ind,
+                 gdf_column** x_cols);
 
 /**
  * Converts the input edge list (partitioned and loaded onto the GPUs) into a partitioned csr representation.
@@ -221,17 +224,19 @@ gdf_error gdf_snmg_degree(int x,
  * @param csrOff The local partition's CSR Offsets (output)
  * @param csrInd The local partition's CSR Indices (output)
  * @param csrVal The local partition's CSR Values (output)
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
-gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
-                           bool free_input,
-                           void** comm1,
-                           gdf_column* cooRow,
-                           gdf_column* cooCol,
-                           gdf_column* cooVal,
-                           gdf_column* csrOff,
-                           gdf_column* csrInd,
-                           gdf_column* csrVal);
+void snmg_coo2csr(size_t* part_offsets,
+                  bool free_input,
+                  void** comm1,
+                  gdf_column* cooRow,
+                  gdf_column* cooCol,
+                  gdf_column* cooVal,
+                  gdf_column* csrOff,
+                  gdf_column* csrInd,
+                  gdf_column* csrVal);
+
+typedef enum {CUGRAPH_WEAK = 0, CUGRAPH_STRONG, NUM_CONNECTIVITY_TYPES} cugraph_cc_t;
 
 /**
  * @brief Compute connected components. 
@@ -253,10 +258,11 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
  * @param graph input graph; assumed undirected for weakly CC [in]
  * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
  * @param table of 2 gdf_columns: output labels and vertex indices [out]
+ * @throws     cugraph::logic_error when an error occurs.
  */
- gdf_error gdf_connected_components(gdf_graph *graph,
-                                    cugraph_cc_t connectivity_type,
-                                    cudf::table *table);
+ void connected_components(Graph* graph,
+                           cugraph_cc_t connectivity_type,
+                           cudf::table *table);
 
  /**
 Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
@@ -269,15 +275,14 @@ Find the PageRank vertex values for a graph. cuGraph computes an approximation o
  * @Param[in] n_iter            The number of iterations before an answer is returned. This must be greater than 0. It is recommended to run between 10 and 100 iterations.  
  *                              The number of iterations should vary depending on the properties of the network itself and the desired approximation quality; it should be increased when alpha increases toward the limiting value of 1.
 
- * @return Error code
+ * @throws     cugraph::logic_error when an error occurs.
  */
-gdf_error gdf_snmg_pagerank (
-            gdf_column **src_col_ptrs, 
-            gdf_column **dest_col_ptrs, 
-            gdf_column *pr_col_ptrs, 
-            const size_t n_gpus, 
-            const float damping_factor, 
-            const int n_iter);
+void snmg_pagerank (gdf_column **src_col_ptrs, 
+                    gdf_column **dest_col_ptrs, 
+                    gdf_column *pr_col_ptrs, 
+                    const size_t n_gpus, 
+                    const float damping_factor, 
+                    const int n_iter);
 /**                                                                             
  * @Synopsis   Compute the Katz centrality for the nodes of the graph G
  *                                                                              
@@ -307,16 +312,16 @@ gdf_error gdf_snmg_pagerank (
  *                                                                              
  * @Param[in] normalized             If True normalize the resulting katz centrality values
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_katz_centrality(gdf_graph *graph,                                         
-        		gdf_column *katz_centrality,
-            double alpha,
-            int max_iter,
-            double tol,
-            bool has_guess,
-            bool normalized);
+void katz_centrality(Graph* graph,                                         
+                     gdf_column *katz_centrality,
+                     double alpha,
+                     int max_iter,
+                     double tol,
+                     bool has_guess,
+                     bool normalized);
 
 /**                                                                             
  * @Synopsis   Compute the Core Number for the nodes of the graph G
@@ -325,11 +330,11 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
  *                                                                              
  * @Param[out] *core_number          If set to a valid column, this is populated by the core number of every vertex in the graph
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_core_number(gdf_graph *graph,                                         
-        		gdf_column *core_number);
+void core_number(Graph* graph,                                         
+                 gdf_column *core_number);
 
 /**                                                                             
  * @Synopsis   Compute K Core of the graph G
@@ -344,44 +349,12 @@ gdf_error gdf_core_number(gdf_graph *graph,
  *                                                                              
  * @Param[out] *out_graph            K Core subgraph
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-gdf_error gdf_k_core(gdf_graph *in_graph,
-                     int k,
-                     gdf_column *vertex_id,
-                     gdf_column *core_number,
-                     gdf_graph *out_graph);
-
-/**                                                                             
- * @Synopsis  Get the maximal k for which a k-truss exists in the graph.
- *                                                                              
- * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
- *                                                                              
- * @Param[out] k_max                 Maximal k-truss found in graph.
- *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
- */                                                                             
-/* ----------------------------------------------------------------------------*/
-void k_truss_max(gdf_graph *in_graph,
-                          int* k_max);
-
-
-
-
-/**                                                                             
- * @Synopsis  Get the maximal k for which a k-truss exists in the graph.
- *                                                                              
- * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
- *                                                                              
- * @Param[out] k                     k that will be used to extract k-truss subgraph.
- *                                                                              
- * @Param[out] *truss_graph          cuGRAPH graph descriptor with the k-truss subgraph
- *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
- */                                                                             
-/* ----------------------------------------------------------------------------*/
-void k_truss_subgraph(gdf_graph *in_graph,
-                               int k,
-                               gdf_graph *truss_graph);
-
+void k_core(Graph* in_graph,
+            int k,
+            gdf_column *vertex_id,
+            gdf_column *core_number,
+            Graph* out_graph);
+} //namespace cugraph

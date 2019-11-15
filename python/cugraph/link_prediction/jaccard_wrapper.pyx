@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.link_prediction.c_jaccard cimport *
+cimport cugraph.link_prediction.c_jaccard as c_jaccard
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.cudf cimport np_dtype_from_gdf_column
@@ -32,13 +32,13 @@ import numpy as np
 
 def jaccard(graph_ptr, first=None, second=None):
     """
-    Call gdf_jaccard_list
+    Call jaccard_list
     """
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph * g = <gdf_graph*> graph
+    cdef Graph * g = <Graph*> graph
 
-    err = gdf_add_adj_list(<gdf_graph*> graph)
-    libcudf.cudf.check_gdf_error(err)
+    add_adj_list(<Graph*> graph)
+    
 
     cdef gdf_column c_result_col
     cdef gdf_column c_first_col
@@ -51,12 +51,12 @@ def jaccard(graph_ptr, first=None, second=None):
         c_result_col = get_gdf_column_view(result)
         c_first_col = get_gdf_column_view(first)
         c_second_col = get_gdf_column_view(second)
-        err = gdf_jaccard_list(g,
+        c_jaccard.jaccard_list(g,
                                <gdf_column*> NULL,
                                &c_first_col,
                                &c_second_col,
                                &c_result_col)
-        libcudf.cudf.check_gdf_error(err)
+        
         df = cudf.DataFrame()
         df['source'] = first
         df['destination'] = second
@@ -66,14 +66,14 @@ def jaccard(graph_ptr, first=None, second=None):
     else:
         # error check performed in jaccard.py
         assert first is None and second is None
-        # we should add get_number_of_edges() to gdf_graph (and this should be
+        # we should add get_number_of_edges() to Graph (and this should be
         # used instead of g.adjList.indices.size)
         num_edges = g.adjList.indices.size
         result = cudf.Series(np.ones(num_edges, dtype=np.float32), nan_as_null=False)
         c_result_col = get_gdf_column_view(result)
 
-        err = gdf_jaccard(g, <gdf_column*> NULL, &c_result_col)
-        libcudf.cudf.check_gdf_error(err)
+        c_jaccard.jaccard(g, <gdf_column*> NULL, &c_result_col)
+        
 
         dest_data = rmm.device_array_from_ptr(<uintptr_t> g.adjList.indices.data,
                                             nelem=num_edges,
@@ -81,8 +81,8 @@ def jaccard(graph_ptr, first=None, second=None):
         df = cudf.DataFrame()
         df['source'] = cudf.Series(np.zeros(num_edges, dtype=np_dtype_from_gdf_column(g.adjList.indices)))
         c_src_index_col = get_gdf_column_view(df['source'])
-        err = g.adjList.get_source_indices(&c_src_index_col)
-        libcudf.cudf.check_gdf_error(err)
+        g.adjList.get_source_indices(&c_src_index_col)
+        
         df['destination'] = cudf.Series(dest_data)
         df['jaccard_coeff'] = result
 

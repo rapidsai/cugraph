@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.link_analysis.c_pagerank cimport *
+cimport cugraph.link_analysis.c_pagerank as c_pagerank
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -31,16 +31,16 @@ import numpy as np
 
 def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
     """
-    Call gdf_pagerank
+    Call pagerank
     """
 
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = gdf_add_transposed_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    add_transposed_adj_list(g)
+    
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.transposedAdjList.offsets.size - 1)
     num_verts = g.transposedAdjList.offsets.size - 1
 
@@ -58,18 +58,18 @@ def pagerank(graph_ptr,alpha=0.85, personalization=None, max_iter=100, tol=1.0e-
     cdef gdf_column c_pers_vtx
     cdef gdf_column c_pers_val
 
-    err = g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
-    libcudf.cudf.check_gdf_error(err)
+    g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
+    
 
     if personalization is None:
-        err = gdf_pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
+        c_pagerank.pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
     else:
         c_pers_vtx = get_gdf_column_view(personalization['vertex'])
         c_pers_val = get_gdf_column_view(personalization['values'])
-        err = gdf_pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
+        c_pagerank.pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
 
-    libcudf.cudf.check_gdf_error(err)
+    
 
     return df

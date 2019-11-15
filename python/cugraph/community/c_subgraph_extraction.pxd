@@ -20,9 +20,9 @@ from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 
 
-cdef extern from "nvgraph_gdf.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_extract_subgraph_vertex_nvgraph(
-        gdf_graph* gdf_G,
+    cdef void extract_subgraph_vertex_nvgraph(
+        Graph* gdf_G,
         gdf_column* vertices,
-        gdf_graph* result) except +
+        Graph* result) except +
