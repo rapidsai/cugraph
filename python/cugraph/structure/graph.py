@@ -140,16 +140,16 @@ class Graph:
             value_col = None
         renumber_map = None
         if renumber:
-            source_col, dest_col, renumber_map =
-            renumber(input_df[input_df.columns[0]],
-                     input_df[input_df.columns[1]])
+            source_col, dest_col,
+            renumber_map = renumber(input_df[input_df.columns[0]],
+                                    input_df[input_df.columns[1]])
             self.renumbered = True
         if not self.symmetrized:
             if value_col is not None:
-                source_col, dest_col, value_col =
-                symmetrize(source_col,
-                           dest_col,
-                           input_df[input_df.columns[2]])
+                source_col, dest_col,
+                value_col = symmetrize(source_col,
+                                       dest_col,
+                                       input_df[input_df.columns[2]])
             else:
                 source_col, dest_col = symmetrize(source_col, dest_col)
 
