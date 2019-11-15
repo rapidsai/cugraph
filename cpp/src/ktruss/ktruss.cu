@@ -36,7 +36,7 @@ using namespace hornets_nest;
 namespace cugraph {
 namespace detail {
 
-void ktruss_max_impl(gdf_graph *graph,
+void ktruss_max_impl(Graph *graph,
                           int *k_max) {
   // gdf_error err = gdf_add_adj_list(graph);
   // if (err != GDF_SUCCESS)
@@ -49,7 +49,7 @@ void ktruss_max_impl(gdf_graph *graph,
 
   UpdatePtr ptr(graph->edgeList->src_indices->size, src, dst);
   Update batch(ptr);
-  gdf_number_of_vertices(graph);
+  number_of_vertices(graph);
 
   HornetGraph hnt(graph->numberOfVertices);
   hnt.insert(batch);
@@ -73,7 +73,9 @@ void ktruss_max_impl(gdf_graph *graph,
   kt.release();
 }
 
-void k_truss_max(gdf_graph *graph,
+} // detail namespace
+
+void k_truss_max(Graph *graph,
                           int *k_max) {
   CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr || graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr || graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
@@ -81,12 +83,14 @@ void k_truss_max(gdf_graph *graph,
   CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
 
-  ktruss_max_impl(graph, k_max);
+  detail::ktruss_max_impl(graph, k_max);
 }
 
-void ktruss_subgraph_impl(gdf_graph *graph,
+namespace detail {
+
+void ktruss_subgraph_impl(Graph *graph,
                           int k,
-                          gdf_graph *ktrussgraph) {
+                          Graph *ktrussgraph) {
   int * src = static_cast<int*>(graph->edgeList->src_indices->data);
   int * dst = static_cast<int*>(graph->edgeList->dest_indices->data);
   using HornetGraph = hornet::gpu::Hornet<int>;
@@ -96,7 +100,7 @@ void ktruss_subgraph_impl(gdf_graph *graph,
 
   UpdatePtr ptr(graph->edgeList->src_indices->size, src, dst);
   Update batch(ptr);
-  gdf_number_of_vertices(graph);
+  number_of_vertices(graph);
   HornetGraph hnt(graph->numberOfVertices);
   hnt.insert(batch);
 
@@ -121,10 +125,11 @@ void ktruss_subgraph_impl(gdf_graph *graph,
   // kt.release();
   
 }
+} // detail namespace
 
-void k_truss_subgraph(gdf_graph *graph,
+void k_truss_subgraph(Graph *graph,
                           int k,
-                          gdf_graph *ktrussgraph) {
+                          Graph *ktrussgraph) {
 
   CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr || graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr || graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
@@ -132,9 +137,8 @@ void k_truss_subgraph(gdf_graph *graph,
   CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
 
-  ktruss_subgraph_impl(graph, k,NULL);
+  detail::ktruss_subgraph_impl(graph, k,NULL);
 }
 
 
-}
 }//namespace cugraph

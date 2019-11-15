@@ -22,7 +22,7 @@ from cugraph.structure.c_graph cimport *
 cdef extern from "cugraph.h":
 
 	cdef void k_truss_subgraph(
-		gdf_graph *in_graph,
+		Graph *in_graph,
 		int k,
-        gdf_graph *truss_subgraph) except +
+        Graph *truss_subgraph) except +
 

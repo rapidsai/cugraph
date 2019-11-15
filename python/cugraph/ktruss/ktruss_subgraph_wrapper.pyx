@@ -35,11 +35,11 @@ def ktruss_subgraph(graph_ptr,k, subgraph_truss):
     Call gdf_katz_centrality
     """
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
 	# cdef int kc = <int>k
     cdef uintptr_t subgraph = subgraph_truss
-    cdef gdf_graph* gsub = <gdf_graph*>subgraph
+    cdef Graph* gsub = <Graph*>subgraph
 	
     k_truss_subgraph(g, k, gsub);
 

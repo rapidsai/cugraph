@@ -357,4 +357,39 @@ void k_core(Graph* in_graph,
             gdf_column *vertex_id,
             gdf_column *core_number,
             Graph* out_graph);
+
+
+/**                                                                             
+ * @Synopsis  Get the maximal k for which a k-truss exists in the graph.
+ *                                                                              
+ * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] k_max                 Maximal k-truss found in graph.
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+void k_truss_max(Graph *in_graph,
+                          int* k_max);
+
+
+
+
+/**                                                                             
+ * @Synopsis  Get the maximal k for which a k-truss exists in the graph.
+ *                                                                              
+ * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[out] k                     k that will be used to extract k-truss subgraph.
+ *                                                                              
+ * @Param[out] *truss_graph          cuGRAPH graph descriptor with the k-truss subgraph
+ *                                                                              
+ * @Returns                          GDF_SUCCESS upon successful completion.    
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+void k_truss_subgraph(Graph *in_graph,
+                      int k,
+                      Graph *truss_graph);
+
+
 } //namespace cugraph

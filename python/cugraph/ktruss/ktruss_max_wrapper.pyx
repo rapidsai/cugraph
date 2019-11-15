@@ -35,7 +35,7 @@ def ktruss_max(graph_ptr):
     Call gdf_katz_centrality
     """
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
     cdef int kmax = 0
 
