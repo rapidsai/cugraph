@@ -12,8 +12,8 @@
 # limitations under the License.
 
 from cugraph.structure import graph_wrapper
-import symmetrize
-import renumber as rnb
+from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.renumber import renumber as rnb
 import cudf
 import numpy as np
 

@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.structure import graph_wrapper
-from cugraph.structure.graph import null_check
+import cugraph.structure.graph as csg
 
 
 def renumber(source_col, dest_col):
@@ -56,8 +56,8 @@ def renumber(source_col, dest_col):
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(source_col, dest_col, None)
     """
-    null_check(source_col)
-    null_check(dest_col)
+    csg.null_check(source_col)
+    csg.null_check(dest_col)
 
     source_col, dest_col, numbering_map = graph_wrapper.renumber(source_col,
                                                                  dest_col)
