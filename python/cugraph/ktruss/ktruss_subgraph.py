@@ -23,29 +23,32 @@ def ktruss_subgraph(G,k):
     """
     Returns the subgraph of the k-truss of a graph for a specific k.
 
-    The k-truss of a graph is subgraph where each edge is part  of  at least (k−2) triangles. 
-    k-trusses are used for finding tighlty knit groups of vertices in a graph. 
-    A k-truss is a relaxation of a k-clique in the graph and was define in [1]. 
-    Finding cliques is computationally demanding and finding the maximal 
-    k-clique is known to be NP-Hard. 
+    The k-truss of a graph is subgraph where each edge is part of at least
+    (k−2) triangles. k-trusses are used for finding tighlty knit groups of
+    vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
+    and was define in [1]. Finding cliques is computationally demanding and
+    finding the maximal k-clique is known to be NP-Hard.
 
-    In contrast, finding a k-truss is computationally tractable as its key building
-    block, namely triangle counting counting, can be executed on polnymomial time. Typically, it takes many
-    iterations of triangle counting to find the k-truss of a graph. Yet these iterations operate on a 
-    weakly monotonically shrinking graph. Therefore, finding the k-truss of a graph can be done in
-    a fairly reasonable amount of time. The solution in cuGraph is based on a GPU algorithm first shown
-    in [2] and uses the triangle counting algoritm from [3].
+    In contrast, finding a k-truss is computationally tractable as its
+    key building block, namely triangle counting counting, can be executed
+    in polnymomial time.Typically, it takes many iterations of triangle
+    counting to find the k-truss of a graph. Yet these iterations operate
+    on a weakly monotonically shrinking graph.
+    Therefore, finding the k-truss of a graph can be done in a fairly
+    reasonable amount of time. The solution in cuGraph is based on a
+    GPU algorithm first shown in [2] and uses the triangle counting algorithm
+    from [3].
 
-    [1] Cohen, J., 
+    [1] Cohen, J.,
     "Trusses: Cohesive subgraphs for social network analysis"
     National security agency technical report, 2008
 
-    [2] O. Green, J. Fox, E. Kim, F. Busato, et al. 
+    [2] O. Green, J. Fox, E. Kim, F. Busato, et al.
     “Quickly Finding a Truss in a Haystack”
     IEEE High Performance Extreme Computing Conference (HPEC), 2017
     https://doi.org/10.1109/HPEC.2017.8091038
 
-    [3] O. Green, P. Yalamanchili, L.M. Munguia, 
+    [3] O. Green, P. Yalamanchili, L.M. Munguia,
     “Fast Triangle Counting on GPU”
     Irregular Applications: Architectures and Algorithms (IA3), 2014
 
@@ -53,9 +56,9 @@ def ktruss_subgraph(G,k):
     Parameters
     ----------
     G : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. k-Trusses are 
-        defined for only undirected graphs as they are defined for undirected triangle in 
-        a graph.
+        cuGraph graph descriptor with connectivity information. k-Trusses are
+        defined for only undirected graphs as they are defined for
+        undirected triangle in a graph.
 
     k : int
         The desired k to be used for extracting the k-truss subgraph.
@@ -80,6 +83,7 @@ def ktruss_subgraph(G,k):
     # subgraph_truss = cugraph.Graph()
     subgraph_truss = Graph()
 
-    ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr,k,subgraph_truss.graph_ptr)
+    ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr,k,
+        subgraph_truss.graph_ptr)
 
     # return G_truss

@@ -16,26 +16,21 @@ from itertools import product
 
 import pytest
 
+import pandas as pd
 import cugraph
+import cudf
 from cugraph.tests import utils
 from cugraph.structure import symmetrize 
 
 import rmm
 from rmm import rmm_config
+
 import networkx as nx
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
+# DATASETS = ['../datasets/dolphins.csv',
+#             '../datasets/netscience.csv']
 
-print('Networkx version : {} '.format(nx.__version__))
 
 def networkx_k_truss_max(graph_file):
     NM = utils.read_csv_for_nx(graph_file)
@@ -50,7 +45,12 @@ def networkx_k_truss_max(graph_file):
         k=k+1
     k=k-2;
 
+    print ("NetworkX KMAX:")
+    print(k)
+
     return k
+
+
 
 def cugraph_k_truss_max(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -59,30 +59,47 @@ def cugraph_k_truss_max(graph_file):
 
     G = cugraph.Graph()
     G.add_edge_list(src, dst)
+    # G.add_edge_list(cu_M['0'], cu_M['1'])
 
     k_max = cugraph.ktruss_max(G)
 
+
+    print ("cuGraph KMAX:")
+    print(k_max)
     return k_max
 
-def compare_k_truss(graph_file,k_truss_nx):
-    k_truss_cugraph = cugraph_k_truss_max(graph_file)
-    assert (k_truss_cugraph==k_truss_nx)
+def get_k_truss_subgraph(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
 
-DATASETS = [('../datasets/dolphins.csv',5),
-            ('../datasets/netscience.csv',20)]
+    src, dst = cugraph.symmetrize(cu_M['0'], cu_M['1'])
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False])))
-@pytest.mark.parametrize('graph_file,nx_ground_truth', DATASETS)
-def test_ktruss_max(managed, pool, graph_file,nx_ground_truth):
-    gc.collect()
+    G = cugraph.Graph()
+    # G.add_edge_list(src, dst)
+    G.add_edge_list(cu_M['0'], cu_M['1'])
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm.initialize()
+    cugraph.ktruss_subgraph(G,4)
 
-    assert(rmm.is_initialized())
+    return 
 
-    compare_k_truss(graph_file,nx_ground_truth)
 
+
+rmm.finalize()
+rmm_config.use_managed_memory = False
+rmm_config.use_pool_allocator = False
+rmm.initialize()
+
+assert(rmm.is_initialized())
+
+
+cugraph_k_truss_max("dolphins.csv")
+networkx_k_truss_max("dolphins.csv")
+cugraph_k_truss_max("netscience.csv")
+networkx_k_truss_max("netscience.csv")
+# cugraph_k_truss_max("email-Enron.csv")
+# networkx_k_truss_max("email-Enron.csv")
+
+
+get_k_truss_subgraph("netscience.csv")
+
+
+# cugraph_k_truss_max("amazon0601.csv")
