@@ -44,7 +44,7 @@ logger "Activate conda env..."
 source activate gdf
 
 logger "conda install required packages"
-conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge \
+conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
       cudf=${MINOR_VERSION} \
       rmm=${MINOR_VERSION} \
       networkx>=2.3 \
@@ -57,7 +57,7 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge 
       libcypher-parser
 
 # Install the master version of dask and distributed
-logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps" 
+logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps"
 pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
 
 logger "pip install git+https://github.com/dask/dask.git --upgrade --no-deps"
@@ -109,4 +109,3 @@ else
     cd $WORKSPACE/python
     py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
 fi
-

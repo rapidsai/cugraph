@@ -3,6 +3,9 @@ import gc
 import dask_cudf
 import pandas as pd
 import time
+import tempfile
+import os
+
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
@@ -53,9 +56,17 @@ def test_pagerank():
     t5 = time.time()
     print("Compute time: ", t5-t4)
     print(res_df)
-    t6 = time.time()
+
+    # Use tempfile.mkstemp() to get a temp file name. Close and delete the file
+    # so to_csv() can create it using the unique temp name
+    (tempfileHandle, tempfileName) = tempfile.mkstemp(suffix=".csv",
+                                                      prefix="pagerank_")
+    os.close(tempfileHandle)
+    os.remove(tempfileName)
+
     # For bigdatax4, chunksize=100000000 to avoid oom on write csv
-    res_df.to_csv('~/pagerank.csv', header=False, index=False)
+    t6 = time.time()
+    res_df.to_csv(tempfileName, header=False, index=False)
     t7 = time.time()
     print("Write csv time: ", t7-t6)
 
@@ -70,3 +81,4 @@ def test_pagerank():
 
     client.close()
     cluster.close()
+    os.remove(tempfileName)

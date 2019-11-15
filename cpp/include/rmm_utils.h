@@ -18,23 +18,28 @@
 #include <sstream>
 #include <stdexcept>
 
-#define RMM_TRY_THROW( call )  if ((call)!=RMM_SUCCESS) \
-    {                                                   \
-      std::stringstream ss;                             \
-      ss << "ERROR: RMM runtime call  " << #call        \
-         << cudaGetErrorString(cudaGetLastError());     \
-      throw std::runtime_error(ss.str());               \
-    }
+#include "utilities/error_utils.h"
 
+#define RMM_TRY(call)                                             \
+  do {                                                            \
+    rmmError_t const status = (call);                             \
+    if (RMM_SUCCESS != status) {                                  \
+      cugraph::detail::throw_rmm_error(status, __FILE__, __LINE__);  \
+    }                                                             \
+  } while (0);
+
+#define RMM_TRY_CUDAERROR(x) \
+  if ((x) != RMM_SUCCESS) CUDA_TRY(cudaPeekAtLastError());
+  
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 
 #define ALLOC_TRY( ptr, sz, stream ){               \
-  RMM_TRY_THROW( RMM_ALLOC((ptr), (sz), (stream)) ) \
+  RMM_TRY( RMM_ALLOC((ptr), (sz), (stream)) ) \
 }
 
 #define REALLOC_TRY(ptr, new_sz, stream){             \
-  RMM_TRY_THROW( RMM_REALLOC((ptr), (sz), (stream)) ) \
+  RMM_TRY( RMM_REALLOC((ptr), (sz), (stream)) ) \
 }
 
 // TODO: temporarily wrapping RMM_FREE in a rmmIsInitialized() check to work
@@ -44,6 +49,6 @@
 // with a higher-level abstraction that manages RMM properly (eg. cuDF?)
 #define ALLOC_FREE_TRY(ptr, stream){              \
   if(rmmIsInitialized((rmmOptions_t*) NULL)) {    \
-    RMM_TRY_THROW( RMM_FREE( (ptr), (stream) ) )  \
+    RMM_TRY( RMM_FREE( (ptr), (stream) ) )  \
   }                                               \
 }

@@ -174,7 +174,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_EQ( (mm_to_coo<IndexT,IndexT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin),0);
 
-    gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+    Graph_ptr G{new cugraph::Graph, Graph_deleter};
     gdf_column_ptr col_src;
     gdf_column_ptr col_dest;
     gdf_column_ptr col_labels;
@@ -193,21 +193,21 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
 
     //Get the COO format 1st:
     //
-    ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
 
     //Then convert to CSR:
     //
-    ASSERT_EQ(gdf_add_adj_list(G.get()),0);
+    cugraph::add_adj_list(G.get());
 
-    static auto row_offsets_ = [](const gdf_graph* G){
+    static auto row_offsets_ = [](const cugraph::Graph* G){
       return static_cast<const IndexT*>(G->adjList->offsets->data);
     };
 
-    static auto col_indices_ = [](const gdf_graph* G){
+    static auto col_indices_ = [](const cugraph::Graph* G){
       return static_cast<const IndexT*>(G->adjList->indices->data);
     };
 
-    static auto nrows_ = [](const gdf_graph* G){
+    static auto nrows_ = [](const cugraph::Graph* G){
       return G->adjList->offsets->size - 1;
     };
 
@@ -215,15 +215,14 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     IndexT* p_d_labels = static_cast<IndexT*>(col_labels->data);
     size_t count = 0;
 
-    gdf_error status{GDF_SUCCESS};
     if (PERF)
       {
         hr_clock.start();
         //call strongly connected components
         //
         ///count = sccd.run_scc(p_d_labels);
-        status = gdf_connected_components(G.get(),
-                                          CUGRAPH_STRONG,
+        cugraph::connected_components(G.get(),
+                                          cugraph::CUGRAPH_STRONG,
                                           &table);
         
         cudaDeviceSynchronize();
@@ -236,8 +235,8 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         //call strongly connected components
         //
         ///count = sccd.run_scc(p_d_labels);
-        status = gdf_connected_components(G.get(),
-                                          CUGRAPH_STRONG,
+        cugraph::connected_components(G.get(),
+                                          cugraph::CUGRAPH_STRONG,
                                           &table);
         
         cudaProfilerStop();
@@ -250,7 +249,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
 
     std::cout<<"label count: " << count_labels << "\n";
     
-    EXPECT_EQ(status,GDF_SUCCESS);
+    
 
 #ifdef DEBUG_SCC
     std::cout << "#iterations: " << count << "\n";
@@ -277,11 +276,11 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
         std::vector<IndexT> l_check(m);//for G(V, E), m := |V|
         gdf_column_ptr check_labels = create_gdf_column(l_check);
         
-        status = gdf_connected_components(G.get(),
-                                          CUGRAPH_WEAK,
+        cugraph::connected_components(G.get(),
+                                          cugraph::CUGRAPH_WEAK,
                                           &table);
 
-        EXPECT_EQ(status,GDF_SUCCESS);
+        
 
         IndexT* p_d_l_check = static_cast<IndexT*>(check_labels->data);
         std::cout <<"check labels:\n";

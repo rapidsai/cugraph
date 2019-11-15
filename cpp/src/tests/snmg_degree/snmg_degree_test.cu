@@ -89,7 +89,7 @@ public:
     std::cout << test_id << "\n";
     int m, k, nnz, n_gpus;
     MM_typecode mc;
-    gdf_error status;
+    
 
     double t;
 
@@ -155,12 +155,8 @@ public:
                      col_ind, col_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        if (status != 0){
-          std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
-          std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
-        }
-        EXPECT_EQ(status, 0);
+        cugraph::snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
+        
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
@@ -220,12 +216,8 @@ public:
                      col_ind, col_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        if (status != 0){
-          std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
-          std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
-        }
-        EXPECT_EQ(status, 0);
+        cugraph::snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
+        
 #pragma omp master
         {
           std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
@@ -321,7 +313,7 @@ public:
         + std::string("_") + ss.str().c_str();
     std::cout << "Filename: " << param.matrix_file << ", x=" << param.x << "\n";
     int m, nnz, n_gpus;
-    gdf_error status;
+    
     std::vector<idx_t> cooRowInd, cooColInd;
     double t;
 
@@ -373,12 +365,8 @@ public:
                      col_ind, col_val);
         //printv(col_val->size,(float*)col_val->data,0);
         t = omp_get_wtime();
-        status = gdf_snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        if (status != 0){
-          std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
-          std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
-        }
-        EXPECT_EQ(status, 0);
+        cugraph::snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
+        
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
@@ -436,12 +424,8 @@ public:
                      col_ind, col_val);
         //printv(col_val->size,(float*)col_val->data,0);
         t = omp_get_wtime();
-        status = gdf_snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        if (status != 0){
-          std::cout << "Call to gdf_snmg_degree failed: " << gdf_error_get_name(status) << "\n";
-          std::cout << "Dtypes: " << col_off->dtype << "," << col_ind->dtype << "\n";
-        }
-        EXPECT_EQ(status, 0);
+        cugraph::snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
+        
 #pragma omp master
         {
           std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";

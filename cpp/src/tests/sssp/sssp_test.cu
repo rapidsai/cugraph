@@ -209,10 +209,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     if (param.type_ == RMAT) {
       // This is size_t due to grmat_gen which should be fixed there
       size_t v, e;
-      ASSERT_EQ(
-          gdf_grmat_gen(
-              param.config_.c_str(), v, e, &col_src, &col_dest, &col_weights),
-          GDF_SUCCESS);
+
+      cugraph::gdf_grmat_gen(param.config_.c_str(), v, e, &col_src, &col_dest, &col_weights);
       num_vertices = v;
       num_edges = e;
     } else if (param.type_ == MTX) {
@@ -282,9 +280,9 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_TRUE(0);
     }
 
-    gdf_graph G;
-    CUGRAPH_TRY(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights));
-    CUGRAPH_TRY(gdf_add_adj_list(G.get()));
+    cugraph::Graph G;
+    cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights);
+    cugraph::add_adj_list(G.get());
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;
