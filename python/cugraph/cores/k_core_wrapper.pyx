@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.cores.c_k_core cimport *
+cimport cugraph.cores.c_k_core as c_k_core
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -32,16 +32,16 @@ import numpy as np
 
 def k_core(graph_ptr, k_core_graph_ptr, k, core_number):
     """
-    Call gdf_k_core
+    Call k_core
     """
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
     cdef uintptr_t rGraph = k_core_graph_ptr
-    cdef gdf_graph* rg = <gdf_graph*>rGraph
+    cdef Graph* rg = <Graph*>rGraph
 
     cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
     cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
-    err = gdf_k_core(g, k, &c_vertex, &c_values, rg)
+    c_k_core.k_core(g, k, &c_vertex, &c_values, rg)
 
-    libcudf.cudf.check_gdf_error(err)
+    

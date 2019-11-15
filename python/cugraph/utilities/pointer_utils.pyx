@@ -19,7 +19,7 @@
 from libc.stdint cimport uintptr_t
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
     cdef int get_device(void *ptr)
 
 

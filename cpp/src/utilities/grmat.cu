@@ -292,7 +292,7 @@ gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLine
         printf ("Time to generate the graph %f ms\n"
                 "Total time %f ms\n", cpu_timer2.ElapsedMillis(), cpu_timer.ElapsedMillis());
 
-    return GDF_SUCCESS;
+    
 }
 
 void free_args (char argc, char** args)

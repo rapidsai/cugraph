@@ -121,7 +121,7 @@ void SSSP<IndexType, DistType>::configure(DistType* _distances,
 }
 
 template <typename IndexType, typename DistType>
-gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
+void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   // Init distances to infinities
   traversal::fill_vec(distances, n, traversal::vec_t<DistType>::max, stream);
   traversal::fill_vec(
@@ -154,7 +154,7 @@ gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   // If source is isolated (zero outdegree), we are done
   if ((m & current_isolated_bmap_source_vert)) {
     // Init distances and predecessors are done; stream is synchronized
-    return GDF_SUCCESS;
+    
   }
 
   // Adding source_vertex to init frontier
@@ -247,12 +247,10 @@ gdf_error SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
 
     if (iters > n) {
       // Bail out. Got a graph with a negative cycle
-      std::cerr << "ERROR: Max iterations exceeded. Check the graph for "
-                   "negative weight cycles\n";
-      return GDF_INVALID_API_CALL;
+      CUGRAPH_FAIL("ERROR: Max iterations exceeded. Check the graph for negative weight cycles");
     }
   }
-  return GDF_SUCCESS;
+  
 }
 
 template <typename IndexType, typename DistType>
@@ -276,7 +274,7 @@ void SSSP<IndexType, DistType>::clean() {
   ALLOC_FREE_TRY(next_distances, nullptr);
 }
 
-} } //namespace
+} //namespace
 
 /**
  * ---------------------------------------------------------------------------*
@@ -284,8 +282,7 @@ void SSSP<IndexType, DistType>::clean() {
  *
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
-
-gdf_error gdf_sssp(gdf_graph* gdf_G,
+void sssp(Graph* gdf_G,
                    gdf_column* sssp_distances,
                    gdf_column* predecessors,
                    const int source_vert) {
@@ -398,7 +395,6 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
   int* indices_ptr = (int*)gdf_G->adjList->indices->data;
 
   void* edge_weights_ptr = static_cast<void*>(gdf_G->adjList->edge_data->data);
-  gdf_error ret;
 
   if (gdf_G->adjList->edge_data->dtype == GDF_FLOAT32) {
     cugraph::detail::SSSP<int, float> sssp(
@@ -408,7 +404,7 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
                    static_cast<int*>(pred_ptr),
                    nullptr);
 
-    ret = sssp.traverse(source_vert);
+    sssp.traverse(source_vert);
   } else if (gdf_G->adjList->edge_data->dtype == GDF_FLOAT64) {
     cugraph::detail::SSSP<int, double> sssp(n,
                                     e,
@@ -420,12 +416,12 @@ gdf_error gdf_sssp(gdf_graph* gdf_G,
                    static_cast<int*>(pred_ptr),
                    nullptr);
 
-    ret = sssp.traverse(source_vert);
+    sssp.traverse(source_vert);
   } else {
     CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
                     gdf_G->adjList->edge_data->dtype == GDF_FLOAT64,
                 "Invalid API parameter");
   }
-
-  return ret;
 }
+
+} //namespace

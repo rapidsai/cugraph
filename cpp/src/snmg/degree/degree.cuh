@@ -35,6 +35,6 @@ namespace snmg {
    * @return Error code
    */
   template<typename idx_t>
-  gdf_error snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree);
+  void snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree);
 
 } } //namespace

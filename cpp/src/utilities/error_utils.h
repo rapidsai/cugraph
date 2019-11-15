@@ -27,17 +27,6 @@
 
 #include <cudf/types.h>
 
-#define RMM_TRY(call)                                             \
-  do {                                                            \
-    rmmError_t const status = (call);                             \
-    if (RMM_SUCCESS != status) {                                  \
-      cugraph::detail::throw_rmm_error(status, __FILE__, __LINE__);  \
-    }                                                             \
-  } while (0);
-
-#define RMM_TRY_CUDAERROR(x) \
-  if ((x) != RMM_SUCCESS) CUDA_TRY(cudaPeekAtLastError());
-
 namespace cugraph {
 /**---------------------------------------------------------------------------*
  * @brief Exception thrown when logical precondition is violated.
@@ -114,7 +103,7 @@ struct cuda_error : public std::runtime_error {
  * @param[in] reason String literal description of the reason
  *---------------------------------------------------------------------------**/
 #define CUGRAPH_FAIL(reason)                              \
-  throw cugraph::logic_error("cuDF failure at: " __FILE__ \
+  throw cugraph::logic_error("cuGraph failure at: " __FILE__ \
                           ":" CUGRAPH_STRINGIFY(__LINE__) ": " reason)
 
 namespace cugraph {

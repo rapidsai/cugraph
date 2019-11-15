@@ -99,8 +99,7 @@ void SNMGpagerank<IndexType,ValueType>::setup(ValueType _alpha, IndexType** degr
     IndexType *degree_loc;
     ALLOC_TRY ((void**)&degree_loc,   sizeof(IndexType) * v_glob, stream);
     degree[id] = degree_loc;
-    if (snmg_degree(1, part_off, off, ind, degree))
-       throw std::string("SNMG Degree failed in Pagerank");
+    snmg_degree(1, part_off, off, ind, degree);
 
     // Update dangling node vector
     cugraph::detail::fill(v_glob, bookmark, zero);
@@ -115,7 +114,7 @@ void SNMGpagerank<IndexType,ValueType>::setup(ValueType _alpha, IndexType** degr
     is_setup = true;
   }
   else
-    throw std::string("Setup can be called only once");
+    CUGRAPH_FAIL("SNMG PageRank : Setup can be called only once");
 }
 
 // run the power iteration on the google matrix
@@ -142,7 +141,7 @@ void SNMGpagerank<IndexType,ValueType>::solve (int max_iter, ValueType ** pagera
     cugraph::detail::scal(v_glob, one/cugraph::detail::nrm1(v_glob,pr), pr);
   }
   else {
-      throw std::string("Solve was called before setup");
+      CUGRAPH_FAIL("SNMG PageRank : Solve was called before setup");
   }
 }
 
@@ -150,10 +149,8 @@ template class SNMGpagerank<int, double>;
 template class SNMGpagerank<int, float>;
 
 
-} } //namespace
-
 template<typename idx_t, typename val_t>
-gdf_error gdf_snmg_pagerank_impl(
+void snmg_pagerank_impl(
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
             gdf_column *pr_col, 
@@ -164,11 +161,6 @@ gdf_error gdf_snmg_pagerank_impl(
   // Must be shared
   // Set during coo2csr and used in PageRank
   std::vector<size_t> part_offset(n_gpus+1);
-
-  // Must be shared. 
-  // When a thread encounters an error it will update this value 
-  // using a critical section
-  gdf_error status = GDF_SUCCESS;
 
   // Pagerank specific.
   // must be shared between threads
@@ -200,30 +192,24 @@ gdf_error gdf_snmg_pagerank_impl(
     // notice that source and destination input are swapped 
     // this is becasue pagerank needs the transposed CSR
     // the resulting csr matrix is the transposed adj list
-    gdf_error status_i = gdf_snmg_coo2csr(
-                           &part_offset[0],
-                           false,
-                           &coo2csr_comm,   
-                           dest_col_ptrs[i],
-                           src_col_ptrs[i],
-                           nullptr,
-                           col_csr_off,
-                           col_csr_ind,
-                           nullptr);
+    snmg_coo2csr(&part_offset[0],
+                     false,
+                     &coo2csr_comm,   
+                     dest_col_ptrs[i],
+                     src_col_ptrs[i],
+                     nullptr,
+                     col_csr_off,
+                     col_csr_ind,
+                     nullptr);
     // coo2csr time
     #ifdef SNMG_PR_T
       #pragma omp master 
       {std::cout <<  omp_get_wtime() - t << " ";}
       t = omp_get_wtime();
     #endif
-    // checking coo2csr return code
-    if (status_i != GDF_SUCCESS)
-    {
-      #pragma omp critical
-      status = status_i;
-    }
+
     // Allocate and intialize Pagerank class
-    cugraph::snmg::SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
+    SNMGpagerank<idx_t,val_t> pr_solver(env, &part_offset[0], 
                                 static_cast<idx_t*>(col_csr_off->data), 
                                 static_cast<idx_t*>(col_csr_ind->data));
 
@@ -266,10 +252,11 @@ gdf_error gdf_snmg_pagerank_impl(
     ALLOC_FREE_TRY(pagerank[i], nullptr);
   }
 
-  return status;
 }
 
-gdf_error gdf_snmg_pagerank (
+} //namespace
+
+void snmg_pagerank (
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
             gdf_column *pr_col, 
@@ -306,8 +293,8 @@ gdf_error gdf_snmg_pagerank (
       CUGRAPH_EXPECTS( dest_col_ptrs[i]->dtype == GDF_INT32, "Unsupported data type");
     }
 
-    gdf_error status =  gdf_snmg_pagerank_impl<int, float>(src_col_ptrs, dest_col_ptrs,
+    snmg::snmg_pagerank_impl<int, float>(src_col_ptrs, dest_col_ptrs,
                                   pr_col, n_gpus, damping_factor, n_iter);
-    return status;
-
 }
+
+} //namespace

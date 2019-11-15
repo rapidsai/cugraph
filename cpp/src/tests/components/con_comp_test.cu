@@ -109,7 +109,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin),0);
 
-    gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+    Graph_ptr G{new cugraph::Graph, Graph_deleter};
     gdf_column_ptr col_src;
     gdf_column_ptr col_dest;
     gdf_column_ptr col_labels;
@@ -125,18 +125,18 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
 
     //Get the COO format 1st:
     //
-    ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
 
     //Then convert to CSR:
     //
-    ASSERT_EQ(gdf_add_adj_list(G.get()),0);
+    cugraph::add_adj_list(G.get());
 
-    gdf_error status;
+    
     if (PERF)
       {
         hr_clock.start();
-        status = gdf_connected_components(G.get(),
-                                          CUGRAPH_WEAK,
+        cugraph::connected_components(G.get(),
+                                          cugraph::CUGRAPH_WEAK,
                                           &table);
 
         cudaDeviceSynchronize();
@@ -146,13 +146,13 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     else
       {
         cudaProfilerStart();
-        status = gdf_connected_components(G.get(),
-                                          CUGRAPH_WEAK,
+        cugraph::connected_components(G.get(),
+                                          cugraph::CUGRAPH_WEAK,
                                           &table);
         cudaProfilerStop();
         cudaDeviceSynchronize();
       }
-    EXPECT_EQ(status,GDF_SUCCESS);
+    
     
     //rmmFinalize();
   }

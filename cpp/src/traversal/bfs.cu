@@ -469,9 +469,8 @@ namespace detail {
   }
 
   template class Bfs<int> ;
-} } //namespace 
-
-gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
+} //namespace 
+void bfs(Graph *graph, gdf_column *distances, gdf_column *predecessors, int start_vertex, bool directed) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
@@ -492,6 +491,6 @@ gdf_error gdf_bfs(gdf_graph *graph, gdf_column *distances, gdf_column *predecess
   cugraph::detail::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
   bfs.configure(distances_ptr, predecessors_ptr, nullptr);
   bfs.traverse(start_vertex);
-  return GDF_SUCCESS;
 }
 
+} //namespace 
