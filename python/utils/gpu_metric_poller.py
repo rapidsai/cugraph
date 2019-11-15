@@ -1,5 +1,6 @@
 # GPUMetricPoller
-# Utility class and helpers for retrieving GPU metrics for a specific section of code.
+# Utility class and helpers for retrieving GPU metrics for a specific section
+# of code.
 #
 """
 # Example:
@@ -16,9 +17,9 @@ print("Max GPU utilization: %s" % gpuPollObj.maxGpuUtil)
 
 import os
 import sys
-import time
 import threading
 from pynvml import smi
+
 
 class GPUMetricPoller(threading.Thread):
     """
@@ -29,7 +30,6 @@ class GPUMetricPoller(threading.Thread):
         super().__init__(*args, **kwargs)
         self.maxGpuUtil = 0
         self.maxGpuMemUsed = 0
-
 
     @staticmethod
     def __waitForInput(fd):
@@ -43,12 +43,10 @@ class GPUMetricPoller(threading.Thread):
                 break
         return None
 
-
     @staticmethod
     def __writeToPipe(fd, strToWrite):
         fd.write(strToWrite)
         fd.flush()
-
 
     def __runParentLoop(self, readFileNo, writeFileNo):
         parentReadPipe = os.fdopen(readFileNo)
@@ -58,7 +56,8 @@ class GPUMetricPoller(threading.Thread):
         gpuMetricsStr = self.__waitForInput(parentReadPipe)
         while True:
             # FIXME: this assumes the input received is perfect!
-            (memUsed, gpuUtil) = [int(x) for x in gpuMetricsStr.strip().split()]
+            (memUsed, gpuUtil) = [int(x) for x in
+                                  gpuMetricsStr.strip().split()]
 
             if memUsed > self.maxGpuMemUsed:
                 self.maxGpuMemUsed = memUsed
@@ -67,7 +66,7 @@ class GPUMetricPoller(threading.Thread):
 
             if not self.__stop:
                 self.__writeToPipe(parentWritePipe, "1")
-            else :
+            else:
                 self.__writeToPipe(parentWritePipe, "0")
                 break
             gpuMetricsStr = self.__waitForInput(parentReadPipe)
@@ -75,13 +74,13 @@ class GPUMetricPoller(threading.Thread):
         parentReadPipe.close()
         parentWritePipe.close()
 
-
     def __runChildLoop(self, readFileNo, writeFileNo):
         childReadPipe = os.fdopen(readFileNo)
         childWritePipe = os.fdopen(writeFileNo, "w")
 
         smi.nvmlInit()
-        devObj = smi.nvmlDeviceGetHandleByIndex(0)  # hack - get actual device ID somehow
+        # hack - get actual device ID somehow
+        devObj = smi.nvmlDeviceGetHandleByIndex(0)
         memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
         utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
         initialMemUsed = memObj.used
@@ -96,7 +95,8 @@ class GPUMetricPoller(threading.Thread):
             gpuUtil = utilObj.gpu - initialGpuUtil
 
             if controlStr.strip() == "1":
-                self.__writeToPipe(childWritePipe, "%s %s\n" % (memUsed, gpuUtil))
+                self.__writeToPipe(childWritePipe, "%s %s\n"
+                                   % (memUsed, gpuUtil))
             elif controlStr.strip() == "0":
                 break
             controlStr = self.__waitForInput(childReadPipe)
@@ -104,7 +104,6 @@ class GPUMetricPoller(threading.Thread):
         smi.nvmlShutdown()
         childReadPipe.close()
         childWritePipe.close()
-
 
     def run(self):
         (parentReadPipeFileNo, childWritePipeFileNo) = os.pipe2(os.O_NONBLOCK)
@@ -123,7 +122,6 @@ class GPUMetricPoller(threading.Thread):
             self.__runChildLoop(childReadPipeFileNo, childWritePipeFileNo)
             sys.exit(0)
 
-
     def stop(self):
         self.__stop = True
 
@@ -141,7 +139,8 @@ def stopGpuMetricPolling(gpuPollObj):
 
 """
 smi.nvmlInit()
-devObj = smi.nvmlDeviceGetHandleByIndex(0)  # hack - get actual device ID somehow
+# hack - get actual device ID somehow
+devObj = smi.nvmlDeviceGetHandleByIndex(0)
 memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
 utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
 initialMemUsed = memObj.used

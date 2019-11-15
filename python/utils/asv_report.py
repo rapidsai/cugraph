@@ -21,11 +21,11 @@ def cugraph_update_asv(asvDir, datasetName, algoRunResults,
     prefixDict = dict(maxGpuUtil="gpuutil",
                       maxGpuMemUsed="gpumem",
                       exeTime="time",
-                     )
+                      )
     unitsDict = dict(maxGpuUtil="percent",
                      maxGpuMemUsed="bytes",
                      exeTime="seconds",
-                    )
+                     )
 
     bInfo = BenchmarkInfo(machineName=machineName or uname.machine,
                           cudaVer=cudaVer or "unknown",
@@ -43,10 +43,13 @@ def cugraph_update_asv(asvDir, datasetName, algoRunResults,
 
     for (funcName, metricsDict) in algoRunResults.items():
         for (metricName, val) in metricsDict.items():
-            # If an invalid metricName is present (likely due to a benchmark run error), skip
+            # If an invalid metricName is present (likely due to a benchmark
+            # run error), skip
             if metricName in validKeys:
-                bResult = BenchmarkResult(funcName="%s_%s" % (funcName, prefixDict[metricName]),
-                                          argNameValuePairs=[("dataset", datasetName)],
+                bResult = BenchmarkResult(funcName="%s_%s" %
+                                          (funcName, prefixDict[metricName]),
+                                          argNameValuePairs=[("dataset",
+                                                              datasetName)],
                                           result=val)
                 bResult.unit = unitsDict[metricName]
                 db.addResult(bInfo, bResult)
