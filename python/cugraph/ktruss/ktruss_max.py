@@ -28,7 +28,7 @@ def ktruss_max(G):
     k-clique is known to be NP-Hard.
 
     In contrast, finding a k-truss is computationally tractable as its
-    key building block, namely triangle counting counting, can be 
+    key building block, namely triangle counting counting, can be
     executed in polnymomial time. Typically, it takes many iterations of
     triangle counting to find the k-truss of a graph.
     Yet these iterations operate on a weakly monotonically shrinking graph.
@@ -61,7 +61,7 @@ def ktruss_max(G):
     Returns
     -------
     k_max : int
-        The largest k in the graph s.t. a non-empty k-truss in the 
+        The largest k in the graph s.t. a non-empty k-truss in the
         graph exists.
 
 

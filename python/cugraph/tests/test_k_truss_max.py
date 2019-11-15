@@ -18,7 +18,7 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from cugraph.structure import symmetrize 
+from cugraph.structure import symmetrize
 
 import rmm
 from rmm import rmm_config
@@ -34,7 +34,6 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-
 print('Networkx version : {} '.format(nx.__version__))
 
 def networkx_k_truss_max(graph_file):
@@ -46,11 +45,12 @@ def networkx_k_truss_max(graph_file):
     Gnx = Gnx.to_undirected()
 
     while(not nx.is_empty(Gnx)):
-        Gnx = nx.k_truss(Gnx,k)
+        Gnx = nx.k_truss(Gnx, k)
         k=k+1
     k=k-2;
 
     return k
+
 
 def cugraph_k_truss_max(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -64,17 +64,19 @@ def cugraph_k_truss_max(graph_file):
 
     return k_max
 
+
 def compare_k_truss(graph_file,k_truss_nx):
     k_truss_cugraph = cugraph_k_truss_max(graph_file)
-    assert (k_truss_cugraph==k_truss_nx)
+    assert (k_truss_cugraph == k_truss_nx)
 
-DATASETS = [('../datasets/dolphins.csv',5),
-            ('../datasets/netscience.csv',20)]
+
+DATASETS = [('../datasets/dolphins.csv', 5),
+            ('../datasets/netscience.csv', 20)]
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False])))
 @pytest.mark.parametrize('graph_file,nx_ground_truth', DATASETS)
-def test_ktruss_max(managed, pool, graph_file,nx_ground_truth):
+def test_ktruss_max(managed, pool, graph_file, nx_ground_truth):
     gc.collect()
 
     rmm.finalize()
@@ -84,5 +86,4 @@ def test_ktruss_max(managed, pool, graph_file,nx_ground_truth):
 
     assert(rmm.is_initialized())
 
-    compare_k_truss(graph_file,nx_ground_truth)
-
+    compare_k_truss(graph_file, nx_ground_truth)

@@ -11,15 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-import cugraph
 from cugraph.structure.graph import Graph
-
 
 from cugraph.ktruss import ktruss_subgraph_wrapper
 
 
-def ktruss_subgraph(G,k):
+def ktruss_subgraph(G, k):
     """
     Returns the subgraph of the k-truss of a graph for a specific k.
 
@@ -83,7 +80,5 @@ def ktruss_subgraph(G,k):
     # subgraph_truss = cugraph.Graph()
     subgraph_truss = Graph()
 
-    ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr,k,
+    ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr, k,
         subgraph_truss.graph_ptr)
-
-    # return G_truss
