@@ -20,6 +20,7 @@ def null_check(col):
     if col.null_count != 0:
         raise ValueError('Series contains NULL values')
 
+
 class Graph:
 
     class EdgeList:
@@ -38,16 +39,17 @@ class Graph:
         def __init__(self, offsets, indices, value=None):
             self.offsets = offsets
             self.indices = indices
-            self.weights = value #Should de a daftaframe for multiple weights
+            self.weights = value  # Should de a daftaframe for multiple weights
 
     class transposedAdjList:
         def __init__(self, offsets, indices, value=None):
             Graph.AdjList.__init__(self, offsets, indices, value)
     """
     cuGraph graph class containing basic graph creation and transformation
-    operations. 
+    operations.
     """
-    def __init__(self, symmetrized = False, bipartite = False, multi = False, dynamic = False):
+    def __init__(self, symmetrized=False, bipartite=False, multi=False,
+                 dynamic=False):
         """
         Returns
         -------
@@ -66,7 +68,7 @@ class Graph:
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
-        #self.number_of_vertices = None
+        # self.number_of_vertices = None
 
     def clear(self):
         """
@@ -76,7 +78,8 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
 
-    def add_edge_list(self, input_df, source = 'source', target='target', edge_attr=None, renumber = False):
+    def add_edge_list(self, input_df, source='source', target='target',
+                      edge_attr=None, renumber=False):
         """
         Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed source_col and
@@ -137,15 +140,21 @@ class Graph:
             value_col = None
         renumber_map = None
         if renumber:
-            source_col, dest_col, renumber_map = renumber(input_df[input_df.columns[0]], input_df[input_df.columns[1]])
+            source_col, dest_col, renumber_map =
+            renumber(input_df[input_df.columns[0]],
+                     input_df[input_df.columns[1]])
             self.renumbered = True
         if not self.symmetrized:
             if value_col is not None:
-                source_col, dest_col, value_col = symmetrize(source_col, dest_col, input_df[input_df.columns[2]])
+                source_col, dest_col, value_col =
+                symmetrize(source_col,
+                           dest_col,
+                           input_df[input_df.columns[2]])
             else:
                 source_col, dest_col = symmetrize(source_col, dest_col)
 
-        self.edgelist = Graph.EdgeList(source_col, dest_col, value_col, renumber_map)
+        self.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
+                                       renumber_map)
 
     def view_edge_list(self):
         """
@@ -424,14 +433,17 @@ class Graph:
 
         return df
 
+
 class DiGraph(Graph):
     def __init__(self):
-        super().__init__(symmetrized = True)
+        super().__init__(symmetrized=True)
+
 
 class MultiGraph(Graph):
-    def __init__(self, renumbered = True):
-        super().__init__( multi = True)
+    def __init__(self, renumbered=True):
+        super().__init__(multi=True)
 
-class DiMultiGraph(Graph): 
-    def __init__(self, renumbered = True):
-        super().__init__(symmetrized = True, multi = True)
+
+class DiMultiGraph(Graph):
+    def __init__(self, renumbered=True):
+        super().__init__(symmetrized=True, multi=True)

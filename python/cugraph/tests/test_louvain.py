@@ -43,7 +43,7 @@ def cugraph_call(cu_M, edgevals=False):
     if edgevals:
         G.add_edge_list(cu_M)
     else:
-        G.add_edge_list(cu_M.iloc[:,0:2])
+        G.add_edge_list(cu_M.iloc[:, 0:2])
 
     # cugraph Louvain Call
     t1 = time.time()

@@ -39,7 +39,8 @@ def compare_edges(cg, nxg, verts):
     assert cg.edgelist.weights is False
     assert len(edgelist_df) == nxg.size()
     for i in range(len(edgelist_df)):
-        assert nxg.has_edge(verts[edgelist_df['src'][i]], verts[edgelist_df['dst'][i]])
+        assert nxg.has_edge(verts[edgelist_df['src'][i]],
+                            verts[edgelist_df['dst'][i]])
     return True
 
 

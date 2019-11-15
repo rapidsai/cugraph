@@ -38,7 +38,7 @@ print('Networkx version : {} '.format(nx.__version__))
 def calc_k_cores(graph_file):
     M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.add_edge_list(M.iloc[:,0:2])
+    G.add_edge_list(M.iloc[:, 0:2])
 
     ck = cugraph.k_core(G)
 

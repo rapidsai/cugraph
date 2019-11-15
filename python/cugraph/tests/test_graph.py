@@ -216,12 +216,9 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     offsets_exp = M.indptr
     indices_exp = M.indices
 
-    df = cudf.DataFrame()
-    df['0']=cu_M['0']
-    df['1']=cu_M['1']
     # cugraph add_egde_list to_adj_list call
     G = cugraph.DiGraph()
-    G.add_edge_list(df)
+    G.add_edge_list(cu_M.iloc[:, 0:2])
     offsets_cu, indices_cu, values_cu = G.view_adj_list()
     assert compare_offsets(offsets_cu, offsets_exp)
     assert compare_series(indices_cu, indices_exp)
@@ -294,6 +291,7 @@ def test_transpose_from_adj_list(managed, pool, graph_file):
     assert tval is None
 '''
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -362,6 +360,7 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     G.delete_adj_list()
     with pytest.raises(Exception):
         G.view_edge_list()
+
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
@@ -592,6 +591,7 @@ def test_degrees_functionality(managed, pool, graph_file):
     assert err_in_degree == 0
     assert err_out_degree == 0
 
+
 '''
 def test_renumber():
     source_list = ['192.168.1.1',
@@ -704,4 +704,3 @@ def test_number_of_vertices(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.add_edge_list(cu_M)
     assert(G.number_of_vertices() == M.shape[0])
-

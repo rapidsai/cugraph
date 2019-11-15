@@ -133,7 +133,7 @@ def networkx_call(M, max_iter, tol, alpha, personalization_perc):
 
 DATASETS = ['../datasets/dolphins.csv',
             '../datasets/karate.csv']
-           
+
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
