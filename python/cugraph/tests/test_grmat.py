@@ -29,8 +29,8 @@ def test_grmat_gen(managed, pool):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 

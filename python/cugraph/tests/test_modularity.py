@@ -56,8 +56,8 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 

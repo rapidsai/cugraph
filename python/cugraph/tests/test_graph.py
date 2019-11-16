@@ -198,8 +198,8 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -235,8 +235,8 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -274,8 +274,8 @@ def test_transpose_from_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -302,8 +302,8 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -331,8 +331,8 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -372,8 +372,8 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -423,8 +423,8 @@ def test_networkx_compatibility(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -482,8 +482,8 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -511,8 +511,8 @@ def test_degree_functionality(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -560,8 +560,8 @@ def test_degrees_functionality(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -660,8 +660,8 @@ def test_renumber_files(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -691,8 +691,8 @@ def test_number_of_vertices(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 

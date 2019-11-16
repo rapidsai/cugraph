@@ -46,8 +46,8 @@ def test_filter_unreachable(managed, pool, graph_file, source):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 

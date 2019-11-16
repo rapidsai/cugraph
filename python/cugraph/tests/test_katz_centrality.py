@@ -73,8 +73,8 @@ def test_katz_centrality(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True
+        managed_memory=managed,
+        pool_allocator=pool
     )
 
     assert(rmm.is_initialized())

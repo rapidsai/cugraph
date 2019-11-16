@@ -86,8 +86,8 @@ def test_louvain_with_edgevals(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
@@ -126,8 +126,8 @@ def test_louvain(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
-        managed_memory=True,
-        pool_allocator=True,
+        managed_memory=managed,
+        pool_allocator=pool,
         initial_pool_size=2 << 27
     )
 
