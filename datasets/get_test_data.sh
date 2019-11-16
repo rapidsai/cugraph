@@ -3,12 +3,12 @@
 echo Downloading ...
 mkdir tmp
 cd tmp
-wget --progress=dot:mega https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/datasets.tgz
-wget --progress=dot:mega https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/pagerank.tgz
-wget --progress=dot:mega https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/sssp.tgz
-wget --progress=dot:mega https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
-wget --progress=dot:mega https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_large.tgz
-wget --progress=dot:mega https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_small.tgz
+wget --progress=dot:giga https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/datasets.tgz
+wget --progress=dot:giga https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/pagerank.tgz
+wget --progress=dot:giga https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/sssp.tgz
+wget --progress=dot:giga https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
+wget --progress=dot:giga https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_large.tgz
+wget --progress=dot:giga https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_small.tgz
 cd ..
 
 mkdir test
