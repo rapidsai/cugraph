@@ -358,7 +358,6 @@ void k_core(Graph* in_graph,
             gdf_column *core_number,
             Graph* out_graph);
 
-
 /**                                                                             
  * @Synopsis  Get the maximal k for which a k-truss exists in the graph.
  *                                                                              
@@ -371,9 +370,6 @@ void k_core(Graph* in_graph,
 /* ----------------------------------------------------------------------------*/
 void k_truss_max(Graph *in_graph,
                           int* k_max);
-
-
-
 
 /**                                                                             
  * @Synopsis  Get the maximal k for which a k-truss exists in the graph.
@@ -390,6 +386,5 @@ void k_truss_max(Graph *in_graph,
 void k_truss_subgraph(Graph *in_graph,
                       int k,
                       Graph *truss_graph);
-
 
 } //namespace cugraph

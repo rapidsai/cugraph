@@ -17,6 +17,7 @@
 - PR #573 Fix pagerank test and symmetrize for cudf 0.11
 - PR #574 dev env update
 - PR #580 Changed hardcoded test output file to a generated tempfile file name
+- PR #595 Updates to use the new RMM Python reinitialize() API
 
 # cuGraph 0.10.0 (16 Oct 2019)
 
