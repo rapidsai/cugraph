@@ -20,7 +20,7 @@ import cugraph
 from cugraph.tests import utils
 
 import rmm
-from rmm import rmm_config
+# from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -78,10 +78,11 @@ DATASETS = [('../datasets/dolphins.csv', 5),
 def test_ktruss_max(managed, pool, graph_file, nx_ground_truth):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
