@@ -21,7 +21,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 import numpy as np
 
 
@@ -99,11 +98,11 @@ DATASETS = ['../datasets/dolphins.csv',
 def test_woverlap(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=True,
+        pool_allocator=True,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 

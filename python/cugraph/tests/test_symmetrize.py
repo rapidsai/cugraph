@@ -21,7 +21,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 
 def test_version():
@@ -162,10 +161,10 @@ def compare(src1, dst1, val1, src2, dst2, val2):
 def test_symmetrize_unweighted(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=True,
+        pool_allocator=True
+    )
 
     assert(rmm.is_initialized())
 
@@ -205,10 +204,10 @@ def test_symmetrize_unweighted(managed, pool, graph_file):
 def test_symmetrize_weighted(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=True,
+        pool_allocator=True
+    )
 
     assert(rmm.is_initialized())
 
@@ -231,10 +230,10 @@ def test_symmetrize_weighted(managed, pool, graph_file):
 def test_symmetrize_df(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=True,
+        pool_allocator=True
+    )
 
     assert(rmm.is_initialized())
 

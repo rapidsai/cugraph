@@ -21,7 +21,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -111,11 +110,11 @@ DATASETS = ['../datasets/dolphins.csv',
 def test_jaccard(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=True,
+        pool_allocator=True,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -145,11 +144,11 @@ def test_jaccard(managed, pool, graph_file):
 def test_jaccard_edgevals(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=True,
+        pool_allocator=True,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -179,11 +178,11 @@ def test_jaccard_edgevals(managed, pool, graph_file):
 def test_jaccard_two_hop(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=True,
+        pool_allocator=True,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -216,11 +215,11 @@ def test_jaccard_two_hop(managed, pool, graph_file):
 def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=True,
+        pool_allocator=True,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
