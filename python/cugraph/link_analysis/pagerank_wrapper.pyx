@@ -43,8 +43,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])    
         else:
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        err = add_transposed_adj_list(g)
-        libcudf.cudf.check_gdf_error(err)
+        add_transposed_adj_list(g)
         offsets, indices, values = graph_wrapper.get_transposed_adj_list(graph)
         input_graph.transposedadjlist = input_graph.transposedAdjList(offsets, indices, values)
 

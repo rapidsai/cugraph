@@ -45,8 +45,7 @@ def k_core(input_graph, k_core_graph, k, core_number):
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
         else:
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        err = add_adj_list(g)
-        libcudf.cudf.check_gdf_error(err)
+        add_adj_list(g)
         offsets, indices, values = graph_wrapper.get_adj_list(graph)
         input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
@@ -55,8 +54,7 @@ def k_core(input_graph, k_core_graph, k, core_number):
 
     cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
     cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
-    err = c_k_core.k_core(g, k, &c_vertex, &c_values, rg)
-    libcudf.cudf.check_gdf_error(err)
+    c_k_core.k_core(g, k, &c_vertex, &c_values, rg)
 
     if rg.edgeList is not NULL:
         df = cudf.DataFrame()

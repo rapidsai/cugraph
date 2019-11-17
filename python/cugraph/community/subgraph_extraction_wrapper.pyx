@@ -45,8 +45,7 @@ def subgraph(input_graph, vertices, subgraph):
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
         else:
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        err = add_adj_list(g)
-        libcudf.cudf.check_gdf_error(err)
+        add_adj_list(g)
         offsets, indices, values = graph_wrapper.get_adj_list(graph)
         input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
@@ -54,9 +53,8 @@ def subgraph(input_graph, vertices, subgraph):
     cdef Graph* rg = <Graph*>rGraph
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
-    err = extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
-    libcudf.cudf.check_gdf_error(err)
-    
+    extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
+
     if rg.edgeList is not NULL:
         df = cudf.DataFrame()
         df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
