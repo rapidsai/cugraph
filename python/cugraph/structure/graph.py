@@ -196,6 +196,7 @@ class Graph:
         self.edgelist = None
 
     def add_adj_list(self, offset_col, index_col, value_col=None):
+        """
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
