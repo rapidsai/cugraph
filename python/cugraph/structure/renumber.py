@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.structure import graph_wrapper
-import cugraph.structure.graph as csg
+from cugraph.structure import graph as csg
 
 
 def renumber(source_col, dest_col):

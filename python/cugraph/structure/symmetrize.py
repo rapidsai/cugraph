@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.structure.graph as csg
+from cugraph.structure import graph as csg
 import cudf
 
 
