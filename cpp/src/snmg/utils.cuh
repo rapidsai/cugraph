@@ -74,7 +74,7 @@ void allgather (SNMGinfo & env, size_t* offset, val_t* x_loc, val_t ** x_glob) {
  * @return Error code
  */
 template <typename val_t, typename func_t>
-gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob){
+void treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob){
   auto i = env.get_thread_num();
   auto p = env.get_num_threads();
   env.setup_peer_access();
@@ -114,7 +114,7 @@ gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob)
   // Sync everything before returning
   sync_all();
 
-  return GDF_SUCCESS;
+  
 }
 
 /**
@@ -125,7 +125,7 @@ gdf_error treeReduce(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob)
  * @return Error code
  */
 template <typename val_t>
-gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob){
+void treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_glob){
   auto i = env.get_thread_num();
   auto p = env.get_num_threads();
   env.setup_peer_access();
@@ -144,7 +144,7 @@ gdf_error treeBroadcast(SNMGinfo& env, size_t length, val_t* x_loc, val_t** x_gl
   // Sync everything before returning
   sync_all();
 
-  return GDF_SUCCESS;
+  
 }
 
 void print_mem_usage();

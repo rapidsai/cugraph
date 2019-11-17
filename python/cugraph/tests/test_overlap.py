@@ -22,7 +22,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 
 def cugraph_call(cu_M, first, second, edgevals=False):
@@ -103,11 +102,11 @@ DATASETS = ['../datasets/dolphins.csv',
 def test_overlap(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -141,11 +140,11 @@ def test_overlap(managed, pool, graph_file):
 def test_overlap_edge_vals(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 

@@ -196,6 +196,18 @@ class Graph:
         self.edgelist = None
 
     def add_adj_list(self, offset_col, index_col, value_col=None):
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = M.to_pandas()
+        >>> M = scipy.sparse.coo_matrix((M['2'],(M['0'],M['1'])))
+        >>> M = M.tocsr()
+        >>> offsets = cudf.Series(M.indptr)
+        >>> indices = cudf.Series(M.indices)
+        >>> G = cugraph.Graph()
+        >>> G.add_adj_list(offsets, indices, None)
+        """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
         self.adjlist = Graph.AdjList(offset_col, index_col, value_col)

@@ -23,7 +23,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 
 def cugraph_call(cu_M, start_vertex):
@@ -90,11 +89,11 @@ DATASETS = ['../datasets/dolphins.csv',
 def test_bfs(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 

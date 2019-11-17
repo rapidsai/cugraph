@@ -22,7 +22,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -118,11 +117,11 @@ SOURCES = [1]
 def test_sssp(managed, pool, graph_file, source):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
     M = utils.read_csv_for_nx(graph_file)
@@ -158,11 +157,11 @@ def test_sssp(managed, pool, graph_file, source):
 def test_sssp_edgevals(managed, pool, graph_file, source):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 

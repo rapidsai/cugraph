@@ -66,7 +66,7 @@ public:
     std::cout << test_id << "\n";
     int m, k, nnz, n_gpus;
     MM_typecode mc;
-    gdf_error status;
+    
 
     double t;
 
@@ -140,7 +140,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offset_r[0],
+        cugraph::snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -149,22 +149,18 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-
-        if (status != 0) {
-          std::cout << "Call to gdf_snmg_coo2csr failed: " << gdf_error_get_name(status) << "\n";
-        }
-        EXPECT_EQ(status, 0);
+        
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
         }
 
         // Compare the results with those generated on the host
-        if (status == 0) {
-          EXPECT_EQ(part_offset[0], part_offset_r[0]);
-          EXPECT_EQ(part_offset[1], part_offset_r[1]);
-          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
-        }
+
+        EXPECT_EQ(part_offset[0], part_offset_r[0]);
+        EXPECT_EQ(part_offset[1], part_offset_r[1]);
+        EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
+
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -220,7 +216,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offset_r[0],
+        cugraph::snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -229,21 +225,16 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-        if (status != 0) {
-          std::cout << "Call to gdf_snmg_coo2csr failed: " << gdf_error_get_name(status) << "\n";
-        }
-        EXPECT_EQ(status, 0);
+
 #pragma omp master
         {
           std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
         }
 
         // Compare the results with those generated on the host
-        if (status == 0) {
-          for (int j = 0; j < n_gpus + 1; j++)
-            EXPECT_EQ(part_offset[j], part_offset_r[j]);
-          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
-        }
+        for (int j = 0; j < n_gpus + 1; j++)
+          EXPECT_EQ(part_offset[j], part_offset_r[j]);
+        EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -302,7 +293,7 @@ public:
     std::cout << test_id << "\n";
     int m, k, nnz, n_gpus;
     MM_typecode mc;
-    gdf_error status;
+    
 
     double t;
 
@@ -376,7 +367,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offset_r[0],
+        cugraph::snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -385,22 +376,18 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-
-        if (status != 0) {
-          std::cout << "Call to gdf_snmg_coo2csr failed: " << gdf_error_get_name(status) << "\n";
-        }
-        EXPECT_EQ(status, 0);
+        
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
         }
 
         // Compare the results with those generated on the host
-        if (status == 0) {
-          EXPECT_EQ(part_offset[0], part_offset_r[0]);
-          EXPECT_EQ(part_offset[1], part_offset_r[1]);
-          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
-        }
+      
+        EXPECT_EQ(part_offset[0], part_offset_r[0]);
+        EXPECT_EQ(part_offset[1], part_offset_r[1]);
+        EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
+
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -456,7 +443,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offset_r[0],
+        cugraph::snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -465,21 +452,17 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-        if (status != 0) {
-          std::cout << "Call to gdf_snmg_coo2csr failed: " << gdf_error_get_name(status) << "\n";
-        }
-        EXPECT_EQ(status, 0);
+
 #pragma omp master
         {
           std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
         }
 
         // Compare the results with those generated on the host
-        if (status == 0) {
-          for (int j = 0; j < n_gpus + 1; j++)
-            EXPECT_EQ(part_offset[j], part_offset_r[j]);
-          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
-        }
+        
+        for (int j = 0; j < n_gpus + 1; j++)
+          EXPECT_EQ(part_offset[j], part_offset_r[j]);
+        EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -537,7 +520,7 @@ public:
         + std::string("_") + ss.str().c_str();
     std::cout << "Filename: " << param.matrix_file << "\n";
     int m, nnz, n_gpus;
-    gdf_error status;
+    
     std::vector<idx_t> cooRowInd, cooColInd;
     double t;
 
@@ -595,7 +578,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offset_r[0],
+        cugraph::snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -604,21 +587,17 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-        if (status != 0) {
-          std::cout << "Call to gdf_snmg_coo2csr failed: " << gdf_error_get_name(status) << "\n";
-        }
-        EXPECT_EQ(status, 0);
+        
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
         }
 
         // Compare the results with those generated on the host
-        if (status == 0) {
-          EXPECT_EQ(part_offset[0], part_offset_r[0]);
-          EXPECT_EQ(part_offset[1], part_offset_r[1]);
-          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
-        }
+        
+        EXPECT_EQ(part_offset[0], part_offset_r[0]);
+        EXPECT_EQ(part_offset[1], part_offset_r[1]);
+        EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);
@@ -672,7 +651,7 @@ public:
         load_coo_loc(cooRowInd, cooColInd, csrVal, coo_row, coo_col, coo_val);
 
         t = omp_get_wtime();
-        status = gdf_snmg_coo2csr(&part_offset_r[0],
+        cugraph::snmg_coo2csr(&part_offset_r[0],
                                   false,
                                   &comm1,
                                   coo_row,
@@ -681,21 +660,16 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-        if (status != 0) {
-          std::cout << "Call to gdf_snmg_coo2csr failed: " << gdf_error_get_name(status) << "\n";
-        }
-        EXPECT_EQ(status, 0);
+        
 #pragma omp master
         {
           std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
         }
 
         // Compare the results with those generated on the host
-        if (status == 0) {
-          for (int j = 0; j < n_gpus + 1; j++)
-            EXPECT_EQ(part_offset[j], part_offset_r[j]);
-          EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
-        }
+        for (int j = 0; j < n_gpus + 1; j++)
+          EXPECT_EQ(part_offset[j], part_offset_r[j]);
+        EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
 
         gdf_col_delete(col_off);
         gdf_col_delete(col_ind);

@@ -148,11 +148,10 @@ namespace detail {
    * @param[out] vertex_size          Number of unique vertices
    * @param[out] numbering_map        Map of new vertex id to original vertex id.  numbering_map[newId] = oldId
    *
-   * @return  SOME SORT OF ERROR CODE
    */
   template <typename T_in, typename T_out,
             typename Hash_t, typename Compare_t>
-  gdf_error renumber_vertices(size_t size,
+  void renumber_vertices(size_t size,
                               const T_in *src,
                               const T_in *dst,
                               T_out *src_renumbered,
@@ -380,7 +379,7 @@ namespace detail {
     ALLOC_FREE_TRY(hash_bins_start, nullptr);
     ALLOC_FREE_TRY(hash_bins_end, nullptr);
 
-    return GDF_SUCCESS;  
+      
   }
 
 } } //namespace

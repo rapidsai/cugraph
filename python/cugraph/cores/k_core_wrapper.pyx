@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.cores.c_k_core cimport *
+cimport cugraph.cores.c_k_core as c_k_core
 from cugraph.structure.c_graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
@@ -33,10 +33,10 @@ import numpy as np
 
 def k_core(input_graph, k_core_graph, k, core_number):
     """
-    Call gdf_k_core
+    Call k_core
     """
     cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef gdf_graph * g = <gdf_graph*> graph
+    cdef Graph * g = <Graph*> graph
 
     if input_graph.adjlist:
         graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
@@ -45,17 +45,17 @@ def k_core(input_graph, k_core_graph, k, core_number):
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
         else:
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        err = gdf_add_adj_list(g)
+        err = add_adj_list(g)
         libcudf.cudf.check_gdf_error(err)
         offsets, indices, values = graph_wrapper.get_adj_list(graph)
         input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
-    cdef gdf_graph* rg = <gdf_graph*>rGraph
+    cdef Graph* rg = <Graph*>rGraph
 
     cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
     cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
-    err = gdf_k_core(g, k, &c_vertex, &c_values, rg)
+    err = c_k_core.k_core(g, k, &c_vertex, &c_values, rg)
     libcudf.cudf.check_gdf_error(err)
 
     if rg.edgeList is not NULL:

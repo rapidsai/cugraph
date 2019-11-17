@@ -17,7 +17,7 @@
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
 
-gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree, bool offsets) {
+void degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree, bool offsets) {
   if(offsets == true) {
     dim3 nthreads, nblocks;
     nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
@@ -29,7 +29,7 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
 
     switch (col_ptr->dtype) {
       case GDF_INT32:   cugraph::detail::degree_offsets<int32_t, int32_t> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
-      default: return GDF_UNSUPPORTED_DTYPE;
+      default: CUGRAPH_FAIL("Unsupported data type");
     }
   }
   else {
@@ -43,14 +43,15 @@ gdf_error gdf_degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree,
 
     switch (col_ptr->dtype) {
       case GDF_INT32:   cugraph::detail::degree_coo<int32_t, int32_t> <<<nblocks, nthreads>>>(n, e, static_cast<int*>(col_ptr->data), static_cast<int*>(degree->data));break;
-      default: return GDF_UNSUPPORTED_DTYPE;
+      default: CUGRAPH_FAIL("Unsupported data type");
     }
   }
-  return GDF_SUCCESS;
+  
 }
 
+namespace cugraph {
 
-gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x) {
+void degree(Graph *graph, gdf_column *degree, int x) {
   // Calculates the degree of all vertices of the graph
   // x = 0: in+out degree
   // x = 1: in-degree
@@ -70,17 +71,17 @@ gdf_error gdf_degree(gdf_graph *graph, gdf_column *degree, int x) {
   if(x!=1) {
     // Computes out-degree for x=0 and x=2
     if(graph->adjList)
-      gdf_degree_impl(n, e, graph->adjList->offsets, degree, true);
+      degree_impl(n, e, graph->adjList->offsets, degree, true);
     else
-      gdf_degree_impl(n, e, graph->transposedAdjList->indices, degree, false);
+      degree_impl(n, e, graph->transposedAdjList->indices, degree, false);
   }
 
   if(x!=2) {
     // Computes in-degree for x=0 and x=1
     if(graph->adjList)
-      gdf_degree_impl(n, e, graph->adjList->indices, degree, false);
+      degree_impl(n, e, graph->adjList->indices, degree, false);
     else
-      gdf_degree_impl(n, e, graph->transposedAdjList->offsets, degree, true);
+      degree_impl(n, e, graph->transposedAdjList->offsets, degree, true);
   }
-  return GDF_SUCCESS;
+}
 }

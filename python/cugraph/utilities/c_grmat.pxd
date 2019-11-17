@@ -19,9 +19,9 @@
 from cugraph.structure.c_graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_grmat_gen(
+    cdef void grmat_gen(
         const char* argv,
         const size_t &vertices,
         const size_t &edges,

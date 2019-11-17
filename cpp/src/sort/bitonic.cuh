@@ -420,7 +420,7 @@ namespace sort {
      * @return error code
      */
     template <typename IndexT, typename ValueT, typename CompareT>
-    gdf_error segmented_sort(IndexT num_segments, IndexT num_items,
+    void segmented_sort(IndexT num_segments, IndexT num_items,
                              const IndexT *d_begin_offsets,
                              const IndexT *d_end_offsets,
                              ValueT *d_items,
@@ -538,7 +538,7 @@ namespace sort {
 
       ALLOC_FREE_TRY(d_grouped_bins, stream);
       ALLOC_FREE_TRY(d_lrb, stream);
-      return GDF_SUCCESS;
+      
     }
 
 } } } //namespace

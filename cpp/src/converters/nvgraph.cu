@@ -24,8 +24,10 @@
 #include "utilities/error_utils.h"
 #include "converters/nvgraph.cuh"
 
-gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  gdf_graph* gdf_G,
+namespace cugraph {
+
+void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
+                                  Graph* gdf_G,
                                   nvgraphGraphDescr_t* nvg_G,
                                   bool use_transposed) {
 
@@ -42,7 +44,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   if (use_transposed) {
     // convert edgeList to transposedAdjList
     if (gdf_G->transposedAdjList == nullptr) {
-      CUGRAPH_TRY(gdf_add_transposed_adj_list(gdf_G));
+      cugraph::add_transposed_adj_list(gdf_G);
     }
     // using exiting transposedAdjList if it exisits and if adjList is missing
     TT = NVGRAPH_CSC_32;
@@ -73,7 +75,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                         (double * ) gdf_G->transposedAdjList->edge_data->data))
           break;
         default:
-          return GDF_UNSUPPORTED_DTYPE;
+          CUGRAPH_FAIL("Unsupported data type");
       }
     }
 
@@ -81,7 +83,7 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   else {
     // convert edgeList to adjList
     if (gdf_G->adjList == nullptr) {
-      CUGRAPH_TRY(gdf_add_adj_list(gdf_G));
+      cugraph::add_adj_list(gdf_G);
     }
     TT = NVGRAPH_CSR_32;
     nvgraphCSRTopology32I_st topoData;
@@ -112,9 +114,11 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                         (double * ) gdf_G->adjList->edge_data->data))
           break;
         default:
-          return GDF_UNSUPPORTED_DTYPE;
+          CUGRAPH_FAIL("Unsupported data type");
       }
     }
   }
-  return GDF_SUCCESS;
+  
 }
+
+} // namespace

@@ -30,7 +30,7 @@ namespace detail {
 
 // Function for checking 0-based indexing
 template <typename T>
-gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
+void indexing_check (T* srcs, T* dests, int64_t nnz) {
 #if 0
     cudaStream_t stream {nullptr};
 
@@ -61,7 +61,7 @@ gdf_error indexing_check (T* srcs, T* dests, int64_t nnz) {
         std::cerr<< "cuGraph renumbering feature." << std::endl;
     }
 #endif
-    return GDF_SUCCESS;
+    
 } 
 
 } } //namespace

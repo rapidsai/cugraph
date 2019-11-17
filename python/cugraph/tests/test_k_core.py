@@ -19,7 +19,6 @@ import pytest
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -69,10 +68,10 @@ DATASETS = ['../datasets/dolphins.csv',
 def test_core_number(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool
+    )
 
     assert(rmm.is_initialized())
 

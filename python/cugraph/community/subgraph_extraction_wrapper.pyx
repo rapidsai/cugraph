@@ -33,11 +33,10 @@ import numpy as np
 
 def subgraph(input_graph, vertices, subgraph):
     """
-    Call gdf_extract_subgraph_vertex_nvgraph
+    Call extract_subgraph_vertex_nvgraph
     """
-
     cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef gdf_graph * g = <gdf_graph*> graph
+    cdef Graph * g = <Graph*> graph
 
     if input_graph.adjlist:
         graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
@@ -46,16 +45,16 @@ def subgraph(input_graph, vertices, subgraph):
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
         else:
             graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        err = gdf_add_adj_list(g)
+        err = add_adj_list(g)
         libcudf.cudf.check_gdf_error(err)
         offsets, indices, values = graph_wrapper.get_adj_list(graph)
         input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
-    cdef gdf_graph* rg = <gdf_graph*>rGraph
+    cdef Graph* rg = <Graph*>rGraph
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
-    err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
+    err = extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
     libcudf.cudf.check_gdf_error(err)
     
     if rg.edgeList is not NULL:
@@ -70,4 +69,3 @@ def subgraph(input_graph, vertices, subgraph):
     if rg.transposedAdjList is not NULL:
         off, ind, vals = graph_wrapper.get_transposed_adj_list(rGraph)
         subgraph.add_transposed_adj_list(off, ind, vals)
-
