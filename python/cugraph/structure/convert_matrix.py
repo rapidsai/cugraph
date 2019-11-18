@@ -52,6 +52,7 @@ def from_cudf_edgelist(df, source='source', target='target', weight=None):
     if weight is None:
         G.from_cudf_edgelist(df, source=source, target=target)
     else:
-        G.from_cudf_edgelist(df, source=source, target=target, weight=weight)
+        G.from_cudf_edgelist(df, source=source, target=target,
+                             edge_attr=weight)
 
     return G

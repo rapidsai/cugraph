@@ -19,7 +19,6 @@ import time
 import numpy as np
 import pytest
 
-import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -72,6 +71,7 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/polbooks.csv',
             '../datasets/netscience.csv',
             '../datasets/email-Eu-core.csv']
+
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',

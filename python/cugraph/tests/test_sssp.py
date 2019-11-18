@@ -18,7 +18,6 @@ import time
 import numpy as np
 import pytest
 
-import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm

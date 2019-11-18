@@ -127,10 +127,9 @@ class Graph:
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> sources = cudf.Series(M['0'])
-        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations, None)
+        >>> G.from_cudf_edgelist(M, source='0', target='1', edge_attr='2',
+                                 renumber=False)
         """
 
         if self.edgelist is not None or self.adjlist is not None:
@@ -222,7 +221,7 @@ class Graph:
         >>> offsets = cudf.Series(M.indptr)
         >>> indices = cudf.Series(M.indices)
         >>> G = cugraph.Graph()
-        >>> G.add_adj_list(offsets, indices, None)
+        >>> G.from_cudf_adjlist(offsets, indices, None)
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
