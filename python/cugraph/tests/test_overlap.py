@@ -112,7 +112,7 @@ def test_overlap(managed, pool, graph_file):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
     cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'])
@@ -150,7 +150,7 @@ def test_overlap_edge_vals(managed, pool, graph_file):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
     cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'],

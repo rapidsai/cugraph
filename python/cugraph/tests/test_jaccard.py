@@ -187,7 +187,7 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     G = cugraph.Graph()
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):
@@ -225,7 +225,7 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     values = cudf.Series(M.data)
-    G.add_adj_list(row_offsets, col_indices, values)
+    G.from_cudf_adjlist(row_offsets, col_indices, values)
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):

@@ -27,15 +27,16 @@ def null_check(col):
 class Graph:
 
     class EdgeList:
-        def __init__(self, source, dest, value=None, renumber_map=None):
+        def __init__(self, source, destination, edge_attr=None,
+                     renumber_map=None):
             self.renumber_map = renumber_map
             df = cudf.DataFrame()
             df['src'] = source
-            df['dst'] = dest
+            df['dst'] = destination
             self.weights = False
-            if value is not None:
+            if edge_attr is not None:
                 self.weights = True
-                df['weights'] = value
+                df['weights'] = edge_attr
             self.edgelist_df = df
 
     class AdjList:
