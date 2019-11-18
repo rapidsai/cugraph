@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.centrality.c_katz_centrality cimport *
+cimport cugraph.centrality.c_katz_centrality as c_katz
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -32,15 +32,15 @@ import numpy as np
 
 def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     """
-    Call gdf_katz_centrality
+    Call katz_centrality
     """
     cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef Graph* g = <Graph*>graph
 
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    add_adj_list(g)
+    
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -57,11 +57,11 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
                                             [df['katz_centrality']._column])
         has_guess = <bool> 1
 
-    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    libcudf.cudf.check_gdf_error(err)
+    g.adjList.get_vertex_identifiers(&c_identifier_col)
+    
 
-    err = gdf_katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
+    c_katz.katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
 
-    libcudf.cudf.check_gdf_error(err)
+    
 
     return df

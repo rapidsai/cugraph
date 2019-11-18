@@ -140,7 +140,7 @@ class Graph:
                                     tmp_value_col)
 
         # Increase the reference count of the Python objects to avoid premature
-        # garbage collection while they are still in use inside the gdf_graph
+        # garbage collection while they are still in use inside the Graph
         # object.
         self.edge_list_source_col = tmp_source_col
         self.edge_list_dest_col = tmp_dest_col
@@ -262,7 +262,7 @@ class Graph:
                                    tmp_value_col)
 
         # Increase the reference count of the Python objects to avoid premature
-        # garbage collection while they are still in use inside the gdf_graph
+        # garbage collection while they are still in use inside the Graph
         # object.
         self.adj_list_offset_col = tmp_offset_col
         self.adj_list_index_col = tmp_index_col

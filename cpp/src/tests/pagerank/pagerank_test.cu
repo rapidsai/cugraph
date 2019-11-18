@@ -80,9 +80,9 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      int m, k, nnz;
      MM_typecode mc;
      
-     gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+     Graph_ptr G{new cugraph::Graph, Graph_deleter};
      gdf_column_ptr col_src, col_dest, col_pagerank;
-     gdf_error status;
+     
      float alpha = 0.85;
      float tol = 1E-5f;
      int max_iter = 500;
@@ -113,14 +113,14 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     col_dest = create_gdf_column(cooColInd);
     col_pagerank = create_gdf_column(pagerank);
 
-    CUGRAPH_TRY(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr));
-    CUGRAPH_TRY(gdf_add_transposed_adj_list(G.get()));
+    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
+    cugraph::add_transposed_adj_list(G.get());
 
     cudaDeviceSynchronize();
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
+       cugraph::pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
        cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
@@ -128,11 +128,11 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     }
     else {
       cudaProfilerStart();
-      status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
+      cugraph::pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
-    EXPECT_EQ(status,0);
+    
 
     // Check vs golden data
     if (param.result_file.length()>0)

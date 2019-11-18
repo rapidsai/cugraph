@@ -92,10 +92,8 @@ __global__ void writeSingleValue(T* ptr, T val) {
     *ptr = val;
 }
 
-} } //namespace
-
 template<typename idx_t, typename val_t>
-gdf_error snmg_coo2csr_impl(size_t* part_offsets,
+void snmg_coo2csr_impl(size_t* part_offsets,
                             bool free_input,
                             void** comm1,
                             gdf_column* cooRow,
@@ -457,10 +455,12 @@ gdf_error snmg_coo2csr_impl(size_t* part_offsets,
     delete comm;
   }
 
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
+} //namespace snmg
+
+void snmg_coo2csr(size_t* part_offsets,
                            bool free_input,
                            void** comm1,
                            gdf_column* cooRow,
@@ -481,7 +481,7 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
 
   if (cooVal == nullptr) {
     if (cooRow->dtype == GDF_INT32) {
-      return snmg_coo2csr_impl<int32_t, float>(part_offsets,
+      return snmg::snmg_coo2csr_impl<int32_t, float>(part_offsets,
                                                free_input,
                                                comm1,
                                                cooRow,
@@ -492,7 +492,7 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                                                csrVal);
     }
     else if (cooRow->dtype == GDF_INT64) {
-      return snmg_coo2csr_impl<int64_t, float>(part_offsets,
+      return snmg::snmg_coo2csr_impl<int64_t, float>(part_offsets,
                                                free_input,
                                                comm1,
                                                cooRow,
@@ -503,11 +503,11 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                                                csrVal);
     }
     else
-      return GDF_UNSUPPORTED_DTYPE;
+      CUGRAPH_FAIL("Unsupported data type");
   }
   else {
     if (cooRow->dtype == GDF_INT32 && cooVal->dtype == GDF_FLOAT32) {
-      return snmg_coo2csr_impl<int32_t, float>(part_offsets,
+      return snmg::snmg_coo2csr_impl<int32_t, float>(part_offsets,
                                                free_input,
                                                comm1,
                                                cooRow,
@@ -518,7 +518,7 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                                                csrVal);
     }
     else if (cooRow->dtype == GDF_INT32 && cooVal->dtype == GDF_FLOAT64) {
-      return snmg_coo2csr_impl<int32_t, double>(part_offsets,
+      return snmg::snmg_coo2csr_impl<int32_t, double>(part_offsets,
                                                 free_input,
                                                 comm1,
                                                 cooRow,
@@ -529,7 +529,7 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                                                 csrVal);
     }
     else if (cooRow->dtype == GDF_INT64 && cooVal->dtype == GDF_FLOAT32) {
-      return snmg_coo2csr_impl<int64_t, float>(part_offsets,
+      return snmg::snmg_coo2csr_impl<int64_t, float>(part_offsets,
                                                free_input,
                                                comm1,
                                                cooRow,
@@ -540,7 +540,7 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                                                csrVal);
     }
     else if (cooRow->dtype == GDF_INT64 && cooVal->dtype == GDF_FLOAT64) {
-      return snmg_coo2csr_impl<int64_t, double>(part_offsets,
+      return snmg::snmg_coo2csr_impl<int64_t, double>(part_offsets,
                                                 free_input,
                                                 comm1,
                                                 cooRow,
@@ -551,6 +551,8 @@ gdf_error gdf_snmg_coo2csr(size_t* part_offsets,
                                                 csrVal);
     }
     else
-      return GDF_UNSUPPORTED_DTYPE;
+      CUGRAPH_FAIL("Unsupported data type");
   }
 }
+
+} // namespace cugraph 

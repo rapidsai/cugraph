@@ -76,6 +76,6 @@ class SSSP {
   }
 
   void configure(DistType* distances, IndexType* predecessors, int* edge_mask);
-  gdf_error traverse(IndexType source_vertex);
+  void traverse(IndexType source_vertex);
 };
 } } //namespace

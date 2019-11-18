@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+#from cugraph.structure.c_graph cimport *
 from cudf._lib.cudf cimport get_column_data_ptr, get_column_valid_ptr
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free

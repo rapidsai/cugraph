@@ -19,10 +19,10 @@
 from cugraph.structure.c_graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_katz_centrality(
-        gdf_graph *graph,
+    cdef void katz_centrality(
+        Graph *graph,
         gdf_column *katz_centrality,
         double alpha,
         int max_iter,

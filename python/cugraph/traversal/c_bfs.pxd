@@ -20,10 +20,10 @@ from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_bfs(
-        gdf_graph *graph,
+    cdef void bfs(
+        Graph *graph,
         gdf_column *distances,
         gdf_column *predecessors,
         int start_vertex,

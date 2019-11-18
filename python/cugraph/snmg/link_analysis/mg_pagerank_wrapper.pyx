@@ -40,14 +40,12 @@ def mg_pagerank(src_ptrs_info,
         dest_column_ptr[i] = get_gdf_column_ptr(dest_ptrs_info[i]["data"][0], dest_ptrs_info[i]["shape"][0])
 
     cdef gdf_column* pr_ptr = <gdf_column*>malloc(sizeof(gdf_column))
-    gdf_snmg_pagerank(
-                     <gdf_column**> src_column_ptr,
-                     <gdf_column**> dest_column_ptr,
-                     <gdf_column*> pr_ptr,
-                     <const size_t>n_gpus,
-                     <float> alpha,
-                     <int> max_iter
-                     )
+    snmg_pagerank(<gdf_column**> src_column_ptr,
+                  <gdf_column**> dest_column_ptr,
+                  <gdf_column*> pr_ptr,
+                  <const size_t>n_gpus,
+                  <float> alpha,
+                  <int> max_iter)
 
     data = rmm.device_array_from_ptr(<uintptr_t> pr_ptr.data,
                                             nelem=pr_ptr.size,
