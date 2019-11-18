@@ -39,21 +39,13 @@ print('Networkx version : {} '.format(nx.__version__))
 
 def cugraph_call(cu_M, source, edgevals=False):
 
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    df = cudf.DataFrame()
-    df['s'] = sources
-    df['d'] = destinations
-    if edgevals is True:
-        df['v'] = cu_M['2']
-
-    print('sources size = ' + str(len(sources)))
-    print('destinations size = ' + str(len(destinations)))
-
-    # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.add_edge_list(df)
+    if edgevals is True:
+        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
+    else:
+        G.from_cudf_edgelist(cu_M, source='0', target='1')
+    print('sources size = ' + str(len(cu_M['0'])))
+    print('destinations size = ' + str(len(cu_M['1'])))
 
     print('cugraph Solving... ')
     t1 = time.time()

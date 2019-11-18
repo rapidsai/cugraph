@@ -61,10 +61,15 @@ def k_core(input_graph, k_core_graph, k, core_number):
         df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
         if vals is not None:
             df['val'] = vals
-        k_core_graph.add_edge_list(df)
+            k_core_graph.from_cudf_edgelist(df, source='src', target='dst', edge_attr='val')
+        else:
+            k_core_graph.from_cudf_edgelist(df, source='src', target='dst')
+        if input_graph.edgelist is not None:
+            k_core_graph.renumbered = input_graph.renumbered
+            k_core_graph.edgelist.renumber_map = input_graph.edgelist.renumber_map
     if rg.adjList is not NULL:
         off, ind, vals = graph_wrapper.get_adj_list(rGraph)
-        k_core_graph.add_adj_list(off, ind, vals)
+        k_core_graph.from_cudf_adjlist(off, ind, vals)
     if rg.transposedAdjList is not NULL:
         off, ind, vals = graph_wrapper.get_transposed_adj_list(rGraph)
         k_core_graph.add_transposed_adj_list(off, ind, vals)

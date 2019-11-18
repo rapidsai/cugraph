@@ -16,6 +16,7 @@ from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 import cudf
 import numpy as np
+import warnings
 
 
 def null_check(col):
@@ -80,8 +81,8 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
 
-    def add_edge_list(self, input_df, source='source', target='target',
-                      edge_attr=None, renumber=False):
+    def from_cudf_edgelist(self, input_df, source='source', target='target',
+                           edge_attr=None, renumber=False):
         """
         Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed source_col and
@@ -134,29 +135,39 @@ class Graph:
 
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
-        source_col = input_df[input_df.columns[0]]
-        dest_col = input_df[input_df.columns[1]]
-        if len(input_df.columns) > 2:
-            value_col = input_df[input_df.columns[2]]
+        source_col = input_df[source]
+        dest_col = input_df[target]
+        if edge_attr is not None:
+            value_col = input_df[edge_attr]
         else:
             value_col = None
         renumber_map = None
         if renumber:
-            source_col, dest_col,
-            renumber_map = rnb(input_df[input_df.columns[0]],
-                               input_df[input_df.columns[1]])
+            source_col, dest_col, renumber_map = rnb(input_df[source],
+                                                     input_df[target])
             self.renumbered = True
         if not self.symmetrized:
             if value_col is not None:
-                source_col, dest_col,
-                value_col = symmetrize(source_col,
-                                       dest_col,
-                                       input_df[input_df.columns[2]])
+                source_col, dest_col, value_col = symmetrize(source_col,
+                                                             dest_col,
+                                                             value_col)
             else:
                 source_col, dest_col = symmetrize(source_col, dest_col)
 
         self.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
                                        renumber_map)
+
+    def add_edge_list(self, source, destination, value=None):
+        warnings.warn('add_edge_list will be deprecated in next release.\
+ Use from_cudf_edgelist instead')
+        input_df = cudf.DataFrame()
+        input_df['source'] = source
+        input_df['target'] = destination
+        if value is not None:
+            input_df['weights'] = value
+            self.from_cudf_edgelist(input_df, edge_attr='weights')
+        else:
+            self.from_cudf_edgelist(input_df)
 
     def view_edge_list(self):
         """
@@ -185,7 +196,11 @@ class Graph:
         """
         if self.edgelist is None:
             graph_wrapper.view_edge_list(self)
-        return self.edgelist.edgelist_df
+        df = self.edgelist.edgelist_df
+        if self.renumbered:
+            df['src'] = self.edgelist.renumber_map[df['src']]
+            df['dst'] = self.edgelist.renumber_map[df['dst']]
+        return df
 
     def delete_edge_list(self):
         """
@@ -195,7 +210,7 @@ class Graph:
         # no longer used.
         self.edgelist = None
 
-    def add_adj_list(self, offset_col, index_col, value_col=None):
+    def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
         """
         Examples
         --------
@@ -212,6 +227,11 @@ class Graph:
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
         self.adjlist = Graph.AdjList(offset_col, index_col, value_col)
+
+    def add_adj_list(self, offset_col, index_col, value_col=None):
+        warnings.warn('add_adj_list will be deprecated in next release.\
+ Use from_cudf_adjlist instead')
+        self.from_cudf_adjlist(offset_col, index_col, value_col)
 
     def view_adj_list(self):
         if self.adjlist is None:

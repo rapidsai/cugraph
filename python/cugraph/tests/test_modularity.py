@@ -66,7 +66,7 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
     G = cugraph.DiGraph()
-    G.add_edge_list(cu_M)
+    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     # Get the modularity score for partitioning versus random assignment
     cu_score = cugraph_call(G, partitions)

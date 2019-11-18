@@ -46,9 +46,9 @@ def compare_edges(cg, nxg, verts):
 def cugraph_call(M, verts):
     G = cugraph.DiGraph()
     cu_M = cudf.DataFrame()
-    cu_M['0'] = cudf.Series(M.row)
-    cu_M['1'] = cudf.Series(M.col)
-    G.add_edge_list(cu_M)
+    cu_M['src'] = cudf.Series(M.row)
+    cu_M['dst'] = cudf.Series(M.col)
+    G.from_cudf_edgelist(cu_M, source='src', target='dst')
     cu_verts = cudf.Series(verts)
     return cugraph.subgraph(G, cu_verts)
 

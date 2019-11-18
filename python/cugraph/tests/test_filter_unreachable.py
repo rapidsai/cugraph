@@ -60,7 +60,7 @@ def test_filter_unreachable(managed, pool, graph_file, source):
 
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.add_edge_list(cu_M.iloc[:, 0:2])
+    G.from_cudf_edgelist(cu_M, source='0', target='1')
 
     print('cugraph Solving... ')
     t1 = time.time()

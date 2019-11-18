@@ -48,16 +48,9 @@ def cudify(d):
 
 
 def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-
-    df = cudf.DataFrame()
-    df['s'] = sources
-    df['d'] = destinations
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.add_edge_list(df)
+    G.from_cudf_edgelist(cu_M, source='0', target='1')
     t1 = time.time()
     df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol,
                           personalization=personalization, nstart=nstart)

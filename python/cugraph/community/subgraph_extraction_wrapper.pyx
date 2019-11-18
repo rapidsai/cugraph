@@ -60,7 +60,12 @@ def subgraph(input_graph, vertices, subgraph):
         df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
         if vals is not None:
             df['val'] = vals
-        subgraph.add_edge_list(df)
+            subgraph.from_cudf_edgelist(df, source='src', target='dst', edge_attr='val')
+        else:
+            subgraph.from_cudf_edgelist(df, source='src', target='dst')
+        if input_graph.edgelist is not None:
+            subgraph.renumbered = input_graph.renumbered
+            subgraph.edgelist.renumber_map = input_graph.edgelist.renumber_map
     if rg.adjList is not NULL:
         off, ind, vals = graph_wrapper.get_adj_list(rGraph)
         subgraph.add_adj_list(off, ind, vals)

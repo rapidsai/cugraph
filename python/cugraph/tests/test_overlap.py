@@ -25,16 +25,12 @@ import rmm
 
 
 def cugraph_call(cu_M, first, second, edgevals=False):
-    # Device data
-    df = cudf.DataFrame()
-    df['s'] = cu_M['0']
-    df['d'] = cu_M['1']
-    if edgevals is True:
-        df['weights'] = cu_M['2']
-
     G = cugraph.DiGraph()
-    G.add_edge_list(df)
-
+    # Device data
+    if edgevals is True:
+        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
+    else:
+        G.from_cudf_edgelist(cu_M, source='0', target='1')
     # cugraph Overlap Call
     t1 = time.time()
     df = cugraph.overlap(G, first, second)

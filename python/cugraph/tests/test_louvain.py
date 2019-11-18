@@ -40,10 +40,9 @@ def cugraph_call(cu_M, edgevals=False):
 
     G = cugraph.DiGraph()
     if edgevals:
-        G.add_edge_list(cu_M)
+        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
     else:
-        G.add_edge_list(cu_M.iloc[:, 0:2])
-
+        G.from_cudf_edgelist(cu_M, source='0', target='1')
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)

@@ -50,8 +50,8 @@ def from_cudf_edgelist(df, source='source', target='target', weight=None):
     G = DiGraph()
 
     if weight is None:
-        G.add_edge_list(df.loc[:, source:target])
+        G.from_cudf_edgelist(df, source=source, target=target)
     else:
-        G.add_edge_list(df)
+        G.from_cudf_edgelist(df, source=source, target=target, weight=weight)
 
     return G

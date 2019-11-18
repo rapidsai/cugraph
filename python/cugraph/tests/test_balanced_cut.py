@@ -72,9 +72,9 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     col_indices = cudf.Series(M.indices)
 
     G_adj = cugraph.DiGraph()
-    G_adj.add_adj_list(row_offsets, col_indices)
+    G_adj.from_cudf_adjlist(row_offsets, col_indices)
     G_edge = cugraph.DiGraph()
-    G_edge.add_edge_list(cu_M.iloc[:, 0:2])
+    G_edge.from_cudf_edgelist(cu_M, source='0', target='1')
 
     # Get the modularity score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_adj, partitions)
@@ -107,10 +107,10 @@ def test_modularity_clustering_with_edgevals(graph_file, partitions):
     val = cudf.Series(M.data)
 
     G_adj = cugraph.DiGraph()
-    G_adj.add_adj_list(row_offsets, col_indices, val)
+    G_adj.from_cudf_adjlist(row_offsets, col_indices, val)
 
     G_edge = cugraph.DiGraph()
-    G_edge.add_edge_list(cu_M)
+    G_edge.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     # Get the modularity score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_adj, partitions)

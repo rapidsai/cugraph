@@ -26,18 +26,9 @@ import rmm
 
 
 def cugraph_call(cu_M, start_vertex):
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    values = cu_M['2']
-
-    df = cudf.DataFrame()
-    df['s'] = sources
-    df['d'] = destinations
-    df['v'] = values
 
     G = cugraph.DiGraph()
-    G.add_edge_list(df)
+    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     t1 = time.time()
     df = cugraph.bfs(G, start_vertex)

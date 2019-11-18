@@ -217,7 +217,7 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
 
     # cugraph add_egde_list to_adj_list call
     G = cugraph.DiGraph()
-    G.add_edge_list(cu_M.iloc[:, 0:2])
+    G.from_cudf_edgelist(cu_M, source='0', target='1')
     offsets_cu, indices_cu, values_cu = G.view_adj_list()
     assert compare_offsets(offsets_cu, offsets_exp)
     assert compare_series(indices_cu, indices_exp)
@@ -254,7 +254,7 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
 
     # cugraph add_adj_list to_edge_list call
     G = cugraph.DiGraph()
-    G.add_adj_list(offsets, indices, None)
+    G.from_cudf_adjlist(offsets, indices, None)
     edgelist = G.view_edge_list()
     sources_cu = np.array(edgelist['src'])
     destinations_cu = np.array(edgelist['dst'])
@@ -310,7 +310,7 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     offsets = cudf.Series(M.indptr)
     indices = cudf.Series(M.indices)
     G = cugraph.DiGraph()
-    G.add_adj_list(offsets, indices, None)
+    G.from_cudf_adjlist(offsets, indices, None)
     edgelist_df = G.view_edge_list()
     M = M.tocoo()
     src1 = M.row
@@ -337,7 +337,7 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     M = utils.read_csv_for_nx(graph_file)
     df = cudf.DataFrame()
     df['src'] = cudf.Series(M.row)
-    df['dest'] = cudf.Series(M.col)
+    df['dst'] = cudf.Series(M.col)
 
     M = M.tocsr()
     if M is None:
@@ -350,12 +350,12 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
 
     # cugraph delete_adj_list delete_edge_list call
     G = cugraph.DiGraph()
-    G.add_edge_list(df)
+    G.from_cudf_edgelist(df, source='src', target='dst')
     G.delete_edge_list()
     with pytest.raises(Exception):
         G.view_adj_list()
 
-    G.add_adj_list(offsets, indices, None)
+    G.from_cudf_adjlist(offsets, indices, None)
     G.delete_adj_list()
     with pytest.raises(Exception):
         G.view_edge_list()
@@ -380,7 +380,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     M = utils.read_csv_for_nx(graph_file)
     df = cudf.DataFrame()
     df['src'] = cudf.Series(M.row)
-    df['dest'] = cudf.Series(M.col)
+    df['dst'] = cudf.Series(M.col)
 
     M = M.tocsr()
     if M is None:
@@ -398,19 +398,19 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     # graphs.
 
     # If cugraph has a graph edge list, adding a new graph should fail.
-    G.add_edge_list(df)
+    G.from_cudf_edgelist(df, source='src', target='dst')
     with pytest.raises(Exception):
-        G.add_edge_list(df)
+        G.from_cudf_edgelist(df, source='src', target='dst')
     with pytest.raises(Exception):
-        G.add_adj_list(offsets, indices, None)
+        G.from_cudf_adjlist(offsets, indices, None)
     G.delete_edge_list()
 
     # If cugraph has a graph adjacency list, adding a new graph should fail.
-    G.add_adj_list(offsets, indices, None)
+    G.from_cudf_adjlist(offsets, indices, None)
     with pytest.raises(Exception):
-        G.add_edge_list(df)
+        G.from_cudf_edgelist(df, source='src', target='dst')
     with pytest.raises(Exception):
-        G.add_adj_list(offsets, indices, None)
+        G.from_cudf_adjlist(offsets, indices, None)
     G.delete_adj_list()
 
 
@@ -462,7 +462,7 @@ def test_networkx_compatibility(managed, pool, graph_file):
     Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
                                   create_using=nx.DiGraph)
     G = cugraph.from_cudf_edgelist(gdf, source='source', target='target')
-    print(G.edgelist.edgelist_df)
+
     assert compare_graphs(Gnx, G)
 
     Gnx.clear()
@@ -491,7 +491,7 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     G = cugraph.DiGraph()
-    G.add_edge_list(cu_M)
+    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     df = G.get_two_hop_neighbors()
     M = utils.read_csv_for_nx(graph_file).tocsr()
@@ -518,7 +518,7 @@ def test_degree_functionality(managed, pool, graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     G = cugraph.DiGraph()
-    G.add_edge_list(cu_M)
+    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     Gnx = nx.DiGraph(M)
 
@@ -563,13 +563,8 @@ def test_degrees_functionality(managed, pool, graph_file):
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
 
-    df = cudf.DataFrame()
-    df['src'] = cu_M['0']
-    df['dst'] = cu_M['1']
-    df['values'] = cu_M['2']
-
     G = cugraph.DiGraph()
-    G.add_edge_list(df)
+    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     Gnx = nx.DiGraph(M)
 
@@ -701,5 +696,5 @@ def test_number_of_vertices(managed, pool, graph_file):
 
     # cugraph add_edge_list
     G = cugraph.DiGraph()
-    G.add_edge_list(cu_M)
+    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
     assert(G.number_of_vertices() == M.shape[0])

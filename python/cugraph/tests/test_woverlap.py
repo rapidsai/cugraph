@@ -26,14 +26,11 @@ import numpy as np
 
 def cugraph_call(cu_M, first, second):
     # Device data
-    df = cudf.DataFrame()
-    df['s'] = cu_M['0']
-    df['d'] = cu_M['1']
-    weights_arr = cudf.Series(np.ones(max(df['s'].max(),
-                              df['d'].max())+1, dtype=np.float32))
+    weights_arr = cudf.Series(np.ones(max(cu_M['0'].max(),
+                              cu_M['1'].max())+1, dtype=np.float32))
 
     G = cugraph.DiGraph()
-    G.add_edge_list(df)
+    G.from_cudf_edgelist(cu_M, source='0', target='1')
 
     # cugraph Overlap Call
     t1 = time.time()
