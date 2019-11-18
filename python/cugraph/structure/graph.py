@@ -85,43 +85,38 @@ class Graph:
                            edge_attr=None, renumber=False):
         """
         Initialize a graph from the edge list. It is an error to call this
-        method on an initialized Graph object. The passed source_col and
-        dest_col arguments wrap gdf_column objects that represent a graph
-        using the edge list format.
+        method on an initialized Graph object. The passed input_df argument
+        wraps gdf_column objects that represent a graph using the edge list
+        format. source argument is source column name and target argument
+        is destination column name.
         Source and destination indices must be in the range [0, V) where V is
-        the number of vertices. They must be 32 bit integers. Please refer to
-        cuGraph's renumbering feature if your input does not match these
-        requierments. When using cudf.read_csv to load a CSV edge list,
-        make sure to set dtype to int32 for the source and destination
-        columns.
-        If value_col is None, an unweighted graph is created. If value_col is
-        not None, a weighted graph is created.
-        If copy is False, this function stores references to the passed objects
-        pointed by source_col and dest_col. If copy is True, this funcion
-        stores references to the deep-copies of the passed objects pointed by
-        source_col and dest_col.
-        Undirected edges must be stored as directed edges in both directions.
+        the number of vertices. If renumbering needs to be done, renumber
+        argument should be passed as True.
+        If weights are present, edge_attr argument is the weights column name.
 
         Parameters
         ----------
-        source_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the source index for each edge.
-            Source indices must be in the range [0, V) (V: number of vertices).
-            Source indices must be 32 bit integers.
-        dest_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the destination index for each edge.
-            Destination indices must be in the range [0, V) (V: number of
+        input_df : cudf.DataFrame
+            This cudf.DataFrame wraps source, destination and weight
+            gdf_column of size E (E: number of edges)
+            The 'src' column contains the source index for each edge.
+            Source indices are in the range [0, V) (V: number of vertices).
+            The 'dst' column contains the destination index for each edge.
+            Destination indices are in the range [0, V) (V: number of
             vertices).
-            Destination indices must be 32 bit integers.
-        value_col : cudf.Series, optional
-            This pointer can be ``None``.
-            If not, this cudf.Series wraps a gdf_column of size E (E: number of
-            edges).
-            The gdf column contains the weight value for each edge.
-            The expected type of the gdf_column element is floating point
-            number.
+            If renumbering needs to be done, renumber
+            argument should be passed as True.
+            For weighted graphs, dataframe contains 'weight' column
+            containing the weight value for each edge.
+        source : str
+            source argument is source column name
+        target : str
+            target argument is destination column name.
+        edge_attr : str
+            edge_attr argument is the weights column name.
+        renumber : bool
+            If source and destination indices are not in range 0 to V where V
+            is number of vertices, renumber argument should be True.
 
         Examples
         --------
@@ -174,24 +169,16 @@ class Graph:
 
         Returns
         -------
-        source_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the source index for each edge.
+        edgelist_df : cudf.DataFrame
+            This cudf.DataFrame wraps source, destination and weight
+            gdf_column of size E (E: number of edges)
+            The 'src' column contains the source index for each edge.
             Source indices are in the range [0, V) (V: number of vertices).
-            Source indices must be 32 bit integers.
-        dest_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the destination index for each edge.
+            The 'dst' column contains the destination index for each edge.
             Destination indices are in the range [0, V) (V: number of
             vertices).
-            Destination indices must be 32 bit integers.
-        value_col : cudf.Series or ``None``
-            This pointer is ``None`` for unweighted graphs.
-            For weighted graphs, this cudf.Series wraps a gdf_column of size E
-            (E: number of edges).
-            The gdf column contains the weight value for each edge.
-            The expected type of the gdf_column element is floating point
-            number.
+            For weighted graphs, dataframe contains 'weight' column
+            containing the weight value for each edge.
         """
         if self.edgelist is None:
             graph_wrapper.view_edge_list(self)
@@ -211,6 +198,37 @@ class Graph:
 
     def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
         """
+        Initialize a graph from the adjacency list. It is an error to call this
+        method on an initialized Graph object. The passed offset_col and
+        index_col arguments wrap gdf_column objects that represent a graph
+        using the adjacency list format.
+        If value_col is None, an unweighted graph is created. If value_col is
+        not None, a weighted graph is created.
+        If copy is False, this function stores references to the passed objects
+        pointed by offset_col and index_col. If copy is True, this funcion
+        stores references to the deep-copies of the passed objects pointed by
+        offset_col and index_col.
+        Undirected edges must be stored as directed edges in both directions.
+        Parameters
+        ----------
+        offset_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size V + 1 (V: number of
+            vertices).
+            The gdf column contains the offsets for the vertices in this graph.
+            Offsets must be in the range [0, E] (E: number of edges).
+        index_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices must be in the range [0, V) (V: number of
+            vertices).
+        value_col : cudf.Series, optional
+            This pointer can be ``None``.
+            If not, this cudf.Series wraps a gdf_column of size E (E: number of
+            edges).
+            The gdf column contains the weight value for each edge.
+            The expected type of the gdf_column element is floating point
+            number.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -233,11 +251,37 @@ class Graph:
         self.from_cudf_adjlist(offset_col, index_col, value_col)
 
     def view_adj_list(self):
+        """
+        Display the adjacency list. Compute it if needed.
+
+        Returns
+        -------
+        offset_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size V + 1 (V: number of
+            vertices).
+            The gdf column contains the offsets for the vertices in this graph.
+            Offsets are in the range [0, E] (E: number of edges).
+        index_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices are in the range [0, V) (V: number of
+            vertices).
+        value_col : cudf.Series or ``None``
+            This pointer is ``None`` for unweighted graphs.
+            For weighted graphs, this cudf.Series wraps a gdf_column of size E
+            (E: number of edges).
+            The gdf column contains the weight value for each edge.
+            The expected type of the gdf_column element is floating point
+            number.
+        """
         if self.adjlist is None:
             graph_wrapper.view_adj_list(self)
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
     def delete_adj_list(self):
+        """
+        Delete the adjacency list.
+        """
         self.adjlist = None
 
     def get_two_hop_neighbors(self):
