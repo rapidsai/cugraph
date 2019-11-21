@@ -127,7 +127,6 @@ class WrappedFunc:
             self.func = wrapper(self.func, self.name)
             self.func.__name__ = self.name
 
-
     def run(self):
         return self.func(*self.args)
 

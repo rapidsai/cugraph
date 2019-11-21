@@ -7,7 +7,8 @@ from utils import getCommitInfo, getRepoInfo
 
 
 def cugraph_update_asv(asvDir, datasetName, algoRunResults,
-                       cudaVer="", pythonVer="", osType="", machineName="", repo=""):
+                       cudaVer="", pythonVer="", osType="", machineName="",
+                       repo=""):
     """
     algoRunResults is a list of (algoName, exeTime) tuples
     """
