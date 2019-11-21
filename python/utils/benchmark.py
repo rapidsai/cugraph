@@ -35,11 +35,11 @@ def noStdoutWrapper(func):
     return wrapper
 
 
-def logExeTime(func):
+def logExeTime(func, name=""):
     def wrapper(*args):
         retVal = None
         # Return or create the results dict for the function name
-        perfData = logExeTime.perfData.setdefault(func.__name__, {})
+        perfData = logExeTime.perfData.setdefault(name or func.__name__, {})
         try:
             # st = process_time_ns()
             st = clock_gettime(CLOCK_MONOTONIC_RAW)
@@ -57,11 +57,11 @@ def logExeTime(func):
 logExeTime.perfData = {}
 
 
-def logGpuMetrics(func):
+def logGpuMetrics(func, name=""):
     def wrapper(*args):
         retVal = None
         # Return or create the results dict for the function name
-        perfData = logGpuMetrics.perfData.setdefault(func.__name__, {})
+        perfData = logGpuMetrics.perfData.setdefault(name or func.__name__, {})
 
         try:
             gpuPollObj = startGpuMetricPolling()
@@ -79,7 +79,7 @@ def logGpuMetrics(func):
 logGpuMetrics.perfData = {}
 
 
-def printLastResult(func):
+def printLastResult(func, name=""):
     def wrapper(*args):
         retVal = func(*args)
         funcNames = printLastResult.perfData.keys()
@@ -124,8 +124,9 @@ class WrappedFunc:
 
         # The callable is the callable obj returned after all wrappers applied
         for wrapper in runWrappers:
-            self.func = wrapper(self.func)
+            self.func = wrapper(self.func, self.name)
             self.func.__name__ = self.name
+
 
     def run(self):
         return self.func(*self.args)

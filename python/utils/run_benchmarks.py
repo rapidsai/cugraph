@@ -19,46 +19,46 @@ from asv_report import (
 # Update this function to add new algos
 def getBenchmarks(G, edgelist_gdf, args):
     benches = [
-        Benchmark(name="pagerank",
+        Benchmark(name="cugraph.pagerank",
                   func=cugraph.pagerank,
                   args=(G, args.damping_factor, None, args.max_iter,
                         args.tolerance)),
-        Benchmark(name="bfs",
+        Benchmark(name="cugraph.bfs",
                   func=cugraph.bfs,
                   args=(G, args.source, True)),
-        Benchmark(name="sssp",
+        Benchmark(name="cugraph.sssp",
                   func=cugraph.sssp,
                   args=(G, args.source)),
         #         extraRunWrappers=[noStdoutWrapper]),
-        Benchmark(name="jaccard",
+        Benchmark(name="cugraph.jaccard",
                   func=cugraph.jaccard,
                   args=(G,)),
-        Benchmark(name="louvain",
+        Benchmark(name="cugraph.louvain",
                   func=cugraph.louvain,
                   args=(G,)),
-        Benchmark(name="weakly_connected_components",
+        Benchmark(name="cugraph.weakly_connected_components",
                   func=cugraph.weakly_connected_components,
                   args=(G,)),
-        Benchmark(name="overlap",
+        Benchmark(name="cugraph.overlap",
                   func=cugraph.overlap,
                   args=(G,)),
-        Benchmark(name="triangles",
+        Benchmark(name="cugraph.triangles",
                   func=cugraph.triangles,
                   args=(G,)),
-        Benchmark(name="spectralBalancedCutClustering",
+        Benchmark(name="cugraph.spectralBalancedCutClustering",
                   func=cugraph.spectralBalancedCutClustering,
                   args=(G, 2)),
-        Benchmark(name="spectralModularityMaximizationClustering",
+        Benchmark(name="cugraph.spectralModularityMaximizationClustering",
                   func=cugraph.spectralModularityMaximizationClustering,
                   args=(G, 2)),
-        Benchmark(name="renumber",
+        Benchmark(name="cugraph.renumber",
                   func=cugraph.renumber,
                   args=(edgelist_gdf["src"], edgelist_gdf["dst"])),
-        Benchmark(name="view_adj_list",
+        Benchmark(name="cugraph.graph.view_adj_list",
                   func=G.view_adj_list),
-        Benchmark(name="degree",
+        Benchmark(name="cugraph.graph.degree",
                   func=G.degree),
-        Benchmark(name="degrees",
+        Benchmark(name="cugraph.graph.degrees",
                   func=G.degrees),
     ]
     # Return a dictionary of Benchmark name to Benchmark obj mappings
@@ -193,8 +193,10 @@ if __name__ == "__main__":
 
     # Load the data file and create a Graph, treat these as benchmarks too
     csvDelim = {"space": ' ', "tab": '\t'}[args.delimiter]
-    edgelist_gdf = Benchmark(loadDataFile, args=(args.file, csvDelim)).run()
-    G = Benchmark(createGraph, args=(edgelist_gdf, args.auto_csr)).run()
+    edgelist_gdf = Benchmark(loadDataFile, "cugraph.loadDataFile",
+                             args=(args.file, csvDelim)).run()
+    G = Benchmark(createGraph, "cugraph.createGraph",
+                  args=(edgelist_gdf, args.auto_csr)).run()
 
     if G is None:
         raise RuntimeError("could not create graph!")
@@ -209,6 +211,9 @@ if __name__ == "__main__":
     # reports ########################
     if args.update_results_dir:
         raise NotImplementedError
+
+    #import pprint
+    #pprint.pprint(perfData, open("data","w"))
 
     if args.update_asv_dir:
         # special case: do not include the full path to the datasetName, since
