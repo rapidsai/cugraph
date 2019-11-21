@@ -7,16 +7,27 @@ from utils import getCommitInfo, getRepoInfo
 
 
 def cugraph_update_asv(asvDir, datasetName, algoRunResults,
-                       cudaVer="", pythonVer="", osType="", machineName=""):
+                       cudaVer="", pythonVer="", osType="", machineName="",
+                       repo=""):
     """
     algoRunResults is a list of (algoName, exeTime) tuples
     """
     (commitHash, commitTime) = getCommitInfo()
-    (repo, branch) = getRepoInfo()
+    (actualRepo, branch) = getRepoInfo()
+    repo = repo or actualRepo
 
     db = ASVDb(asvDir, repo, [branch])
 
     uname = platform.uname()
+
+    prefixDict = dict(maxGpuUtil="gpuutil",
+                      maxGpuMemUsed="gpumem",
+                      exeTime="time",
+                      )
+    unitsDict = dict(maxGpuUtil="percent",
+                     maxGpuMemUsed="bytes",
+                     exeTime="seconds",
+                     )
 
     bInfo = BenchmarkInfo(machineName=machineName or uname.machine,
                           cudaVer=cudaVer or "unknown",
@@ -30,11 +41,20 @@ def cugraph_update_asv(asvDir, datasetName, algoRunResults,
                           arch=uname.machine,
                           ram="%d" % psutil.virtual_memory().total)
 
-    for (algoName, exeTime) in algoRunResults:
-        bResult = BenchmarkResult(funcName=algoName,
-                                  argNameValuePairs=[("dataset", datasetName)],
-                                  result=exeTime)
-        db.addResult(bInfo, bResult)
+    validKeys = set(list(prefixDict.keys()) + list(unitsDict.keys()))
+
+    for (funcName, metricsDict) in algoRunResults.items():
+        for (metricName, val) in metricsDict.items():
+            # If an invalid metricName is present (likely due to a benchmark
+            # run error), skip
+            if metricName in validKeys:
+                bResult = BenchmarkResult(funcName="%s_%s" %
+                                          (funcName, prefixDict[metricName]),
+                                          argNameValuePairs=[("dataset",
+                                                              datasetName)],
+                                          result=val)
+                bResult.unit = unitsDict[metricName]
+                db.addResult(bInfo, bResult)
 
 
 if __name__ == "__main__":

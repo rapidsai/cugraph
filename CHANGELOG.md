@@ -10,6 +10,7 @@
 - PR #576 Remove adj list conversion automation from c++
 - PR #587 API upgrade
 - PR #585 Remove BUILD_ABI references from CI scripts
+- PR #591 Adding initial GPU metrics to benchmark utils
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
