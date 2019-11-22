@@ -91,7 +91,6 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True) :
     >>> df = cugraph.pregel_bfs(data_df, 1, '0', '1')    
     
     """
-
     # extract the source and destination columns into a new dataframe that can be modified
     if copy_data : 
         coo_data = cudf.DataFrame()
@@ -104,8 +103,8 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True) :
     
     # convert the "start" vertex into a series
     start_v = cudf.Series(start)
-    ddf = _create_vertex_list(start_v)
-
+    ddf = start_v.to_frame('dst')
+    
     # create the answer DF
     answer = cudf.DataFrame()
     answer['vertex'] = start
@@ -127,7 +126,7 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True) :
         # we do not want to hop to a vertex that has already been seen 
         coo_data = coo_data.merge(ddf, on=['dst'], how='left') 
         coo_data = coo_data[coo_data.distance.isnull()]
-        coo_data = coo_data.drop('distance')  
+        coo_data.drop_column('distance')  
 
         # now update column names for finding source vertices
         ddf.rename(columns={'dst':'src'}, inplace=True)
@@ -143,25 +142,24 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True) :
         #---------------------------------    
         # get all the edges that where not touched - also drop all reverse edges 
         coo_data = hop_df[hop_df.distance.isnull()]
-        coo_data = coo_data.drop('distance')    
+        coo_data.drop_column('distance')    
 
         #---------------------------------  
         # create a new dataframe of vertices to hop out from
-        ddf = _create_vertex_list(one_hop['dst'])
+        ddf = one_hop['dst'].to_frame('dst')
 
         #---------------------------------      
         # update the answer  
         one_hop.rename(columns={'dst':'vertex', 'src':'predecessor'}, inplace=True)  
 
         # could contain a number of 
-        aggsOut = OrderedDict()
-        aggsOut['predecessor'] = 'min'   
-        aggsOut['distance'] = 'min'   
+        #aggsOut = OrderedDict()
+        #aggsOut['predecessor'] = 'min'   
+        #aggsOut['distance'] = 'min'   
  
-        _a = one_hop.groupby(['vertex'], as_index=False).agg(aggsOut)      
+        #_a = one_hop.groupby(['vertex'], as_index=False).agg(aggsOut)      
 
-        answer = cudf.concat([answer,_a])     
-        answer = answer.groupby(['vertex'], as_index=False).agg(aggsOut)      
+        answer = cudf.concat([answer,one_hop])     
 
         if len(coo_data) == 0 :
             done = True    
@@ -176,11 +174,3 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True) :
     
     # all done, return the answer
     return answer
-
-
-# create a dataframe from a cudf.Series.
-def _create_vertex_list(v_df) :
-    _df = cudf.DataFrame()
-    _df['dst'] = v_df   
-
-    return _df  
