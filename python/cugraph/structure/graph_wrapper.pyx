@@ -42,6 +42,15 @@ def release_cpp_graph(graph_ptr):
     cdef Graph * g = <Graph*> graph
     free(g)
 
+def datatype_cast(cols, dtypes):
+    cols_out = []
+    for col in cols:
+        if col is None or col.dtype.type in dtypes:
+            cols_out.append(col)
+        else:
+            cols_out.append(col.astype(dtypes[0]))
+    return cols_out
+
 def renumber(source_col, dest_col):
     cdef gdf_column src_renumbered
     cdef gdf_column dst_renumbered
@@ -73,16 +82,6 @@ def renumber(source_col, dest_col):
 def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-
-    # Checks in python
-    if len(source_col) != len(dest_col):
-        raise ValueError("Source and Destination length mismatch")
-    if source_col.dtype.type is not np.int32:
-        source_col = source_col.astype(np.int32)
-    if dest_col.dtype.type is not np.int32:
-        dest_col = dest_col.astype(np.int32)
-    if value_col is not None and value_col.dtype.type is not np.float32 and value_col.dtype.type is not np.float64:
-        value_col = value_col.astype(np.float32) 
 
     cdef gdf_column c_source_col = get_gdf_column_view(source_col)
     cdef gdf_column c_dest_col = get_gdf_column_view(dest_col)
@@ -147,13 +146,6 @@ def get_edge_list(graph_ptr):
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-
-    if offset_col.dtype.type is not np.int32:
-        offset_col = offset_col.astype(np.int32)
-    if index_col.dtype.type is not np.int32:
-        index_col = index_col.astype(np.int32)
-    if value_col is not None and value_col.dtype.type is not np.float32 and value_col.dtype.type is not np.float64:
-        value_col = value_col.astype(np.float32)
 
     cdef gdf_column c_offset_col = get_gdf_column_view(offset_col)
     cdef gdf_column c_index_col = get_gdf_column_view(index_col)
@@ -244,13 +236,6 @@ def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
 
-    if offset_col.dtype.type is not np.int32:
-        offset_col = offset_col.astype(np.int32)
-    if index_col.dtype.type is not np.int32:
-        index_col = index_col.astype(np.int32)
-    if value_col is not None and value_col.dtype.type is not np.float32 and value_col.dtype.type is not np.float64:
-        value_col = value_col.astype(np.float32)
-
     cdef gdf_column c_offset_col = get_gdf_column_view(offset_col)
     cdef gdf_column c_index_col = get_gdf_column_view(index_col)
     cdef gdf_column c_value_col
@@ -314,12 +299,16 @@ def get_two_hop_neighbors(input_graph):
     cdef Graph * g = <Graph*> graph
 
     if input_graph.adjlist:
-        add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        add_adj_list(graph, offsets, indices, weights)
     else:
-        if len(input_graph.edgelist.edgelist_df.columns)>2:
-            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            add_edge_list(graph, src, dst, weights)
         else:
-            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+            add_edge_list(graph, src, dst)
         c_graph.add_adj_list(g)
         offsets, indices, values = get_adj_list(graph)
         input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
@@ -384,12 +373,16 @@ def _degree(input_graph, x=0):
     cdef Graph * g = <Graph*> graph
 
     if input_graph.adjlist:
-        add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        add_adj_list(graph, offsets, indices, weights)
     else:
-        if len(input_graph.edgelist.edgelist_df.columns)>2:
-            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            add_edge_list(graph, src, dst, weights)
         else:
-            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+            add_edge_list(graph, src, dst)
         c_graph.add_adj_list(g)
         offsets, indices, values = get_adj_list(graph)
         input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
@@ -414,12 +407,16 @@ def _degrees(input_graph):
     cdef Graph * g = <Graph*> graph
 
     if input_graph.adjlist:
-        add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        add_adj_list(graph, offsets, indices, weights)
     else:
-        if len(input_graph.edgelist.edgelist_df.columns)>2:
-            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            add_edge_list(graph, src, dst, weights)
         else:
-            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+            add_edge_list(graph, src, dst)
         c_graph.add_adj_list(g)
         offsets, indices, values = get_adj_list(graph)
         input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
