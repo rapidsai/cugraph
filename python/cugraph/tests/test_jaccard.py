@@ -43,16 +43,11 @@ def cugraph_call(cu_M, edgevals=False):
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
     '''
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    if edgevals is False:
-        values = None
+    G = cugraph.DiGraph()
+    if edgevals is True:
+        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
     else:
-        values = cu_M['2']
-
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+        G.from_cudf_edgelist(cu_M, source='0', target='1')
 
     # cugraph Jaccard Call
     t1 = time.time()
@@ -192,7 +187,7 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     G = cugraph.Graph()
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):
@@ -230,7 +225,7 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     values = cudf.Series(M.data)
-    G.add_adj_list(row_offsets, col_indices, values)
+    G.from_cudf_adjlist(row_offsets, col_indices, values)
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):

@@ -38,15 +38,11 @@ print('Networkx version : {} '.format(nx.__version__))
 
 def cugraph_call(cu_M):
     # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    # values = cudf.Series(np.ones(len(col_indices), dtype=np.float32),
-    # nan_as_null=False)
-    weights_arr = cudf.Series(np.ones(max(sources.max(),
-                              destinations.max())+1, dtype=np.float32))
+    weights_arr = cudf.Series(np.ones(max(cu_M['0'].max(),
+                              cu_M['1'].max())+1, dtype=np.float32))
 
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, None)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source='0', target='1')
 
     # cugraph Jaccard Call
     t1 = time.time()

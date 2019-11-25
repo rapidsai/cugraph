@@ -15,7 +15,7 @@
 # issue #146 is addressed, this file's extension should be changed from .pyx to
 # .py and should be located outside the python/cugraph/bindings directory.
 
-from cugraph.structure.graph import Graph
+from cugraph.structure.graph import DiGraph
 
 
 def from_cudf_edgelist(df, source='source', target='target', weight=None):
@@ -47,11 +47,12 @@ def from_cudf_edgelist(df, source='source', target='target', weight=None):
     >>> G = cugraph.from_cudf_edgelist(M, source='0', target='1', weight='2')
     """
 
-    G = Graph()
+    G = DiGraph()
 
     if weight is None:
-        G.add_edge_list(df[source], df[target])
+        G.from_cudf_edgelist(df, source=source, target=target)
     else:
-        G.add_edge_list(df[source], df[target], df[weight])
+        G.from_cudf_edgelist(df, source=source, target=target,
+                             edge_attr=weight)
 
     return G

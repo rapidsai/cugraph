@@ -26,13 +26,11 @@ import numpy as np
 
 def cugraph_call(cu_M, first, second):
     # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    weights_arr = cudf.Series(np.ones(max(sources.max(),
-                              destinations.max())+1, dtype=np.float32))
+    weights_arr = cudf.Series(np.ones(max(cu_M['0'].max(),
+                              cu_M['1'].max())+1, dtype=np.float32))
 
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, None)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source='0', target='1')
 
     # cugraph Overlap Call
     t1 = time.time()
@@ -91,6 +89,7 @@ DATASETS = ['../datasets/dolphins.csv',
 #  Too slow to run on CPU
 #            '../datasets/email-Eu-core.csv']
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -112,7 +111,7 @@ def test_woverlap(managed, pool, graph_file):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
     cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'])
