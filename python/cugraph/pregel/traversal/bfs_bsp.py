@@ -43,30 +43,30 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True):
     -------
     df : cudf.DataFrame
         df['vertex'][i] gives the vertex id of the i'th vertex
-        df['distance'][i] gives the path distance for the i'th vertex 
-        		from the starting vertex
+        df['distance'][i] gives the path distance for the i'th vertex
+            from the starting vertex
         df['predecessor'][i] gives for the i'th vertex the vertex it was
         reached from in the traversal
 
     Examples
     --------
-    >>> data_df = 
-    	cudf.read_csv('datasets/karate.csv', delimiter=' ', header=None)
-    >>> df = cugraph.pregel_bfs(data_df, 1, '0', '1')    
+    >>> data_df =
+          cudf.read_csv('datasets/karate.csv', delimiter=' ', header=None)
+    >>> df = cugraph.pregel_bfs(data_df, 1, '0', '1')
 
     """
- 
-     # extract the src and dst into a dataframe that can be modified
+
+    # extract the src and dst into a dataframe that can be modified
     if copy_data:
         coo_data = df[[src_col, dst_col]]
     else:
         coo_data = df
 
-    coo_data.rename(columns={src_col:'src', dst_col:'dst'}, inplace=True)
+    coo_data.rename(columns={src_col: 'src', dst_col: 'dst'}, inplace=True)
 
     # convert the "start" vertex into a series
     frontier = cudf.Series(start).to_frame('dst')
-    
+
     # create the answer DF
     answer = cudf.DataFrame()
     answer['vertex'] = start
@@ -77,14 +77,14 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True):
     distance = 0
     done = False
 
-    while not done :
+    while not done:
 
-        #---------------------------------
+        # ---------------------------------
         # update the distance and add it to the dataframe
         distance = distance + 1
         frontier['distance'] = distance
 
-        #-----------------------------------
+        # -----------------------------------
         # Removed all instances of the frontier vertices from 'dst' side
         # we do not want to hop to a vertex that has already been seen
         coo_data = coo_data.merge(frontier, on=['dst'], how='left')
@@ -92,7 +92,7 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True):
         coo_data.drop_column('distance')
 
         # now update column names for finding source vertices
-        frontier.rename(columns={'dst':'src'}, inplace=True)
+        frontier.rename(columns={'dst': 'src'}, inplace=True)
 
         # ---------------------------------
         # merge the list of vertices and distances with the COO list
@@ -100,7 +100,7 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True):
         # (A) the set of edges that start with a vertice in the frontier set
         #     - this goes into the answer set
         #     - this also forms the next frontier set
-        # (B) the set of edges that did not start with a frontier vertex 
+        # (B) the set of edges that did not start with a frontier vertex
         #     - this form the new set of coo_data
         hop_df = coo_data.merge(frontier, on=['src'], how='left')
 
@@ -117,8 +117,8 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True):
 
         # ---------------------------------
         # update the answer
-        one_hop.rename(columns={'dst': 'vertex', 'src': 'predecessor'}
-        		, inplace=True)
+        one_hop.rename(
+            columns={'dst': 'vertex', 'src': 'predecessor'}, inplace=True)
 
         answer = cudf.concat([answer, one_hop])
 
@@ -135,4 +135,3 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True):
 
     # all done, return the answer
     return answer
-    
