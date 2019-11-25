@@ -54,6 +54,9 @@ def cugraph_k_truss_max(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     src, dst = cugraph.symmetrize(cu_M['0'], cu_M['1'])
+    # src =cu_M['0']
+    # dst = cu_M['1']
+
 
     G = cugraph.Graph()
     G.add_edge_list(src, dst)
