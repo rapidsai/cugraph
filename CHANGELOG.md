@@ -10,6 +10,7 @@
 - PR #576 Remove adj list conversion automation from c++
 - PR #587 API upgrade
 - PR #585 Remove BUILD_ABI references from CI scripts
+- PR #596 Added a Pregel BFS analytics, thjis is the first step to making a MNMG Pregel BFS
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
