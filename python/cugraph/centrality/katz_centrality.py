@@ -88,7 +88,7 @@ def katz_centrality(G,
     >>> kc = cugraph.katz_centrality(G)
     """
 
-    df = katz_centrality_wrapper.katz_centrality(G.graph_ptr, alpha, max_iter,
+    df = katz_centrality_wrapper.katz_centrality(G, alpha, max_iter,
                                                  tol, nstart, normalized)
 
     return df
