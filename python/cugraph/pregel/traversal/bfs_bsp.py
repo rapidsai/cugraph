@@ -121,13 +121,6 @@ def bfs_df(df, start, src_col='src', dst_col='dst', copy_data=True) :
         # update the answer  
         one_hop.rename(columns={'dst':'vertex', 'src':'predecessor'}, inplace=True)  
 
-        # could contain a number of 
-        #aggsOut = OrderedDict()
-        #aggsOut['predecessor'] = 'min'   
-        #aggsOut['distance'] = 'min'   
-
-        #_a = one_hop.groupby(['vertex'], as_index=False).agg(aggsOut)      
-
         answer = cudf.concat([answer,one_hop])     
 
         if len(coo_data) == 0 :
