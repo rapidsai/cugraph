@@ -30,7 +30,7 @@ def cugraph_call(cu_M, start_vertex):
 
     t1 = time.time()
     df = cugraph.pregel.traversal.bfs_df_pregel(
-        df, start_vertex, src='0', dst='1')
+        df, start_vertex, src_col='0', dst_col='1')
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
