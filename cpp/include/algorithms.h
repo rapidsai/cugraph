@@ -365,7 +365,7 @@ void k_core(Graph* in_graph,
  *                                                                              
  * @Param[out] k_max                 Maximal k-truss found in graph.
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void k_truss_max(Graph *in_graph,
@@ -380,7 +380,7 @@ void k_truss_max(Graph *in_graph,
  *                                                                              
  * @Param[out] *truss_graph          cuGRAPH graph descriptor with the k-truss subgraph
  *                                                                              
- * @Returns                          GDF_SUCCESS upon successful completion.    
+ * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 void k_truss_subgraph(Graph *in_graph,
