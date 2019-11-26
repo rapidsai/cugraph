@@ -11,7 +11,7 @@
 - PR #576 Remove adj list conversion automation from c++
 - PR #587 API upgrade
 - PR #585 Remove BUILD_ABI references from CI scripts
-
+- PR #601 add test for type conversion, edit createGraph_nvgraph
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
 - PR #573 Fix pagerank test and symmetrize for cudf 0.11
