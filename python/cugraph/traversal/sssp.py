@@ -54,7 +54,7 @@ def sssp(G, source):
     >>> distances = cugraph.sssp(G, 0)
     """
 
-    df = sssp_wrapper.sssp(G.graph_ptr, source)
+    df = sssp_wrapper.sssp(G, source)
 
     return df
 

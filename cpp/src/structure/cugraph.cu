@@ -72,6 +72,81 @@ void cpy_column_view(const gdf_column *in, gdf_column *out) {
   }
 }
 
+void transposed_adj_list_view(Graph *graph, const gdf_column *offsets,
+                            const gdf_column *indices,
+                            const gdf_column *edge_data) {
+  //This function returns an error if this graph object has at least one graph
+  //representation to prevent a single object storing two different graphs.
+  CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
+    (graph->transposedAdjList == nullptr)), "Invalid API parameter");
+  CUGRAPH_EXPECTS( offsets->null_count == 0 , "Input column has non-zero null count");
+  CUGRAPH_EXPECTS( indices->null_count == 0 , "Input column has non-zero null count");
+  CUGRAPH_EXPECTS( (offsets->dtype == indices->dtype), "Unsupported data type" );
+  CUGRAPH_EXPECTS( ((offsets->dtype == GDF_INT32)), "Unsupported data type" );
+  CUGRAPH_EXPECTS( (offsets->size > 0), "Column is empty");
+
+  graph->transposedAdjList = new gdf_adj_list;
+  graph->transposedAdjList->offsets = new gdf_column;
+  graph->transposedAdjList->indices = new gdf_column;
+  graph->transposedAdjList->ownership = 0;
+
+  cpy_column_view(offsets, graph->transposedAdjList->offsets);
+  cpy_column_view(indices, graph->transposedAdjList->indices);
+  
+  if (!graph->prop)
+      graph->prop = new Graph_properties();
+
+  if (edge_data) {
+    CUGRAPH_EXPECTS(indices->size == edge_data->size, "Column size mismatch");
+    graph->transposedAdjList->edge_data = new gdf_column;
+    cpy_column_view(edge_data, graph->transposedAdjList->edge_data);
+    
+    bool has_neg_val;
+    
+    switch (graph->adjList->edge_data->dtype) {
+    case GDF_INT8:
+      has_neg_val = cugraph::detail::has_negative_val(
+          static_cast<int8_t *>(graph->transposedAdjList->edge_data->data),
+          graph->transposedAdjList->edge_data->size);
+      break;
+    case GDF_INT16:
+      has_neg_val = cugraph::detail::has_negative_val(
+          static_cast<int16_t *>(graph->transposedAdjList->edge_data->data),
+          graph->transposedAdjList->edge_data->size);
+      break;
+    case GDF_INT32:
+      has_neg_val = cugraph::detail::has_negative_val(
+          static_cast<int32_t *>(graph->transposedAdjList->edge_data->data),
+          graph->transposedAdjList->edge_data->size);
+      break;
+    case GDF_INT64:
+      has_neg_val = cugraph::detail::has_negative_val(
+          static_cast<int64_t *>(graph->transposedAdjList->edge_data->data),
+          graph->transposedAdjList->edge_data->size);
+      break;
+    case GDF_FLOAT32:
+      has_neg_val = cugraph::detail::has_negative_val(
+          static_cast<float *>(graph->transposedAdjList->edge_data->data),
+          graph->transposedAdjList->edge_data->size);
+      break;
+    case GDF_FLOAT64:
+      has_neg_val = cugraph::detail::has_negative_val(
+          static_cast<double *>(graph->transposedAdjList->edge_data->data),
+          graph->transposedAdjList->edge_data->size);
+      break;
+    default:
+      has_neg_val = false;
+    }
+    graph->prop->has_negative_edges =
+        (has_neg_val) ? GDF_PROP_TRUE : GDF_PROP_FALSE;
+  } else {
+    graph->adjList->edge_data = nullptr;
+    graph->prop->has_negative_edges = GDF_PROP_FALSE;
+  }
+
+  graph->numberOfVertices = graph->transposedAdjList->offsets->size - 1;
+}
+
 void adj_list_view(Graph *graph, const gdf_column *offsets,
                             const gdf_column *indices,
                             const gdf_column *edge_data) {

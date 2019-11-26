@@ -42,6 +42,6 @@ def triangles(G):
     >>> count = cugraph.triangles(G)
     """
 
-    result = triangle_count_wrapper.triangles(G.graph_ptr)
+    result = triangle_count_wrapper.triangles(G)
 
     return result

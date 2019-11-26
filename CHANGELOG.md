@@ -1,6 +1,7 @@
 # cuGraph 0.11.0 (Date TBD)
 
 ## New Features
+- PR #588 Python graph class and related changes
 
 ## Improvements
 - PR #569 Added exceptions
@@ -11,6 +12,7 @@
 - PR #584 Adding functionality for finding maximal K-Truss of a graph
 - PR #587 API upgrade
 - PR #585 Remove BUILD_ABI references from CI scripts
+- PR #591 Adding initial GPU metrics to benchmark utils
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests

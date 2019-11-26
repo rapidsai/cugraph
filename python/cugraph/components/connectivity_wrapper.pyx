@@ -18,6 +18,7 @@
 
 from cugraph.components.c_connectivity cimport *
 from cugraph.structure.c_graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.utils cimport table_from_dataframe
 from libc.stdint cimport uintptr_t
@@ -26,16 +27,27 @@ import cudf
 import cudf._lib as libcudf
 import numpy as np
 
-def weakly_connected_components(graph_ptr):
+def weakly_connected_components(input_graph):
     """
     Call connected_components
     """
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
 
-    cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
-
-    add_adj_list(<Graph*> graph)
-    
+    if input_graph.adjlist:
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            graph_wrapper.add_edge_list(graph, src, dst, weights)
+        else:
+            graph_wrapper.add_edge_list(graph, src, dst)
+        add_adj_list(g)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -56,16 +68,23 @@ def weakly_connected_components(graph_ptr):
     return df
 
 
-def strongly_connected_components(graph_ptr):
+def strongly_connected_components(input_graph):
     """
     Call connected_components
     """
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
 
-    cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
-
-    add_adj_list(<Graph*> graph)
-    
+    if input_graph.adjlist:
+        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        add_adj_list(g)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)

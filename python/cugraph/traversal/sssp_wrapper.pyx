@@ -19,6 +19,7 @@
 cimport cugraph.traversal.c_sssp as c_sssp
 cimport cugraph.traversal.c_bfs as c_bfs
 from cugraph.structure.c_graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.cudf cimport np_dtype_from_gdf_column
 from libcpp cimport bool
@@ -32,15 +33,27 @@ import rmm
 import numpy as np
 
 
-def sssp(graph_ptr, source):
+def sssp(input_graph, source):
     """
     Call sssp_nvgraph
     """
-    cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
 
-    add_adj_list(g)
-    
+    if input_graph.adjlist:
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            graph_wrapper.add_edge_list(graph, src, dst, weights)
+        else:
+            graph_wrapper.add_edge_list(graph, src, dst)
+        add_adj_list(g)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -63,12 +76,14 @@ def sssp(graph_ptr, source):
     cdef gdf_column c_predecessors_col = get_gdf_column_view(df['predecessor'])
 
     g.adjList.get_vertex_identifiers(&c_identifier_col)
-    
 
     if g.adjList.edge_data:
         c_sssp.sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
     else:
         c_bfs.bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
-    
+
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        df['predecessor'] = input_graph.edgelist.renumber_map[df['predecessor']]
 
     return df

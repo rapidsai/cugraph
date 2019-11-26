@@ -42,6 +42,15 @@ def release_cpp_graph(graph_ptr):
     cdef Graph * g = <Graph*> graph
     free(g)
 
+def datatype_cast(cols, dtypes):
+    cols_out = []
+    for col in cols:
+        if col is None or col.dtype.type in dtypes:
+            cols_out.append(col)
+        else:
+            cols_out.append(col.astype(dtypes[0]))
+    return cols_out
+
 def renumber(source_col, dest_col):
     cdef gdf_column src_renumbered
     cdef gdf_column dst_renumbered
@@ -74,16 +83,6 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
 
-    # Checks in python
-    if len(source_col) != len(dest_col):
-        raise ValueError("Source and Destination length mismatch")
-    if source_col.dtype.type is not np.int32:
-        source_col = source_col.astype(np.int32)
-    if dest_col.dtype.type is not np.int32:
-        dest_col = dest_col.astype(np.int32)
-    if value_col is not None and value_col.dtype.type is not np.float32 and value_col.dtype.type is not np.float64:
-        value_col = value_col.astype(np.float32) 
-
     cdef gdf_column c_source_col = get_gdf_column_view(source_col)
     cdef gdf_column c_dest_col = get_gdf_column_view(dest_col)
     cdef gdf_column c_value_col
@@ -100,11 +99,9 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
                            c_value_col_ptr)
     
 
-def view_edge_list(graph_ptr):
+def get_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-    c_graph.add_edge_list(g)
-    
 
     # we should add get_number_of_edges() to Graph (and this should be
     # used instead of g.edgeList.src_indices.size)
@@ -144,22 +141,11 @@ def view_edge_list(graph_ptr):
         value_col = cudf.Series(value_data)
 
     return source_col, dest_col, value_col
-
-def delete_edge_list(graph_ptr):
-    cdef uintptr_t graph = graph_ptr
-    c_graph.delete_edge_list(<Graph*> graph)
     
 
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-
-    if offset_col.dtype.type is not np.int32:
-        offset_col = offset_col.astype(np.int32)
-    if index_col.dtype.type is not np.int32:
-        index_col = index_col.astype(np.int32)
-    if value_col is not None and value_col.dtype.type is not np.float32 and value_col.dtype.type is not np.float64:
-        value_col = value_col.astype(np.float32)
 
     cdef gdf_column c_offset_col = get_gdf_column_view(offset_col)
     cdef gdf_column c_index_col = get_gdf_column_view(index_col)
@@ -177,11 +163,9 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
                           c_value_col_ptr)
     
 
-def view_adj_list(graph_ptr):
+def get_adj_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-    c_graph.add_adj_list(g)
-    
 
     offset_col_size = g.adjList.offsets.size
     index_col_size = g.adjList.indices.size
@@ -221,24 +205,55 @@ def view_adj_list(graph_ptr):
 
     return offset_col, index_col, value_col
 
-def delete_adj_list(graph_ptr):
-    """
-    Delete the adjacency list.
-    """
-    cdef uintptr_t graph = graph_ptr
-    c_graph.delete_adj_list(<Graph*> graph)
-    
+def view_edge_list(input_graph):
+    cdef uintptr_t graph = allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
+    if input_graph.edgelist is None:
+        if input_graph.adjlist is None:
+            raise Exception('Graph is Empty')
+        else:
+            add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+            c_graph.add_edge_list(g)
+            source, dest, value = get_edge_list(graph)
+            input_graph.edgelist = input_graph.EdgeList(source, dest, value)
 
-def add_transposed_adj_list(graph_ptr):
-    cdef uintptr_t graph = graph_ptr
-    c_graph.add_transposed_adj_list(<Graph*> graph)
-    
+def view_adj_list(input_graph):
+    cdef uintptr_t graph = allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
+    if input_graph.adjlist is None:
+        if input_graph.edgelist is None:
+            raise Exception('Graph is Empty')
+        else:
+            if len(input_graph.edgelist.edgelist_df.columns)>2:
+                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+            else:
+                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+            c_graph.add_adj_list(g)
+            offsets, indices, values = get_adj_list(graph)
+            input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
-def view_transposed_adj_list(graph_ptr):
+def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-    c_graph.add_transposed_adj_list(g)
-    
+
+    cdef gdf_column c_offset_col = get_gdf_column_view(offset_col)
+    cdef gdf_column c_index_col = get_gdf_column_view(index_col)
+    cdef gdf_column c_value_col
+    cdef gdf_column * c_value_col_ptr
+    if value_col is None:
+        c_value_col_ptr = NULL
+    else:
+        c_value_col = get_gdf_column_view(value_col)
+        c_value_col_ptr = &c_value_col
+
+    c_graph.transposed_adj_list_view(g,
+                            &c_offset_col,
+                            &c_index_col,
+                            c_value_col_ptr)
+
+def get_transposed_adj_list(graph_ptr):
+    cdef uintptr_t graph = graph_ptr
+    cdef Graph * g = <Graph*> graph
 
     offset_col_size = g.transposedAdjList.offsets.size
     index_col_size = g.transposedAdjList.indices.size
@@ -278,17 +293,26 @@ def view_transposed_adj_list(graph_ptr):
 
     return offset_col, index_col, value_col
 
-def delete_transposed_adj_list(graph_ptr):
-    """
-    Delete the transposed adjacency list.
-    """
-    cdef uintptr_t graph = graph_ptr
-    c_graph.delete_transposed_adj_list(<Graph*> graph)
-    
 
-def get_two_hop_neighbors(graph_ptr):
-    cdef uintptr_t graph = graph_ptr
+def get_two_hop_neighbors(input_graph):
+    cdef uintptr_t graph = allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
+
+    if input_graph.adjlist:
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            add_edge_list(graph, src, dst, weights)
+        else:
+            add_edge_list(graph, src, dst)
+        c_graph.add_adj_list(g)
+        offsets, indices, values = get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+
     cdef gdf_column c_first_col
     cdef gdf_column c_second_col
     c_graph.get_two_hop_neighbors(g, &c_first_col, &c_second_col)
@@ -315,14 +339,20 @@ def get_two_hop_neighbors(graph_ptr):
 
     return df
 
-def number_of_vertices(graph_ptr):
-    cdef uintptr_t graph = graph_ptr
+def number_of_vertices(input_graph):
+    cdef uintptr_t graph = allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
-    if g.numberOfVertices == 0:
-        c_graph.number_of_vertices(g)
-        
 
+    if input_graph.adjlist:
+        add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    else:
+        if input_graph.edgelist.weights:
+            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        else:
+            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        c_graph.number_of_vertices(g)
     return g.numberOfVertices
+
 
 def number_of_edges(graph_ptr):
     cdef uintptr_t graph = graph_ptr
@@ -337,20 +367,32 @@ def number_of_edges(graph_ptr):
         # An empty graph
         return 0
 
-def _degree(graph_ptr, x=0):
-    cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*> graph
 
-    c_graph.add_adj_list(g)
-    n = number_of_vertices(graph_ptr)
+def _degree(input_graph, x=0):
+    cdef uintptr_t graph = allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
+
+    if input_graph.adjlist:
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            add_edge_list(graph, src, dst, weights)
+        else:
+            add_edge_list(graph, src, dst)
+        c_graph.add_adj_list(g)
+        offsets, indices, values = get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+
+    n = number_of_vertices(input_graph)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
     c_vertex_col = get_gdf_column_view(vertex_col)
-    if g.adjList:
-        g.adjList.get_vertex_identifiers(&c_vertex_col)
-    else:
-        g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
     
+    g.adjList.get_vertex_identifiers(&c_vertex_col)
 
     degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_degree_col = get_gdf_column_view(degree_col)
@@ -359,20 +401,31 @@ def _degree(graph_ptr, x=0):
 
     return vertex_col, degree_col
 
-def _degrees(graph_ptr):
-    cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*> graph
 
-    c_graph.add_adj_list(g)
-    n = number_of_vertices(graph_ptr)
+def _degrees(input_graph):
+    cdef uintptr_t graph = allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
+
+    if input_graph.adjlist:
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            add_edge_list(graph, src, dst, weights)
+        else:
+            add_edge_list(graph, src, dst)
+        c_graph.add_adj_list(g)
+        offsets, indices, values = get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+    
+    n = number_of_vertices(input_graph)
 
     vertex_col = cudf.Series(np.zeros(n, dtype=np.int32))
     c_vertex_col = get_gdf_column_view(vertex_col)
-    if g.adjList:
-        g.adjList.get_vertex_identifiers(&c_vertex_col)
-    else:
-        g.transposedAdjList.get_vertex_identifiers(&c_vertex_col)
-    
+    g.adjList.get_vertex_identifiers(&c_vertex_col)
 
     in_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_in_degree_col = get_gdf_column_view(in_degree_col)
@@ -382,6 +435,5 @@ def _degrees(graph_ptr):
     out_degree_col = cudf.Series(np.zeros(n, dtype=np.int32))
     cdef gdf_column c_out_degree_col = get_gdf_column_view(out_degree_col)
     c_graph.degree(g, &c_out_degree_col, <int>2)
-    
 
     return vertex_col, in_degree_col, out_degree_col
