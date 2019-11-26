@@ -34,14 +34,16 @@ with warnings.catch_warnings():
 
 def cugraph_call(M, edgevals=False):
     M = M.tocoo()
-    rows = cudf.Series(M.row)
-    cols = cudf.Series(M.col)
-    if edgevals is False:
-        values = None
+    G = cugraph.DiGraph()
+    cu_M = cudf.DataFrame()
+    cu_M['src'] = cudf.Series(M.row)
+    cu_M['dst'] = cudf.Series(M.col)
+    if edgevals is True:
+        cu_M['weights'] = cudf.Series(M.data)
+        G.from_cudf_edgelist(cu_M, source='src', target='dst',
+                             edge_attr='weights')
     else:
-        values = cudf.Series(M.data)
-    G = cugraph.Graph()
-    G.add_edge_list(rows, cols, values)
+        G.from_cudf_edgelist(cu_M, source='src', target='dst')
     return cugraph.triangles(G)
 
 

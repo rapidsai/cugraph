@@ -103,6 +103,22 @@ void adj_list_view (Graph* graph,
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
+void transposed_adj_list_view (Graph *graph,
+                               const gdf_column *offsets,
+                               const gdf_column *indices,
+                               const gdf_column *edge_data);
+
+/**
+ * @Synopsis   Create the transposed adjacency lists of a gdf_graph from its edge list.
+ *             cuGRAPH allocates and owns the memory required for storing the created adjacency list.
+ *             This function does not delete any existing data in the cuGRAPH graph descriptor
+ *
+ * @Param[in, out] *graph            in  : graph descriptor containing a valid gdf_edge_list structure pointed by graph->edgeList
+ *                                   out : graph->adjList is set to a gdf_adj_list structure containing the generated adjacency list
+ *
+ * @Returns                          GDF_SUCCESS upon successful completion. If graph->edgeList is nullptr then GDF_INVALID_API_CALL is returned.
+ */
+/* ----------------------------------------------------------------------------*/
 void add_adj_list(Graph* graph);
 
 /**

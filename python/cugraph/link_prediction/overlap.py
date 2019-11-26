@@ -78,6 +78,6 @@ def overlap(input_graph, first=None, second=None):
     else:
         raise ValueError("Specify first and second or neither")
 
-    df = overlap_wrapper.overlap(input_graph.graph_ptr, first, second)
+    df = overlap_wrapper.overlap(input_graph, first, second)
 
     return df

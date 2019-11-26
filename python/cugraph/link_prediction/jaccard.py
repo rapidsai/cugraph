@@ -80,6 +80,6 @@ def jaccard(input_graph, first=None, second=None):
     else:
         raise ValueError("Specify first and second or neither")
 
-    df = jaccard_wrapper.jaccard(input_graph.graph_ptr, first, second)
+    df = jaccard_wrapper.jaccard(input_graph, first, second)
 
     return df

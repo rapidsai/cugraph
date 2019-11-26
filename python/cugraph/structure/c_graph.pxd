@@ -81,6 +81,11 @@ cdef extern from "cugraph.h" namespace "cugraph":
     cdef void add_adj_list(Graph *graph) except +
     cdef void delete_adj_list(Graph *graph) except +
 
+    cdef void transposed_adj_list_view (
+        Graph *graph,
+        const gdf_column *offsets,
+        const gdf_column *indices,
+        const gdf_column *edge_data) except +
     cdef void add_transposed_adj_list(Graph *graph) except +
     cdef void delete_transposed_adj_list(Graph *graph) except +
 

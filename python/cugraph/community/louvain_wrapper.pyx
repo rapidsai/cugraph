@@ -18,6 +18,7 @@
 
 cimport cugraph.community.c_louvain as c_louvain
 from cugraph.structure.c_graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -29,16 +30,27 @@ import rmm
 import numpy as np
 
 
-def louvain(graph_ptr):
+def louvain(input_graph):
     """
     Call louvain
     """
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
 
-    cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
-
-    add_adj_list(g)
-    
+    if input_graph.adjlist:
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            graph_wrapper.add_edge_list(graph, src, dst, weights)
+        else:
+            graph_wrapper.add_edge_list(graph, src, dst)
+        add_adj_list(g)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
@@ -81,6 +93,9 @@ def louvain(graph_ptr):
                   <void*>&final_modularity_double_precision,
                   <void*>&num_level, &c_louvain_parts_col)
     
+
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
 
     if single_precision:
         return df, <double>final_modularity_single_precision

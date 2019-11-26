@@ -25,17 +25,12 @@ import rmm
 
 
 def cugraph_call(cu_M, first, second, edgevals=False):
+    G = cugraph.DiGraph()
     # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    if edgevals is False:
-        values = None
+    if edgevals is True:
+        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
     else:
-        values = cu_M['2']
-
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
-
+        G.from_cudf_edgelist(cu_M, source='0', target='1')
     # cugraph Overlap Call
     t1 = time.time()
     df = cugraph.overlap(G, first, second)
@@ -117,7 +112,7 @@ def test_overlap(managed, pool, graph_file):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
     cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'])
@@ -155,7 +150,7 @@ def test_overlap_edge_vals(managed, pool, graph_file):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
     cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'],
