@@ -21,7 +21,6 @@ import pytest
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -39,20 +38,13 @@ print('Networkx version : {} '.format(nx.__version__))
 
 def cugraph_call(cu_M, source, edgevals=False):
 
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    if edgevals is False:
-        values = None
+    G = cugraph.DiGraph()
+    if edgevals is True:
+        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
     else:
-        values = cu_M['2']
-
-    print('sources size = ' + str(len(sources)))
-    print('destinations size = ' + str(len(destinations)))
-
-    # cugraph Pagerank Call
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+        G.from_cudf_edgelist(cu_M, source='0', target='1')
+    print('sources size = ' + str(len(cu_M['0'])))
+    print('destinations size = ' + str(len(cu_M['1'])))
 
     print('cugraph Solving... ')
     t1 = time.time()
@@ -116,11 +108,11 @@ SOURCES = [1]
 def test_sssp(managed, pool, graph_file, source):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
     M = utils.read_csv_for_nx(graph_file)
@@ -156,11 +148,11 @@ def test_sssp(managed, pool, graph_file, source):
 def test_sssp_edgevals(managed, pool, graph_file, source):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 

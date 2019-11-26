@@ -16,8 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.cores.c_core_number cimport *
+cimport cugraph.cores.c_core_number as c_core
 from cugraph.structure.c_graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -30,17 +31,29 @@ import rmm
 import numpy as np
 
 
-def core_number(graph_ptr):
+def core_number(input_graph):
     """
-    Call gdf_core_number
+    Call core_number
     """
-    cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
 
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.adjlist:
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            graph_wrapper.add_edge_list(graph, src, dst, weights)
+        else:
+            graph_wrapper.add_edge_list(graph, src, dst)
+        add_adj_list(g)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -50,12 +63,11 @@ def core_number(graph_ptr):
     df['core_number'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_core_number_col = get_gdf_column_view(df['core_number'])
 
-    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    libcudf.cudf.check_gdf_error(err)
+    g.adjList.get_vertex_identifiers(&c_identifier_col)
+    
+    c_core.core_number(g, &c_core_number_col)
 
-    err = gdf_core_number(g, &c_core_number_col)
-
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
 
     return df
-

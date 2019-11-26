@@ -21,7 +21,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 
 def cugraph_call(G, partitions):
@@ -57,11 +56,11 @@ PARTITIONS = [2, 4, 8]
 def test_modularity_clustering(managed, pool, graph_file, partitions):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -72,13 +71,10 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
 
-    sources = cu_M['0']
-    destinations = cu_M['1']
-
-    G_adj = cugraph.Graph()
-    G_adj.add_adj_list(row_offsets, col_indices)
-    G_edge = cugraph.Graph()
-    G_edge.add_edge_list(sources, destinations)
+    G_adj = cugraph.DiGraph()
+    G_adj.from_cudf_adjlist(row_offsets, col_indices)
+    G_edge = cugraph.DiGraph()
+    G_edge.from_cudf_edgelist(cu_M, source='0', target='1')
 
     # Get the modularity score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_adj, partitions)
@@ -110,15 +106,11 @@ def test_modularity_clustering_with_edgevals(graph_file, partitions):
     col_indices = cudf.Series(M.indices)
     val = cudf.Series(M.data)
 
-    G_adj = cugraph.Graph()
-    G_adj.add_adj_list(row_offsets, col_indices, val)
+    G_adj = cugraph.DiGraph()
+    G_adj.from_cudf_adjlist(row_offsets, col_indices, val)
 
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    values = cu_M['2']
-
-    G_edge = cugraph.Graph()
-    G_edge.add_edge_list(sources, destinations, values)
+    G_edge = cugraph.DiGraph()
+    G_edge.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     # Get the modularity score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_adj, partitions)

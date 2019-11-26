@@ -16,8 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.centrality.c_katz_centrality cimport *
+cimport cugraph.centrality.c_katz_centrality as c_katz
 from cugraph.structure.c_graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -30,17 +31,29 @@ import rmm
 import numpy as np
 
 
-def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
+def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     """
-    Call gdf_katz_centrality
+    Call katz_centrality
     """
-    cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
 
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.adjlist:
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            graph_wrapper.add_edge_list(graph, src, dst, weights)
+        else:
+            graph_wrapper.add_edge_list(graph, src, dst)
+        add_adj_list(g)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
@@ -57,11 +70,11 @@ def katz_centrality(graph_ptr, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None,
                                             [df['katz_centrality']._column])
         has_guess = <bool> 1
 
-    err = g.adjList.get_vertex_identifiers(&c_identifier_col)
-    libcudf.cudf.check_gdf_error(err)
+    g.adjList.get_vertex_identifiers(&c_identifier_col)
+    
+    c_katz.katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
 
-    err = gdf_katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
-
-    libcudf.cudf.check_gdf_error(err)
+    if input_graph.renumbered:
+        df['vertex']=input_graph.edgelist.renumber_map[df['vertex']]
 
     return df

@@ -160,8 +160,8 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
 
     t = omp_get_wtime();
 
-    CUGRAPH_TRY(gdf_snmg_pagerank (src_col_ptrs, dest_col_ptrs, pr_col, 
-                       nthreads, alpha, max_iter));
+    cugraph::snmg_pagerank (src_col_ptrs, dest_col_ptrs, pr_col, 
+                       nthreads, alpha, max_iter);
     
     std::cout <<  omp_get_wtime() - t << std::endl;
 

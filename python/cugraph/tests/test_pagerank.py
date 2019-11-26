@@ -22,7 +22,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -49,13 +48,9 @@ def cudify(d):
 
 
 def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-
     # cugraph Pagerank Call
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, None)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source='0', target='1')
     t1 = time.time()
     df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol,
                           personalization=personalization, nstart=nstart)
@@ -151,11 +146,11 @@ def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
                   personalization_perc, has_guess):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
     M = utils.read_csv_for_nx(graph_file)

@@ -19,9 +19,9 @@
 from cugraph.structure.c_graph cimport *
 from libcpp cimport bool
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_snmg_pagerank (
+    cdef void snmg_pagerank (
             gdf_column **src_col_ptrs, 
             gdf_column **dest_col_ptrs, 
             gdf_column *pr_col, 

@@ -21,7 +21,6 @@ import numpy as np
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -46,25 +45,22 @@ SOURCES = [1]
 def test_filter_unreachable(managed, pool, graph_file, source):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
 
-    print('sources size = ' + str(len(sources)))
-    print('destinations size = ' + str(len(destinations)))
+    print('sources size = ' + str(len(cu_M)))
+    print('destinations size = ' + str(len(cu_M)))
 
     # cugraph Pagerank Call
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source='0', target='1')
 
     print('cugraph Solving... ')
     t1 = time.time()

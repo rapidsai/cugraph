@@ -12,8 +12,11 @@
 # limitations under the License.
 
 from cugraph.structure import graph_wrapper
+from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.renumber import renumber as rnb
 import cudf
 import numpy as np
+import warnings
 
 
 def null_check(col):
@@ -22,11 +25,35 @@ def null_check(col):
 
 
 class Graph:
+
+    class EdgeList:
+        def __init__(self, source, destination, edge_attr=None,
+                     renumber_map=None):
+            self.renumber_map = renumber_map
+            df = cudf.DataFrame()
+            df['src'] = source
+            df['dst'] = destination
+            self.weights = False
+            if edge_attr is not None:
+                self.weights = True
+                df['weights'] = edge_attr
+            self.edgelist_df = df
+
+    class AdjList:
+        def __init__(self, offsets, indices, value=None):
+            self.offsets = offsets
+            self.indices = indices
+            self.weights = value  # Should de a daftaframe for multiple weights
+
+    class transposedAdjList:
+        def __init__(self, offsets, indices, value=None):
+            Graph.AdjList.__init__(self, offsets, indices, value)
     """
     cuGraph graph class containing basic graph creation and transformation
     operations.
     """
-    def __init__(self):
+    def __init__(self, symmetrized=False, bipartite=False, multi=False,
+                 dynamic=False):
         """
         Returns
         -------
@@ -37,114 +64,105 @@ class Graph:
         >>> import cuGraph
         >>> G = cuGraph.Graph()
         """
-        self.graph_ptr = graph_wrapper.allocate_cpp_graph()
-
-        self.edge_list_source_col = None
-        self.edge_list_dest_col = None
-        self.edge_list_value_col = None
-
-        self.adj_list_offset_col = None
-        self.adj_list_index_col = None
-        self.adj_list_value_col = None
-
-    def __del__(self):
-        self.delete_edge_list()
-        self.delete_adj_list()
-        self.delete_transposed_adj_list()
-
-        graph_wrapper.release_cpp_graph(self.graph_ptr)
+        self.symmetrized = symmetrized
+        self.renumbered = False
+        self.bipartite = bipartite
+        self.multi = multi
+        self.dynamic = dynamic
+        self.edgelist = None
+        self.adjlist = None
+        self.transposedadjlist = None
+        # self.number_of_vertices = None
 
     def clear(self):
         """
         Empty this graph. This function is added for NetworkX compatibility.
         """
-        self.delete_edge_list()
-        self.delete_adj_list()
-        self.delete_transposed_adj_list()
+        self.edgelist = None
+        self.adjlist = None
+        self.transposedadjlist = None
 
-    def add_edge_list(self, source_col, dest_col, value_col=None, copy=False):
+    def from_cudf_edgelist(self, input_df, source='source', target='target',
+                           edge_attr=None, renumber=False):
         """
         Initialize a graph from the edge list. It is an error to call this
-        method on an initialized Graph object. The passed source_col and
-        dest_col arguments wrap gdf_column objects that represent a graph
-        using the edge list format.
+        method on an initialized Graph object. The passed input_df argument
+        wraps gdf_column objects that represent a graph using the edge list
+        format. source argument is source column name and target argument
+        is destination column name.
         Source and destination indices must be in the range [0, V) where V is
-        the number of vertices. They must be 32 bit integers. Please refer to
-        cuGraph's renumbering feature if your input does not match these
-        requierments. When using cudf.read_csv to load a CSV edge list,
-        make sure to set dtype to int32 for the source and destination
-        columns.
-        If value_col is None, an unweighted graph is created. If value_col is
-        not None, a weighted graph is created.
-        If copy is False, this function stores references to the passed objects
-        pointed by source_col and dest_col. If copy is True, this funcion
-        stores references to the deep-copies of the passed objects pointed by
-        source_col and dest_col.
-        Undirected edges must be stored as directed edges in both directions.
+        the number of vertices. If renumbering needs to be done, renumber
+        argument should be passed as True.
+        If weights are present, edge_attr argument is the weights column name.
 
         Parameters
         ----------
-        source_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the source index for each edge.
-            Source indices must be in the range [0, V) (V: number of vertices).
-            Source indices must be 32 bit integers.
-        dest_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the destination index for each edge.
-            Destination indices must be in the range [0, V) (V: number of
+        input_df : cudf.DataFrame
+            This cudf.DataFrame wraps source, destination and weight
+            gdf_column of size E (E: number of edges)
+            The 'src' column contains the source index for each edge.
+            Source indices are in the range [0, V) (V: number of vertices).
+            The 'dst' column contains the destination index for each edge.
+            Destination indices are in the range [0, V) (V: number of
             vertices).
-            Destination indices must be 32 bit integers.
-        value_col : cudf.Series, optional
-            This pointer can be ``None``.
-            If not, this cudf.Series wraps a gdf_column of size E (E: number of
-            edges).
-            The gdf column contains the weight value for each edge.
-            The expected type of the gdf_column element is floating point
-            number.
+            If renumbering needs to be done, renumber
+            argument should be passed as True.
+            For weighted graphs, dataframe contains 'weight' column
+            containing the weight value for each edge.
+        source : str
+            source argument is source column name
+        target : str
+            target argument is destination column name.
+        edge_attr : str
+            edge_attr argument is the weights column name.
+        renumber : bool
+            If source and destination indices are not in range 0 to V where V
+            is number of vertices, renumber argument should be True.
 
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> sources = cudf.Series(M['0'])
-        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations, None)
+        >>> G.from_cudf_edgelist(M, source='0', target='1', edge_attr='2',
+                                 renumber=False)
         """
-        null_check(source_col)
-        null_check(dest_col)
-        if value_col is not None:
-            null_check(value_col)
-        if source_col.dtype != np.int32:
-            raise TypeError("cugraph currently supports only 32bit integer"
-                            "vertex ids.")
-        if dest_col.dtype != np.int32:
-            raise TypeError("cugraph currently supports only 32bit integer"
-                            "vertex ids.")
 
-        # Create temporary references first as the member variables should not
-        # be updated on failure.
-        if copy is False:
-            tmp_source_col = source_col
-            tmp_dest_col = dest_col
-            tmp_value_col = value_col
+        if self.edgelist is not None or self.adjlist is not None:
+            raise Exception('Graph already has values')
+        source_col = input_df[source]
+        dest_col = input_df[target]
+        if edge_attr is not None:
+            value_col = input_df[edge_attr]
         else:
-            tmp_source_col = source_col.copy()
-            tmp_dest_col = dest_col.copy()
-            tmp_value_col = value_col.copy()
+            value_col = None
+        renumber_map = None
+        if renumber:
+            source_col, dest_col, renumber_map = rnb(input_df[source],
+                                                     input_df[target])
+            self.renumbered = True
+        if not self.symmetrized:
+            if value_col is not None:
+                source_col, dest_col, value_col = symmetrize(source_col,
+                                                             dest_col,
+                                                             value_col)
+            else:
+                source_col, dest_col = symmetrize(source_col, dest_col)
 
-        graph_wrapper.add_edge_list(self.graph_ptr,
-                                    tmp_source_col,
-                                    tmp_dest_col,
-                                    tmp_value_col)
+        self.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
+                                       renumber_map)
 
-        # Increase the reference count of the Python objects to avoid premature
-        # garbage collection while they are still in use inside the gdf_graph
-        # object.
-        self.edge_list_source_col = tmp_source_col
-        self.edge_list_dest_col = tmp_dest_col
-        self.edge_list_value_col = tmp_value_col
+    def add_edge_list(self, source, destination, value=None):
+        warnings.warn('add_edge_list will be deprecated in next release.\
+ Use from_cudf_edgelist instead')
+        input_df = cudf.DataFrame()
+        input_df['source'] = source
+        input_df['target'] = destination
+        if value is not None:
+            input_df['weights'] = value
+            self.from_cudf_edgelist(input_df, edge_attr='weights')
+        else:
+            self.from_cudf_edgelist(input_df)
 
     def view_edge_list(self):
         """
@@ -152,43 +170,34 @@ class Graph:
 
         Returns
         -------
-        source_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the source index for each edge.
+        edgelist_df : cudf.DataFrame
+            This cudf.DataFrame wraps source, destination and weight
+            gdf_column of size E (E: number of edges)
+            The 'src' column contains the source index for each edge.
             Source indices are in the range [0, V) (V: number of vertices).
-            Source indices must be 32 bit integers.
-        dest_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the destination index for each edge.
+            The 'dst' column contains the destination index for each edge.
             Destination indices are in the range [0, V) (V: number of
             vertices).
-            Destination indices must be 32 bit integers.
-        value_col : cudf.Series or ``None``
-            This pointer is ``None`` for unweighted graphs.
-            For weighted graphs, this cudf.Series wraps a gdf_column of size E
-            (E: number of edges).
-            The gdf column contains the weight value for each edge.
-            The expected type of the gdf_column element is floating point
-            number.
+            For weighted graphs, dataframe contains 'weight' column
+            containing the weight value for each edge.
         """
-        source_col, dest_col, value_col = \
-            graph_wrapper.view_edge_list(self.graph_ptr)
-
-        return source_col, dest_col, value_col
+        if self.edgelist is None:
+            graph_wrapper.view_edge_list(self)
+        df = self.edgelist.edgelist_df
+        if self.renumbered:
+            df['src'] = self.edgelist.renumber_map[df['src']]
+            df['dst'] = self.edgelist.renumber_map[df['dst']]
+        return df
 
     def delete_edge_list(self):
         """
         Delete the edge list.
         """
-        graph_wrapper.delete_edge_list(self.graph_ptr)
-
         # decrease reference count to free memory if the referenced objects are
         # no longer used.
-        self.edge_list_source_col = None
-        self.edge_list_dest_col = None
-        self.edge_list_value_col = None
+        self.edgelist = None
 
-    def add_adj_list(self, offset_col, index_col, value_col=None, copy=False):
+    def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
         """
         Initialize a graph from the adjacency list. It is an error to call this
         method on an initialized Graph object. The passed offset_col and
@@ -201,7 +210,6 @@ class Graph:
         stores references to the deep-copies of the passed objects pointed by
         offset_col and index_col.
         Undirected edges must be stored as directed edges in both directions.
-
         Parameters
         ----------
         offset_col : cudf.Series
@@ -232,41 +240,16 @@ class Graph:
         >>> offsets = cudf.Series(M.indptr)
         >>> indices = cudf.Series(M.indices)
         >>> G = cugraph.Graph()
-        >>> G.add_adj_list(offsets, indices, None)
+        >>> G.from_cudf_adjlist(offsets, indices, None)
         """
-        null_check(offset_col)
-        null_check(index_col)
-        if value_col is not None:
-            null_check(value_col)
-        if offset_col.dtype != np.int32:
-            raise TypeError("cugraph currently supports only 32bit integer"
-                            "offsets.")
-        if index_col.dtype != np.int32:
-            raise TypeError("cugraph currently supports only 32bit integer"
-                            "vertex ids.")
+        if self.edgelist is not None or self.adjlist is not None:
+            raise Exception('Graph already has values')
+        self.adjlist = Graph.AdjList(offset_col, index_col, value_col)
 
-        # Create temporary references first as the member variables should not
-        # be updated on failure.
-        if copy is False:
-            tmp_offset_col = offset_col
-            tmp_index_col = index_col
-            tmp_value_col = value_col
-        else:
-            tmp_offset_col = offset_col.copy()
-            tmp_index_col = index_col.copy()
-            tmp_value_col = value_col.copy()
-
-        graph_wrapper.add_adj_list(self.graph_ptr,
-                                   tmp_offset_col,
-                                   tmp_index_col,
-                                   tmp_value_col)
-
-        # Increase the reference count of the Python objects to avoid premature
-        # garbage collection while they are still in use inside the gdf_graph
-        # object.
-        self.adj_list_offset_col = tmp_offset_col
-        self.adj_list_index_col = tmp_index_col
-        self.adj_list_value_col = tmp_value_col
+    def add_adj_list(self, offset_col, index_col, value_col=None):
+        warnings.warn('add_adj_list will be deprecated in next release.\
+ Use from_cudf_adjlist instead')
+        self.from_cudf_adjlist(offset_col, index_col, value_col)
 
     def view_adj_list(self):
         """
@@ -292,70 +275,20 @@ class Graph:
             The expected type of the gdf_column element is floating point
             number.
         """
-        offset_col, index_col, value_col = \
-            graph_wrapper.view_adj_list(self.graph_ptr)
-
-        return offset_col, index_col, value_col
+        if self.adjlist is None:
+            graph_wrapper.view_adj_list(self)
+        return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
     def delete_adj_list(self):
         """
         Delete the adjacency list.
         """
-        graph_wrapper.delete_adj_list(self.graph_ptr)
-
-        # decrease reference count to free memory if the referenced objects are
-        # no longer used.
-        self.adj_list_offset_col = None
-        self.adj_list_index_col = None
-        self.adj_list_value_col = None
-
-    def add_transposed_adj_list(self):
-        """
-        Compute the transposed adjacency list. It is an error to call this
-        method on an uninitialized Graph object or a Graph object without an
-        existing edge list.
-        """
-        graph_wrapper.add_transposed_adj_list(self.graph_ptr)
-
-    def view_transposed_adj_list(self):
-        """
-        Display the transposed adjacency list. Compute it if needed.
-
-        Returns
-        -------
-        offset_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size V + 1 (V: number of
-            vertices).
-            The gdf column contains the offsets for the vertices in this graph.
-            Offsets are in the range [0, E] (E: number of edges).
-        index_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the source index for each edge.
-            Source indices are in the range [0, V) (V: number of vertices).
-        value_col : cudf.Series or ``None``
-            This pointer is ``None`` for unweighted graphs.
-            For weighted graphs, this cudf.Series wraps a gdf_column of size E
-            (E: number of edges).
-            The gdf column contains the weight value for each edge.
-            The expected type of the gdf_column element is floating point
-            number.
-        """
-        offset_col, index_col, value_col = \
-            graph_wrapper.view_transposed_adj_list(self.graph_ptr)
-
-        return offset_col, index_col, value_col
-
-    def delete_transposed_adj_list(self):
-        """
-        Delete the transposed adjacency list.
-        """
-        graph_wrapper.delete_transposed_adj_list(self.graph_ptr)
+        self.adjlist = None
 
     def get_two_hop_neighbors(self):
         """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
-
         Returns
         -------
         df : cudf.DataFrame
@@ -364,16 +297,17 @@ class Graph:
             df['second'] : cudf.Series
                 the second vertex id of a pair.
         """
-        df = graph_wrapper.get_two_hop_neighbors(self.graph_ptr)
+        df = graph_wrapper.get_two_hop_neighbors(self)
 
         return df
 
     def number_of_vertices(self):
-        """
-        Get the number of vertices in the graph.
-        """
-        num_vertices = graph_wrapper.number_of_vertices(self.graph_ptr)
-
+        if self.adjlist is not None:
+            num_vertices = len(self.adjlist.offsets)-1
+        elif self.transposedadjlist is not None:
+            num_vertices = len(self.transposedadjlist.offsets)-1
+        else:
+            num_vertices = graph_wrapper.number_of_vertices(self)
         return num_vertices
 
     def number_of_nodes(self):
@@ -387,9 +321,14 @@ class Graph:
         """
         Get the number of edges in the graph.
         """
-        num_edges = graph_wrapper.number_of_edges(self.graph_ptr)
-
-        return num_edges
+        if self.edgelist is not None:
+            return len(self.edgelist.edgelist_df)
+        elif self.adjlist is not None:
+            return len(self.adjlist.indices)
+        elif self.transposedadjlist is not None:
+            return len(self.transposedadjlist.indices)
+        else:
+            raise ValueError('Graph is Empty')
 
     def in_degree(self, vertex_subset=None):
         """
@@ -398,13 +337,11 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
-
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
-
         Returns
         -------
         df : cudf.DataFrame
@@ -412,13 +349,11 @@ class Graph:
             vertices (vertex_subset) containing the in_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
             df['degree'] : cudf.Series
                 The computed in-degree of the corresponding vertex.
-
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -438,13 +373,11 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
-
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding out-degree.
             If not set, degrees are computed for the entire set of vertices.
-
         Returns
         -------
         df : cudf.DataFrame
@@ -452,13 +385,11 @@ class Graph:
             vertices (vertex_subset) containing the out_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
             df['degree'] : cudf.Series
                 The computed out-degree of the corresponding vertex.
-
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -477,13 +408,11 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
-
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
-
         Returns
         -------
         df : cudf.DataFrame
@@ -491,13 +420,11 @@ class Graph:
             vertices (vertex_subset) containing the degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
             df['degree'] : cudf.Series
                 The computed degree of the corresponding vertex.
-
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -516,17 +443,14 @@ class Graph:
         computes vertex degrees for the entire set of vertices. If
         vertex_subset is provided, this method optionally filters out all but
         those listed in vertex_subset.
-
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
-
         Returns
         -------
         df : cudf.DataFrame
-
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
@@ -534,7 +458,6 @@ class Graph:
                 The in-degree of the vertex.
             df['out_degree'] : cudf.Series
                 The out-degree of the vertex.
-
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -546,7 +469,7 @@ class Graph:
         >>> df = G.degrees([0,9,12])
         """
         vertex_col, in_degree_col, out_degree_col = graph_wrapper._degrees(
-                                                        self.graph_ptr)
+                                                        self)
 
         df = cudf.DataFrame()
         if vertex_subset is None:
@@ -570,7 +493,7 @@ class Graph:
         return df
 
     def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = graph_wrapper._degree(self.graph_ptr, x)
+        vertex_col, degree_col = graph_wrapper._degree(self, x)
 
         df = cudf.DataFrame()
         if vertex_subset is None:
@@ -588,3 +511,18 @@ class Graph:
             del degree_col
 
         return df
+
+
+class DiGraph(Graph):
+    def __init__(self):
+        super().__init__(symmetrized=True)
+
+
+class MultiGraph(Graph):
+    def __init__(self, renumbered=True):
+        super().__init__(multi=True)
+
+
+class DiMultiGraph(Graph):
+    def __init__(self, renumbered=True):
+        super().__init__(symmetrized=True, multi=True)

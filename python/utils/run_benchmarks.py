@@ -8,7 +8,7 @@ import cugraph
 import cudf
 
 from benchmark import (
-    Benchmark, logExeTime, printLastResult, nop
+    Benchmark, logExeTime, logGpuMetrics, printLastResult, nop
 )
 
 from asv_report import (
@@ -19,46 +19,46 @@ from asv_report import (
 # Update this function to add new algos
 def getBenchmarks(G, edgelist_gdf, args):
     benches = [
-        Benchmark(name="pagerank",
+        Benchmark(name="cugraph.pagerank",
                   func=cugraph.pagerank,
                   args=(G, args.damping_factor, None, args.max_iter,
                         args.tolerance)),
-        Benchmark(name="bfs",
+        Benchmark(name="cugraph.bfs",
                   func=cugraph.bfs,
                   args=(G, args.source, True)),
-        Benchmark(name="sssp",
+        Benchmark(name="cugraph.sssp",
                   func=cugraph.sssp,
                   args=(G, args.source)),
         #         extraRunWrappers=[noStdoutWrapper]),
-        Benchmark(name="jaccard",
+        Benchmark(name="cugraph.jaccard",
                   func=cugraph.jaccard,
                   args=(G,)),
-        Benchmark(name="louvain",
+        Benchmark(name="cugraph.louvain",
                   func=cugraph.louvain,
                   args=(G,)),
-        Benchmark(name="weakly_connected_components",
+        Benchmark(name="cugraph.weakly_connected_components",
                   func=cugraph.weakly_connected_components,
                   args=(G,)),
-        Benchmark(name="overlap",
+        Benchmark(name="cugraph.overlap",
                   func=cugraph.overlap,
                   args=(G,)),
-        Benchmark(name="triangles",
+        Benchmark(name="cugraph.triangles",
                   func=cugraph.triangles,
                   args=(G,)),
-        Benchmark(name="spectralBalancedCutClustering",
+        Benchmark(name="cugraph.spectralBalancedCutClustering",
                   func=cugraph.spectralBalancedCutClustering,
                   args=(G, 2)),
-        Benchmark(name="spectralModularityMaximizationClustering",
+        Benchmark(name="cugraph.spectralModularityMaximizationClustering",
                   func=cugraph.spectralModularityMaximizationClustering,
                   args=(G, 2)),
-        Benchmark(name="renumber",
+        Benchmark(name="cugraph.renumber",
                   func=cugraph.renumber,
                   args=(edgelist_gdf["src"], edgelist_gdf["dst"])),
-        Benchmark(name="view_adj_list",
+        Benchmark(name="cugraph.graph.view_adj_list",
                   func=G.view_adj_list),
-        Benchmark(name="degree",
+        Benchmark(name="cugraph.graph.degree",
                   func=G.degree),
-        Benchmark(name="degrees",
+        Benchmark(name="cugraph.graph.degrees",
                   func=G.degrees),
     ]
     # Return a dictionary of Benchmark name to Benchmark obj mappings
@@ -171,7 +171,7 @@ def getAllPossibleAlgos():
 
 ###############################################################################
 if __name__ == "__main__":
-    perfData = []
+    perfData = {}
     args = parseCLI(sys.argv[1:])
 
     # set algosToRun based on the command line args
@@ -187,22 +187,21 @@ if __name__ == "__main__":
         algosToRun = allPossibleAlgos
 
     # Update the various wrappers with a list to log to and formatting settings
-    # (name width must be >= 15)
     logExeTime.perfData = perfData
+    logGpuMetrics.perfData = perfData
     printLastResult.perfData = perfData
-    printLastResult.nameCellWidth = max(*[len(a) for a in algosToRun], 15)
-    printLastResult.valueCellWidth = 30
 
     # Load the data file and create a Graph, treat these as benchmarks too
     csvDelim = {"space": ' ', "tab": '\t'}[args.delimiter]
-    edgelist_gdf = Benchmark(loadDataFile, args=(args.file, csvDelim)).run()
-    G = Benchmark(createGraph, args=(edgelist_gdf, args.auto_csr)).run()
+    edgelist_gdf = Benchmark(loadDataFile, "cugraph.loadDataFile",
+                             args=(args.file, csvDelim)).run()
+    G = Benchmark(createGraph, "cugraph.createGraph",
+                  args=(edgelist_gdf, args.auto_csr)).run()
 
     if G is None:
         raise RuntimeError("could not create graph!")
 
-    print("-" * (printLastResult.nameCellWidth +
-                 printLastResult.valueCellWidth))
+    print("-" * 80)
 
     benches = getBenchmarks(G, edgelist_gdf, args)
 
@@ -213,17 +212,17 @@ if __name__ == "__main__":
     if args.update_results_dir:
         raise NotImplementedError
 
+    # import pprint
+    # pprint.pprint(perfData, open("data","w"))
+
     if args.update_asv_dir:
-        # Convert Exception strings in results to None for ASV
-        asvPerfData = [(name, value if not isinstance(value, str) else None)
-                       for (name, value) in perfData]
         # special case: do not include the full path to the datasetName, since
         # the leading parts are redundant and take up UI space.
         datasetName = "/".join(args.file.split("/")[-3:])
 
         cugraph_update_asv(asvDir=args.update_asv_dir,
                            datasetName=datasetName,
-                           algoRunResults=asvPerfData,
+                           algoRunResults=perfData,
                            cudaVer=args.report_cuda_ver,
                            pythonVer=args.report_python_ver,
                            osType=args.report_os_type,

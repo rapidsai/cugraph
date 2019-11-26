@@ -21,7 +21,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -44,16 +43,11 @@ def cugraph_call(cu_M, edgevals=False):
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
     '''
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    if edgevals is False:
-        values = None
+    G = cugraph.DiGraph()
+    if edgevals is True:
+        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
     else:
-        values = cu_M['2']
-
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+        G.from_cudf_edgelist(cu_M, source='0', target='1')
 
     # cugraph Jaccard Call
     t1 = time.time()
@@ -111,11 +105,11 @@ DATASETS = ['../datasets/dolphins.csv',
 def test_jaccard(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -145,11 +139,11 @@ def test_jaccard(managed, pool, graph_file):
 def test_jaccard_edgevals(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -179,11 +173,11 @@ def test_jaccard_edgevals(managed, pool, graph_file):
 def test_jaccard_two_hop(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -193,7 +187,7 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     G = cugraph.Graph()
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
-    G.add_adj_list(row_offsets, col_indices, None)
+    G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):
@@ -216,11 +210,11 @@ def test_jaccard_two_hop(managed, pool, graph_file):
 def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -231,7 +225,7 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     values = cudf.Series(M.data)
-    G.add_adj_list(row_offsets, col_indices, values)
+    G.from_cudf_adjlist(row_offsets, col_indices, values)
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):

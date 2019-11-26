@@ -115,7 +115,7 @@ public:
         // participate in ownership (attachDevicePtr returns std::shared_ptr
         // with a dummy deleter). row_offsets just work as a raw pointer, and
         // this can be very misleading. However, to properly fix this, we need
-        // to modify gdf_column and gdf_graph as well, and we do not know yet
+        // to modify gdf_column and Graph as well, and we do not know yet
         // how cudf people will modify gdf_column to address currently broken
         // memory ownership model. So, we may leave this as is, but htis needs
         // to be revisited, later.
@@ -127,7 +127,7 @@ public:
         // participate in ownership (attachDevicePtr returns std::shared_ptr
         // with a dummy deleter). column_indices just work as a raw pointer, and
         // this can be very misleading. However, to properly fix this, we need
-        // to modify gdf_column and gdf_graph as well, and we do not know yet
+        // to modify gdf_column and Graph as well, and we do not know yet
         // how cudf people will modify gdf_column to address currently broken
         // memory ownership model. So, we may leave this as is, but htis needs
         column_indices = attachDevicePtr<IndexType>(ptr, stream_);

@@ -21,8 +21,14 @@
 
 #include <cudf/cudf.h>
 
+// cugraph types
 #include "types.h"
 
+// basic cugraph features
 #include "functions.h"
 
+// analytics features
 #include "algorithms.h"
+
+// nvgraph wrappers
+#include "nvgraph_gdf.h"

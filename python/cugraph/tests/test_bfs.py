@@ -22,17 +22,12 @@ import pytest
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 
 def cugraph_call(cu_M, start_vertex):
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    values = cu_M['2']
 
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     t1 = time.time()
     df = cugraph.bfs(G, start_vertex)
@@ -77,6 +72,7 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv',
             '../datasets/email-Eu-core.csv']
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -84,11 +80,11 @@ DATASETS = ['../datasets/dolphins.csv',
 def test_bfs(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
