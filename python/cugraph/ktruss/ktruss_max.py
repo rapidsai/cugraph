@@ -76,6 +76,6 @@ def ktruss_max(G):
     >>> k_max = cugraph.ktruss_max(G)
     """
 
-    k_max = ktruss_max_wrapper.ktruss_max(G.graph_ptr)
+    k_max = ktruss_max_wrapper.ktruss_max(G)
 
     return k_max

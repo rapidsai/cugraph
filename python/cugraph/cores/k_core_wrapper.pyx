@@ -59,8 +59,6 @@ def k_core(input_graph, k_core_graph, k, core_number):
     cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
     cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
     c_k_core.k_core(g, k, &c_vertex, &c_values, rg)
-<<<<<<< HEAD
-=======
 
     if rg.edgeList is not NULL:
         df = cudf.DataFrame()
@@ -79,4 +77,3 @@ def k_core(input_graph, k_core_graph, k, core_number):
     if rg.transposedAdjList is not NULL:
         off, ind, vals = graph_wrapper.get_transposed_adj_list(rGraph)
         k_core_graph.transposedadjlist = k_core_graph.transposedAdjList(off, ind, vals)
->>>>>>> upstream/branch-0.11

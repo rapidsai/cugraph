@@ -17,6 +17,7 @@
 # cython: language_level = 3
 
 from cugraph.ktruss.ktruss_max cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.structure.c_graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -30,15 +31,30 @@ import rmm
 import numpy as np
 
 
-def ktruss_max(graph_ptr):
-    """
-    Call gdf_katz_centrality
-    """
-    cdef uintptr_t graph = graph_ptr
-    cdef Graph* g = <Graph*>graph
+def ktruss_max(input_graph):
+	"""
+	Call ktruss
+	"""
+	cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+	cdef Graph * g = <Graph*> graph
 
-    cdef int kmax = 0
+	if (input_graph.edgelist):
+		[src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+		if input_graph.edgelist.weights:
+			[weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+			graph_wrapper.add_edge_list(graph, src, dst, weights)
+		else:
+			graph_wrapper.add_edge_list(graph, src, dst)
+	else:
+		[offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+		[weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+		graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+		add_edge_list(g)
+		src, dst, values = graph_wrapper.get_edge_list(graph)
+		input_graph.edgelist = input_graph.EdgeList(src, dst, values)
 
-    k_truss_max(g,&kmax);
+	cdef int kmax = 0
 
-    return kmax
+	k_truss_max(g,&kmax);
+
+	return kmax
