@@ -91,7 +91,7 @@ def test_bfs(managed, pool, graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     base_vid, base_dist = base_call(M, 0)
-    cugraph_vid, cugraph_dist = cugraph_call(cu_M, 0)
+    cugraph_vid, cugraph_dist = cugraph_call(cu_M, np.int32(0))
 
     # Calculating mismatch
 
