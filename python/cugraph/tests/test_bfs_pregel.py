@@ -26,6 +26,7 @@ import rmm
 # compute once
 _int_max = 2**31 - 1
 
+
 def cugraph_call(cu_M, start_vertex):
     # Device data
     df = cu_M[['0', '1']]
@@ -41,7 +42,7 @@ def cugraph_call(cu_M, start_vertex):
 
 
 def base_call(M, start_vertex):
-    
+
     M = M.tocsr()
 
     offsets = M.indptr
@@ -51,7 +52,7 @@ def base_call(M, start_vertex):
     vertex = list(range(num_verts))
 
     for i in range(num_verts):
-        dist[i] = int_max
+        dist[i] = _int_max
 
     q = queue.Queue()
     q.put(start_vertex)
@@ -95,7 +96,6 @@ def test_bfs(managed, pool, graph_file):
     cugraph_vid, cugraph_dist = cugraph_call(cu_M, np.int32(0))
 
     # Calculating mismatch
-    num_dist = np.count_nonzero(base_dist != _int_max)    
+    num_dist = np.count_nonzero(base_dist != _int_max)
 
     assert num_dist == len(cugraph_dist)
-

@@ -14,6 +14,7 @@
 
 import cudf
 import numpy as np
+from collections import OrderedDict
 
 
 def bfs_df_pregel(df, start, src_col='src', dst_col='dst', copy_data=True):
@@ -125,11 +126,11 @@ def bfs_df_pregel(df, start, src_col='src', dst_col='dst', copy_data=True):
 
         # remote duplicates. smallest vertex wins
         aggsOut = OrderedDict()
-        aggsOut['predecessor'] = 'min'   
-        aggsOut['distance'] = 'min'   
-        _a = one_hop.groupby(['vertex'], as_index=False).agg(aggsOut)      
+        aggsOut['predecessor'] = 'min'
+        aggsOut['distance'] = 'min'
+        _a = one_hop.groupby(['vertex'], as_index=False).agg(aggsOut)
 
-        answer = cudf.concat([answer,_a])  
+        answer = cudf.concat([answer, _a])
 
         if len(coo_data) == 0:
             done = True
