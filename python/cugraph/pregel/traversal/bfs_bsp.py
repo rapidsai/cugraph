@@ -21,6 +21,9 @@ def bfs_df_pregel(df, start, src_col='src', dst_col='dst', copy_data=True):
     This function executes an unwieghted Breadth-First-Search (BFS) traversal
     to find the distances and predecessors from a specified starting vertex
 
+    NOTE: Only reachable vertices are returned
+    NOTE: data is not sorted
+
     Parameters
     ----------
     df : cudf.dataframe
@@ -120,17 +123,18 @@ def bfs_df_pregel(df, start, src_col='src', dst_col='dst', copy_data=True):
         one_hop.rename(
             columns={'dst': 'vertex', 'src': 'predecessor'}, inplace=True)
 
-        answer = cudf.concat([answer, one_hop])
+        # remote duplicates. smallest vertex wins
+        aggsOut = OrderedDict()
+        aggsOut['predecessor'] = 'min'   
+        aggsOut['distance'] = 'min'   
+        _a = one_hop.groupby(['vertex'], as_index=False).agg(aggsOut)      
+
+        answer = cudf.concat([answer,_a])  
 
         if len(coo_data) == 0:
             done = True
 
         if not done and len(frontier) == 0:
-            # remaining vertices are unreachable
-            frontier.rename(columns={'dst': 'vertex'}, inplace=True)
-            frontier['predecessor'] = -1
-            frontier['distance'] = np.iinfo(np.int32).max
-            answer = cudf.concat([answer, frontier])
             done = True
 
     # all done, return the answer
