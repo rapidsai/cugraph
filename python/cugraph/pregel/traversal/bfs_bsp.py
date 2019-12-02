@@ -16,7 +16,7 @@ import cudf
 from collections import OrderedDict
 
 
-def bfs_df_pregel(df, start, src_col='src', dst_col='dst', copy_data=True):
+def bfs_df_pregel(_df, start, src_col='src', dst_col='dst', copy_data=True):
     """
     This function executes an unwieghted Breadth-First-Search (BFS) traversal
     to find the distances and predecessors from a specified starting vertex
@@ -26,7 +26,7 @@ def bfs_df_pregel(df, start, src_col='src', dst_col='dst', copy_data=True):
 
     Parameters
     ----------
-    df : cudf.dataframe
+    _df : cudf.dataframe
         a dataframe containing the source and destination edge list
 
     start : same type as 'src' and 'dst'
@@ -61,9 +61,9 @@ def bfs_df_pregel(df, start, src_col='src', dst_col='dst', copy_data=True):
 
     # extract the src and dst into a dataframe that can be modified
     if copy_data:
-        coo_data = df[[src_col, dst_col]]
+        coo_data = _df[[src_col, dst_col]]
     else:
-        coo_data = df
+        coo_data = _df
 
     coo_data.rename(columns={src_col: 'src', dst_col: 'dst'}, inplace=True)
 
