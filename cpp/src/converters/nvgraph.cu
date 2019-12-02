@@ -43,9 +43,8 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   // setup nvgraph variables
   if (use_transposed) {
     // convert edgeList to transposedAdjList
-    if (gdf_G->transposedAdjList == nullptr) {
-      cugraph::add_transposed_adj_list(gdf_G);
-    }
+    CUGRAPH_EXPECTS(gdf_G->transposedAdjList != nullptr,
+              "Invalid API parameter");
     // using exiting transposedAdjList if it exisits and if adjList is missing
     TT = NVGRAPH_CSC_32;
     nvgraphCSCTopology32I_st topoData;
@@ -81,10 +80,8 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 
   }
   else {
-    // convert edgeList to adjList
-    if (gdf_G->adjList == nullptr) {
-      cugraph::add_adj_list(gdf_G);
-    }
+    CUGRAPH_EXPECTS(gdf_G->adjList != nullptr,
+              "Invalid API parameter");
     TT = NVGRAPH_CSR_32;
     nvgraphCSRTopology32I_st topoData;
     topoData.nvertices = gdf_G->adjList->offsets->size - 1;
