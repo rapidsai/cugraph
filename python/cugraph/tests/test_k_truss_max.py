@@ -70,11 +70,12 @@ def compare_k_truss(graph_file, k_truss_nx):
     assert (k_truss_cugraph == k_truss_nx)
 
 
-DATASETS = [('../datasets/dolphins.csv', 5),
-            ('../datasets/netscience.csv', 20)]
+DATASETS = [('../datasets/netscience.csv', 20),
+            ('../datasets/karate.csv', 5),
+            ('../datasets/polbooks.csv', 6)]
 
 @pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False])))
+                         list(product([False], [False])))
 @pytest.mark.parametrize('graph_file,nx_ground_truth', DATASETS)
 def test_ktruss_max(managed, pool, graph_file, nx_ground_truth):
     gc.collect()
