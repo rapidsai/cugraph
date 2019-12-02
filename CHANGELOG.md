@@ -12,6 +12,7 @@
 - PR #587 API upgrade
 - PR #585 Remove BUILD_ABI references from CI scripts
 - PR #591 Adding initial GPU metrics to benchmark utils
+- PR #599 Pregel BFS
 - PR #601 add test for type conversion, edit createGraph_nvgraph
 
 ## Bug Fixes
