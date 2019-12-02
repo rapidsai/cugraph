@@ -58,7 +58,7 @@ def cugraph_k_truss_max(graph_file):
     # G.add_edge_list(src, dst)
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', target='1',renumber=True)
+    G.from_cudf_edgelist(cu_M, source='0', target='1', renumber=True)
 
     k_max = cugraph.ktruss_max(G)
 
