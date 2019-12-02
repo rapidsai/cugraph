@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.traversal import sssp_wrapper
+from cugraph.traversal import sssp
 import numpy as np
 
 
@@ -54,7 +54,7 @@ def sssp(G, source):
     >>> distances = cugraph.sssp(G, 0)
     """
 
-    df = sssp_wrapper.sssp(G, source)
+    df = sssp.sssp(G, source)
 
     return df
 

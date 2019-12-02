@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.link_prediction import jaccard_wrapper
+from cugraph.link_prediction import jaccard
 from cugraph.structure.graph import null_check
 import cudf
 
@@ -80,6 +80,6 @@ def jaccard(input_graph, first=None, second=None):
     else:
         raise ValueError("Specify first and second or neither")
 
-    df = jaccard_wrapper.jaccard(input_graph, first, second)
+    df = jaccard.jaccard(input_graph, first, second)
 
     return df

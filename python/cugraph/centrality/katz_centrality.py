@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.centrality import katz_centrality_wrapper
+from cugraph.centrality import katz_centrality
 
 
 def katz_centrality(G,
@@ -88,7 +88,7 @@ def katz_centrality(G,
     >>> kc = cugraph.katz_centrality(G)
     """
 
-    df = katz_centrality_wrapper.katz_centrality(G, alpha, max_iter,
+    df = katz_centrality.katz_centrality(G, alpha, max_iter,
                                                  tol, nstart, normalized)
 
     return df

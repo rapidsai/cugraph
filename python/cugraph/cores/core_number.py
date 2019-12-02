@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.cores import core_number_wrapper
+from cugraph.cores import core_number
 
 
 def core_number(G):
@@ -52,6 +52,6 @@ def core_number(G):
     >>> cn = cugraph.core_number(G)
     """
 
-    df = core_number_wrapper.core_number(G)
+    df = core_number.core_number(G)
 
     return df

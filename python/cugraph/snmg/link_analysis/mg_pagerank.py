@@ -11,14 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.snmg.link_analysis import mg_pagerank_wrapper
+from cugraph.snmg.link_analysis import mg_pagerank
 
 
 def mg_pagerank(src_ptrs_info,
                 dest_ptrs_info,
                 alpha=0.85,
                 max_iter=30):
-    df = mg_pagerank_wrapper.mg_pagerank(src_ptrs_info,
+    df = mg_pagerank.mg_pagerank(src_ptrs_info,
                                          dest_ptrs_info,
                                          alpha,
                                          max_iter)

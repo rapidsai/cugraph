@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import subgraph_extraction_wrapper
+from cugraph.community import subgraph_extraction
 from cugraph.structure.graph import null_check, DiGraph
 
 
@@ -54,7 +54,7 @@ def subgraph(G, vertices):
 
     result_graph = DiGraph()
 
-    subgraph_extraction_wrapper.subgraph(
+    subgraph_extraction.subgraph(
         G,
         vertices,
         result_graph)

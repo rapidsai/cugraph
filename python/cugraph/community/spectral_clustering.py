@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import spectral_clustering_wrapper
+from cugraph.community import spectral_clustering
 
 
 def spectralBalancedCutClustering(G,
@@ -65,7 +65,7 @@ def spectralBalancedCutClustering(G,
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     """
 
-    df = spectral_clustering_wrapper.spectralBalancedCutClustering(
+    df = spectral_clustering.spectralBalancedCutClustering(
              G,
              num_clusters,
              num_eigen_vects,
@@ -126,7 +126,7 @@ def spectralModularityMaximizationClustering(G,
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     """
 
-    df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
+    df = spectral_clustering.spectralModularityMaximizationClustering(
              G,
              num_clusters,
              num_eigen_vects,
@@ -169,7 +169,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df['cluster'])
     """
 
-    score = spectral_clustering_wrapper.analyzeClustering_modularity(
+    score = spectral_clustering.analyzeClustering_modularity(
                 G,
                 n_clusters,
                 clustering)
@@ -207,7 +207,7 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df['cluster'])
     """
 
-    score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
+    score = spectral_clustering.analyzeClustering_edge_cut(
                 G,
                 n_clusters,
                 clustering)
@@ -246,7 +246,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df['cluster'])
     """
 
-    score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
+    score = spectral_clustering.analyzeClustering_ratio_cut(
                 G,
                 n_clusters,
                 clustering)

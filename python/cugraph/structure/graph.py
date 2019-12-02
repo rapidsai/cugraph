@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure import graph_wrapper
+from cugraph.structure import graph
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 import cudf
@@ -182,7 +182,7 @@ class Graph:
             containing the weight value for each edge.
         """
         if self.edgelist is None:
-            graph_wrapper.view_edge_list(self)
+            graph.view_edge_list(self)
         df = self.edgelist.edgelist_df
         if self.renumbered:
             df['src'] = self.edgelist.renumber_map[df['src']]
@@ -276,7 +276,7 @@ class Graph:
             number.
         """
         if self.adjlist is None:
-            graph_wrapper.view_adj_list(self)
+            graph.view_adj_list(self)
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
     def delete_adj_list(self):
@@ -297,7 +297,7 @@ class Graph:
             df['second'] : cudf.Series
                 the second vertex id of a pair.
         """
-        df = graph_wrapper.get_two_hop_neighbors(self)
+        df = graph.get_two_hop_neighbors(self)
 
         return df
 
@@ -307,7 +307,7 @@ class Graph:
         elif self.transposedadjlist is not None:
             num_vertices = len(self.transposedadjlist.offsets)-1
         else:
-            num_vertices = graph_wrapper.number_of_vertices(self)
+            num_vertices = graph.number_of_vertices(self)
         return num_vertices
 
     def number_of_nodes(self):
@@ -468,7 +468,7 @@ class Graph:
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.degrees([0,9,12])
         """
-        vertex_col, in_degree_col, out_degree_col = graph_wrapper._degrees(
+        vertex_col, in_degree_col, out_degree_col = graph._degrees(
                                                         self)
 
         df = cudf.DataFrame()
@@ -493,7 +493,7 @@ class Graph:
         return df
 
     def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = graph_wrapper._degree(self, x)
+        vertex_col, degree_col = graph._degree(self, x)
 
         df = cudf.DataFrame()
         if vertex_subset is None:

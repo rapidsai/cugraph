@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.link_prediction import woverlap_wrapper
+from cugraph.link_prediction import woverlap
 from cugraph.structure.graph import null_check
 import cudf
 
@@ -84,7 +84,7 @@ def overlap_w(input_graph, weights, first=None, second=None):
     else:
         raise ValueError("Specify first and second or neither")
 
-    df = woverlap_wrapper.overlap_w(input_graph,
+    df = woverlap.overlap_w(input_graph,
                                     weights, first, second)
 
     return df

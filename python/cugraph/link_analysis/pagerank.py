@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.link_analysis import pagerank_wrapper
+from cugraph.link_analysis import pagerank
 from cugraph.structure.graph import null_check
 
 
@@ -90,7 +90,7 @@ def pagerank(G,
         null_check(personalization['vertex'])
         null_check(personalization['values'])
 
-    df = pagerank_wrapper.pagerank(G,
+    df = pagerank.pagerank(G,
                                    alpha,
                                    personalization,
                                    max_iter,

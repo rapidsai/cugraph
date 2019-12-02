@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.cores import k_core_wrapper, core_number_wrapper
+from cugraph.cores import k_core, core_number
 from cugraph.structure.graph import DiGraph
 
 
@@ -63,13 +63,13 @@ def k_core(G,
 
     KCoreGraph = DiGraph()
     if core_number is None:
-        core_number = core_number_wrapper.core_number(G)
+        core_number = core_number.core_number(G)
         core_number = core_number.rename(columns={"core_number": "values"})
 
     if k is None:
         k = core_number['values'].max()
 
-    k_core_wrapper.k_core(G,
+    k_core.k_core(G,
                           KCoreGraph,
                           k,
                           core_number)

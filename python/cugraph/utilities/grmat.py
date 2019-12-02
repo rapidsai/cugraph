@@ -11,10 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import grmat_wrapper
+from cugraph.utilities import grmat
 
 
 def grmat_gen(argv):
-    vertices, edges, source_col, dest_col = grmat_wrapper.grmat_gen(argv)
+    vertices, edges, source_col, dest_col = grmat.grmat_gen(argv)
 
     return vertices, edges, source_col, dest_col

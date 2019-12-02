@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.components import connectivity_wrapper
+from cugraph.components import connectivity
 
 
 def weakly_connected_components(G):
@@ -46,7 +46,7 @@ def weakly_connected_components(G):
     >>> df = cugraph.weakly_connected_components(G)
     """
 
-    df = connectivity_wrapper.weakly_connected_components(G)
+    df = connectivity.weakly_connected_components(G)
 
     return df
 
@@ -83,6 +83,6 @@ def strongly_connected_components(G):
     >>> df = cugraph.strongly_connected_components(G)
     """
 
-    df = connectivity_wrapper.strongly_connected_components(G)
+    df = connectivity.strongly_connected_components(G)
 
     return df

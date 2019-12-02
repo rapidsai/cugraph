@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.utilities.c_grmat as c_grmat
-from cugraph.structure.c_graph cimport *
+cimport cugraph.utilities.grmat as c_grmat
+from cugraph.structure.graph cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
