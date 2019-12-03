@@ -51,7 +51,7 @@ void ktruss_max_impl(Graph *graph,
   Update batch(ptr);
   number_of_vertices(graph);
 
-  HornetGraph hnt(graph->numberOfVertices);
+  HornetGraph hnt(graph->numberOfVertices+1);
   hnt.insert(batch);
   //Use hornet
 
