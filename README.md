@@ -12,6 +12,8 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analyti
 import cugraph
 
 # assuming that data has been loaded into a cuDF (using read_csv) Dataframe
+gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int32"] )
+
 # create a Graph using the source (src) and destination (dst) vertex pairs the GDF  
 G = cugraph.Graph()
 G.add_edge_list(gdf["src"], gdf["dst"])
@@ -32,12 +34,15 @@ for i in range(len(gdf_page)):
 | :-------------------------------------------- | ---------- | ---------------------------- |
 | PageRank                                      | Multi-GPU  |                              |
 | Personal PageRank                             | Single-GPU |                              |
+| Katz Centrality                               | Single-GPU |                              |
 | Jaccard Similarity                            | Single-GPU |                              |
 | Weighted Jaccard                              | Single-GPU |                              |
 | Overlap Similarity                            | Single-GPU |                              |
 | SSSP                                          | Single-GPU | Updated to provide path info |
 | BFS                                           | Single-GPU |                              |
 | Triangle Counting                             | Single-GPU |                              |
+| K-Core                                        | Single-GPU |                              |
+| Core Number                                   | Single-GPU |                              |
 | Subgraph Extraction                           | Single-GPU |                              |
 | Spectral Clustering - Balanced-Cut            | Single-GPU |                              |
 | Spectral Clustering - Modularity Maximization | Single-GPU |                              |
