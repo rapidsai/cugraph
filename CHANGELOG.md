@@ -23,6 +23,7 @@
 - PR #591 Adding initial GPU metrics to benchmark utils
 - PR #599 Pregel BFS
 - PR #601 add test for type conversion, edit createGraph_nvgraph
+- PR #616 Remove c_ prefix
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests

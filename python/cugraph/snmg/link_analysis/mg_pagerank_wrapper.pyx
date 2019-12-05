@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.snmg.link_analysis.c_mg_pagerank cimport *
-from cugraph.structure.c_graph cimport *
+from cugraph.snmg.link_analysis.mg_pagerank cimport *
+from cugraph.structure.graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
