@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.components.c_connectivity cimport *
-from cugraph.structure.c_graph cimport *
+from cugraph.components.connectivity cimport *
+from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.utils cimport table_from_dataframe
