@@ -50,9 +50,9 @@ def from_cudf_edgelist(df, source='source', target='target', weight=None):
     G = DiGraph()
 
     if weight is None:
-        G.from_cudf_edgelist(df, source=source, target=target)
+        G.from_cudf_edgelist(df, source=source, destination=target)
     else:
-        G.from_cudf_edgelist(df, source=source, target=target,
+        G.from_cudf_edgelist(df, source=source, destination=target,
                              edge_attr=weight)
 
     return G

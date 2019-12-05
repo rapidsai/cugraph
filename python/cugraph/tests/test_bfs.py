@@ -27,7 +27,8 @@ import rmm
 def cugraph_call(cu_M, start_vertex):
 
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1',
+                         edge_attr='2')
 
     t1 = time.time()
     df = cugraph.bfs(G, start_vertex)

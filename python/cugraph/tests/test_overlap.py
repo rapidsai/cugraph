@@ -28,9 +28,9 @@ def cugraph_call(cu_M, first, second, edgevals=False):
     G = cugraph.DiGraph()
     # Device data
     if edgevals is True:
-        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
+        G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
     else:
-        G.from_cudf_edgelist(cu_M, source='0', target='1')
+        G.from_cudf_edgelist(cu_M, source='0', destination='1')
     # cugraph Overlap Call
     t1 = time.time()
     df = cugraph.overlap(G, first, second)

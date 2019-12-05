@@ -61,7 +61,7 @@ def networkx_weak_call(M):
 def cugraph_weak_call(cu_M):
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', target='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
     t1 = time.time()
     df = cugraph.weakly_connected_components(G)
     t2 = time.time() - t1
@@ -99,7 +99,7 @@ def networkx_strong_call(M):
 def cugraph_strong_call(cu_M):
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', target='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
     t1 = time.time()
     df = cugraph.strongly_connected_components(G)
     t2 = time.time() - t1
