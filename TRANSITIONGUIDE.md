@@ -1,6 +1,6 @@
-# 0.11 release
+# 0.11
 
-## Python API Transition Guide
+## Python API
 
 ### New graph types
 The Python API now has `Graph` (undirected) and `DiGraph` (directed) types. This is closer to NetworkX's API.
@@ -10,7 +10,7 @@ Starting in 0.11, `DiGraph` should be used for directed graphs instead. `Graph` 
 
 The `Multi(Di)Graph` types were added and more support this new structure will be added in the next releases (more details on that in issue #604).
 
-### Undirected graphs in 0.11
+### Undirected graphs
 cuGraph automatically "symmetrize" undirected inputs: each undirected edge (u,v) is stored as two directed edges (u,v) and (v,u). 
 
 When viewing the graph or requesting the number of edges, cuGraph will currently return this symmetrized view. 
@@ -22,8 +22,19 @@ Users are encouraged to use `from_cudf_edge_list` instead of `add_edge_list`.
 This new API supports cuDF DataFrame. Users can now ask for an automatic renumbering of the edge list at the time it is loaded. 
 In this case all analytics outputs are automatically un-renumbered before being returned.
 
-## C++ API Transition Guide
-...
+## C++ API
+- All C++ API functions are now encapsulated in namespace `cugraph`
+- All functions are now processing errors through exceptions. As a result, `gdf_error` is no longer used as a return type, `void` is used instead.
+- `gdf_graph` is now `Graph`. The content of the structure is still the same (will be upgraded in future releases).
+- `gdf_` prefix has been removed from all C++ API functions.
+
+Example :
+```c
+// < 0.11 API 
+gdf_error err = gdf_pagerank(<gdf_graph>, ...) 
+// >= 0.11 API 
+cugraph::pagerank(<cugraph::Graph>, ...) 
+```
 
 ## Directory Structure and File Naming
 `c_` prefix of all `.pxd` files have been removed.
