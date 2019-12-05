@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.c_subgraph_extraction cimport *
-from cugraph.structure.c_graph cimport *
+from cugraph.community.subgraph_extraction cimport *
+from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool

@@ -11,5 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.pregel.traversal.bfs_bsp import bfs_df_pregel
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
 
+from cugraph.structure.graph cimport *
+from libcpp cimport bool
+
+
+cdef extern from "cugraph.h" namespace "cugraph":
+
+    cdef void pagerank(
+        Graph *graph,
+        gdf_column *pagerank,
+        gdf_column *personalization_subset,
+        gdf_column *personalization_values,
+        float alpha,
+        float tolerance,
+        int max_iter,
+        bool has_guess) except +

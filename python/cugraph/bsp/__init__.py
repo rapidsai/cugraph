@@ -11,18 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# cython: profile=False
-# distutils: language = c++
-# cython: embedsignature = True
-# cython: language_level = 3
+from cugraph.bsp.traversal import bfs_df_pregel
 
-from cugraph.structure.c_graph cimport *
-from libcpp cimport bool
-
-
-cdef extern from "cugraph.h" namespace "cugraph":
-
-    cdef void extract_subgraph_vertex_nvgraph(
-        Graph* gdf_G,
-        gdf_column* vertices,
-        Graph* result) except +

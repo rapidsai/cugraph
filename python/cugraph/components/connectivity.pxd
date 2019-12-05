@@ -16,17 +16,18 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
+from cudf._lib.cudf cimport *
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void jaccard(Graph * graph,
-                               gdf_column * weights,
-                               gdf_column * result) except +
-    
-    cdef void jaccard_list(Graph * graph,
-                                    gdf_column * weights,
-                                    gdf_column * first,
-                                    gdf_column * second,
-                                    gdf_column * result) except +
+    cdef void connected_components(
+        Graph *graph,
+        cugraph_cc_t connect_type,
+        cudf_table* table) except +
+
+    ctypedef enum cugraph_cc_t:
+        CUGRAPH_WEAK = 0,
+        CUGRAPH_STRONG,
+        NUM_CONNECTIVITY_TYPES

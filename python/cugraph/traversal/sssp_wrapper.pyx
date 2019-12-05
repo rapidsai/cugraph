@@ -16,9 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.traversal.c_sssp as c_sssp
-cimport cugraph.traversal.c_bfs as c_bfs
-from cugraph.structure.c_graph cimport *
+cimport cugraph.traversal.sssp as c_sssp
+cimport cugraph.traversal.bfs as c_bfs
+from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.cudf cimport np_dtype_from_gdf_column
