@@ -10,10 +10,10 @@ The Python API now has `Graph` (undirected) and `DiGraph` (directed) types. This
 In the past, directed graphs were stored using the `Graph` type. 
 Starting in 0.11, `DiGraph` should be used for directed graphs instead. `Graph` only refers to undirected graphs now.
 
-The `Multi(Di)Graph` types were added and more support this new structure will be added in the next releases (more details in issue #604).
+The `Multi(Di)Graph` types were added and more support for this new structure will be added in the next releases (more details in issue #604).
 
 ### Undirected graphs
-cuGraph automatically "symmetrize" undirected inputs: each undirected edge (u,v) is stored as two directed edges (u,v) and (v,u). 
+cuGraph currently automatically "symmetrize" undirected inputs: each undirected edge (u,v) is stored as two directed edges (u,v) and (v,u). 
 
 When viewing the graph or requesting the number of edges, cuGraph will currently return this symmetrized view. 
 This is an implementation detail that will be hidden to the user in 0.12 (more details in issue #603).  
@@ -22,14 +22,14 @@ This is an implementation detail that will be hidden to the user in 0.12 (more d
 Users are encouraged to use `from_cudf_edge_list` instead of `add_edge_list`.
 
 This new API supports cuDF DataFrame. Users can now ask for an automatic renumbering of the edge list at the time it is loaded. 
-In this case all analytics outputs are automatically un-renumbered before being returned.
+In this case, all analytics outputs are automatically un-renumbered before being returned.
 
 ## C++ API
 
 This release is the first step toward converting the former C-like API into a C++ API. Major changes have been made, C++ users should review these changes and upgrade their code before using 0.11 version.
 
 - All C++ API functions are now encapsulated in namespace `cugraph`
-- All functions are now processing errors through exceptions. As a result, `gdf_error` is no longer used as a return type, `void` is used instead.
+- All functions are now processing errors through exceptions. As a result, `gdf_error` is no longer used as a return type and `void` is used instead.
 - `gdf_graph` is now `Graph`. The content of the structure is still the same (will be upgraded in future releases).
 - `gdf_` prefix has been removed from all C++ API functions.
 
@@ -45,4 +45,4 @@ The C++ API provides functions that efficiently convert between data formats and
 
 
 ## Directory Structure and File Naming
-`c_` prefix of all `.pxd` files have been removed.
+The `c_` prefix of all `.pxd` files has been removed.
