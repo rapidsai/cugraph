@@ -13,10 +13,10 @@
 - PR #585 Remove BUILD_ABI references from CI scripts
 - PR #591 Adding initial GPU metrics to benchmark utils
 - PR #599 Pregel BFS
-- PR #618 Updated Docs
 - PR #601 add test for type conversion, edit createGraph_nvgraph
 - PR #614 Remove unused CUDA conda labels
 - PR #616 Remove c_ prefix
+- PR #618 Updated Docs
 - PR #619 Transition guide
 
 ## Bug Fixes
