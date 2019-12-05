@@ -16,7 +16,7 @@ gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int
 
 # create a Graph using the source (src) and destination (dst) vertex pairs the GDF  
 G = cugraph.Graph()
-G.add_edge_list(gdf["src"], gdf["dst"])
+G.add_edge_list(gdf, source='src', destination='dst')
 
 # Call cugraph.pagerank to get the pagerank scores
 gdf_page = cugraph.pagerank(G)
@@ -39,7 +39,7 @@ for i in range(len(gdf_page)):
 | Weighted Jaccard                              | Single-GPU |                              |
 | Overlap Similarity                            | Single-GPU |                              |
 | SSSP                                          | Single-GPU | Updated to provide path info |
-| BFS                                           | Single-GPU |                              |
+| BFS                                           | Single-GPU | Also BSP version             |
 | Triangle Counting                             | Single-GPU |                              |
 | K-Core                                        | Single-GPU |                              |
 | Core Number                                   | Single-GPU |                              |
@@ -65,7 +65,7 @@ The current version of cuGraph has some limitations:
 
 cuGraph provides the renumber function to mitigate this problem. Input vertex IDs for the renumber function can be either 32-bit or 64-bit integers, can be non-contiguous, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
-
+Release 0.11 includes a new 'Graph' class that could cause errors to existing code.  Please see the [Trainsition Guide](TRANSITIONGUIDE.md)
 
 
 
