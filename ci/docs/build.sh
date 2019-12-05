@@ -32,9 +32,10 @@ nvidia-smi
 
 logger "Activate conda env..."
 source activate gdf
-conda install -c nvidia/label/cuda$CUDA_REL -c rapidsai/label/cuda$CUDA_REL -c rapidsai-nightly/label/cuda$CUDA_REL -c numba -c conda-forge \
-    cudf=$CUDF_VERSION rmm=$RMM_VERSION nvgraph networkx python-louvain sphinx sphinx_rtd_theme \
-    numpydoc sphinxcontrib-websupport nbsphinx ipython pandoc=\<2.0.0 recommonmark
+conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge \
+    cudatoolkit=${CUDA_REL} cudf=$CUDF_VERSION rmm=$RMM_VERSION nvgraph networkx \
+    python-louvain sphinx sphinx_rtd_theme numpydoc sphinxcontrib-websupport \
+    nbsphinx ipython pandoc=\<2.0.0 recommonmark
 
 pip install sphinx-markdown-tables
 
