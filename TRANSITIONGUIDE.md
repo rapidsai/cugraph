@@ -2,6 +2,8 @@
 
 ## Python API
 
+This release introduces new concepts in the API and improves user experience through more automation and better DataFrame support. Python users are encouraged to review these changes and potentially upgrade their code before using 0.11 verison.
+
 ### New graph types
 The Python API now has `Graph` (undirected) and `DiGraph` (directed) types. This is closer to NetworkX's API.
 
@@ -23,10 +25,15 @@ This new API supports cuDF DataFrame. Users can now ask for an automatic renumbe
 In this case all analytics outputs are automatically un-renumbered before being returned.
 
 ## C++ API
+
+This release is the first step toward converting the former C-like API into a C++ API. Major changes have been made. C++ users should review these changes and upgrade their code before using 0.11 verison.
+
 - All C++ API functions are now encapsulated in namespace `cugraph`
 - All functions are now processing errors through exceptions. As a result, `gdf_error` is no longer used as a return type, `void` is used instead.
 - `gdf_graph` is now `Graph`. The content of the structure is still the same (will be upgraded in future releases).
 - `gdf_` prefix has been removed from all C++ API functions.
+
+The C++ API provides functions that efficiently convert between data formats and access to the efficient CUDA algorithms.  Automatic conversions and decision making has been removed from the C++ layer.
 
 Example :
 ```c
