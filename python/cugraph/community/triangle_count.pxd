@@ -16,13 +16,12 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
-from libcpp cimport bool
+from cugraph.structure.graph cimport *
+from libc.stdint cimport uint64_t
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void extract_subgraph_vertex_nvgraph(
-        Graph* gdf_G,
-        gdf_column* vertices,
-        Graph* result) except +
+    cdef void triangle_count_nvgraph(
+        Graph* G,
+        uint64_t* result) except +

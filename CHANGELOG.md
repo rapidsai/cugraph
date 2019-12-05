@@ -15,6 +15,8 @@
 - PR #599 Pregel BFS
 - PR #601 add test for type conversion, edit createGraph_nvgraph
 - PR #614 Remove unused CUDA conda labels
+- PR #616 Remove c_ prefix
+
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
