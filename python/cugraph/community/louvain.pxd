@@ -16,18 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
-from cudf._lib.cudf cimport *
+from cugraph.structure.graph cimport *
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void connected_components(
+    cdef void louvain(
         Graph *graph,
-        cugraph_cc_t connect_type,
-        cudf_table* table) except +
-
-    ctypedef enum cugraph_cc_t:
-        CUGRAPH_WEAK = 0,
-        CUGRAPH_STRONG,
-        NUM_CONNECTIVITY_TYPES
+        void *final_modularity,
+        void *num_level,
+        gdf_column *louvain_parts) except +
