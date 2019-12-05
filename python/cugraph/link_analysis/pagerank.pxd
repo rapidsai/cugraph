@@ -16,15 +16,18 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 from libcpp cimport bool
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void bfs(
+    cdef void pagerank(
         Graph *graph,
-        gdf_column *distances,
-        gdf_column *predecessors,
-        int start_vertex,
-        bool directed) except +
+        gdf_column *pagerank,
+        gdf_column *personalization_subset,
+        gdf_column *personalization_values,
+        float alpha,
+        float tolerance,
+        int max_iter,
+        bool has_guess) except +

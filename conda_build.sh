@@ -13,9 +13,9 @@ if [ "$UPLOAD_PACKAGE" == '1' ]; then
     test -e ${UPLOADFILE}
 
 
-    LABEL_OPTION="--label dev --label cuda${CUDA_REL}"
+    LABEL_OPTION="--label dev"
     if [ "${LABEL_MAIN}" == '1' ]; then
-    LABEL_OPTION="--label main --label cuda${CUDA_REL}"
+    LABEL_OPTION="--label main"
     fi
     echo "LABEL_OPTION=${LABEL_OPTION}"
 
