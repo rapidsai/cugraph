@@ -414,61 +414,6 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     G.delete_adj_list()
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_networkx_compatibility(managed, pool, graph_file):
-    gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
-
-    # test from_cudf_edgelist()
-
-    M = utils.read_csv_for_nx(graph_file)
-
-    df = pd.DataFrame()
-    df['source'] = pd.Series(M.row)
-    df['target'] = pd.Series(M.col)
-    df['weight'] = pd.Series(M.data)
-
-    gdf = cudf.from_pandas(df)
-
-    # cugraph.Graph() is implicitly a directed graph right at this moment, so
-    # we should use nx.DiGraph() for comparison.
-    Gnx = nx.from_pandas_edgelist(df,
-                                  source='source',
-                                  target='target',
-                                  edge_attr=['weight'],
-                                  create_using=nx.DiGraph)
-    G = cugraph.from_cudf_edgelist(gdf,
-                                   source='source',
-                                   target='target',
-                                   weight='weight')
-
-    assert compare_graphs(Gnx, G)
-
-    Gnx.clear()
-    G.clear()
-
-    # cugraph.Graph() is implicitly a directed graph right at this moment, so
-    # we should use nx.DiGraph() for comparison.
-    Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
-                                  create_using=nx.DiGraph)
-    G = cugraph.from_cudf_edgelist(gdf, source='source', target='target')
-
-    assert compare_graphs(Gnx, G)
-
-    Gnx.clear()
-    G.clear()
-
-
 DATASETS2 = ['../datasets/karate.csv',
              '../datasets/dolphins.csv']
 
