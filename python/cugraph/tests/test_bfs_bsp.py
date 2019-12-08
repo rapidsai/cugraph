@@ -74,6 +74,7 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv',
             '../datasets/email-Eu-core.csv']
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))

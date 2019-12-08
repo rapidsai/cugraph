@@ -25,7 +25,6 @@ from cugraph.community import (
 from cugraph.structure import (
     Graph, 
     DiGraph, 
-    from_cudf_edgelist, 
     renumber, 
     symmetrize, 
     symmetrize_df
