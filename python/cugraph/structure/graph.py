@@ -91,13 +91,14 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
 
-    def from_cudf_edgelist(self, input_df, source='source', target='target',
+    def from_cudf_edgelist(self, input_df, source='source',
+                           destination='destination',
                            edge_attr=None, renumber=False):
         """
         Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed input_df argument
         wraps gdf_column objects that represent a graph using the edge list
-        format. source argument is source column name and target argument
+        format. source argument is source column name and destination argument
         is destination column name.
         Source and destination indices must be in the range [0, V) where V is
         the number of vertices. If renumbering needs to be done, renumber
@@ -120,7 +121,7 @@ class Graph:
             containing the weight value for each edge.
         source : str
             source argument is source column name
-        target : str
+        destination : str
             target argument is destination column name.
         edge_attr : str
             edge_attr argument is the weights column name.
@@ -133,14 +134,14 @@ class Graph:
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, source='0', target='1', edge_attr='2',
+        >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2',
                                  renumber=False)
         """
 
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
         source_col = input_df[source]
-        dest_col = input_df[target]
+        dest_col = input_df[destination]
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception('edge_attr should be a list of column names')
@@ -154,7 +155,7 @@ class Graph:
         renumber_map = None
         if renumber:
             source_col, dest_col, renumber_map = rnb(input_df[source],
-                                                     input_df[target])
+                                                     input_df[destination])
             self.renumbered = True
         if not self.symmetrized and not self.multi:
             if value_col is not None:
