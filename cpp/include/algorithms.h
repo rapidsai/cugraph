@@ -198,6 +198,18 @@ void louvain(Graph* graph,
              gdf_column *louvain_parts);
 
 /**
+ * Computes the ecg clustering of the graph.
+ * @param graph The input graph
+ * @param min_weight The minimum weight parameter
+ * @param ensemble_size The ensemble size parameter
+ * @param ecg_parts A pointer to a gdf_column which has allocated memory for the resulting partition identifiers.
+ */
+void ecg(Graph* graph,
+         double min_weight,
+         int ensemble_size,
+         gdf_column *ecg_parts);
+
+/**
  * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is
  * a multi-gpu operation operating on a partitioned graph.
  * @param x 0 for in+out, 1 for in, 2 for out
