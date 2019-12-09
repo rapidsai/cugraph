@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.centrality.c_katz_centrality as c_katz
-from cugraph.structure.c_graph cimport *
+cimport cugraph.centrality.katz_centrality as c_katz
+from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool

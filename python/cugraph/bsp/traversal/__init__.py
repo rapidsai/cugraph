@@ -11,23 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# cython: profile=False
-# distutils: language = c++
-# cython: embedsignature = True
-# cython: language_level = 3
+from cugraph.bsp.traversal.bfs_bsp import bfs_df_pregel
 
-from cugraph.structure.c_graph cimport *
-from cudf._lib.cudf cimport *
-
-
-cdef extern from "cugraph.h" namespace "cugraph":
-
-    cdef void connected_components(
-        Graph *graph,
-        cugraph_cc_t connect_type,
-        cudf_table* table) except +
-
-    ctypedef enum cugraph_cc_t:
-        CUGRAPH_WEAK = 0,
-        CUGRAPH_STRONG,
-        NUM_CONNECTIVITY_TYPES

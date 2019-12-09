@@ -40,9 +40,10 @@ def cugraph_call(cu_M, source, edgevals=False):
 
     G = cugraph.DiGraph()
     if edgevals is True:
-        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
+        G.from_cudf_edgelist(cu_M, source='0', destination='1',
+                             edge_attr='2')
     else:
-        G.from_cudf_edgelist(cu_M, source='0', target='1')
+        G.from_cudf_edgelist(cu_M, source='0', destination='1')
     print('sources size = ' + str(len(cu_M['0'])))
     print('destinations size = ' + str(len(cu_M['1'])))
 
@@ -204,7 +205,8 @@ def test_sssp_data_type_conversion(managed, pool, graph_file, source):
     # cugraph call with int32 weights
     cu_M['2'] = cu_M['2'].astype(np.int32)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1',
+                         edge_attr='2')
     # assert cugraph weights is int32
     assert G.edgelist.edgelist_df['weights'].dtype == np.int32
     df = cugraph.sssp(G, source)

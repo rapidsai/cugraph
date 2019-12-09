@@ -11,5 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.pregel.traversal import bfs_df_pregel
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
 
+from cugraph.structure.graph cimport *
+from libc.stdint cimport uint64_t
+
+
+cdef extern from "cugraph.h" namespace "cugraph":
+
+    cdef void triangle_count_nvgraph(
+        Graph* G,
+        uint64_t* result) except +

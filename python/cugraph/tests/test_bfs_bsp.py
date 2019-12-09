@@ -32,7 +32,7 @@ def cugraph_call(cu_M, start_vertex):
     df = cu_M[['0', '1']]
 
     t1 = time.time()
-    df = cugraph.pregel.traversal.bfs_df_pregel(
+    df = cugraph.bsp.traversal.bfs_df_pregel(
         df, start_vertex, src_col='0', dst_col='1')
     t2 = time.time() - t1
     print('Time : '+str(t2))
@@ -73,6 +73,7 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/polbooks.csv',
             '../datasets/netscience.csv',
             '../datasets/email-Eu-core.csv']
+
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',

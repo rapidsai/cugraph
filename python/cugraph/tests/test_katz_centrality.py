@@ -44,7 +44,7 @@ def topKVertices(katz, col, k):
 def calc_katz(graph_file):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', target='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
     largest_out_degree = G.degrees().nlargest(n=1, columns='out_degree')
     largest_out_degree = largest_out_degree['out_degree'][0]
