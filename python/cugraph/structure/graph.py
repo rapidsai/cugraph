@@ -36,7 +36,11 @@ class Graph:
             self.weights = False
             if edge_attr is not None:
                 self.weights = True
-                df['weights'] = edge_attr
+                if type(edge_attr) is dict:
+                    for k in edge_attr.keys():
+                        df[k] = edge_attr[k]
+                else:
+                    df['weights'] = edge_attr
             self.edgelist_df = df
 
     class AdjList:
@@ -52,8 +56,8 @@ class Graph:
     cuGraph graph class containing basic graph creation and transformation
     operations.
     """
-    def __init__(self, symmetrized=False, bipartite=False, multi=False,
-                 dynamic=False):
+    def __init__(self, m_graph=None, edge_attr=None, symmetrized=False,
+                 bipartite=False, multi=False, dynamic=False):
         """
         Returns
         -------
@@ -72,6 +76,11 @@ class Graph:
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
+        if m_graph is not None:
+            if edge_attr is None:
+                raise Exception('edge_attr not provided')
+            else:
+                self.from_cudf_edgelist(m_graph.edgelist.edgelist_df, source='src', target='dst', edge_attr=edge_attr)
         # self.number_of_vertices = None
 
     def clear(self):
@@ -82,14 +91,13 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
 
-    def from_cudf_edgelist(self, input_df, source='source',
-                           destination='destination',
+    def from_cudf_edgelist(self, input_df, source='source', target='target',
                            edge_attr=None, renumber=False):
         """
         Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed input_df argument
         wraps gdf_column objects that represent a graph using the edge list
-        format. source argument is source column name and destination argument
+        format. source argument is source column name and target argument
         is destination column name.
         Source and destination indices must be in the range [0, V) where V is
         the number of vertices. If renumbering needs to be done, renumber
@@ -112,8 +120,8 @@ class Graph:
             containing the weight value for each edge.
         source : str
             source argument is source column name
-        destination : str
-            destination argument is destination column name.
+        target : str
+            target argument is destination column name.
         edge_attr : str
             edge_attr argument is the weights column name.
         renumber : bool
@@ -125,24 +133,30 @@ class Graph:
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2',
+        >>> G.from_cudf_edgelist(M, source='0', target='1', edge_attr='2',
                                  renumber=False)
         """
 
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
         source_col = input_df[source]
-        dest_col = input_df[destination]
-        if edge_attr is not None:
+        dest_col = input_df[target]
+        if self.multi:
+            if type(edge_attr) is not list:
+                raise Exception('edge_attr should be a list of column names')
+            value_col = {}
+            for col_name in edge_attr:
+                value_col[col_name] = input_df[col_name]
+        elif edge_attr is not None:
             value_col = input_df[edge_attr]
         else:
             value_col = None
         renumber_map = None
         if renumber:
             source_col, dest_col, renumber_map = rnb(input_df[source],
-                                                     input_df[destination])
+                                                     input_df[target])
             self.renumbered = True
-        if not self.symmetrized:
+        if not self.symmetrized and not self.multi:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(source_col,
                                                              dest_col,
@@ -158,7 +172,7 @@ class Graph:
  Use from_cudf_edgelist instead')
         input_df = cudf.DataFrame()
         input_df['source'] = source
-        input_df['destination'] = destination
+        input_df['target'] = destination
         if value is not None:
             input_df['weights'] = value
             self.from_cudf_edgelist(input_df, edge_attr='weights')
@@ -515,8 +529,8 @@ class Graph:
 
 
 class DiGraph(Graph):
-    def __init__(self):
-        super().__init__(symmetrized=True)
+    def __init__(self, m_graph=None, edge_attr=None):
+        super().__init__(m_graph=m_graph, edge_attr=edge_attr, symmetrized=True)
 
 
 class MultiGraph(Graph):
