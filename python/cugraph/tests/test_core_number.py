@@ -38,7 +38,7 @@ print('Networkx version : {} '.format(nx.__version__))
 def calc_core_number(graph_file):
     M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(M, source='0', target='1')
+    G.from_cudf_edgelist(M, source='0', destination='1')
 
     cn = cugraph.core_number(G)
 

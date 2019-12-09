@@ -48,7 +48,7 @@ def cugraph_call(M, verts):
     cu_M = cudf.DataFrame()
     cu_M['src'] = cudf.Series(M.row)
     cu_M['dst'] = cudf.Series(M.col)
-    G.from_cudf_edgelist(cu_M, source='src', target='dst')
+    G.from_cudf_edgelist(cu_M, source='src', destination='dst')
     cu_verts = cudf.Series(verts)
     return cugraph.subgraph(G, cu_verts)
 

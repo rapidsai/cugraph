@@ -50,7 +50,7 @@ def cudify(d):
 def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', target='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
     t1 = time.time()
     df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol,
                           personalization=personalization, nstart=nstart)

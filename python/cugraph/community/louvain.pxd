@@ -16,16 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void katz_centrality(
+    cdef void louvain(
         Graph *graph,
-        gdf_column *katz_centrality,
-        double alpha,
-        int max_iter,
-        double tol,
-        bool has_guess,
-        bool normalized) except +
+        void *final_modularity,
+        void *num_level,
+        gdf_column *louvain_parts) except +
