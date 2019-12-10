@@ -1,4 +1,4 @@
-# cuGraph 0.11.0 (Date TBD)
+# cuGraph 0.11.0 (11 Dec 2019)
 
 ## New Features
 - PR #588 Python graph class and related changes
