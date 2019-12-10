@@ -183,36 +183,30 @@ template int pagerankSolver<int, double> (  int n, int e, int *cscPtr, int *cscI
         int *prsVtx,  double *prsVal, int prsLen, bool has_personalization,
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
-template <typename WT>
+template <typename VT,typename WT>
 void pagerank_impl (Graph *graph,
-                     device_vector<WT>& pagerank,
-                     device_vector<int>& personalization_subset,device_vector<WT>& personalization_values,
-                      float alpha = 0.85,
-                      float tolerance = 1e-4, int max_iter = 200,
-                      bool has_guess = false) {
+                    device_vector<WT>& pagerank,
+                    device_vector<VT>& personalization_subset,device_vector<WT>& personalization_values,
+                    float alpha = 0.85,
+                    float tolerance = 1e-4, int max_iter = 200,
+                    bool has_guess = false) {
   bool has_personalization = false;
   int *prsVtx = nullptr;
   WT  *prsVal = nullptr;
   int prsLen = 0;
-  CUGRAPH_EXPECTS((personalization_subset == nullptr) == (personalization_values == nullptr), "Invalid API parameter");
-  if (personalization_subset != nullptr) {
+  if (personalization_subset.size() != 0) {
     has_personalization = true;
-    prsVtx = reinterpret_cast<int*>(personalization_subset.data());
+    prsVtx = reinterpret_cast<VT*>(personalization_subset.data());
     prsVal = reinterpret_cast<WT* >(personalization_values.data());
-    prsLen = reinterpret_cast<int >(personalization_subset.size());
+    prsLen = reinterpret_cast<VT>(personalization_subset.size());
     CUGRAPH_EXPECTS(pagerank.value_type == personalization_values.value_type, "Invalid API parameter : wrong data type");
     CUGRAPH_EXPECTS(personalization_subset.value_type == typeid(int), "Unsupported personalization_subset data type");
     CUGRAPH_EXPECTS(personalization_subset.size() == personalization_values.size(), "Column size mismatch");
-    CUGRAPH_EXPECTS(personalization_subset->null_count == 0 , "Input column has non-zero null count");
-    CUGRAPH_EXPECTS(personalization_values->null_count == 0 , "Input column has non-zero null count");
   }
-
-  CUGRAPH_EXPECTS( pagerank != nullptr , "Invalid API parameter" );
   CUGRAPH_EXPECTS( pagerank.data() != nullptr , "Invalid API parameter" );
-  CUGRAPH_EXPECTS( pagerank->null_count == 0 , "Input column has non-zero null count");
   CUGRAPH_EXPECTS( pagerank.size() > 0 , "Invalid API parameter" );
 
-  int m=pagerank.size(), nnz = graph->transposedAdjList->indices.size(), status = 0;
+  int m=pagerank.size(), nnz = graph->transposedAdjList->indices->size, status = 0;
   WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
   WT res = 1.0;
   WT *residual = &res;
@@ -230,7 +224,7 @@ void pagerank_impl (Graph *graph,
 #endif
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
-  HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets.data(), (int *)graph->transposedAdjList->indices.data(), d_val, d_leaf_vector);
+  HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
 
   if (has_guess)
   {
@@ -238,7 +232,7 @@ void pagerank_impl (Graph *graph,
     copy<WT>(m, (WT*)pagerank.data(), d_pr);
   }
 
-  status = pagerankSolver<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets.data(), (int*)graph->transposedAdjList->indices.data(), d_val,
+  status = pagerankSolver<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
           prsVtx, prsVal, prsLen, has_personalization,
     alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 
@@ -259,7 +253,6 @@ void pagerank_impl (Graph *graph,
 #endif
   ALLOC_FREE_TRY(d_leaf_vector, stream);
 
-  
 }
 
 }
@@ -274,16 +267,15 @@ void pagerank(Graph *graph,device_vector<WT>& pagerank,
   //
   CUGRAPH_EXPECTS(graph->transposedAdjList != nullptr, "Invalid API parameter");
 
-  if (pagerank.value_type != (typeid(float) || typeid(double)))
+  if (pagerank.value_type != typeid(float) && pagerank.value_type != typeid(double))
     CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
   
   if (personalization_subset.value_type != typeid(int) )
     CUGRAPH_FAIL("Unsupported personalization_subset data type, please use int");
 
-  return detail::pagerank_impl<WT>(graph, pagerank,
+  return detail::pagerank_impl<VT,WT>(graph, pagerank,
                                   personalization_subset, personalization_values,
                                   alpha, tolerance, max_iter, has_guess);
-  }
 }
 
 } //namespace cugraph 

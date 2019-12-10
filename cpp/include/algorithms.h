@@ -46,10 +46,11 @@ namespace cugraph {
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
+template <typename VT, typename WT>
 void pagerank(Graph* graph,
-              device_vector& pagerank,
-              device_vector& personalization_subset,
-              device_vector& personalization_values,
+              device_vector<WT>& pagerank,
+              device_vector<VT>& personalization_subset,
+              device_vector<WT>& personalization_values,
               float alpha,
               float tolerance,
               int max_iter,
