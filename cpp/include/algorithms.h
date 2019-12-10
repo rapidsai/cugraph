@@ -47,9 +47,9 @@ namespace cugraph {
  */
 /* ----------------------------------------------------------------------------*/
 void pagerank(Graph* graph,
-              gdf_column *pagerank,
-              gdf_column *personalization_subset,
-              gdf_column *personalization_values,
+              device_vector& pagerank,
+              device_vector& personalization_subset,
+              device_vector& personalization_values,
               float alpha,
               float tolerance,
               int max_iter,
