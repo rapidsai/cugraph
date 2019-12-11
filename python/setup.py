@@ -21,6 +21,13 @@ from Cython.Build import cythonize
 import versioneer
 from distutils.sysconfig import get_python_lib
 
+CUDA_HOME = os.environ.get("CUDA_HOME", False)
+if not CUDA_HOME:
+    CUDA_HOME = (
+        os.popen('echo "$(dirname $(dirname $(which nvcc)))"').read().strip()
+    )
+cuda_include_dir = os.path.join(CUDA_HOME, "include")
+cuda_lib_dir = os.path.join(CUDA_HOME, "lib64")
 
 INSTALL_REQUIRES = ['numba', 'cython']
 
@@ -38,10 +45,11 @@ EXTENSIONS = [
     Extension("*",
               sources=CYTHON_FILES,
               include_dirs=[conda_include_dir,
-                            '../cpp/include'],
+                            '../cpp/include',
+                            cuda_include_dir],
               library_dirs=[get_python_lib()],
-              runtime_library_dirs=[conda_lib_dir],
-              libraries=['cugraph', 'cudf'],
+              runtime_library_dirs=[conda_lib_dir, cuda_lib_dir],
+              libraries=['cugraph', 'cudf', 'cuda'],
               language='c++',
               extra_compile_args=['-std=c++14'])
 ]

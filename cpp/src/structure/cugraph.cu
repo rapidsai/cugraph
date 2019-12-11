@@ -534,4 +534,22 @@ void number_of_vertices(Graph *graph) {
   
 }
 
+
+template <typename T>
+device_vector<T>::device_vector(size_t n) : rmm::device_vector<T>(n) { }
+
+template <typename T>
+inline T * device_vector<T>::raw()
+  {
+      if (this->size() > 0) { 
+        return thrust::raw_pointer_cast(this->data()); 
+      }
+      else 
+        return 0;
+  }
+
+template class device_vector<int>;
+template class device_vector<float>;
+template class device_vector<double>;
+
 } //namespace

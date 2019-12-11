@@ -126,15 +126,8 @@ struct Graph{
 template <typename T>
 class device_vector : public rmm::device_vector<T> {
   public: 
-  device_vector(size_t n) : rmm::device_vector<T>(n) { }
-  inline T *raw()
-  {
-      if (this->size() > 0) { 
-        return thrust::raw_pointer_cast(this->data()); 
-      }
-      else 
-        return 0;
-  }
+  device_vector(size_t n);
+  inline T *raw();
 };
 
 } //namespace cugraph
