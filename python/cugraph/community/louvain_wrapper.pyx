@@ -87,11 +87,13 @@ def louvain(input_graph):
     if single_precision:
         c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_single_precision,
-                  <void*>&num_level, &c_louvain_parts_col)
+                  <void*>&num_level, &c_louvain_parts_col,
+                  100)
     else:
         c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_double_precision,
-                  <void*>&num_level, &c_louvain_parts_col)
+                  <void*>&num_level, &c_louvain_parts_col,
+                  100)
     
 
     if input_graph.renumbered:

@@ -195,7 +195,8 @@ void overlap_list(Graph* graph,
 void louvain(Graph* graph,
              void *final_modularity,
              void *num_level,
-             gdf_column *louvain_parts);
+             gdf_column *louvain_parts,
+             int max_iter = 100);
 
 /**
  * Computes the ecg clustering of the graph.
