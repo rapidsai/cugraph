@@ -47,14 +47,15 @@ namespace cugraph {
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void pagerank(Graph* graph,
-              device_vector<WT>& pagerank,
-              device_vector<VT>& personalization_subset,
-              device_vector<WT>& personalization_values,
-              float alpha,
-              float tolerance,
-              int max_iter,
-              bool has_guess);
+void pagerank(Graph *graph,
+              WT* pagerank,
+              size_t personalization_subset_size=0, 
+              VT* personalization_subset=nullptr, 
+              WT* personalization_values=nullptr,
+              float alpha = 0.85,
+              float tolerance = 1e-5, 
+              int max_iter = 500,
+              bool has_guess = false);
 
 /**
  * @Synopsis   Creates source, destination and value columns based on the specified R-MAT model

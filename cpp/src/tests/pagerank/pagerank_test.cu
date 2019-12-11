@@ -17,6 +17,8 @@
 #include "cuda_profiler_api.h"
 #include <cugraph.h>
 #include "test_utils.h"
+#include <rmm/thrust_rmm_allocator.h>
+
 //#include "functions.h"
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -82,10 +84,13 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      
      Graph_ptr G{new cugraph::Graph, Graph_deleter};
      gdf_column_ptr col_src, col_dest;
-     float alpha = 0.85;
      float tol = 1E-5f;
+     // Default parameters
+     /*
+     float alpha = 0.85;
      int max_iter = 500;
      bool has_guess = false;
+     */
 
      HighResClock hr_clock;
      double time_tmp;
@@ -103,12 +108,9 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      std::vector<int> cooRowInd(nnz), cooColInd(nnz);
      std::vector<T> cooVal(nnz), pagerank(m);
      
-     //device cols
-     cugraph::device_vector<T> col_pagerank(m);
-     //dummy, tested at python level
-     cugraph::device_vector<int> col_pers_set(0);
-     cugraph::device_vector<T> col_pers_val(0);
-
+     //device alloc
+     rmm::device_vector<T> pagerank_vector(m);
+     T* d_pagerank = thrust::raw_pointer_cast(pagerank_vector.data());
 
      // Read
      ASSERT_EQ( (mm_to_coo<int,T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
@@ -125,7 +127,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       cugraph::pagerank(G.get(), col_pagerank, col_pers_set, col_pers_val, alpha, tol, max_iter, has_guess);
+       cugraph::pagerank<int,T>(G.get(), d_pagerank);
        cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
@@ -133,18 +135,17 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     }
     else {
       cudaProfilerStart();
-      cugraph::pagerank(G.get(), col_pagerank, col_pers_set, col_pers_val, alpha, tol, max_iter, has_guess);
+      cugraph::pagerank<int,T>(G.get(), d_pagerank);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
     
-
     // Check vs golden data
     if (param.result_file.length()>0)
     {
       std::vector<T> calculated_res(m);
 
-      CUDA_RT_CALL(cudaMemcpy(&calculated_res[0], col_pagerank.raw(),   sizeof(T) * m, cudaMemcpyDeviceToHost));
+      CUDA_RT_CALL(cudaMemcpy(&calculated_res[0], d_pagerank,   sizeof(T) * m, cudaMemcpyDeviceToHost));
       std::sort(calculated_res.begin(), calculated_res.end());
       fpin = fopen(param.result_file.c_str(),"rb");
       ASSERT_TRUE(fpin != NULL) << " Cannot read file with reference data: " << param.result_file << std::endl;
@@ -179,23 +180,11 @@ TEST_P(Tests_Pagerank, CheckFP64_T) {
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Pagerank, 
                         ::testing::Values(   Pagerank_Usecase("test/datasets/karate.mtx", "")
-                                            //,Pagerank_Usecase("test/datasets/web-BerkStan.mtx", "test/ref/pagerank/web-BerkStan.pagerank_val_0.85.bin")
                                             ,Pagerank_Usecase("test/datasets/web-Google.mtx",   "test/ref/pagerank/web-Google.pagerank_val_0.85.bin")
-                                            //,Pagerank_Usecase("test/datasets/wiki-Talk.mtx",    "test/ref/pagerank/wiki-Talk.pagerank_val_0.85.bin")
-                                            //,Pagerank_Usecase("test/datasets/cit-Patents.mtx",  "test/ref/pagerank/cit-Patents.pagerank_val_0.85.bin")
                                             ,Pagerank_Usecase("test/datasets/ljournal-2008.mtx","test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin")
                                             ,Pagerank_Usecase("test/datasets/webbase-1M.mtx",   "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")
-                                            //,Pagerank_Usecase("test/datasets/caidaRouterLevel.mtx", "")
-                                            //,Pagerank_Usecase("test/datasets/citationCiteseer.mtx", "")
-                                            //,Pagerank_Usecase("test/datasets/coPapersDBLP.mtx", "")
-                                            //,Pagerank_Usecase("test/datasets/coPapersCiteseer.mtx", "")
-                                            //,Pagerank_Usecase("test/datasets/as-Skitter.mtx", "")
-                                            //,Pagerank_Usecase("test/datasets/hollywood.mtx", "")
-                                            //,Pagerank_Usecase("test/datasets/europe_osm.mtx", "")
-                                            //,Pagerank_Usecase("test/datasets/soc-LiveJournal1.mtx", "")
-                                            //,Pagerank_Usecase("benchmark/twitter.mtx", "")
                                          )
-                       );
+                       ); 
 
 
 int main( int argc, char** argv )

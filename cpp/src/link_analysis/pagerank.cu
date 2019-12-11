@@ -185,8 +185,8 @@ template int pagerankSolver<int, double> (  int n, int e, int *cscPtr, int *cscI
 
 template <typename VT,typename WT>
 void pagerank_impl (Graph *graph,
-                    device_vector<WT>& pagerank,
-                    device_vector<VT>& personalization_subset,device_vector<WT>& personalization_values,
+                    WT* pagerank,
+                    size_t personalization_subset_size=0, VT* personalization_subset=nullptr,WT* personalization_values=nullptr,
                     float alpha = 0.85,
                     float tolerance = 1e-4, int max_iter = 200,
                     bool has_guess = false) {
@@ -195,14 +195,14 @@ void pagerank_impl (Graph *graph,
   int *prsVtx = nullptr;
   WT  *prsVal = nullptr;
   int prsLen = 0;
-  if (personalization_subset.size() != 0) {
+  if (personalization_subset_size != 0) {
     has_personalization = true;
-    prsVtx = reinterpret_cast<VT*>(personalization_subset.raw());
-    prsVal = reinterpret_cast<WT* >(personalization_values.raw());
-    prsLen = static_cast<VT>(personalization_subset.size());
+    prsVtx = reinterpret_cast<VT*>(personalization_subset);
+    prsVal = reinterpret_cast<WT* >(personalization_values);
+    prsLen = static_cast<VT>(personalization_subset_size);
   }
 
-  int m=pagerank.size(), nnz = graph->transposedAdjList->indices->size, status = 0;
+  int m=graph->transposedAdjList->offsets->size-1, nnz = graph->transposedAdjList->indices->size, status = 0;
   WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
   WT res = 1.0;
   WT *residual = &res;
@@ -224,8 +224,8 @@ void pagerank_impl (Graph *graph,
 
   if (has_guess)
   {
-    CUGRAPH_EXPECTS( pagerank.raw() != nullptr, "Column must be valid" );
-    copy<WT>(m, (WT*)pagerank.raw(), d_pr);
+    CUGRAPH_EXPECTS( pagerank != nullptr, "Column must be valid" );
+    copy<WT>(m, (WT*)pagerank, d_pr);
   }
 
   status = pagerankSolver<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
@@ -239,7 +239,7 @@ void pagerank_impl (Graph *graph,
       default:  CUGRAPH_FAIL("Pagerank exec failed");
     }
 
-  copy<WT>(m, d_pr, (WT*)pagerank.raw());
+  copy<WT>(m, d_pr, (WT*)pagerank);
 
   ALLOC_FREE_TRY(d_val, stream);
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
@@ -253,9 +253,9 @@ void pagerank_impl (Graph *graph,
 }
 
 template <typename VT, typename WT>
-void pagerank(Graph *graph,device_vector<WT>& pagerank,
-              device_vector<VT>& personalization_subset,device_vector<WT>& personalization_values,
-              float alpha, float tolerance, int max_iter, bool has_guess) {
+void pagerank(Graph *graph,WT* pagerank, size_t personalization_subset_size,
+  VT* personalization_subset,WT* personalization_values,
+  float alpha, float tolerance, int max_iter, bool has_guess) {
   //
   //  Pagerank operates on CSR and can't currently support 64-bit integers.
   //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
@@ -267,31 +267,27 @@ void pagerank(Graph *graph,device_vector<WT>& pagerank,
   
   if (typeid(VT) != typeid(int) )
     CUGRAPH_FAIL("Unsupported personalization_subset data type, please use int");
-  
-  if ( pagerank.size() > INT_MAX )
-    CUGRAPH_FAIL("V is larger than INT_MAX");
 
-  CUGRAPH_EXPECTS( pagerank.raw() != nullptr , "Invalid API parameter: Pagrank vector should be of size V" );
-  CUGRAPH_EXPECTS( pagerank.size() > 0 , "Invalid API parameter: Pagrank vector should be of size V" );
+  CUGRAPH_EXPECTS( pagerank != nullptr , "Invalid API parameter: Pagrank vector should be of size V" );
 
-  if (personalization_subset.size() != 0) {
+  if (personalization_subset_size != 0) {
     // extra checks for personalized PageRank
     CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported personalization_subset data type");
-    CUGRAPH_EXPECTS(personalization_subset.size() == personalization_values.size(), "Personalization column size mismatch");
-    CUGRAPH_EXPECTS(personalization_subset.size() <= pagerank.size(), "Personalization size should be smaller than V");
+    // TODO 
+    // fixme after upgrading graph class : CUGRAPH_EXPECTS(personalization_subset_size <= G->v, "Personalization size should be smaller than V");
   }
 
   return detail::pagerank_impl<VT,WT>(graph, pagerank,
-                                  personalization_subset, personalization_values,
+                                  personalization_subset_size, personalization_subset, personalization_values,
                                   alpha, tolerance, max_iter, has_guess);
 }
 
 // explicit instantiation
-template void pagerank<int, float>(Graph *graph,device_vector<float>& pagerank,
-  device_vector<int>& personalization_subset,device_vector<float>& personalization_values,
+template void pagerank<int, float>(Graph *graph,float* pagerank,
+  size_t personalization_subset_size, int* personalization_subset,float* personalization_values,
   float alpha, float tolerance, int max_iter, bool has_guess);
-template void pagerank<int, double>(Graph *graph,device_vector<double>& pagerank,
-  device_vector<int>& personalization_subset,device_vector<double>& personalization_values,
+template void pagerank<int, double>(Graph *graph,double* pagerank,
+  size_t personalization_subset_size, int* personalization_subset,double* personalization_values,
   float alpha, float tolerance, int max_iter, bool has_guess);
 
 } //namespace cugraph 

@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include <rmm/thrust_rmm_allocator.h>
-
 // TODO : [WIP] improve graph class and types 
 
 namespace cugraph {
@@ -116,18 +114,6 @@ struct Graph{
       if (prop) 
           delete prop;
     }
-};
-
-/**
- * @brief Alias for rmm::device_vector which is a thrust::device_vector that uses RMM for memory allocation.
- * 
- */
-
-template <typename T>
-class device_vector : public rmm::device_vector<T> {
-  public: 
-  device_vector(size_t n);
-  inline T *raw();
 };
 
 } //namespace cugraph
