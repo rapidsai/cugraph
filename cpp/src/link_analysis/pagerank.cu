@@ -190,6 +190,7 @@ void pagerank_impl (Graph *graph,
                     float alpha = 0.85,
                     float tolerance = 1e-4, int max_iter = 200,
                     bool has_guess = false) {
+
   bool has_personalization = false;
   int *prsVtx = nullptr;
   WT  *prsVal = nullptr;
@@ -198,13 +199,8 @@ void pagerank_impl (Graph *graph,
     has_personalization = true;
     prsVtx = reinterpret_cast<VT*>(personalization_subset.raw());
     prsVal = reinterpret_cast<WT* >(personalization_values.raw());
-    prsLen = reinterpret_cast<VT>(personalization_subset.size());
-    CUGRAPH_EXPECTS(typeid(pagerank.value_type) == typeid(personalization_values.value_type), "Invalid API parameter : wrong data type");
-    CUGRAPH_EXPECTS(typeid(personalization_subset.value_type) == typeid(int), "Unsupported personalization_subset data type");
-    CUGRAPH_EXPECTS(personalization_subset.size() == personalization_values.size(), "Column size mismatch");
+    prsLen = static_cast<VT>(personalization_subset.size());
   }
-  CUGRAPH_EXPECTS( pagerank.raw() != nullptr , "Invalid API parameter" );
-  CUGRAPH_EXPECTS( pagerank.size() > 0 , "Invalid API parameter" );
 
   int m=pagerank.size(), nnz = graph->transposedAdjList->indices->size, status = 0;
   WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
@@ -254,7 +250,6 @@ void pagerank_impl (Graph *graph,
   ALLOC_FREE_TRY(d_leaf_vector, stream);
 
 }
-
 }
 
 template <typename VT, typename WT>
@@ -265,13 +260,26 @@ void pagerank(Graph *graph,device_vector<WT>& pagerank,
   //  Pagerank operates on CSR and can't currently support 64-bit integers.
   //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
   //
-  CUGRAPH_EXPECTS(graph->transposedAdjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->transposedAdjList != nullptr, "Invalid API parameter: Transposed Adj List is needed by pagerank");
 
-  if (typeid(pagerank.value_type) != typeid(float) && typeid(pagerank.value_type) != typeid(double))
+  if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double))
     CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
   
-  if (typeid(personalization_subset.value_type) != typeid(int) )
+  if (typeid(VT) != typeid(int) )
     CUGRAPH_FAIL("Unsupported personalization_subset data type, please use int");
+  
+  if ( pagerank.size() > INT_MAX )
+    CUGRAPH_FAIL("V is larger than INT_MAX");
+
+  CUGRAPH_EXPECTS( pagerank.raw() != nullptr , "Invalid API parameter: Pagrank vector should be of size V" );
+  CUGRAPH_EXPECTS( pagerank.size() > 0 , "Invalid API parameter: Pagrank vector should be of size V" );
+
+  if (personalization_subset.size() != 0) {
+    // extra checks for personalized PageRank
+    CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported personalization_subset data type");
+    CUGRAPH_EXPECTS(personalization_subset.size() == personalization_values.size(), "Personalization column size mismatch");
+    CUGRAPH_EXPECTS(personalization_subset.size() <= pagerank.size(), "Personalization size should be smaller than V");
+  }
 
   return detail::pagerank_impl<VT,WT>(graph, pagerank,
                                   personalization_subset, personalization_values,

@@ -126,10 +126,7 @@ struct Graph{
 template <typename T>
 class device_vector : public rmm::device_vector<T> {
   public: 
-  typedef T value_type;
-  device_vector(size_t n) : rmm::device_vector<T>(n) {
-
-  }
+  device_vector(size_t n) : rmm::device_vector<T>(n) { }
   inline T *raw()
   {
       if (this->size() > 0) { 
