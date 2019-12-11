@@ -29,8 +29,8 @@
 #include "utilities/error_utils.h"
 #include <cugraph.h>
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
 
 #ifdef DEBUG
   #define PR_VERBOSE
@@ -70,7 +70,7 @@ bool pagerankIteration(IndexType n, IndexType e, IndexType *cscPtr, IndexType *c
 }
 
 template <typename IndexType, typename ValueType>
-int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, ValueType *cscVal,
+int pagerankSolver(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, ValueType *cscVal,
              IndexType *prsVtx, ValueType *prsVal, IndexType prsLen, bool has_personalization,
              ValueType alpha, ValueType *a, bool has_guess, float tolerance, int max_iter,
              ValueType * &pagerank_vector, ValueType * &residual) {
@@ -105,7 +105,7 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
 #else
   ALLOC_TRY((void**)&tmp, sizeof(ValueType) * n, stream);
 #endif
-  cudaCheckError();
+  CUDA_CHECK_LAST();
 
   if (!has_guess) {
        fill(n, pagerank_vector, randomProbability);
@@ -133,7 +133,7 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
                                   cscPtr, cscInd, tmp, pagerank_vector, n, n, e));
    // Allocate temporary storage
   ALLOC_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
-  cudaCheckError()
+  CUDA_CHECK_LAST()
 #ifdef PR_VERBOSE
   std::stringstream ss;
   ss.str(std::string());
@@ -175,18 +175,16 @@ int pagerank(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, Val
   return converged ? 0 : 1;
 }
 
-//template int pagerank<int, half> (  int n, int e, int *cscPtr, int *cscInd,half *cscVal, half alpha, half *a, bool has_guess, float tolerance, int max_iter, half * &pagerank_vector, half * &residual);
-template int pagerank<int, float> (  int n, int e, int *cscPtr, int *cscInd,float *cscVal,
+//template int pagerankSolver<int, half> (  int n, int e, int *cscPtr, int *cscInd,half *cscVal, half alpha, half *a, bool has_guess, float tolerance, int max_iter, half * &pagerank_vector, half * &residual);
+template int pagerankSolver<int, float> (  int n, int e, int *cscPtr, int *cscInd,float *cscVal,
         int *prsVtx, float *prsVal, int prsLen, bool has_personalization,
         float alpha, float *a, bool has_guess, float tolerance, int max_iter, float * &pagerank_vector, float * &residual);
-template int pagerank<int, double> (  int n, int e, int *cscPtr, int *cscInd,double *cscVal,
+template int pagerankSolver<int, double> (  int n, int e, int *cscPtr, int *cscInd,double *cscVal,
         int *prsVtx,  double *prsVal, int prsLen, bool has_personalization,
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
-} //namespace cugraph
-
 template <typename WT>
-gdf_error gdf_pagerank_impl (gdf_graph *graph,
+void pagerank_impl (Graph *graph,
                       gdf_column *pagerank,
                       gdf_column *personalization_subset, gdf_column *personalization_values,
                       float alpha = 0.85,
@@ -196,35 +194,31 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
   int *prsVtx = nullptr;
   WT  *prsVal = nullptr;
   int prsLen = 0;
-  GDF_REQUIRE((personalization_subset == nullptr) == (personalization_values == nullptr), GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS((personalization_subset == nullptr) == (personalization_values == nullptr), "Invalid API parameter");
   if (personalization_subset != nullptr) {
     has_personalization = true;
     prsVtx = reinterpret_cast<int*>(personalization_subset->data);
     prsVal = reinterpret_cast<WT* >(personalization_values->data);
     prsLen = reinterpret_cast<int >(personalization_subset->size);
-    GDF_REQUIRE(pagerank->dtype == personalization_values->dtype, GDF_DTYPE_MISMATCH);
-    GDF_REQUIRE(personalization_subset->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-    GDF_REQUIRE(personalization_subset->size == personalization_values->size, GDF_COLUMN_SIZE_MISMATCH);
-    GDF_REQUIRE(personalization_subset->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-    GDF_REQUIRE(personalization_values->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
+    CUGRAPH_EXPECTS(pagerank->dtype == personalization_values->dtype, "Invalid API parameter");
+    CUGRAPH_EXPECTS(personalization_subset->dtype == GDF_INT32, "Unsupported data type");
+    CUGRAPH_EXPECTS(personalization_subset->size == personalization_values->size, "Column size mismatch");
+    CUGRAPH_EXPECTS(personalization_subset->null_count == 0 , "Input column has non-zero null count");
+    CUGRAPH_EXPECTS(personalization_values->null_count == 0 , "Input column has non-zero null count");
   }
-  GDF_REQUIRE( graph->edgeList != nullptr, GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( graph->edgeList->src_indices->size == graph->edgeList->dest_indices->size, GDF_COLUMN_SIZE_MISMATCH );
-  GDF_REQUIRE( graph->edgeList->src_indices->dtype == graph->edgeList->dest_indices->dtype, GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( graph->edgeList->src_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( graph->edgeList->dest_indices->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( pagerank != nullptr , GDF_INVALID_API_CALL );
-  GDF_REQUIRE( pagerank->data != nullptr , GDF_INVALID_API_CALL );
-  GDF_REQUIRE( pagerank->null_count == 0 , GDF_VALIDITY_UNSUPPORTED );
-  GDF_REQUIRE( pagerank->size > 0 , GDF_INVALID_API_CALL );
 
-  int m=pagerank->size, nnz = graph->edgeList->src_indices->size, status = 0;
+  CUGRAPH_EXPECTS( pagerank != nullptr , "Invalid API parameter" );
+  CUGRAPH_EXPECTS( pagerank->data != nullptr , "Invalid API parameter" );
+  CUGRAPH_EXPECTS( pagerank->null_count == 0 , "Input column has non-zero null count");
+  CUGRAPH_EXPECTS( pagerank->size > 0 , "Invalid API parameter" );
+
+  int m=pagerank->size, nnz = graph->transposedAdjList->indices->size, status = 0;
   WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
   WT res = 1.0;
   WT *residual = &res;
 
   if (graph->transposedAdjList == nullptr) {
-    gdf_add_transposed_adj_list(graph);
+    add_transposed_adj_list(graph);
   }
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
@@ -236,26 +230,26 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
 #endif
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
-  cugraph::HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
+  HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
 
   if (has_guess)
   {
-    GDF_REQUIRE( pagerank->data != nullptr, GDF_VALIDITY_UNSUPPORTED );
-    cugraph::copy<WT>(m, (WT*)pagerank->data, d_pr);
+    CUGRAPH_EXPECTS( pagerank->data != nullptr, "Column must be valid" );
+    copy<WT>(m, (WT*)pagerank->data, d_pr);
   }
 
-  status = cugraph::pagerank<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
+  status = pagerankSolver<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
           prsVtx, prsVal, prsLen, has_personalization,
     alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 
   if (status !=0)
     switch ( status ) {
-      case -1: std::cerr<< "Error : bad parameters in Pagerank"<<std::endl; return GDF_CUDA_ERROR;
-      case 1: std::cerr<< "Warning : Pagerank did not reached the desired tolerance"<<std::endl;  return GDF_CUDA_ERROR;
-      default:  std::cerr<< "Pagerank failed"<<std::endl;  return GDF_CUDA_ERROR;
+      case -1: CUGRAPH_FAIL("Error : bad parameters in Pagerank");
+      case 1: CUGRAPH_FAIL("Warning : Pagerank did not reached the desired tolerance");
+      default:  CUGRAPH_FAIL("Pagerank exec failed");
     }
 
-  cugraph::copy<WT>(m, d_pr, (WT*)pagerank->data);
+  copy<WT>(m, d_pr, (WT*)pagerank->data);
 
   ALLOC_FREE_TRY(d_val, stream);
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
@@ -265,10 +259,11 @@ gdf_error gdf_pagerank_impl (gdf_graph *graph,
 #endif
   ALLOC_FREE_TRY(d_leaf_vector, stream);
 
-  return GDF_SUCCESS;
+  
 }
 
-gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank,
+}
+void pagerank(Graph *graph, gdf_column *pagerank,
         gdf_column *personalization_subset, gdf_column *personalization_values,
         float alpha, float tolerance, int max_iter, bool has_guess) {
   //
@@ -276,21 +271,17 @@ gdf_error gdf_pagerank(gdf_graph *graph, gdf_column *pagerank,
   //
   //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
   //
-  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
-
-  GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
+  CUGRAPH_EXPECTS(graph->transposedAdjList != nullptr, "Invalid API parameter");
 
   switch (pagerank->dtype) {
-    case GDF_FLOAT32:   return gdf_pagerank_impl<float>(graph, pagerank,
+    case GDF_FLOAT32:   return detail::pagerank_impl<float>(graph, pagerank,
                                 personalization_subset, personalization_values,
                                 alpha, tolerance, max_iter, has_guess);
-    case GDF_FLOAT64:   return gdf_pagerank_impl<double>(graph, pagerank,
+    case GDF_FLOAT64:   return detail::pagerank_impl<double>(graph, pagerank,
                                 personalization_subset, personalization_values,
                                 alpha, tolerance, max_iter, has_guess);
-    default: return GDF_UNSUPPORTED_DTYPE;
+    default: CUGRAPH_FAIL("Unsupported data type");
   }
 }
+
+} //namespace cugraph 

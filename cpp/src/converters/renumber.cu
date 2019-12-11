@@ -21,11 +21,12 @@
 
 #include "renumber.cuh"
 
-gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
+namespace cugraph {
+void renumber_vertices(const gdf_column *src, const gdf_column *dst,
                                 gdf_column *src_renumbered, gdf_column *dst_renumbered,
                                 gdf_column *numbering_map) {
-  GDF_REQUIRE( src->size == dst->size, GDF_COLUMN_SIZE_MISMATCH );
-  GDF_REQUIRE( src->dtype == dst->dtype, GDF_UNSUPPORTED_DTYPE );
+  CUGRAPH_EXPECTS( src->size == dst->size, "Column size mismatch" );
+  CUGRAPH_EXPECTS( src->dtype == dst->dtype, "Unsupported data type" );
 
   //
   //  Added this back in.  Below I added support for strings, however the 
@@ -34,8 +35,8 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
   //  will prevent code from being executed.  Once cudf fully support string
   //  columns we can eliminate this check and debug the GDF_STRING case below.
   //
-  GDF_REQUIRE( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), GDF_UNSUPPORTED_DTYPE );
-  GDF_REQUIRE( src->size > 0, GDF_DATASET_EMPTY );
+  CUGRAPH_EXPECTS( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), "Unsupported data type" );
+  CUGRAPH_EXPECTS( src->size > 0, "Column is empty");
 
   //
   //  TODO: we're currently renumbering without using valid.  We need to
@@ -79,19 +80,16 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
       gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, dst->dtype);
 
-      gdf_error err = cugraph::renumber_vertices(src->size,
-                                                 static_cast<const int32_t *>(src->data),
-                                                 static_cast<const int32_t *>(dst->data),
-                                                 static_cast<int32_t *>(src_renumbered->data),
-                                                 static_cast<int32_t *>(dst_renumbered->data),
-                                                 &new_size,
-                                                 &tmp,
-                                                 cugraph::HashFunctionObjectInt(hash_size),
-                                                 thrust::less<int32_t>()
-                                                 );
-      if (err != GDF_SUCCESS)
-        return err;
-
+      cugraph::detail::renumber_vertices(src->size,
+                                         static_cast<const int32_t *>(src->data),
+                                         static_cast<const int32_t *>(dst->data),
+                                         static_cast<int32_t *>(src_renumbered->data),
+                                         static_cast<int32_t *>(dst_renumbered->data),
+                                         &new_size,
+                                         &tmp,
+                                         cugraph::detail::HashFunctionObjectInt(hash_size),
+                                         thrust::less<int32_t>()
+                                         );
       gdf_column_view(numbering_map, tmp, nullptr, new_size, src->dtype);
       break;
     }
@@ -117,27 +115,24 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
       gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, GDF_INT32);
 
-      gdf_error err = cugraph::renumber_vertices(src->size,
-                                                 static_cast<const int64_t *>(src->data),
-                                                 static_cast<const int64_t *>(dst->data),
-                                                 static_cast<int32_t *>(src_renumbered->data),
-                                                 static_cast<int32_t *>(dst_renumbered->data),
-                                                 &new_size,
-                                                 &tmp,
-                                                 cugraph::HashFunctionObjectInt(hash_size),
-                                                 thrust::less<int64_t>()
-                                                 );
-      if (err != GDF_SUCCESS)
-        return err;
+      cugraph::detail::renumber_vertices(src->size,
+                                         static_cast<const int64_t *>(src->data),
+                                         static_cast<const int64_t *>(dst->data),
+                                         static_cast<int32_t *>(src_renumbered->data),
+                                         static_cast<int32_t *>(dst_renumbered->data),
+                                         &new_size,
+                                         &tmp,
+                                         cugraph::detail::HashFunctionObjectInt(hash_size),
+                                         thrust::less<int64_t>()
+                                         );
 
-      //
       //  If there are too many vertices then the renumbering overflows so we'll
       //  return an error.
       //
       if (new_size > 0x7fffffff) {
         ALLOC_FREE_TRY(src_renumbered, stream);
         ALLOC_FREE_TRY(dst_renumbered, stream);
-        return GDF_COLUMN_SIZE_TOO_BIG;
+        CUGRAPH_FAIL("Column size is too big");
       }
 
       //
@@ -173,20 +168,16 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       srcList->create_index((std::pair<const char *, size_t> *) srcs, true);
       dstList->create_index((std::pair<const char *, size_t> *) dsts, true);
       
-      gdf_error err = cugraph::renumber_vertices(src->size,
+      cugraph::detail::renumber_vertices(src->size,
                                                  srcs,
                                                  dsts,
                                                  static_cast<int32_t *>(src_renumbered->data),
                                                  static_cast<int32_t *>(dst_renumbered->data),
                                                  &new_size,
                                                  &output_map,
-                                                 cugraph::HashFunctionObjectString(hash_size),
-                                                 cugraph::CompareString()
+                                                 cugraph::detail::HashFunctionObjectString(hash_size),
+                                                 cugraph::detail::CompareString()
                                                  );
-      if (err != GDF_SUCCESS)
-        return err;
-
-      //
       //  We're done with srcs and dsts
       //
       ALLOC_FREE_TRY(srcs, stream);
@@ -199,7 +190,7 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
       if (new_size > 0x7fffffff) {
         ALLOC_FREE_TRY(src_renumbered, stream);
         ALLOC_FREE_TRY(dst_renumbered, stream);
-        return GDF_COLUMN_SIZE_TOO_BIG;
+        CUGRAPH_FAIL("Column size is too big");
       }
 
       //
@@ -212,8 +203,10 @@ gdf_error gdf_renumber_vertices(const gdf_column *src, const gdf_column *dst,
     }
 
   default:
-    return GDF_UNSUPPORTED_DTYPE;
+    CUGRAPH_FAIL("Unsupported data type");
   }
 
-  return GDF_SUCCESS;
+  
 }
+
+}// namespace cugraph 

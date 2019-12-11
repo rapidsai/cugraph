@@ -52,6 +52,6 @@ def core_number(G):
     >>> cn = cugraph.core_number(G)
     """
 
-    df = core_number_wrapper.core_number(G.graph_ptr)
+    df = core_number_wrapper.core_number(G)
 
     return df

@@ -16,15 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_k_core(
-        gdf_graph *in_graph,
-        int k,
-        gdf_column *vertex_id,
-        gdf_column *core_number,
-        gdf_graph *out_graph) except +
-
+    cdef void sssp(
+        Graph *graph,
+        gdf_column *distances,
+        gdf_column *predecessors,
+        int start_vertex) except +

@@ -18,7 +18,7 @@
 
 TEST(nvgraph_louvain, success)
 {
-  gdf_graph G;
+  cugraph::Graph G;
 
   std::vector<int> off_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
   std::vector<int> ind_h = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 0, 2, 3, 7, 13, 17, 19, 21, 30, 0, 1, 3, 7, 8, 9, 13, 27, 28, 32, 0, 1, 2, 7, 12, 13, 0, 6, 10, 0,
@@ -38,10 +38,10 @@ TEST(nvgraph_louvain, success)
   create_gdf_column(ind_h,&col_ind);
   create_gdf_column(w_h  ,&col_w);
 
-  ASSERT_EQ(gdf_adj_list_view(&G, &col_off, &col_ind, &col_w), GDF_SUCCESS);
+  cugraph::adj_list_view(&G, &col_off, &col_ind, &col_w);
 
   if (!(G.adjList))
-    ASSERT_EQ(gdf_add_adj_list(&G), GDF_SUCCESS);
+    cugraph::add_adj_list(&G);
 
   int no_vertex = off_h.size()-1;
   int weighted = 0; //false
@@ -76,7 +76,7 @@ TEST(nvgraph_louvain, success)
 //
 TEST(nvgraph_louvain_grmat, success)
 {
-  gdf_graph G;
+  cugraph::Graph G;
   gdf_column col_src, col_dest, col_weights;
   size_t vertices = 0, edges = 0;
   char argv[1024] = "grmat --rmat_scale=23 --rmat_edgefactor=16 --device=0 --normalized --quiet ";
@@ -95,17 +95,17 @@ TEST(nvgraph_louvain_grmat, success)
   col_dest.null_count = 0;
   col_weights.null_count = 0;
 
-  ASSERT_EQ(gdf_grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr), GDF_SUCCESS);
+  cugraph::grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr);
   cudaStream_t stream{nullptr};
   ALLOC_TRY ((void**)&col_weights.data, sizeof(int) * edges, stream);
   col_weights.size = edges;
   std::vector<float> w_h (edges, (float)1.0);
   cudaMemcpy (col_weights.data, (void*) &(w_h[0]), sizeof(float)*edges, cudaMemcpyHostToDevice);
-  ASSERT_EQ(gdf_edge_list_view(&G, &col_src, &col_dest, &col_weights), GDF_SUCCESS);
+  cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights);
 
   if (!(G.adjList))
   {
-    ASSERT_EQ(gdf_add_adj_list(&G), GDF_SUCCESS);
+    cugraph::add_adj_list(&G);
   }
   int weighted = 1; //false
   int has_init_cluster = 0; //false

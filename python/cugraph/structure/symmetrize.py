@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph import null_check
+from cugraph.structure import graph as csg
 import cudf
 
 
@@ -128,14 +128,14 @@ def symmetrize(source_col, dest_col, value_col=None):
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(src, dst, val)
     """
-    null_check(source_col)
-    null_check(dest_col)
+    csg.null_check(source_col)
+    csg.null_check(dest_col)
 
-    input_df = cudf.DataFrame([('source', source_col),
-                               ('destination', dest_col)])
+    input_df = cudf.DataFrame({'source': source_col,
+                               'destination': dest_col})
 
     if value_col is not None:
-        null_check(value_col)
+        csg.null_check(value_col)
         input_df.add_column('value', value_col)
 
     output_df = symmetrize_df(input_df, 'source', 'destination')

@@ -16,15 +16,18 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
+from cudf._lib.cudf cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_grmat_gen(
-        const char* argv,
-        const size_t &vertices,
-        const size_t &edges,
-        gdf_column* src,
-        gdf_column* dest,
-        gdf_column* val) except +
+    cdef void connected_components(
+        Graph *graph,
+        cugraph_cc_t connect_type,
+        cudf_table* table) except +
+
+    ctypedef enum cugraph_cc_t:
+        CUGRAPH_WEAK = 0,
+        CUGRAPH_STRONG,
+        NUM_CONNECTIVITY_TYPES

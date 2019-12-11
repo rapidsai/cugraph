@@ -5,7 +5,6 @@
 #include "utilities/graph_utils.cuh"
 #include "utilities/error_utils.h"
 #include <cugraph.h>
-#include <algo_types.h>
 
 #include <iostream>
 #include <type_traits>
@@ -13,6 +12,9 @@
 #include <cstdint>
 
 //#define _DEBUG_SM_
+
+namespace cugraph {
+namespace detail {
 
 //
 /**
@@ -30,49 +32,49 @@
 template <typename VertexT,
           typename SizeT,
           typename GValueT>
-gdf_error gdf_subgraph_matching_impl(gdf_graph *graph_src,
-                                     gdf_graph *graph_query,
+void subgraph_matching_impl(Graph *graph_src,
+                                     Graph *graph_query,
                                      VertexT* subgraphs,
                                      cudaStream_t stream = nullptr)
 {
-  static auto row_offsets_ = [](const gdf_graph* G){
+  static auto row_offsets_ = [](const Graph* G){
     return static_cast<const SizeT*>(G->adjList->offsets->data);
   };
 
-  static auto col_indices_ = [](const gdf_graph* G){
+  static auto col_indices_ = [](const Graph* G){
     return static_cast<const VertexT*>(G->adjList->indices->data);
   };
 
-  static auto values_ = [](const gdf_graph* G){
+  static auto values_ = [](const Graph* G){
     return static_cast<const GValueT*>(G->adjList->edge_data->data);
   };
 
 
-  static auto nrows_ = [](const gdf_graph* G){
+  static auto nrows_ = [](const Graph* G){
     return static_cast<SizeT>(G->adjList->offsets->size - 1);
   };
 
-  static auto nnz_ = [](const gdf_graph* G){
+  static auto nnz_ = [](const Graph* G){
     return static_cast<SizeT>(G->adjList->indices->size);
   };
-  std::array<gdf_graph*, 2> arr_graph = {graph_src, graph_query};
+  std::array<Graph*, 2> arr_graph = {graph_src, graph_query};
 
   //check consistency of both graphs:
   //
   for(auto&& graph: arr_graph)
     {
-      GDF_REQUIRE(graph != nullptr, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
     
-      GDF_REQUIRE(graph->adjList != nullptr, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
     
-      GDF_REQUIRE(row_offsets_(graph) != nullptr, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter");
 
-      GDF_REQUIRE(col_indices_(graph) != nullptr, GDF_INVALID_API_CALL);
+      CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter");
     
       auto type_id = graph->adjList->offsets->dtype;
-      GDF_REQUIRE( type_id == GDF_INT32 || type_id == GDF_INT64, GDF_UNSUPPORTED_DTYPE);
+      CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type");
   
-      GDF_REQUIRE( type_id == graph->adjList->indices->dtype, GDF_UNSUPPORTED_DTYPE);
+      CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type");
   
       const SizeT* p_d_row_offsets = row_offsets_(graph);
       const VertexT* p_d_col_ind = col_indices_(graph);
@@ -97,8 +99,10 @@ gdf_error gdf_subgraph_matching_impl(gdf_graph *graph_src,
   //                     1,
   //                     subgraphs);
     
-  return GDF_SUCCESS;
+  
 }
+
+} //detail
 
 /**
  * @brief Subgraph matching. 
@@ -108,20 +112,20 @@ gdf_error gdf_subgraph_matching_impl(gdf_graph *graph_src,
  * @param  graph_query input query graph (to search for); assumed undirected [in]
  * @param  subgraphs   Return number of matched subgraphs [out]
  */
-gdf_error gdf_subgraph_matching(gdf_graph *graph_src,
-                                gdf_graph *graph_query,
+void subgraph_matching(Graph *graph_src,
+                                Graph *graph_query,
                                 gdf_column* subgraphs)
 
 {
-  static auto row_offsets_t_ = [](const gdf_graph* G){
+  static auto row_offsets_t_ = [](const Graph* G){
     return G->adjList->offsets->dtype;
   };
 
-  static auto col_indices_t_ = [](const gdf_graph* G){
+  static auto col_indices_t_ = [](const Graph* G){
     return G->adjList->indices->dtype;
   };
 
-  static auto values_t_ = [](const gdf_graph* G){
+  static auto values_t_ = [](const Graph* G){
     return G->adjList->edge_data->dtype;
   };
 
@@ -134,11 +138,13 @@ gdf_error gdf_subgraph_matching(gdf_graph *graph_src,
 
   //currently Gunrock's API requires that graph's col indices and subgraphs must be same type:
   //
-  GDF_REQUIRE( subg_dtype == ci_src_dtype, GDF_INVALID_API_CALL);
-  GDF_REQUIRE( subg_dtype == ci_qry_dtype, GDF_INVALID_API_CALL);
+  CUGRAPH_EXPECTS( subg_dtype == ci_src_dtype, "Invalid API parameter");
+  CUGRAPH_EXPECTS( subg_dtype == ci_qry_dtype, "Invalid API parameter");
 
   //TODO: hopefully multi-type-dispatch on various combos of types:
   //
   int* p_d_subg = static_cast<int*>(subgraphs->data);
-  return gdf_subgraph_matching_impl<int, int, unsigned long>(graph_src, graph_query, p_d_subg);
+  return detail::subgraph_matching_impl<int, int, unsigned long>(graph_src, graph_query, p_d_subg);
 }
+
+} //namespace cugraph 

@@ -64,7 +64,7 @@ namespace cusort {
    * @return   GDF_SUCCESS upon successful completion
    */
   template <typename Key_t, typename Value_t, typename Length_t>
-  gdf_error sort_key_value(Key_t **d_input_keys,
+  void sort_key_value(Key_t **d_input_keys,
                            Value_t **d_input_values,
                            Length_t *h_input_partition_offsets,
                            Key_t **d_output_keys,
@@ -118,7 +118,7 @@ namespace cusort {
    * @return   GDF_SUCCESS upon successful completion
    */
   template <typename Key_t, typename Length_t>
-  gdf_error sort_key(Key_t **d_input_keys,
+  void sort_key(Key_t **d_input_keys,
                      Length_t *h_input_partition_offsets,
                      Key_t **d_output_keys,
                      Length_t *h_output_partition_offsets,

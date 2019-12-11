@@ -48,6 +48,9 @@ extern "C" {
 
 #include "cugraph.h"
 
+#include "utilities/error_utils.h"
+
+
 #ifndef CUDA_RT_CALL
 #define CUDA_RT_CALL( call )                     \
 {                                                                                                  \
@@ -71,8 +74,8 @@ std::function<void(gdf_column*)> gdf_col_deleter = [](gdf_column* col){
 };
 using gdf_column_ptr = typename std::unique_ptr<gdf_column, decltype(gdf_col_deleter)>;
 
-std::function<void(gdf_graph*)> gdf_graph_deleter = [](gdf_graph* G){delete G;};
-using gdf_graph_ptr = typename std::unique_ptr<gdf_graph,decltype(gdf_graph_deleter)>;
+std::function<void(cugraph::Graph*)> Graph_deleter = [](cugraph::Graph* G){delete G;};
+using Graph_ptr = typename std::unique_ptr<cugraph::Graph,decltype(Graph_deleter)>;
 
 std::string getFileName(const std::string& s) {
 

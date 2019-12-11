@@ -20,7 +20,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -35,14 +34,16 @@ with warnings.catch_warnings():
 
 def cugraph_call(M, edgevals=False):
     M = M.tocoo()
-    rows = cudf.Series(M.row)
-    cols = cudf.Series(M.col)
-    if edgevals is False:
-        values = None
+    G = cugraph.DiGraph()
+    cu_M = cudf.DataFrame()
+    cu_M['src'] = cudf.Series(M.row)
+    cu_M['dst'] = cudf.Series(M.col)
+    if edgevals is True:
+        cu_M['weights'] = cudf.Series(M.data)
+        G.from_cudf_edgelist(cu_M, source='src', target='dst',
+                             edge_attr='weights')
     else:
-        values = cudf.Series(M.data)
-    G = cugraph.Graph()
-    G.add_edge_list(rows, cols, values)
+        G.from_cudf_edgelist(cu_M, source='src', target='dst')
     return cugraph.triangles(G)
 
 
@@ -67,11 +68,11 @@ DATASETS = ['../datasets/dolphins.csv',
 def test_triangles(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -88,11 +89,11 @@ def test_triangles(managed, pool, graph_file):
 def test_triangles_edge_vals(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 

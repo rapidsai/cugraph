@@ -16,13 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 
 
-cdef extern from "nvgraph_gdf.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_balancedCutClustering_nvgraph(
-        gdf_graph *gdf_G,
+    cdef void balancedCutClustering_nvgraph(
+        Graph *gdf_G,
         const int num_clusters,
         const int num_eigen_vects,
         const float evs_tolerance,
@@ -31,8 +31,8 @@ cdef extern from "nvgraph_gdf.h":
         const int kmean_max_iter,
         gdf_column* clustering) except +
     
-    cdef gdf_error gdf_spectralModularityMaximization_nvgraph(
-        gdf_graph* gdf_G,
+    cdef void spectralModularityMaximization_nvgraph(
+        Graph* gdf_G,
         const int n_clusters,
         const int n_eig_vects,
         const float evs_tolerance,
@@ -41,20 +41,20 @@ cdef extern from "nvgraph_gdf.h":
         const int kmean_max_iter,
         gdf_column* clustering) except +
     
-    cdef gdf_error gdf_AnalyzeClustering_modularity_nvgraph(
-        gdf_graph* gdf_G,
+    cdef void analyzeClustering_modularity_nvgraph(
+        Graph* gdf_G,
         const int n_clusters,
         gdf_column* clustering,
         float* score) except +
     
-    cdef gdf_error gdf_AnalyzeClustering_edge_cut_nvgraph(
-        gdf_graph* gdf_G,
+    cdef void analyzeClustering_edge_cut_nvgraph(
+        Graph* gdf_G,
         const int n_clusters,
         gdf_column* clustering,
         float* score) except +
     
-    cdef gdf_error gdf_AnalyzeClustering_ratio_cut_nvgraph(
-        gdf_graph* gdf_G,
+    cdef void analyzeClustering_ratio_cut_nvgraph(
+        Graph* gdf_G,
         const int n_clusters,
         gdf_column* clustering,
         float* score) except +

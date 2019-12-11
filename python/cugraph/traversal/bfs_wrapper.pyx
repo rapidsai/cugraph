@@ -16,8 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.traversal.c_bfs cimport *
-from cugraph.structure.c_graph cimport *
+cimport cugraph.traversal.bfs as c_bfs
+from cugraph.structure.graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -27,20 +28,34 @@ import cudf._lib as libcudf
 import numpy as np
 
 
-def bfs(graph_ptr, start, directed=True):
+def bfs(input_graph, start, directed=True):
     """
-    Call gdf_bfs
+    Call bfs
     """
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
 
-    cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph* g = <gdf_graph*>graph
+    if input_graph.adjlist:
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            graph_wrapper.add_edge_list(graph, src, dst, weights)
+        else:
+            graph_wrapper.add_edge_list(graph, src, dst)
+        add_adj_list(g)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
-    err = gdf_add_adj_list(g)
-    libcudf.cudf.check_gdf_error(err)
-
-    # we should add get_number_of_vertices() to gdf_graph (and this should be
+    # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
+
+    if not 0 <= start < num_verts:
+        raise ValueError("Starting vertex should be between 0 to number of vertices")
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -50,10 +65,12 @@ def bfs(graph_ptr, start, directed=True):
     cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
     cdef gdf_column c_predecessor_col = get_gdf_column_view(df['predecessor'])
 
-    err = g.adjList.get_vertex_identifiers(&c_vertex_col)
-    libcudf.cudf.check_gdf_error(err)
+    g.adjList.get_vertex_identifiers(&c_vertex_col)
 
-    err = gdf_bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
-    libcudf.cudf.check_gdf_error(err)
+    c_bfs.bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        df['predecessor'] = input_graph.edgelist.renumber_map[df['predecessor']]
 
     return df

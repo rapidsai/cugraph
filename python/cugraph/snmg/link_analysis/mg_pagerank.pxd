@@ -16,12 +16,15 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
-from libc.stdint cimport uint64_t
+from cugraph.structure.graph cimport *
+from libcpp cimport bool
 
+cdef extern from "cugraph.h" namespace "cugraph":
 
-cdef extern from "nvgraph_gdf.h":
-
-    cdef gdf_error gdf_triangle_count_nvgraph(
-        gdf_graph* G,
-        uint64_t* result) except +
+    cdef void snmg_pagerank (
+            gdf_column **src_col_ptrs, 
+            gdf_column **dest_col_ptrs, 
+            gdf_column *pr_col, 
+            const size_t n_gpus, 
+            const float damping_factor, 
+            const int n_iter) except +

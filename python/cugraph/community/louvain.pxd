@@ -16,17 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_overlap(gdf_graph * graph,
-                               gdf_column * weights,
-                               gdf_column * result) except +
-    
-    cdef gdf_error gdf_overlap_list(gdf_graph * graph,
-                                    gdf_column * weights,
-                                    gdf_column * first,
-                                    gdf_column * second,
-                                    gdf_column * result) except +
+    cdef void louvain(
+        Graph *graph,
+        void *final_modularity,
+        void *num_level,
+        gdf_column *louvain_parts) except +

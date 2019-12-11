@@ -36,11 +36,11 @@ getTopKIds(gdf_column_ptr katz, int k = 10) {
 }
 
 int
-getMaxDegree(gdf_graph * G) {
-      EXPECT_EQ(gdf_add_adj_list(G), 0);
+getMaxDegree(cugraph::Graph * G) {
+      cugraph::add_adj_list(G);
       std::vector<int> out_degree(G->numberOfVertices);
       gdf_column_ptr col_out_degree = create_gdf_column(out_degree);
-      EXPECT_EQ(gdf_degree(G, col_out_degree.get(), 2), 0);
+      cugraph::degree(G, col_out_degree.get(), 2);
       auto degreePtr = thrust::device_pointer_cast(static_cast<int*>(col_out_degree.get()->data));
       cudaStream_t stream = nullptr;
       int max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
@@ -81,9 +81,8 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   virtual void TearDown() {}
 
   void run_current_test(const Katz_Usecase& param) {
-       gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+       Graph_ptr G{new cugraph::Graph, Graph_deleter};
        gdf_column_ptr col_src, col_dest, col_katz_centrality;
-       gdf_error status;
 
        FILE* fpin = fopen(param.matrix_file.c_str(),"r");
        ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
@@ -111,12 +110,11 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
       col_dest = create_gdf_column(cooColInd);
       col_katz_centrality = create_gdf_column(katz_centrality);
 
-      ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
+      cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
       int max_out_degree = getMaxDegree(G.get());
       double alpha = 1/(static_cast<double>(max_out_degree) + 1);
 
-      status = gdf_katz_centrality(G.get(), col_katz_centrality.get(), alpha, 100, 1e-6, false, true);
-      EXPECT_EQ(status,0);
+      cugraph::katz_centrality(G.get(), col_katz_centrality.get(), alpha, 100, 1e-6, false, true);
 
       std::vector<int> top10CUGraph = getTopKIds(std::move(col_katz_centrality));
       std::vector<int> top10Golden  = getGoldenTopKIds(param.result_file);

@@ -44,7 +44,7 @@ logger "Activate conda env..."
 source activate gdf
 
 logger "conda install required packages"
-conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge \
+conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
       cudf=${MINOR_VERSION} \
       rmm=${MINOR_VERSION} \
       networkx>=2.3 \
@@ -57,7 +57,7 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge 
       libcypher-parser
 
 # Install the master version of dask and distributed
-logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps" 
+logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps"
 pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
 
 logger "pip install git+https://github.com/dask/dask.git --upgrade --no-deps"
@@ -87,12 +87,25 @@ else
     logger "Check GPU usage..."
     nvidia-smi
 
+    logger "Download datasets..."
+    cd $WORKSPACE/datasets
+    source ./get_test_data.sh
+
     logger "GoogleTest for libcugraph..."
     cd $WORKSPACE/cpp/build
-    GTEST_OUTPUT="xml:${WORKSPACE}/test-results/" gtests/GDFGRAPH_TEST
+    export GTEST_OUTPUT="xml:${WORKSPACE}/test-results/"
+    for gt in gtests/*; do
+        test_name=`basename $gt`
+        logger "Running GoogleTest $test_name"
+        # FIXME: remove this ASAP
+        if [[ ${gt} == "gtests/SNMG_SPMV_TEST" ]]; then
+            ${gt} --gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*
+        else
+            ${gt}
+        fi
+    done
 
     logger "Python py.test for cuGraph..."
     cd $WORKSPACE/python
     py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
 fi
-

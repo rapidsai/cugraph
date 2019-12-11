@@ -16,13 +16,15 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_louvain(
-        gdf_graph *graph,
-        void *final_modularity,
-        void *num_level,
-        gdf_column *louvain_parts) except +
+    cdef void grmat_gen(
+        const char* argv,
+        const size_t &vertices,
+        const size_t &edges,
+        gdf_column* src,
+        gdf_column* dest,
+        gdf_column* val) except +

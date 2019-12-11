@@ -17,8 +17,8 @@
 #include "rmm_utils.h"
 #include "cusparse_helper.h"
 
-namespace cugraph
-{
+namespace cugraph { 
+namespace detail {
 cusparseHandle_t Cusparse::m_handle = 0;
 
 template <typename ValueType>
@@ -114,4 +114,4 @@ void CusparseCsrMV<ValueType>::run(int m,
 template class CusparseCsrMV<double>;
 template class CusparseCsrMV<float>;
 
-} //namespace
+} } //namespace

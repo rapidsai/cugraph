@@ -71,7 +71,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
   static std::vector<double> pagerank_time;   
 
 
-  template <typename T, bool manual_tanspose>
+  template <typename T>
   void run_current_test(const Pagerank_Usecase& param) {
      const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
      std::stringstream ss; 
@@ -80,9 +80,9 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      int m, k, nnz;
      MM_typecode mc;
      
-     gdf_graph_ptr G{new gdf_graph, gdf_graph_deleter};
+     Graph_ptr G{new cugraph::Graph, Graph_deleter};
      gdf_column_ptr col_src, col_dest, col_pagerank;
-     gdf_error status;
+     
      float alpha = 0.85;
      float tol = 1E-5f;
      int max_iter = 500;
@@ -113,15 +113,14 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     col_dest = create_gdf_column(cooColInd);
     col_pagerank = create_gdf_column(pagerank);
 
-    ASSERT_EQ(gdf_edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr),0);
-    if (manual_tanspose)
-      ASSERT_EQ(gdf_add_transposed_adj_list(G.get()),0);
+    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
+    cugraph::add_transposed_adj_list(G.get());
 
     cudaDeviceSynchronize();
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
+       cugraph::pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
        cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
@@ -129,11 +128,11 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     }
     else {
       cudaProfilerStart();
-      status = gdf_pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
+      cugraph::pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
-    EXPECT_EQ(status,0);
+    
 
     // Check vs golden data
     if (param.result_file.length()>0)
@@ -164,20 +163,12 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
  
 std::vector<double> Tests_Pagerank::pagerank_time;
 
-TEST_P(Tests_Pagerank, CheckFP32_manualT) {
-    run_current_test<float, true>(GetParam());
+TEST_P(Tests_Pagerank, CheckFP32_T) {
+    run_current_test<float>(GetParam());
 }
 
-TEST_P(Tests_Pagerank, CheckFP32) {
-    run_current_test<float, false>(GetParam());
-}
-
-TEST_P(Tests_Pagerank, CheckFP64_manualT) {
-    run_current_test<double,true>(GetParam());
-}
-
-TEST_P(Tests_Pagerank, CheckFP64) {
-    run_current_test<double,false>(GetParam());
+TEST_P(Tests_Pagerank, CheckFP64_T) {
+    run_current_test<double>(GetParam());
 }
 
 // --gtest_filter=*simple_test*

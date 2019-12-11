@@ -1,4 +1,33 @@
+# cuGraph 0.11.0 (11 Dec 2019)
+
+## New Features
+- PR #588 Python graph class and related changes
+
+## Improvements
+- PR #569 Added exceptions
+- PR #554 Upgraded namespace so that cugraph can be used for the API.
+- PR #564 Update cudf type aliases
+- PR #562 Remove pyarrow dependency so we inherit the one cudf uses
+- PR #576 Remove adj list conversion automation from c++
+- PR #587 API upgrade
+- PR #585 Remove BUILD_ABI references from CI scripts
+- PR #591 Adding initial GPU metrics to benchmark utils
+- PR #599 Pregel BFS
+- PR #601 add test for type conversion, edit createGraph_nvgraph
+- PR #614 Remove unused CUDA conda labels
+- PR #616 Remove c_ prefix
+- PR #618 Updated Docs
+- PR #619 Transition guide
+
+## Bug Fixes
+- PR #570 Temporarily disabling 2 DB tests
+- PR #573 Fix pagerank test and symmetrize for cudf 0.11
+- PR #574 dev env update
+- PR #580 Changed hardcoded test output file to a generated tempfile file name
+- PR #595 Updates to use the new RMM Python reinitialize() API
+
 # cuGraph 0.10.0 (16 Oct 2019)
+
 
 ## New Features
 - PR #469 Symmetrize a COO
@@ -9,6 +38,7 @@
 - PR #527 Add testing with asymmetric graph (where appropriate)
 - PR #520 KCore and CoreNumber
 - PR #496 Gunrock submodule + SM prelimis.
+- PR #575 Added updated benchmark files that use new func wrapper pattern and asvdb
 
 ## Improvements
 - PR #466 Add file splitting test; Update to reduce dask overhead

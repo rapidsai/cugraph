@@ -26,21 +26,19 @@
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
 
-gdf_error gdf_katz_centrality(gdf_graph *graph,
+namespace cugraph {
+void katz_centrality(Graph *graph,
                               gdf_column *katz_centrality,
                               double alpha,
                               int max_iter,
                               double tol,
                               bool has_guess,
                               bool normalized) {
-  GDF_REQUIRE(graph->adjList != nullptr || graph->edgeList != nullptr, GDF_INVALID_API_CALL);
-  gdf_error err = gdf_add_adj_list(graph);
-  if (err != GDF_SUCCESS)
-    return err;
-  GDF_REQUIRE(graph->adjList->offsets->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(graph->adjList->indices->dtype == GDF_INT32, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(katz_centrality->dtype == GDF_FLOAT64, GDF_UNSUPPORTED_DTYPE);
-  GDF_REQUIRE(katz_centrality->size == graph->numberOfVertices, GDF_COLUMN_SIZE_MISMATCH);
+  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type");
+  CUGRAPH_EXPECTS(katz_centrality->size == graph->numberOfVertices, "Column size mismatch");
 
   const bool isStatic = true;
   using HornetGraph = hornet::gpu::HornetStatic<int>;
@@ -52,11 +50,12 @@ gdf_error gdf_katz_centrality(gdf_graph *graph,
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
   Katz katz(hnt, alpha, max_iter, tol, normalized, isStatic, reinterpret_cast<double*>(katz_centrality->data));
   if (katz.getAlpha() < alpha) {
-    std::cerr<<"Error : alpha is not small enough ( < "<<katz.getAlpha()<<") for convergence"<<std::endl; return GDF_CUDA_ERROR;
+    CUGRAPH_FAIL("Error : alpha is not small enough for convergence");
   }
   katz.run();
   if (!katz.hasConverged()) {
-    std::cerr<<"Error : Convergence not reached"<<std::endl; return GDF_CUDA_ERROR;
+    CUGRAPH_FAIL("Error : Convergence not reached");
   }
-  return GDF_SUCCESS;
+  
+}
 }

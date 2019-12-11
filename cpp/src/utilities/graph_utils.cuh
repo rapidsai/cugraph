@@ -28,14 +28,13 @@
 #include <rmm_utils.h>
 #include "utilities/error_utils.h"
 
+namespace cugraph { 
+namespace detail {
+
 #define USE_CG 1
 //#define DEBUG 1
-
-namespace cugraph
-{
-
 #define CUDA_MAX_BLOCKS 65535
-#define CUDA_MAX_KERNEL_THREADS 256  //kernel will launch at most 256 threads per block
+#define CUDA_MAX_KERNEL_THREADS 256  //kernefgdfl will launch at most 256 threads per block
 #define DEFAULT_MASK 0xffffffff
 #define US
 
@@ -120,7 +119,7 @@ namespace cugraph
                                          thrust::device_pointer_cast(x + n),
                                          thrust::device_pointer_cast(y),
                                          0.0f);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
         return result;
     }
 
@@ -146,7 +145,7 @@ namespace cugraph
                           thrust::device_pointer_cast(y),
                           thrust::device_pointer_cast(y),
                           axpy_functor<T>(a));
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
 
 //norm
@@ -168,7 +167,7 @@ namespace cugraph
                                                       square<T>(),
                                                       init,
                                                       thrust::plus<T>()));
-        cudaCheckError();
+        CUDA_CHECK_LAST();
         return result;
     }
 
@@ -178,7 +177,7 @@ namespace cugraph
         T result = thrust::reduce(rmm::exec_policy(stream)->on(stream),
                                   thrust::device_pointer_cast(x),
                                   thrust::device_pointer_cast(x + n));
-        cudaCheckError();
+        CUDA_CHECK_LAST();
         return result;
     }
 
@@ -191,7 +190,7 @@ namespace cugraph
                           thrust::make_constant_iterator(val),
                           thrust::device_pointer_cast(x),
                           thrust::multiplies<T>());
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
 
     template<typename T>
@@ -203,7 +202,7 @@ namespace cugraph
                           thrust::make_constant_iterator(val),
                           thrust::device_pointer_cast(x),
                           thrust::plus<T>());
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
 
     template<typename T>
@@ -212,7 +211,7 @@ namespace cugraph
         thrust::fill(rmm::exec_policy(stream)->on(stream),
                      thrust::device_pointer_cast(x),
                      thrust::device_pointer_cast(x + n), value);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
 
     template<typename T, typename M>
@@ -223,7 +222,7 @@ namespace cugraph
                      thrust::device_pointer_cast(src + n),
                      thrust::device_pointer_cast(map),
                      thrust::device_pointer_cast(dst));
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
 
     template<typename T>
@@ -232,7 +231,7 @@ namespace cugraph
         std::cout.precision(15);
         std::cout << "sample size = " << n << ", offset = " << offset << std::endl;
         thrust::copy(dev_ptr + offset, dev_ptr + offset + n, std::ostream_iterator<T>(std::cout, " ")); //Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
-        cudaCheckError();
+        CUDA_CHECK_LAST();
         std::cout << std::endl;
     }
 
@@ -242,7 +241,7 @@ namespace cugraph
         thrust::device_ptr<T> res_ptr(res);
         cudaStream_t stream {nullptr};
         thrust::copy_n(rmm::exec_policy(stream)->on(stream), dev_ptr, n, res_ptr);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
 
     template<typename T>
@@ -274,7 +273,7 @@ namespace cugraph
                              thrust::device_pointer_cast(dangling_nodes),
                              dangling_functor<T>(1.0 - damping_factor),
                              is_zero<T>());
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
 
 //google matrix kernels
@@ -370,7 +369,7 @@ namespace cugraph
         nblocks.y = 1;
         nblocks.z = 1;
         degree_coo<IndexType, IndexType> <<<nblocks, nthreads>>>(n, e, csrInd, degree);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
 
         int y = 4;
         nthreads.x = 32 / y;
@@ -380,11 +379,11 @@ namespace cugraph
         nblocks.y = 1;
         nblocks.z = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS); //1;
         equi_prob3<IndexType, ValueType> <<<nblocks, nthreads>>>(n, e, csrPtr, csrInd, val, degree);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
 
         ValueType a = 0.0;
         fill(n, bookmark, a);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
 
         nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
         nthreads.y = 1;
@@ -393,7 +392,7 @@ namespace cugraph
         nblocks.y = 1;
         nblocks.z = 1;
         flag_leafs_kernel<IndexType, ValueType> <<<nblocks, nthreads>>>(n, degree, bookmark);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
         ALLOC_FREE_TRY(degree, stream);
     }
 
@@ -506,7 +505,7 @@ namespace cugraph
         int nthreads = min(v, CUDA_MAX_KERNEL_THREADS);
         int nblocks = min((v + nthreads - 1) / nthreads, CUDA_MAX_BLOCKS);
         offsets_to_indices_kernel<<<nblocks, nthreads>>>(offsets, v, indices);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
 
     template<typename IndexType>
@@ -515,7 +514,7 @@ namespace cugraph
                          thrust::device_pointer_cast(vec),
                          thrust::device_pointer_cast(vec + n),
                          init);
-        cudaCheckError();
+        CUDA_CHECK_LAST();
     }
     
     template<typename DistType>
@@ -553,7 +552,7 @@ namespace cugraph
 				    thrust::device_pointer_cast(arr),
 				    thrust::device_pointer_cast(arr + n));
 
-		    cudaCheckError();
+		    CUDA_CHECK_LAST();
 
 		    return (result < 0);
 #endif
@@ -562,4 +561,4 @@ namespace cugraph
 // Initialize a gdf_column with default (0 / null) values
 void gdf_col_set_defaults(gdf_column* col);
 
-} //namespace cugraph
+} } //namespace

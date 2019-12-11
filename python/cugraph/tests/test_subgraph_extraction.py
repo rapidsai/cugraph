@@ -21,7 +21,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -35,19 +34,21 @@ with warnings.catch_warnings():
 
 
 def compare_edges(cg, nxg, verts):
-    src, dest, weight = cg.view_edge_list()
-    assert weight is None
-    assert len(src) == nxg.size()
-    for i in range(len(src)):
-        assert nxg.has_edge(verts[src[i]], verts[dest[i]])
+    edgelist_df = cg.view_edge_list()
+    assert cg.edgelist.weights is False
+    assert len(edgelist_df) == nxg.size()
+    for i in range(len(edgelist_df)):
+        assert nxg.has_edge(verts[edgelist_df['src'][i]],
+                            verts[edgelist_df['dst'][i]])
     return True
 
 
 def cugraph_call(M, verts):
-    G = cugraph.Graph()
-    rows = cudf.Series(M.row)
-    cols = cudf.Series(M.col)
-    G.add_edge_list(rows, cols, None)
+    G = cugraph.DiGraph()
+    cu_M = cudf.DataFrame()
+    cu_M['src'] = cudf.Series(M.row)
+    cu_M['dst'] = cudf.Series(M.col)
+    G.from_cudf_edgelist(cu_M, source='src', target='dst')
     cu_verts = cudf.Series(verts)
     return cugraph.subgraph(G, cu_verts)
 
@@ -70,11 +71,11 @@ DATASETS = ['../datasets/karate.csv',
 def test_subgraph_extraction(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 

@@ -24,16 +24,18 @@
 #include "utilities/error_utils.h"
 #include "converters/nvgraph.cuh"
 
-gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  gdf_graph* gdf_G,
+namespace cugraph {
+
+void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
+                                  Graph* gdf_G,
                                   nvgraphGraphDescr_t* nvg_G,
                                   bool use_transposed) {
 
   // check input
-  GDF_REQUIRE(!((gdf_G->edgeList == nullptr) &&
+  CUGRAPH_EXPECTS(!((gdf_G->edgeList == nullptr) &&
                   (gdf_G->adjList == nullptr) &&
                   (gdf_G->transposedAdjList == nullptr)),
-              GDF_INVALID_API_CALL);
+              "Invalid API parameter");
   nvgraphTopologyType_t TT;
   cudaDataType_t settype;
   // create an nvgraph graph handle
@@ -41,9 +43,8 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   // setup nvgraph variables
   if (use_transposed) {
     // convert edgeList to transposedAdjList
-    if (gdf_G->transposedAdjList == nullptr) {
-      GDF_TRY(gdf_add_transposed_adj_list(gdf_G));
-    }
+    CUGRAPH_EXPECTS(gdf_G->transposedAdjList != nullptr,
+              "Invalid API parameter");
     // using exiting transposedAdjList if it exisits and if adjList is missing
     TT = NVGRAPH_CSC_32;
     nvgraphCSCTopology32I_st topoData;
@@ -73,16 +74,14 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                         (double * ) gdf_G->transposedAdjList->edge_data->data))
           break;
         default:
-          return GDF_UNSUPPORTED_DTYPE;
+          CUGRAPH_FAIL("Unsupported data type");
       }
     }
 
   }
   else {
-    // convert edgeList to adjList
-    if (gdf_G->adjList == nullptr) {
-      GDF_TRY(gdf_add_adj_list(gdf_G));
-    }
+    CUGRAPH_EXPECTS(gdf_G->adjList != nullptr,
+              "Invalid API parameter");
     TT = NVGRAPH_CSR_32;
     nvgraphCSRTopology32I_st topoData;
     topoData.nvertices = gdf_G->adjList->offsets->size - 1;
@@ -112,9 +111,11 @@ gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                         (double * ) gdf_G->adjList->edge_data->data))
           break;
         default:
-          return GDF_UNSUPPORTED_DTYPE;
+          CUGRAPH_FAIL("Unsupported data type");
       }
     }
   }
-  return GDF_SUCCESS;
+  
 }
+
+} // namespace

@@ -16,17 +16,12 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_jaccard(gdf_graph * graph,
-                               gdf_column * weights,
-                               gdf_column * result) except +
-    
-    cdef gdf_error gdf_jaccard_list(gdf_graph * graph,
-                                    gdf_column * weights,
-                                    gdf_column * first,
-                                    gdf_column * second,
-                                    gdf_column * result) except +
+    cdef void core_number(
+        Graph *graph,
+        gdf_column *core_number) except +
+

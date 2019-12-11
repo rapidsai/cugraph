@@ -17,6 +17,7 @@
 #include <nvgraph/nvgraph.h>
 #include <cugraph.h>
 
+namespace cugraph {
 /**
  * Takes a GDF graph and wraps its data with an Nvgraph graph object.
  * @param nvg_handle The Nvgraph handle
@@ -25,7 +26,8 @@
  * @param use_transposed True if we are transposing the input graph while wrapping
  * @return Error code
  */
-gdf_error gdf_createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  gdf_graph* gdf_G,
+void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
+                                  Graph* gdf_G,
                                   nvgraphGraphDescr_t * nvgraph_G,
 bool use_transposed = false);
+}

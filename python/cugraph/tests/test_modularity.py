@@ -21,7 +21,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 
 def cugraph_call(G, partitions):
@@ -56,21 +55,18 @@ PARTITIONS = [2, 4, 8]
 def test_modularity_clustering(managed, pool, graph_file, partitions):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
-    sources = cu_M['0']
-    destinations = cu_M['1']
-    values = cu_M['2']
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
 
     # Get the modularity score for partitioning versus random assignment
     cu_score = cugraph_call(G, partitions)

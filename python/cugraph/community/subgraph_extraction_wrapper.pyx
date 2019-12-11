@@ -16,8 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.c_subgraph_extraction cimport *
-from cugraph.structure.c_graph cimport *
+from cugraph.community.subgraph_extraction cimport *
+from cugraph.structure.graph cimport *
+from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -30,17 +31,48 @@ import rmm
 import numpy as np
 
 
-def subgraph(graph_ptr, vertices, subgraph_ptr):
+def subgraph(input_graph, vertices, subgraph):
     """
-    Call gdf_extract_subgraph_vertex_nvgraph
+    Call extract_subgraph_vertex_nvgraph
     """
+    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
 
-    cdef uintptr_t graph = graph_ptr
-    cdef gdf_graph * g = < gdf_graph *> graph
+    if input_graph.adjlist:
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    else:
+        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            graph_wrapper.add_edge_list(graph, src, dst, weights)
+        else:
+            graph_wrapper.add_edge_list(graph, src, dst)
+        add_adj_list(g)
+        offsets, indices, values = graph_wrapper.get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
-    cdef uintptr_t rGraph = subgraph_ptr
-    cdef gdf_graph* rg = <gdf_graph*>rGraph
+    cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
+    cdef Graph* rg = <Graph*>rGraph
     cdef gdf_column vert_col = get_gdf_column_view(vertices)
 
-    err = gdf_extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
-    libcudf.cudf.check_gdf_error(err)
+    extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
+
+    if rg.edgeList is not NULL:
+        df = cudf.DataFrame()
+        df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
+        if vals is not None:
+            df['val'] = vals
+            subgraph.from_cudf_edgelist(df, source='src', target='dst', edge_attr='val')
+        else:
+            subgraph.from_cudf_edgelist(df, source='src', target='dst')
+        if input_graph.edgelist is not None:
+            subgraph.renumbered = input_graph.renumbered
+            subgraph.edgelist.renumber_map = input_graph.edgelist.renumber_map
+    if rg.adjList is not NULL:
+        off, ind, vals = graph_wrapper.get_adj_list(rGraph)
+        subgraph.from_cudf_adjlist(off, ind, vals)
+    if rg.transposedAdjList is not NULL:
+        off, ind, vals = graph_wrapper.get_transposed_adj_list(rGraph)
+        subgraph.transposedadjlist = subgraph.transposedAdjList(off, ind, vals)

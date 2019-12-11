@@ -20,7 +20,6 @@ import pytest
 import cugraph
 from cugraph.tests import utils
 import rmm
-from rmm import rmm_config
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -39,16 +38,11 @@ print('Networkx version : {} '.format(nx.__version__))
 
 def cugraph_call(cu_M, edgevals=False):
 
-    # Device data
-    sources = cu_M['0']
-    destinations = cu_M['1']
+    G = cugraph.DiGraph()
     if edgevals:
-        values = cu_M['2']
+        G.from_cudf_edgelist(cu_M, source='0', target='1', edge_attr='2')
     else:
-        values = None
-    G = cugraph.Graph()
-    G.add_edge_list(sources, destinations, values)
-
+        G.from_cudf_edgelist(cu_M, source='0', target='1')
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
@@ -86,11 +80,11 @@ DATASETS = ['../datasets/karate.csv',
 def test_louvain_with_edgevals(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 
@@ -126,11 +120,11 @@ DATASETS = ['../datasets/karate.csv',
 def test_louvain(managed, pool, graph_file):
     gc.collect()
 
-    rmm.finalize()
-    rmm_config.use_managed_memory = managed
-    rmm_config.use_pool_allocator = pool
-    rmm_config.initial_pool_size = 2 << 27
-    rmm.initialize()
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
 
     assert(rmm.is_initialized())
 

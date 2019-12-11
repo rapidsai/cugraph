@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.10.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.11.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -261,7 +261,6 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-#    src/utilities/grmat.cu
 	src/db/db_object.cu
 	src/db/db_parser_integration_test.cu
 	src/db/db_operators.cu

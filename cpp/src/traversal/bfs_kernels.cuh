@@ -19,6 +19,8 @@
 #include <utilities/sm_utils.h>
 #include "traversal_common.cuh"
 
+namespace cugraph { 
+namespace detail {
 namespace bfs_kernels {
   //
   //  -------------------------  Bottom up -------------------------
@@ -163,7 +165,7 @@ namespace bfs_kernels {
                                                               n,
                                                               unvisited,
                                                               unvisited_cnt);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   //
@@ -228,7 +230,7 @@ namespace bfs_kernels {
                                                                visited_bmap,
                                                                node_degree,
                                                                mu);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   //
@@ -406,7 +408,7 @@ namespace bfs_kernels {
       //broadcasting local_visited_bmap_warp_head
       __syncthreads();
 
-      int head_ballot = cugraph::utils::ballot(is_head);
+      int head_ballot = cugraph::detail::utils::ballot(is_head);
 
       //As long as idx < unvisited_size, we know there's at least one head per warp
       int laneid_last_head_in_warp = INT_SIZE - 1 - __clz(head_ballot);
@@ -451,7 +453,7 @@ namespace bfs_kernels {
         //the destination thread of the __shfl is active
         int laneid_max = min((IndexType) (WARP_SIZE - 1),
                       (unvisited_size - (block_off + 32 * warpid)));
-        IndexType last_v = cugraph::utils::shfl(unvisited_vertex,
+        IndexType last_v = cugraph::detail::utils::shfl(unvisited_vertex,
                                                 laneid_max,
                                                 WARP_SIZE,
                                                 __activemask());
@@ -528,7 +530,7 @@ namespace bfs_kernels {
                                                        distances,
                                                        predecessors,
                                                        edge_mask);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   //
@@ -584,7 +586,7 @@ namespace bfs_kernels {
           }
         }
 
-        unsigned int warp_valid_p_ballot = cugraph::utils::ballot((valid_parent != -1));
+        unsigned int warp_valid_p_ballot = cugraph::detail::utils::ballot((valid_parent != -1));
 
         int logical_warp_id_in_warp = (threadIdx.x % WARP_SIZE) / BOTTOM_UP_LOGICAL_WARP_SIZE;
         unsigned int mask = (1 << BOTTOM_UP_LOGICAL_WARP_SIZE) - 1;
@@ -645,7 +647,7 @@ namespace bfs_kernels {
                                                                 distances,
                                                                 predecessors,
                                                                 edge_mask);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   //
@@ -1125,7 +1127,7 @@ namespace bfs_kernels {
                                                         edge_mask,
                                                         isolated_bmap,
                                                         directed);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
   template<typename IndexType>
@@ -1252,8 +1254,7 @@ namespace bfs_kernels {
                                                                 row_ptr,
                                                                 degrees,
                                                                 nisolated);
-    cudaCheckError();
+    CUDA_CHECK_LAST();
   }
 
-}
-//
+} } } //namespace

@@ -16,16 +16,17 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 
 
-cdef extern from "cugraph.h":
+cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef gdf_error gdf_katz_centrality(
-        gdf_graph *graph,
-        gdf_column *katz_centrality,
-        double alpha,
-        int max_iter,
-        double tol,
-        bool has_guess,
-        bool normalized) except +
+    cdef void jaccard(Graph * graph,
+                               gdf_column * weights,
+                               gdf_column * result) except +
+    
+    cdef void jaccard_list(Graph * graph,
+                                    gdf_column * weights,
+                                    gdf_column * first,
+                                    gdf_column * second,
+                                    gdf_column * result) except +

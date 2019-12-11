@@ -22,7 +22,8 @@
 #ifndef HEAP_H
 #define HEAP_H
 
-namespace cugraph {
+namespace cugraph { 
+namespace detail {
 
   namespace heap {
     /*
@@ -209,6 +210,7 @@ namespace cugraph {
       return array[size];
     }
   }
-}
+  
+} } //namespace
 
 #endif
