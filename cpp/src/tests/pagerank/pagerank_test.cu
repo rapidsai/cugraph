@@ -81,8 +81,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      MM_typecode mc;
      
      Graph_ptr G{new cugraph::Graph, Graph_deleter};
-     gdf_column_ptr col_src, col_dest, col_pagerank;
-     
+     gdf_column_ptr col_src, col_dest;
      float alpha = 0.85;
      float tol = 1E-5f;
      int max_iter = 500;
@@ -103,6 +102,13 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      // Allocate memory on host
      std::vector<int> cooRowInd(nnz), cooColInd(nnz);
      std::vector<T> cooVal(nnz), pagerank(m);
+     
+     //device cols
+     cugraph::device_vector<T> col_pagerank(m);
+     //dummy, tested at python level
+     cugraph::device_vector<int> col_pers_set(0);
+     cugraph::device_vector<T> col_pers_val(0);
+
 
      // Read
      ASSERT_EQ( (mm_to_coo<int,T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
@@ -111,7 +117,6 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     // gdf columns
     col_src = create_gdf_column(cooRowInd);
     col_dest = create_gdf_column(cooColInd);
-    col_pagerank = create_gdf_column(pagerank);
 
     cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
     cugraph::add_transposed_adj_list(G.get());
@@ -120,7 +125,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       cugraph::pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
+       cugraph::pagerank(G.get(), col_pagerank, col_pers_set, col_pers_val, alpha, tol, max_iter, has_guess);
        cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
@@ -128,7 +133,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     }
     else {
       cudaProfilerStart();
-      cugraph::pagerank(G.get(), col_pagerank.get(), nullptr, nullptr, alpha, tol, max_iter, has_guess);
+      cugraph::pagerank(G.get(), col_pagerank, col_pers_set, col_pers_val, alpha, tol, max_iter, has_guess);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
@@ -139,7 +144,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     {
       std::vector<T> calculated_res(m);
 
-      CUDA_RT_CALL(cudaMemcpy(&calculated_res[0],   col_pagerank.get()->data,   sizeof(T) * m, cudaMemcpyDeviceToHost));
+      CUDA_RT_CALL(cudaMemcpy(&calculated_res[0], (void*)col_pagerank.raw(),   sizeof(T) * m, cudaMemcpyDeviceToHost));
       std::sort(calculated_res.begin(), calculated_res.end());
       fpin = fopen(param.result_file.c_str(),"rb");
       ASSERT_TRUE(fpin != NULL) << " Cannot read file with reference data: " << param.result_file << std::endl;

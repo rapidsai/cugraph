@@ -122,7 +122,22 @@ struct Graph{
  * @brief Alias for rmm::device_vector which is a thrust::device_vector that uses RMM for memory allocation.
  * 
  */
+
 template <typename T>
-using device_vector = rmm::device_vector<T>;
+class device_vector : public rmm::device_vector<T> {
+  public: 
+  typedef T value_type;
+  device_vector(size_t n) : rmm::device_vector<T>(n) {
+
+  }
+  inline T *raw()
+  {
+      if (this->size() > 0) { 
+        return thrust::raw_pointer_cast(this->data()); 
+      }
+      else 
+        return 0;
+  }
+};
 
 } //namespace cugraph
