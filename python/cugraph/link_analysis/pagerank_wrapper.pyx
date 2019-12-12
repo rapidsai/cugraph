@@ -27,6 +27,7 @@ import cudf
 import cudf._lib as libcudf
 import rmm
 import numpy as np
+import numpy.ctypeslib as ctypeslib
 
 
 def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
@@ -65,21 +66,26 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         df['pagerank'][nstart['vertex']] = nstart['values']
         has_guess = <bool> 1
 
-    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
-    cdef gdf_column c_pagerank_col = get_gdf_column_view(df['pagerank'])
-    cdef gdf_column c_pers_vtx
-    cdef gdf_column c_pers_val
+    #TODO FIX ME when graph class is upgraded to remove gdf_column
+    cdef gdf_column c_identifier = get_gdf_column_view(df['vertex'])
 
-    g.transposedAdjList.get_vertex_identifiers(&c_identifier_col)
+    cdef uintptr_t c_pagerank = get_column_data_ptr(df['pagerank']._column)
+    cdef c_pers_vtx = 0
+    cdef c_pers_val = 0
+    WT = ctypeslib.as_ctypes_type(df['pagerank'].dtype)
+ 
+    g.transposedAdjList.get_vertex_identifiers(&c_identifier)
     
     if personalization is None:
-        c_pagerank.pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
+        c_pagerank.pagerank(g, <WT*> c_pagerank, <void*>NULL, <void*>NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
     else:
-        c_pers_vtx = get_gdf_column_view(personalization['vertex'])
-        c_pers_val = get_gdf_column_view(personalization['values'])
-        c_pagerank.pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
-                <float> alpha, <float> tol, <int> max_iter, has_guess)
+        c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
+        c_pers_val = get_column_data_ptr(personalization['values']._column)
+        c_pagerank.pagerank(g, <WT*> c_pagerank, 
+                               <int*> c_pers_vtx, 
+                               <WT*>c_pers_val,
+                               <float> alpha, <float> tol, <int> max_iter, has_guess)
 
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]

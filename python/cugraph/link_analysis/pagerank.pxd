@@ -25,7 +25,7 @@ cdef extern from "cugraph.h" namespace "cugraph":
     cdef void pagerank[VT,WT](
         Graph *graph,
         WT *pagerank,
-        size_t size;
+        size_t size,
         VT *personalization_subset,
         WT *personalization_values,
         float alpha,
