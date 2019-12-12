@@ -5,7 +5,7 @@
 ## Improvements
 
 ## Bug Fixes
-
+- PR #634 renumber vertex ids passed in analytics
 
 # cuGraph 0.11.0 (Date TBD)
 

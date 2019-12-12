@@ -64,8 +64,16 @@ def overlap_w(input_graph, weights, first=None, second=None):
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
         c_weight_col = get_gdf_column_view(weights)
-        c_first_col = get_gdf_column_view(first)
-        c_second_col = get_gdf_column_view(second)
+        if input_graph.renumbered is True:
+            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
+                                          index=input_graph.edgelist.renumber_map)
+            first_renumbered = renumber_series.loc[first]
+            second_renumbered = renumber_series.loc[second]
+            c_first_col = get_gdf_column_view(first_renumbered)
+            c_second_col = get_gdf_column_view(second_renumbered)
+        else:
+            c_first_col = get_gdf_column_view(first)
+            c_second_col = get_gdf_column_view(second)
         overlap_list(g,
                                &c_weight_col,
                                &c_first_col,

@@ -76,7 +76,13 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         c_pagerank.pagerank(g, &c_pagerank_col, <gdf_column*> NULL, <gdf_column*> NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
     else:
-        c_pers_vtx = get_gdf_column_view(personalization['vertex'])
+        if input_graph.renumbered is True:
+            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
+                                          index=input_graph.edgelist.renumber_map)
+            vertex_renumbered = renumber_series.loc[personalization['vertex']]        
+            c_pers_vtx = get_gdf_column_view(vertex_renumbered)
+        else:
+            c_pers_vtx = get_gdf_column_view(personalization['vertex'])
         c_pers_val = get_gdf_column_view(personalization['values'])
         c_pagerank.pagerank(g, &c_pagerank_col, &c_pers_vtx, &c_pers_val,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
