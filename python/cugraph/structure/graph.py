@@ -80,7 +80,8 @@ class Graph:
             if edge_attr is None:
                 raise Exception('edge_attr not provided')
             else:
-                self.from_cudf_edgelist(m_graph.edgelist.edgelist_df, source='src', target='dst', edge_attr=edge_attr)
+                self.from_cudf_edgelist(m_graph.edgelist.edgelist_df, source='src',
+                                        destination='dst', edge_attr=edge_attr)
         # self.number_of_vertices = None
 
     def clear(self):
@@ -531,7 +532,8 @@ class Graph:
 
 class DiGraph(Graph):
     def __init__(self, m_graph=None, edge_attr=None):
-        super().__init__(m_graph=m_graph, edge_attr=edge_attr, symmetrized=True)
+        super().__init__(m_graph=m_graph, edge_attr=edge_attr,
+                         symmetrized=True)
 
 
 class MultiGraph(Graph):
