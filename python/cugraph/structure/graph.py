@@ -80,8 +80,10 @@ class Graph:
             if edge_attr is None:
                 raise Exception('edge_attr not provided')
             else:
-                self.from_cudf_edgelist(m_graph.edgelist.edgelist_df, source='src',
-                                        destination='dst', edge_attr=edge_attr)
+                self.from_cudf_edgelist(m_graph.edgelist.edgelist_df,
+                                        source='src',
+                                        destination='dst',
+                                        edge_attr=edge_attr)
         # self.number_of_vertices = None
 
     def clear(self):
