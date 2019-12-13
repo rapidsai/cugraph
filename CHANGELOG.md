@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #629 get rid of gdf_column in pagerank 
 
 ## Bug Fixes
 
