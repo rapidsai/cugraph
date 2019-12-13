@@ -69,20 +69,20 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     #TODO FIX ME when graph class is upgraded to remove gdf_column
     cdef gdf_column c_identifier = get_gdf_column_view(df['vertex'])
 
-    cdef uintptr_t c_pagerank = get_column_data_ptr(df['pagerank']._column)
-    cdef c_pers_vtx = 0
-    cdef c_pers_val = 0
+    cdef uintptr_t c_pagerank_val = get_column_data_ptr(df['pagerank']._column)
+    cdef uintptr_t c_pers_vtx = 0
+    cdef uintptr_t c_pers_val = 0
     WT = ctypeslib.as_ctypes_type(df['pagerank'].dtype)
  
     g.transposedAdjList.get_vertex_identifiers(&c_identifier)
     
     if personalization is None:
-        c_pagerank.pagerank(g, <WT*> c_pagerank, <void*>NULL, <void*>NULL,
+        c_pagerank.pagerank[int, WT](g, <WT*> c_pagerank_val, <void*>NULL, <void*>NULL,
                 <float> alpha, <float> tol, <int> max_iter, has_guess)
     else:
         c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
         c_pers_val = get_column_data_ptr(personalization['values']._column)
-        c_pagerank.pagerank(g, <WT*> c_pagerank, 
+        c_pagerank.pagerank[int, WT](g, <WT*> c_pagerank_val, 
                                <int*> c_pers_vtx, 
                                <WT*>c_pers_val,
                                <float> alpha, <float> tol, <int> max_iter, has_guess)

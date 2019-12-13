@@ -22,23 +22,12 @@ from libcpp cimport bool
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void pagerank[int, float](
+    cdef void pagerank[int, WT](
         Graph *graph,
-        float *pagerank,
+        WT *pagerank,
         size_t size,
         int *personalization_subset,
-        float *personalization_values,
-        float alpha,
-        float tolerance,
-        int max_iter,
-        bool has_guess) except +
-
-    cdef void pagerank[int, double](
-        Graph *graph,
-        double *pagerank,
-        size_t size,
-        int *personalization_subset,
-        double *personalization_values,
+        WT *personalization_values,
         float alpha,
         float tolerance,
         int max_iter,
