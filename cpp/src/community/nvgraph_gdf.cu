@@ -369,7 +369,7 @@ void triangle_count_nvgraph(Graph* G, uint64_t* result) {
   
 }
 
-void louvain(Graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts) {
+void louvain(Graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts, int max_iter) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
@@ -408,7 +408,7 @@ void louvain(Graph *graph, void *final_modularity, void *num_level, gdf_column *
   cudaDataType_t val_type = graph->adjList->edge_data? gdf_to_cudadtype(graph->adjList->edge_data): CUDA_R_32F;
 
   nvgraphLouvain(index_type, val_type, n, e, offsets_ptr, indices_ptr, value_ptr, 1, 0, NULL,
-                 final_modularity, louvain_parts_ptr, num_level);
+                 final_modularity, louvain_parts_ptr, num_level, max_iter);
   
 }
 
