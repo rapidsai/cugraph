@@ -192,25 +192,21 @@ void pagerank_impl (Graph *graph,
                     bool has_guess = false) {
 
   bool has_personalization = false;
-  int *prsVtx = nullptr;
-  WT  *prsVal = nullptr;
   int prsLen = 0;
-  if (personalization_subset_size != 0) {
-    has_personalization = true;
-    prsVtx = reinterpret_cast<VT*>(personalization_subset);
-    prsVal = reinterpret_cast<WT* >(personalization_values);
-    prsLen = static_cast<VT>(personalization_subset_size);
-  }
-
   int m=graph->transposedAdjList->offsets->size-1, nnz = graph->transposedAdjList->indices->size, status = 0;
   WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
   WT res = 1.0;
   WT *residual = &res;
-
-  if (graph->transposedAdjList == nullptr) {
-    add_transposed_adj_list(graph);
-  }
   cudaStream_t stream{nullptr};
+
+  if (personalization_subset_size != 0) {
+    CUGRAPH_EXPECTS( personalization_subset != nullptr , "Invalid API parameter: personalization_subset array should be of size personalization_subset_size" );
+    CUGRAPH_EXPECTS( personalization_values != nullptr , "Invalid API parameter: personalization_values array should be of size personalization_subset_size" );
+    CUGRAPH_EXPECTS( personalization_subset_size <= m, "Personalization size should be smaller than V");
+    has_personalization = true;
+    prsLen = static_cast<VT>(personalization_subset_size);
+  }
+
   ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
   ALLOC_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
@@ -229,7 +225,7 @@ void pagerank_impl (Graph *graph,
   }
 
   status = pagerankSolver<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
-          prsVtx, prsVal, prsLen, has_personalization,
+    personalization_subset, personalization_values, prsLen, has_personalization,
     alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 
   if (status !=0)
@@ -268,13 +264,10 @@ void pagerank(Graph *graph,WT* pagerank, size_t personalization_subset_size,
   if (typeid(VT) != typeid(int) )
     CUGRAPH_FAIL("Unsupported personalization_subset data type, please use int");
 
-  CUGRAPH_EXPECTS( pagerank != nullptr , "Invalid API parameter: Pagrank vector should be of size V" );
+  CUGRAPH_EXPECTS( pagerank != nullptr , "Invalid API parameter: Pagerank array should be of size V" );
 
   if (personalization_subset_size != 0) {
-    // extra checks for personalized PageRank
     CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported personalization_subset data type");
-    // TODO 
-    // fixme after upgrading graph class : CUGRAPH_EXPECTS(personalization_subset_size <= G->v, "Personalization size should be smaller than V");
   }
 
   return detail::pagerank_impl<VT,WT>(graph, pagerank,
