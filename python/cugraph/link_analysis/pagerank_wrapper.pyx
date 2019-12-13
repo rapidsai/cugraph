@@ -79,7 +79,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
         c_pers_val = get_column_data_ptr(personalization['values']._column)
     
-    if (df['pagerank'].dtype is np.float32): 
+    if (df['pagerank'].dtype == np.float32): 
         c_pagerank.pagerank[int, float](g, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
                                      <float> alpha, <float> tol, <int> max_iter, has_guess)
     else: 
