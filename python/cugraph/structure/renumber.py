@@ -63,3 +63,54 @@ def renumber(source_col, dest_col):
                                                                  dest_col)
 
     return source_col, dest_col, numbering_map
+
+
+def renumber_from_cudf(df, source_cols_names, dest_cols_names):
+    """
+    Take a set, or collection (lists) of source and destination columns and
+    renumber the vertices to create a dense set of vertex ids using all values
+    contiguously from 0 to the number of unique vertices - 1.
+
+    Input columns can be any data type.  
+    The source and destination column names cannot be the same, or opverlap.
+
+    The output will be mapped to int32, since many of the cugraph functions are
+    limited to int32. If the number of unique values is > 2^31-1 then this
+    function will return an error.
+
+    Return from this call will be three cudf Series - the new source vertex IDs,
+    the new destination vertex IDs and a DataFrame that maps vertex IDs to columns
+
+    Parameters
+    ----------
+    df : cudf.DataFrame
+        The dataframe containing the source and destination columans
+    source_cols_names : List
+        This is a list of source column names
+    dest_cols_names : List
+        This is a list of destination column names
+        
+    Returns
+    ---------
+    src_ids : cudf.Series
+    dst_ids : cudf.Series   
+    numbering_df : cudf.DataFrame
+
+
+    Examples
+    --------
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+
+    >>> source_col, dest_col, numbering_map =
+    >>>    cugraph.renumber_from_cudf(gdf, "0", "1")
+    >>> 
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(source_col, dest_col, None)
+    """
+    csg.null_check(source_cols_names)
+    csg.null_check(dest_cols_names)
+
+    
+    return src_ids, dest_ids, numbering_df
+    
