@@ -70,23 +70,23 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     cdef gdf_column c_identifier = get_gdf_column_view(df['vertex'])
 
     cdef uintptr_t c_pagerank_val = get_column_data_ptr(df['pagerank']._column)
-    cdef uintptr_t c_pers_vtx = 0
-    cdef uintptr_t c_pers_val = 0
-    WT = ctypeslib.as_ctypes_type(df['pagerank'].dtype)
- 
-    g.transposedAdjList.get_vertex_identifiers(&c_identifier)
-    
-    if personalization is None:
-        c_pagerank.pagerank[int, WT](g, <WT*> c_pagerank_val, <void*>NULL, <void*>NULL,
-                <float> alpha, <float> tol, <int> max_iter, has_guess)
-    else:
+    cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
+    cdef uintptr_t c_pers_val = <uintptr_t>NULL
+    cdef sz = 0
+
+    if personalization is not None:
+        sz = personalization['vertex'].shape[0]
         c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
         c_pers_val = get_column_data_ptr(personalization['values']._column)
-        c_pagerank.pagerank[int, WT](g, <WT*> c_pagerank_val, 
-                               <int*> c_pers_vtx, 
-                               <WT*>c_pers_val,
-                               <float> alpha, <float> tol, <int> max_iter, has_guess)
+    
+    if (df['pagerank'].dtype is np.float32): 
+        c_pagerank.pagerank[int, float](g, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+                                     <float> alpha, <float> tol, <int> max_iter, has_guess)
+    else: 
+        c_pagerank.pagerank[int, double](g, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+                            <float> alpha, <float> tol, <int> max_iter, has_guess)
 
+    g.transposedAdjList.get_vertex_identifiers(&c_identifier)
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
     return df
