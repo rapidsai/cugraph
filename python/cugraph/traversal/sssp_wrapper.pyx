@@ -59,6 +59,8 @@ def sssp(input_graph, source):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
+    if input_graph.renumbered is True:
+        source = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map==source].index[0]
     if not 0 <= source < num_verts:                
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 

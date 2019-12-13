@@ -54,6 +54,8 @@ def bfs(input_graph, start, directed=True):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
+    if input_graph.renumbered is True:
+        start = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map==start].index[0]
     if not 0 <= start < num_verts:
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
