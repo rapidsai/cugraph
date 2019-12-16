@@ -16,7 +16,7 @@ from cugraph.structure.graph import null_check
 import cudf
 
 
-def overlap_w(input_graph, weights, first=None, second=None):
+def overlap_w(input_graph, weights, vertex_pair=None):
     """
     Compute the weighted Overlap Coefficient between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
@@ -38,13 +38,8 @@ def overlap_w(input_graph, weights, first=None, second=None):
     weights : cudf.Series
         Specifies the weights to be used for each vertex.
 
-    first : cudf.Series
-        Specifies the first vertices of each pair of vertices to compute for,
-        must be specified along with second.
-
-    second : cudf.Series
-        Specifies the second vertices of each pair of vertices to compute for,
-        must be specified along with first.
+    vertex_pair : cudf.DataFrame
+        Specifies the pair of vertices to compute for 
 
     Returns
     -------
@@ -75,16 +70,15 @@ def overlap_w(input_graph, weights, first=None, second=None):
     >>> df = cugraph.overlap_w(G, weights)
     """
 
-    if (type(first) == cudf.Series and
-            type(second) == cudf.Series):
-        null_check(first)
-        null_check(second)
-    elif first is None and second is None:
+    if (type(vertex_pair) == cudf.DataFrame):
+        null_check(vertex_pair[vertex_pair.columns[0]])
+        null_check(vertex_pair[vertex_pair.columns[1]])
+    elif vertex_pair is None:
         pass
     else:
-        raise ValueError("Specify first and second or neither")
+        raise ValueError("vertex_pair must be a cudf dataframe")
 
     df = woverlap_wrapper.overlap_w(input_graph,
-                                    weights, first, second)
+                                    weights, vertex_pair)
 
     return df

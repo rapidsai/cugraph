@@ -37,8 +37,7 @@ def jaccard(input_graph, vertex_pair=None):
         directed edge in both direction. The adjacency list will be computed if
         not already present.
     vertex_pair : cudf.DataFrame
-        Specifies the pair of vertices to compute for,
-        must be specified along with second.
+        Specifies the pair of vertices to compute for
 
     Returns
     -------

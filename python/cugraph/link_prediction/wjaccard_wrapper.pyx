@@ -31,7 +31,7 @@ import numpy as np
 from numpy.core.numeric import result_type
 
 
-def jaccard_w(input_graph, weights, first=None, second=None):
+def jaccard_w(input_graph, weights, vertex_pair=None):
     """
     Call jaccard_list
     """
@@ -59,16 +59,19 @@ def jaccard_w(input_graph, weights, first=None, second=None):
     cdef gdf_column c_second_col
     cdef gdf_column c_index_col
 
-    if type(first) == cudf.Series and type(second) == cudf.Series:
-        result_size = len(first)
+    if type(vertex_pair) == cudf.DataFrame:
+        result_size = len(vertex_pair)
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
         c_weight_col = get_gdf_column_view(weights)
+        first = vertex_pair[vertex_pair.columns[0]]
+        second = vertex_pair[vertex_pair.columns[1]]
+
         if input_graph.renumbered is True:
             renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
                                           index=input_graph.edgelist.renumber_map)
-            first_renumbered = renumber_series.loc[first]
-            second_renumbered = renumber_series.loc[second]
+            first_renumbered = cudf.Series(renumber_series.loc[first],dtype=np.int32)
+            second_renumbered = cudf.Series(renumber_series.loc[second],dtype=np.int32)
             c_first_col = get_gdf_column_view(first_renumbered)
             c_second_col = get_gdf_column_view(second_renumbered)
         else:
