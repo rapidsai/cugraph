@@ -20,6 +20,9 @@
 #include "test_utils.h"
 #include "high_res_clock.h"
 
+#include <thrust/fill.h>
+#include <thrust/device_vector.h>
+
 typedef enum graph_type { RMAT, MTX } GraphType;
 
 template <typename MaxEType, typename MaxVType, typename DistType>
@@ -163,8 +166,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
             bool DoPreds>
   void run_current_test(const SSSP_Usecase& param) {
     gdf_column col_src, col_dest, col_weights;
-    DistType* distances;
-    MaxVType* preds;
+    DistType* distances = nullptr;
+    MaxVType* preds = nullptr;
 
     MaxVType num_vertices;
     MaxEType num_edges;
@@ -276,7 +279,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     cugraph::Graph G;
     cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights);
-    cugraph::add_adj_list(G.get());
+    cugraph::add_adj_list(&G);
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;
@@ -287,14 +290,15 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       dist_vec = std::vector<DistType>(num_vertices,
                                        std::numeric_limits<DistType>::max());
       //device alloc
-      ddist_vec = (num_vertices,std::numeric_limits<DistType>::max());
+      ddist_vec.resize(num_vertices);
+      thrust::fill(ddist_vec.begin(), ddist_vec.end(), std::numeric_limits<DistType>::max());
       distances = thrust::raw_pointer_cast(ddist_vec.data());
     }
 
     if (DoPreds) {
       pred_vec = std::vector<MaxVType>(num_vertices, -1);
-      dpred_vec = (num_vertices);
-      preds = thrust::raw_pointer_cast(ddist_vec.data());
+      dpred_vec.resize(num_vertices);
+      preds = thrust::raw_pointer_cast(dpred_vec.data());
     }
 
     HighResClock hr_clock;
@@ -304,13 +308,13 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (auto i = 0; i < PERF_MULTIPLIER; ++i) {
-        sssp(&G, distances, preds, src);
+        cugraph::sssp(&G, distances, preds, src);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       SSSP_time.push_back(time_tmp);
     } else {
-        sssp(&G, distances, preds, src);
+        cugraph::sssp(&G, distances, preds, src);
         cudaDeviceSynchronize();
     }
 
