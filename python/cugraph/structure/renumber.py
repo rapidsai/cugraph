@@ -99,7 +99,8 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     NOTICE
     ---------
     The number of source and destination columns must be the same
-    The 
+    The order of data types needs to be the same between the source and destination columns 
+    
 
 
     Examples
@@ -113,13 +114,13 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(source_col, dest_col, None)
     """
-    if len(source_col) == 0:
+    if len(source_cols_names) == 0:
          raise ValueError('Source column list is empty')
 
-    if len(dest_col) == 0:
+    if len(dest_cols_names) == 0:
          raise ValueError('Destination column list is empty')
 
-    if len(source_col) != len(dest_col):
+    if len(source_cols_names) != len(dest_cols_names):
          raise ValueError('Source and Destination column lists are not the same size')
     
     
