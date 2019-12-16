@@ -282,49 +282,30 @@ void SSSP<IndexType, DistType>::clean() {
  *
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
-void sssp(Graph* gdf_G,
-                   gdf_column* sssp_distances,
-                   gdf_column* predecessors,
-                   const int source_vert) {
+template <typename VT, typename WT>
+void sssp(Graph* graph,                                            
+          WT *distances,                                                  
+          VT *predecessors,                                               
+          const VT source_vertex) {
 
-  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
-  void *sssp_dist_ptr, *pred_ptr;
-  // NOTE: gdf_column struct doesn't have a default constructor. So we can get
-  // garbage values for member fields. Right now, it's the caller's
-  // responsibility to ensure that the fields are initialised if the gdf_column
-  // ptr is not null
-  sssp_dist_ptr = (sssp_distances && sssp_distances->size)
-      ? sssp_distances->data
-      : nullptr;
-  pred_ptr =
-      (predecessors && predecessors->size) ? predecessors->data : nullptr;
+  CUGRAPH_EXPECTS(distances || predecessors, "Invalid API parameter, both outputs are nullptr");
 
-  CUGRAPH_EXPECTS(sssp_dist_ptr || pred_ptr, "Invalid API parameter");
+  if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double))
+    CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
+  if (typeid(VT) != typeid(int) )
+    CUGRAPH_FAIL("Unsupported personalization_subset data type, please use int");
 
-  if (sssp_dist_ptr) {
-    CUGRAPH_EXPECTS(!sssp_distances->valid, "Column must be valid");
-    // Integral types are possible, but we don't want to deal with overflow
-    // conditions right now
-    CUGRAPH_EXPECTS(sssp_distances->dtype == GDF_FLOAT32 ||
-                    sssp_distances->dtype == GDF_FLOAT64,
-                "Invalid API parameter");
-  }
-
-  CUGRAPH_EXPECTS(gdf_G->adjList->offsets->dtype == GDF_INT32,
+  // TODO fix me after gdf_column is removed from Graph
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32,
               "Unsupported data type");
-  CUGRAPH_EXPECTS(gdf_G->adjList->indices->dtype == GDF_INT32,
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32,
               "Unsupported data type");
+  // TODO fix me after gdf_column is removed from Graph
+  // if (predecessors) CUGRAPH_EXPECTS(typeid(predecessors) == typeid(graph->adjList->indices), "predecessors and ID type mismatch");
 
-  if (pred_ptr)
-    CUGRAPH_EXPECTS(predecessors->dtype == gdf_G->adjList->indices->dtype,
-                "Unsupported data type");
-
-  if (sssp_dist_ptr)
-    CUGRAPH_EXPECTS(gdf_G->adjList->offsets->size - 1 <= sssp_distances->size,
-                "Invalid API parameter");
-
-  if (!gdf_G->adjList->edge_data) {
+  if (!graph->adjList->edge_data) {
     // Generate unit weights
 
     // TODO: This should fallback to BFS, but for now it'll go through the
@@ -334,94 +315,90 @@ void sssp(Graph* gdf_G,
     // double
 
     void* d_edge_data;
-    gdf_G->adjList->edge_data = new gdf_column;
+    graph->adjList->edge_data = new gdf_column;
     cudaStream_t stream{nullptr};
 
     // If distances array is given and is double, generate the weights in
     // double
-    if (sssp_dist_ptr && sssp_distances->dtype == GDF_FLOAT64) {
-      std::vector<double> h_edge_data(gdf_G->adjList->indices->size, 1.0);
+    if (distances && typeid(WT) == typeid(double)) {
+      std::vector<double> h_edge_data(graph->adjList->indices->size, 1.0);
       size_t edge_data_size = sizeof(double) * h_edge_data.size();
       ALLOC_TRY((void**)&d_edge_data, edge_data_size, stream);
       CUDA_TRY(cudaMemcpy(d_edge_data,
                           &h_edge_data[0],
                           edge_data_size,
                           cudaMemcpyHostToDevice));
-      gdf_column_view(gdf_G->adjList->edge_data,
+      gdf_column_view(graph->adjList->edge_data,
                       d_edge_data,
                       nullptr,
-                      gdf_G->adjList->indices->size,
+                      graph->adjList->indices->size,
                       GDF_FLOAT64);
 
     } else {
       // Else generate float
-      std::vector<float> h_edge_data(gdf_G->adjList->indices->size, 1.0);
+      std::vector<float> h_edge_data(graph->adjList->indices->size, 1.0);
       size_t edge_data_size = sizeof(float) * h_edge_data.size();
       ALLOC_TRY((void**)&d_edge_data, edge_data_size, stream);
       CUDA_TRY(cudaMemcpy(d_edge_data,
                           &h_edge_data[0],
                           edge_data_size,
                           cudaMemcpyHostToDevice));
-      gdf_column_view(gdf_G->adjList->edge_data,
+      gdf_column_view(graph->adjList->edge_data,
                       d_edge_data,
                       nullptr,
-                      gdf_G->adjList->indices->size,
+                      graph->adjList->indices->size,
                       GDF_FLOAT32);
     }
   } else {
     // Got weighted graph
     CUGRAPH_EXPECTS(
-        gdf_G->adjList->edge_data->size == gdf_G->adjList->indices->size,
-        "Invalid API parameter");
-
-    CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
-                    gdf_G->adjList->edge_data->dtype == GDF_FLOAT64,
+        graph->adjList->edge_data->size == graph->adjList->indices->size,
+        "Graph sizes mismatch");
+    // TODO fix me after gdf_column is removed from Graph
+    CUGRAPH_EXPECTS(graph->adjList->edge_data->dtype == GDF_FLOAT32 ||
+                    graph->adjList->edge_data->dtype == GDF_FLOAT64,
                 "Invalid API parameter");
-
-    if (sssp_dist_ptr)
-      CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == sssp_distances->dtype,
-                  "Unsupported data type");
+    // TODO fix me after gdf_column is removed from Graph
+    // if (distances) CUGRAPH_EXPECTS(typeid(distances) == typeid(graph->adjList->edge_data), "distances and weights type mismatch");
 
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
-    if (gdf_G->prop && gdf_G->prop->has_negative_edges == GDF_PROP_TRUE)
+    if (graph->prop && graph->prop->has_negative_edges == GDF_PROP_TRUE)
       std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
                    "converge if the graph has negative weight cycles\n";
   }
 
-  int n = gdf_G->adjList->offsets->size - 1;
-  int e = gdf_G->adjList->indices->size;
-  int* offsets_ptr = (int*)gdf_G->adjList->offsets->data;
-  int* indices_ptr = (int*)gdf_G->adjList->indices->data;
+  int n = graph->adjList->offsets->size - 1;
+  int e = graph->adjList->indices->size;
+  int* offsets_ptr = (int*)graph->adjList->offsets->data;
+  int* indices_ptr = (int*)graph->adjList->indices->data;
 
-  void* edge_weights_ptr = static_cast<void*>(gdf_G->adjList->edge_data->data);
+  void* edge_weights_ptr = static_cast<void*>(graph->adjList->edge_data->data);
 
-  if (gdf_G->adjList->edge_data->dtype == GDF_FLOAT32) {
-    cugraph::detail::SSSP<int, float> sssp(
-        n, e, offsets_ptr, indices_ptr, static_cast<float*>(edge_weights_ptr));
+  if (typeid(WT) == typeid(float)) {
+    cugraph::detail::SSSP<VT, WT> sssp(
+        n, e, offsets_ptr, indices_ptr, static_cast<WT*>(edge_weights_ptr));
 
-    sssp.configure(static_cast<float*>(sssp_dist_ptr),
-                   static_cast<int*>(pred_ptr),
-                   nullptr);
-
-    sssp.traverse(source_vert);
-  } else if (gdf_G->adjList->edge_data->dtype == GDF_FLOAT64) {
-    cugraph::detail::SSSP<int, double> sssp(n,
+    sssp.configure(distances, predecessors, nullptr);
+    sssp.traverse(source_vertex);
+  } else if (typeid(WT) == typeid(double)) {
+    cugraph::detail::SSSP<VT, WT> sssp(n,
                                     e,
                                     offsets_ptr,
                                     indices_ptr,
-                                    static_cast<double*>(edge_weights_ptr));
+                                    static_cast<WT*>(edge_weights_ptr));
 
-    sssp.configure(static_cast<double*>(sssp_dist_ptr),
-                   static_cast<int*>(pred_ptr),
-                   nullptr);
-
-    sssp.traverse(source_vert);
+    sssp.configure(distances, predecessors, nullptr);
+    sssp.traverse(source_vertex);
   } else {
-    CUGRAPH_EXPECTS(gdf_G->adjList->edge_data->dtype == GDF_FLOAT32 ||
-                    gdf_G->adjList->edge_data->dtype == GDF_FLOAT64,
+    CUGRAPH_EXPECTS(graph->adjList->edge_data->dtype == GDF_FLOAT32 ||
+                    graph->adjList->edge_data->dtype == GDF_FLOAT64,
                 "Invalid API parameter");
   }
 }
+
+// explicit instantiation
+template void sssp<int, float>(Graph* graph, float *distances, int *predecessors, const int source_vertex);
+template void sssp<int, double>(Graph* graph, double *distances, int *predecessors, const int source_vertex);
 
 } //namespace
