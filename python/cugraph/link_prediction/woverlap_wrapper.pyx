@@ -91,7 +91,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
 
     else:
         # error check performed in jaccard.py
-        assert first is None and second is None
+        assert vertex_pair is None
         # we should add get_number_of_edges() to Graph (and this should be
         # used instead of g.adjList.indices.size)
         num_edges = g.adjList.indices.size

@@ -24,7 +24,7 @@ from cugraph.tests import utils
 import rmm
 
 
-def cugraph_call(cu_M, first, second, edgevals=False):
+def cugraph_call(cu_M, pairs, edgevals=False):
     G = cugraph.DiGraph()
     # Device data
     if edgevals is True:
@@ -33,7 +33,7 @@ def cugraph_call(cu_M, first, second, edgevals=False):
         G.from_cudf_edgelist(cu_M, source='0', destination='1')
     # cugraph Overlap Call
     t1 = time.time()
-    df = cugraph.overlap(G, first, second)
+    df = cugraph.overlap(G, pairs)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
@@ -115,7 +115,7 @@ def test_overlap(managed, pool, graph_file):
     G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
-    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'])
+    cu_coeff = cugraph_call(cu_M, pairs)
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
 
     assert len(cu_coeff) == len(cpu_coeff)
@@ -153,7 +153,7 @@ def test_overlap_edge_vals(managed, pool, graph_file):
     G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
-    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'],
+    cu_coeff = cugraph_call(cu_M, pairs,
                             edgevals=True)
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
 
