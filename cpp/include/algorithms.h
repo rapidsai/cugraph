@@ -25,6 +25,9 @@ namespace cugraph {
  * The number of iterations depends on the properties of the network itself; it increases when the tolerance descreases and/or alpha increases toward the limiting value of 1.
  * The user is free to use default values or to provide inputs for the initial guess, tolerance and maximum number of iterations.
  *
+ * @tparam VT the type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam WT the type of edge weights. Supported value : float or double.   
+ *
  * @Param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as an edge list (edge weights are not used for this algorithm).
  *                                   The transposed adjacency list will be computed if not already present.
  * @Param[in] alpha                  The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
@@ -116,22 +119,26 @@ void bfs(Graph* graph,
          bool directed);
 /**                                                                             
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
+ *     
+ * @tparam VT the type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam WT the type of edge weights. Supported value : float or double.                                                       
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid adjList
  *                                                                              
- * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @Param[out] *distances            If set to a valid pointer, array of size V populated by distance of every vertex in the graph from the starting vertex. Memory is provided and owned by the caller.
  *                                                                              
- * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
- *                                                                              
- * @Param[out] *predecessors         If set to a valid column, this is populated by the sssp predecessor of every vertex
+ * @Param[out] *predecessors         If set to a valid pointer, array of size V populated by the SSSP predecessor of every vertex. Memory is provided and owned by the caller.
  *                                                                              
  * @Param[in] start_vertex           The starting vertex for SSSP               
  *                                                                              
- * @throws     cugraph::logic_error when an error occurs.
+ * @throws     cugraph::logic_error with a custom message when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
+template <typename VT, typename WT>
 void sssp(Graph* graph,                                            
-          gdf_column *distances,                                                  
-          gdf_column *predecessors,                                               
-          const int source_vertex);                                               
+          WT *distances,                                                  
+          VT *predecessors,                                               
+          const VT source_vertex);                      
+
 /**
  * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
  * which are connected by an edge.
