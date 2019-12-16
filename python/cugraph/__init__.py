@@ -27,7 +27,8 @@ from cugraph.structure import (
     DiGraph, 
     renumber, 
     symmetrize, 
-    symmetrize_df
+    symmetrize_df,
+    renumber_from_cudf
 )
 
 from cugraph.centrality import katz_centrality

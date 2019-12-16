@@ -14,3 +14,4 @@
 from cugraph.structure.graph import Graph, DiGraph
 from cugraph.structure.renumber import renumber
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df
+from cugraph.structure.renumber import renumber_from_cudf
