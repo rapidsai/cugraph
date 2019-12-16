@@ -16,7 +16,7 @@ from cugraph.structure.graph import null_check
 import cudf
 
 
-def jaccard(input_graph, first=None, second=None):
+def jaccard(input_graph, vertex_pair=None):
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -36,12 +36,9 @@ def jaccard(input_graph, first=None, second=None):
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
-    first : cudf.Series
-        Specifies the first vertices of each pair of vertices to compute for,
+    vertex_pair : cudf.DataFrame
+        Specifies the pair of vertices to compute for,
         must be specified along with second.
-    second : cudf.Series
-        Specifies the second vertices of each pair of vertices to compute for,
-        must be specified along with first.
 
     Returns
     -------
@@ -71,15 +68,14 @@ def jaccard(input_graph, first=None, second=None):
     >>> df = cugraph.jaccard(G)
     """
 
-    if (type(first) == cudf.Series and
-            type(second) == cudf.Series):
-        null_check(first)
-        null_check(second)
-    elif first is None and second is None:
+    if (type(vertex_pair) == cudf.DataFrame):
+        null_check(vertex_pair[vertex_pair.columns[0]])
+        null_check(vertex_pair[vertex_pair.columns[1]])
+    elif vertex_pair is None:
         pass
     else:
-        raise ValueError("Specify first and second or neither")
+        raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = jaccard_wrapper.jaccard(input_graph, first, second)
+    df = jaccard_wrapper.jaccard(input_graph, vertex_pair)
 
     return df

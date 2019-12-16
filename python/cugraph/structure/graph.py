@@ -184,11 +184,14 @@ class Graph:
         """
         if self.edgelist is None:
             graph_wrapper.view_edge_list(self)
-        df = self.edgelist.edgelist_df
+        edgelist_df = self.edgelist.edgelist_df
         if self.renumbered:
-            df['src'] = self.edgelist.renumber_map[df['src']]
-            df['dst'] = self.edgelist.renumber_map[df['dst']]
-        return df
+            df = cudf.DataFrame()
+            df['src'] = self.edgelist.renumber_map[edgelist_df['src']]
+            df['dst'] = self.edgelist.renumber_map[edgelist_df['dst']]
+            return df
+        else:
+            return edgelist_df
 
     def delete_edge_list(self):
         """
@@ -475,7 +478,7 @@ class Graph:
         df = cudf.DataFrame()
         if vertex_subset is None:
             if self.renumbered is True:
-                df['vertex'] = input_graph.edgelist.renumber_map[vertex_col]
+                df['vertex'] = self.edgelist.renumber_map[vertex_col]
             else:
                 df['vertex'] = vertex_col
             df['in_degree'] = in_degree_col
@@ -515,7 +518,7 @@ class Graph:
         df = cudf.DataFrame()
         if vertex_subset is None:
             if self.renumbered is True:
-                df['vertex'] = input_graph.edgelist.renumber_map[vertex_col]
+                df['vertex'] = self.edgelist.renumber_map[vertex_col]
             else:
                 df['vertex'] = vertex_col
             df['degree'] = degree_col
