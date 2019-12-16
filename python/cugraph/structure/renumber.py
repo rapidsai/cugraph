@@ -56,9 +56,9 @@ def renumber(source_col, dest_col):
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(source_col, dest_col, None)
     """
-    csg.null_check(source_col)
-    csg.null_check(dest_col)
-
+    csg.null_check(source_cols_names)
+    csg.null_check(dest_cols_names)
+    
     source_col, dest_col, numbering_map = graph_wrapper.renumber(source_col,
                                                                  dest_col)
 
@@ -96,6 +96,11 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     dst_ids : cudf.Series   
     numbering_df : cudf.DataFrame
 
+    NOTICE
+    ---------
+    The number of source and destination columns must be the same
+    The 
+
 
     Examples
     --------
@@ -108,9 +113,45 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(source_col, dest_col, None)
     """
-    csg.null_check(source_cols_names)
-    csg.null_check(dest_cols_names)
+    if len(source_col) == 0:
+         raise ValueError('Source column list is empty')
 
+    if len(dest_col) == 0:
+         raise ValueError('Destination column list is empty')
+
+    if len(source_col) != len(dest_col):
+         raise ValueError('Source and Destination column lists are not the same size')
     
-    return src_ids, dest_ids, numbering_df
     
+    # ---------------------------------------------------
+    # get the source column names and map names to indexes
+    src_map = OrderedDict()
+    for i in range(len(source_cols_names)):
+        src_map.update( { source_cols_names[i] : str(i) } )
+
+    _tmp_df_src = _df[source_cols_names].rename(src_map)
+
+    # --------------------------------------------------------
+    # get the destination column names and map  to indexes
+    dst_map = OrderedDict()
+    for i in range(len(dest_cols_names)):
+        dst_map.update( { dest_cols_names[i] : str(i) } )
+        
+    _tmp_df_dst = _df[dest_cols_names].rename(dst_map)
+
+    # ------------------------------------
+    _s = _tmp_df_src.drop_duplicates()
+    _d = _tmp_df_dst.drop_duplicates()
+    
+    _tmp_df = cudf.concat([_s, _d])
+    _tmp_df = _tmp_df.drop_duplicates().reset_index().drop('index')
+    _tmp_df['id'] = _tmp_df.index.astype(np.int32)
+    
+    del _s
+    del _d
+    
+    _src_ids = _tmp_df_src.merge(_tmp_df, on=src_map.values())
+    _dst_ids = _tmp_df_src.merge(_tmp_df, on=dst_map.values())
+
+
+    return _src_ids['id'], _dst_ids['id'], _tmp_df    
