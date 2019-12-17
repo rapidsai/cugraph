@@ -16,7 +16,6 @@ from itertools import product
 
 import pytest
 
-import cudf
 import cugraph
 from cugraph.tests import utils
 
@@ -51,7 +50,6 @@ def networkx_k_truss_max(graph_file):
     return k
 
 
-    useMtx=False
 def cugraph_k_truss_max(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
@@ -59,6 +57,7 @@ def cugraph_k_truss_max(graph_file):
     cu_M = cu_M.sort_values('0')
     # print(cu_M)
 
+    useMtx=False
     if(useMtx):
         # cu_M['0']=cu_M['0']-1;
         # cu_M['1']=cu_M['1']-1;
