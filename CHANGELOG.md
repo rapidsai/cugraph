@@ -3,7 +3,7 @@
 ## New Features
 
 ## Improvements
-
+- PR #584 Adding functionality for finding maximal K-Truss of a graph
 - PR #641 Add codeowners
 
 ## Bug Fixes
@@ -20,7 +20,6 @@
 - PR #564 Update cudf type aliases
 - PR #562 Remove pyarrow dependency so we inherit the one cudf uses
 - PR #576 Remove adj list conversion automation from c++
-- PR #584 Adding functionality for finding maximal K-Truss of a graph
 - PR #587 API upgrade
 - PR #585 Remove BUILD_ABI references from CI scripts
 - PR #591 Adding initial GPU metrics to benchmark utils
