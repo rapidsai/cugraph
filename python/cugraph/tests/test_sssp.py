@@ -102,7 +102,7 @@ SOURCES = [1]
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 # TODO FIX ME
-@pytest.mark.skip(reason="Temporarily disabling some SSSP tests defaulting to BFS")
+@pytest.mark.skip(reason="Temporarily disabling this test for defaulting to BFS")
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
