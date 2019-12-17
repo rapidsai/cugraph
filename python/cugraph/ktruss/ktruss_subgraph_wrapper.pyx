@@ -17,7 +17,7 @@
 # cython: language_level = 3
 
 from cugraph.ktruss.ktruss_subgraph cimport *
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t

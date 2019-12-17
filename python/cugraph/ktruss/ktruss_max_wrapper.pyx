@@ -18,7 +18,7 @@
 
 from cugraph.ktruss.ktruss_max cimport *
 from cugraph.structure import graph_wrapper
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
