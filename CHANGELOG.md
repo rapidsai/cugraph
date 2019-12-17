@@ -1,3 +1,14 @@
+# cuGraph 0.12.0 (Date TBD)
+
+## New Features
+
+## Improvements
+
+- PR #641 Add codeowners
+
+## Bug Fixes
+
+
 # cuGraph 0.11.0 (Date TBD)
 
 ## New Features
@@ -14,6 +25,10 @@
 - PR #591 Adding initial GPU metrics to benchmark utils
 - PR #599 Pregel BFS
 - PR #601 add test for type conversion, edit createGraph_nvgraph
+- PR #614 Remove unused CUDA conda labels
+- PR #616 Remove c_ prefix
+- PR #618 Updated Docs
+- PR #619 Transition guide
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
@@ -21,6 +36,7 @@
 - PR #574 dev env update
 - PR #580 Changed hardcoded test output file to a generated tempfile file name
 - PR #595 Updates to use the new RMM Python reinitialize() API
+- PR #625 use destination instead of target when adding edgelist
 
 # cuGraph 0.10.0 (16 Oct 2019)
 

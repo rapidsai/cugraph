@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.structure.c_graph as c_graph
+cimport cugraph.structure.graph as c_graph
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.cudf cimport np_dtype_from_gdf_column
 from libcpp cimport bool

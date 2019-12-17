@@ -16,13 +16,12 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
-
+from cugraph.structure.graph cimport *
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void louvain(
+    cdef void sssp[int, WT](
         Graph *graph,
-        void *final_modularity,
-        void *num_level,
-        gdf_column *louvain_parts) except +
+        WT *distances,
+        int *predecessors,
+        int start_vertex) except +

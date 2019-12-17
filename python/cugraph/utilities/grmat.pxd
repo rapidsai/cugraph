@@ -16,13 +16,15 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
-from libcpp cimport bool
+from cugraph.structure.graph cimport *
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void extract_subgraph_vertex_nvgraph(
-        Graph* gdf_G,
-        gdf_column* vertices,
-        Graph* result) except +
+    cdef void grmat_gen(
+        const char* argv,
+        const size_t &vertices,
+        const size_t &edges,
+        gdf_column* src,
+        gdf_column* dest,
+        gdf_column* val) except +

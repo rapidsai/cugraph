@@ -16,16 +16,15 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void katz_centrality(
-        Graph *graph,
-        gdf_column *katz_centrality,
-        double alpha,
-        int max_iter,
-        double tol,
-        bool has_guess,
-        bool normalized) except +
+    cdef void k_core(
+        Graph *in_graph,
+        int k,
+        gdf_column *vertex_id,
+        gdf_column *core_number,
+        Graph *out_graph) except +
+

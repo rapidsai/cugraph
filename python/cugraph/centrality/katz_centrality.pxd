@@ -16,18 +16,16 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
-from libcpp cimport bool
+from cugraph.structure.graph cimport *
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void pagerank(
+    cdef void katz_centrality(
         Graph *graph,
-        gdf_column *pagerank,
-        gdf_column *personalization_subset,
-        gdf_column *personalization_values,
-        float alpha,
-        float tolerance,
+        gdf_column *katz_centrality,
+        double alpha,
         int max_iter,
-        bool has_guess) except +
+        double tol,
+        bool has_guess,
+        bool normalized) except +

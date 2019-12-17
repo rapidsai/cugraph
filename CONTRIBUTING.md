@@ -90,6 +90,9 @@ or
 $ conda install -c conda-forge boost
 ```
 
+Ensure that cuDF is installed.  See https://github.com/rapidsai/cuml
+
+
 #### Build and Install the C/C++ CUDA components
 
 To install cuGraph from source, ensure the dependencies are met and follow the steps below:
@@ -137,6 +140,9 @@ conda env update --name cugraph_dev --file conda/environments/cugraph_dev.yml
 
 # for CUDA 10
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.yml
+
+# for CUDA 10.1
+conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda101.yml
 
 conda activate cugraph_dev
 ```

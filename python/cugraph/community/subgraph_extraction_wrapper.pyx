@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.c_subgraph_extraction cimport *
-from cugraph.structure.c_graph cimport *
+from cugraph.community.subgraph_extraction cimport *
+from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -64,9 +64,9 @@ def subgraph(input_graph, vertices, subgraph):
         df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
         if vals is not None:
             df['val'] = vals
-            subgraph.from_cudf_edgelist(df, source='src', target='dst', edge_attr='val')
+            subgraph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='val')
         else:
-            subgraph.from_cudf_edgelist(df, source='src', target='dst')
+            subgraph.from_cudf_edgelist(df, source='src', destination='dst')
         if input_graph.edgelist is not None:
             subgraph.renumbered = input_graph.renumbered
             subgraph.edgelist.renumber_map = input_graph.edgelist.renumber_map
