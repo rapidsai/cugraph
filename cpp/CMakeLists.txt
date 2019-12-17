@@ -261,6 +261,7 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
+    src/ktruss/ktruss.cu
 	src/db/db_object.cu
 	src/db/db_parser_integration_test.cu
 	src/db/db_operators.cu
@@ -316,7 +317,6 @@ add_library(cugraph SHARED
     src/nvgraph/triangles_counting_kernels.cu
     src/nvgraph/valued_csr_graph.cpp
     src/nvgraph/widest_path.cu
-    src/ktruss/ktruss.cu
 )
 
 ###################################################################################################
