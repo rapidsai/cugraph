@@ -1,14 +1,3 @@
-# cuGraph 0.12.0 (Date TBD)
-
-## New Features
-
-## Improvements
-- PR #629 get rid of gdf_column in pagerank 
-- PR #640 get rid of gdf_column in sssp 
-
-## Bug Fixes
-
-
 # cuGraph 0.11.0 (Date TBD)
 
 ## New Features
