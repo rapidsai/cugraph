@@ -45,6 +45,10 @@ def ktruss_max(input_graph):
 			graph_wrapper.add_edge_list(graph, src, dst, weights)
 		else:
 			graph_wrapper.add_edge_list(graph, src, dst)
+		add_adj_list(g);
+		offsets, indices, values = graph_wrapper.get_adj_list(graph)
+		input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+
 	else:
 		[offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 		[weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
@@ -52,6 +56,7 @@ def ktruss_max(input_graph):
 		add_edge_list(g)
 		src, dst, values = graph_wrapper.get_edge_list(graph)
 		input_graph.edgelist = input_graph.EdgeList(src, dst, values)
+
 
 	cdef int kmax = 0
 
