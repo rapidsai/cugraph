@@ -18,11 +18,10 @@
 
 from cugraph.structure.c_graph cimport *
 
-
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void sssp(
+    cdef void sssp[int, WT](
         Graph *graph,
-        gdf_column *distances,
-        gdf_column *predecessors,
+        WT *distances,
+        int *predecessors,
         int start_vertex) except +
