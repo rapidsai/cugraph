@@ -3,7 +3,7 @@
 ## New Features
 
 ## Improvements
-
+- PR #629 get rid of gdf_column in sssp 
 - PR #641 Add codeowners
 
 ## Bug Fixes
