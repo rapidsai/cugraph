@@ -19,5 +19,14 @@
 from cugraph.structure.graph cimport *
 
 
-cdef gdf_column get_gdf_column_view(col)
-cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len)
+cdef extern from "cugraph.h" namespace "cugraph":
+
+    cdef void overlap(Graph * graph,
+                               gdf_column * weights,
+                               gdf_column * result) except +
+    
+    cdef void overlap_list(Graph * graph,
+                                    gdf_column * weights,
+                                    gdf_column * first,
+                                    gdf_column * second,
+                                    gdf_column * result) except +

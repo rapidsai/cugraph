@@ -11,6 +11,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph import Graph, DiGraph
-from cugraph.structure.renumber import renumber
-from cugraph.structure.symmetrize import symmetrize, symmetrize_df
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph cimport *
+
+
+cdef extern from "cugraph.h" namespace "cugraph":
+
+    cdef void katz_centrality(
+        Graph *graph,
+        gdf_column *katz_centrality,
+        double alpha,
+        int max_iter,
+        double tol,
+        bool has_guess,
+        bool normalized) except +

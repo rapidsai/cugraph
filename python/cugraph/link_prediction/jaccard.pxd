@@ -16,15 +16,17 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
-from libcpp cimport bool
+from cugraph.structure.graph cimport *
+
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void snmg_pagerank (
-            gdf_column **src_col_ptrs, 
-            gdf_column **dest_col_ptrs, 
-            gdf_column *pr_col, 
-            const size_t n_gpus, 
-            const float damping_factor, 
-            const int n_iter) except +
+    cdef void jaccard(Graph * graph,
+                               gdf_column * weights,
+                               gdf_column * result) except +
+    
+    cdef void jaccard_list(Graph * graph,
+                                    gdf_column * weights,
+                                    gdf_column * first,
+                                    gdf_column * second,
+                                    gdf_column * result) except +

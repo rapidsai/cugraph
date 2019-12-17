@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.cores.c_k_core as c_k_core
-from cugraph.structure.c_graph cimport *
+cimport cugraph.cores.k_core as c_k_core
+from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -65,9 +65,9 @@ def k_core(input_graph, k_core_graph, k, core_number):
         df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
         if vals is not None:
             df['val'] = vals
-            k_core_graph.from_cudf_edgelist(df, source='src', target='dst', edge_attr='val')
+            k_core_graph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='val')
         else:
-            k_core_graph.from_cudf_edgelist(df, source='src', target='dst')
+            k_core_graph.from_cudf_edgelist(df, source='src', destination='dst')
         if input_graph.edgelist is not None:
             k_core_graph.renumbered = input_graph.renumbered
             k_core_graph.edgelist.renumber_map = input_graph.edgelist.renumber_map

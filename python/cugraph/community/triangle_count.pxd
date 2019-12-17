@@ -16,17 +16,12 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.c_graph cimport *
+from cugraph.structure.graph cimport *
+from libc.stdint cimport uint64_t
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void overlap(Graph * graph,
-                               gdf_column * weights,
-                               gdf_column * result) except +
-    
-    cdef void overlap_list(Graph * graph,
-                                    gdf_column * weights,
-                                    gdf_column * first,
-                                    gdf_column * second,
-                                    gdf_column * result) except +
+    cdef void triangle_count_nvgraph(
+        Graph* G,
+        uint64_t* result) except +

@@ -16,8 +16,8 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.link_prediction.c_jaccard cimport *
-from cugraph.structure.c_graph cimport *
+from cugraph.link_prediction.jaccard cimport *
+from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.cudf cimport np_dtype_from_gdf_column

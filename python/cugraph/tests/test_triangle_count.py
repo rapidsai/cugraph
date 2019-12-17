@@ -40,10 +40,10 @@ def cugraph_call(M, edgevals=False):
     cu_M['dst'] = cudf.Series(M.col)
     if edgevals is True:
         cu_M['weights'] = cudf.Series(M.data)
-        G.from_cudf_edgelist(cu_M, source='src', target='dst',
+        G.from_cudf_edgelist(cu_M, source='src', destination='dst',
                              edge_attr='weights')
     else:
-        G.from_cudf_edgelist(cu_M, source='src', target='dst')
+        G.from_cudf_edgelist(cu_M, source='src', destination='dst')
     return cugraph.triangles(G)
 
 
