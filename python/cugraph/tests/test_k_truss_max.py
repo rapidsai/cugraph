@@ -50,11 +50,10 @@ def networkx_k_truss_max(graph_file):
 
     return k
 
-useMtx=False
 
+    useMtx=False
 def cugraph_k_truss_max(graph_file):
-    # cu_M = utils.read_csv_file(graph_file)
-    cu_M = cudf.read_csv(graph_file,header=None,delimiter=' ')
+    cu_M = utils.read_csv_file(graph_file)
 
     cu_M = cu_M.sort_values('1')
     cu_M = cu_M.sort_values('0')
@@ -71,40 +70,18 @@ def cugraph_k_truss_max(graph_file):
     G.from_cudf_edgelist(cu_M, source='0', target='1')
     # print(cu_M)
     k_max = cugraph.ktruss_max(G)
-
     return k_max
 
 
 def compare_k_truss(graph_file, k_truss_nx):
     k_truss_cugraph = cugraph_k_truss_max(graph_file)
-    # assert (k_truss_cugraph == k_truss_nx)
+    assert (k_truss_cugraph == k_truss_nx)
     # return False
 
 
-if (useMtx):
-    # DATASETS = [
-    #           ('../datasets/karate.mtx.csv', 5),
-    #           ('../datasets/polbooks.mtx.csv', 6),
-    #           ('../datasets/netscience.mtx.csv', 20)
-    #           ]
-    # DATASETS = [
-    #           ('../datasets/karate.mtx.csv.csv', 5),
-    #           ('../datasets/polbooks.mtx.csv.csv', 6),
-    #           ('../datasets/netscience.mtx.csv.csv', 20)
-    #           ]
-    DATASETS = [
-              ('../datasets/karate-mtx-full-zero.csv', 5),
-              ('../datasets/polbooks-mtx-full-zero.csv', 6),
-              ('../datasets/netscience-mtx-full-zero.csv', 20)
-              ]
-
-else:
-    DATASETS = [
-              ('../datasets/karate.csv', 5),
-              ('../datasets/polbooks.csv', 6),
-              ('../datasets/netscience.csv', 20)
-              ]
-
+DATASETS = [('../datasets/karate.csv', 5),
+            ('../datasets/polbooks.csv', 6),
+            ('../datasets/netscience.csv', 20)]
 @pytest.mark.parametrize('managed, pool',
                          list(product([False], [False])))
 @pytest.mark.parametrize('graph_file,nx_ground_truth', DATASETS)
