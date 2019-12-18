@@ -5,6 +5,7 @@
 ## Improvements
 
 - PR #641 Add codeowners
+- PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 
 ## Bug Fixes
 
