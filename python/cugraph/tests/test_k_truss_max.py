@@ -64,11 +64,12 @@ def cugraph_k_truss_max(graph_file):
         # G = cugraph.DiGraph()
         G = cugraph.Graph()
     else:
-        G = cugraph.DiGraph()
+        G = cugraph.Graph()
 
-    G.from_cudf_edgelist(cu_M, source='0', target='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
     # print(cu_M)
     k_max = cugraph.ktruss_max(G)
+    print (k_max)
     return k_max
 
 
