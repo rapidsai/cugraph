@@ -39,7 +39,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
         Specifies the weights to be used for each vertex.
 
     vertex_pair : cudf.DataFrame
-        Specifies the pair of vertices to compute for 
+        Specifies the pair of vertices to compute for
 
     Returns
     -------

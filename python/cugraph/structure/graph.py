@@ -494,9 +494,9 @@ class Graph:
                 df['in_degree'] = cudf.Series(
                     np.asarray([in_degree_col[i] for i in vertices_renumbered],
                                dtype=np.int32))
-                df['out_degree'] = cudf.Series(
-                    np.asarray([out_degree_col[i] for i in vertices_renumbered],
-                               dtype=np.int32))
+                df['out_degree'] = cudf.Series(np.asarray([out_degree_col[i]
+                                               for i in vertices_renumbered],
+                                               dtype=np.int32))
             else:
                 df['in_degree'] = cudf.Series(
                     np.asarray([in_degree_col[i] for i in vertex_subset],
@@ -531,7 +531,8 @@ class Graph:
                                               index=self.edgelist.renumber_map)
                 vertices_renumbered = renumber_series.loc[vertex_subset]
                 df['degree'] = cudf.Series(np.asarray(
-                    [degree_col[i] for i in vertices_renumbered], dtype=np.int32
+                    [degree_col[i] for i in vertices_renumbered],
+                    dtype=np.int32
                 ))
             else:
                 df['degree'] = cudf.Series(np.asarray(
