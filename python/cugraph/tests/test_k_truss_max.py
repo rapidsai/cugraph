@@ -69,7 +69,7 @@ def compare_k_truss(graph_file, k_truss_nx):
     assert (k_truss_cugraph == k_truss_nx)
 
 
-DATASETS = [# ('../datasets/karate.csv', 5),
+DATASETS = [  # ('../datasets/karate.csv', 5),
             ('../datasets/polbooks.csv', 6),
             ('../datasets/netscience.csv', 20)]
 @pytest.mark.parametrize('managed, pool',
