@@ -86,6 +86,6 @@ def sssp(input_graph, source):
 
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-        df['predecessor'] = input_graph.edgelist.renumber_map[df['predecessor']]
+        df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
 
     return df

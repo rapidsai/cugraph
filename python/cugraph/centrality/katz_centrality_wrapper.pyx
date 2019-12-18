@@ -68,7 +68,7 @@ def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=Non
         if input_graph.renumbered is True:
             renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
                                           index=input_graph.edgelist.renumber_map)
-            nstart_vertex_renumbered = renumber_series.loc[nstart['vertex']]
+            nstart_vertex_renumbered = cudf.Series(renumber_series.loc[nstart['vertex']], dtype=np.int32)
             cudf.bindings.copying.apply_scatter([nstart['values']._column],
                                                 nstart_vertex_renumbered._column._data.mem,
                                                 [df['katz_centrality']._column])
