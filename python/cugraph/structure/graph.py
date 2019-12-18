@@ -125,7 +125,7 @@ class Graph:
         source : str
             source argument is source column name
         destination : str
-            target argument is destination column name.
+            destination argument is destination column name.
         edge_attr : str
             edge_attr argument is the weights column name.
         renumber : bool
@@ -176,7 +176,7 @@ class Graph:
  Use from_cudf_edgelist instead')
         input_df = cudf.DataFrame()
         input_df['source'] = source
-        input_df['target'] = destination
+        input_df['destination'] = destination
         if value is not None:
             input_df['weights'] = value
             self.from_cudf_edgelist(input_df, edge_attr='weights')
