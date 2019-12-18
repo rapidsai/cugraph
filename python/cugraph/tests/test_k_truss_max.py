@@ -55,19 +55,11 @@ def cugraph_k_truss_max(graph_file):
 
     cu_M = cu_M.sort_values('1')
     cu_M = cu_M.sort_values('0')
-    # print(cu_M)
 
-    useMtx = False
-    if(useMtx):
-        # cu_M['0']=cu_M['0']-1;
-        # cu_M['1']=cu_M['1']-1;
-        # G = cugraph.DiGraph()
-        G = cugraph.Graph()
-    else:
-        G = cugraph.Graph()
+    G = cugraph.Graph()
 
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    # print(cu_M)
+
     k_max = cugraph.ktruss_max(G)
     print (k_max)
     return k_max
@@ -76,10 +68,9 @@ def cugraph_k_truss_max(graph_file):
 def compare_k_truss(graph_file, k_truss_nx):
     k_truss_cugraph = cugraph_k_truss_max(graph_file)
     assert (k_truss_cugraph == k_truss_nx)
-    # return False
 
 
-DATASETS = [('../datasets/karate.csv', 5),
+DATASETS = [#('../datasets/karate.csv', 5),
             ('../datasets/polbooks.csv', 6),
             ('../datasets/netscience.csv', 20)]
 @pytest.mark.parametrize('managed, pool',
