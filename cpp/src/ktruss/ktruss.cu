@@ -60,8 +60,6 @@ void ktruss_max_impl(Graph *graph,
     HornetGraph hnt(graph->numberOfVertices+1);
     hnt.insert(batch);
 
-    printf("GPU Init : CSIDE %d \n",graph->numberOfVertices,graph->edgeList->src_indices->size);
-
   #else
     int *offs, *adjs;
     offs = (int*)malloc(sizeof(int) * (graph->numberOfVertices + 1));
@@ -70,28 +68,9 @@ void ktruss_max_impl(Graph *graph,
     cudaMemcpy(offs,static_cast<int*>(graph->adjList->offsets->data), sizeof(int) * (graph->numberOfVertices + 1), cudaMemcpyDeviceToHost);
     cudaMemcpy(adjs,static_cast<int*>(graph->adjList->indices->data), sizeof(int) * (graph->adjList->indices->size), cudaMemcpyDeviceToHost);
 
-    // for(int i=0; i<(graph->numberOfVertices); i++){
-    //   int o = offs[i];
-    //   int len = offs[i+1]-offs[i];
-
-    //   printf("%d : ",i);
-    //   for(int j=0; j<len; j++){
-    //     printf("%d, ",adjs[o+j]);
-    //   }
-    //   printf("\n");
-    // }
-
-
-
-    // using HornetInit  = hornet::HornetInit<int>;
     HornetInit init(graph->numberOfVertices, graph->adjList->indices->size, offs,adjs);
 
     HornetGraph hnt(init);
-
-    // printf("%d %d\n",graph->numberOfVertices, graph->adjList->indices->size);fflush(stdout);
-
-    printf("CPU Init : CSIDE %d %d\n",graph->numberOfVertices,graph->adjList->indices->size);
-
   #endif
 
   KTruss kt(hnt);
