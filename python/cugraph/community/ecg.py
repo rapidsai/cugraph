@@ -22,8 +22,8 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
     ----------
     input_graph : cugraph.graph
         cuGraph graph descriptor, should contain the connectivity information
-        and weights.The adjacency list will be computed if not already 
-        present. The graph should be undirected where an undirected edge is 
+        and weights.The adjacency list will be computed if not already
+        present. The graph should be undirected where an undirected edge is
         represented by an a directed edge in both directions.
 
     min_weight : floating point
@@ -40,9 +40,9 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', 
-                          delimiter = ' ', 
-                          dtype=['int32', 'int32', 'float32'], 
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
                           header=None)
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
