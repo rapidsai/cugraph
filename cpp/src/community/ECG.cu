@@ -62,7 +62,8 @@ __global__ void match_check_kernel(IdxT size,
   IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < size) {
     IdxT source = binsearch_maxle(offsets, tid, (IdxT)0, num_verts);
-    if (parts[permutation[source]] == parts[permutation[tid]])
+    IdxT dest = indices[tid];
+    if (parts[permutation[source]] == parts[permutation[dest]])
       weights[tid] += 1;
     tid += gridDim.x * blockDim.x;
   }
@@ -104,8 +105,8 @@ cugraph::Graph* permute_graph(cugraph::Graph* graph, IdxT* permutation) {
   // Get the source indices from the offsets
   IdxT* src_indices;
   IdxT nnz = graph->adjList->indices->size;
-  ALLOC_TRY(&src_indices, sizeof(IdxT) * graph->adjList->indices->size, nullptr);
-  cugraph::detail::offsets_to_indices((IdxT*) graph->adjList->indices->data,
+  ALLOC_TRY(&src_indices, sizeof(IdxT) * nnz, nullptr);
+  cugraph::detail::offsets_to_indices((IdxT*) graph->adjList->offsets->data,
                                       (IdxT)graph->adjList->offsets->size - 1,
                                       src_indices);
   // Permute the src_indices
@@ -182,6 +183,7 @@ IdxT* get_permutation_vector(IdxT size, IdxT seed) {
   thrust::sort_by_key(rmm::exec_policy(nullptr)->on(nullptr), randoms, randoms + size, output_vector);
 
   ALLOC_FREE_TRY(randoms, nullptr);
+
   return output_vector;
 }
 
@@ -200,7 +202,6 @@ void ecg_impl(cugraph::Graph* graph,
                ecg_weights,
                ecg_weights + nnz,
                0.0);
-
   // Iterate over each member of the ensemble
   for (int i = 0; i < ensemble_size; i++) {
     // Take random permutation of the graph
