@@ -77,13 +77,16 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
         if m_graph is not None:
-            if edge_attr is None:
-                raise Exception('edge_attr not provided')
-            else:
+            if ((type(self) is Graph and type(m_graph) is MultiGraph)
+               or (type(self) is DiGraph and type(m_graph) is MultiDiGraph)):
                 self.from_cudf_edgelist(m_graph.edgelist.edgelist_df,
                                         source='src',
                                         destination='dst',
                                         edge_attr=edge_attr)
+            else:
+                msg = "Graph can be initialized using MultiGraph\
+ and DiGraph can be initialized using MultiDiGraph"
+                raise Exception(msg)
         # self.number_of_vertices = None
 
     def clear(self):
@@ -543,6 +546,6 @@ class MultiGraph(Graph):
         super().__init__(multi=True)
 
 
-class DiMultiGraph(Graph):
+class MultiDiGraph(Graph):
     def __init__(self, renumbered=True):
         super().__init__(symmetrized=True, multi=True)
