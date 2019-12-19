@@ -37,7 +37,9 @@ def jaccard(input_graph, vertex_pair=None):
         directed edge in both direction. The adjacency list will be computed if
         not already present.
     vertex_pair : cudf.DataFrame
-        Specifies the pair of vertices to compute for
+        A GPU dataframe consisting of two columns representing pairs of
+        vertices. If provided, the jaccard coefficient is computed for the given
+        vertex pairs, else, it is computed for all vertex pairs.  
 
     Returns
     -------
