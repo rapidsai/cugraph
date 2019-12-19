@@ -27,6 +27,9 @@ import rmm
 def cugraph_call(cu_M, start_vertex):
 
     G = cugraph.DiGraph()
+    cu_M = cu_M.sort_values('1')
+    cu_M = cu_M.sort_values('0')
+
     G.from_cudf_edgelist(cu_M, source='0', destination='1',
                          edge_attr='2')
 
