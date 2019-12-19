@@ -40,17 +40,13 @@ namespace detail {
 
 void ktruss_max_impl(Graph *graph,
                           int *k_max) {
-  // gdf_error err = gdf_add_adj_list(graph);
-  // if (err != GDF_SUCCESS)
-  //   return err;
   int * src = static_cast<int*>(graph->edgeList->src_indices->data);
   int * dst = static_cast<int*>(graph->edgeList->dest_indices->data);
 
-
-
   #if CPU_INIT==1
     using HornetGraph = hornet::gpu::Hornet<int>;
-    using UpdatePtr   = ::hornet::BatchUpdatePtr<int, hornet::EMPTY, hornet::DeviceType::DEVICE>;
+    using UpdatePtr   = ::hornet::BatchUpdatePtr<int, hornet::EMPTY, 
+        hornet::DeviceType::DEVICE>;
     using Update      = ::hornet::gpu::BatchUpdate<int>;
 
     UpdatePtr ptr(graph->edgeList->src_indices->size, src, dst);
@@ -65,10 +61,13 @@ void ktruss_max_impl(Graph *graph,
     offs = (int*)malloc(sizeof(int) * (graph->numberOfVertices + 1));
     adjs = (int*)malloc(sizeof(int) * (graph->adjList->indices->size));
 
-    cudaMemcpy(offs,static_cast<int*>(graph->adjList->offsets->data), sizeof(int) * (graph->numberOfVertices + 1), cudaMemcpyDeviceToHost);
-    cudaMemcpy(adjs,static_cast<int*>(graph->adjList->indices->data), sizeof(int) * (graph->adjList->indices->size), cudaMemcpyDeviceToHost);
+    cudaMemcpy(offs,static_cast<int*>(graph->adjList->offsets->data), 
+        sizeof(int) * (graph->numberOfVertices + 1), cudaMemcpyDeviceToHost);
+    cudaMemcpy(adjs,static_cast<int*>(graph->adjList->indices->data), 
+        sizeof(int) * (graph->adjList->indices->size), cudaMemcpyDeviceToHost);
 
-    HornetInit init(graph->numberOfVertices, graph->adjList->indices->size, offs,adjs);
+    HornetInit init(graph->numberOfVertices, graph->adjList->indices->size, 
+        offs,adjs);
 
     HornetGraph hnt(init);
   #endif
@@ -108,11 +107,32 @@ void ktruss_max_impl(Graph *graph,
 
 void k_truss_max(Graph *graph,
                           int *k_max) {
-  // CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr || graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
-  // CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr || graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr || 
+      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr || 
+      graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
 
-  // CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
-  // CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->adjList->offsets != nullptr || 
+      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList->offsets->data != nullptr || 
+      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
+
+  CUGRAPH_EXPECTS(graph->adjList->indices != nullptr || 
+      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList->indices->data != nullptr || 
+      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
+
+
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, 
+      "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, 
+      "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype != GDF_INT32, 
+      "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype != GDF_INT32, 
+      "Unsupported data type");
+
+
 
   detail::ktruss_max_impl(graph, k_max);
 }
@@ -125,7 +145,8 @@ void ktruss_subgraph_impl(Graph *graph,
   int * src = static_cast<int*>(graph->edgeList->src_indices->data);
   int * dst = static_cast<int*>(graph->edgeList->dest_indices->data);
   using HornetGraph = hornet::gpu::Hornet<int>;
-  using UpdatePtr   = ::hornet::BatchUpdatePtr<int, hornet::EMPTY, hornet::DeviceType::DEVICE>;
+  using UpdatePtr   = ::hornet::BatchUpdatePtr<int, hornet::EMPTY, 
+      hornet::DeviceType::DEVICE>;
   using Update      = ::hornet::gpu::BatchUpdate<int>;
 
 
@@ -162,11 +183,15 @@ void k_truss_subgraph(Graph *graph,
                           int k,
                           Graph *ktrussgraph) {
 
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr || graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr || graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr || 
+      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr || 
+      graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
 
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype ==  GDF_INT32, 
+      "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, 
+      "Unsupported data type");
 
   detail::ktruss_subgraph_impl(graph, k,NULL);
 }
