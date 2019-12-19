@@ -1,6 +1,7 @@
 # cuGraph 0.12.0 (Date TBD)
 
 ## New Features
+- PR #628 Add (Di)Graph constructor from Multi(Di)Graph
 
 ## Improvements
 - PR #629 get rid of gdf_column in pagerank 
