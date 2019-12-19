@@ -36,8 +36,8 @@ def overlap(input_graph, vertex_pair=None):
         adjacency list will be computed if not already present.
     vertex_pair : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
-        vertices. If provided, the overlap coefficient is computed for the given
-        vertex pairs, else, it is computed for all vertex pairs. 
+        vertices. If provided, the overlap coefficient is computed for the
+        given vertex pairs, else, it is computed for all vertex pairs.
 
     Returns
     -------
