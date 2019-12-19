@@ -137,7 +137,7 @@ ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
 #    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
 #    "${CMAKE_CURRENT_SOURCE_DIR}/grmat/grmat_test.cu")
 
-#ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC}" "")
+#ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC} " "")
 
 ###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
@@ -150,11 +150,11 @@ ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-#set(SSSP_TEST_SRCS
-#	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
+set(SSSP_TEST_SRCS
+	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
 
-#ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
+ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------

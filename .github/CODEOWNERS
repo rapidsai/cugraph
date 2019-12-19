@@ -1,0 +1,16 @@
+#cpp code owners
+cpp/               @rapidsai/cugraph-cpp-codeowners
+
+#python code owners
+python/            @rapidsai/cugraph-python-codeowners
+
+#cmake code owners
+**/CMakeLists.txt  @rapidsai/cugraph-cmake-codeowners
+**/cmake/          @rapidsai/cugraph-cmake-codeowners
+
+#build/ops code owners
+.github/           @rapidsai/ops-codeowners 
+ci/                @rapidsai/ops-codeowners
+conda/             @rapidsai/ops-codeowners
+**/Dockerfile      @rapidsai/ops-codeowners
+**/.dockerignore   @rapidsai/ops-codeowners
