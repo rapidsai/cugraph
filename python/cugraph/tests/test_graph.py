@@ -675,6 +675,6 @@ def test_Graph_from_MultiGraph(managed, pool, graph_file):
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
 
     # create Graph from MultiGraph
-    G_from_multi = cugraph.Graph(G_multi , edge_attr='2')
+    G_from_multi = cugraph.Graph(G_multi, edge_attr='2')
 
     assert G.edgelist.edgelist_df == G_from_multi.edgelist.edgelist_df
