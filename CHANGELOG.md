@@ -4,12 +4,14 @@
 
 ## Improvements
 - PR #640 remove gdf_column in sssp 
+- PR #629 get rid of gdf_column in pagerank 
 - PR #641 Add codeowners
+- PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 
 ## Bug Fixes
 
 
-# cuGraph 0.11.0 (Date TBD)
+# cuGraph 0.11.0 (11 Dec 2019)
 
 ## New Features
 - PR #588 Python graph class and related changes
