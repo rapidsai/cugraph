@@ -4,8 +4,8 @@
 - PR #628 Add (Di)Graph constructor from Multi(Di)Graph
 
 ## Improvements
+- PR #640 remove gdf_column in sssp 
 - PR #629 get rid of gdf_column in pagerank 
-
 - PR #641 Add codeowners
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 
