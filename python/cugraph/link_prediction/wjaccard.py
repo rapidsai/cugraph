@@ -40,8 +40,8 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
 
     vertex_pair : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
-        vertices. If provided, the jaccard coefficient is computed for the given
-        vertex pairs, else, it is computed for all vertex pairs.
+        vertices. If provided, the jaccard coefficient is computed for the
+        given vertex pairs, else, it is computed for all vertex pairs.
 
     Returns
     -------
