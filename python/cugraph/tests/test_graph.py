@@ -643,7 +643,7 @@ def test_number_of_vertices(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
     assert(G.number_of_vertices() == M.shape[0])
-    
+
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
