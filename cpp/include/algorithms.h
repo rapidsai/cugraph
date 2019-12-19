@@ -29,7 +29,7 @@ namespace cugraph {
  * @Param[in] alpha                  The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
                                      Thus, 1.0-alpha is the probability to “teleport” to a random vertex. Alpha should be greater than 0.0 and strictly lower than 1.0.
  *                                   The initial guess must not be the vector of 0s. Any value other than 1 or 0 is treated as an invalid value.
- * @Param[in] pagerank               Array of size V. Should contain the initial guess if has_guess=true. Memory is provided and owned by the caller.
+ * @Param[in] pagerank               Array of size V. Should contain the initial guess if has_guess=true. In this case the initial guess cannot be the vector of 0s. Memory is provided and owned by the caller.
  * @Param[in] personalization_subset_size (optional) The number of vertices for to personalize. Initialized to 0 by default.
  * @Param[in] personalization_subset (optional) Array of size personalization_subset_size containing vertices for running personalized pagerank. Initialized to nullptr by default. Memory is provided and owned by the caller.
  * @Param[in] personalization_values (optional) Array of size personalization_subset_size containing values associated with personalization_subset vertices. Initialized to nullptr by default. Memory is provided and owned by the caller.
