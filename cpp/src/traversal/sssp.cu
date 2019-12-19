@@ -295,7 +295,7 @@ void sssp(Graph* graph,
   if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double))
     CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
   if (typeid(VT) != typeid(int) )
-    CUGRAPH_FAIL("Unsupported personalization_subset data type, please use int");
+    CUGRAPH_FAIL("Unsupported vertex data type, please use int");
 
   // TODO fix me after gdf_column is removed from Graph
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32,
