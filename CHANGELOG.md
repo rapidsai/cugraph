@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #629 get rid of gdf_column in pagerank 
 
 - PR #641 Add codeowners
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
