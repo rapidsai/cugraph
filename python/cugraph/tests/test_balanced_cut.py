@@ -108,8 +108,6 @@ def test_modularity_clustering_with_edgevals(graph_file, partitions):
     cu_M = cu_M.sort_values('1')
     cu_M = cu_M.sort_values('0')
 
-
-
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     val = cudf.Series(M.data)

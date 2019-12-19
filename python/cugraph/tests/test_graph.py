@@ -523,7 +523,6 @@ def test_degrees_functionality(managed, pool, graph_file):
     cu_M = cu_M.sort_values('1')
     cu_M = cu_M.sort_values('0')
 
-
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
 
