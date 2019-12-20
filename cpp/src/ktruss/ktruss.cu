@@ -127,9 +127,9 @@ void k_truss_max(Graph *graph,
       "Unsupported data type");
   CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32, 
       "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype != GDF_INT32, 
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, 
       "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype != GDF_INT32, 
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, 
       "Unsupported data type");
 
 
