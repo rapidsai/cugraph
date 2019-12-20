@@ -11,6 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph import Graph, DiGraph
+from cugraph.structure.graph import (Graph,
+                                     DiGraph,
+                                     MultiGraph,
+                                     MultiDiGraph
+                                    )
 from cugraph.structure.renumber import renumber
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df
