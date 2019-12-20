@@ -19,7 +19,7 @@ When viewing the graph or requesting the number of edges, cuGraph will currently
 This is an implementation detail that will be hidden to the user in 0.12 (more details in issue #603).  
 
 ### Loading an edge list
-Users are encouraged to use `from_cudf_edge_list` instead of `add_edge_list`.
+Users are encouraged to use `from_cudf_edgelist` instead of `add_edge_list`.
 
 This new API supports cuDF DataFrame. Users can now ask for an automatic renumbering of the edge list at the time it is loaded. 
 In this case, all analytics outputs are automatically un-renumbered before being returned.
