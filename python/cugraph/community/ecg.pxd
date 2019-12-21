@@ -24,4 +24,4 @@ cdef extern from "cugraph.h" namespace "cugraph":
     cdef void ecg(Graph* graph,
                   double min_weight,
                   int ensemble_size,
-                  gdf_column *ecg_parts) except +
+                  void *ecg_parts) except +

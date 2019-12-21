@@ -20,17 +20,14 @@
  * ---------------------------------------------------------------------------**/
 
 #include <cugraph.h>
-#include <nvgraph/nvgraph.h>
 #include <thrust/random.h>
 #include <ctime>
 #include "utilities/error_utils.h"
-#include "converters/nvgraph.cuh"
 #include <rmm_utils.h>
 #include "utilities/graph_utils.cuh"
-#include "converters/COOtoCSR.cuh"
+#include <converters/permute_graph.cuh>
 
 namespace {
-#define MAXBLOCKS 65535
 template<typename IndexType>
 __device__ IndexType binsearch_maxle(const IndexType *vec,
                                       const IndexType val,
@@ -79,16 +76,6 @@ struct prg {
   }
 };
 
-template <typename IdxT>
-struct permutation_functor{
-  IdxT* permutation;
-  permutation_functor(IdxT* p):permutation(p){}
-  __host__ __device__
-  IdxT operator()(IdxT in){
-    return permutation[in];
-  }
-};
-
 template<typename ValT>
 struct update_functor{
   ValT min_value;
@@ -100,76 +87,13 @@ struct update_functor{
   }
 };
 
-template<typename IdxT, typename ValT>
-cugraph::Graph* permute_graph(cugraph::Graph* graph, IdxT* permutation) {
-  // Get the source indices from the offsets
-  IdxT* src_indices;
-  IdxT nnz = graph->adjList->indices->size;
-  ALLOC_TRY(&src_indices, sizeof(IdxT) * nnz, nullptr);
-  cugraph::detail::offsets_to_indices((IdxT*) graph->adjList->offsets->data,
-                                      (IdxT)graph->adjList->offsets->size - 1,
-                                      src_indices);
-  // Permute the src_indices
-  permutation_functor<IdxT>pf(permutation);
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
-                    src_indices,
-                    src_indices + nnz,
-                    src_indices,
-                    pf);
-
-  // Copy the indices before permuting
-  IdxT* dest_indices;
-  ALLOC_TRY(&dest_indices, sizeof(IdxT) * nnz, nullptr);
-  thrust::copy(rmm::exec_policy(nullptr)->on(nullptr),
-               (IdxT*) graph->adjList->indices->data,
-               (IdxT*) graph->adjList->indices->data + nnz,
-               dest_indices);
-
-  // Permute the destination indices
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
-                    dest_indices,
-                    dest_indices + nnz,
-                    dest_indices,
-                    pf);
-
-  // Call COO2CSR to get the new adjacency
-  CSR_Result_Weighted<IdxT, ValT>new_csr;
-  ConvertCOOtoCSR_weighted(src_indices,
-                           dest_indices,
-                           (ValT*) graph->adjList->edge_data->data,
-                           (int64_t) nnz,
-                           new_csr);
-
-  // Construct the result graph
-  cugraph::Graph* result = new cugraph::Graph;
-  result->adjList = new cugraph::gdf_adj_list;
-  result->adjList->offsets = new gdf_column;
-  result->adjList->indices = new gdf_column;
-  result->adjList->edge_data = new gdf_column;
-  result->adjList->ownership = 1;
-
-  gdf_column_view(result->adjList->offsets,
-                  new_csr.rowOffsets,
-                  nullptr,
-                  new_csr.size + 1,
-                  graph->adjList->offsets->dtype);
-  gdf_column_view(result->adjList->indices,
-                  new_csr.colIndices,
-                  nullptr,
-                  nnz,
-                  graph->adjList->offsets->dtype);
-  gdf_column_view(result->adjList->edge_data,
-                  new_csr.edgeWeights,
-                  nullptr,
-                  nnz,
-                  graph->adjList->edge_data->dtype);
-
-  ALLOC_FREE_TRY(src_indices, nullptr);
-  ALLOC_FREE_TRY(dest_indices, nullptr);
-
-  return result;
-}
-
+/**
+ * Computes a random permutation vector of length size. A permutation vector of length n
+ * contains all values [0..n-1] exactly once.
+ * @param size The length of the
+ * @param seed
+ * @return
+ */
 template <typename IdxT>
 IdxT* get_permutation_vector(IdxT size, IdxT seed) {
   IdxT* output_vector;
@@ -187,11 +111,16 @@ IdxT* get_permutation_vector(IdxT size, IdxT seed) {
   return output_vector;
 }
 
+
+} // anonymous namespace
+
+namespace cugraph {
+
 template<typename IdxT, typename ValT>
 void ecg_impl(cugraph::Graph* graph,
               double min_weight,
               int ensemble_size,
-              gdf_column *ecg_parts) {
+              IdxT* ecg_parts) {
   IdxT size = graph->adjList->offsets->size - 1;
   IdxT nnz = graph->adjList->indices->size;
   IdxT* offsets = (IdxT*) graph->adjList->offsets->data;
@@ -209,31 +138,28 @@ void ecg_impl(cugraph::Graph* graph,
     cugraph::Graph* permuted = permute_graph<IdxT, ValT>(graph, permutation);
 
     // Run Louvain clustering on the random permutation
-    gdf_column* parts_col = (gdf_column*) malloc(sizeof(gdf_column));
     IdxT* parts;
     ALLOC_TRY(&parts, sizeof(IdxT) * size, nullptr);
-    gdf_column_view(parts_col, parts, nullptr, size, graph->adjList->offsets->dtype);
     ValT final_modularity;
     IdxT num_level;
-    cugraph::louvain(permuted, &final_modularity, &num_level, parts_col, 1);
+    cugraph::louvain(permuted, &final_modularity, &num_level, parts, 1);
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
     dim3 grid, block;
     block.x = 512;
-    grid.x = min((IdxT) MAXBLOCKS, (nnz / 512 + 1));
+    grid.x = min((IdxT) CUDA_MAX_BLOCKS, (nnz / 512 + 1));
     match_check_kernel<<<grid, block, 0, nullptr>>>(nnz,
                                                     size,
                                                     offsets,
                                                     indices,
                                                     permutation,
-                                                    (IdxT*) parts_col->data,
+                                                    parts,
                                                     ecg_weights);
 
     // Clean up temporary allocations
     delete permuted;
     ALLOC_FREE_TRY(parts, nullptr);
-    free(parts_col);
     ALLOC_FREE_TRY(permutation, nullptr);
   }
 
@@ -271,19 +197,15 @@ void ecg_impl(cugraph::Graph* graph,
   delete result;
   ALLOC_FREE_TRY(ecg_weights, nullptr);
 }
-} // anonymous namespace
 
-
-namespace cugraph {
 void ecg(Graph* graph,
          double min_weight,
          int ensemble_size,
-         gdf_column *ecg_parts) {
+         void *ecg_parts) {
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Graph must have adjacency list");
   CUGRAPH_EXPECTS(graph->adjList->edge_data != nullptr, "Graph must have weights");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == ecg_parts->dtype, "Output type must match index type!");
 
   // determine the index type and value type of the graph
   // Call the appropriate templated instance of the implementation
@@ -291,11 +213,11 @@ void ecg(Graph* graph,
     case GDF_INT32: {
       switch (graph->adjList->edge_data->dtype) {
         case GDF_FLOAT32: {
-          ecg_impl<int32_t, float>(graph, min_weight, ensemble_size, ecg_parts);
+          ecg_impl<int32_t, float>(graph, min_weight, ensemble_size, (int32_t*)ecg_parts);
           break;
         }
         case GDF_FLOAT64: {
-          ecg_impl<int32_t, double>(graph, min_weight, ensemble_size, ecg_parts);
+          ecg_impl<int32_t, double>(graph, min_weight, ensemble_size, (int32_t*)ecg_parts);
           break;
         }
         default: {
@@ -307,11 +229,11 @@ void ecg(Graph* graph,
     case GDF_INT64: {
       switch (graph->adjList->edge_data->dtype) {
         case GDF_FLOAT32: {
-          ecg_impl<int64_t, float>(graph, min_weight, ensemble_size, ecg_parts);
+          ecg_impl<int64_t, float>(graph, min_weight, ensemble_size, (int64_t*)ecg_parts);
           break;
         }
         case GDF_FLOAT64: {
-          ecg_impl<int64_t, double>(graph, min_weight, ensemble_size, ecg_parts);
+          ecg_impl<int64_t, double>(graph, min_weight, ensemble_size, (int64_t*)ecg_parts);
           break;
         }
         default: {

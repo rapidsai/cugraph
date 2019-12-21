@@ -369,7 +369,8 @@ void triangle_count_nvgraph(Graph* G, uint64_t* result) {
   
 }
 
-void louvain(Graph *graph, void *final_modularity, void *num_level, gdf_column *louvain_parts, int max_iter) {
+
+void louvain(Graph *graph, void *final_modularity, void *num_level, void *louvain_parts_ptr, int max_iter) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
@@ -390,8 +391,6 @@ void louvain(Graph *graph, void *final_modularity, void *num_level, gdf_column *
       thrust::fill(rmm::exec_policy(stream)->on(stream), d_values.begin(), d_values.end(), 1.0);
       value_ptr = (void * ) thrust::raw_pointer_cast(d_values.data());
   }
-
-  void* louvain_parts_ptr = louvain_parts->data;
 
   auto gdf_to_cudadtype= [](gdf_column *col){
     cudaDataType_t cuda_dtype;

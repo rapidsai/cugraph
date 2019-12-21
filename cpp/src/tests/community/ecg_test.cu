@@ -16,7 +16,7 @@
 
 #include <rmm_utils.h>
 
-TEST(nvgraph_louvain, success)
+TEST(ecg, success)
 {
   cugraph::Graph G;
 
@@ -45,10 +45,8 @@ TEST(nvgraph_louvain, success)
 
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&best_cluster_vec, sizeof(int) * no_vertex, stream);
-  gdf_column result_col;
-  gdf_column_view(&result_col, best_cluster_vec, nullptr, no_vertex, GDF_INT32);
 
-  ASSERT_NO_THROW(cugraph::ecg(&G, .05, 16, &result_col));
+  ASSERT_NO_THROW(cugraph::ecg(&G, .05, 16, best_cluster_vec));
 
   ALLOC_FREE_TRY (best_cluster_vec, stream);
 }

@@ -195,7 +195,7 @@ void overlap_list(Graph* graph,
 void louvain(Graph* graph,
              void *final_modularity,
              void *num_level,
-             gdf_column *louvain_parts,
+             void *louvain_parts,
              int max_iter = 100);
 
 /**
@@ -208,7 +208,7 @@ void louvain(Graph* graph,
 void ecg(Graph* graph,
          double min_weight,
          int ensemble_size,
-         gdf_column *ecg_parts);
+         void *ecg_parts);
 
 /**
  * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is

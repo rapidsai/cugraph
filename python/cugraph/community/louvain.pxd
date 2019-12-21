@@ -25,5 +25,5 @@ cdef extern from "cugraph.h" namespace "cugraph":
         Graph *graph,
         void *final_modularity,
         void *num_level,
-        gdf_column *louvain_parts,
+        void *louvain_parts,
         int max_iter) except +
