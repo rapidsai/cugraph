@@ -11,6 +11,7 @@
 
 ## Bug Fixes
 - PR #634 renumber vertex ids passed in analytics
+- PR #649 Change variable names in wjaccard and woverlap to avoid exception
 
 # cuGraph 0.11.0 (11 Dec 2019)
 

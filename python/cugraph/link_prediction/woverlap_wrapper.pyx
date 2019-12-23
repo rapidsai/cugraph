@@ -31,7 +31,7 @@ import numpy as np
 from cython cimport floating
 
 
-def overlap_w(input_graph, weights, vertex_pair=None):
+def overlap_w(input_graph, weights_arr, first=None, second=None):
     """
     Call overlap_list
     """
@@ -63,7 +63,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         result_size = len(vertex_pair)
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
-        c_weight_col = get_gdf_column_view(weights)
+        c_weight_col = get_gdf_column_view(weights_arr)
         first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
         second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
 
@@ -77,6 +77,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         else:
             c_first_col = get_gdf_column_view(first)
             c_second_col = get_gdf_column_view(second)
+
         overlap_list(g,
                                &c_weight_col,
                                &c_first_col,
@@ -97,7 +98,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         num_edges = g.adjList.indices.size
         result = cudf.Series(np.ones(num_edges, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
-        c_weight_col = get_gdf_column_view(weights)
+        c_weight_col = get_gdf_column_view(weights_arr)
 
         overlap(g, &c_weight_col, &c_result_col)
         
