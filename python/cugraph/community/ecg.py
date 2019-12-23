@@ -20,17 +20,20 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
 
     Parameters
     ----------
-    input_graph : cugraph.graph
+    input_graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         and weights.The adjacency list will be computed if not already
-        present. The graph should be undirected where an undirected edge is
-        represented by an a directed edge in both directions.
+        present.
 
     min_weight : floating point
-        The minimum value to assign as an edgeweight in the ECG algorithm
+        The minimum value to assign as an edgeweight in the ECG algorithm.
+        It should be a value in the range (0,1] usually left as the default
+        value of .05
 
     ensemble_size : integer
         The number of graph permutations to use for the ensemble.
+        The default value is 16, larger values may produce higher quality
+        partitions for some graphs.
 
     Returns
     -------
