@@ -100,7 +100,9 @@ void grmat_gen(const char* argv,
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
  *
- * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @tparam VT the type of vertex identifiers. Supported value : int (signed, 32-bit)
+ *
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid adjList
  *
  * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
  *
@@ -113,10 +115,11 @@ void grmat_gen(const char* argv,
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
+template <typename VT>
 void bfs(Graph* graph,
-         gdf_column *distances,
-         gdf_column *predecessors,
-         int start_vertex,
+         VT *distances,
+         VT *predecessors,
+         const VT start_vertex,
          bool directed);
 /**                                                                             
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
