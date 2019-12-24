@@ -31,7 +31,7 @@ import numpy as np
 from numpy.core.numeric import result_type
 
 
-def jaccard_w(input_graph, weights_arr, first=None, second=None):
+def jaccard_w(input_graph, weights_arr, vertex_pair=None):
     """
     Call jaccard_list
     """
