@@ -55,7 +55,11 @@ ENSEMBLE_SIZES = [16, 32, 64]
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('min_weight', MIN_WEIGHTS)
 @pytest.mark.parametrize('ensemble_size', ENSEMBLE_SIZES)
-def test_modularity_clustering(managed, pool, graph_file, min_weight, ensemble_size):
+def test_modularity_clustering(managed, 
+                               pool, 
+                               graph_file, 
+                               min_weight, 
+                               ensemble_size):
     gc.collect()
 
     rmm.reinitialize(
