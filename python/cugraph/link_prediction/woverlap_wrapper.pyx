@@ -31,7 +31,7 @@ import numpy as np
 from cython cimport floating
 
 
-def overlap_w(input_graph, weights_arr, first=None, second=None):
+def overlap_w(input_graph, weights_arr, vertex_pair=None):
     """
     Call overlap_list
     """
