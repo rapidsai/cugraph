@@ -87,8 +87,7 @@ def sssp(input_graph, source):
         else :
             c_sssp.sssp[int, double](g, <double*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
     else:
-        raise ValueError("Please use BFS as the unweighted path is temporarily disabled in SSSP until refactoring is completed")
-        c_bfs.bfs(g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source, <bool>True)
+        c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
 
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]

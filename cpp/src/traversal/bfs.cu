@@ -474,6 +474,7 @@ namespace detail {
 template <typename VT>
 void bfs(Graph *graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
   // TODO improve error msg
+  // TODO fix me after gdf_column is removed from Graph
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");

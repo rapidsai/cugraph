@@ -67,7 +67,7 @@ def bfs(input_graph, start, directed=True):
 
     g.adjList.get_vertex_identifiers(&c_vertex_col)
 
-    c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>start, <bool>True)
+    c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>start)
 
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]

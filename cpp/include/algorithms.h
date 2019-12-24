@@ -120,7 +120,7 @@ void bfs(Graph* graph,
          VT *distances,
          VT *predecessors,
          const VT start_vertex,
-         bool directed);
+         bool directed = true);
 /**                                                                             
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
  *     
