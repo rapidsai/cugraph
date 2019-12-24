@@ -16,7 +16,12 @@ from cugraph.community import ecg_wrapper
 
 def ecg(input_graph, min_weight=.05, ensemble_size=16):
     """
-    Compute the ensemble clustering for graphs partition of the input graph
+    Compute the ensemble clustering for graphs (ECG) partition of the input graph
+    ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+    then uses the ensemble partitions to determine weights for the input graph.
+    The final result is found by running full Louvain on the input graph using
+    the determined weights. See https://arxiv.org/abs/1809.05578 for further 
+    information.
 
     Parameters
     ----------

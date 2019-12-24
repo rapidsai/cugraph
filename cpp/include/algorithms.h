@@ -199,7 +199,16 @@ void louvain(Graph* graph,
              int max_iter = 100);
 
 /**
- * Computes the ecg clustering of the graph.
+ * @brief Computes the ecg clustering of the given graph.
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ * @throws `cudf::logic_error` if graph is null.
+ * @throws `cudf::logic_error` if ecg_parts is null.
+ * @throws `cudf::logic_error` if graph does not have an adjacency list.
+ * @throws `cudf::logic_error` if graph does not have edge weights.
  * @param graph The input graph
  * @param min_weight The minimum weight parameter
  * @param ensemble_size The ensemble size parameter
