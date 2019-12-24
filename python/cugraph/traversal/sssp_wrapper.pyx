@@ -75,21 +75,20 @@ def sssp(input_graph, source):
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
-    cdef uintptr_t c_distance_col = get_column_data_ptr(df['distance']._column)
-    cdef uintptr_t c_predecessors_col = get_column_data_ptr(df['predecessor']._column)
+    cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
+    cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
 
     g.adjList.get_vertex_identifiers(&c_identifier_col)
 
     
     if g.adjList.edge_data:
         if (df['distance'].dtype == np.float32):
-            c_sssp.sssp[int, float](g, <float*>c_distance_col, <int*>c_predecessors_col, <int>source)
+            c_sssp.sssp[int, float](g, <float*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
         else :
-            c_sssp.sssp[int, double](g, <double*>c_distance_col, <int*>c_predecessors_col, <int>source)
+            c_sssp.sssp[int, double](g, <double*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
     else:
-        #TODO FIX ME when porting BFS (can't use pointers as the API still uses gdf_columns)
         raise ValueError("Please use BFS as the unweighted path is temporarily disabled in SSSP until refactoring is completed")
-        #c_bfs.bfs(g, <int*>c_distance_col, <int*>c_predecessors_col, <int>source, <bool>True)
+        c_bfs.bfs(g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source, <bool>True)
 
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]

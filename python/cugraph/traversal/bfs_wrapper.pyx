@@ -62,12 +62,12 @@ def bfs(input_graph, start, directed=True):
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_vertex_col = get_gdf_column_view(df['vertex'])
-    cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
-    cdef gdf_column c_predecessor_col = get_gdf_column_view(df['predecessor'])
+    cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
+    cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
 
     g.adjList.get_vertex_identifiers(&c_vertex_col)
 
-    c_bfs.bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+    c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>start, <bool>True)
 
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]

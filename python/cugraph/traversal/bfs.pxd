@@ -22,9 +22,9 @@ from libcpp cimport bool
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void bfs(
+    cdef void bfs[int](
         Graph *graph,
-        gdf_column *distances,
-        gdf_column *predecessors,
+        int *distances,
+        int *predecessors,
         int start_vertex,
         bool directed) except +
