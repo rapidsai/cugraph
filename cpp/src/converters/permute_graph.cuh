@@ -2,6 +2,9 @@
 #include <rmm_utils.h>
 #include "converters/COOtoCSR.cuh"
 
+namespace cugraph {
+namespace detail {
+
 template <typename IdxT>
 struct permutation_functor{
   IdxT* permutation;
@@ -112,3 +115,6 @@ cugraph::Graph* permute_graph(cugraph::Graph* graph, IdxT* permutation) {
 
   return result;
 }
+
+} // namespace detail
+} // namespace cugraph

@@ -214,10 +214,11 @@ void louvain(Graph* graph,
  * @param ensemble_size The ensemble size parameter
  * @param ecg_parts A pointer to a gdf_column which has allocated memory for the resulting partition identifiers.
  */
+template<typename IdxT, typename ValT>
 void ecg(Graph* graph,
-         double min_weight,
-         int ensemble_size,
-         void *ecg_parts);
+         ValT min_weight,
+         size_t ensemble_size,
+         IdxT *ecg_parts);
 
 /**
  * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is

@@ -21,7 +21,7 @@ from cugraph.structure.graph cimport *
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void ecg(Graph* graph,
-                  double min_weight,
-                  int ensemble_size,
-                  void *ecg_parts) except +
+    cdef void ecg[IdxT, ValT](Graph* graph,
+                              ValT min_weight,
+                              size_t ensemble_size,
+                              IdxT* ecg_parts) except +

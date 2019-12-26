@@ -90,9 +90,12 @@ struct update_functor{
 /**
  * Computes a random permutation vector of length size. A permutation vector of length n
  * contains all values [0..n-1] exactly once.
- * @param size The length of the
- * @param seed
- * @return
+ * @param size The length of the permutation vector to generate
+ * @param seed A seed value for the random number generator, the generator will discard this many
+ * values before using values. Calling this method with the same seed will result in the same
+ * permutation vector.
+ * @return A pointer to memory containing the requested permutation vector. The caller is
+ * responsible for freeing the allocated memory using ALLOC_FREE_TRY().
  */
 template <typename IdxT>
 IdxT* get_permutation_vector(IdxT size, IdxT seed) {
@@ -117,10 +120,15 @@ IdxT* get_permutation_vector(IdxT size, IdxT seed) {
 namespace cugraph {
 
 template<typename IdxT, typename ValT>
-void ecg_impl(cugraph::Graph* graph,
-              double min_weight,
-              int ensemble_size,
+void ecg(cugraph::Graph* graph,
+              ValT min_weight,
+              size_t ensemble_size,
               IdxT* ecg_parts) {
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Graph must have adjacency list");
+  CUGRAPH_EXPECTS(graph->adjList->edge_data != nullptr, "Graph must have weights");
+
   IdxT size = graph->adjList->offsets->size - 1;
   IdxT nnz = graph->adjList->indices->size;
   IdxT* offsets = (IdxT*) graph->adjList->offsets->data;
@@ -132,10 +140,10 @@ void ecg_impl(cugraph::Graph* graph,
                ecg_weights + nnz,
                0.0);
   // Iterate over each member of the ensemble
-  for (int i = 0; i < ensemble_size; i++) {
+  for (size_t i = 0; i < ensemble_size; i++) {
     // Take random permutation of the graph
-    IdxT* permutation = get_permutation_vector(size, size * i);
-    cugraph::Graph* permuted = permute_graph<IdxT, ValT>(graph, permutation);
+    IdxT* permutation = get_permutation_vector(size, (IdxT)(size * i));
+    cugraph::Graph* permuted = detail::permute_graph<IdxT, ValT>(graph, permutation);
 
     // Run Louvain clustering on the random permutation
     IdxT* parts;
@@ -198,53 +206,22 @@ void ecg_impl(cugraph::Graph* graph,
   ALLOC_FREE_TRY(ecg_weights, nullptr);
 }
 
-void ecg(Graph* graph,
-         double min_weight,
-         int ensemble_size,
-         void *ecg_parts) {
-  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Graph must have adjacency list");
-  CUGRAPH_EXPECTS(graph->adjList->edge_data != nullptr, "Graph must have weights");
+// Explicit template instantiations.
+template void ecg<int32_t, float>(cugraph::Graph* graph,
+                                  float min_weight,
+                                  size_t ensemble_size,
+                                  int32_t* ecg_parts);
+template void ecg<int32_t, double>(cugraph::Graph* graph,
+                                   double min_weight,
+                                   size_t ensemble_size,
+                                   int32_t* ecg_parts);
+template void ecg<int64_t, float>(cugraph::Graph* graph,
+                                  float min_weight,
+                                  size_t ensemble_size,
+                                  int64_t* ecg_parts);
+template void ecg<int64_t, double>(cugraph::Graph* graph,
+                                   double min_weight,
+                                   size_t ensemble_size,
+                                   int64_t* ecg_parts);
 
-  // determine the index type and value type of the graph
-  // Call the appropriate templated instance of the implementation
-  switch (graph->adjList->offsets->dtype) {
-    case GDF_INT32: {
-      switch (graph->adjList->edge_data->dtype) {
-        case GDF_FLOAT32: {
-          ecg_impl<int32_t, float>(graph, min_weight, ensemble_size, (int32_t*)ecg_parts);
-          break;
-        }
-        case GDF_FLOAT64: {
-          ecg_impl<int32_t, double>(graph, min_weight, ensemble_size, (int32_t*)ecg_parts);
-          break;
-        }
-        default: {
-          CUGRAPH_FAIL("Unsupported Type!");
-        }
-      }
-      break;
-    }
-    case GDF_INT64: {
-      switch (graph->adjList->edge_data->dtype) {
-        case GDF_FLOAT32: {
-          ecg_impl<int64_t, float>(graph, min_weight, ensemble_size, (int64_t*)ecg_parts);
-          break;
-        }
-        case GDF_FLOAT64: {
-          ecg_impl<int64_t, double>(graph, min_weight, ensemble_size, (int64_t*)ecg_parts);
-          break;
-        }
-        default: {
-          CUGRAPH_FAIL("Unsupported Type!");
-        }
-      }
-      break;
-    }
-    default: {
-      CUGRAPH_FAIL("Unsupported Type!");
-    }
-  }
-}
 } // cugraph namespace

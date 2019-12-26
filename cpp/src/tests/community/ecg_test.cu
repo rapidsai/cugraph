@@ -46,7 +46,25 @@ TEST(ecg, success)
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&best_cluster_vec, sizeof(int) * no_vertex, stream);
 
-  ASSERT_NO_THROW(cugraph::ecg(&G, .05, 16, best_cluster_vec));
+  ASSERT_NO_THROW((cugraph::ecg<int32_t, float>(&G, .05, 16, best_cluster_vec)));
+
+  std::vector<int> cluster_id (34, -1);
+  cudaMemcpy ((void*) &(cluster_id[0]), best_cluster_vec, sizeof(int)*34, cudaMemcpyDeviceToHost);
+  int max = *max_element (cluster_id.begin(), cluster_id.end());
+  int min = *min_element (cluster_id.begin(), cluster_id.end());
+  ASSERT_EQ((min >= 0), 1);
+  std::set<int> cluster_ids;
+  for (size_t i = 0; i < cluster_id.size(); i++)
+    cluster_ids.insert(cluster_id[i]);
+
+  ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
+
+  gdf_column* clusters_col = new gdf_column;
+  gdf_column_view(clusters_col, best_cluster_vec, nullptr, 34, GDF_INT32);
+  float modularity = 0.0;
+  ASSERT_NO_THROW(analyzeClustering_modularity_nvgraph(&G, max + 1, clusters_col, &modularity));
+
+  ASSERT_EQ((modularity >= 0.399), 1);
 
   ALLOC_FREE_TRY (best_cluster_vec, stream);
 }
