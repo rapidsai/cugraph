@@ -31,7 +31,7 @@ import rmm
 import numpy as np
 
 
-def overlap(input_graph, first=None, second=None):
+def overlap(input_graph, vertex_pair=None):
     """
     Call overlap_list
     """
@@ -58,12 +58,23 @@ def overlap(input_graph, first=None, second=None):
     cdef gdf_column c_second_col
     cdef gdf_column c_src_index_col
 
-    if type(first) == cudf.Series and type(second) == cudf.Series:
-        result_size = len(first)
+    if type(vertex_pair) == cudf.DataFrame:
+        result_size = len(vertex_pair)
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
-        c_first_col = get_gdf_column_view(first)
-        c_second_col = get_gdf_column_view(second)
+        first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
+        second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
+
+        if input_graph.renumbered is True:
+            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
+                                          index=input_graph.edgelist.renumber_map, dtype=np.int32)
+            first_renumbered = renumber_series.loc[first]
+            second_renumbered = renumber_series.loc[second]
+            c_first_col = get_gdf_column_view(first_renumbered)
+            c_second_col = get_gdf_column_view(second_renumbered)
+        else:
+            c_first_col = get_gdf_column_view(first)
+            c_second_col = get_gdf_column_view(second)
         c_overlap.overlap_list(g,
                                <gdf_column*> NULL,
                                &c_first_col,
@@ -78,7 +89,7 @@ def overlap(input_graph, first=None, second=None):
 
     else:
         # error check performed in jaccard.py
-        assert first is None and second is None
+        assert vertex_pair is None
         # we should add get_number_of_edges() to Graph (and this should be
         # used instead of g.adjList.indices.size)
         num_edges = g.adjList.indices.size

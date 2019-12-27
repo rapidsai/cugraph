@@ -197,7 +197,7 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     nx_coeff = []
     for u, v, p in preds:
         nx_coeff.append(p)
-    df = cugraph.jaccard(G, pairs['first'], pairs['second'])
+    df = cugraph.jaccard(G, pairs)
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
@@ -235,7 +235,7 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     nx_coeff = []
     for u, v, p in preds:
         nx_coeff.append(p)
-    df = cugraph.jaccard(G, pairs['first'], pairs['second'])
+    df = cugraph.jaccard(G, pairs)
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])

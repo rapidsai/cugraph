@@ -56,7 +56,15 @@ def k_core(input_graph, k_core_graph, k, core_number):
     cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
     cdef Graph* rg = <Graph*>rGraph
 
-    cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
+    cdef gdf_column c_vertex
+    [core_number['vertex'], core_number['values']] = graph_wrapper.datatype_cast([core_number['vertex'], core_number['values']], [np.int32])
+    if input_graph.renumbered is True:
+        renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
+                                      index=input_graph.edgelist.renumber_map, dtype=np.int32)
+        vertices_renumbered = renumber_series.loc[core_number['vertex']]
+        c_vertex = get_gdf_column_view(vertices_renumbered)
+    else:
+        c_vertex = get_gdf_column_view(core_number['vertex'])
     cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
     c_k_core.k_core(g, k, &c_vertex, &c_values, rg)
 
