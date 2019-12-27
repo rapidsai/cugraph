@@ -193,8 +193,8 @@ void core_number(Graph *graph,
                 gdf_column *core_number) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(graph->adjList->offsets) == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(graph->adjList->indices) == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(core_number->size == graph->v, "Column size mismatch");
 
@@ -209,8 +209,8 @@ void k_core(Graph *in_graph,
 
   CUGRAPH_EXPECTS(out_graph != nullptr && in_graph != nullptr, "Invalid API parameter");
   gdf_size_type nV = in_graph->v;
-  CUGRAPH_EXPECTS(in_graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(in_graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(in_typeid(graph->adjList->offsets) == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(in_typeid(graph->adjList->indices) == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS((vertex_id != nullptr) && (core_number != nullptr), "Invalid API parameter");
   CUGRAPH_EXPECTS(vertex_id->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");

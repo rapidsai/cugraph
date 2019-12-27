@@ -82,10 +82,10 @@ std::enable_if_t<std::is_signed<IndexT>::value>
 
   CUGRAPH_EXPECTS(verts->data != nullptr, "Invalid API parameter");
   
-  auto type_id = graph->adjList->offsets->dtype;
+  auto type_id = typeid(graph->adjList->offsets);
   CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type");
   
-  CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type");
+  CUGRAPH_EXPECTS( type_id == typeid(graph->adjList->indices), "Unsupported data type");
   
   //TODO: relax this requirement:
   //

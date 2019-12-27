@@ -19,10 +19,6 @@
 
 namespace cugraph {
 
-template <typename T>
-void ALLOC_FREE_TRY(T* ptr);
-
-
 typedef enum prop_type{PROP_UNDEF, PROP_FALSE, PROP_TRUE} PropType;
 
 struct Graph_properties {
@@ -42,17 +38,7 @@ struct edge_list{
   WT *edge_data; //val
   int ownership = 0; // 0 if all columns were provided by the user, 1 if cugraph crated everything, other values can be use for other cases
   edge_list() : src_indices(nullptr), dest_indices(nullptr), edge_data(nullptr){}
-  ~edge_list() {
-    if (ownership == 1 ) {
-      ALLOC_FREE_TRY(src_indices);
-      ALLOC_FREE_TRY(dest_indices);
-      ALLOC_FREE_TRY(edge_data);
-    }
-    else if (ownership == 2 )
-    {
-      ALLOC_FREE_TRY(src_indices);
-    }
-  }
+  ~edge_list();
 };
 
 template <typename VT, typename WT>
@@ -62,13 +48,7 @@ struct adj_list{
   WT *edge_data; //val
   int ownership = 0; // 0 if all columns were provided by the user, 1 if cugraph crated everything, other values can be use for other cases
   adj_list() : offsets(nullptr), indices(nullptr), edge_data(nullptr){}
-  ~adj_list() {
-    if (ownership == 1 ) {
-      ALLOC_FREE_TRY(offsets);
-      ALLOC_FREE_TRY(indices);
-      ALLOC_FREE_TRY(edge_data);
-    }
-  }
+  ~adj_list();
   void get_vertex_identifiers(VT *identifiers);
   void get_source_indices(VT *indices);
 };
@@ -77,15 +57,15 @@ struct dynamic{
   void *data; // handle to the dynamic graph struct
 };
 
+template <typename VT, typename WT>
 struct Graph{
     size_t v, e;
-    edge_list *edgeList; // COO
-    adj_list *adjList; //CSR
-    adj_list *transposedAdjList; //CSC
+    edge_list<VT,WT> *edgeList; // COO
+    adj_list<VT,WT> *adjList; //CSR
+    adj_list<VT,WT> *transposedAdjList; //CSC
     dynamic *dynAdjList; //dynamic 
     Graph_properties *prop;
-    size_type numberOfVertices;
-    Graph() : v(0), e(0), edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
+    Graph() : v(0), e(0), edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr) {}
     ~Graph() {
       if (edgeList) 
           delete edgeList;

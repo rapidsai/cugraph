@@ -298,9 +298,9 @@ void sssp(Graph* graph,
     CUGRAPH_FAIL("Unsupported vertex data type, please use int");
 
   // TODO fix me after gdf_column is removed from Graph
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32,
+  CUGRAPH_EXPECTS(typeid(graph->adjList->offsets) == GDF_INT32,
               "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32,
+  CUGRAPH_EXPECTS(typeid(graph->adjList->indices) == GDF_INT32,
               "Unsupported data type");
   // TODO fix me after gdf_column is removed from Graph
   // if (predecessors) CUGRAPH_EXPECTS(typeid(predecessors) == typeid(graph->adjList->indices), "predecessors and ID type mismatch");

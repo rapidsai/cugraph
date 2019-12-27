@@ -70,7 +70,7 @@ void balancedCutClustering_nvgraph(Graph* gdf_G,
                                   (void * ) thrust::raw_pointer_cast(d_val.data())));
   }
   else {
-    switch (gdf_G->adjList->edge_data->dtype) {
+    switch (typeid(gdf_G->adjList->edge_data)) {
       case GDF_FLOAT32:
         settype = CUDA_R_32F;
         break;
@@ -230,7 +230,7 @@ void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
                                   (void * ) thrust::raw_pointer_cast(d_val.data())));
   }
   else {
-    switch (gdf_G->adjList->edge_data->dtype) {
+    switch (typeid(gdf_G->adjList->edge_data)) {
       case GDF_FLOAT32:
         settype = CUDA_R_32F;
         break;

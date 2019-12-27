@@ -56,7 +56,7 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
     NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void * )&topoData, TT));
     //attach edge values
     if (gdf_G->transposedAdjList->edge_data) {
-      switch (gdf_G->transposedAdjList->edge_data->dtype) {
+      switch (typeid(gdf_G->transposedAdjList->edge_data)) {
         case GDF_FLOAT32:
           settype = CUDA_R_32F;
           NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
@@ -93,7 +93,7 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
     NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void * )&topoData, TT));
     //attach edge values
     if (gdf_G->adjList->edge_data) {
-      switch (gdf_G->adjList->edge_data->dtype) {
+      switch (typeid(gdf_G->adjList->edge_data)) {
         case GDF_FLOAT32:
           settype = CUDA_R_32F;
           NVG_TRY(nvgraphAttachEdgeData(nvg_handle,

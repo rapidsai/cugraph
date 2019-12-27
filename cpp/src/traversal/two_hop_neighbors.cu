@@ -136,7 +136,7 @@ void get_two_hop_neighbors(Graph* graph, VT *first, VT *second) {
     CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
 
     size_t num_verts = graph->adjList->offsets->size - 1;
-    switch (graph->adjList->offsets->dtype) {
+    switch (typeid(graph->adjList->offsets)) {
         case GDF_INT32: {
             int32_t* first_ptr;
             int32_t* second_ptr;

@@ -15,7 +15,6 @@
  */
 #pragma once 
 
-#include <cudf/cudf.h>
 #include "types.h"
 
 namespace cugraph {
@@ -67,7 +66,7 @@ void renumber_vertices(const VT *src, const VT *dst,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void edge_list_view(Graph* graph,
+void edge_list_view(Graph<VT, WT> *graph,
                     const VT *source_indices,
                     const VT *destination_indices,
                     const WT *edge_data);
@@ -90,7 +89,7 @@ void edge_list_view(Graph* graph,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void adj_list_view (Graph* graph,
+void adj_list_view (Graph<VT, WT> *graph,
                     const VT *offsets,
                     const VT *indices,
                     const WT *edge_data);
@@ -107,7 +106,7 @@ void adj_list_view (Graph* graph,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void transposed_adj_list_view (Graph *graph,
+void transposed_adj_list_view (Graph<VT, WT> *graph,
                                const VT *offsets,
                                const VT *indices,
                                const WT *edge_data);
@@ -124,7 +123,7 @@ void transposed_adj_list_view (Graph *graph,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void add_adj_list(Graph* graph);
+void add_adj_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Create the transposed adjacency list from the edge list of a Graph.
@@ -138,7 +137,8 @@ void add_adj_list(Graph* graph);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void add_transposed_adj_list(Graph* graph);
+template <typename VT, typename WT>
+void add_transposed_adj_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Create the edge lists of a Graph from its adjacency list.
@@ -151,7 +151,8 @@ void add_transposed_adj_list(Graph* graph);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void add_edge_list(Graph* graph);
+template <typename VT, typename WT>
+void add_edge_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Deletes the adjacency list of a Graph
@@ -162,7 +163,8 @@ void add_edge_list(Graph* graph);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_adj_list(Graph* graph);
+template <typename VT, typename WT>
+void delete_adj_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Deletes the edge list of a Graph
@@ -173,7 +175,8 @@ void delete_adj_list(Graph* graph);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_edge_list(Graph* graph);
+template <typename VT, typename WT>
+void delete_edge_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Deletes the transposed adjacency list of a Graph
@@ -184,7 +187,8 @@ void delete_edge_list(Graph* graph);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_transposed_adj_list(Graph* graph);
+template <typename VT, typename WT>
+void delete_transposed_adj_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Find pairs of vertices in the input graph such that each pair is connected by
@@ -201,7 +205,7 @@ void delete_transposed_adj_list(Graph* graph);
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void get_two_hop_neighbors(Graph* graph, VT *first, VT *second);
+void get_two_hop_neighbors(Graph<VT, WT> *graph, VT *first, VT *second);
 
 /**
  * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
@@ -239,8 +243,8 @@ void get_two_hop_neighbors(Graph* graph, VT *first, VT *second);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-template <typename VT>
-void degree(Graph* graph, VT *degree, int x);
+template <typename VT, typename WT>
+void degree(Graph<VT, WT> *graph, VT *degree, int x);
 int get_device(const void *ptr);
 
 /**
@@ -252,6 +256,7 @@ int get_device(const void *ptr);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void number_of_vertices(Graph* graph);
+template <typename VT, typename WT>
+void number_of_vertices(Graph<VT, WT> *graph);
 
 } //namespace cugraph
