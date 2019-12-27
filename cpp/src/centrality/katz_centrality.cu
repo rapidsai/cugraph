@@ -38,13 +38,13 @@ void katz_centrality(Graph *graph,
   CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type");
-  CUGRAPH_EXPECTS(katz_centrality->size == graph->numberOfVertices, "Column size mismatch");
+  CUGRAPH_EXPECTS(katz_centrality->size == graph->v, "Column size mismatch");
 
   const bool isStatic = true;
   using HornetGraph = hornet::gpu::HornetStatic<int>;
   using HornetInit  = hornet::HornetInit<int>;
   using Katz = hornets_nest::KatzCentralityStatic;
-  HornetInit init(graph->numberOfVertices, graph->adjList->indices->size,
+  HornetInit init(graph->v, graph->adjList->indices->size,
       reinterpret_cast<int*>(graph->adjList->offsets->data),
       reinterpret_cast<int*>(graph->adjList->indices->data));
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);

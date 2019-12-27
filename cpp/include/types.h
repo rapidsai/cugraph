@@ -19,11 +19,11 @@
 
 namespace cugraph {
 
-void gdf_col_delete(gdf_column* col);
+template <typename T>
+void ALLOC_FREE_TRY(T* ptr);
 
-void gdf_col_release(gdf_column* col);
 
-typedef enum gdf_prop_type{GDF_PROP_UNDEF, GDF_PROP_FALSE, GDF_PROP_TRUE} GDFPropType;
+typedef enum prop_type{PROP_UNDEF, PROP_FALSE, PROP_TRUE} PropType;
 
 struct Graph_properties {
   bool directed;
@@ -31,77 +31,61 @@ struct Graph_properties {
   bool multigraph;
   bool bipartite;
   bool tree;
-  GDFPropType has_negative_edges;
-  Graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false), has_negative_edges(GDF_PROP_UNDEF){}
+  PropType has_negative_edges;
+  Graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false), has_negative_edges(PROP_UNDEF){}
 };
 
-struct gdf_edge_list{
-  gdf_column *src_indices; // rowInd
-  gdf_column *dest_indices; // colInd
-  gdf_column *edge_data; //val
+template <typename VT, typename WT>
+struct edge_list{
+  VT *src_indices; // rowInd
+  VT *dest_indices; // colInd
+  WT *edge_data; //val
   int ownership = 0; // 0 if all columns were provided by the user, 1 if cugraph crated everything, other values can be use for other cases
-  gdf_edge_list() : src_indices(nullptr), dest_indices(nullptr), edge_data(nullptr){}
-  ~gdf_edge_list() {
-    if (ownership == 0 ) {
-      gdf_col_release(src_indices);
-      gdf_col_release(dest_indices);
-      gdf_col_release(edge_data);
+  edge_list() : src_indices(nullptr), dest_indices(nullptr), edge_data(nullptr){}
+  ~edge_list() {
+    if (ownership == 1 ) {
+      ALLOC_FREE_TRY(src_indices);
+      ALLOC_FREE_TRY(dest_indices);
+      ALLOC_FREE_TRY(edge_data);
     }
     else if (ownership == 2 )
     {
-      gdf_col_delete(src_indices);
-      gdf_col_release(dest_indices);
-      gdf_col_release(edge_data);
-    }
-    else {
-      gdf_col_delete(src_indices);
-      gdf_col_delete(dest_indices);
-      gdf_col_delete(edge_data);
+      ALLOC_FREE_TRY(src_indices);
     }
   }
 };
 
-struct gdf_adj_list{
-  gdf_column *offsets; // rowPtr
-  gdf_column *indices; // colInd
-  gdf_column *edge_data; //val
+template <typename VT, typename WT>
+struct adj_list{
+  VT *offsets; // rowPtr
+  VT *indices; // colInd
+  WT *edge_data; //val
   int ownership = 0; // 0 if all columns were provided by the user, 1 if cugraph crated everything, other values can be use for other cases
-  gdf_adj_list() : offsets(nullptr), indices(nullptr), edge_data(nullptr){}
-  ~gdf_adj_list() {
-    if (ownership == 0 ) {
-      gdf_col_release(offsets);
-      gdf_col_release(indices);
-      gdf_col_release(edge_data);
-    }
-    //else if (ownership == 2 )
-    //{
-    //  gdf_col_release(offsets);
-    //  gdf_col_release(indices);
-    //  gdf_col_delete(edge_data);
-    //}
-    else {
-      gdf_col_delete(offsets);
-      gdf_col_delete(indices);
-      gdf_col_delete(edge_data);
+  adj_list() : offsets(nullptr), indices(nullptr), edge_data(nullptr){}
+  ~adj_list() {
+    if (ownership == 1 ) {
+      ALLOC_FREE_TRY(offsets);
+      ALLOC_FREE_TRY(indices);
+      ALLOC_FREE_TRY(edge_data);
     }
   }
-  void get_vertex_identifiers(gdf_column *identifiers);
-  void get_source_indices(gdf_column *indices);
-
+  void get_vertex_identifiers(VT *identifiers);
+  void get_source_indices(VT *indices);
 };
 
-struct gdf_dynamic{
+struct dynamic{
   void *data; // handle to the dynamic graph struct
 };
 
 struct Graph{
-    gdf_edge_list *edgeList; // COO
-    gdf_adj_list *adjList; //CSR
-    gdf_adj_list *transposedAdjList; //CSC
-    gdf_dynamic *dynAdjList; //dynamic 
+    size_t v, e;
+    edge_list *edgeList; // COO
+    adj_list *adjList; //CSR
+    adj_list *transposedAdjList; //CSC
+    dynamic *dynAdjList; //dynamic 
     Graph_properties *prop;
-    gdf_size_type numberOfVertices;
-    Graph() : edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
+    size_type numberOfVertices;
+    Graph() : v(0), e(0), edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr), numberOfVertices(0) {}
     ~Graph() {
       if (edgeList) 
           delete edgeList;

@@ -363,7 +363,7 @@ void sssp(Graph* graph,
 
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
-    if (graph->prop && graph->prop->has_negative_edges == GDF_PROP_TRUE)
+    if (graph->prop && graph->prop->has_negative_edges == PROP_TRUE)
       std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
                    "converge if the graph has negative weight cycles\n";
   }

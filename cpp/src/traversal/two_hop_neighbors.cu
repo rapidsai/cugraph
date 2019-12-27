@@ -130,7 +130,7 @@ void get_two_hop_neighbors_impl(IndexType num_verts,
 
 } //namespace
 
-void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second) {
+void get_two_hop_neighbors(Graph* graph, VT *first, VT *second) {
     CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
     CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter");
     CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");

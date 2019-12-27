@@ -22,9 +22,9 @@
 #include "renumber.cuh"
 
 namespace cugraph {
-void renumber_vertices(const gdf_column *src, const gdf_column *dst,
-                                gdf_column *src_renumbered, gdf_column *dst_renumbered,
-                                gdf_column *numbering_map) {
+void renumber_vertices(const VT *src, const VT *dst,
+                                VT *src_renumbered, VT *dst_renumbered,
+                                VT *numbering_map) {
   CUGRAPH_EXPECTS( src->size == dst->size, "Column size mismatch" );
   CUGRAPH_EXPECTS( src->dtype == dst->dtype, "Unsupported data type" );
 

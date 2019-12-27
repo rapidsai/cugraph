@@ -23,7 +23,7 @@
 //TODO: revive the test(s) below, once
 //      Gunrock GRMAT is back and stable again;
 //
-TEST(gdf_edge_list, success)
+TEST(edge_list, success)
 {
 
   cudaStream_t stream{nullptr};
@@ -74,7 +74,7 @@ TEST(gdf_edge_list, success)
 //TODO: revive the test(s) below, once
 //      Gunrock GRMAT is back and stable again;
 //
-TEST(gdf_edge_list, success_no_weights)
+TEST(edge_list, success_no_weights)
 {
 
   cudaStream_t stream{nullptr};
@@ -101,7 +101,7 @@ TEST(gdf_edge_list, success_no_weights)
 }
 */
 
-TEST(gdf_edge_list, size_mismatch)
+TEST(edge_list, size_mismatch)
 {
        
   Graph_ptr G{new cugraph::Graph, Graph_deleter};
@@ -118,7 +118,7 @@ TEST(gdf_edge_list, size_mismatch)
 }
 
 
-TEST(gdf_edge_list, size_mismatch2)
+TEST(edge_list, size_mismatch2)
 {
        
   Graph_ptr G{new cugraph::Graph, Graph_deleter};
@@ -135,7 +135,7 @@ TEST(gdf_edge_list, size_mismatch2)
 
 }
 
-TEST(gdf_edge_list, wrong_type)
+TEST(edge_list, wrong_type)
 {
        
   Graph_ptr G{new cugraph::Graph, Graph_deleter};
@@ -149,7 +149,7 @@ TEST(gdf_edge_list, wrong_type)
   ASSERT_THROW(cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr), std::logic_error);
 }
 
-TEST(gdf_adj_list, success)
+TEST(adj_list, success)
 {
   
   // Hard-coded Zachary Karate Club network input
@@ -186,7 +186,7 @@ TEST(gdf_adj_list, success)
   ASSERT_EQ( eq(w_h,w2_h), 0);
 }
 
-TEST(gdf_adj_list, success_no_weights)
+TEST(adj_list, success_no_weights)
 {
   
   // Hard-coded Zachary Karate Club network input

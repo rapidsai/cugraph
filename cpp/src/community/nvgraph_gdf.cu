@@ -323,7 +323,7 @@ void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
     CUGRAPH_FAIL("Unsupported nvgraph topology");
   int num_verts = topo.nvertices;
   int num_edges = topo.nedges;
-  result->adjList = new gdf_adj_list;
+  result->adjList = new adj_list;
   result->adjList->offsets = new gdf_column;
   result->adjList->indices = new gdf_column;
   result->adjList->ownership = 0;

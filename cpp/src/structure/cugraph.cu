@@ -24,14 +24,6 @@
 #include "utilities/cusparse_helper.h"
 #include <rmm_utils.h>
 #include <utilities/validation.cuh>
-/*
- * cudf has gdf_column_free and using this is, in general, better design than
- * creating our own, but we will keep this as cudf is planning to remove the
- * function. cudf plans to redesign cudf::column to fundamentally solve this
- * problem, so once they finished the redesign, we need to update this code to
- * use their new features. Until that time, we may rely on this as a temporary
- * solution.
- */
 
 namespace cugraph {
 int get_device(const void *ptr) {
@@ -40,41 +32,13 @@ int get_device(const void *ptr) {
     return att.device;
 }
 
-void gdf_col_delete(gdf_column* col) {
-  if (col != nullptr) {
-    cudaStream_t stream {nullptr};
-    if (col->data != nullptr) {
-      ALLOC_FREE_TRY(col->data, stream);
-    }
-    if (col->valid != nullptr) {
-      ALLOC_FREE_TRY(col->valid, stream);
-    }
-#if 0
-    /* Currently, gdf_column_view does not set col_name, and col_name can have
-        an arbitrary value, so freeing col_name can lead to freeing a ranodom
-        address. This problem should be cleaned up once cudf finishes
-        redesigning cudf::column. */
-    if (col->col_name != nullptr) {
-      free(col->col_name);
-    }
-#endif
-    delete col;
-  }
-}
-
-void gdf_col_release(gdf_column* col) {
-  delete col;
-}
-
-void cpy_column_view(const gdf_column *in, gdf_column *out) {
-  if (in != nullptr && out !=nullptr) {
-    gdf_column_view(out, in->data, in->valid, in->size, in->dtype);
-  }
-}
-
-void transposed_adj_list_view(Graph *graph, const gdf_column *offsets,
-                            const gdf_column *indices,
-                            const gdf_column *edge_data) {
+template <typename VT, typename WT>
+void transposed_adj_list_view(Graph *graph, 
+                            const size_t v,
+                            const size_t e,
+                            const VT *offsets,
+                            const VT *indices,
+                            const WT *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
@@ -85,21 +49,21 @@ void transposed_adj_list_view(Graph *graph, const gdf_column *offsets,
   CUGRAPH_EXPECTS( ((offsets->dtype == GDF_INT32)), "Unsupported data type" );
   CUGRAPH_EXPECTS( (offsets->size > 0), "Column is empty");
 
-  graph->transposedAdjList = new gdf_adj_list;
-  graph->transposedAdjList->offsets = new gdf_column;
-  graph->transposedAdjList->indices = new gdf_column;
+  graph->transposedAdjList = new adj_list;
   graph->transposedAdjList->ownership = 0;
+  graph->v = v;
+  graph->e = e;
+  graph->transposedAdjList->offsets = offsets;
+  graph->transposedAdjList->indices = indices;
 
-  cpy_column_view(offsets, graph->transposedAdjList->offsets);
-  cpy_column_view(indices, graph->transposedAdjList->indices);
+
   
   if (!graph->prop)
       graph->prop = new Graph_properties();
 
   if (edge_data) {
     CUGRAPH_EXPECTS(indices->size == edge_data->size, "Column size mismatch");
-    graph->transposedAdjList->edge_data = new gdf_column;
-    cpy_column_view(edge_data, graph->transposedAdjList->edge_data);
+    graph->transposedAdjList->edge_data = edge_data;
     
     bool has_neg_val;
     
@@ -138,18 +102,18 @@ void transposed_adj_list_view(Graph *graph, const gdf_column *offsets,
       has_neg_val = false;
     }
     graph->prop->has_negative_edges =
-        (has_neg_val) ? GDF_PROP_TRUE : GDF_PROP_FALSE;
+        (has_neg_val) ? PROP_TRUE : PROP_FALSE;
   } else {
     graph->adjList->edge_data = nullptr;
-    graph->prop->has_negative_edges = GDF_PROP_FALSE;
+    graph->prop->has_negative_edges = PROP_FALSE;
   }
-
-  graph->numberOfVertices = graph->transposedAdjList->offsets->size - 1;
 }
 
-void adj_list_view(Graph *graph, const gdf_column *offsets,
-                            const gdf_column *indices,
-                            const gdf_column *edge_data) {
+template <typename VT, typename WT>
+void adj_list_view(Graph *graph, const size_t v,
+                   const size_t e, const VT *offsets,
+                   const VT *indices,
+                   const WT *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
@@ -160,21 +124,19 @@ void adj_list_view(Graph *graph, const gdf_column *offsets,
   CUGRAPH_EXPECTS( ((offsets->dtype == GDF_INT32)), "Unsupported data type" );
   CUGRAPH_EXPECTS( (offsets->size > 0), "Column is empty");
 
-  graph->adjList = new gdf_adj_list;
-  graph->adjList->offsets = new gdf_column;
-  graph->adjList->indices = new gdf_column;
+  graph->adjList = new adj_list;
   graph->adjList->ownership = 0;
-
-  cpy_column_view(offsets, graph->adjList->offsets);
-  cpy_column_view(indices, graph->adjList->indices);
+  graph->v = v;
+  graph->e = e;
+  graph->adjList->offsets = offsets;
+  graph->adjList->indices = indices;
   
   if (!graph->prop)
       graph->prop = new Graph_properties();
 
   if (edge_data) {
     CUGRAPH_EXPECTS(indices->size == edge_data->size, "Column size mismatch");
-    graph->adjList->edge_data = new gdf_column;
-    cpy_column_view(edge_data, graph->adjList->edge_data);
+    graph->adjList->edge_data = edge_data;
     
     bool has_neg_val;
     
@@ -213,17 +175,15 @@ void adj_list_view(Graph *graph, const gdf_column *offsets,
       has_neg_val = false;
     }
     graph->prop->has_negative_edges =
-        (has_neg_val) ? GDF_PROP_TRUE : GDF_PROP_FALSE;
+        (has_neg_val) ? PROP_TRUE : PROP_FALSE;
   } else {
     graph->adjList->edge_data = nullptr;
-    graph->prop->has_negative_edges = GDF_PROP_FALSE;
-  }
-
-  graph->numberOfVertices = graph->adjList->offsets->size - 1;
-  
+    graph->prop->has_negative_edges = PROP_FALSE;
+  }  
 }
 
-void gdf_adj_list::get_vertex_identifiers(gdf_column *identifiers) {
+template <typename VT, typename WT>
+void adj_list::get_vertex_identifiers(VT *identifiers) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
   cugraph::detail::sequence<int>((int)offsets->size-1, (int*)identifiers->data);
@@ -231,7 +191,8 @@ void gdf_adj_list::get_vertex_identifiers(gdf_column *identifiers) {
   
 }
 
-void gdf_adj_list::get_source_indices (gdf_column *src_indices) {
+template <typename VT, typename WT>
+void adj_list::get_source_indices (VT *src_indices) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
   CUGRAPH_EXPECTS( src_indices->size == indices->size, "Column size mismatch" );
@@ -243,9 +204,10 @@ void gdf_adj_list::get_source_indices (gdf_column *src_indices) {
   
 }
 
-void edge_list_view(Graph *graph, const gdf_column *src_indices,
+template <typename VT, typename WT>
+void edge_list_view(Graph *graph, const VT *src_indices,
                              const gdf_column *dest_indices, 
-                             const gdf_column *edge_data) {
+                             const WT *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
 
@@ -259,7 +221,7 @@ void edge_list_view(Graph *graph, const gdf_column *src_indices,
   CUGRAPH_EXPECTS( dest_indices->null_count == 0 , "Input column has non-zero null count");
 
 
-  graph->edgeList = new gdf_edge_list;
+  graph->edgeList = new edge_list;
   graph->edgeList->src_indices = new gdf_column;
   graph->edgeList->dest_indices = new gdf_column;
   graph->edgeList->ownership = 0;
@@ -312,11 +274,11 @@ void edge_list_view(Graph *graph, const gdf_column *src_indices,
       has_neg_val = false;
     }
     graph->prop->has_negative_edges =
-        (has_neg_val) ? GDF_PROP_TRUE : GDF_PROP_FALSE;
+        (has_neg_val) ? PROP_TRUE : PROP_FALSE;
 
   } else {
     graph->edgeList->edge_data = nullptr;
-    graph->prop->has_negative_edges = GDF_PROP_FALSE;
+    graph->prop->has_negative_edges = PROP_FALSE;
   }
 
   cugraph::detail::indexing_check<int> (
@@ -330,7 +292,7 @@ void add_adj_list_impl (Graph *graph) {
     if (graph->adjList == nullptr) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
       int nnz = graph->edgeList->src_indices->size;
-      graph->adjList = new gdf_adj_list;
+      graph->adjList = new adj_list;
       graph->adjList->offsets = new gdf_column;
       graph->adjList->indices = new gdf_column;
       graph->adjList->ownership = 1;
@@ -338,7 +300,7 @@ void add_adj_list_impl (Graph *graph) {
     if (graph->edgeList->edge_data!= nullptr) {
       graph->adjList->edge_data = new gdf_column;
 
-      CSR_Result_Weighted<int32_t,WT> adj_list;
+      CSR_Result_Weighted<int,WT> adj_list;
       ConvertCOOtoCSR_weighted((int*)graph->edgeList->src_indices->data, (int*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
 
       gdf_column_view(graph->adjList->offsets, adj_list.rowOffsets,
@@ -356,15 +318,15 @@ void add_adj_list_impl (Graph *graph) {
       gdf_column_view(graph->adjList->indices, adj_list.colIndices,
                             nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
     }
-    graph->numberOfVertices = graph->adjList->offsets->size - 1;
   }
 }
 
+template <typename VT, typename WT>
 void add_edge_list (Graph *graph) {
     if (graph->edgeList == nullptr) {
       CUGRAPH_EXPECTS( graph->adjList != nullptr , "Invalid API parameter");
       int *d_src;
-      graph->edgeList = new gdf_edge_list;
+      graph->edgeList = new edge_list;
       graph->edgeList->src_indices = new gdf_column;
       graph->edgeList->dest_indices = new gdf_column;
       graph->edgeList->ownership = 2;
@@ -389,12 +351,12 @@ void add_edge_list (Graph *graph) {
 }
 
 
-template <typename WT>
+template <typename VT, typename WT>
 void add_transposed_adj_list_impl (Graph *graph) {
     if (graph->transposedAdjList == nullptr ) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
       int nnz = graph->edgeList->src_indices->size;
-      graph->transposedAdjList = new gdf_adj_list;
+      graph->transposedAdjList = new adj_list;
       graph->transposedAdjList->offsets = new gdf_column;
       graph->transposedAdjList->indices = new gdf_column;
       graph->transposedAdjList->ownership = 1;
@@ -419,11 +381,10 @@ void add_transposed_adj_list_impl (Graph *graph) {
         gdf_column_view(graph->transposedAdjList->indices, adj_list.colIndices,
                               nullptr, adj_list.nnz, graph->edgeList->src_indices->dtype);
       }
-      graph->numberOfVertices = graph->transposedAdjList->offsets->size - 1;
     }
-    
 }
 
+template <typename VT, typename WT>
 void add_adj_list(Graph *graph) {
   if (graph->adjList == nullptr) {
     CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
@@ -442,6 +403,7 @@ void add_adj_list(Graph *graph) {
   }
 }
 
+template <typename VT, typename WT>
 void add_transposed_adj_list(Graph *graph) {
   if (graph->transposedAdjList == nullptr) {
     if (graph->edgeList == nullptr)
@@ -487,8 +449,9 @@ void delete_transposed_adj_list(Graph *graph) {
   
 }
 
+template <typename VT, typename WT>
 void number_of_vertices(Graph *graph) {
-  if (graph->numberOfVertices != 0)
+  if (graph->v != 0)
     
 
   //
@@ -530,7 +493,7 @@ void number_of_vertices(Graph *graph) {
   ALLOC_FREE_TRY(d_temp_storage, nullptr);
   ALLOC_FREE_TRY(d_max, nullptr);
   
-  graph->numberOfVertices = 1 + std::max(h_max[0], h_max[1]);
+  graph->v = 1 + std::max(h_max[0], h_max[1]);
   
 }
 

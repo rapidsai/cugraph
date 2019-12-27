@@ -508,8 +508,8 @@ void jaccard(Graph *graph, gdf_column *weights, gdf_column *result) {
 
 void jaccard_list(Graph* graph,
                            gdf_column* weights,
-                           gdf_column* first,
-                           gdf_column* second,
+                           VT *first,
+                           VT *second,
                            gdf_column* result) {
 
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");

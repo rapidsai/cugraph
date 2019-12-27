@@ -38,7 +38,7 @@ getTopKIds(gdf_column_ptr katz, int k = 10) {
 int
 getMaxDegree(cugraph::Graph * G) {
       cugraph::add_adj_list(G);
-      std::vector<int> out_degree(G->numberOfVertices);
+      std::vector<int> out_degree(G->v);
       gdf_column_ptr col_out_degree = create_gdf_column(out_degree);
       cugraph::degree(G, col_out_degree.get(), 2);
       auto degreePtr = thrust::device_pointer_cast(static_cast<int*>(col_out_degree.get()->data));
