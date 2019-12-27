@@ -30,24 +30,22 @@ def cugraph_call(G, min_weight, ensemble_size):
     return score, num_parts
 
 
-def random_call(G, partitions):
-    random.seed(0)
-    num_verts = G.number_of_vertices()
-    assignment = []
-    for i in range(num_verts):
-        assignment.append(random.randint(0, partitions-1))
-    assignment_cu = cudf.Series(assignment)
-    score = cugraph.analyzeClustering_modularity(G, partitions, assignment_cu)
-    return score
+def golden_call(graph_file):
+    if graph_file == '../datasets/dolphins.csv':
+        return 0.4962422251701355
+    if graph_file == '../datasets/karate.csv':
+        return 0.38428664207458496
+    if graph_file == '../datasets/netscience.csv':
+        return 0.9279554486274719
 
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv',
             '../datasets/netscience.csv']
 
-MIN_WEIGHTS = [.05, .10, .15, .20]
+MIN_WEIGHTS = [.05, .10, .15]
 
-ENSEMBLE_SIZES = [16, 32, 64]
+ENSEMBLE_SIZES = [16, 32]
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
@@ -55,7 +53,7 @@ ENSEMBLE_SIZES = [16, 32, 64]
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('min_weight', MIN_WEIGHTS)
 @pytest.mark.parametrize('ensemble_size', ENSEMBLE_SIZES)
-def test_modularity_clustering(managed,
+def test_ecg_clustering(managed,
                                pool,
                                graph_file,
                                min_weight,
@@ -77,8 +75,8 @@ def test_modularity_clustering(managed,
 
     # Get the modularity score for partitioning versus random assignment
     cu_score, num_parts = cugraph_call(G, min_weight, ensemble_size)
-    rand_score = random_call(G, num_parts)
+    golden_score = golden_call(graph_file)
 
     # Assert that the partitioning has better modularity than the random
     # assignment
-    assert cu_score > rand_score
+    assert cu_score > (.95 * golden_score)
