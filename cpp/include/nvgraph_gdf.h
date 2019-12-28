@@ -33,7 +33,7 @@ namespace cugraph {
  * @return Error code
  */
 //void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-//                                  Graph* gdf_G,
+//                                  Graph<VT, WT> *gdf_G,
 //                                  nvgraphGraphDescr_t * nvgraph_G,
 //                                  bool use_transposed = false);
 
@@ -44,7 +44,7 @@ namespace cugraph {
  * @param sssp_distances Pointer to a GDF column in which the resulting distances will be stored
  * @return Error code
  */
-void sssp_nvgraph(Graph* gdf_G, const int *source_vert, gdf_column *sssp_distances);
+void sssp_nvgraph(Graph<VT, WT> *gdf_G, const int *source_vert, gdf_column *sssp_distances);
 
 /**
  * Wrapper function for Nvgraph balanced cut clustering
@@ -61,7 +61,7 @@ void sssp_nvgraph(Graph* gdf_G, const int *source_vert, gdf_column *sssp_distanc
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
  * @throws     cugraph::logic_error when an error occurs.
  */
-void balancedCutClustering_nvgraph(Graph* gdf_G,
+void balancedCutClustering_nvgraph(Graph<VT, WT> *gdf_G,
                                    const int num_clusters,
                                    const int num_eigen_vects,
                                    const float evs_tolerance,
@@ -84,7 +84,7 @@ void balancedCutClustering_nvgraph(Graph* gdf_G,
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
  * @throws     cugraph::logic_error when an error occurs.
  */
-void spectralModularityMaximization_nvgraph(Graph* gdf_G,
+void spectralModularityMaximization_nvgraph(Graph<VT, WT> *gdf_G,
                                             const int n_clusters,
                                             const int n_eig_vects,
                                             const float evs_tolerance,
@@ -101,7 +101,7 @@ void spectralModularityMaximization_nvgraph(Graph* gdf_G,
  * @param score Pointer to a float in which the result will be written
  * @throws     cugraph::logic_error when an error occurs.
  */
-void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
+void analyzeClustering_modularity_nvgraph(Graph<VT, WT> *gdf_G,
                                           const int n_clusters,
                                           gdf_column* clustering,
                                           float* score);
@@ -114,7 +114,7 @@ void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
  * @param score Pointer to a float in which the result will be written
  * @throws     cugraph::logic_error when an error occurs.
  */
-void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
+void analyzeClustering_edge_cut_nvgraph(Graph<VT, WT> *gdf_G,
                                         const int n_clusters,
                                         gdf_column* clustering,
                                         float* score);
@@ -127,7 +127,7 @@ void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
  * @param score Pointer to a float in which the result will be written
  * @throws     cugraph::logic_error when an error occurs.
  */
-void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
+void analyzeClustering_ratio_cut_nvgraph(Graph<VT, WT> *gdf_G,
                                          const int n_clusters,
                                          gdf_column* clustering,
                                          float* score);
@@ -139,16 +139,16 @@ void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
  * @param result Pointer to GDF graph object, this is the output must be a valid pointer
  * @throws     cugraph::logic_error when an error occurs.
  */
-void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
+void extract_subgraph_vertex_nvgraph(Graph<VT, WT> *gdf_G,
                                      gdf_column* vertices,
-                                     Graph* result);
+                                     Graph<VT, WT> *result);
 /**
  * Wrapper function for Nvgraph triangle counting
  * @param G Pointer to GDF graph object
  * @param result Pointer to a uint64_t in which the result will be written
  * @throws     cugraph::logic_error when an error occurs.
  */
-void triangle_count_nvgraph(Graph* G, uint64_t* result);
+void triangle_count_nvgraph(Graph<VT, WT> *G, uint64_t* result);
 
 
 } //namespace cugraph

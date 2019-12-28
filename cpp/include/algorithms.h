@@ -49,7 +49,7 @@ namespace cugraph {
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void pagerank(Graph *graph,
+void pagerank(Graph<VT, WT> *graph,
               WT* pagerank,
               size_t personalization_subset_size=0, 
               VT* personalization_subset=nullptr, 
@@ -116,7 +116,7 @@ void grmat_gen(const char* argv,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT>
-void bfs(Graph* graph,
+void bfs(Graph<VT, WT> *graph,
          VT *distances,
          VT *predecessors,
          const VT start_vertex,
@@ -138,7 +138,7 @@ void bfs(Graph* graph,
  */                                                                             
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void sssp(Graph* graph,                                            
+void sssp(Graph<VT, WT> *graph,                                            
           WT *distances,                                                  
           VT *predecessors,                                               
           const VT source_vertex);                      
@@ -152,7 +152,7 @@ void sssp(Graph* graph,
  * @param result The result values are stored here, memory needs to be pre-allocated
  * @throws     cugraph::logic_error when an error occurs.
  */
-void jaccard(Graph* graph,
+void jaccard(Graph<VT, WT> *graph,
              gdf_column *weights,
              gdf_column *result);
 
@@ -167,7 +167,7 @@ void jaccard(Graph* graph,
  * @param result The result values are stored here, memory needs to be pre-allocated.
  * @throws     cugraph::logic_error when an error occurs.
  */
-void jaccard_list(Graph* graph,
+void jaccard_list(Graph<VT, WT> *graph,
                   gdf_column *weights,
                   gdf_column *first,
                   gdf_column *second,
@@ -182,7 +182,7 @@ void jaccard_list(Graph* graph,
  * @param result The result values are stored here, memory needs to be pre-allocated.
  * @throws     cugraph::logic_error when an error occurs.
  */
-void overlap(Graph* graph,
+void overlap(Graph<VT, WT> *graph,
              gdf_column *weights,
              gdf_column *result);
 
@@ -197,13 +197,13 @@ void overlap(Graph* graph,
  * @param result The result values are stored here, memory needs to be pre-allocated
  * @throws     cugraph::logic_error when an error occurs.
  */
-void overlap_list(Graph* graph,
+void overlap_list(Graph<VT, WT> *graph,
                   gdf_column *weights,
                   gdf_column *first,
                   gdf_column *second,
                   gdf_column *result);
 
-void louvain(Graph* graph,
+void louvain(Graph<VT, WT> *graph,
              void *final_modularity,
              void *num_level,
              gdf_column *louvain_parts);
@@ -271,7 +271,7 @@ typedef enum {CUGRAPH_WEAK = 0, CUGRAPH_STRONG, NUM_CONNECTIVITY_TYPES} cugraph_
  * @param table of 2 gdf_columns: output labels and vertex indices [out]
  * @throws     cugraph::logic_error when an error occurs.
  */
- void connected_components(Graph* graph,
+ void connected_components(Graph<VT, WT> *graph,
                            cugraph_cc_t connectivity_type,
                            cudf::table *table);
 
@@ -326,7 +326,7 @@ void snmg_pagerank (gdf_column **src_col_ptrs,
  * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-void katz_centrality(Graph* graph,                                         
+void katz_centrality(Graph<VT, WT> *graph,                                         
                      gdf_column *katz_centrality,
                      double alpha,
                      int max_iter,
@@ -344,7 +344,7 @@ void katz_centrality(Graph* graph,
  * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-void core_number(Graph* graph,                                         
+void core_number(Graph<VT, WT> *graph,                                         
                  gdf_column *core_number);
 
 /**                                                                             
@@ -363,9 +363,11 @@ void core_number(Graph* graph,
  * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
-void k_core(Graph* in_graph,
+void k_core(Graph<VT, WT> *in_graph,
             int k,
             gdf_column *vertex_id,
             gdf_column *core_number,
-            Graph* out_graph);
+            Graph<VT, WT> *out_graph);
+
+            
 } //namespace cugraph

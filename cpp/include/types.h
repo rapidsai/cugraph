@@ -31,7 +31,7 @@ struct Graph_properties {
   Graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false), has_negative_edges(PROP_UNDEF){}
 };
 
-template <typename VT, typename WT>
+template <typename VT, typename WT= float>
 struct edge_list{
   VT *src_indices; // rowInd
   VT *dest_indices; // colInd
@@ -41,7 +41,7 @@ struct edge_list{
   ~edge_list();
 };
 
-template <typename VT, typename WT>
+template <typename VT, typename WT = float>
 struct adj_list{
   VT *offsets; // rowPtr
   VT *indices; // colInd
@@ -57,7 +57,7 @@ struct dynamic{
   void *data; // handle to the dynamic graph struct
 };
 
-template <typename VT, typename WT>
+template <typename VT, typename WT = float>
 struct Graph{
     size_t v, e;
     edge_list<VT,WT> *edgeList; // COO
