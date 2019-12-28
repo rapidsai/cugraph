@@ -151,21 +151,19 @@ TEST(number_of_vertices, success1)
   std::vector<VT> dest_h={1, 2, 0, 1, 4, 4, 5, 3, 5, 3};
   std::vector<WT> w_h={0.50, 0.50, 0.33, 0.33, 0.33, 0.50, 0.50, 0.50, 0.50, 0.5};
 
-  cugraph::Graph G;
-  gdf_column d_src, d_dst, d_w;
-  create_d_ptr(src_h, &d_src);
-  create_d_ptr(dest_h, &d_dst);
-  create_d_ptr(w_h, &d_w);
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
+  d_ptr<VT> d_src = create_d_ptr(src_h);
+  d_ptr<VT> d_dst = create_d_ptr(dest_h);
+  d_ptr<WT> d_w = create_d_ptr(w_h);
 
-  cugraph::edge_list_view(&G, &d_src, &d_dst, &d_w);
-  ASSERT_EQ(G.numberOfVertices, 0);
+  cugraph::edge_list_view(G.get(), d_src.get(), d_dst.get(), d_w.get());
+  ASSERT_EQ(G.get()->v, 0);
 
-  cugraph::number_of_vertices(&G);
-
-  ASSERT_EQ(G.numberOfVertices, 6);
+  cugraph::number_of_vertices(G.get());
+  ASSERT_EQ(G.get()->v, 6);
 }
 
-TEST(gdf_delete_adjacency_list, success1)
+TEST(delete_adjacency_list, success1)
 {
   typedef int VT;
   typedef float WT;
@@ -182,26 +180,25 @@ TEST(gdf_delete_adjacency_list, success1)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
       
-  cugraph::Graph G;
-  gdf_column d_off, d_ind, d_w;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
   //size_t free, free2, total;  
   //cudaMemGetInfo(&free, &total);
-  create_d_ptr(off_h, &d_off);
-  create_d_ptr(ind_h, &d_ind);
-  create_d_ptr(w_h, &d_w);
+  d_ptr<VT> d_off = create_d_ptr(off_h);
+  d_ptr<VT> d_ind = create_d_ptr(ind_h);
+  d_ptr<WT> d_w = create_d_ptr(w_h);
 
-  cugraph::adj_list_view(&G, &d_off, &d_ind, &d_w);
+  cugraph::adj_list_view(G.get(), d_off.get(), d_ind.get(), d_w.get());
   
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
   
-  cugraph::delete_adj_list(&G);
+  cugraph::delete_adj_list(G.get());
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_EQ(free,free2);
 }
 
-TEST(gdf_delete_adjacency_list, success2)
+TEST(delete_adjacency_list, success2)
 {
   typedef int VT;
   typedef float WT;
@@ -218,28 +215,22 @@ TEST(gdf_delete_adjacency_list, success2)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
       
-  cugraph::Graph *G = new cugraph::Graph;
-  gdf_column *d_off = new gdf_column, *d_ind = new gdf_column, *d_w = new gdf_column;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
   //size_t free, free2, total;  
   //cudaMemGetInfo(&free, &total);
-  create_d_ptr(off_h, d_off);
-  create_d_ptr(ind_h, d_ind);
-  create_d_ptr(w_h, d_w);
+  d_ptr<VT> d_off = create_d_ptr(off_h);
+  d_ptr<VT> d_ind = create_d_ptr(ind_h);
+  d_ptr<WT> d_w = create_d_ptr(w_h);
 
-  cugraph::adj_list_view(G, d_off, d_ind, d_w);
+  cugraph::adj_list_view(G.get(), d_off.get(), d_ind.get(), d_w.get());
   
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
   
-  cugraph::delete_adj_list(G);
+  cugraph::delete_adj_list(G.get());
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_EQ(free,free2);
-
-  delete G;
-  delete d_off;
-  delete d_ind;
-  delete d_w;
 }
 
 
@@ -251,20 +242,19 @@ TEST(delete_edge_list, success1)
   std::vector<VT> src_h={0, 0, 2, 2, 2, 3, 3, 4, 4, 5}, dest_h={1, 2, 0, 1, 4, 4, 5, 3, 5, 3};
   std::vector<WT> w_h={0.50, 0.50, 0.33, 0.33, 0.33, 0.50, 0.50, 0.50, 0.50, 1.00};
 
-  cugraph::Graph G ;
-  gdf_column d_src, d_dst, d_w;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
   //size_t free, free2, total;  
   //cudaMemGetInfo(&free, &total);
-  create_d_ptr(src_h, &d_src);
-  create_d_ptr(dest_h, &d_dst);
-  create_d_ptr(w_h, &d_w);
+  d_ptr<VT> d_src = create_d_ptr(src_h);
+  d_ptr<VT> d_dst = create_d_ptr(dest_h);
+  d_ptr<WT> d_w = create_d_ptr(w_h);
 
-  cugraph::edge_list_view(&G, &d_src, &d_dst, &d_w);
+  cugraph::edge_list_view(G.get(), d_src.get(), d_dst.get(), d_w.get());
   
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
   
-  cugraph::delete_edge_list(&G);
+  cugraph::delete_edge_list(G.get());
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_EQ(free,free2);
@@ -278,28 +268,24 @@ TEST(delete_edge_list, success2)
   std::vector<VT> src_h={0, 0, 2, 2, 2, 3, 3, 4, 4, 5}, dest_h={1, 2, 0, 1, 4, 4, 5, 3, 5, 3};
   std::vector<WT> w_h={0.50, 0.50, 0.33, 0.33, 0.33, 0.50, 0.50, 0.50, 0.50, 1.00};
 
-  cugraph::Graph *G = new cugraph::Graph;
-  gdf_column *d_src = new gdf_column, *d_dst = new gdf_column, *d_w = new gdf_column;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
+
   //size_t free, free2, total;  
   //cudaMemGetInfo(&free, &total);
-  create_d_ptr(src_h, d_src);
-  create_d_ptr(dest_h, d_dst);
-  create_d_ptr(w_h, d_w);
+  d_ptr<VT> d_src = create_d_ptr(src_h);
+  d_ptr<VT> d_dst = create_d_ptr(dest_h);
+  d_ptr<WT> d_w = create_d_ptr(w_h);
 
-  cugraph::edge_list_view(G, d_src, d_dst, d_w);
+  cugraph::edge_list_view(G.get(), d_src.get(), d_dst.get(), d_w.get());
   
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
   
-  cugraph::delete_edge_list(G);
+  cugraph::delete_edge_list(G.get());
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_EQ(free,free2);
 
-  delete G;
-  delete d_src;
-  delete d_dst;
-  delete d_w;
 }
 
 TEST(Graph, add_transposed_adj_list)
@@ -310,19 +296,18 @@ TEST(Graph, add_transposed_adj_list)
   std::vector<VT> src_h={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
   std::vector<VT> dest_h={1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
   
-  cugraph::Graph *G = new cugraph::Graph;
-  gdf_column *d_src = new gdf_column, *d_dst = new gdf_column;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
   //size_t free, free2, free3, free4, total;  
   
   //cudaMemGetInfo(&free, &total);
   
-  create_d_ptr(src_h, d_src);
-  create_d_ptr(dest_h, d_dst);
+  d_ptr<VT> d_src = create_d_ptr(src_h);
+  d_ptr<VT> d_dst = create_d_ptr(dest_h);
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
 
-  cugraph::edge_list_view(G, d_src, d_dst, nullptr);
+  cugraph::edge_list_view(G.get(), d_src, d_dst, nullptr);
   
   //cudaMemGetInfo(&free3, &total);
   //EXPECT_EQ(free2,free3);
@@ -349,20 +334,20 @@ TEST(Graph, add_transposed_adj_list)
 
   EXPECT_EQ( eq(ind_h,src_h), 0);
 
-  delete G;
+  
 
   //cudaMemGetInfo(&free4, &total);
   //EXPECT_EQ(free4,free2);
   //EXPECT_NE(free4,free);
 
-  gdf_col_delete(d_src);
-  gdf_col_delete(d_dst);
+
+  
 
   //cudaMemGetInfo(&free4, &total);
   //EXPECT_EQ(free4,free);
 }
 
-TEST(Graph, gdf_add_adjList)
+TEST(Graph, add_adjList)
 {
   typedef int VT;
   typedef float WT;
@@ -371,20 +356,19 @@ TEST(Graph, gdf_add_adjList)
   std::vector<VT> dest_h={1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
   std::vector<VT> off_ref_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
 
-  cugraph::Graph *G = new cugraph::Graph;
-  gdf_column *d_src = new gdf_column, *d_dst = new gdf_column;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
 
   //size_t free, free2, free3, free4, total;  
   
   //cudaMemGetInfo(&free, &total);
   
-  create_d_ptr(src_h, d_src);
-  create_d_ptr(dest_h, d_dst);
+  d_ptr<VT> d_src = create_d_ptr(src_h);
+  d_ptr<VT> d_dst = create_d_ptr(dest_h);
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
 
-  cugraph::edge_list_view(G, d_src, d_dst, nullptr);
+  cugraph::edge_list_view(G.get(), d_src, d_dst, nullptr);
   
   //cudaMemGetInfo(&free3, &total);
   //EXPECT_EQ(free2,free3);
@@ -412,14 +396,14 @@ TEST(Graph, gdf_add_adjList)
   EXPECT_EQ( eq(ind_h,dest_h), 0);
   EXPECT_EQ( eq(off_h,off_ref_h), 0);
 
-  delete G;
+  
 
   //cudaMemGetInfo(&free4, &total);
   //EXPECT_EQ(free4,free2);
   //EXPECT_NE(free4,free);
 
-  gdf_col_delete(d_src);
-  gdf_col_delete(d_dst);
+
+  
 
   //cudaMemGetInfo(&free4, &total);
   //EXPECT_EQ(free4,free);
@@ -447,14 +431,13 @@ TEST(Graph, add_edge_list)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
       
-  cugraph::Graph *G = new cugraph::Graph;
-  gdf_column *d_off = new gdf_column, *d_ind = new gdf_column, *d_w = new gdf_column;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
   
-  create_d_ptr(off_h, d_off);
-  create_d_ptr(ind_h, d_ind);
-  create_d_ptr(w_h, d_w);
+  d_ptr<VT> d_off = create_d_ptr(off_h);
+  d_ptr<VT> d_ind = create_d_ptr(ind_h);
+  d_ptr<WT> d_w = create_d_ptr(w_h);
 
-  cugraph::adj_list_view(G, d_off, d_ind, d_w);
+  cugraph::adj_list_view(G.get(), d_off.get(), d_ind.get(), d_w.get());
 
   cugraph::add_edge_list(G);
 
@@ -474,10 +457,6 @@ TEST(Graph, add_edge_list)
   ASSERT_EQ( eq(ind_h,dest2_h), 0);
   ASSERT_EQ( eq(w_h,w2_h), 0);
 
-  delete G;
-  gdf_col_delete(d_off);
-  gdf_col_delete(d_ind);
-  gdf_col_delete(d_w);
 }
 
 TEST(Graph, get_vertex_identifiers)
@@ -496,14 +475,13 @@ TEST(Graph, get_vertex_identifiers)
   std::vector<VT> idx_h(off_h.size()-1), idx2_h(off_h.size()-1);
 
       
-  cugraph::Graph *G = new cugraph::Graph;
-  gdf_column *d_off = new gdf_column, *d_ind = new gdf_column, *col_idx = new gdf_column;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
   
   create_d_ptr(off_h, d_off);
   create_d_ptr(ind_h, d_ind);
   create_d_ptr(idx2_h, col_idx);
 
-  cugraph::adj_list_view(G, d_off, d_ind, nullptr);
+  cugraph::adj_list_view(G.get(), d_off.get(), d_ind.get(), nullptr);
   G->adjList->get_vertex_identifiers(col_idx);
 
   cudaMemcpy(&idx2_h[0], col_idx, sizeof(VT) * idx2_h.size(), cudaMemcpyDeviceToHost);
@@ -512,10 +490,6 @@ TEST(Graph, get_vertex_identifiers)
   
   ASSERT_EQ( eq(idx_h,idx2_h), 0);
 
-  delete G;
-  gdf_col_delete(d_off);
-  gdf_col_delete(d_ind);
-  gdf_col_delete(col_idx);
 }
 
 TEST(Graph, get_source_indices)
@@ -532,14 +506,13 @@ TEST(Graph, get_source_indices)
 
   std::vector<VT> src_h(ind_h.size()), src2_h(ind_h.size());
       
-  cugraph::Graph *G = new cugraph::Graph;
-  gdf_column *d_off = new gdf_column, *d_ind = new gdf_column, *d_src = new gdf_column;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
   
   create_d_ptr(off_h, d_off);
   create_d_ptr(ind_h, d_ind);
   create_d_ptr(src2_h, d_src);
 
-  cugraph::adj_list_view(G, d_off, d_ind, nullptr);
+  cugraph::adj_list_view(G.get(), d_off.get(), d_ind.get(), nullptr);
   G->adjList->get_source_indices(d_src);
   cudaMemcpy(&src2_h[0], d_src, sizeof(VT) * G->e, cudaMemcpyDeviceToHost);
   
@@ -547,13 +520,13 @@ TEST(Graph, get_source_indices)
 
   ASSERT_EQ( eq(src_h,src2_h), 0);
 
-  delete G;
-  gdf_col_delete(d_off);
-  gdf_col_delete(d_ind);
-  gdf_col_delete(d_src);
+  
+  
+  
+
 }
 
-TEST(Graph, gdf_column_overhead)
+TEST(Graph, column_overhead)
 {
   typedef int VT;
   typedef float WT;
@@ -565,27 +538,26 @@ TEST(Graph, gdf_column_overhead)
   //size_t free, free2, free3, total;  
   //cudaMemGetInfo(&free, &total);
 
-  cugraph::Graph *G = new cugraph::Graph;
-  gdf_column *d_src = new gdf_column, *d_dst = new gdf_column;
+  Graph_ptr<VT,WT> G{new cugraph::Graph<VT,WT>, Graph_deleter<VT,WT>};
 
-  create_d_ptr(src_h, d_src);
-  create_d_ptr(dest_h, d_dst);
+  d_ptr<VT> d_src = create_d_ptr(src_h);
+  d_ptr<VT> d_dst = create_d_ptr(dest_h);
 
   //cudaMemGetInfo(&free2, &total);
   //EXPECT_NE(free,free2);
 
-  // check that gdf_column_overhead < 5 per cent
+  // check that column_overhead < 5 per cent
   //EXPECT_LT(free-free2, 2*sz*sizeof(VT)*1.05);
 
-  cugraph::edge_list_view(G, d_src, d_dst, nullptr);
+  cugraph::edge_list_view(G.get(), d_src, d_dst, nullptr);
 
   //cudaMemGetInfo(&free3, &total);
   //EXPECT_EQ(free2,free3);
   //EXPECT_NE(free,free3);
 
-  delete G;
-  gdf_col_delete(d_src);
-  gdf_col_delete(d_dst);
+  
+
+  
 }
 
 int main( int argc, char** argv )
@@ -595,4 +567,5 @@ int main( int argc, char** argv )
     int rc = RUN_ALL_TESTS();
     rmmFinalize();
     return rc;
-}
+
+  }
