@@ -13,11 +13,7 @@
 
 import gc
 from itertools import product
-import random
-
 import pytest
-
-import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -54,10 +50,10 @@ ENSEMBLE_SIZES = [16, 32]
 @pytest.mark.parametrize('min_weight', MIN_WEIGHTS)
 @pytest.mark.parametrize('ensemble_size', ENSEMBLE_SIZES)
 def test_ecg_clustering(managed,
-                               pool,
-                               graph_file,
-                               min_weight,
-                               ensemble_size):
+                        pool,
+                        graph_file,
+                        min_weight,
+                        ensemble_size):
     gc.collect()
 
     rmm.reinitialize(
