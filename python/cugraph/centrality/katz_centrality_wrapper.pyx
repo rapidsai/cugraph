@@ -66,6 +66,7 @@ def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=Non
     if nstart is not None:
         if len(nstart) != num_verts:
             raise ValueError('nstart must have initial guess for all vertices')
+
         if input_graph.renumbered is True:
             renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
                                           index=input_graph.edgelist.renumber_map)

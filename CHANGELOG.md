@@ -10,6 +10,7 @@
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 
 ## Bug Fixes
+- PR #634 renumber vertex ids passed in analytics
 - PR #649 Change variable names in wjaccard and woverlap to avoid exception
 - PR #651 fix cudf error in katz wrapper and test nstart
 

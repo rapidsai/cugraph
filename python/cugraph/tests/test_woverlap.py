@@ -24,7 +24,7 @@ import rmm
 import numpy as np
 
 
-def cugraph_call(cu_M, first, second):
+def cugraph_call(cu_M, pairs):
     # Device data
     weights_arr = cudf.Series(np.ones(max(cu_M['0'].max(),
                               cu_M['1'].max())+1, dtype=np.float32))
@@ -34,7 +34,7 @@ def cugraph_call(cu_M, first, second):
 
     # cugraph Overlap Call
     t1 = time.time()
-    df = cugraph.overlap_w(G, weights_arr, first, second)
+    df = cugraph.overlap_w(G, weights_arr, pairs)
     t2 = time.time() - t1
     print('Time : '+str(t2))
     return df['overlap_coeff'].to_array()
@@ -114,7 +114,7 @@ def test_woverlap(managed, pool, graph_file):
     G.from_cudf_adjlist(row_offsets, col_indices, None)
     pairs = G.get_two_hop_neighbors()
 
-    cu_coeff = cugraph_call(cu_M, pairs['first'], pairs['second'])
+    cu_coeff = cugraph_call(cu_M, pairs)
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
