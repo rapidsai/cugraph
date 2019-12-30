@@ -99,7 +99,7 @@ class Graph:
 
     def from_cudf_edgelist(self, input_df, source='source',
                            destination='destination',
-                           edge_attr=None, renumber=False):
+                           edge_attr=None, renumber=True):
         """
         Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed input_df argument
