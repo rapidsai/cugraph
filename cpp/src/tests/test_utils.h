@@ -657,21 +657,21 @@ std::function<void(T*)> d_ptr_deleter = [](T* ptr){RMM_FREE(ptr, nullptr);};
 template <typename T>
 using d_ptr = typename std::unique_ptr<T,decltype(d_ptr_deleter<T>)>;
 
-// Creates a device array from a std::vector
+// Creates a device array (smart ptr) from a std::vector
 template <typename T>
 d_ptr<T> create_d_ptr(std::vector<T> const & host_vector)
 {
-  // Create a new instance with a custom deleter that will free
-  // the associated device memory when it eventually goes out of scope
-  d_ptr<T> the_ptr{new T, d_ptr_deleter<T>};
-
   // Allocate device storage and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(T);
   cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&the_ptr, input_size_bytes, stream);
-  cudaMemcpy(the_ptr.get(), host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
+  T* raw;
+  ALLOC_TRY(& raw, input_size_bytes, stream);
+  cudaMemcpy(raw, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
-  return the_ptr;
+  // Create a new instance with a custom deleter that will free
+  // the associated device memory when it eventually goes out of scope
+  d_ptr<T> smart{raw, d_ptr_deleter<T>};
+  return smart;
 }
 
 template <typename VT, typename WT = float>

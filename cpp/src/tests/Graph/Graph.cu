@@ -19,7 +19,7 @@
 #include <string.h>
 #include <rmm_utils.h>
 
-TEST(edge_list, size_mismatch)
+TEST(edge_list, DISABLED_size_mismatch)
 {
        
   typedef int VT;
@@ -39,7 +39,7 @@ TEST(edge_list, size_mismatch)
 }
 
 
-TEST(edge_list, size_mismatch2)
+TEST(edge_list, DISABLED_size_mismatch2)
 {
   typedef int VT;
   typedef float WT;
