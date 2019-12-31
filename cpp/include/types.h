@@ -49,8 +49,8 @@ struct adj_list{
   int ownership = 0; // 0 if all columns were provided by the user, 1 if cugraph crated everything, other values can be use for other cases
   adj_list() : offsets(nullptr), indices(nullptr), edge_data(nullptr){}
   ~adj_list();
-  void get_vertex_identifiers(VT *identifiers);
-  void get_source_indices(VT *indices);
+  void get_vertex_identifiers(size_t v, VT *identifiers);
+  void get_source_indices(size_t v, VT *indices);
 };
 
 struct dynamic{

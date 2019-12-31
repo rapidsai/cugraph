@@ -638,10 +638,10 @@ bool d_eq(Ta* a, Tb* b, size_t n) {
     std::cout << "Mismatched types\n";
     return false;
   }
-  std::vector<T>a_h(n);
-  std::vector<T>b_h(n);
-  cudaMemcpy(&a_h[0], a, sizeof(T) * n, cudaMemcpyDefault);
-  cudaMemcpy(&b_h[0], b, sizeof(T) * n, cudaMemcpyDefault);
+  std::vector<Ta>a_h(n);
+  std::vector<Tb>b_h(n);
+  cudaMemcpy(&a_h[0], a, sizeof(Ta) * n, cudaMemcpyDefault);
+  cudaMemcpy(&b_h[0], b, sizeof(Tb) * n, cudaMemcpyDefault);
   for (size_t i = 0; i < a_h.size(); i++) {
     if (a_h[i] != b_h[i]){
       std::cout << "Elements at " << i << " differ: a=" << a_h[i] << " b=" << b_h[i] << "\n";
@@ -657,18 +657,19 @@ std::function<void(T*)> d_ptr_deleter = [](T* ptr){RMM_FREE(ptr, nullptr);};
 template <typename T>
 using d_ptr = typename std::unique_ptr<T,decltype(d_ptr_deleter<T>)>;
 
-// Creates a gdf_column from a std::vector
+// Creates a device array from a std::vector
 template <typename T>
-d_ptr create_d_ptr(std::vector<T> const & host_vector)
+d_ptr<T> create_d_ptr(std::vector<T> const & host_vector)
 {
   // Create a new instance with a custom deleter that will free
   // the associated device memory when it eventually goes out of scope
-  d_ptr the_ptr{new gdf_column, gdf_col_deleter};
+  d_ptr<T> the_ptr{new T, d_ptr_deleter<T>};
+
   // Allocate device storage and copy contents from host_vector
   const size_t input_size_bytes = host_vector.size() * sizeof(T);
   cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&(the_ptr->data), input_size_bytes, stream);
-  cudaMemcpy(the_ptr->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
+  ALLOC_TRY((void**)&the_ptr, input_size_bytes, stream);
+  cudaMemcpy(the_ptr.get(), host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 
   return the_ptr;
 }
@@ -681,31 +682,27 @@ using Graph_ptr = typename std::unique_ptr<cugraph::Graph<VT,WT>,decltype(Graph_
 
 
 template<typename idx_t>
-bool gdf_csr_equal(gdf_column* a_off, gdf_column* a_ind, gdf_column* b_off, gdf_column* b_ind) {
+bool csr_equal(idx_t v, idx_t e, idx_t* a_off, idx_t* a_ind, idx_t* b_off, idx_t* b_ind) {
   if (a_off == nullptr || a_ind == nullptr || b_off == nullptr || b_ind == nullptr) {
     std::cout << "A given column is null!\n";
     return false;
   }
-  auto type = a_off->dtype;
-  if (a_ind->dtype != type || b_off->dtype != type || b_ind->dtype != type) {
+  if (typeid(a_off) != typeid(int) || typeid(a_ind) != typeid(int) || typeid(b_off) != typeid(int)  || typeid(b_ind) != typeid(int) ) {
     std::cout << "Mismatched dtypes\n";
     return false;
   }
-  if (!gdf_column_equal<idx_t>(a_off, b_off)) {
+  if (!d_eq<idx_t>(a_off, b_off, v+1)) {
     std::cout << "Offsets arrays do not match!\n";
     return false;
   }
-  if (a_ind->size != b_ind->size) {
-    std::cout << "Size of indices arrays do not match\n";
-    return false;
-  }
+
   // Compare the elements of each section of the indices, regardless of order
-  std::vector<idx_t> a_off_h(a_off->size);
-  std::vector<idx_t> a_ind_h(a_ind->size);
-  std::vector<idx_t> b_ind_h(b_ind->size);
-  cudaMemcpy(&a_off_h[0], a_off->data, a_off->size * sizeof(idx_t), cudaMemcpyDefault);
-  cudaMemcpy(&a_ind_h[0], a_ind->data, a_ind->size * sizeof(idx_t), cudaMemcpyDefault);
-  cudaMemcpy(&b_ind_h[0], b_ind->data, b_ind->size * sizeof(idx_t), cudaMemcpyDefault);
+  std::vector<idx_t> a_off_h(v+1);
+  std::vector<idx_t> a_ind_h(e);
+  std::vector<idx_t> b_ind_h(e);
+  cudaMemcpy(&a_off_h[0], a_off, (v+1) * sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&a_ind_h[0], a_ind, e * sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&b_ind_h[0], b_ind, e * sizeof(idx_t), cudaMemcpyDefault);
   auto numVerts = a_off_h.size() - 1;
   for (size_t vert = 0; vert < numVerts; vert++){
     auto start = a_off_h[vert];

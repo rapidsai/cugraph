@@ -66,10 +66,10 @@ void renumber_vertices(const VT *src, const VT *dst,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void edge_list_view(Graph<VT, WT> *graph,
-                    const VT *source_indices,
-                    const VT *destination_indices,
-                    const WT *edge_data = nullptr);
+void edge_list_view(Graph<VT, WT> *graph, const size_t e,
+                    VT *source_indices,
+                    VT *destination_indices,
+                    WT *edge_data = nullptr);
 
 /**
  * @Synopsis   Wrap existing gdf columns representing adjacency lists in a Graph.
@@ -89,10 +89,10 @@ void edge_list_view(Graph<VT, WT> *graph,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void adj_list_view (Graph<VT, WT> *graph,
-                    const VT *offsets,
-                    const VT *indices,
-                    const WT *edge_data = nullptr);
+void adj_list_view (Graph<VT, WT> *graph, const size_t v, const size_t e,
+                    VT *offsets,
+                    VT *indices,
+                    WT *edge_data = nullptr);
 
 /**
  * @Synopsis   Create the adjacency lists of a Graph from its edge list.
@@ -106,10 +106,10 @@ void adj_list_view (Graph<VT, WT> *graph,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void transposed_adj_list_view (Graph<VT, WT> *graph,
-                               const VT *offsets,
-                               const VT *indices,
-                               const WT *edge_data = nullptr);
+void transposed_adj_list_view (Graph<VT, WT> *graph, const size_t v, const size_t e,
+                               VT *offsets,
+                               VT *indices,
+                               WT *edge_data = nullptr);
 
 /**
  * @Synopsis   Create the transposed adjacency lists of a gdf_graph from its edge list.

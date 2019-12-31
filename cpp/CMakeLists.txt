@@ -262,7 +262,6 @@ link_directories(
 
 add_library(cugraph SHARED
     src/structure/cugraph.cu
-    src/snmg/COO2CSR/COO2CSR.cu
     src/utilities/graph_utils.cu
 #    src/utilities/cusparse_helper.cu
 #    src/converters/renumber.cu
@@ -282,6 +281,7 @@ add_library(cugraph SHARED
 #    src/snmg/blas/spmv.cu
 #    src/snmg/link_analysis/pagerank.cu
 #    src/snmg/utils.cu
+#    src/snmg/COO2CSR/COO2CSR.cu
 #    src/components/connectivity.cu
 #    src/centrality/katz_centrality.cu
 #    src/snmg/degree/degree.cu

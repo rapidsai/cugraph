@@ -38,18 +38,16 @@ template <typename VT, typename WT>
 void transposed_adj_list_view(Graph<VT, WT> *graph, 
                             const size_t v,
                             const size_t e,
-                            const VT *offsets,
-                            const VT *indices,
-                            const WT *edge_data) {
+                            VT *offsets,
+                            VT *indices,
+                            WT *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), "Invalid API parameter");
-  CUGRAPH_EXPECTS( offsets->null_count == 0 , "Input column has non-zero null count");
-  CUGRAPH_EXPECTS( indices->null_count == 0 , "Input column has non-zero null count");
   CUGRAPH_EXPECTS( typeid(offsets) == typeid(indices), "Unsupported data type" );
   CUGRAPH_EXPECTS( typeid(offsets) == typeid(int), "Unsupported data type" );
-  CUGRAPH_EXPECTS( (offsets->size > 0), "Column is empty");
+  CUGRAPH_EXPECTS( (v > 0), "Column is empty");
 
   graph->transposedAdjList = new adj_list<VT, WT>;
   graph->transposedAdjList->ownership = 0;
@@ -64,7 +62,6 @@ void transposed_adj_list_view(Graph<VT, WT> *graph,
       graph->prop = new Graph_properties();
 
   if (edge_data) {
-    CUGRAPH_EXPECTS(indices->size == edge_data->size, "Column size mismatch");
     graph->transposedAdjList->edge_data = edge_data;
     
     bool has_neg_val;
@@ -79,18 +76,16 @@ void transposed_adj_list_view(Graph<VT, WT> *graph,
 
 template <typename VT, typename WT>
 void adj_list_view(Graph<VT, WT> *graph, const size_t v,
-                   const size_t e, const VT *offsets,
-                   const VT *indices,
-                   const WT *edge_data) {
+                   const size_t e, VT *offsets,
+                   VT *indices,
+                   WT *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), "Invalid API parameter");
-  CUGRAPH_EXPECTS( offsets->null_count == 0 , "Input column has non-zero null count");
-  CUGRAPH_EXPECTS( indices->null_count == 0 , "Input column has non-zero null count");
   CUGRAPH_EXPECTS( typeid(offsets) == typeid(indices), "Unsupported data type" );
   CUGRAPH_EXPECTS( typeid(offsets) == typeid(int), "Unsupported data type" );
-  CUGRAPH_EXPECTS( (offsets->size > 0), "Column is empty");
+  CUGRAPH_EXPECTS( v > 0, "Column is empty");
 
   graph->adjList = new adj_list<VT, WT>;
   graph->adjList->ownership = 0;
@@ -103,7 +98,6 @@ void adj_list_view(Graph<VT, WT> *graph, const size_t v,
       graph->prop = new Graph_properties();
 
   if (edge_data) {
-    CUGRAPH_EXPECTS(indices->size == edge_data->size, "Column size mismatch");
     graph->adjList->edge_data = edge_data;
     
     bool has_neg_val;
@@ -117,23 +111,18 @@ void adj_list_view(Graph<VT, WT> *graph, const size_t v,
 }
 
 template <typename VT, typename WT>
-void adj_list<VT,WT>::get_vertex_identifiers(VT *identifiers) {
+void adj_list<VT,WT>::get_vertex_identifiers(size_t v, VT *identifiers) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
-  CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
-  cugraph::detail::sequence<VT>((VT)offsets->size-1, (VT*)identifiers->data);
-
-  
+  cugraph::detail::sequence<VT>(v, identifiers);
 }
 
 template <typename VT, typename WT>
-void adj_list<VT,WT>::get_source_indices (VT *src_indices) {
+void adj_list<VT,WT>::get_source_indices (size_t v, VT *src_indices) {
   CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
-  CUGRAPH_EXPECTS( offsets->data != nullptr , "Invalid API parameter");
-  CUGRAPH_EXPECTS( src_indices->size == indices->size, "Column size mismatch" );
   CUGRAPH_EXPECTS( typeid(src_indices) == typeid(indices), "Unsupported data type" );
-  CUGRAPH_EXPECTS( src_indices->size > 0, "Column is empty");
+  CUGRAPH_EXPECTS( v > 0, "Column is empty");
   
-  cugraph::detail::offsets_to_indices<VT>((VT*)offsets->data, offsets->size-1, (VT*)src_indices->data);
+  cugraph::detail::offsets_to_indices<VT>(offsets, v, src_indices);
 
   
 }
@@ -147,26 +136,21 @@ adj_list<VT,WT>::~adj_list() {
   }
 }
 template <typename VT, typename WT>
-void edge_list_view(Graph<VT, WT> *graph, const size_t v,
-                    const size_t e, const VT *src_indices,
-                    const VT *dest_indices, 
-                    const WT *edge_data) {
+void edge_list_view(Graph<VT, WT> *graph,
+                    const size_t e, VT *src_indices,
+                    VT *dest_indices, 
+                    WT *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
 
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), "Invalid API parameter");
-  CUGRAPH_EXPECTS( src_indices->size == dest_indices->size, "Column size mismatch" );
   CUGRAPH_EXPECTS( typeid(src_indices) == typeid(dest_indices), "Unsupported data type" );
   CUGRAPH_EXPECTS( typeid(src_indices) == typeid(int), "Unsupported data type" );
-  CUGRAPH_EXPECTS( src_indices->size > 0, "Column is empty");
-  CUGRAPH_EXPECTS( src_indices->null_count == 0 , "Input column has non-zero null count");
-  CUGRAPH_EXPECTS( dest_indices->null_count == 0 , "Input column has non-zero null count");
-
+  CUGRAPH_EXPECTS( e > 0, "Column is empty");
 
   graph->edgeList = new edge_list<VT, WT>;
   graph->edgeList->ownership = 0;
-  graph->v = v;
   graph->e = e;
   graph->edgeList->src_indices = src_indices;
   graph->edgeList->dest_indices = dest_indices;
@@ -175,7 +159,6 @@ void edge_list_view(Graph<VT, WT> *graph, const size_t v,
     graph->prop = new Graph_properties();
 
   if (edge_data) {
-    CUGRAPH_EXPECTS(src_indices->size == edge_data->size, "Column size mismatch");
     graph->edgeList->edge_data = edge_data;
 
     bool has_neg_val;
@@ -188,11 +171,11 @@ void edge_list_view(Graph<VT, WT> *graph, const size_t v,
   }
 
   cugraph::detail::indexing_check<VT> (
-                                graph->edgeList->src_indices->data, 
-                                graph->edgeList->dest_indices->data, 
-                                graph->edgeList->dest_indices->size);
+                                graph->edgeList->src_indices, 
+                                graph->edgeList->dest_indices, 
+                                graph->e);
 }
-
+  
 template <typename VT, typename WT>
 edge_list<VT,WT>::~edge_list() {
   cudaStream_t stream{nullptr};
@@ -211,20 +194,22 @@ template <typename VT, typename WT>
 void add_adj_list_impl (Graph<VT, WT> *graph) {
     if (graph->adjList == nullptr) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
-      VT nnz = graph->edgeList->src_indices->size;
+      VT nnz = graph->e;
       graph->adjList = new adj_list<VT, WT>;
       graph->adjList->ownership = 1;
 
     if (graph->edgeList->edge_data!= nullptr) {
       CSR_Result_Weighted<VT,WT> adj_list;
-      ConvertCOOtoCSR_weighted((VT*)graph->edgeList->src_indices->data, (VT*)graph->edgeList->dest_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
+      ConvertCOOtoCSR_weighted(graph->edgeList->src_indices, graph->edgeList->dest_indices, graph->edgeList->edge_data, nnz, adj_list);
+      graph->v = adj_list.size;
       graph->adjList->offsets = adj_list.rowOffsets;
       graph->adjList->indices = adj_list.colIndices;
       graph->adjList->edge_data = adj_list.edgeWeights;
     }
     else {
       CSR_Result<VT> adj_list;
-      ConvertCOOtoCSR((VT*)graph->edgeList->src_indices->data,(VT*)graph->edgeList->dest_indices->data, nnz, adj_list);
+      ConvertCOOtoCSR(graph->edgeList->src_indices,graph->edgeList->dest_indices, nnz, adj_list);
+      graph->v = adj_list.size;
       graph->adjList->offsets = adj_list.rowOffsets;
       graph->adjList->indices = adj_list.colIndices;
     }
@@ -242,10 +227,10 @@ void add_edge_list (Graph<VT, WT> *graph) {
 
       cudaStream_t stream{nullptr};
 
-      ALLOC_TRY((void**)&d_src, sizeof(VT) * graph->adjList->indices->size, stream);
-      cugraph::detail::offsets_to_indices<VT>((VT*)graph->adjList->offsets,
+      ALLOC_TRY((void**)&d_src, sizeof(VT) * graph->e, stream);
+      cugraph::detail::offsets_to_indices<VT>(graph->adjList->offsets,
                                   graph->v,
-                                  (VT*)d_src);
+                                  d_src);
       graph->edgeList->src_indices = d_src;
       graph->edgeList->dest_indices = graph->adjList->indices;
       if (graph->adjList->edge_data != nullptr) {
@@ -259,13 +244,14 @@ template <typename VT, typename WT>
 void add_transposed_adj_list_impl (Graph<VT, WT> *graph) {
     if (graph->transposedAdjList == nullptr ) {
       CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
-      VT nnz = graph->edgeList->src_indices->size;
+      VT nnz = graph->e;
       graph->transposedAdjList = new adj_list<VT, WT>;
       graph->transposedAdjList->ownership = 1;
 
       if (graph->edgeList->edge_data) {
         CSR_Result_Weighted<VT,WT> adj_list;
-        ConvertCOOtoCSR_weighted( (VT*)graph->edgeList->dest_indices->data, (VT*)graph->edgeList->src_indices->data, (WT*)graph->edgeList->edge_data->data, nnz, adj_list);
+        ConvertCOOtoCSR_weighted( graph->edgeList->dest_indices, graph->edgeList->src_indices, graph->edgeList->edge_data, nnz, adj_list);
+        graph->v = adj_list.size;
         graph->transposedAdjList->offsets = adj_list.rowOffsets;
         graph->transposedAdjList->indices = adj_list.colIndices;
         graph->transposedAdjList->edge_data = adj_list.edgeWeights;
@@ -273,7 +259,8 @@ void add_transposed_adj_list_impl (Graph<VT, WT> *graph) {
       else {
 
         CSR_Result<VT> adj_list;
-        ConvertCOOtoCSR((VT*)graph->edgeList->dest_indices->data, (VT*)graph->edgeList->src_indices->data, nnz, adj_list);
+        ConvertCOOtoCSR(graph->edgeList->dest_indices, graph->edgeList->src_indices, nnz, adj_list);
+        graph->v = adj_list.size;
         graph->transposedAdjList->offsets = adj_list.rowOffsets;
         graph->transposedAdjList->indices = adj_list.colIndices;
       }
@@ -348,23 +335,20 @@ void number_of_vertices(Graph<VT, WT> *graph) {
   //
   //  Compute size of temp storage
   //
-  VT *tmp = static_cast<VT *>(graph->edgeList->src_indices->data);
-
-  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, tmp, d_max, graph->edgeList->src_indices->size);
+  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, graph->edgeList->src_indices, d_max, graph->e);
 
   //
   //  Compute max of src indices and copy to host
   //
   ALLOC_TRY(&d_temp_storage, temp_storage_bytes, nullptr);
-  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, tmp, d_max, graph->edgeList->src_indices->size);
+  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, graph->edgeList->src_indices, d_max, graph->e);
 
   CUDA_TRY(cudaMemcpy(h_max, d_max, sizeof(VT), cudaMemcpyDeviceToHost));
 
   //
   //  Compute max of dest indices and copy to host
   //
-  tmp = static_cast<VT *>(graph->edgeList->dest_indices->data);
-  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, tmp, d_max, graph->edgeList->src_indices->size);
+  cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, graph->edgeList->dest_indices, d_max, graph->e);
   CUDA_TRY(cudaMemcpy(h_max + 1, d_max, sizeof(VT), cudaMemcpyDeviceToHost));
 
   ALLOC_FREE_TRY(d_temp_storage, nullptr);
@@ -373,5 +357,43 @@ void number_of_vertices(Graph<VT, WT> *graph) {
   graph->v = 1 + std::max(h_max[0], h_max[1]);
   
 }
+
+// explicit instantiations
+
+//FP 32
+template void edge_list_view<int, float> (Graph<int, float> *graph, const size_t e, int *src_indices, int *dest_indices, float *edge_data);
+template void adj_list_view <int, float> (Graph<int, float> *graph, const size_t v, const size_t e, int *offsets, int *indices, float *edge_data); 
+template void transposed_adj_list_view <int, float> (Graph<int, float> *graph, const size_t v, const size_t e, int *offsets, int *indices, float *edge_data); 
+template void add_adj_list<int, float> (Graph<int, float> *graph);
+template void add_transposed_adj_list<int, float> (Graph<int, float> *graph);
+template void add_edge_list<int, float> (Graph<int, float> *graph);
+template void delete_adj_list<int, float> (Graph<int, float> *graph);
+template void delete_edge_list<int, float> (Graph<int, float> *graph);
+template void delete_transposed_adj_list<int, float> (Graph<int, float> *graph);
+template void number_of_vertices<int, float> (Graph<int, float> *graph);
+template class edge_list <int, float>;
+template class adj_list <int, float>;
+template class Graph <int, float>;
+
+//FP 64
+template void edge_list_view<int, double> (Graph<int, double> *graph, const size_t e, int *src_indices, int *dest_indices, double *edge_data);
+template void adj_list_view <int, double> (Graph<int, double> *graph, const size_t v, const size_t e, int *offsets, int *indices, double *edge_data); 
+template void transposed_adj_list_view <int, double> (Graph<int, double> *graph, const size_t v, const size_t e, int *offsets, int *indices, double *edge_data); 
+template void add_adj_list<int, double> (Graph<int, double> *graph);
+template void add_transposed_adj_list<int, double> (Graph<int, double> *graph);
+template void add_edge_list<int, double> (Graph<int, double> *graph);
+template void delete_adj_list<int, double> (Graph<int, double> *graph);
+template void delete_edge_list<int, double> (Graph<int, double> *graph);
+template void delete_transposed_adj_list<int, double> (Graph<int, double> *graph);
+template void number_of_vertices<int, double> (Graph<int, double> *graph);
+template class edge_list <int, double>;
+template class adj_list <int, double>;
+template class Graph <int, double>;
+
+// template void renumber_vertices<int> (const int *src, const int *dst, int *src_renumbered, int *dst_renumbered, int *numbering_map);
+// template void get_two_hop_neighbors<int> (Graph<int, float> *graph, int *first, int *second);
+// template void degree<int, float> (Graph<int, float> *graph, int *degree, int x);
+// template void get_two_hop_neighbors<int, double> (Graph<int, double> *graph, int *first, int *second);
+// template void degree<int, double> (Graph<int, double> *graph, int *degree, int x);
 
 } //namespace
