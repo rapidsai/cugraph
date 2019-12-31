@@ -46,7 +46,7 @@ void transposed_adj_list_view(Graph<VT, WT> *graph,
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), "Invalid API parameter");
   CUGRAPH_EXPECTS( typeid(offsets) == typeid(indices), "Unsupported data type" );
-  CUGRAPH_EXPECTS( typeid(offsets) == typeid(int), "Unsupported data type" );
+  CUGRAPH_EXPECTS( typeid(offsets) == typeid(int*), "Unsupported data type" );
   CUGRAPH_EXPECTS( (v > 0), "Column is empty");
 
   graph->transposedAdjList = new adj_list<VT, WT>;
@@ -84,7 +84,7 @@ void adj_list_view(Graph<VT, WT> *graph, const size_t v,
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), "Invalid API parameter");
   CUGRAPH_EXPECTS( typeid(offsets) == typeid(indices), "Unsupported data type" );
-  CUGRAPH_EXPECTS( typeid(offsets) == typeid(int), "Unsupported data type" );
+  CUGRAPH_EXPECTS( typeid(offsets) == typeid(int*), "Unsupported data type" );
   CUGRAPH_EXPECTS( v > 0, "Column is empty");
 
   graph->adjList = new adj_list<VT, WT>;
@@ -146,7 +146,7 @@ void edge_list_view(Graph<VT, WT> *graph,
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
     (graph->transposedAdjList == nullptr)), "Invalid API parameter");
   CUGRAPH_EXPECTS( typeid(src_indices) == typeid(dest_indices), "Unsupported data type" );
-  CUGRAPH_EXPECTS( typeid(src_indices) == typeid(int), "Unsupported data type" );
+  CUGRAPH_EXPECTS( typeid(src_indices) == typeid(int*), "Unsupported data type" );
   CUGRAPH_EXPECTS( e > 0, "Column is empty");
 
   graph->edgeList = new edge_list<VT, WT>;
@@ -271,7 +271,7 @@ template <typename VT, typename WT>
 void add_adj_list(Graph<VT, WT> *graph) {
   if (graph->adjList == nullptr) {
     CUGRAPH_EXPECTS( graph->edgeList != nullptr , "Invalid API parameter");
-    CUGRAPH_EXPECTS( typeid(graph->edgeList->src_indices) == typeid(int), "Unsupported data type" );
+    CUGRAPH_EXPECTS( typeid(graph->edgeList->src_indices) == typeid(int*), "Unsupported data type" );
     return cugraph::add_adj_list_impl<VT, WT>(graph);
   }
 }
@@ -282,7 +282,7 @@ void add_transposed_adj_list(Graph<VT, WT> *graph) {
     // csr -> coo -> csc
     if (graph->edgeList == nullptr)
       cugraph::add_edge_list(graph);
-    CUGRAPH_EXPECTS(typeid(graph->edgeList->src_indices) == typeid(int), "Unsupported data type");
+    CUGRAPH_EXPECTS(typeid(graph->edgeList->src_indices) == typeid(int*), "Unsupported data type");
     return cugraph::add_transposed_adj_list_impl<VT,WT>(graph);
   }
 }
@@ -323,7 +323,7 @@ void number_of_vertices(Graph<VT, WT> *graph) {
   //  is supported elsewhere.
   //
   CUGRAPH_EXPECTS( (graph->edgeList != nullptr), "Invalid API parameter");
-  CUGRAPH_EXPECTS( typeid(graph->edgeList->src_indices) == typeid(int), "Unsupported data type" );
+  CUGRAPH_EXPECTS( typeid(graph->edgeList->src_indices) == typeid(int*), "Unsupported data type" );
 
   VT  h_max[2];
   VT *d_max;
