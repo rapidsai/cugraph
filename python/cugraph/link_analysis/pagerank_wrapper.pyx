@@ -90,8 +90,10 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             vertex_renumbered = renumber_series.loc[personalization['vertex']]
             c_pers_vtx = get_column_data_ptr(vertex_renumbered._column)
         else:
-            c_pers_vtx = get_column_data_ptr(personalization['vertex'].astype(np.int32)._column)
-        c_pers_val = get_column_data_ptr(personalization['values'].astype(df['pagerank'].dtype)._column)
+            personalization_vertex = personalization['vertex'].astype(np.int32)
+            c_pers_vtx = get_column_data_ptr(personalization_vertex._column)
+        personalization_values = personalization['values'].astype(df['pagerank'].dtype)
+        c_pers_val = get_column_data_ptr(personalization_values._column)
     
     if (df['pagerank'].dtype == np.float32): 
         c_pagerank.pagerank[int, float](g, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
