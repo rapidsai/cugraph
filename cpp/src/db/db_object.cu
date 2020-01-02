@@ -121,8 +121,8 @@ namespace db {
 
   template<typename idx_t>
   void db_column_index<idx_t>::deleteData() {
-    if (offsets != nullptr && offsets->data != nullptr)
-      ALLOC_FREE_TRY(offsets->data, nullptr);
+    if (offsets != nullptr && offsets != nullptr)
+      ALLOC_FREE_TRY(offsets, nullptr);
     if (indirection != nullptr && indirection->data != nullptr)
       ALLOC_FREE_TRY(indirection->data, nullptr);
     if (offsets != nullptr) {

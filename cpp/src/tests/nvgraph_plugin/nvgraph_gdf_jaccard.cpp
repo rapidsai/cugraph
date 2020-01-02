@@ -101,8 +101,8 @@ TEST(nvgraph_jaccard, success)
   ALLOC_TRY((void**)&weight_j, sizeof(float)*edges, stream);
   
   ASSERT_EQ(nvgraphJaccard (CUDA_R_32I, CUDA_R_32F, no_vertex, edges,
-                            (void*)G.adjList->offsets->data, 
-                            (void *)G.adjList->indices->data, 
+                            (void*)G.adjList->offsets, 
+                            (void *)G.adjList->indices, 
                             nullptr, 
                             weighted, nullptr, (void*)&gamma, (void*)weight_j), NVGRAPH_STATUS_SUCCESS);
 
@@ -164,15 +164,15 @@ TEST(nvgraph_jaccard_grmat, success)
    
   std::vector<int> off_h ((vertices+1), 0.0);
   std::vector<int> ind_h (edges, 0.0);
-  cudaMemcpy ((void*) &off_h[0], G.adjList->offsets->data, sizeof(int)*(vertices+1), cudaMemcpyDeviceToHost);
-  cudaMemcpy ((void*) &ind_h[0], G.adjList->indices->data, sizeof(int)*edges, cudaMemcpyDeviceToHost);
+  cudaMemcpy ((void*) &off_h[0], G.adjList->offsets, sizeof(int)*(vertices+1), cudaMemcpyDeviceToHost);
+  cudaMemcpy ((void*) &ind_h[0], G.adjList->indices, sizeof(int)*edges, cudaMemcpyDeviceToHost);
 
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&weight_j, sizeof(float)*edges, stream);
 
   ASSERT_EQ(nvgraphJaccard (CUDA_R_32I, CUDA_R_32F, vertices, edges,
-                            (void*)G.adjList->offsets->data,
-                            (void *)G.adjList->indices->data,
+                            (void*)G.adjList->offsets,
+                            (void *)G.adjList->indices,
                             nullptr,
                             weighted, nullptr, (void*)&gamma, (void*)weight_j), NVGRAPH_STATUS_SUCCESS);
 

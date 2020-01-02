@@ -25,8 +25,6 @@
 
 #include "nvgraph_error_utils.h"
 
-#include <cudf/types.h>
-
 namespace cugraph {
 /**---------------------------------------------------------------------------*
  * @brief Exception thrown when logical precondition is violated.
@@ -75,20 +73,6 @@ struct cuda_error : public std::runtime_error {
       ? static_cast<void>(0)                                 \
       : throw cugraph::logic_error("CUGRAPH failure at: " __FILE__ \
                                 ":" CUGRAPH_STRINGIFY(__LINE__) ": " reason)
-
-/**---------------------------------------------------------------------------*
- * @brief Try evaluation an expression with a gdf_error type,
- * and throw an appropriate exception if it fails.
- *---------------------------------------------------------------------------**/
-#define CUGRAPH_TRY(_gdf_error_expression) do { \
-    auto _evaluated = _gdf_error_expression; \
-    if (_evaluated == GDF_SUCCESS) { break; } \
-    throw cugraph::logic_error( \
-        ("CUGRAPH error " + std::string(gdf_error_get_name(_evaluated)) + " at " \
-       __FILE__ ":"  \
-        CUGRAPH_STRINGIFY(__LINE__) " evaluating " CUGRAPH_STRINGIFY(#_gdf_error_expression)).c_str() ); \
-} while(0)
-
 /**---------------------------------------------------------------------------*
  * @brief Indicates that an erroneous code path has been taken.
  *
@@ -148,8 +132,6 @@ inline void check_stream(cudaStream_t stream, const char* file,
  * Invokes a CUDA runtime API function call, if the call does not return
  * cudaSuccess, throws an exception detailing the CUDA error that occurred.
  *
- * This macro supersedes GDF_REQUIRE and should be preferred in all instances.
- * GDF_REQUIRE should be considered deprecated.
  *
  *---------------------------------------------------------------------------**/
 #define CUDA_TRY(call)                                            \

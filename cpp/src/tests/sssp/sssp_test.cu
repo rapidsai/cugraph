@@ -320,7 +320,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     // MTX may have zero-degree vertices. So reset num_vertices after
     // conversion to CSR
-    num_vertices = G.adjList->offsets->size - 1;
+    num_vertices = G.v;
 
     if (DoDist)
       cudaMemcpy((void*)&dist_vec[0],
@@ -342,15 +342,15 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     std::vector<MaxVType> ref_predecessors(num_vertices);
 
     cudaMemcpy((void*)&vlist[0],
-               G.adjList->offsets->data,
+               G.adjList->offsets,
                sizeof(MaxEType) * (num_vertices + 1),
                cudaMemcpyDeviceToHost);
     cudaMemcpy((void*)&elist[0],
-               G.adjList->indices->data,
+               G.adjList->indices,
                sizeof(MaxVType) * (num_edges),
                cudaMemcpyDeviceToHost);
     cudaMemcpy((void*)&weights[0],
-               G.adjList->edge_data->data,
+               G.adjList->edge_data,
                sizeof(DistType) * (num_edges),
                cudaMemcpyDeviceToHost);
 

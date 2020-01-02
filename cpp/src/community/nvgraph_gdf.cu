@@ -31,7 +31,7 @@
 
 namespace cugraph {
 
-void balancedCutClustering_nvgraph(Graph* gdf_G,
+void balancedCutClustering_nvgraph(Graph* cugraph_G,
                                             const int num_clusters,
                                             const int num_eigen_vects,
                                             const float evs_tolerance,
@@ -40,11 +40,10 @@ void balancedCutClustering_nvgraph(Graph* gdf_G,
                                             const int kmean_max_iter,
                                             gdf_column* clustering) {
 
-  CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
@@ -53,15 +52,15 @@ void balancedCutClustering_nvgraph(Graph* gdf_G,
         rmm::device_vector<double> d_val;
 
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
+  createGraph_nvgraph(nvg_handle, cugraph_G, &nvgraph_G, false);
   int weight_index = 0;
 
   cudaStream_t stream{nullptr};
 
-  if (gdf_G->adjList->edge_data == nullptr) {
+  if (cugraph_G->adjList->edge_data == nullptr) {
     // use a fp64 vector  [1,...,1]
     settype = CUDA_R_64F;
-    d_val.resize(gdf_G->adjList->indices->size);
+    d_val.resize(cugraph_G->e);
     thrust::fill(rmm::exec_policy(stream)->on(stream), d_val.begin(), d_val.end(), 1.0);
     NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
                                   nvgraph_G,
@@ -70,7 +69,7 @@ void balancedCutClustering_nvgraph(Graph* gdf_G,
                                   (void * ) thrust::raw_pointer_cast(d_val.data())));
   }
   else {
-    switch (typeid(gdf_G->adjList->edge_data)) {
+    switch (typeid(cugraph_G->adjList->edge_data)) {
       case GDF_FLOAT32:
         settype = CUDA_R_32F;
         break;
@@ -111,7 +110,7 @@ void balancedCutClustering_nvgraph(Graph* gdf_G,
   
 }
 
-void spectralModularityMaximization_nvgraph(Graph* gdf_G,
+void spectralModularityMaximization_nvgraph(Graph* cugraph_G,
                                                       const int n_clusters,
                                                       const int n_eig_vects,
                                                       const float evs_tolerance,
@@ -120,20 +119,19 @@ void spectralModularityMaximization_nvgraph(Graph* gdf_G,
                                                       const int kmean_max_iter,
                                                       gdf_column* clustering) {
 
-  CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
 
   // Ensure that the input graph has values
-  CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList->edge_data != nullptr, "Invalid API parameter");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
+  createGraph_nvgraph(nvg_handle, cugraph_G, &nvgraph_G, false);
   int weight_index = 0;
 
   // Pack parameters for call to Nvgraph
@@ -164,23 +162,22 @@ void spectralModularityMaximization_nvgraph(Graph* gdf_G,
   
 }
 
-void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
+void analyzeClustering_modularity_nvgraph(Graph* cugraph_G,
                                                     const int n_clusters,
                                                     gdf_column* clustering,
                                                     float* score) {
 
-  CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList->edge_data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
+  createGraph_nvgraph(nvg_handle, cugraph_G, &nvgraph_G, false);
   int weight_index = 0;
 
   // Make Nvgraph call
@@ -195,16 +192,15 @@ void analyzeClustering_modularity_nvgraph(Graph* gdf_G,
   
 }
 
-void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
+void analyzeClustering_edge_cut_nvgraph(Graph* cugraph_G,
                                                   const int n_clusters,
                                                   gdf_column* clustering,
                                                   float* score) {
 
-  CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
@@ -213,15 +209,15 @@ void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
         rmm::device_vector<double> d_val;
 
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
+  createGraph_nvgraph(nvg_handle, cugraph_G, &nvgraph_G, false);
   int weight_index = 0;
 
   cudaStream_t stream{nullptr};
 
-  if (gdf_G->adjList->edge_data == nullptr) {
+  if (cugraph_G->adjList->edge_data == nullptr) {
     // use a fp64 vector  [1,...,1]
     settype = CUDA_R_64F;
-    d_val.resize(gdf_G->adjList->indices->size);
+    d_val.resize(cugraph_G->e);
     thrust::fill(rmm::exec_policy(stream)->on(stream), d_val.begin(), d_val.end(), 1.0);
     NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
                                   nvgraph_G,
@@ -230,7 +226,7 @@ void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
                                   (void * ) thrust::raw_pointer_cast(d_val.data())));
   }
   else {
-    switch (typeid(gdf_G->adjList->edge_data)) {
+    switch (typeid(cugraph_G->adjList->edge_data)) {
       case GDF_FLOAT32:
         settype = CUDA_R_32F;
         break;
@@ -254,23 +250,22 @@ void analyzeClustering_edge_cut_nvgraph(Graph* gdf_G,
   
 }
 
-void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
+void analyzeClustering_ratio_cut_nvgraph(Graph* cugraph_G,
                                                   const int n_clusters,
                                                   gdf_column* clustering,
                                                   float* score) {
 
-  CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList->edge_data != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvgraph_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvgraph_G, false);
+  createGraph_nvgraph(nvg_handle, cugraph_G, &nvgraph_G, false);
   int weight_index = 0;
 
   // Make Nvgraph call
@@ -286,21 +281,20 @@ void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
 }
 
 
-void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
+void extract_subgraph_vertex_nvgraph(Graph* cugraph_G,
                                               gdf_column* vertices,
                                               Graph* result) {
 
-  CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(cugraph_G->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(vertices != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(vertices->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!vertices->valid, "Column must be valid");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
   nvgraphGraphDescr_t nvg_G = nullptr;
   NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, gdf_G, &nvg_G, false);
+  createGraph_nvgraph(nvg_handle, cugraph_G, &nvg_G, false);
 
   // Create an Nvgraph graph descriptor for the result and initialize
   nvgraphGraphDescr_t nvg_result = nullptr;
@@ -346,8 +340,8 @@ void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
                   GDF_INT32);
 
   // Call nvgraphGetGraphStructure again to copy out the data
-  topo.source_offsets = (int*)result->adjList->offsets->data;
-  topo.destination_indices = (int*)result->adjList->indices->data;
+  topo.source_offsets = (int*)result->adjList->offsets;
+  topo.destination_indices = (int*)result->adjList->indices;
   NVG_TRY(nvgraphGetGraphStructure(nvg_handle, nvg_result, (void*)&topo, &TT));
 
   
@@ -373,20 +367,20 @@ void louvain(Graph *graph, void *final_modularity, void *num_level, gdf_column *
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
 
-  size_t n = graph->adjList->offsets->size - 1;
-  size_t e = graph->adjList->indices->size;
+  size_t n = graph->v;
+  size_t e = graph->e;
 
-  void* offsets_ptr = graph->adjList->offsets->data;
-  void* indices_ptr = graph->adjList->indices->data;
+  void* offsets_ptr = graph->adjList->offsets;
+  void* indices_ptr = graph->adjList->indices;
 
   void* value_ptr;
   rmm::device_vector<float> d_values;
   if(graph->adjList->edge_data) {
-      value_ptr = graph->adjList->edge_data->data;
+      value_ptr = graph->adjList->edge_data;
   }
   else {
       cudaStream_t stream {nullptr};
-      d_values.resize(graph->adjList->indices->size);
+      d_values.resize(graph->e);
       thrust::fill(rmm::exec_policy(stream)->on(stream), d_values.begin(), d_values.end(), 1.0);
       value_ptr = (void * ) thrust::raw_pointer_cast(d_values.data());
   }

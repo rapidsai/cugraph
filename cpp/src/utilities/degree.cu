@@ -60,12 +60,12 @@ void degree(Graph *graph, VT *degree, int x) {
   int n;
   int e;
   if(graph->adjList != nullptr) {
-    n = graph->adjList->offsets->size -1;
-    e = graph->adjList->indices->size;
+    n = graph->v;
+    e = graph->e;
   }
   else {
-    n = graph->transposedAdjList->offsets->size - 1;
-    e = graph->transposedAdjList->indices->size;
+    n = graph->v;
+    e = graph->e;
   }
 
   if(x!=1) {

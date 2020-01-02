@@ -351,15 +351,14 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
   
   bool weighted = (weights != nullptr);
 
   gdf_dtype ValueType = result->dtype;
   gdf_dtype IndexType = typeid(graph->adjList->offsets);
 
-  void *csrPtr = graph->adjList->offsets->data;
-  void *csrInd = graph->adjList->indices->data;
+  void *csrPtr = graph->adjList->offsets;
+  void *csrInd = graph->adjList->indices;
   void *weight_i = nullptr;
   void *weight_s = nullptr;
   void *weight_j = result->data;
@@ -369,8 +368,8 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
     weight_in = weights->data;
 
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT32 && weighted) {
-    int32_t n = graph->adjList->offsets->size - 1;
-    int32_t e = graph->adjList->indices->size;
+    int32_t n = graph->v;
+    int32_t e = graph->e;
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
@@ -385,8 +384,8 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
                                            (float*) weight_j);
   }
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT32 && !weighted) {
-    int32_t n = graph->adjList->offsets->size - 1;
-    int32_t e = graph->adjList->indices->size;
+    int32_t n = graph->v;
+    int32_t e = graph->e;
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
@@ -401,8 +400,8 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
                                             (float*) weight_j);
   }
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT32 && weighted) {
-    int32_t n = graph->adjList->offsets->size - 1;
-    int32_t e = graph->adjList->indices->size;
+    int32_t n = graph->v;
+    int32_t e = graph->e;
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
@@ -417,8 +416,8 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
                                             (double*) weight_j);
   }
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT32 && !weighted) {
-    int32_t n = graph->adjList->offsets->size - 1;
-    int32_t e = graph->adjList->indices->size;
+    int32_t n = graph->v;
+    int32_t e = graph->e;
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
@@ -433,8 +432,8 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
                                              (double*) weight_j);
   }
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT64 && weighted) {
-    int64_t n = graph->adjList->offsets->size - 1;
-    int64_t e = graph->adjList->indices->size;
+    int64_t n = graph->v;
+    int64_t e = graph->e;
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
@@ -449,8 +448,8 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
                                            (float*) weight_j);
   }
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT64 && !weighted) {
-    int64_t n = graph->adjList->offsets->size - 1;
-    int64_t e = graph->adjList->indices->size;
+    int64_t n = graph->v;
+    int64_t e = graph->e;
     ALLOC_TRY(&weight_i, sizeof(float) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * e, nullptr);
     ALLOC_TRY(&work, sizeof(float) * n, nullptr);
@@ -465,8 +464,8 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
                                             (float*) weight_j);
   }
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT64 && weighted) {
-    int64_t n = graph->adjList->offsets->size - 1;
-    int64_t e = graph->adjList->indices->size;
+    int64_t n = graph->v;
+    int64_t e = graph->e;
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
@@ -481,8 +480,8 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
                                             (double*) weight_j);
   }
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT64 && !weighted) {
-    int64_t n = graph->adjList->offsets->size - 1;
-    int64_t e = graph->adjList->indices->size;
+    int64_t n = graph->v;
+    int64_t e = graph->e;
     ALLOC_TRY(&weight_i, sizeof(double) * e, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * e, nullptr);
     ALLOC_TRY(&work, sizeof(double) * n, nullptr);
@@ -515,16 +514,13 @@ void overlap_list(Graph* graph,
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(result->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!result->valid, "Column must be valid");
 
 
   CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(first->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!first->valid, "Column must be valid");
 
   CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(second->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!second->valid, "Column must be valid");
 
   bool weighted = (weights != nullptr);
 
@@ -535,8 +531,8 @@ void overlap_list(Graph* graph,
 
   void *first_pair = first->data;
   void *second_pair = second->data;
-  void *csrPtr = graph->adjList->offsets->data;
-  void *csrInd = graph->adjList->indices->data;
+  void *csrPtr = graph->adjList->offsets;
+  void *csrInd = graph->adjList->indices;
   void *weight_i = nullptr;
   void *weight_s = nullptr;
   void *weight_j = result->data;
@@ -546,7 +542,7 @@ void overlap_list(Graph* graph,
     weight_in = weights->data;
 
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT32 && weighted) {
-    int32_t n = graph->adjList->offsets->size - 1;
+    int32_t n = graph->v;
     int32_t num_pairs = first->size;
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
@@ -565,7 +561,7 @@ void overlap_list(Graph* graph,
   }
 
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT32 && !weighted) {
-    int32_t n = graph->adjList->offsets->size - 1;
+    int32_t n = graph->v;
     int32_t num_pairs = first->size;
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
@@ -584,7 +580,7 @@ void overlap_list(Graph* graph,
   }
 
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT32 && weighted) {
-    int32_t n = graph->adjList->offsets->size - 1;
+    int32_t n = graph->v;
     int32_t num_pairs = first->size;
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
@@ -603,7 +599,7 @@ void overlap_list(Graph* graph,
   }
 
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT32 && !weighted) {
-    int32_t n = graph->adjList->offsets->size - 1;
+    int32_t n = graph->v;
     int32_t num_pairs = first->size;
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
@@ -622,7 +618,7 @@ void overlap_list(Graph* graph,
   }
 
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT64 && weighted) {
-    int64_t n = graph->adjList->offsets->size - 1;
+    int64_t n = graph->v;
     int64_t num_pairs = first->size;
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
@@ -641,7 +637,7 @@ void overlap_list(Graph* graph,
   }
 
   if (ValueType == GDF_FLOAT32 && IndexType == GDF_INT64 && !weighted) {
-    int64_t n = graph->adjList->offsets->size - 1;
+    int64_t n = graph->v;
     int64_t num_pairs = first->size;
     ALLOC_TRY(&weight_i, sizeof(float) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(float) * num_pairs, nullptr);
@@ -660,7 +656,7 @@ void overlap_list(Graph* graph,
   }
 
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT64 && weighted) {
-    int64_t n = graph->adjList->offsets->size - 1;
+    int64_t n = graph->v;
     int64_t num_pairs = first->size;
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);
@@ -679,7 +675,7 @@ void overlap_list(Graph* graph,
   }
 
   if (ValueType == GDF_FLOAT64 && IndexType == GDF_INT64 && !weighted) {
-    int64_t n = graph->adjList->offsets->size - 1;
+    int64_t n = graph->v;
     int64_t num_pairs = first->size;
     ALLOC_TRY(&weight_i, sizeof(double) * num_pairs, nullptr);
     ALLOC_TRY(&weight_s, sizeof(double) * num_pairs, nullptr);

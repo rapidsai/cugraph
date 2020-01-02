@@ -38,24 +38,24 @@ void subgraph_matching_impl(Graph *graph_src,
                                      cudaStream_t stream = nullptr)
 {
   static auto row_offsets_ = [](const Graph* G){
-    return static_cast<const SizeT*>(G->adjList->offsets->data);
+    return static_cast<const SizeT*>(G->adjList->offsets);
   };
 
   static auto col_indices_ = [](const Graph* G){
-    return static_cast<const VertexT*>(G->adjList->indices->data);
+    return static_cast<const VertexT*>(G->adjList->indices);
   };
 
   static auto values_ = [](const Graph* G){
-    return static_cast<const GValueT*>(G->adjList->edge_data->data);
+    return static_cast<const GValueT*>(G->adjList->edge_data);
   };
 
 
   static auto nrows_ = [](const Graph* G){
-    return static_cast<SizeT>(G->adjList->offsets->size - 1);
+    return static_cast<SizeT>(G->v);
   };
 
   static auto nnz_ = [](const Graph* G){
-    return static_cast<SizeT>(G->adjList->indices->size);
+    return static_cast<SizeT>(G->e);
   };
   std::array<Graph*, 2> arr_graph = {graph_src, graph_query};
 
@@ -118,7 +118,7 @@ void subgraph_matching(Graph *graph_src,
 
 {
   static auto row_offsets_t_ = [](const Graph* G){
-    return G->adjList->offsets->dtype;
+    return typeid(G->adjList->offsets);
   };
 
   static auto col_indices_t_ = [](const Graph* G){
@@ -126,7 +126,7 @@ void subgraph_matching(Graph *graph_src,
   };
 
   static auto values_t_ = [](const Graph* G){
-    return G->adjList->edge_data->dtype;
+    return typeid(G->adjList->edge_data);
   };
 
   

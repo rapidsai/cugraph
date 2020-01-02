@@ -19,15 +19,15 @@
 
 namespace cugraph {
 /**
- * Takes a GDF graph and wraps its data with an Nvgraph graph object.
+ * Takes a cuGraph graph and wraps its data with an Nvgraph graph object.
  * @param nvg_handle The Nvgraph handle
- * @param gdf_G Pointer to GDF graph object
+ * @param cugraph_G Pointer to cuGraph graph object
  * @param nvgraph_G Pointer to the Nvgraph graph descriptor
  * @param use_transposed True if we are transposing the input graph while wrapping
  * @return Error code
  */
 void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  Graph* gdf_G,
+                                  Graph* cugraph_G,
                                   nvgraphGraphDescr_t * nvgraph_G,
 bool use_transposed = false);
 }

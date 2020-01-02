@@ -23,6 +23,6 @@ from libcpp cimport bool
 cdef extern from "cugraph.h" namespace "cugraph":
 
     cdef void extract_subgraph_vertex_nvgraph(
-        Graph* gdf_G,
+        Graph* cugraph_G,
         gdf_column* vertices,
         Graph* result) except +

@@ -200,15 +200,15 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     cugraph::add_adj_list(G.get());
 
     static auto row_offsets_ = [](const cugraph::Graph* G){
-      return static_cast<const IndexT*>(G->adjList->offsets->data);
+      return static_cast<const IndexT*>(G->adjList->offsets);
     };
 
     static auto col_indices_ = [](const cugraph::Graph* G){
-      return static_cast<const IndexT*>(G->adjList->indices->data);
+      return static_cast<const IndexT*>(G->adjList->indices);
     };
 
     static auto nrows_ = [](const cugraph::Graph* G){
-      return G->adjList->offsets->size - 1;
+      return G->v;
     };
 
     SCC_Data<ByteT> sccd(nrows_(G.get()), row_offsets_(G.get()), col_indices_(G.get()));

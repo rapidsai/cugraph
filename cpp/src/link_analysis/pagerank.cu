@@ -193,7 +193,7 @@ void pagerank_impl (Graph *graph,
 
   bool has_personalization = false;
   int prsLen = 0;
-  int m=graph->transposedAdjList->offsets->size-1, nnz = graph->transposedAdjList->indices->size, status = 0;
+  int m=graph->v, nnz = graph->e, status = 0;
   WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
   WT res = 1.0;
   WT *residual = &res;
@@ -216,7 +216,7 @@ void pagerank_impl (Graph *graph,
 #endif
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
-  HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
+  HT_matrix_csc_coo(m, nnz, graph->transposedAdjList->offsets, graph->transposedAdjList->indices, d_val, d_leaf_vector);
 
   if (has_guess)
   {
@@ -224,7 +224,7 @@ void pagerank_impl (Graph *graph,
     copy<WT>(m, (WT*)pagerank, d_pr);
   }
 
-  status = pagerankSolver<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
+  status = pagerankSolver<int32_t,WT>( m,nnz, graph->transposedAdjList->offsets, graph->transposedAdjList->indices, d_val,
     personalization_subset, personalization_values, prsLen, has_personalization,
     alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 

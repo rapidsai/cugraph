@@ -480,10 +480,10 @@ void bfs(Graph *graph, VT *distances, VT *predecessors, const VT start_vertex, b
   CUGRAPH_EXPECTS(typeid(graph->adjList->indices) == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported data type");
 
-  int n = graph->adjList->offsets->size - 1;
-  int e = graph->adjList->indices->size;
-  int* offsets_ptr = (int*)graph->adjList->offsets->data;
-  int* indices_ptr = (int*)graph->adjList->indices->data;
+  int n = graph->v;
+  int e = graph->e;
+  int* offsets_ptr = (int*)graph->adjList->offsets;
+  int* indices_ptr = graph->adjList->indices;
   int alpha = 15;
   int beta = 18;
 
