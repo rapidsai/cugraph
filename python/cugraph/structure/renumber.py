@@ -13,7 +13,7 @@
 
 import numpy as np
 import cudf
-
+from collections import OrderedDict
 from cugraph.structure import graph_wrapper
 from cugraph.structure import graph as csg
 
@@ -115,24 +115,25 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
 
     >>> source_col, dest_col, numbering_map =
     >>>    cugraph.renumber_from_cudf(gdf, "0", "1")
-    >>> 
+    >>>
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(source_col, dest_col, None)
     """
     if len(source_cols_names) == 0:
-         raise ValueError('Source column list is empty')
+        raise ValueError('Source column list is empty')
 
     if len(dest_cols_names) == 0:
-         raise ValueError('Destination column list is empty')
+        raise ValueError('Destination column list is empty')
 
     if len(source_cols_names) != len(dest_cols_names):
-         raise ValueError('Source and Destination column lists are not the same size')
-    
+        raise ValueError(
+            'Source and Destination column lists are not the same size')
+
     # ---------------------------------------------------
     # get the source column names and map to indexes
     _src_map = OrderedDict()
     for i in range(len(source_cols_names)):
-        _src_map.update( { source_cols_names[i] : str(i) } )
+        _src_map.update({source_cols_names[i]: str(i)})
 
     _tmp_df_src = _df[source_cols_names].rename(_src_map)
 
@@ -140,7 +141,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     # get the destination column names and map to indexes
     _dst_map = OrderedDict()
     for i in range(len(dest_cols_names)):
-        _dst_map.update( { dest_cols_names[i] : str(i) } )
+        _dst_map.update({dest_cols_names[i]: str(i)})
 
     _tmp_df_dst = _df[dest_cols_names].rename(_dst_map)
 
@@ -150,7 +151,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
 
     _tmp_df = cudf.concat([_s, _d])
     _tmp_df = _tmp_df.drop_duplicates().reset_index().drop('index')
-    
+
     if len(_tmp_df) > np.info(np.int32).max():
         raise ValueError('dataset is larger than int32')
 
@@ -159,7 +160,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     del _s
     del _d
 
-    _src_ids = _tmp_df_src.merge(_tmp_df, on=src_map.values())
-    _dst_ids = _tmp_df_src.merge(_tmp_df, on=dst_map.values())
+    _src_ids = _tmp_df_src.merge(_tmp_df, on=_src_map.values())
+    _dst_ids = _tmp_df_src.merge(_tmp_df, on=_dst_map.values())
 
     return _src_ids['id'], _dst_ids['id'], _tmp_df
