@@ -26,8 +26,9 @@
 
 namespace cugraph {
 
-void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  Graph* cugraph_G,
+  template <typename VT, typename WT>
+  void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
+                                  Graph<VT,WT> *cugraph_G,
                                   nvgraphGraphDescr_t* nvg_G,
                                   bool use_transposed) {
 
@@ -117,5 +118,8 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   }
   
 }
+
+template void createGraph_nvgraph<int, float>(Graph<int, float> *cugraph_G, nvgraphGraphDescr_t* nvg_G, bool use_transposed);
+template void createGraph_nvgraph<int, double>(Graph<int, double> *cugraph_G, nvgraphGraphDescr_t* nvg_G, bool use_transposed);
 
 } // namespace

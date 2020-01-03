@@ -20,6 +20,7 @@
  * ---------------------------------------------------------------------------**/
 #pragma once 
 
+//TODO remove this
 #include <cudf/cudf.h>
 #include "types.h"
 
@@ -44,6 +45,7 @@ namespace cugraph {
  * @param sssp_distances Pointer to a GDF column in which the resulting distances will be stored
  * @return Error code
  */
+template <typename VT, typename WT>
 void sssp_nvgraph(Graph<VT, WT> *cugraph_G, const int *source_vert, gdf_column *sssp_distances);
 
 /**
@@ -61,6 +63,7 @@ void sssp_nvgraph(Graph<VT, WT> *cugraph_G, const int *source_vert, gdf_column *
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void balancedCutClustering_nvgraph(Graph<VT, WT> *cugraph_G,
                                    const int num_clusters,
                                    const int num_eigen_vects,
@@ -84,6 +87,7 @@ void balancedCutClustering_nvgraph(Graph<VT, WT> *cugraph_G,
  * @param eig_vects Pointer to a GDF column in which the resulting eigenvectors will be stored
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void spectralModularityMaximization_nvgraph(Graph<VT, WT> *cugraph_G,
                                             const int n_clusters,
                                             const int n_eig_vects,
@@ -101,6 +105,7 @@ void spectralModularityMaximization_nvgraph(Graph<VT, WT> *cugraph_G,
  * @param score Pointer to a float in which the result will be written
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void analyzeClustering_modularity_nvgraph(Graph<VT, WT> *cugraph_G,
                                           const int n_clusters,
                                           gdf_column* clustering,
@@ -114,6 +119,7 @@ void analyzeClustering_modularity_nvgraph(Graph<VT, WT> *cugraph_G,
  * @param score Pointer to a float in which the result will be written
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void analyzeClustering_edge_cut_nvgraph(Graph<VT, WT> *cugraph_G,
                                         const int n_clusters,
                                         gdf_column* clustering,
@@ -127,6 +133,7 @@ void analyzeClustering_edge_cut_nvgraph(Graph<VT, WT> *cugraph_G,
  * @param score Pointer to a float in which the result will be written
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void analyzeClustering_ratio_cut_nvgraph(Graph<VT, WT> *cugraph_G,
                                          const int n_clusters,
                                          gdf_column* clustering,
@@ -139,6 +146,7 @@ void analyzeClustering_ratio_cut_nvgraph(Graph<VT, WT> *cugraph_G,
  * @param result Pointer to cuGraph graph object, this is the output must be a valid pointer
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void extract_subgraph_vertex_nvgraph(Graph<VT, WT> *cugraph_G,
                                      gdf_column* vertices,
                                      Graph<VT, WT> *result);
@@ -148,6 +156,7 @@ void extract_subgraph_vertex_nvgraph(Graph<VT, WT> *cugraph_G,
  * @param result Pointer to a uint64_t in which the result will be written
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void triangle_count_nvgraph(Graph<VT, WT> *G, uint64_t* result);
 
 

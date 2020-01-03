@@ -262,29 +262,20 @@ link_directories(
 
 add_library(cugraph SHARED
     src/structure/cugraph.cu
-    src/utilities/graph_utils.cu
-#    src/utilities/cusparse_helper.cu
-#    src/converters/renumber.cu
-#    src/converters/nvgraph.cu
-#    src/community/nvgraph_gdf.cu
-#	 src/db/db_object.cu
-#	 src/db/db_parser_integration_test.cu
-#	 src/db/db_operators.cu
-#    src/utilities/degree.cu
-#    src/link_analysis/pagerank.cu
-#    src/traversal/bfs.cu
+    src/utilities/cusparse_helper.cu
+#   src/converters/nvgraph.cu
+#  src/utilities/degree.cu
+    src/link_analysis/pagerank.cu
+    src/traversal/bfs.cu
 #    src/traversal/sssp.cu
+#    src/community/nvgraph_gdf.cu
 #    src/link_prediction/jaccard.cu
 #    src/link_prediction/overlap.cu
+#    src/converters/renumber.cu
 #    src/cores/core_number.cu
 #    src/traversal/two_hop_neighbors.cu
-#    src/snmg/blas/spmv.cu
-#    src/snmg/link_analysis/pagerank.cu
-#    src/snmg/utils.cu
-#    src/snmg/COO2CSR/COO2CSR.cu
 #    src/components/connectivity.cu
 #    src/centrality/katz_centrality.cu
-#    src/snmg/degree/degree.cu
 #    src/nvgraph/arnoldi.cu
 #    src/nvgraph/bfs.cu
 #    src/nvgraph/bfs2d.cu
@@ -315,6 +306,14 @@ add_library(cugraph SHARED
 #    src/nvgraph/triangles_counting_kernels.cu
 #    src/nvgraph/valued_csr_graph.cpp
 #    src/nvgraph/widest_path.cu
+#    src/snmg/blas/spmv.cu
+#    src/snmg/link_analysis/pagerank.cu
+#    src/snmg/utils.cu
+#    src/snmg/COO2CSR/COO2CSR.cu
+#    src/snmg/degree/degree.cu
+#	 src/db/db_object.cu
+#	 src/db/db_parser_integration_test.cu
+#	 src/db/db_operators.cu
 )
 
 ###################################################################################################

@@ -26,8 +26,9 @@ namespace cugraph {
  * @param use_transposed True if we are transposing the input graph while wrapping
  * @return Error code
  */
+template <typename VT, typename WT>
 void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  Graph* cugraph_G,
+                                  Graph <VT, WT>* cugraph_G,
                                   nvgraphGraphDescr_t * nvgraph_G,
-bool use_transposed = false);
+                                  bool use_transposed = false);
 }

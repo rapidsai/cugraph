@@ -184,7 +184,7 @@ template int pagerankSolver<int, double> (  int n, int e, int *cscPtr, int *cscI
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
 template <typename VT,typename WT>
-void pagerank_impl (Graph *graph,
+void pagerank_impl (Graph<VT, WT> *graph,
                     WT* pagerank,
                     size_t personalization_subset_size=0, VT* personalization_subset=nullptr,WT* personalization_values=nullptr,
                     float alpha = 0.85,
@@ -249,7 +249,7 @@ void pagerank_impl (Graph *graph,
 }
 
 template <typename VT, typename WT>
-void pagerank(Graph *graph,WT* pagerank, size_t personalization_subset_size,
+void pagerank(Graph<VT, WT> *graph,WT* pagerank, size_t personalization_subset_size,
   VT* personalization_subset,WT* personalization_values,
   float alpha, float tolerance, int max_iter, bool has_guess) {
   //
@@ -276,10 +276,10 @@ void pagerank(Graph *graph,WT* pagerank, size_t personalization_subset_size,
 }
 
 // explicit instantiation
-template void pagerank<int, float>(Graph *graph,float* pagerank,
+template void pagerank<int, float>(Graph<int, float> *graph, float* pagerank,
   size_t personalization_subset_size, int* personalization_subset,float* personalization_values,
   float alpha, float tolerance, int max_iter, bool has_guess);
-template void pagerank<int, double>(Graph *graph,double* pagerank,
+template void pagerank<int, double>(Graph<int, double> *graph, double* pagerank,
   size_t personalization_subset_size, int* personalization_subset,double* personalization_values,
   float alpha, float tolerance, int max_iter, bool has_guess);
 

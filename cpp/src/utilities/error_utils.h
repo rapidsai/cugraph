@@ -57,12 +57,6 @@ struct cuda_error : public std::runtime_error {
  * @brief Macro for checking (pre-)conditions that throws an exception when  
  * a condition is violated.
  * 
- * Example usage:
- * 
- * @code
- * CUGRAPH_EXPECTS(lhs->dtype == rhs->dtype, "Column type mismatch");
- * @endcode
- *
  * @param[in] cond Expression that evaluates to true or false
  * @param[in] reason String literal description of the reason that cond is
  * expected to be true

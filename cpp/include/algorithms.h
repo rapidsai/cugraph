@@ -116,7 +116,7 @@ void grmat_gen(const char* argv,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT>
-void bfs(Graph<VT, WT> *graph,
+void bfs(Graph<VT> *graph,
          VT *distances,
          VT *predecessors,
          const VT start_vertex,
@@ -152,6 +152,7 @@ void sssp(Graph<VT, WT> *graph,
  * @param result The result values are stored here, memory needs to be pre-allocated
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void jaccard(Graph<VT, WT> *graph,
              gdf_column *weights,
              gdf_column *result);
@@ -167,6 +168,7 @@ void jaccard(Graph<VT, WT> *graph,
  * @param result The result values are stored here, memory needs to be pre-allocated.
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void jaccard_list(Graph<VT, WT> *graph,
                   gdf_column *weights,
                   gdf_column *first,
@@ -182,6 +184,7 @@ void jaccard_list(Graph<VT, WT> *graph,
  * @param result The result values are stored here, memory needs to be pre-allocated.
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void overlap(Graph<VT, WT> *graph,
              gdf_column *weights,
              gdf_column *result);
@@ -197,12 +200,14 @@ void overlap(Graph<VT, WT> *graph,
  * @param result The result values are stored here, memory needs to be pre-allocated
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
 void overlap_list(Graph<VT, WT> *graph,
                   gdf_column *weights,
                   gdf_column *first,
                   gdf_column *second,
                   gdf_column *result);
 
+template <typename VT, typename WT>
 void louvain(Graph<VT, WT> *graph,
              void *final_modularity,
              void *num_level,
@@ -271,6 +276,7 @@ typedef enum {CUGRAPH_WEAK = 0, CUGRAPH_STRONG, NUM_CONNECTIVITY_TYPES} cugraph_
  * @param table of 2 gdf_columns: output labels and vertex indices [out]
  * @throws     cugraph::logic_error when an error occurs.
  */
+template <typename VT, typename WT>
  void connected_components(Graph<VT, WT> *graph,
                            cugraph_cc_t connectivity_type,
                            cudf::table *table);
@@ -326,6 +332,7 @@ void snmg_pagerank (gdf_column **src_col_ptrs,
  * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
+template <typename VT, typename WT>
 void katz_centrality(Graph<VT, WT> *graph,                                         
                      gdf_column *katz_centrality,
                      double alpha,
@@ -344,6 +351,7 @@ void katz_centrality(Graph<VT, WT> *graph,
  * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
+template <typename VT, typename WT>
 void core_number(Graph<VT, WT> *graph,                                         
                  gdf_column *core_number);
 
@@ -363,6 +371,7 @@ void core_number(Graph<VT, WT> *graph,
  * @throws     cugraph::logic_error when an error occurs.
  */                                                                             
 /* ----------------------------------------------------------------------------*/
+template <typename VT, typename WT>
 void k_core(Graph<VT, WT> *in_graph,
             int k,
             gdf_column *vertex_id,

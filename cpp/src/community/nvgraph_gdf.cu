@@ -387,19 +387,10 @@ void louvain(Graph *graph, void *final_modularity, void *num_level, gdf_column *
 
   void* louvain_parts_ptr = louvain_parts->data;
 
-  auto gdf_to_cudadtype= [](gdf_column *col){
-    cudaDataType_t cuda_dtype;
-    switch(col->dtype){
-      case GDF_INT8: cuda_dtype = CUDA_R_8I; break;
-      case GDF_INT32: cuda_dtype = CUDA_R_32I; break;
-      case GDF_FLOAT32: cuda_dtype = CUDA_R_32F; break;
-      case GDF_FLOAT64: cuda_dtype = CUDA_R_64F; break;
-      default: throw new std::invalid_argument("Cannot convert data type");
-      }return cuda_dtype;
-  };
-
-  cudaDataType_t index_type = gdf_to_cudadtype(graph->adjList->indices);
-  cudaDataType_t val_type = graph->adjList->edge_data? gdf_to_cudadtype(graph->adjList->edge_data): CUDA_R_32F;
+  cudaDataType_t index_type = CUDA_R_32I;
+  cudaDataType_t val_type = CUDA_R_32F;
+  if (graph->adjList->edge_data)
+    if (typeid(graph->adjList->edge_data) == CUDA_R_32F;
 
   nvgraphLouvain(index_type, val_type, n, e, offsets_ptr, indices_ptr, value_ptr, 1, 0, NULL,
                  final_modularity, louvain_parts_ptr, num_level);

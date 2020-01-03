@@ -283,7 +283,7 @@ void SSSP<IndexType, DistType>::clean() {
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void sssp(Graph* graph,                                            
+void sssp(Graph<VT, WT> *graph,                                            
           WT *distances,                                                  
           VT *predecessors,                                               
           const VT source_vertex) {
@@ -391,7 +391,7 @@ void sssp(Graph* graph,
 }
 
 // explicit instantiation
-template void sssp<int, float>(Graph* graph, float *distances, int *predecessors, const int source_vertex);
-template void sssp<int, double>(Graph* graph, double *distances, int *predecessors, const int source_vertex);
+template void sssp<int, float>(Graph<int, float>* graph, float *distances, int *predecessors, const int source_vertex);
+template void sssp<int, double>(Graph<int, double>* graph, double *distances, int *predecessors, const int source_vertex);
 
 } //namespace

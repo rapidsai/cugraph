@@ -355,7 +355,7 @@ void overlap(Graph *graph, gdf_column *weights, gdf_column *result) {
   bool weighted = (weights != nullptr);
 
   gdf_dtype ValueType = result->dtype;
-  gdf_dtype IndexType = typeid(graph->adjList->offsets);
+  gdf_dtype IndexType = GDF_INT32;
 
   void *csrPtr = graph->adjList->offsets;
   void *csrInd = graph->adjList->indices;
@@ -525,7 +525,7 @@ void overlap_list(Graph* graph,
   bool weighted = (weights != nullptr);
 
   gdf_dtype ValueType = result->dtype;
-  gdf_dtype IndexType = typeid(graph->adjList->offsets);
+  gdf_dtype IndexType = GDF_INT32;
   CUGRAPH_EXPECTS(first->dtype == IndexType, "Invalid API parameter");
   CUGRAPH_EXPECTS(second->dtype == IndexType, "Invalid API parameter");
 
