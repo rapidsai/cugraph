@@ -11,6 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
+import cudf
+
 from cugraph.structure import graph_wrapper
 from cugraph.structure import graph as csg
 
@@ -65,7 +68,7 @@ def renumber(source_col, dest_col):
     return source_col, dest_col, numbering_map
 
 
-def renumber_from_cudf(df, source_cols_names, dest_cols_names):
+def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     """
     Take a set, collection (lists) of source and destination columns, and
     renumber the vertices to create a dense set of contiguously vertex ids
@@ -73,12 +76,9 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
 
     Input columns can be any data type.
 
-    The output will be mapped to int32, since many of the cugraph functions are
-    limited to int32. If the number of unique values is > 2^31-1 then this
-    function will return an error.
-
-    Return from this call will be three cudf Series - the new source vertex IDs,
-    the new destination vertex IDs and a DataFrame that maps vertex IDs to columns
+    The output will be mapped to int32, since many of the cugraph functions
+    are limited to int32. If the number of unique values is > 2^31-1 then
+    this function will return an error.
 
     Input Parameters
     ----------
@@ -103,9 +103,9 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     ---------
     * The number of source and destination columns must be the same
     * The source and destination column names cannot be the same or overlap.
-    * The order of data types needs to be the same between the source and destination
-        columns. This is due to the two sets being merged to create a single list of 
-        all possible values
+    * The data type order needs to be the same between source and destination
+        columns. This is due to the two sets being merged to create a single
+        list of all possible values
 
 
     Examples
@@ -130,19 +130,19 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     
     # ---------------------------------------------------
     # get the source column names and map to indexes
-    src_map = OrderedDict()
+    _src_map = OrderedDict()
     for i in range(len(source_cols_names)):
-        src_map.update( { source_cols_names[i] : str(i) } )
+        _src_map.update( { source_cols_names[i] : str(i) } )
 
-    _tmp_df_src = _df[source_cols_names].rename(src_map)
+    _tmp_df_src = _df[source_cols_names].rename(_src_map)
 
     # --------------------------------------------------------
     # get the destination column names and map to indexes
-    dst_map = OrderedDict()
+    _dst_map = OrderedDict()
     for i in range(len(dest_cols_names)):
-        dst_map.update( { dest_cols_names[i] : str(i) } )
+        _dst_map.update( { dest_cols_names[i] : str(i) } )
 
-    _tmp_df_dst = _df[dest_cols_names].rename(dst_map)
+    _tmp_df_dst = _df[dest_cols_names].rename(_dst_map)
 
     # ------------------------------------
     _s = _tmp_df_src.drop_duplicates()
@@ -150,6 +150,10 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
 
     _tmp_df = cudf.concat([_s, _d])
     _tmp_df = _tmp_df.drop_duplicates().reset_index().drop('index')
+    
+    if len(_tmp_df) > np.info(np.int32).max():
+        raise ValueError('dataset is larger than int32')
+
     _tmp_df['id'] = _tmp_df.index.astype(np.int32)
 
     del _s
