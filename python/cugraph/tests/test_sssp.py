@@ -102,8 +102,6 @@ SOURCES = [1]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-# TODO FIX ME
-@pytest.mark.skip(reason="Temporarily disabling until BFS is upgraded")
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
