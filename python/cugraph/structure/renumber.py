@@ -56,9 +56,9 @@ def renumber(source_col, dest_col):
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(source_col, dest_col, None)
     """
-    csg.null_check(source_cols_names)
-    csg.null_check(dest_cols_names)
-    
+    csg.null_check(source_col)
+    csg.null_check(dest_col)
+
     source_col, dest_col, numbering_map = graph_wrapper.renumber(source_col,
                                                                  dest_col)
 
@@ -71,7 +71,7 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     renumber the vertices to create a dense set of contiguously vertex ids
     from 0 to the number of unique vertices - 1.
 
-    Input columns can be any data type.  
+    Input columns can be any data type.
 
     The output will be mapped to int32, since many of the cugraph functions are
     limited to int32. If the number of unique values is > 2^31-1 then this
@@ -89,7 +89,6 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     dest_cols_names : List
         This is a list of destination column names
 
-        
     Returns
     ---------
     src_ids : cudf.Series
@@ -97,7 +96,7 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     dst_ids : cudf.Series
         The new destination vertex IDs
     numbering_df : cudf.DataFrame (
-        a dataframe that maps a vertex ID to the unique 
+        a dataframe that maps a vertex ID to the unique
 
 
     NOTICE
@@ -107,7 +106,6 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     * The order of data types needs to be the same between the source and destination
         columns. This is due to the two sets being merged to create a single list of 
         all possible values
-    
 
 
     Examples
@@ -130,7 +128,6 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     if len(source_cols_names) != len(dest_cols_names):
          raise ValueError('Source and Destination column lists are not the same size')
     
-    
     # ---------------------------------------------------
     # get the source column names and map to indexes
     src_map = OrderedDict()
@@ -144,22 +141,21 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     dst_map = OrderedDict()
     for i in range(len(dest_cols_names)):
         dst_map.update( { dest_cols_names[i] : str(i) } )
-        
+
     _tmp_df_dst = _df[dest_cols_names].rename(dst_map)
 
     # ------------------------------------
     _s = _tmp_df_src.drop_duplicates()
     _d = _tmp_df_dst.drop_duplicates()
-    
+
     _tmp_df = cudf.concat([_s, _d])
     _tmp_df = _tmp_df.drop_duplicates().reset_index().drop('index')
     _tmp_df['id'] = _tmp_df.index.astype(np.int32)
-    
+
     del _s
     del _d
-    
+
     _src_ids = _tmp_df_src.merge(_tmp_df, on=src_map.values())
     _dst_ids = _tmp_df_src.merge(_tmp_df, on=dst_map.values())
 
-
-    return _src_ids['id'], _dst_ids['id'], _tmp_df    
+    return _src_ids['id'], _dst_ids['id'], _tmp_df
