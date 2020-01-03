@@ -67,12 +67,11 @@ def renumber(source_col, dest_col):
 
 def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     """
-    Take a set, or collection (lists) of source and destination columns and
-    renumber the vertices to create a dense set of vertex ids using all values
-    contiguously from 0 to the number of unique vertices - 1.
+    Take a set, collection (lists) of source and destination columns, and
+    renumber the vertices to create a dense set of contiguously vertex ids
+    from 0 to the number of unique vertices - 1.
 
     Input columns can be any data type.  
-    The source and destination column names cannot be the same, or opverlap.
 
     The output will be mapped to int32, since many of the cugraph functions are
     limited to int32. If the number of unique values is > 2^31-1 then this
@@ -81,7 +80,7 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     Return from this call will be three cudf Series - the new source vertex IDs,
     the new destination vertex IDs and a DataFrame that maps vertex IDs to columns
 
-    Parameters
+    Input Parameters
     ----------
     df : cudf.DataFrame
         The dataframe containing the source and destination columans
@@ -89,17 +88,25 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
         This is a list of source column names
     dest_cols_names : List
         This is a list of destination column names
+
         
     Returns
     ---------
     src_ids : cudf.Series
-    dst_ids : cudf.Series   
-    numbering_df : cudf.DataFrame
+        The new source vertex IDs
+    dst_ids : cudf.Series
+        The new destination vertex IDs
+    numbering_df : cudf.DataFrame (
+        a dataframe that maps a vertex ID to the unique 
+
 
     NOTICE
     ---------
-    The number of source and destination columns must be the same
-    The order of data types needs to be the same between the source and destination columns 
+    * The number of source and destination columns must be the same
+    * The source and destination column names cannot be the same or overlap.
+    * The order of data types needs to be the same between the source and destination
+        columns. This is due to the two sets being merged to create a single list of 
+        all possible values
     
 
 
@@ -125,7 +132,7 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     
     
     # ---------------------------------------------------
-    # get the source column names and map names to indexes
+    # get the source column names and map to indexes
     src_map = OrderedDict()
     for i in range(len(source_cols_names)):
         src_map.update( { source_cols_names[i] : str(i) } )
@@ -133,7 +140,7 @@ def renumber_from_cudf(df, source_cols_names, dest_cols_names):
     _tmp_df_src = _df[source_cols_names].rename(src_map)
 
     # --------------------------------------------------------
-    # get the destination column names and map  to indexes
+    # get the destination column names and map to indexes
     dst_map = OrderedDict()
     for i in range(len(dest_cols_names)):
         dst_map.update( { dest_cols_names[i] : str(i) } )
