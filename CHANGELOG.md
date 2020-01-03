@@ -1,6 +1,7 @@
 # cuGraph 0.12.0 (Date TBD)
 
 ## New Features
+- PR 636 Added Multi-column renumbering support
 
 ## Improvements
 
