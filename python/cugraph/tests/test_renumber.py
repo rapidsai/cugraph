@@ -28,6 +28,9 @@ from cugraph.tests import utils
 import nvstrings
 import rmm
 
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
 
 def test_renumber_ips():
 
