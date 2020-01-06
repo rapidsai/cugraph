@@ -27,7 +27,7 @@ INSTALL_REQUIRES = ['numba', 'cython']
 conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
-CYTHON_FILES = ['cugraph/**/*.pyx']
+CYTHON_FILES = ['cugraph/structure/graph_wrapper.pyx']
 
 if (os.environ.get('CONDA_PREFIX', None)):
     conda_prefix = os.environ.get('CONDA_PREFIX')

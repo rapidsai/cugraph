@@ -18,15 +18,21 @@
 
 from cudf._lib.cudf cimport *
 
+ctypedef fused VT:
+    cython.int
+    
+ctypedef fused WT:
+    cython.float
+    cython.double
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    struct edge_list[VT, WT]:
+    cppclass edge_list [VT, WT]:
         VT *src_indices
         VT *dest_indices
         WT *edge_data
 
-    struct adj_list[VT, WT]:
+    cppclass adj_list[VT, WT]:
         VT *offsets
         VT *indices
         WT *edge_data
@@ -46,13 +52,13 @@ cdef extern from "cugraph.h" namespace "cugraph":
         bool tree
         prop_type has_negative_edges
 
-    struct Graph[VT, WT]:
-        edge_list *edgeList[VT, WT]
-        adj_list *adjList[VT, WT]
-        adj_list *transposedAdjList[VT, WT]
+    cppclass Graph[VT, WT]:
+        edge_list[VT, WT] *edgeList
+        adj_list[VT, WT] *adjList
+        adj_list[VT, WT] *transposedAdjList
         Graph_properties *prop
-        size_t numberOfVertices
-
+        size_t v
+        size_t e
 
     cdef void renumber_vertices[VT, WT](
         const VT *src,
@@ -62,26 +68,31 @@ cdef extern from "cugraph.h" namespace "cugraph":
         VT *numbering_map) except +
 
     cdef void edge_list_view[VT, WT]:
-        Graph *graph[VT, WT],
-        const VT *source_indices,
-        const VT *destination_indices,
-        const WT *edge_data) except +
+        Graph[VT, WT] *graph,
+        size_t e,
+        VT *source_indices,
+        VT *destination_indices,
+        WT *edge_data) except +
     cdef void add_edge_list[VT, WT](Graph *graph[VT, WT]) except +
     cdef void delete_edge_list[VT, WT](Graph *graph[VT, WT]) except +
 
     cdef void adj_list_view[VT, WT](
         Graph *graph[VT, WT],
-        const VT *offsets,
-        const VT *indices,
-        const WT *edge_data) except +
+        const size_t v, 
+        const size_t e,
+        VT *offsets,
+        VT *indices,
+        WT *edge_data) except +
     cdef void add_adj_list[VT, WT](Graph *graph[VT, WT]) except +
     cdef void delete_adj_list[VT, WT](Graph *graph[VT, WT]) except +
 
     cdef void transposed_adj_list_view[VT, WT](
-        Graph *graph[VT, WT]
-        const VT *offsets,
-        const VT *indices,
-        const WT *edge_data) except +
+        Graph[VT, WT] *graph
+        const size_t v, 
+        const size_t e,
+        VT *offsets,
+        VT *indices,
+        WT *edge_data) except +
     cdef void add_transposed_adj_list[VT, WT](Graph *graph[VT, WT]) except +
     cdef void delete_transposed_adj_list[VT, WT](Graph *graph[VT, WT]) except +
 

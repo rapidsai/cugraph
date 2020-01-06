@@ -53,9 +53,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         offsets, indices, values = graph_wrapper.get_transposed_adj_list(graph)
         input_graph.transposedadjlist = input_graph.transposedAdjList(offsets, indices, values)
 
-    # we should add get_number_of_vertices() to Graph (and this should be
-    # used instead of g.transposedAdjList.offsets.size - 1)
-    num_verts = g.transposedAdjList.offsets.size - 1
+    num_verts = g.v
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))

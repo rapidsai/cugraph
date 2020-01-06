@@ -21,7 +21,8 @@ namespace cugraph {
 
 typedef enum prop_type{PROP_UNDEF, PROP_FALSE, PROP_TRUE} PropType;
 
-struct Graph_properties {
+class Graph_properties {
+public:
   bool directed;
   bool weighted;
   bool multigraph;
@@ -32,7 +33,8 @@ struct Graph_properties {
 };
 
 template <typename VT, typename WT= float>
-struct edge_list{
+class edge_list{
+public:
   VT *src_indices; // rowInd
   VT *dest_indices; // colInd
   WT *edge_data; //val
@@ -42,7 +44,8 @@ struct edge_list{
 };
 
 template <typename VT, typename WT = float>
-struct adj_list{
+class adj_list{
+public:
   VT *offsets; // rowPtr
   VT *indices; // colInd
   WT *edge_data; //val
@@ -53,12 +56,13 @@ struct adj_list{
   void get_source_indices(size_t v, VT *indices);
 };
 
-struct dynamic{
-  void *data; // handle to the dynamic graph struct
+class dynamic{
+  void *data; // handle to the dynamic graph class
 };
 
 template <typename VT, typename WT = float>
-struct Graph{
+class Graph{
+  public:
     size_t v, e;
     edge_list<VT,WT> *edgeList; // COO
     adj_list<VT,WT> *adjList; //CSR
