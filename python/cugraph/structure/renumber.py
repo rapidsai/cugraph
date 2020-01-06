@@ -80,6 +80,14 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     are limited to int32. If the number of unique values is > 2^31-1 then
     this function will return an error.
 
+    NOTICE
+    ---------
+    - The number of source and destination columns must be the same
+    - The source and destination column names cannot be the same or overlap.
+    - The data type order needs to be the same between source and destination
+        columns. This is due to the two sets being merged to create a single
+        list of all possible values    
+
     Input Parameters
     ----------
     df : cudf.DataFrame
@@ -97,15 +105,6 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
         The new destination vertex IDs
     numbering_df : cudf.DataFrame (
         a dataframe that maps a vertex ID to the unique
-
-
-    NOTICE
-    ---------
-    * The number of source and destination columns must be the same
-    * The source and destination column names cannot be the same or overlap.
-    * The data type order needs to be the same between source and destination
-        columns. This is due to the two sets being merged to create a single
-        list of all possible values
 
 
     Examples
