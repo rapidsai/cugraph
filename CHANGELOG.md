@@ -1,13 +1,20 @@
 # cuGraph 0.12.0 (Date TBD)
 
 ## New Features
+- PR #628 Add (Di)Graph constructor from Multi(Di)Graph
 
 ## Improvements
-
+- PR #640 remove gdf_column in sssp 
+- PR #629 get rid of gdf_column in pagerank 
+- PR #641 Add codeowners
+- PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
+- PR #652 Remove gdf_column in BFS
 ## Bug Fixes
+- PR #634 renumber vertex ids passed in analytics
+- PR #649 Change variable names in wjaccard and woverlap to avoid exception
+- PR #651 fix cudf error in katz wrapper and test nstart
 
-
-# cuGraph 0.11.0 (Date TBD)
+# cuGraph 0.11.0 (11 Dec 2019)
 
 ## New Features
 - PR #588 Python graph class and related changes

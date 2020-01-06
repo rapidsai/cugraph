@@ -61,17 +61,27 @@ def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=Non
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['katz_centrality'] = cudf.Series(np.zeros(num_verts, dtype=np.float64))
-    cdef gdf_column c_katz_centrality_col = get_gdf_column_view(df['katz_centrality'])
 
     cdef bool has_guess = <bool> 0
     if nstart is not None:
-        cudf.bindings.copying.apply_scatter([nstart['values']._column],
-                                            nstart['vertex']._column._data.mem,
-                                            [df['katz_centrality']._column])
+        if len(nstart) != num_verts:
+            raise ValueError('nstart must have initial guess for all vertices')
+
+        if input_graph.renumbered is True:
+            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
+                                          index=input_graph.edgelist.renumber_map)
+            nstart_vertex_renumbered = cudf.Series(renumber_series.loc[nstart['vertex']], dtype=np.int32)
+            df['katz_centrality'] = cudf.Series(cudf._lib.copying.scatter(nstart['values']._column,
+                                                nstart_vertex_renumbered._column,
+                                                df['katz_centrality']._column))
+        else:
+            df['katz_centrality'] = cudf.Series(cudf._lib.copying.scatter(nstart['values']._column,
+                                                nstart['vertex']._column,
+                                                df['katz_centrality']._column))
         has_guess = <bool> 1
 
     g.adjList.get_vertex_identifiers(&c_identifier_col)
-    
+    cdef gdf_column c_katz_centrality_col = get_gdf_column_view(df['katz_centrality'])
     c_katz.katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
 
     if input_graph.renumbered:
