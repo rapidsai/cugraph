@@ -8,10 +8,11 @@
 - PR #629 get rid of gdf_column in pagerank 
 - PR #641 Add codeowners
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
-
+- PR #652 Remove gdf_column in BFS
 ## Bug Fixes
 - PR #634 renumber vertex ids passed in analytics
 - PR #649 Change variable names in wjaccard and woverlap to avoid exception
+- PR #651 fix cudf error in katz wrapper and test nstart
 
 # cuGraph 0.11.0 (11 Dec 2019)
 
