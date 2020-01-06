@@ -21,22 +21,19 @@ from cudf._lib.cudf cimport *
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    struct edge_list:
+    struct edge_list[VT, WT]:
         VT *src_indices
-        gdf_column *dest_indices
+        VT *dest_indices
         WT *edge_data
 
-    struct adj_list:
+    struct adj_list[VT, WT]:
         VT *offsets
         VT *indices
         WT *edge_data
         void get_vertex_identifiers(VT *identifiers)
         void get_source_indices(VT *indices)
 
-    struct gdf_dynamic:
-        void   *data
-
-    ctypedef enum gdf_prop_type:
+    ctypedef enum prop_type:
         PROP_UNDEF = 0
         PROP_FALSE
         PROP_TRUE
@@ -47,25 +44,24 @@ cdef extern from "cugraph.h" namespace "cugraph":
         bool multigraph
         bool bipartite
         bool tree
-        gdf_prop_type has_negative_edges
+        prop_type has_negative_edges
 
-    struct Graph:
+    struct Graph[VT, WT]:
         edge_list *edgeList
         adj_list *adjList
         adj_list *transposedAdjList
-        gdf_dynamic  *dynAdjList
         Graph_properties *prop
         size_t numberOfVertices
 
 
-    cdef void renumber_vertices(
+    cdef void renumber_vertices[VT, WT](
         const VT *src,
         const VT *dst,
         VT *src_renumbered,
         VT *dst_renumbered,
         VT *numbering_map) except +
 
-    cdef void edge_list_view(
+    cdef void edge_list_view[VT, WT]:
         Graph *graph,
         const VT *source_indices,
         const VT *destination_indices,
@@ -73,7 +69,7 @@ cdef extern from "cugraph.h" namespace "cugraph":
     cdef void add_edge_list(Graph *graph) except +
     cdef void delete_edge_list(Graph *graph) except +
 
-    cdef void adj_list_view (
+    cdef void adj_list_view[VT, WT](
         Graph *graph,
         const VT *offsets,
         const VT *indices,
@@ -81,7 +77,7 @@ cdef extern from "cugraph.h" namespace "cugraph":
     cdef void add_adj_list(Graph *graph) except +
     cdef void delete_adj_list(Graph *graph) except +
 
-    cdef void transposed_adj_list_view (
+    cdef void transposed_adj_list_view[VT, WT](
         Graph *graph,
         const VT *offsets,
         const VT *indices,
@@ -89,12 +85,12 @@ cdef extern from "cugraph.h" namespace "cugraph":
     cdef void add_transposed_adj_list(Graph *graph) except +
     cdef void delete_transposed_adj_list(Graph *graph) except +
 
-    cdef void get_two_hop_neighbors(
+    cdef void get_two_hop_neighbors[VT, WT](
         Graph* graph,
         VT *first,
         VT *second) except +
 
-    cdef void degree(
+    cdef void degree[VT, WT](
         Graph *graph,
         VT *degree,
         int x) except +
