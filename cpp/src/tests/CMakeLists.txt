@@ -121,31 +121,22 @@ set(GDFGRAPH_TEST_SRC
 ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
 
 ###################################################################################################
-# - grmat tests -----------------------------------------------------------------------------------
-
-#set(GRMAT_TEST_SRC
-#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/grmat/grmat_test.cu")
-
-#ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC} " "")
-
-###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
 
-#set(PAGERANK_TEST_SRC
-#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cu")
-#
-#ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
-#
+set(PAGERANK_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cu")
+
+ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
+
 ####################################################################################################
 ## - SSSP tests ------------------------------------------------------------------------------------
-#set(SSSP_TEST_SRCS
-#	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
-#
-#ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
-#
+set(SSSP_TEST_SRCS
+	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
+
+ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
+
 ####################################################################################################
 ## - LOUVAIN tests ---------------------------------------------------------------------------------
 #
@@ -252,6 +243,14 @@ ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
 #
 #  ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}" "")
 #
+###################################################################################################
+# - grmat tests -----------------------------------------------------------------------------------
+
+#set(GRMAT_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/grmat/grmat_test.cu")
+
+#ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC} " "")
 ###################################################################################################
 ###################################################################################################
 ### enable testing ################################################################################

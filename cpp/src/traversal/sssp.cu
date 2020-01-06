@@ -313,8 +313,6 @@ void sssp(Graph<VT, WT> *graph,
     // BFS also does only integer distances right now whereas we need float or
     // double
 
-    void* d_edge_data;
-    graph->adjList->edge_data = new gdf_column;
     cudaStream_t stream{nullptr};
 
     // If distances array is given and is double, generate the weights in
@@ -322,31 +320,22 @@ void sssp(Graph<VT, WT> *graph,
     if (distances && typeid(WT) == typeid(double)) {
       std::vector<double> h_edge_data(graph->e, 1.0);
       size_t edge_data_size = sizeof(double) * h_edge_data.size();
-      ALLOC_TRY((void**)&d_edge_data, edge_data_size, stream);
-      CUDA_TRY(cudaMemcpy(d_edge_data,
+      ALLOC_TRY((void**)&graph->adjList->edge_data, edge_data_size, stream);
+      CUDA_TRY(cudaMemcpy(graph->adjList->edge_data,
                           &h_edge_data[0],
                           edge_data_size,
                           cudaMemcpyHostToDevice));
-      gdf_column_view(graph->adjList->edge_data,
-                      d_edge_data,
-                      nullptr,
-                      graph->e,
-                      GDF_FLOAT64);
+
 
     } else {
       // Else generate float
       std::vector<float> h_edge_data(graph->e, 1.0);
       size_t edge_data_size = sizeof(float) * h_edge_data.size();
-      ALLOC_TRY((void**)&d_edge_data, edge_data_size, stream);
-      CUDA_TRY(cudaMemcpy(d_edge_data,
+      ALLOC_TRY((void**)&graph->adjList->edge_data, edge_data_size, stream);
+      CUDA_TRY(cudaMemcpy(graph->adjList->edge_data,
                           &h_edge_data[0],
                           edge_data_size,
                           cudaMemcpyHostToDevice));
-      gdf_column_view(graph->adjList->edge_data,
-                      d_edge_data,
-                      nullptr,
-                      graph->e,
-                      GDF_FLOAT32);
     }
   } else {
     CUGRAPH_EXPECTS(typeid(graph->adjList->edge_data) == typeid(float*) ||
