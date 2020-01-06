@@ -86,7 +86,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     - The source and destination column names cannot be the same or overlap.
     - The data type order needs to be the same between source and destination
         columns. This is due to the two sets being merged to create a single
-        list of all possible values    
+        list of all possible values
 
     Input Parameters
     ----------
