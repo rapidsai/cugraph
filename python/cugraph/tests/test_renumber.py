@@ -16,21 +16,18 @@
 import gc
 from itertools import product
 
-import numpy as np
 import pandas as pd
 import pytest
-
-from scipy.io import mmread
 
 import cudf
 import cugraph
 from cugraph.tests import utils
-import nvstrings
 import rmm
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv',
             '../datasets/netscience.csv']
+
 
 def test_renumber_ips():
 
@@ -56,10 +53,9 @@ def test_renumber_ips():
     src, dst, numbering = cugraph.renumber(gdf['source_as_int'],
                                            gdf['dest_as_int'])
 
-    for i in range(len(source_as_int)):
+    for i in range(len(gdf)):
         assert numbering[src[i]] == gdf['source_as_int'][i]
         assert numbering[dst[i]] == gdf['dest_as_int'][i]
-
 
 
 def test_renumber_ips_cols():
@@ -83,13 +79,12 @@ def test_renumber_ips_cols():
     gdf['source_as_int'] = gdf['source_list'].str.ip2int()
     gdf['dest_as_int'] = gdf['dest_list'].str.ip2int()
 
-    src, dst, number_df = cugraph.renumber_from_cudf(gdf, 
-                                ['source_list'], ['dest_list'])
+    src, dst, number_df = cugraph.renumber_from_cudf(
+        gdf, ['source_list'], ['dest_list'])
 
-    for i in range(len(source_as_int)):
+    for i in range(len(gdf)):
         assert number_df['0'][src[i]] == gdf['source_as_int'][i]
         assert number_df['0'][dst[i]] == gdf['dest_as_int'][i]
-
 
 
 def test_renumber_negative():
@@ -110,6 +105,7 @@ def test_renumber_negative():
         assert source_list[i] == numbering[src[i]]
         assert dest_list[i] == numbering[dst[i]]
 
+
 def test_renumber_negative_col():
     source_list = [4, 6, 8, -20, 1]
     dest_list = [1, 29, 35, 0, 77]
@@ -121,8 +117,8 @@ def test_renumber_negative_col():
 
     gdf = cudf.DataFrame.from_pandas(df[['source_list', 'dest_list']])
 
-    src, dst, numbering = cugraph.renumber_from_cudf(gdf, 
-                                 ['source_list'], ['dest_list'])
+    src, dst, numbering = cugraph.renumber_from_cudf(
+        gdf, ['source_list'], ['dest_list'])
 
     for i in range(len(source_list)):
         assert source_list[i] == numbering['0'][src[i]]
@@ -190,4 +186,3 @@ def test_renumber_files_col(managed, pool, graph_file):
     for i in range(len(sources)):
         assert sources[i] == (numbering['0'][src[i]] - translate)
         assert destinations[i] == (numbering['0'][dst[i]] - translate)
-
