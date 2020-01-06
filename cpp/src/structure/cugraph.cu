@@ -69,7 +69,7 @@ void transposed_adj_list_view(Graph<VT, WT> *graph,
     graph->prop->has_negative_edges =
         (has_neg_val) ? PROP_TRUE : PROP_FALSE;
   } else {
-    graph->adjList->edge_data = nullptr;
+    graph->transposedAdjList->edge_data = nullptr;
     graph->prop->has_negative_edges = PROP_FALSE;
   }
 }
