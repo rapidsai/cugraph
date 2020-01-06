@@ -47,9 +47,9 @@ cdef extern from "cugraph.h" namespace "cugraph":
         prop_type has_negative_edges
 
     struct Graph[VT, WT]:
-        edge_list *edgeList
-        adj_list *adjList
-        adj_list *transposedAdjList
+        edge_list *edgeList[VT, WT]
+        adj_list *adjList[VT, WT]
+        adj_list *transposedAdjList[VT, WT]
         Graph_properties *prop
         size_t numberOfVertices
 
@@ -62,28 +62,28 @@ cdef extern from "cugraph.h" namespace "cugraph":
         VT *numbering_map) except +
 
     cdef void edge_list_view[VT, WT]:
-        Graph *graph,
+        Graph *graph[VT, WT],
         const VT *source_indices,
         const VT *destination_indices,
         const WT *edge_data) except +
-    cdef void add_edge_list(Graph *graph) except +
-    cdef void delete_edge_list(Graph *graph) except +
+    cdef void add_edge_list[VT, WT](Graph *graph[VT, WT]) except +
+    cdef void delete_edge_list[VT, WT](Graph *graph[VT, WT]) except +
 
     cdef void adj_list_view[VT, WT](
-        Graph *graph,
+        Graph *graph[VT, WT],
         const VT *offsets,
         const VT *indices,
         const WT *edge_data) except +
-    cdef void add_adj_list(Graph *graph) except +
-    cdef void delete_adj_list(Graph *graph) except +
+    cdef void add_adj_list[VT, WT](Graph *graph[VT, WT]) except +
+    cdef void delete_adj_list[VT, WT](Graph *graph[VT, WT]) except +
 
     cdef void transposed_adj_list_view[VT, WT](
-        Graph *graph,
+        Graph *graph[VT, WT]
         const VT *offsets,
         const VT *indices,
         const WT *edge_data) except +
-    cdef void add_transposed_adj_list(Graph *graph) except +
-    cdef void delete_transposed_adj_list(Graph *graph) except +
+    cdef void add_transposed_adj_list[VT, WT](Graph *graph[VT, WT]) except +
+    cdef void delete_transposed_adj_list[VT, WT](Graph *graph[VT, WT]) except +
 
     cdef void get_two_hop_neighbors[VT, WT](
         Graph* graph,
@@ -91,8 +91,8 @@ cdef extern from "cugraph.h" namespace "cugraph":
         VT *second) except +
 
     cdef void degree[VT, WT](
-        Graph *graph,
+        Graph *graph[VT, WT],
         VT *degree,
         int x) except +
 
-    cdef void number_of_vertices(Graph *graph) except +
+    cdef void number_of_vertices[VT, WT](Graph *graph[VT, WT]) except +
