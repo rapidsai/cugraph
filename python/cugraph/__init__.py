@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.community import (
+    ecg,
     louvain,
     spectralBalancedCutClustering,
     spectralModularityMaximizationClustering,

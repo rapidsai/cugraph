@@ -18,6 +18,7 @@
 
 ## New Features
 - PR #588 Python graph class and related changes
+- PR #630 Adds ECG clustering functionality
 
 ## Improvements
 - PR #569 Added exceptions

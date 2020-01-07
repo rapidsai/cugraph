@@ -206,7 +206,30 @@ void overlap_list(Graph* graph,
 void louvain(Graph* graph,
              void *final_modularity,
              void *num_level,
-             gdf_column *louvain_parts);
+             void *louvain_parts,
+             int max_iter = 100);
+
+/**
+ * @brief Computes the ecg clustering of the given graph.
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ * @throws `cudf::logic_error` if graph is null.
+ * @throws `cudf::logic_error` if ecg_parts is null.
+ * @throws `cudf::logic_error` if graph does not have an adjacency list.
+ * @throws `cudf::logic_error` if graph does not have edge weights.
+ * @param graph The input graph
+ * @param min_weight The minimum weight parameter
+ * @param ensemble_size The ensemble size parameter
+ * @param ecg_parts A pointer to a gdf_column which has allocated memory for the resulting partition identifiers.
+ */
+template<typename IdxT, typename ValT>
+void ecg(Graph* graph,
+         ValT min_weight,
+         size_t ensemble_size,
+         IdxT *ecg_parts);
 
 /**
  * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is

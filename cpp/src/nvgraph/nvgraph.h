@@ -464,7 +464,8 @@ extern "C" {
                                                void* init_cluster,
                                                void* final_modularity,
                                                void* best_cluster_vec,
-                                               void* num_level);
+                                               void* num_level,
+                                               int max_iter);
 
 
     /* nvGRAPH Jaccard implementation
