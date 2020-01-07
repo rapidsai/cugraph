@@ -103,7 +103,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
         The new source vertex IDs
     dst_ids : cudf.Series
         The new destination vertex IDs
-    numbering_df : cudf.DataFrame (
+    numbering_df : cudf.DataFrame
         a dataframe that maps a vertex ID to the unique
 
 
@@ -113,7 +113,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
 
     >>> source_col, dest_col, numbering_map =
-    >>>    cugraph.renumber_from_cudf(gdf, "0", "1")
+    >>>    cugraph.renumber_from_cudf(gdf, ["0"], ["1"])
     >>>
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(source_col, dest_col, None)
@@ -134,7 +134,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     for i in range(len(source_cols_names)):
         _src_map.update({source_cols_names[i]: str(i)})
 
-    _tmp_df_src = _df[source_cols_names].rename(_src_map)
+    _tmp_df_src = _df[source_cols_names].rename(_src_map).reset_index()
 
     # --------------------------------------------------------
     # get the destination column names and map to indexes
@@ -142,16 +142,18 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     for i in range(len(dest_cols_names)):
         _dst_map.update({dest_cols_names[i]: str(i)})
 
-    _tmp_df_dst = _df[dest_cols_names].rename(_dst_map)
+    _tmp_df_dst = _df[dest_cols_names].rename(_dst_map).reset_index()
+
+    _vals = list(_src_map.values())
 
     # ------------------------------------
-    _s = _tmp_df_src.drop_duplicates()
-    _d = _tmp_df_dst.drop_duplicates()
+    _s = _tmp_df_src.drop('index').drop_duplicates()
+    _d = _tmp_df_dst.drop('index').drop_duplicates()
 
     _tmp_df = cudf.concat([_s, _d])
     _tmp_df = _tmp_df.drop_duplicates().reset_index().drop('index')
 
-    if len(_tmp_df) > np.info(np.int32).max():
+    if len(_tmp_df) > np.iinfo(np.int32).max:
         raise ValueError('dataset is larger than int32')
 
     _tmp_df['id'] = _tmp_df.index.astype(np.int32)
@@ -159,7 +161,10 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     del _s
     del _d
 
-    _src_ids = _tmp_df_src.merge(_tmp_df, on=_src_map.values())
-    _dst_ids = _tmp_df_src.merge(_tmp_df, on=_dst_map.values())
+    _src_ids = _tmp_df_src.merge(
+        _tmp_df, on=_vals, how='left').sort_values(by='index')
+
+    _dst_ids = _tmp_df_dst.merge(
+        _tmp_df, on=_vals, how='left').sort_values(by='index')
 
     return _src_ids['id'], _dst_ids['id'], _tmp_df
