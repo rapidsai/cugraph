@@ -212,3 +212,36 @@ def test_renumber_files_col(managed, pool, graph_file):
     for i in range(len(gdf)):
         assert sources[i] == (numbering['0'][src[i]] - translate)
         assert destinations[i] == (numbering['0'][dst[i]] - translate)
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_renumber_files_multi_col(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    M = utils.read_csv_for_nx(graph_file)
+    sources = cudf.Series(M.row)
+    destinations = cudf.Series(M.col)
+
+    translate = 1000
+
+    gdf = cudf.DataFrame()
+    gdf['src_old'] = sources
+    gdf['dst_old'] = destinations
+    gdf['src'] = sources + translate
+    gdf['dst'] = destinations + translate
+
+    src, dst, numbering = cugraph.renumber_from_cudf(gdf, ['src', 'src_old'], ['dst', 'dst_old'])
+
+    for i in range(len(gdf)):
+        assert sources[i] == (numbering['0'][src[i]] - translate)
+        assert destinations[i] == (numbering['0'][dst[i]] - translate)
