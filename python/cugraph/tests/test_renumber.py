@@ -240,7 +240,8 @@ def test_renumber_files_multi_col(managed, pool, graph_file):
     gdf['src'] = sources + translate
     gdf['dst'] = destinations + translate
 
-    src, dst, numbering = cugraph.renumber_from_cudf(gdf, ['src', 'src_old'], ['dst', 'dst_old'])
+    src, dst, numbering = cugraph.renumber_from_cudf(
+        gdf, ['src', 'src_old'], ['dst', 'dst_old'])
 
     for i in range(len(gdf)):
         assert sources[i] == (numbering['0'][src[i]] - translate)
