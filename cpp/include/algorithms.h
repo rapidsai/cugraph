@@ -210,6 +210,28 @@ void louvain(Graph* graph,
              int max_iter = 100);
 
 /**
+ * Computes a partitioning of the graph using the Leiden algorithm
+ * The Leiden algorithm is improvement on the Louvain algorithm, and adds a
+ * refine partitions step before the aggregation phase.
+ * @throws `cudf::logic_error` if graph is null.
+ * @throws `cudf::logic_error` if leiden_parts is null.
+ * @throws `cudf::logic_error` if graph does not have an adjacency list.
+ * @throws `cudf::logic_error` if graph does not have edge weights.
+ * @param graph The input graph to partition
+ * @param metric The metric to use. 0 for modularity, 1 for Constant Potts
+ * @param gamma The value of gamma to use in the metric. Higher values give more communities,
+ * lower values give fewer communities
+ * @param leiden_parts The resulting partition of the graph
+ * @param max_iter The maximum number of iterations to perform
+ */
+template<typename IdxT, typename ValT>
+void leiden(Graph* graph,
+            int metric,
+            double gamma,
+            IdxT* leiden_parts,
+            int max_iter = 100);
+
+/**
  * @brief Computes the ecg clustering of the given graph.
  * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
  * then uses the ensemble partitions to determine weights for the input graph.
