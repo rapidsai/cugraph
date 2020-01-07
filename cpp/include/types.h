@@ -32,7 +32,7 @@ public:
   Graph_properties() : directed(false), weighted(false), multigraph(false), bipartite(false), tree(false), has_negative_edges(PROP_UNDEF){}
 };
 
-template <typename VT, typename WT= float>
+template <typename VT = int, typename WT= float>
 class edge_list{
 public:
   VT *src_indices; // rowInd
@@ -43,7 +43,7 @@ public:
   ~edge_list();
 };
 
-template <typename VT, typename WT = float>
+template <typename VT = int, typename WT = float>
 class adj_list{
 public:
   VT *offsets; // rowPtr
@@ -56,20 +56,15 @@ public:
   void get_source_indices(size_t v, VT *indices);
 };
 
-class dynamic{
-  void *data; // handle to the dynamic graph class
-};
-
-template <typename VT, typename WT = float>
+template <typename VT = int, typename WT = float>
 class Graph{
   public:
     size_t v, e;
     edge_list<VT,WT> *edgeList; // COO
     adj_list<VT,WT> *adjList; //CSR
     adj_list<VT,WT> *transposedAdjList; //CSC
-    dynamic *dynAdjList; //dynamic 
     Graph_properties *prop;
-    Graph() : v(0), e(0), edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), dynAdjList(nullptr), prop(nullptr) {}
+    Graph() : v(0), e(0), edgeList(nullptr), adjList(nullptr), transposedAdjList(nullptr), prop(nullptr) {}
     ~Graph() {
       if (edgeList) 
           delete edgeList;
@@ -77,8 +72,6 @@ class Graph{
           delete adjList;
       if (transposedAdjList) 
           delete transposedAdjList;
-      if (dynAdjList) 
-          delete dynAdjList;
       if (prop) 
           delete prop;
     }

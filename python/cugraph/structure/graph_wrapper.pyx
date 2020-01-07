@@ -17,30 +17,34 @@
 # cython: language_level = 3
 
 cimport cugraph.structure.graph as c_graph
-#from cugraph.utilities.column_utils cimport *
-from cudf._lib.cudf cimport np_dtype_from_gdf_column
+from cudf._lib.cudf cimport np_dtype_from_gdf_column, get_column_data_ptr, get_column_valid_ptr
+
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from cython.operator cimport typeid
+import cython
 
 import cudf
 import cudf._lib as libcudf
 import rmm
-import numpy as npc
+import numpy as np
 
+ctypedef fused VT:
+    cython.int
+    
+ctypedef fused WT:
+    cython.float
+    cython.double
 
 def allocate_cpp_graph():
-    cdef Graph[VT, WT] * g
-    g = <Graph*> calloc(1, sizeof(Graph))
-
+    cdef c_graph.Graph* g= new c_graph.Graph()
     cdef uintptr_t graph_ptr = <uintptr_t> g
-
     return graph_ptr
 
 def release_cpp_graph(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef c_graph.Graph * g = <c_graph.Graph*> graph
     free(g)
 
 def datatype_cast(cols, dtypes):
@@ -54,24 +58,39 @@ def datatype_cast(cols, dtypes):
 
 def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
-
+    cdef c_graph.Graph * g = <c_graph.Graph*> graph
     cdef uintptr_t c_source_col = get_column_data_ptr(source_col._column)
     cdef uintptr_t c_dest_col = get_column_data_ptr(dest_col._column)
     cdef uintptr_t c_value_col = <uintptr_t>NULL
 
-    if value_col is not None:
-        c_value_col = get_column_data_ptr(value_col._column)
+    if (value_col.dtype != np.int32): 
+        #throw
 
-    c_graph.edge_list_view(g,
-                           source_col.size,
-                           c_source_col,
-                           c_dest_col,
-                           c_value_col)
+    if value_col is None:
+        c_graph.edge_list_view[int, float](<c_graph.Graph*>g,
+                                            source_col.size,
+                                            <int*>c_source_col,
+                                            <int*>c_dest_col)
+    else :
+        c_value_col = get_column_data_ptr(value_col._column)
+        if (value_col.dtype == np.float32): 
+            c_graph.edge_list_view[int, float](<c_graph.Graph[int,float]*>g,
+                                               source_col.size,
+                                               <int*>c_source_col,
+                                               <int*>c_dest_col,
+                                               <float*>c_value_col)
+        else if (value_col.dtype == np.float64): 
+            c_graph.edge_list_view[int, double](<c_graph.Graph[int,double]*>g,
+                                              source_col.size,
+                                              <int*>c_source_col,
+                                              <int*>c_dest_col,
+                                              <double*>c_value_col)
+        else : 
+            #throw
     
 def get_edge_list(graph_ptr):
     cdef uintptr_t graph = graph_ptr
-    cdef Graph * g = <Graph*> graph
+    cdef c_graph.Graph * g = <c_graph.Graph*> graph
 
     # we should add get_number_of_edges() to Graph (and this should be
     # used instead of g.edgeList.src_indices.size)
