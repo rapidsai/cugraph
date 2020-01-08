@@ -15,6 +15,7 @@
 - PR #634 renumber vertex ids passed in analytics
 - PR #649 Change variable names in wjaccard and woverlap to avoid exception
 - PR #651 fix cudf error in katz wrapper and test nstart
+- PR #663 Replaced use of cudf._lib.gdf_dtype_from_value based on cudf refactoring
 
 # cuGraph 0.11.0 (11 Dec 2019)
 
