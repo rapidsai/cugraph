@@ -37,12 +37,6 @@ print('Networkx version : {} '.format(nx.__version__))
 
 
 def cugraph_call(cu_M, edgevals=False):
-    '''M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
-    '''
     G = cugraph.DiGraph()
     if edgevals is True:
         G.from_cudf_edgelist(cu_M, source='0', destination='1',
@@ -55,33 +49,28 @@ def cugraph_call(cu_M, edgevals=False):
     df = cugraph.jaccard(G)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-
+    print(df)
     return df['source'].to_array(), df['destination'].to_array(),\
         df['jaccard_coeff'].to_array()
 
 
 def networkx_call(M):
 
-    '''M = M.tocsr()
-    M = M.tocoo()'''
     sources = M['0']
     destinations = M['1']
     edges = []
     for i in range(len(M)):
         edges.append((sources[i], destinations[i]))
+    edges = sorted(edges)
     # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this
     # explicitly
     print('Format conversion ... ')
 
-    # Directed NetworkX graph
-    #G = nx.DiGraph(M)
-    #Gnx = G.to_undirected()
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.Graph())
     # Networkx Jaccard Call
     print('Solving... ')
     t1 = time.time()
     preds = nx.jaccard_coefficient(Gnx, edges)
-    print(preds)
     t2 = time.time() - t1
 
     print('Time : '+str(t2))
@@ -89,19 +78,20 @@ def networkx_call(M):
     dst = []
     coeff = []
     for u, v, p in preds:
+        print(u,v,p)
         src.append(u)
         dst.append(v)
         coeff.append(p)
     return src, dst, coeff
 
 
-DATASETS = [ #'../datasets/dolphins.csv',
-            #'../datasets/karate.csv',
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
             '../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-'''@pytest.mark.parametrize('managed, pool',
+@pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_jaccard(managed, pool, graph_file):
@@ -126,8 +116,7 @@ def test_jaccard(managed, pool, graph_file):
 
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
-        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and
-           cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
+        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1):
             err += 1
 
     print("Mismatches:  %d" % err)
@@ -160,13 +149,12 @@ def test_jaccard_edgevals(managed, pool, graph_file):
 
     assert len(cu_coeff) == len(nx_coeff)
     for i in range(len(cu_coeff)):
-        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1 and
-           cu_src[i] == nx_src[i] and cu_dst[i] == nx_dst[i]):
+        if(abs(cu_coeff[i] - nx_coeff[i]) > tol*1.1):
             err += 1
 
     print("Mismatches:  %d" % err)
     assert err == 0
-'''
+
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
@@ -185,26 +173,20 @@ def test_jaccard_two_hop(managed, pool, graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
-    #M = M.tocsr()
-    #Gnx = nx.DiGraph(M).to_undirected()
+
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.Graph())
     G = cugraph.Graph()
-    #row_offsets = cudf.Series(M.indptr)
-    #col_indices = cudf.Series(M.indices)
-    G.from_cudf_edgelist(cu_M, source='0', destination='1') #renumber=False)
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
     pairs = G.get_two_hop_neighbors()
-    print(pairs)
     nx_pairs = []
     for i in range(len(pairs)):
         nx_pairs.append((pairs['first'][i], pairs['second'][i]))
     preds = nx.jaccard_coefficient(Gnx, nx_pairs)
-    print(preds)
     nx_coeff = []
     for u, v, p in preds:
-        #print(u,v,p)
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs)
-    print(df)
+    df = df.sort_values(by=['source', 'destination'])
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
@@ -227,14 +209,11 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
-    #M = M.tocsr()
-    #Gnx = nx.DiGraph(M).to_undirected()
+    cu_M = utils.read_csv_file(graph_file)
+
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.Graph())
     G = cugraph.Graph()
-    row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
-    values = cudf.Series(M.data)
-    G.from_cudf_adjlist(row_offsets, col_indices, values)
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):
@@ -244,6 +223,7 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     for u, v, p in preds:
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs)
+    df = df.sort_values(by=['source', 'destination'])
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])

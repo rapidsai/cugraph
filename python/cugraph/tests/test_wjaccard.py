@@ -42,34 +42,31 @@ def cugraph_call(cu_M):
                               cu_M['1'].max())+1, dtype=np.float32))
 
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', renumber= False)
 
     # cugraph Jaccard Call
     t1 = time.time()
     df = cugraph.jaccard_w(G, weights_arr)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-
+    print(df)
     return df['jaccard_coeff']
 
 
 def networkx_call(M):
 
-    M = M.tocsr()
-    M = M.tocoo()
-    sources = M.row
-    destinations = M.col
+    sources = M['0']
+    destinations = M['1']
     edges = []
     for i in range(len(sources)):
         edges.append((sources[i], destinations[i]))
+    edges = sorted(edges)
     # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this
     # explicitly
     print('Format conversion ... ')
 
-    # Directed NetworkX graph
-    G = nx.DiGraph(M)
-    Gnx = G.to_undirected()
-
+    # NetworkX graph
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.Graph())
     # Networkx Jaccard Call
     print('Solving... ')
     t1 = time.time()
@@ -79,13 +76,15 @@ def networkx_call(M):
     print('Time : '+str(t2))
     coeff = []
     for u, v, p in preds:
+        print(u,v,p)
         coeff.append(p)
+    print(coeff)
     return coeff
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/netscience.csv']
+DATASETS = ['../datasets/dolphins.csv'] #,
+            #'../datasets/karate.csv',
+            #'../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
