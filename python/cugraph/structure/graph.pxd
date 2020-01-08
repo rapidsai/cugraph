@@ -21,11 +21,13 @@ from cudf._lib.cudf cimport *
 cdef extern from "cugraph.h" namespace "cugraph":
 
     cppclass edge_list [VT, WT]:
+        edge_list()
         VT *src_indices
         VT *dest_indices
         WT *edge_data
 
     cppclass adj_list[VT, WT]:
+        adj_list()
         VT *offsets
         VT *indices
         WT *edge_data
@@ -46,6 +48,7 @@ cdef extern from "cugraph.h" namespace "cugraph":
         prop_type has_negative_edges
 
     cppclass Graph[VT, WT]:
+        Graph()
         size_t v
         size_t e
         edge_list[VT, WT] *edgeList

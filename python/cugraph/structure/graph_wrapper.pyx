@@ -30,24 +30,31 @@ import cudf._lib as libcudf
 import rmm
 import numpy as np
 
-# def allocate_cpp_graph():
-#     cdef c_graph.Graph* g= new c_graph.Graph()
-#     cdef uintptr_t graph_ptr = <uintptr_t> g
-#     return graph_ptr
-# 
-# def release_cpp_graph(graph_ptr):
-#     cdef uintptr_t graph = graph_ptr
-#     cdef c_graph.Graph * g = <c_graph.Graph*> graph
-#     free(g)
-# 
-# def datatype_cast(cols, dtypes):
-#     cols_out = []
-#     for col in cols:
-#         if col is None or col.dtype.type in dtypes:
-#             cols_out.append(col)
-#         else:
-#             cols_out.append(col.astype(dtypes[0]))
-#     return cols_out
+ctypedef fused V_t:
+    cython.int
+    
+ctypedef fused W_t:
+    cython.float
+    cython.double
+
+#def allocate_cpp_graph():
+#    cdef c_graph.Graph[V_t,W_t]* g= new c_graph.Graph[V_t,W_t]()
+#    cdef uintptr_t graph_ptr = <uintptr_t> g
+#    return graph_ptr
+#
+#def release_cpp_graph(graph_ptr):
+#    cdef uintptr_t graph = graph_ptr
+#    cdef c_graph.Graph * g = <c_graph.Graph*> graph
+#    free(g)
+#
+#def datatype_cast(cols, dtypes):
+#    cols_out = []
+#    for col in cols:
+#        if col is None or col.dtype.type in dtypes:
+#            cols_out.append(col)
+#        else:
+#            cols_out.append(col.astype(dtypes[0]))
+#    return cols_out
 
 def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
@@ -80,51 +87,51 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
         else : 
             raise Exception('Weight type not supported')
     
-def get_edge_list(graph_ptr):
-    cdef uintptr_t graph = graph_ptr
-    cdef c_graph.Graph * g = <c_graph.Graph*> graph
-
-    # we should add get_number_of_edges() to Graph (and this should be
-    # used instead of g.edgeList.src_indices.size)
-    col_size = g.e
-
-    cdef uintptr_t src_col_data = <uintptr_t> g.edgeList.src_indices
-    cdef uintptr_t dest_col_data = <uintptr_t> g.edgeList.dest_indices
-    cdef uintptr_t value_col_data = <uintptr_t> NULL
-    if g.edgeList.edge_data is not NULL:
-        value_col_data = <uintptr_t> g.edgeList.edge_data
-
-    # g.edgeList.src_indices, g.edgeList.dest_indices, and
-    # g.edgeList.edge_data are not owned by this instance, so should not
-    # be freed when the resulting cudf.Series objects are finalized (this will
-    # lead to double free, and undefined behavior). The finalizer parameter of
-    # rmm.device_array_from_ptr shuold be ``None`` (default value) for this
-    # purpose (instead of rmm._finalizer(handle, stream)).
-
-    src_data = rmm.device_array_from_ptr(
-                   src_col_data,
-                   nelem=col_size,
-                   dtype=np.int32)
-    source_col = cudf.Series(src_data)
-
-    dest_data = rmm.device_array_from_ptr(
-                    dest_col_data,
-                    nelem=col_size,
-                    dtype=np.int32)
-    dest_col = cudf.Series(dest_data)
-
-    value_col = None
-    if <void*>value_col_data is not NULL:
-     wt = np.float32
-     if typeid(g.edgeList.edge_data) == typeid(double):
-        wt = np.float64
-    value_data = rmm.device_array_from_ptr(
-                        value_col_data,
-                        nelem=col_size,
-                        dtype=wt)
-    value_col = cudf.Series(value_data)
-
-    return source_col, dest_col, value_col
+#def get_edge_list(graph_ptr):
+#    cdef uintptr_t graph = graph_ptr
+#    cdef c_graph.Graph * g = <c_graph.Graph*> graph
+#
+#    # we should add get_number_of_edges() to Graph (and this should be
+#    # used instead of g.edgeList.src_indices.size)
+#    col_size = g.e
+#
+#    cdef uintptr_t src_col_data = <uintptr_t> g.edgeList.src_indices
+#    cdef uintptr_t dest_col_data = <uintptr_t> g.edgeList.dest_indices
+#    cdef uintptr_t value_col_data = <uintptr_t> NULL
+#    if g.edgeList.edge_data is not NULL:
+#        value_col_data = <uintptr_t> g.edgeList.edge_data
+#
+#    # g.edgeList.src_indices, g.edgeList.dest_indices, and
+#    # g.edgeList.edge_data are not owned by this instance, so should not
+#    # be freed when the resulting cudf.Series objects are finalized (this will
+#    # lead to double free, and undefined behavior). The finalizer parameter of
+#    # rmm.device_array_from_ptr shuold be ``None`` (default value) for this
+#    # purpose (instead of rmm._finalizer(handle, stream)).
+#
+#    src_data = rmm.device_array_from_ptr(
+#                   src_col_data,
+#                   nelem=col_size,
+#                   dtype=np.int32)
+#    source_col = cudf.Series(src_data)
+#
+#    dest_data = rmm.device_array_from_ptr(
+#                    dest_col_data,
+#                    nelem=col_size,
+#                    dtype=np.int32)
+#    dest_col = cudf.Series(dest_data)
+#
+#    value_col = None
+#    if <void*>value_col_data is not NULL:
+#     wt = np.float32
+#     if typeid(g.edgeList.edge_data) == typeid(double):
+#        wt = np.float64
+#    value_data = rmm.device_array_from_ptr(
+#                        value_col_data,
+#                        nelem=col_size,
+#                        dtype=wt)
+#    value_col = cudf.Series(value_data)
+#
+#    return source_col, dest_col, value_col
     
 
 #def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
