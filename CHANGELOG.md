@@ -2,6 +2,8 @@
 
 ## New Features
 - PR #628 Add (Di)Graph constructor from Multi(Di)Graph
+- PR #630 Added ECG clustering
+- PR #636 Added Multi-column renumbering support
 
 ## Improvements
 - PR #640 remove gdf_column in sssp 
