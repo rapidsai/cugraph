@@ -23,25 +23,26 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from cython.operator cimport typeid
-import cython
 
 import cudf
 import cudf._lib as libcudf
 import rmm
 import numpy as np
 
-ctypedef fused V_t:
-    cython.int
-    
-ctypedef fused W_t:
-    cython.float
-    cython.double
+import cython
 
-#def allocate_cpp_graph():
-#    cdef c_graph.Graph[V_t,W_t]* g= new c_graph.Graph[V_t,W_t]()
-#    cdef uintptr_t graph_ptr = <uintptr_t> g
-#    return graph_ptr
-#
+
+def allocate_cpp_graph(VT,WT):
+    cdef c_graph.Graph* g
+    if (VT != np.int32): 
+        raise Exception('ID type not supported')
+    if (WT == np.float32):    
+        return <uintptr_t> new c_graph.Graph[int ,float]()
+    elif (WT == np.float64): 
+        return <uintptr_t> new c_graph.Graph[int ,float]()
+    else : 
+        raise Exception('Weight type not supported')
+
 #def release_cpp_graph(graph_ptr):
 #    cdef uintptr_t graph = graph_ptr
 #    cdef c_graph.Graph * g = <c_graph.Graph*> graph

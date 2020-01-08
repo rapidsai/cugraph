@@ -17,6 +17,8 @@
 # cython: language_level = 3
 
 from cudf._lib.cudf cimport *
+import cython
+
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
