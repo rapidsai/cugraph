@@ -18,13 +18,6 @@
 
 from cudf._lib.cudf cimport *
 
-#ctypedef fused VT:
-#    cython.int
-#    
-#ctypedef fused WT:
-#    cython.float
-#    cython.double
-
 cdef extern from "cugraph.h" namespace "cugraph":
 
     cppclass edge_list [VT, WT]:
