@@ -63,7 +63,7 @@ def louvain(input_graph):
     
 
     df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))
-    cdef gdf_column c_louvain_parts_col = get_gdf_column_view(df['partition'])
+    cdef uintptr_t c_louvain_parts_ptr = get_column_data_ptr(df['partition']._column)
 
     cdef bool single_precision = False
     # this implementation is tied to cugraph.cu line 503
@@ -87,11 +87,13 @@ def louvain(input_graph):
     if single_precision:
         c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_single_precision,
-                  <void*>&num_level, &c_louvain_parts_col)
+                  <void*>&num_level, <void*>c_louvain_parts_ptr,
+                  100)
     else:
         c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_double_precision,
-                  <void*>&num_level, &c_louvain_parts_col)
+                  <void*>&num_level, <void*>c_louvain_parts_ptr,
+                  100)
     
 
     if input_graph.renumbered:

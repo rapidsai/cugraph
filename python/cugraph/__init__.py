@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.community import (
+    ecg,
     louvain,
     spectralBalancedCutClustering,
     spectralModularityMaximizationClustering,
@@ -25,6 +26,8 @@ from cugraph.community import (
 from cugraph.structure import (
     Graph, 
     DiGraph, 
+    MultiGraph,
+    MultiDiGraph,
     renumber, 
     symmetrize, 
     symmetrize_df,

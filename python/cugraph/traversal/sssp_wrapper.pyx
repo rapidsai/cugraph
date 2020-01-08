@@ -59,6 +59,8 @@ def sssp(input_graph, source):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
+    if input_graph.renumbered is True:
+        source = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map==source].index[0]
     if not 0 <= source < num_verts:                
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
@@ -68,22 +70,29 @@ def sssp(input_graph, source):
         data_type = np.int32
 
     df = cudf.DataFrame()
+
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
+
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
-    cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_predecessors_col = get_gdf_column_view(df['predecessor'])
+
+    cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
+    cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
 
     g.adjList.get_vertex_identifiers(&c_identifier_col)
 
+    
     if g.adjList.edge_data:
-        c_sssp.sssp(g, &c_distance_col, &c_predecessors_col, <int>source)
+        if (df['distance'].dtype == np.float32):
+            c_sssp.sssp[int, float](g, <float*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
+        else :
+            c_sssp.sssp[int, double](g, <double*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
     else:
-        c_bfs.bfs(g, &c_distance_col, &c_predecessors_col, <int>source, <bool>True)
+        c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
 
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-        df['predecessor'] = input_graph.edgelist.renumber_map[df['predecessor']]
+        df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
 
     return df

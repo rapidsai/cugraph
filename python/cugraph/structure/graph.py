@@ -36,7 +36,11 @@ class Graph:
             self.weights = False
             if edge_attr is not None:
                 self.weights = True
-                df['weights'] = edge_attr
+                if type(edge_attr) is dict:
+                    for k in edge_attr.keys():
+                        df[k] = edge_attr[k]
+                else:
+                    df['weights'] = edge_attr
             self.edgelist_df = df
 
     class AdjList:
@@ -52,8 +56,8 @@ class Graph:
     cuGraph graph class containing basic graph creation and transformation
     operations.
     """
-    def __init__(self, symmetrized=False, bipartite=False, multi=False,
-                 dynamic=False):
+    def __init__(self, m_graph=None, edge_attr=None, symmetrized=False,
+                 bipartite=False, multi=False, dynamic=False):
         """
         Returns
         -------
@@ -72,6 +76,17 @@ class Graph:
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
+        if m_graph is not None:
+            if ((type(self) is Graph and type(m_graph) is MultiGraph)
+               or (type(self) is DiGraph and type(m_graph) is MultiDiGraph)):
+                self.from_cudf_edgelist(m_graph.edgelist.edgelist_df,
+                                        source='src',
+                                        destination='dst',
+                                        edge_attr=edge_attr)
+            else:
+                msg = "Graph can be initialized using MultiGraph\
+ and DiGraph can be initialized using MultiDiGraph"
+                raise Exception(msg)
         # self.number_of_vertices = None
 
     def clear(self):
@@ -133,7 +148,13 @@ class Graph:
             raise Exception('Graph already has values')
         source_col = input_df[source]
         dest_col = input_df[destination]
-        if edge_attr is not None:
+        if self.multi:
+            if type(edge_attr) is not list:
+                raise Exception('edge_attr should be a list of column names')
+            value_col = {}
+            for col_name in edge_attr:
+                value_col[col_name] = input_df[col_name]
+        elif edge_attr is not None:
             value_col = input_df[edge_attr]
         else:
             value_col = None
@@ -142,7 +163,7 @@ class Graph:
             source_col, dest_col, renumber_map = rnb(input_df[source],
                                                      input_df[destination])
             self.renumbered = True
-        if not self.symmetrized:
+        if not self.symmetrized and not self.multi:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(source_col,
                                                              dest_col,
@@ -184,11 +205,14 @@ class Graph:
         """
         if self.edgelist is None:
             graph_wrapper.view_edge_list(self)
-        df = self.edgelist.edgelist_df
+        edgelist_df = self.edgelist.edgelist_df
         if self.renumbered:
-            df['src'] = self.edgelist.renumber_map[df['src']]
-            df['dst'] = self.edgelist.renumber_map[df['dst']]
-        return df
+            df = cudf.DataFrame()
+            df['src'] = self.edgelist.renumber_map[edgelist_df['src']]
+            df['dst'] = self.edgelist.renumber_map[edgelist_df['dst']]
+            return df
+        else:
+            return edgelist_df
 
     def delete_edge_list(self):
         """
@@ -474,18 +498,34 @@ class Graph:
 
         df = cudf.DataFrame()
         if vertex_subset is None:
-            df['vertex'] = vertex_col
+            if self.renumbered is True:
+                df['vertex'] = self.edgelist.renumber_map[vertex_col]
+            else:
+                df['vertex'] = vertex_col
             df['in_degree'] = in_degree_col
             df['out_degree'] = out_degree_col
         else:
             df['vertex'] = cudf.Series(
                 np.asarray(vertex_subset, dtype=np.int32))
-            df['in_degree'] = cudf.Series(
-                np.asarray([in_degree_col[i] for i in vertex_subset],
-                           dtype=np.int32))
-            df['out_degree'] = cudf.Series(
-                np.asarray([out_degree_col[i] for i in vertex_subset],
-                           dtype=np.int32))
+            if self.renumbered is True:
+                renumber_series = cudf.Series(self.edgelist.renumber_map.index,
+                                              index=self.edgelist.renumber_map)
+                vertices_renumbered = renumber_series.loc[vertex_subset]
+
+                df['in_degree'] = cudf.Series(
+                    np.asarray([in_degree_col[i] for i in vertices_renumbered],
+                               dtype=np.int32))
+                df['out_degree'] = cudf.Series(np.asarray([out_degree_col[i]
+                                               for i in vertices_renumbered],
+                                               dtype=np.int32))
+            else:
+                df['in_degree'] = cudf.Series(
+                    np.asarray([in_degree_col[i] for i in vertex_subset],
+                               dtype=np.int32))
+                df['out_degree'] = cudf.Series(
+                    np.asarray([out_degree_col[i] for i in vertex_subset],
+                               dtype=np.int32))
+
             # is this necessary???
             del vertex_col
             del in_degree_col
@@ -498,15 +538,27 @@ class Graph:
 
         df = cudf.DataFrame()
         if vertex_subset is None:
-            df['vertex'] = vertex_col
+            if self.renumbered is True:
+                df['vertex'] = self.edgelist.renumber_map[vertex_col]
+            else:
+                df['vertex'] = vertex_col
             df['degree'] = degree_col
         else:
             df['vertex'] = cudf.Series(np.asarray(
                 vertex_subset, dtype=np.int32
             ))
-            df['degree'] = cudf.Series(np.asarray(
-                [degree_col[i] for i in vertex_subset], dtype=np.int32
-            ))
+            if self.renumbered is True:
+                renumber_series = cudf.Series(self.edgelist.renumber_map.index,
+                                              index=self.edgelist.renumber_map)
+                vertices_renumbered = renumber_series.loc[vertex_subset]
+                df['degree'] = cudf.Series(np.asarray(
+                    [degree_col[i] for i in vertices_renumbered],
+                    dtype=np.int32
+                ))
+            else:
+                df['degree'] = cudf.Series(np.asarray(
+                    [degree_col[i] for i in vertex_subset], dtype=np.int32
+                ))
             # is this necessary???
             del vertex_col
             del degree_col
@@ -515,8 +567,9 @@ class Graph:
 
 
 class DiGraph(Graph):
-    def __init__(self):
-        super().__init__(symmetrized=True)
+    def __init__(self, m_graph=None, edge_attr=None):
+        super().__init__(m_graph=m_graph, edge_attr=edge_attr,
+                         symmetrized=True)
 
 
 class MultiGraph(Graph):
@@ -524,6 +577,6 @@ class MultiGraph(Graph):
         super().__init__(multi=True)
 
 
-class DiMultiGraph(Graph):
+class MultiDiGraph(Graph):
     def __init__(self, renumbered=True):
         super().__init__(symmetrized=True, multi=True)

@@ -556,3 +556,38 @@ def test_number_of_vertices(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
     assert(G.number_of_vertices() == M.shape[0])
+
+
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_Graph_from_MultiGraph(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file)
+
+    # create dataframe for MultiGraph
+    cu_M['3'] = cudf.Series([2.0]*len(cu_M), dtype=np.float32)
+    cu_M['4'] = cudf.Series([3.0]*len(cu_M), dtype=np.float32)
+
+    # initialize MultiGraph
+    G_multi = cugraph.MultiGraph()
+    G_multi.from_cudf_edgelist(cu_M, source='0', destination='1',
+                               edge_attr=['2', '3', '4'])
+
+    # initialize Graph
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+
+    # create Graph from MultiGraph
+    G_from_multi = cugraph.Graph(G_multi, edge_attr='2')
+
+    assert G.edgelist.edgelist_df == G_from_multi.edgelist.edgelist_df

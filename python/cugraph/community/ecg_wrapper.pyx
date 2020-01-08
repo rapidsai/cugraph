@@ -16,14 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.subgraph_extraction cimport *
+cimport cugraph.community.ecg as c_ecg
 from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
-from libc.float cimport FLT_MAX_EXP
 
 import cudf
 import cudf._lib as libcudf
@@ -31,13 +30,13 @@ import rmm
 import numpy as np
 
 
-def subgraph(input_graph, vertices, subgraph):
+def ecg(input_graph, min_weight=.05, ensemble_size=16):
     """
-    Call extract_subgraph_vertex_nvgraph
+    Call ECG
     """
     cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
-
+    
     if input_graph.adjlist:
         [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
         [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
@@ -53,32 +52,22 @@ def subgraph(input_graph, vertices, subgraph):
         offsets, indices, values = graph_wrapper.get_adj_list(graph)
         input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
-    cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph* rg = <Graph*>rGraph
-    if input_graph.renumbered is True:
-        renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
-                                      index=input_graph.edgelist.renumber_map)
-        vertices_renumbered = renumber_series.loc[vertices]
-        vert_col = get_gdf_column_view(vertices_renumbered)
+    num_verts = g.adjList.offsets.size - 1
+
+    df = cudf.DataFrame()
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
+    g.adjList.get_vertex_identifiers(&c_index_col)
+    if input_graph.renumbered:
+        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+
+    df['partition'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef uintptr_t c_ecg_ptr = get_column_data_ptr(df['partition']._column)
+
+    if g.adjList.edge_data.dtype == np.float32:
+        c_ecg.ecg[int32_t, float] (<Graph*>g, min_weight, ensemble_size, <int32_t*>c_ecg_ptr)
     else:
-        vert_col = get_gdf_column_view(vertices)
+        c_ecg.ecg[int32_t, double] (<Graph*>g, min_weight, ensemble_size, <int32_t*>c_ecg_ptr)
 
-    extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
-
-    if rg.edgeList is not NULL:
-        df = cudf.DataFrame()
-        df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
-        if vals is not None:
-            df['val'] = vals
-            subgraph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='val')
-        else:
-            subgraph.from_cudf_edgelist(df, source='src', destination='dst')
-        if input_graph.edgelist is not None:
-            subgraph.renumbered = input_graph.renumbered
-            subgraph.edgelist.renumber_map = input_graph.edgelist.renumber_map
-    if rg.adjList is not NULL:
-        off, ind, vals = graph_wrapper.get_adj_list(rGraph)
-        subgraph.from_cudf_adjlist(off, ind, vals)
-    if rg.transposedAdjList is not NULL:
-        off, ind, vals = graph_wrapper.get_transposed_adj_list(rGraph)
-        subgraph.transposedadjlist = subgraph.transposedAdjList(off, ind, vals)
+    return df
+    

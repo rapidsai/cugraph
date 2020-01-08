@@ -54,6 +54,8 @@ def bfs(input_graph, start, directed=True):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
+    if input_graph.renumbered is True:
+        start = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map==start].index[0]
     if not 0 <= start < num_verts:
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
@@ -62,15 +64,15 @@ def bfs(input_graph, start, directed=True):
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_vertex_col = get_gdf_column_view(df['vertex'])
-    cdef gdf_column c_distance_col = get_gdf_column_view(df['distance'])
-    cdef gdf_column c_predecessor_col = get_gdf_column_view(df['predecessor'])
+    cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
+    cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
 
     g.adjList.get_vertex_identifiers(&c_vertex_col)
 
-    c_bfs.bfs(g, &c_distance_col, &c_predecessor_col, <int>start, <bool>directed)
+    c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>start)
 
     if input_graph.renumbered:
         df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-        df['predecessor'] = input_graph.edgelist.renumber_map[df['predecessor']]
+        df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
 
     return df
