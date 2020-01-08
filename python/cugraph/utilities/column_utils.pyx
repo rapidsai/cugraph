@@ -80,7 +80,7 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
                                     <void*> data_ptr,
                                     <valid_type*> valid_ptr,
                                     <size_type> col_len,
-                                    gdf_dtype_from_dtype(None, np.int32),
+                                    gdf_dtype_from_dtype(np.int32),
                                     <size_type> 0,
                                     c_extra_dtype_info)
     libcudf.cudf.check_gdf_error(err)
