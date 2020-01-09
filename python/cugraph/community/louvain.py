@@ -14,7 +14,7 @@
 from cugraph.community import louvain_wrapper
 
 
-def louvain(input_graph):
+def louvain(input_graph, max_iter=100):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain heuristic
@@ -48,6 +48,6 @@ def louvain(input_graph):
     >>> parts, modularity_score = cugraph.louvain(G)
     """
 
-    parts, modularity_score = louvain_wrapper.louvain(input_graph)
+    parts, modularity_score = louvain_wrapper.louvain(input_graph, max_iter=max_iter)
 
     return parts, modularity_score

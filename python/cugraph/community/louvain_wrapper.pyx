@@ -30,7 +30,7 @@ import rmm
 import numpy as np
 
 
-def louvain(input_graph):
+def louvain(input_graph, max_iter=100):
     """
     Call louvain
     """
@@ -88,12 +88,12 @@ def louvain(input_graph):
         c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_single_precision,
                   <void*>&num_level, <void*>c_louvain_parts_ptr,
-                  100)
+                  max_iter)
     else:
         c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_double_precision,
                   <void*>&num_level, <void*>c_louvain_parts_ptr,
-                  100)
+                  max_iter)
     
 
     if input_graph.renumbered:
