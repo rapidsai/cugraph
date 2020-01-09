@@ -48,6 +48,7 @@ def louvain(input_graph, max_iter=100):
     >>> parts, modularity_score = cugraph.louvain(G)
     """
 
-    parts, modularity_score = louvain_wrapper.louvain(input_graph, max_iter=max_iter)
+    parts, modularity_score = louvain_wrapper.louvain(input_graph,
+                                                      max_iter=max_iter)
 
     return parts, modularity_score
