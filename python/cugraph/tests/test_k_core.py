@@ -38,15 +38,10 @@ def calc_k_cores(graph_file):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-
     ck = cugraph.k_core(G)
-    #print(ck.number_of_vertices())
     NM = utils.read_csv_for_nx(graph_file)
-    NM = NM.tocsr()
-    Gnx = nx.DiGraph(NM)
-    #Gnx = nx.from_pandas_edgelist(NM, source='0', target='1', create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(NM, source='0', target='1', create_using=nx.DiGraph())
     nk = nx.k_core(Gnx)
-    #print(nk.number_of_nodes())
     return ck, nk
 
 
@@ -55,14 +50,13 @@ def compare_edges(cg, nxg):
     src, dest = edgelist_df['src'], edgelist_df['dst'],
     assert cg.edgelist.weights is False
     assert len(src) == nxg.size()
-    #print(len(src), nxg.size())
     for i in range(len(src)):
         assert nxg.has_edge(src[i], dest[i])
     return True
 
 
-DATASETS = ['../datasets/dolphins.csv'] #,
-            #'../datasets/netscience.csv']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
 
 
 @pytest.mark.parametrize('managed, pool',
