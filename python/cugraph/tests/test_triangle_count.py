@@ -39,7 +39,7 @@ def cugraph_call(M, edgevals=False):
     cu_M['src'] = cudf.Series(M['0'])
     cu_M['dst'] = cudf.Series(M['1'])
     if edgevals is True:
-        cu_M['weights'] = cudf.Series(M['2'])
+        cu_M['weights'] = cudf.Series(M['weight'])
         G.from_cudf_edgelist(cu_M, source='src', destination='dst',
                              edge_attr='weights')
     else:
