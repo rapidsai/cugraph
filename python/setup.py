@@ -60,7 +60,8 @@ EXTENSIONS = [
               include_dirs=[conda_include_dir,
                             '../cpp/include',
                             "../thirdparty/cub",
-                            os.path.join(conda_include_dir, "libcudf", "libcudacxx"),
+                            os.path.join(
+                                conda_include_dir, "libcudf", "libcudacxx"),
                             cuda_include_dir],
               library_dirs=[get_python_lib()],
               runtime_library_dirs=[conda_lib_dir],
