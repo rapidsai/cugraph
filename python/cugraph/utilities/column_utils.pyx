@@ -83,6 +83,7 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
                                     gdf_dtype_from_dtype(np.int32),
                                     <size_type> 0,
                                     c_extra_dtype_info)
+    
     libcudf.cudf.check_gdf_error(err)
     return c_col
 
