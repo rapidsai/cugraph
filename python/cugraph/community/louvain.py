@@ -27,6 +27,12 @@ def louvain(input_graph, max_iter=100):
         The adjacency list will be computed if not already present. The graph
         should be undirected where an undirected edge is represented by a
         directed edge in both direction.
+        
+    max_iter : integer
+        This controls the maximum number of levels/iterations of the Louvain 
+        algorithm. When specified the algorithm will terminate after no more
+        than the specified number of iterations. No error occurs when the
+        algorithm terminates early in this manner.
 
     Returns
     -------
