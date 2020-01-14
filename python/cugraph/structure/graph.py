@@ -14,6 +14,7 @@
 from cugraph.structure import graph_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
+from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
 import cudf
 import numpy as np
 import warnings
@@ -83,6 +84,8 @@ class Graph:
                                         source='src',
                                         destination='dst',
                                         edge_attr=edge_attr)
+                self.renumbered = m_graph.renumbered
+                self.edgelist.renumber_map = m_graph.edgelist.renumber_map
             else:
                 msg = "Graph can be initialized using MultiGraph\
  and DiGraph can be initialized using MultiDiGraph"
@@ -146,8 +149,6 @@ class Graph:
 
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
-        source_col = input_df[source]
-        dest_col = input_df[destination]
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception('edge_attr should be a list of column names')
@@ -160,9 +161,20 @@ class Graph:
             value_col = None
         renumber_map = None
         if renumber:
-            source_col, dest_col, renumber_map = rnb(input_df[source],
+            if type(source) is list and type(destination) is list:
+                source_col, dest_col, renumber_map = multi_rnb(input_df,
+                                                               source,
+                                                               destination)
+            else:
+                source_col, dest_col, renumber_map = rnb(input_df[source],
                                                      input_df[destination])
             self.renumbered = True
+        else:
+            if type(source) is list and type(destination) is list:
+                raise Exception('set renumber to True for multi column ids')
+            else:
+                source_col = input_df[source]
+                dest_col = input_df[destination]
         if not self.symmetrized and not self.multi:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(source_col,
@@ -208,8 +220,12 @@ class Graph:
         edgelist_df = self.edgelist.edgelist_df
         if self.renumbered:
             df = cudf.DataFrame()
-            df['src'] = self.edgelist.renumber_map[edgelist_df['src']]
-            df['dst'] = self.edgelist.renumber_map[edgelist_df['dst']]
+            for col in edgelist_df.columns:
+                if col in ['src', 'dst']:
+                    df[col] = self.edgelist.renumber_map[edgelist_df[col]]
+                    df[col] = self.edgelist.renumber_map[edgelist_df[col]]
+                else:
+                    df[col] = edgelist_df[col]
             return df
         else:
             return edgelist_df
