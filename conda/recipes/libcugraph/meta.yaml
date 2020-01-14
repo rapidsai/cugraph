@@ -27,7 +27,6 @@ requirements:
   build:
     - cmake>=3.12.4
     - libcudf={{ minor_version }}
-    - cython>=0.29,<0.30
     - cudatoolkit {{ cuda_version }}.*
     - boost-cpp>=1.66
     - libcypher-parser
