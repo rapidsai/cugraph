@@ -33,7 +33,6 @@ requirements:
     - libcypher-parser
   run:
     - libcudf={{ minor_version }}
-    - cython
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
 
 #test:
