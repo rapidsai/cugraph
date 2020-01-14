@@ -109,7 +109,8 @@ def networkx_call(M, max_iter, tol, alpha, personalization_perc):
     print('Format conversion ... ')
 
     # Directed NetworkX graph
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.DiGraph())
 
     z = {k: 1.0/Gnx.number_of_nodes() for k in range(Gnx.number_of_nodes())}
 

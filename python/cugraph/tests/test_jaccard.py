@@ -17,7 +17,6 @@ import time
 
 import pytest
 
-import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -66,7 +65,8 @@ def networkx_call(M):
     # explicitly
     print('Format conversion ... ')
 
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  edge_attr='weight', create_using=nx.Graph())
     # Networkx Jaccard Call
     print('Solving... ')
     t1 = time.time()
@@ -78,7 +78,6 @@ def networkx_call(M):
     dst = []
     coeff = []
     for u, v, p in preds:
-        print(u,v,p)
         src.append(u)
         dst.append(v)
         coeff.append(p)
@@ -174,7 +173,8 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
 
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
     pairs = G.get_two_hop_neighbors()
@@ -211,7 +211,8 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
 
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  edge_attr='weight', create_using=nx.Graph())
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
     pairs = G.get_two_hop_neighbors()

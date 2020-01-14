@@ -69,17 +69,10 @@ def cugraph_call(cu_M, source, edgevals=False):
 
 def networkx_call(M, source, edgevals=False):
 
-    print('Format conversion ... ')
-    '''M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
-
     # Directed NetworkX graph
-    Gnx = nx.DiGraph(M)
-    '''
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  edge_attr='weight',
+                                  create_using=nx.DiGraph())
     print('NX Solving... ')
     t1 = time.time()
 
@@ -219,7 +212,9 @@ def test_sssp_data_type_conversion(managed, pool, graph_file, source):
 
     # networkx call with int32 weights
     M['weight'] = M['weight'].astype(np.int32)
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  edge_attr='weight',
+                                  create_using=nx.DiGraph())
     # assert nx weights is int
     assert type(list(Gnx.edges(data=True))[0][2]['weight']) is int
     nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)

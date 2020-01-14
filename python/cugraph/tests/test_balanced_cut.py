@@ -65,7 +65,6 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     assert(rmm.is_initialized())
 
     # Read in the graph and get a cugraph object
-    #M = utils.read_csv_for_nx(graph_file).tocsr()
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
     '''row_offsets = cudf.Series(M.indptr)
@@ -98,9 +97,9 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_modularity_clustering_with_edgevals(graph_file, partitions):
     # Read in the graph and get a cugraph object
-    #M = utils.read_csv_for_nx(graph_file,
+    # M = utils.read_csv_for_nx(graph_file,
     #                          read_weights_in_sp=False)
-    #M = M.tocsr().sorted_indices()
+    # M = M.tocsr().sorted_indices()
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
     '''row_offsets = cudf.Series(M.indptr)

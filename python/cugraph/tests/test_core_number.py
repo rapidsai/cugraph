@@ -16,7 +16,6 @@ from itertools import product
 
 import pytest
 
-import pandas as pd
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -43,7 +42,8 @@ def calc_core_number(graph_file):
     cn = cugraph.core_number(G)
 
     NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(NM, source='0', target='1', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
+                                  create_using=nx.Graph())
     nc = nx.core_number(Gnx)
     pdf = [nc[k] for k in sorted(nc.keys())]
     cn['nx_core_number'] = pdf

@@ -48,7 +48,8 @@ def cugraph_call(M, edgevals=False):
 
 
 def networkx_call(M):
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
     dic = nx.triangles(Gnx)
     print(dic)
     count = 0

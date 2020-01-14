@@ -18,7 +18,6 @@ import time
 import pytest
 import numpy as np
 import scipy
-import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -36,7 +35,7 @@ def cugraph_call(cu_M, pairs, edgevals=False):
     df = cugraph.overlap(G, pairs)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-    df = df.sort_values(by=['source','destination'])
+    df = df.sort_values(by=['source', 'destination'])
     return df['overlap_coeff'].to_array()
 
 
@@ -108,8 +107,9 @@ def test_overlap(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx['0']),max(Mnx['1'])) + 1
-    M = scipy.sparse.csr_matrix((Mnx.weight,(Mnx['0'],Mnx['1'])), shape=(N,N))
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                shape=(N, N))
 
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
@@ -146,8 +146,9 @@ def test_overlap_edge_vals(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx['0']),max(Mnx['1'])) + 1
-    M = scipy.sparse.csr_matrix((Mnx.weight,(Mnx['0'],Mnx['1'])), shape=(N,N))
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                shape=(N, N))
 
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()

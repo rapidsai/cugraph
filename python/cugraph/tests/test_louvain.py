@@ -55,7 +55,8 @@ def cugraph_call(cu_M, edgevals=False):
 
 def networkx_call(M):
     # z = {k: 1.0/M.shape[0] for k in range(M.shape[0])}
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  edge_attr='weight', create_using=nx.Graph())
     # Networkx louvain Call
     print('Solving... ')
     t1 = time.time()
@@ -91,7 +92,8 @@ def test_louvain_with_edgevals(managed, pool, graph_file):
     cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
     nx_parts = networkx_call(M)
     # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  edge_attr='weight', create_using=nx.Graph())
     cu_map = {0: 0}
     for i in range(len(cu_parts)):
         cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
@@ -128,7 +130,8 @@ def test_louvain(managed, pool, graph_file):
     nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', edge_attr='weight', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  edge_attr='weight', create_using=nx.Graph())
     cu_map = {0: 0}
     for i in range(len(cu_parts)):
         cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]

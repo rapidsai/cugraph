@@ -18,7 +18,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from scipy.io import mmread
 import scipy
 import cudf
 import cugraph
@@ -189,6 +188,7 @@ def test_read_csv_for_nx(graph_file):
     assert mdiff.nnz == 0
 '''
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -207,8 +207,9 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     M = utils.read_csv_for_nx(graph_file)
-    N = max(max(M['0']),max(M['1'])) + 1
-    M = scipy.sparse.csr_matrix((M.weight,(M['0'],M['1'])), shape=(N,N))
+    N = max(max(M['0']), max(M['1'])) + 1
+    M = scipy.sparse.csr_matrix((M.weight, (M['0'], M['1'])),
+                                shape=(N, N))
     offsets_exp = M.indptr
     indices_exp = M.indices
 
@@ -237,8 +238,9 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx['0']),max(Mnx['1'])) + 1
-    Mcsr = scipy.sparse.csr_matrix((Mnx.weight,(Mnx['0'],Mnx['1'])), shape=(N,N))
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                   shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -302,8 +304,9 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx['0']),max(Mnx['1'])) + 1
-    Mcsr = scipy.sparse.csr_matrix((Mnx.weight,(Mnx['0'],Mnx['1'])), shape=(N,N))
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                   shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -337,8 +340,9 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
     df['src'] = cudf.Series(Mnx['0'])
     df['dst'] = cudf.Series(Mnx['1'])
 
-    N = max(max(Mnx['0']),max(Mnx['1'])) + 1
-    Mcsr = scipy.sparse.csr_matrix((Mnx.weight,(Mnx['0'],Mnx['1'])), shape=(N,N))
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                   shape=(N, N))
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
 
@@ -376,8 +380,9 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     df['src'] = cudf.Series(Mnx['0'])
     df['dst'] = cudf.Series(Mnx['1'])
 
-    N = max(max(Mnx['0']),max(Mnx['1'])) + 1
-    Mcsr = scipy.sparse.csr_matrix((Mnx.weight,(Mnx['0'],Mnx['1'])), shape=(N,N))
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                   shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -431,8 +436,9 @@ def test_two_hop_neighbors(managed, pool, graph_file):
 
     df = G.get_two_hop_neighbors()
     Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx['0']),max(Mnx['1'])) + 1
-    Mcsr = scipy.sparse.csr_matrix((Mnx.weight,(Mnx['0'],Mnx['1'])), shape=(N,N))
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                   shape=(N, N))
 
     find_two_paths(df, Mcsr)
     check_all_two_hops(df, Mcsr)
@@ -459,7 +465,8 @@ def test_degree_functionality(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
 
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.DiGraph())
 
     df_in_degree = G.in_degree()
     df_out_degree = G.out_degree()
@@ -473,9 +480,11 @@ def test_degree_functionality(managed, pool, graph_file):
     err_out_degree = 0
     err_degree = 0
     for i in range(len(df_degree)):
-        if(df_in_degree['degree'][i] != nx_in_degree[df_in_degree['vertex'][i]]):
+        in_deg = df_in_degree['degree'][i]
+        out_deg = df_out_degree['degree'][i]
+        if(in_deg != nx_in_degree[df_in_degree['vertex'][i]]):
             err_in_degree = err_in_degree + 1
-        if(df_out_degree['degree'][i] != nx_out_degree[df_out_degree['vertex'][i]]):
+        if(out_deg != nx_out_degree[df_out_degree['vertex'][i]]):
             err_out_degree = err_out_degree + 1
         if(df_degree['degree'][i] != nx_degree[df_degree['vertex'][i]]):
             err_degree = err_degree + 1
@@ -505,7 +514,8 @@ def test_degrees_functionality(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
 
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.DiGraph())
 
     df = G.degrees()
 
@@ -549,7 +559,8 @@ def test_number_of_vertices(managed, pool, graph_file):
     # cugraph add_edge_list
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.DiGraph())
     assert(G.number_of_vertices() == Gnx.number_of_nodes())
 
 

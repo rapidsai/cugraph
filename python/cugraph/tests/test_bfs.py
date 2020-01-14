@@ -41,8 +41,9 @@ def cugraph_call(cu_M, start_vertex):
 
 def base_call(M, start_vertex):
     int_max = 2**31 - 1
-    N = max(max(M['0']),max(M['1'])) + 1
-    M = scipy.sparse.csr_matrix((M.weight,(M['0'],M['1'])), shape=(N,N))
+    N = max(max(M['0']), max(M['1'])) + 1
+    M = scipy.sparse.csr_matrix((M.weight, (M['0'], M['1'])),
+                                shape=(N, N))
 
     offsets = M.indptr
     indices = M.indices
@@ -73,6 +74,7 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv',
             '../datasets/email-Eu-core.csv']
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -96,7 +98,7 @@ def test_bfs(managed, pool, graph_file):
 
     # Calculating mismatch
 
-    #assert len(base_dist) == len(cugraph_dist)
+    # assert len(base_dist) == len(cugraph_dist)
     i = 0
     j = 0
     while i < len(cugraph_dist):

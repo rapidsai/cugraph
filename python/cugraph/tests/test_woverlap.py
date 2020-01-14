@@ -107,8 +107,9 @@ def test_woverlap(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx['0']),max(Mnx['1'])) + 1
-    M = scipy.sparse.csr_matrix((Mnx.weight,(Mnx['0'],Mnx['1'])), shape=(N,N))
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                shape=(N, N))
 
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()

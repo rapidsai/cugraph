@@ -16,7 +16,6 @@ from itertools import product
 
 import pytest
 
-import pandas as pd
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -53,7 +52,8 @@ def calc_katz(graph_file):
     k_df = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
 
     NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(NM, create_using=nx.DiGraph(), source='0', target='1')
+    Gnx = nx.from_pandas_edgelist(NM, create_using=nx.DiGraph(),
+                                  source='0', target='1')
     nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
     pdf = [nk[k] for k in sorted(nk.keys())]
     k_df['nx_katz'] = pdf

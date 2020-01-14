@@ -43,7 +43,8 @@ def networkx_weak_call(M):
         raise TypeError('Shape is not square')
 
     Gnx = nx.DiGraph(M)'''
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.DiGraph())
 
     # Weakly Connected components call:
     print('Solving... ')
@@ -75,15 +76,9 @@ def cugraph_weak_call(cu_M):
 
 
 def networkx_strong_call(M):
-    '''M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
-    
-    Gnx = nx.DiGraph(M)'''
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.DiGraph())
-    print(Gnx.number_of_nodes())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.DiGraph())
+
     # Weakly Connected components call:
     print('Solving... ')
     t1 = time.time()

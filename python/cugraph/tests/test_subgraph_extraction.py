@@ -54,7 +54,8 @@ def cugraph_call(M, verts):
 
 
 def nx_call(M, verts):
-    G = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.DiGraph())
+    G = nx.from_pandas_edgelist(M, source='0', target='1',
+                                create_using=nx.DiGraph())
     return nx.subgraph(G, verts)
 
 

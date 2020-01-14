@@ -42,7 +42,7 @@ def cugraph_call(cu_M):
                               cu_M['1'].max())+1, dtype=np.float32))
 
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', renumber= False)
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', renumber=False)
 
     # cugraph Jaccard Call
     t1 = time.time()
@@ -66,7 +66,8 @@ def networkx_call(M):
     print('Format conversion ... ')
 
     # NetworkX graph
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
     # Networkx Jaccard Call
     print('Solving... ')
     t1 = time.time()
@@ -76,15 +77,13 @@ def networkx_call(M):
     print('Time : '+str(t2))
     coeff = []
     for u, v, p in preds:
-        print(u,v,p)
         coeff.append(p)
-    print(coeff)
     return coeff
 
 
-DATASETS = ['../datasets/dolphins.csv'] #,
-            #'../datasets/karate.csv',
-            #'../datasets/netscience.csv']
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/netscience.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
