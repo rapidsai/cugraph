@@ -58,6 +58,7 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
                   ValType& final_modularity,
                   IdxType* cluster_vec, // size = n_vertex
                   IdxType& num_level,
+                  IdxType max_iter = 100,
                   std::ostream& log = std::cout){
 #ifndef ENABLE_LOG
   log.setstate(std::ios_base::failbit);
@@ -75,7 +76,7 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
 
   //std::vector<IdxType> clustering(n_vertex);
   rmm::device_vector<IdxType> clustering(n_vertex);
-  int upper_bound = 100;
+  int upper_bound = max_iter;
 
   HighResClock hr_clock;
   double timed, diff_time;

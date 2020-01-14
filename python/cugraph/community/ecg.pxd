@@ -17,14 +17,11 @@
 # cython: language_level = 3
 
 from cugraph.structure.graph cimport *
-from libcpp cimport bool
 
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void bfs[int](
-        Graph *graph,
-        int *distances,
-        int *predecessors,
-        int start_vertex,
-        bool directed) except +
+    cdef void ecg[IdxT, ValT](Graph* graph,
+                              ValT min_weight,
+                              size_t ensemble_size,
+                              IdxT* ecg_parts) except +

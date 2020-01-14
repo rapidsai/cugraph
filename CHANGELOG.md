@@ -2,22 +2,26 @@
 
 ## New Features
 - PR #628 Add (Di)Graph constructor from Multi(Di)Graph
+- PR #630 Added ECG clustering
+- PR #636 Added Multi-column renumbering support
 
 ## Improvements
 - PR #640 remove gdf_column in sssp 
 - PR #629 get rid of gdf_column in pagerank 
 - PR #641 Add codeowners
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
-
+- PR #652 Remove gdf_column in BFS
 ## Bug Fixes
 - PR #634 renumber vertex ids passed in analytics
 - PR #649 Change variable names in wjaccard and woverlap to avoid exception
 - PR #651 fix cudf error in katz wrapper and test nstart
+- PR #663 Replaced use of cudf._lib.gdf_dtype_from_value based on cudf refactoring
 
 # cuGraph 0.11.0 (11 Dec 2019)
 
 ## New Features
 - PR #588 Python graph class and related changes
+- PR #630 Adds ECG clustering functionality
 
 ## Improvements
 - PR #569 Added exceptions
