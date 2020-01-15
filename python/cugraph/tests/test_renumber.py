@@ -167,8 +167,8 @@ def test_renumber_files(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
+    sources = cudf.Series(M['0'])
+    destinations = cudf.Series(M['1'])
 
     translate = 1000
 
@@ -198,8 +198,8 @@ def test_renumber_files_col(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
+    sources = cudf.Series(M['0'])
+    destinations = cudf.Series(M['1'])
 
     translate = 1000
 
@@ -229,8 +229,8 @@ def test_renumber_files_multi_col(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
-    sources = cudf.Series(M.row)
-    destinations = cudf.Series(M.col)
+    sources = cudf.Series(M['0'])
+    destinations = cudf.Series(M['1'])
 
     translate = 1000
 
