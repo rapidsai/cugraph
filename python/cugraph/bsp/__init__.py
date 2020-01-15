@@ -11,5 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.bsp.traversal import bfs_df_pregel
+from cugraph.bsp.traversal import bfs_pregel
+from cugraph.bsp.traversal import bfs_pregel_df
 

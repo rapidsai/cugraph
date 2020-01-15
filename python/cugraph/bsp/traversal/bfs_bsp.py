@@ -15,8 +15,51 @@
 import cudf
 from collections import OrderedDict
 
+def bfs_pregel(G, start):
+    """
+    Find the distances and predecessors for a breadth first traversal of a
+    graph.
 
-def bfs_df_pregel(_df, start, src_col='src', dst_col='dst', copy_data=True):
+    Parameters
+    ----------
+    G : cugraph.graph
+        cuGraph graph descriptor, should contain the connectivity information
+        as an adjacency list.
+    start : Integer
+        The index of the graph vertex from which the traversal begins
+    directed : bool
+        Indicates whether the graph in question is a directed graph, or whether
+        each edge has a corresponding reverse edge. (Allows optimizations if
+        the graph is undirected)
+
+    Returns
+    -------
+    df : cudf.DataFrame
+        df['vertex'][i] gives the vertex id of the i'th vertex
+
+        df['distance'][i] gives the path distance for the i'th vertex from the
+        starting vertex
+
+        df['predecessor'][i] gives for the i'th vertex the vertex it was
+        reached from in the traversal
+
+    Examples
+    --------
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_from_cudf(gdf, sources='0', destinations='1', None)
+    >>> df = cugraph.bfs(G, 0)
+    """
+    
+    df = G.view_edge_list()
+    
+    answer = bfs_df_pregel_df(df, start, src_col='src', dst_col='dst', copy_data=False)
+
+    return answer
+
+
+def bfs_pregel_df(_df, start, src_col='src', dst_col='dst', copy_data=True):
     """
     This function executes an unwieghted Breadth-First-Search (BFS) traversal
     to find the distances and predecessors from a specified starting vertex
