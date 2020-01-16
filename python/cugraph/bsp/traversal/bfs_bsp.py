@@ -19,6 +19,9 @@ def bfs_pregel(G, start):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
+    
+    NOTE: this function currently does NOT include unreachable vertices in
+    the results.  Only those vertices that are reached are included
 
     Parameters
     ----------
@@ -54,7 +57,7 @@ def bfs_pregel(G, start):
     
     df = G.view_edge_list()
     
-    answer = bfs_df_pregel_df(df, start, src_col='src', dst_col='dst', copy_data=False)
+    answer = bfs_pregel_df(df, start, src_col='src', dst_col='dst', copy_data=False)
 
     return answer
 

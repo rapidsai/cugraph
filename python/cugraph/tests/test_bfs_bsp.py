@@ -95,7 +95,7 @@ DATASETS = ['../datasets/dolphins.csv'
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.skip(reason="SG BFS is not yet formally supported")
+#@pytest.mark.skip(reason="SG BFS is not yet formally supported")
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
@@ -117,7 +117,7 @@ def test_bfs(managed, pool, graph_file):
     cugraph_vid, cugraph_dist = cugraph_call(cu_M, np.int32(0))
 
     # Calculating mismatch
-    num_dist = np.count_nonzero(base_dist != _int_max)
+    num_dist = np.count_nonzero(base_dist != _int_max) - np.count_nonzero(base_dist == 0)
 
     assert num_dist == len(cugraph_dist)
     
@@ -145,7 +145,7 @@ def test_bfs_df(managed, pool, graph_file):
     cugraph_vid, cugraph_dist = cugraph_call_df(cu_M, np.int32(0))
 
     # Calculating mismatch
-    num_dist = np.count_nonzero(base_dist != _int_max)
+    num_dist = np.count_nonzero(base_dist != _int_max) - np.count_nonzero(base_dist == 0)
 
     assert num_dist == len(cugraph_dist)    
     
