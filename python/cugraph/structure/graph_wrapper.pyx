@@ -63,7 +63,7 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
     cdef uintptr_t c_dest_col = get_column_data_ptr(dest_col._column)
     cdef uintptr_t c_value_col = <uintptr_t>NULL
 
-    if (value_col.dtype != np.int32): 
+    if (source_col.dtype != np.int32): 
         raise Exception('ID type not supported')
 
     if value_col is None:
@@ -87,7 +87,44 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
                                               <double*>c_value_col)
         else : 
             raise Exception('Weight type not supported')
+
+def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
+    cdef uintptr_t graph = graph_ptr
+
+    cdef uintptr_t c_offset_col = get_column_data_ptr(offset_col._column)
+    cdef uintptr_t c_index_col = get_column_data_ptr(index_col._column)
+    cdef uintptr_t c_value_col = <uintptr_t>NULL
+    if (offset_col.dtype != np.int32): 
+        raise Exception('ID type not supported')
+    if (index_col.dtype != np.int32): 
+        raise Exception('ID type not supported')
     
+    if value_col is None:
+        c_graph.adj_list_view[int, float](<c_graph.Graph[int,float]*>graph,
+                                            offset_col.size-1,
+                                            index_col.size,
+                                            <int*>c_offset_col,
+                                            <int*>c_index_col)
+    else :
+        c_value_col = get_column_data_ptr(value_col._column)
+        if (value_col.dtype == np.float32): 
+            c_graph.adj_list_view[int, float](<c_graph.Graph[int,float]*>graph,
+                                              offset_col.size-1,
+                                              index_col.size,
+                                              <int*>c_offset_col,
+                                              <int*>c_index_col,
+                                              <float*>c_value_col)
+        elif (value_col.dtype == np.float64): 
+            c_graph.adj_list_view[int, double](<c_graph.Graph[int,double]*>graph,
+                                              offset_col.size-1,
+                                              index_col.size,
+                                              <int*>c_offset_col,
+                                              <int*>c_index_col,
+                                              <double*>c_value_col)
+        else : 
+            raise Exception('Weight type not supported')  
+
+
 #def get_edge_list(graph_ptr):
 #    cdef uintptr_t graph = graph_ptr
 #    cdef c_graph.Graph * g = <c_graph.Graph*> graph
@@ -135,23 +172,7 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
 #    return source_col, dest_col, value_col
     
 
-#def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
-#    cdef uintptr_t graph = graph_ptr
-#    cdef Graph * g = <Graph*> graph
-#
-#    cdef uintptr_t c_offset_col = get_column_data_ptr(offset_col._column)
-#    cdef uintptr_t c_index_col = get_column_data_ptr(index_col._column)
-#    cdef uintptr_t c_value_col = <uintptr_t>NULL
-#    
-#    if value_col is not None:
-#        c_value_col = get_column_data_ptr(value_col._column)
-#
-#    c_graph.adj_list_view(g,
-#                          c_offset_col,
-#                          c_index_col,
-#                          c_value_col)
-#    
-#
+
 #def get_adj_list(graph_ptr):
 #    cdef uintptr_t graph = graph_ptr
 #    cdef Graph * g = <Graph*> graph
@@ -206,21 +227,29 @@ def add_edge_list(graph_ptr, source_col, dest_col, value_col=None):
 #            source, dest, value = get_edge_list(graph)
 #            input_graph.edgelist = input_graph.EdgeList(source, dest, value)
 #
-#def view_adj_list(input_graph):
-#    cdef uintptr_t graph = allocate_cpp_graph()
-#    cdef Graph * g = <Graph*> graph
-#    if input_graph.adjlist is None:
-#        if input_graph.edgelist is None:
-#            raise Exception('Graph is Empty')
-#        else:
-#            if len(input_graph.edgelist.edgelist_df.columns)>2:
-#                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
-#            else:
-#                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-#            c_graph.add_adj_list(g)
-#            offsets, indices, values = get_adj_list(graph)
-#            input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
-#
+def view_adj_list(input_graph):
+    cdef uintptr_t graph = allocate_cpp_graph()
+    #cdef c_graph.Graph * g = <c_graph.Graph*> graph
+    if input_graph.adjlist is None:
+        if input_graph.edgelist is None:
+            raise Exception('Graph is Empty')
+        else:
+            if len(input_graph.edgelist.edgelist_df.columns)>2:
+                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+            else:
+                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        if input_graph.edgelist_df['weights'] is None:
+            c_graph.add_adj_list[int, float](<c_graph.Graph[int,float]*>graph)
+        else :
+            if (input_graph.edgelist_df['weights'].dtype == np.float32): 
+                c_graph.add_adj_list[int, float](<c_graph.Graph[int,float]*>graph)
+            elif (input_graph.edgelist_df['weights'].dtype == np.float64): 
+                c_graph.add_adj_list[int, double](<c_graph.Graph[int,double]*>graph)
+            else : 
+                raise Exception('Weight type not supported')  
+        offsets, indices, values = get_adj_list(graph)
+        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+
 #def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
 #    cdef uintptr_t graph = graph_ptr
 #    cdef Graph * g = <Graph*> graph
