@@ -173,48 +173,52 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     
 
 
-#def get_adj_list(graph_ptr):
-#    cdef uintptr_t graph = graph_ptr
-#    cdef Graph * g = <Graph*> graph
-#
-#    offset_col_size = g.adjList.offsets.size
-#    index_col_size = g.adjList.indices.size
-#
-#    cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
-#    cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices.data
-#    cdef uintptr_t value_col_data = <uintptr_t> NULL
-#    if g.adjList.edge_data is not NULL:
-#        value_col_data = <uintptr_t> g.adjList.edge_data.data
-#
-#    # g.adjList.offsets.data, g.adjList.indices.data, and
-#    # g.adjList.edge_data.data are not owned by this instance, so should not be
-#    # freed here (this will lead to double free, and undefined behavior). The
-#    # finalizer parameter of rmm.device_array_from_ptr shuold be ``None``
-#    # (default value) for this purpose (instead of
-#    # rmm._finalizer(handle, stream)).
-#
-#    offset_data = rmm.device_array_from_ptr(
-#                       offset_col_data,
-#                       nelem=offset_col_size,
-#                       dtype=np.int32)
-#    offset_col = cudf.Series(offset_data)
-#
-#    index_data = rmm.device_array_from_ptr(
-#                       index_col_data,
-#                       nelem=index_col_size,
-#                       dtype=np.int32)
-#    index_col = cudf.Series(index_data)
-#
-#    value_col = None
-#    if <void*>value_col_data is not NULL:
-#        value_data = rmm.device_array_from_ptr(
-#                         value_col_data,
-#                         nelem=index_col_size,
-#                         dtype=np_dtype_from_gdf_column(g.adjList.edge_data))
-#        value_col = cudf.Series(value_data)
-#
-#    return offset_col, index_col, value_col
-#
+def get_adj_list(graph_ptr):
+    cdef uintptr_t graph = graph_ptr
+    #hacky : int is the only supported VT and WT is properly casted later
+    cdef c_graph.Graph[int, float] * g = <c_graph.Graph[int, float]*> graph
+
+    offset_col_size = g.v+1
+    index_col_size = g.e
+
+    cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets
+    cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices
+    cdef uintptr_t value_col_data = <uintptr_t> NULL
+    if g.adjList.edge_data is not NULL:
+        value_col_data = <uintptr_t> g.adjList.edge_data
+
+    # g.adjList.offsets.data, g.adjList.indices.data, and
+    # g.adjList.edge_data.data are not owned by this instance, so should not be
+    # freed here (this will lead to double free, and undefined behavior). The
+    # finalizer parameter of rmm.device_array_from_ptr shuold be ``None``
+    # (default value) for this purpose (instead of
+    # rmm._finalizer(handle, stream)).
+
+    offset_data = rmm.device_array_from_ptr(
+                       offset_col_data,
+                       nelem=offset_col_size,
+                       dtype=np.int32)
+    offset_col = cudf.Series(offset_data)
+
+    index_data = rmm.device_array_from_ptr(
+                       index_col_data,
+                       nelem=index_col_size,
+                       dtype=np.int32)
+    index_col = cudf.Series(index_data)
+
+    value_col = None
+    if <void*>value_col_data is not NULL:
+        wt = np.float32
+        if typeid(g.adjList.edge_data) == typeid(double):
+            wt = np.float64
+        value_data = rmm.device_array_from_ptr(
+                         value_col_data,
+                         nelem=index_col_size,
+                         dtype=wt)
+        value_col = cudf.Series(value_data)
+
+    return offset_col, index_col, value_col
+
 #def view_edge_list(input_graph):
 #    cdef uintptr_t graph = allocate_cpp_graph()
 #    cdef Graph * g = <Graph*> graph
@@ -229,7 +233,6 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
 #
 def view_adj_list(input_graph):
     cdef uintptr_t graph = allocate_cpp_graph()
-    #cdef c_graph.Graph * g = <c_graph.Graph*> graph
     if input_graph.adjlist is None:
         if input_graph.edgelist is None:
             raise Exception('Graph is Empty')
