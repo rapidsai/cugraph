@@ -520,11 +520,11 @@ void overlap_list(Graph* graph,
 
   CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(first->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!first->valid, "Column must be valid");
+  //CUGRAPH_EXPECTS(!first->valid, "Column must be valid");
 
   CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
   CUGRAPH_EXPECTS(second->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(!second->valid, "Column must be valid");
+  //CUGRAPH_EXPECTS(!second->valid, "Column must be valid");
 
   bool weighted = (weights != nullptr);
 
