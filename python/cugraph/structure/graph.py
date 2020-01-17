@@ -167,7 +167,7 @@ class Graph:
                                                                destination)
             else:
                 source_col, dest_col, renumber_map = rnb(input_df[source],
-                                                     input_df[destination])
+                                                         input_df[destination])
             self.renumbered = True
         else:
             if type(source) is list and type(destination) is list:

@@ -38,6 +38,7 @@
 - PR #616 Remove c_ prefix
 - PR #618 Updated Docs
 - PR #619 Transition guide
+- PR #666 Incorporate multicolumn renumbering in python graph class for Multi(Di)Graph
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
