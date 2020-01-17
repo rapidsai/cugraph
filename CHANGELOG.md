@@ -12,6 +12,8 @@
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 - PR #652 Remove gdf_column in BFS
 - PR #660 enable auto renumbering
+- PR #664 Added support for Louvain early termination.
+
 
 ## Bug Fixes
 - PR #634 renumber vertex ids passed in analytics
