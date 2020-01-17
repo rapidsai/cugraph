@@ -12,6 +12,7 @@
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 - PR #652 Remove gdf_column in BFS
 - PR #660 enable auto renumbering
+- PR #666 Incorporate multicolumn renumbering in python graph class for Multi(Di)Graph
 
 ## Bug Fixes
 - PR #634 renumber vertex ids passed in analytics
@@ -41,7 +42,6 @@
 - PR #616 Remove c_ prefix
 - PR #618 Updated Docs
 - PR #619 Transition guide
-- PR #666 Incorporate multicolumn renumbering in python graph class for Multi(Di)Graph
 
 ## Bug Fixes
 - PR #570 Temporarily disabling 2 DB tests
