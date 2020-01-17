@@ -17,8 +17,7 @@ import time
 
 import pytest
 import numpy as np
-
-import cudf
+import scipy
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -36,7 +35,7 @@ def cugraph_call(cu_M, pairs, edgevals=False):
     df = cugraph.overlap(G, pairs)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-
+    df = df.sort_values(by=['source', 'destination'])
     return df['overlap_coeff'].to_array()
 
 
@@ -81,6 +80,7 @@ def cpu_call(M, first, second):
     result = []
     for i in range(len(first)):
         result.append(overlap(first[i], second[i], M))
+    print(result)
     return result
 
 
@@ -106,13 +106,14 @@ def test_overlap(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_csv_for_nx(graph_file)
-    M = M.tocsr().sorted_indices()
+    Mnx = utils.read_csv_for_nx(graph_file)
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                shape=(N, N))
+
     cu_M = utils.read_csv_file(graph_file)
-    row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
-    G.from_cudf_adjlist(row_offsets, col_indices, None)
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
     pairs = G.get_two_hop_neighbors()
 
     cu_coeff = cugraph_call(cu_M, pairs)
@@ -144,13 +145,14 @@ def test_overlap_edge_vals(managed, pool, graph_file):
 
     assert(rmm.is_initialized())
 
-    M = utils.read_csv_for_nx(graph_file)
-    M = M.tocsr().sorted_indices()
+    Mnx = utils.read_csv_for_nx(graph_file)
+    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
+    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
+                                shape=(N, N))
+
     cu_M = utils.read_csv_file(graph_file)
-    row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
     G = cugraph.Graph()
-    G.from_cudf_adjlist(row_offsets, col_indices, None)
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
     pairs = G.get_two_hop_neighbors()
 
     cu_coeff = cugraph_call(cu_M, pairs,

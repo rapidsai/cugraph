@@ -69,7 +69,7 @@ def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
 def networkx_call(M, max_iter, tol, alpha, personalization_perc):
-    nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
+    '''nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
     for nnz in range(M.getnnz()):
         nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
     for nnz in range(M.getnnz()):
@@ -80,34 +80,39 @@ def networkx_call(M, max_iter, tol, alpha, personalization_perc):
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
-
+    '''
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        nnz_vtx = np.unique(M.nonzero())
+        nnz_vtx = np.unique(M)
+        print(nnz_vtx)
         personalization_count = int((nnz_vtx.size *
                                      personalization_perc)/100.0)
+        print(personalization_count)
         nnz_vtx = np.random.choice(nnz_vtx,
                                    min(nnz_vtx.size, personalization_count),
                                    replace=False)
+        print(nnz_vtx)
         nnz_val = np.random.random(nnz_vtx.size)
         nnz_val = nnz_val/sum(nnz_val)
+        print(nnz_val)
         for vtx, val in zip(nnz_vtx, nnz_val):
             personalization[vtx] = val
 
     # should be autosorted, but check just to make sure
-    if not M.has_sorted_indices:
+    '''if not M.has_sorted_indices:
         print('sort_indices ... ')
         M.sort_indices()
-
+    '''
     # in NVGRAPH tests we read as CSR and feed as CSC,
     # so here we do this explicitly
     print('Format conversion ... ')
 
     # Directed NetworkX graph
-    Gnx = nx.DiGraph(M)
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.DiGraph())
 
-    z = {k: 1.0/M.shape[0] for k in range(M.shape[0])}
+    z = {k: 1.0/Gnx.number_of_nodes() for k in range(Gnx.number_of_nodes())}
 
     # Networkx Pagerank Call
     print('Solving... ')
@@ -130,7 +135,7 @@ MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
 PERSONALIZATION_PERC = [0, 10, 50]
-HAS_GUESS = [0, 1]
+HAS_GUESS = [0]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
