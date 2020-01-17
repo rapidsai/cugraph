@@ -13,6 +13,7 @@
 
 import os
 import sys
+import shutil
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
@@ -29,6 +30,25 @@ conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
 CYTHON_FILES = ['cugraph/structure/graph_wrapper.pyx']
 
+CUDA_HOME = os.environ.get("CUDA_HOME", False)
+if not CUDA_HOME:
+    path_to_cuda_gdb = shutil.which("cuda-gdb")
+    if path_to_cuda_gdb is None:
+        raise OSError(
+            "Could not locate CUDA. "
+            "Please set the environment variable "
+            "CUDA_HOME to the path to the CUDA installation "
+            "and try again."
+        )
+    CUDA_HOME = os.path.dirname(os.path.dirname(path_to_cuda_gdb))
+
+if not os.path.isdir(CUDA_HOME):
+    raise OSError(
+        f"Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}"
+    )
+
+cuda_include_dir = os.path.join(CUDA_HOME, "include")
+
 if (os.environ.get('CONDA_PREFIX', None)):
     conda_prefix = os.environ.get('CONDA_PREFIX')
     conda_include_dir = conda_prefix + '/include'
@@ -38,7 +58,11 @@ EXTENSIONS = [
     Extension("*",
               sources=CYTHON_FILES,
               include_dirs=[conda_include_dir,
-                            '../cpp/include'],
+                            '../cpp/include',
+                            "../thirdparty/cub",
+                            os.path.join(
+                                conda_include_dir, "libcudf", "libcudacxx"),
+                            cuda_include_dir],
               library_dirs=[get_python_lib()],
               runtime_library_dirs=[conda_lib_dir],
               libraries=['cugraph', 'cudf'],

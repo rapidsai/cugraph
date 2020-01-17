@@ -16,7 +16,7 @@
 
 #include <rmm_utils.h>
 
-TEST(nvgraph_louvain, success)
+TEST(ecg, success)
 {
   cugraph::Graph G;
 
@@ -30,7 +30,7 @@ TEST(nvgraph_louvain, success)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
- 
+
   gdf_column col_off, col_ind, col_w;
 
 
@@ -40,100 +40,35 @@ TEST(nvgraph_louvain, success)
 
   cugraph::adj_list_view(&G, &col_off, &col_ind, &col_w);
 
-  if (!(G.adjList))
-    cugraph::add_adj_list(&G);
-
   int no_vertex = off_h.size()-1;
-  int weighted = 0; //false
-  int has_init_cluster = 0; //false
-  float modularity = 0.0;
-  int num_level = 40;
   int* best_cluster_vec = NULL;
 
   cudaStream_t stream{nullptr};
   ALLOC_TRY((void**)&best_cluster_vec, sizeof(int) * no_vertex, stream);
-  
-  ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, nvgraphLouvain (CUDA_R_32I, CUDA_R_32F, no_vertex, ind_h.size(),
-                            G.adjList->offsets, G.adjList->indices, G.adjList->edge_data, weighted, has_init_cluster, nullptr,
-                            (void*) &modularity, (void*) best_cluster_vec, (void *)(&num_level), 100));
 
-  
+  ASSERT_NO_THROW((cugraph::ecg<int32_t, float>(&G, .05, 16, best_cluster_vec)));
+
   std::vector<int> cluster_id (34, -1);
   cudaMemcpy ((void*) &(cluster_id[0]), best_cluster_vec, sizeof(int)*34, cudaMemcpyDeviceToHost);
-  int max = *max_element (cluster_id.begin(), cluster_id.end()); 
-  int min = *min_element (cluster_id.begin(), cluster_id.end()); 
+  int max = *max_element (cluster_id.begin(), cluster_id.end());
+  int min = *min_element (cluster_id.begin(), cluster_id.end());
   ASSERT_EQ((min >= 0), 1);
-  ASSERT_EQ((modularity >= 0.402777), 1);
+  std::set<int> cluster_ids;
+  for (size_t i = 0; i < cluster_id.size(); i++)
+    cluster_ids.insert(cluster_id[i]);
 
-  //printf ("max is %d and min is %d \n", max, min);
+  ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
 
-  //printf ("Modularity is %f \n", modularity);
-
-  ALLOC_FREE_TRY (best_cluster_vec, stream);
-}
-/*
-//TODO: revive the test(s) below, once
-//      Gunrock GRMAT is back and stable again;
-//
-TEST(nvgraph_louvain_grmat, success)
-{
-  cugraph::Graph G;
-  gdf_column col_src, col_dest, col_weights;
-  size_t vertices = 0, edges = 0;
-  char argv[1024] = "grmat --rmat_scale=23 --rmat_edgefactor=16 --device=0 --normalized --quiet ";
-
-  col_src.data = nullptr;
-  col_src.dtype = GDF_INT32;
-  col_src.valid = nullptr;
-  col_dest.data = nullptr;
-  col_dest.dtype = GDF_INT32;
-  col_dest.valid = nullptr;
-  col_weights.data = nullptr;
-  col_weights.dtype = GDF_FLOAT32;
-  col_weights.valid = nullptr;
-
-  col_src.null_count = 0;
-  col_dest.null_count = 0;
-  col_weights.null_count = 0;
-
-  cugraph::grmat_gen(argv, vertices, edges, &col_src, &col_dest, nullptr);
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY ((void**)&col_weights.data, sizeof(int) * edges, stream);
-  col_weights.size = edges;
-  std::vector<float> w_h (edges, (float)1.0);
-  cudaMemcpy (col_weights.data, (void*) &(w_h[0]), sizeof(float)*edges, cudaMemcpyHostToDevice);
-  cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights);
-
-  if (!(G.adjList))
-  {
-    cugraph::add_adj_list(&G);
-  }
-  int weighted = 1; //false
-  int has_init_cluster = 0; //false
+  gdf_column* clusters_col = new gdf_column;
+  gdf_column_view(clusters_col, best_cluster_vec, nullptr, 34, GDF_INT32);
   float modularity = 0.0;
-  int num_level = 0;
-  int* best_cluster_vec = NULL;
+  ASSERT_NO_THROW(analyzeClustering_modularity_nvgraph(&G, max + 1, clusters_col, &modularity));
 
-  ALLOC_TRY ((void**)&best_cluster_vec, sizeof(int) * vertices, stream);
+  ASSERT_EQ((modularity >= 0.399), 1);
 
-  ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, nvgraphLouvain (CUDA_R_32I, CUDA_R_32F, vertices, edges, G.adjList->offsets, G.adjList->indices, G.adjList->edge_data, weighted, has_init_cluster, nullptr, (void*) &modularity, (void*) best_cluster_vec, (void *)(&num_level)));
-
-  
-  std::vector<int> cluster_id (vertices, -1);
-  cudaMemcpy ((void*) &(cluster_id[0]), best_cluster_vec, sizeof(int)*vertices, cudaMemcpyDeviceToHost);
-  int max = *max_element (cluster_id.begin(), cluster_id.end()); 
-  int min = *min_element (cluster_id.begin(), cluster_id.end()); 
-
-  ASSERT_EQ((min >= 0), 1);
-  ASSERT_EQ((modularity >= 0.002875), 1);
-   
   ALLOC_FREE_TRY (best_cluster_vec, stream);
-  ALLOC_FREE_TRY(col_src.data, stream);
-  ALLOC_FREE_TRY(col_dest.data, stream);
-  ALLOC_FREE_TRY(col_weights.data, stream);
-
 }
-*/
+
 int main( int argc, char** argv )
 {
     rmmInitialize(nullptr);
@@ -142,6 +77,3 @@ int main( int argc, char** argv )
     rmmFinalize();
     return rc;
 }
-
-
-

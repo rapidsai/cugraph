@@ -11,11 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph import (Graph,
-                                     DiGraph,
-                                     MultiGraph,
-                                     MultiDiGraph
-                                    )
-from cugraph.structure.renumber import renumber
-from cugraph.structure.symmetrize import symmetrize, symmetrize_df
-from cugraph.structure.renumber import renumber_from_cudf
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph cimport *
+
+
+cdef extern from "cugraph.h" namespace "cugraph":
+
+    cdef void ecg[IdxT, ValT](Graph* graph,
+                              ValT min_weight,
+                              size_t ensemble_size,
+                              IdxT* ecg_parts) except +

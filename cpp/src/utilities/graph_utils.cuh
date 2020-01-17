@@ -502,8 +502,8 @@ namespace detail {
 
     template<typename IndexType>
     void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indices) {
-        int nthreads = min(v, CUDA_MAX_KERNEL_THREADS);
-        int nblocks = min((v + nthreads - 1) / nthreads, CUDA_MAX_BLOCKS);
+        IndexType nthreads = min(v, (IndexType)CUDA_MAX_KERNEL_THREADS);
+        IndexType nblocks = min((v + nthreads - 1) / nthreads, (IndexType)CUDA_MAX_BLOCKS);
         offsets_to_indices_kernel<<<nblocks, nthreads>>>(offsets, v, indices);
         CUDA_CHECK_LAST();
     }
