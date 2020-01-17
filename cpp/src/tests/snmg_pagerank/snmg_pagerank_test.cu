@@ -124,7 +124,7 @@ class Tests_MGPagerank : public ::testing::TestWithParam<MGPagerank_Usecase> {
 
     CUDA_RT_CALL(cudaGetDeviceCount(&n_gpus));  
 
-    gdf_column *src_col_ptrs[n_gpus];
+    VT *src_col_ptrs[n_gpus];
     gdf_column *dest_col_ptrs[n_gpus];
     gdf_column *pr_col = new gdf_column;
     

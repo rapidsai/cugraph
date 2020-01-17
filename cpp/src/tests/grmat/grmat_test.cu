@@ -258,8 +258,8 @@ class Tests_Grmat : public ::testing::TestWithParam<Grmat_Usecase> {
     cugraph::edge_list_view(G.get(), &col_sources, &col_destinations, nullptr);
     std::vector<int> src2_h(edges), dest2_h(edges);
 
-    (cudaMemcpy(&src2_h[0],  G.get()->edgeList->src_indices->data, sizeof(int) * edges, cudaMemcpyDeviceToHost));
-    (cudaMemcpy(&dest2_h[0], G.get()->edgeList->dest_indices->data, sizeof(int) * edges, cudaMemcpyDeviceToHost));
+    (cudaMemcpy(&src2_h[0],  G.get()->edgeList->src_indices, sizeof(int) * edges, cudaMemcpyDeviceToHost));
+    (cudaMemcpy(&dest2_h[0], G.get()->edgeList->dest_indices, sizeof(int) * edges, cudaMemcpyDeviceToHost));
 
     ASSERT_EQ( eq(src1_h,src2_h), 0);
     ASSERT_EQ( eq(dest1_h,dest2_h), 0);

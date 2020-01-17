@@ -17,7 +17,7 @@
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
 
-void degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree, bool offsets) {
+void degree_impl(int n, int e, gdf_column* col_ptr, int *degree, bool offsets) {
   if(offsets == true) {
     dim3 nthreads, nblocks;
     nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
@@ -50,8 +50,8 @@ void degree_impl(int n, int e, gdf_column* col_ptr, gdf_column* degree, bool off
 }
 
 namespace cugraph {
-
-void degree(Graph *graph, gdf_column *degree, int x) {
+template <typename VT, typename WT>
+void degree(Graph<VT,WT> *graph , VT *degree, int x) {
   // Calculates the degree of all vertices of the graph
   // x = 0: in+out degree
   // x = 1: in-degree
@@ -60,12 +60,12 @@ void degree(Graph *graph, gdf_column *degree, int x) {
   int n;
   int e;
   if(graph->adjList != nullptr) {
-    n = graph->adjList->offsets->size -1;
-    e = graph->adjList->indices->size;
+    n = graph->v;
+    e = graph->e;
   }
   else {
-    n = graph->transposedAdjList->offsets->size - 1;
-    e = graph->transposedAdjList->indices->size;
+    n = graph->v;
+    e = graph->e;
   }
 
   if(x!=1) {
@@ -84,4 +84,6 @@ void degree(Graph *graph, gdf_column *degree, int x) {
       degree_impl(n, e, graph->transposedAdjList->offsets, degree, true);
   }
 }
+template void degree<int, float>(Graph<int, float> *graph, VT *degree, int x);
+template void degree<int, double>(Graph<int, double> *graph, VT *degree, int x);
 }

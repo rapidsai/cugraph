@@ -165,7 +165,6 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
             bool DoDist,
             bool DoPreds>
   void run_current_test(const SSSP_Usecase& param) {
-    gdf_column col_src, col_dest, col_weights;
     DistType* distances = nullptr;
     MaxVType* preds = nullptr;
 
@@ -177,109 +176,71 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
               static_cast<uint64_t>(std::numeric_limits<MaxVType>::max()));
     src = static_cast<MaxVType>(param.src_);
 
-    // Input
-    col_src.data = nullptr;
-    if (std::is_same<MaxVType, int>::value)
-      col_src.dtype = GDF_INT32;
-    else
-      ASSERT_TRUE(0);  // We don't have support for other types yet
-    col_src.valid = nullptr;
-    col_src.null_count = 0;
+    MaxVType m, k;
+    MaxEType nnz;
+    MM_typecode mc;
 
-    col_dest.data = nullptr;
-    if (std::is_same<MaxVType, int>::value)
-      col_dest.dtype = GDF_INT32;
-    else
-      ASSERT_TRUE(0);  // We don't have support for other types yet
-    col_dest.valid = nullptr;
-    col_dest.null_count = 0;
+    FILE* fpin = fopen(param.file_path_.c_str(), "r");
+    ASSERT_NE(fpin, static_cast<FILE*>(nullptr));
+    // mm_properties has only one template param which should be fixed there
+    ASSERT_EQ(mm_properties<MaxVType>(fpin, 1, &mc, &m, &k, &nnz), 0)
+        << "could not read Matrix Market file properties"
+        << "\n";
+    ASSERT_TRUE(mm_is_matrix(mc));
+    ASSERT_TRUE(mm_is_coordinate(mc));
+    ASSERT_FALSE(mm_is_complex(mc));
+    ASSERT_FALSE(mm_is_skew(mc));
 
-    col_weights.data = nullptr;
-    if (std::is_same<DistType, float>::value)
-      col_weights.dtype = GDF_FLOAT32;
-    else if (std::is_same<DistType, double>::value)
-      col_weights.dtype = GDF_FLOAT64;
-    else
-      ASSERT_TRUE(0);  // We don't have support for other types yet
+    // Allocate memory on host
+    std::vector<MaxVType> cooRowInd(nnz), cooColInd(nnz);
+    std::vector<DistType> cooVal;
 
-    col_weights.valid = nullptr;
-    col_weights.null_count = 0;
-
-    if (param.type_ == RMAT) {
-      // This is size_t due to grmat_gen which should be fixed there
-      // TODO rmat is disabled
-      return;
-
-    } else if (param.type_ == MTX) {
-      MaxVType m, k;
-      MaxEType nnz;
-      MM_typecode mc;
-
-      FILE* fpin = fopen(param.file_path_.c_str(), "r");
-      ASSERT_NE(fpin, static_cast<FILE*>(nullptr));
-      // mm_properties has only one template param which should be fixed there
-      ASSERT_EQ(mm_properties<MaxVType>(fpin, 1, &mc, &m, &k, &nnz), 0)
-          << "could not read Matrix Market file properties"
+    // Read weights if given
+    if (!mm_is_pattern(mc)) {
+      cooVal.resize(nnz);
+      ASSERT_EQ((mm_to_coo(fpin,
+                           1,
+                           nnz,
+                           &cooRowInd[0],
+                           &cooColInd[0],
+                           &cooVal[0],
+                           static_cast<DistType*>(nullptr))),
+                0)
+          << "could not read matrix data"
           << "\n";
-      ASSERT_TRUE(mm_is_matrix(mc));
-      ASSERT_TRUE(mm_is_coordinate(mc));
-      ASSERT_FALSE(mm_is_complex(mc));
-      ASSERT_FALSE(mm_is_skew(mc));
-
-      // Allocate memory on host
-      std::vector<MaxVType> cooRowInd(nnz), cooColInd(nnz);
-      std::vector<DistType> cooVal;
-
-      // Read weights if given
-      if (!mm_is_pattern(mc)) {
+    } else {
+      ASSERT_EQ((mm_to_coo(fpin,
+                           1,
+                           nnz,
+                           &cooRowInd[0],
+                           &cooColInd[0],
+                           static_cast<DistType*>(nullptr),
+                           static_cast<DistType*>(nullptr))),
+                0)
+          << "could not read matrix data"
+          << "\n";
+      // Set random weights
+      if (std::is_same<DistType, float>::value ||
+          std::is_same<DistType, double>::value) {
         cooVal.resize(nnz);
-        ASSERT_EQ((mm_to_coo(fpin,
-                             1,
-                             nnz,
-                             &cooRowInd[0],
-                             &cooColInd[0],
-                             &cooVal[0],
-                             static_cast<DistType*>(nullptr))),
-                  0)
-            << "could not read matrix data"
-            << "\n";
-      } else {
-        ASSERT_EQ((mm_to_coo(fpin,
-                             1,
-                             nnz,
-                             &cooRowInd[0],
-                             &cooColInd[0],
-                             static_cast<DistType*>(nullptr),
-                             static_cast<DistType*>(nullptr))),
-                  0)
-            << "could not read matrix data"
-            << "\n";
-        // Set random weights
-        if (std::is_same<DistType, float>::value ||
-            std::is_same<DistType, double>::value) {
-          cooVal.resize(nnz);
-          for (auto i = 0; i < nnz; i++) {
-            cooVal[i] = static_cast<DistType>(rand()) /
-                static_cast<DistType>(RAND_MAX);
-          }
+        for (auto i = 0; i < nnz; i++) {
+          cooVal[i] = static_cast<DistType>(rand()) /
+              static_cast<DistType>(RAND_MAX);
         }
       }
-
-      ASSERT_EQ(fclose(fpin), 0);
-      // gdf columns
-      create_gdf_column(cooRowInd, &col_src);
-      create_gdf_column(cooColInd, &col_dest);
-      create_gdf_column(cooVal, &col_weights);
-
-      num_vertices = m;
-      num_edges = nnz;
-    } else {
-      ASSERT_TRUE(0);
     }
 
-    cugraph::Graph G;
-    cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights);
-    cugraph::add_adj_list(&G);
+    ASSERT_EQ(fclose(fpin), 0);
+
+    d_ptr<MaxEType> d_src = create_d_ptr(cooRowInd);
+    d_ptr<MaxEType> d_dst = create_d_ptr(cooColInd);
+    d_ptr<DistType> d_w = create_d_ptr(cooVal);
+    num_vertices = m;
+    num_edges = nnz;
+
+    Graph_ptr<MaxEType,DistType> G{new cugraph::Graph<MaxEType,DistType>, Graph_deleter<MaxEType,DistType>};
+    cugraph::edge_list_view(G.get(), num_edges, d_src.get(), d_dst.get(), d_w.get());
+    cugraph::add_adj_list(G.get());
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;
@@ -308,19 +269,19 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (auto i = 0; i < PERF_MULTIPLIER; ++i) {
-        cugraph::sssp(&G, distances, preds, src);
+        cugraph::sssp(G.get(), distances, preds, src);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       SSSP_time.push_back(time_tmp);
     } else {
-        cugraph::sssp(&G, distances, preds, src);
+        cugraph::sssp(G.get(), distances, preds, src);
         cudaDeviceSynchronize();
     }
 
     // MTX may have zero-degree vertices. So reset num_vertices after
     // conversion to CSR
-    num_vertices = G.adjList->offsets->size - 1;
+    num_vertices = G.get()->v;
 
     if (DoDist)
       cudaMemcpy((void*)&dist_vec[0],
@@ -342,15 +303,15 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     std::vector<MaxVType> ref_predecessors(num_vertices);
 
     cudaMemcpy((void*)&vlist[0],
-               G.adjList->offsets->data,
+               G.get()->adjList->offsets,
                sizeof(MaxEType) * (num_vertices + 1),
                cudaMemcpyDeviceToHost);
     cudaMemcpy((void*)&elist[0],
-               G.adjList->indices->data,
+               G.get()->adjList->indices,
                sizeof(MaxVType) * (num_edges),
                cudaMemcpyDeviceToHost);
     cudaMemcpy((void*)&weights[0],
-               G.adjList->edge_data->data,
+               G.get()->adjList->edge_data,
                sizeof(DistType) * (num_edges),
                cudaMemcpyDeviceToHost);
 
@@ -396,12 +357,6 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
         }
       }
     }
-
-    // Done with device mem. Free it
-    cudaStream_t stream{nullptr};
-    ALLOC_FREE_TRY(col_src.data, stream);
-    ALLOC_FREE_TRY(col_dest.data, stream);
-    ALLOC_FREE_TRY(col_weights.data, stream);
   }
 };
 

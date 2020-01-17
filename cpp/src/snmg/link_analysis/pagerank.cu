@@ -283,14 +283,11 @@ void snmg_pagerank (
     for (size_t i = 0; i < n_gpus; ++i)
     {
       // src/dest consistency
-      CUGRAPH_EXPECTS( src_col_ptrs[i]->size == dest_col_ptrs[i]->size, "Column size mismatch" );
-      CUGRAPH_EXPECTS( src_col_ptrs[i]->dtype == dest_col_ptrs[i]->dtype, "Unsupported data type" );
-      //null mask
-      CUGRAPH_EXPECTS( src_col_ptrs[i]->null_count == 0 , "Input column has non-zero null count");
-      CUGRAPH_EXPECTS( dest_col_ptrs[i]->null_count == 0 , "Input column has non-zero null count");
+      CUGRAPH_EXPECTS( typeid(src_col_ptrs[i]) == typeid(dest_col_ptrs[i]), "Unsupported data type" );
+
       // int 32 edge list indices
-      CUGRAPH_EXPECTS( src_col_ptrs[i]->dtype == GDF_INT32, "Unsupported data type");
-      CUGRAPH_EXPECTS( dest_col_ptrs[i]->dtype == GDF_INT32, "Unsupported data type");
+      //CUGRAPH_EXPECTS( typeid(src_col_ptrs[i]) == typeid(int*), "Unsupported data type");
+      //CUGRAPH_EXPECTS( typeid(dest_col_ptrs[i]) == typeid(int*), "Unsupported data type");
     }
 
     snmg::snmg_pagerank_impl<int, float>(src_col_ptrs, dest_col_ptrs,

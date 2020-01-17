@@ -52,19 +52,19 @@ std::enable_if_t<std::is_signed<IndexT>::value>
   using ByteT = unsigned char;//minimum addressable unit
   
   static auto row_offsets_ = [](const Graph* G){
-    return static_cast<const IndexT*>(G->adjList->offsets->data);
+    return static_cast<const IndexT*>(G->adjList->offsets);
   };
 
   static auto col_indices_ = [](const Graph* G){
-    return static_cast<const IndexT*>(G->adjList->indices->data);
+    return static_cast<const IndexT*>(G->adjList->indices);
   };
 
   static auto nrows_ = [](const Graph* G){
-    return G->adjList->offsets->size - 1;
+    return G->v;
   };
 
   static auto nnz_ = [](const Graph* G){
-    return G->adjList->indices->size;
+    return G->e;
   };
   
   gdf_column* labels = table->get_column(0);
@@ -82,10 +82,10 @@ std::enable_if_t<std::is_signed<IndexT>::value>
 
   CUGRAPH_EXPECTS(verts->data != nullptr, "Invalid API parameter");
   
-  auto type_id = graph->adjList->offsets->dtype;
+  auto type_id = typeid(graph->adjList->offsets);
   CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type");
   
-  CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type");
+  CUGRAPH_EXPECTS( type_id == typeid(graph->adjList->indices), "Unsupported data type");
   
   //TODO: relax this requirement:
   //

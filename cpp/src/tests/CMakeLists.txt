@@ -113,31 +113,12 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 ### test sources ##################################################################################
 ###################################################################################################
 
-###################################################################################################
-# - katz centrality tests -------------------------------------------------------------------------
-
-set(KATZ_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/katz_centrality_test.cu")
-
-  ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}" "")
-
-###################################################################################################
 # - gdfgraph tests --------------------------------------------------------------------------------
 
 set(GDFGRAPH_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/Graph/Graph.cu")
 
 ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
-
-###################################################################################################
-# - grmat tests -----------------------------------------------------------------------------------
-
-#set(GRMAT_TEST_SRC
-#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/grmat/grmat_test.cu")
-
-#ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC} " "")
 
 ###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
@@ -148,120 +129,129 @@ set(PAGERANK_TEST_SRC
 
 ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
-###################################################################################################
-# - SSSP tests ------------------------------------------------------------------------------------
+####################################################################################################
+## - SSSP tests ------------------------------------------------------------------------------------
 set(SSSP_TEST_SRCS
 	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
 
 ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
 
+####################################################################################################
+## - LOUVAIN tests ---------------------------------------------------------------------------------
+#
+#set(LOUVAIN_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_louvain.cpp")
+#
+#ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
+#
+####################################################################################################
+## - JACCARD tests ---------------------------------------------------------------------------------
+#
+#set(JACCARD_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_jaccard.cpp")
+#
+#ConfigureTest(JACCARD_TEST "${JACCARD_TEST_SRC}" "")
+#
+####################################################################################################
+## - RENUMBERING tests -----------------------------------------------------------------------------
+#
+#set(RENUMBERING_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
+#
+#ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "${NVSTRINGS_LIBRARY}")
+#
+####################################################################################################
+## - SNMG SpMV tests -------------------------------------------------------------------------------
+#
+#set(SNMG_SPMV_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/snmg_spmv/snmg_spmv_test.cu")
+#
+#ConfigureTest(SNMG_SPMV_TEST "${SNMG_SPMV_TEST_SRC}" "")
+#
+####################################################################################################
+##-SNMG_DEGREE  tests ------------------------------------------------------------------------------
+#
+#set(SNMG_DEGREE_TEST_SRC
+#        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_degree/snmg_degree_test.cu")
+#
+#ConfigureTest(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRC}" "")
+#
+####################################################################################################
+##-SNMG_COO2CSR  tests ------------------------------------------------------------------------------
+#
+#set(SNMG_COO2CSR_TEST_SRC
+#        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_coo2csr/snmg_coo2csr_test.cu")
+#
+#ConfigureTest(SNMG_COO2CSR_TEST "${SNMG_COO2CSR_TEST_SRC}" "")
+#
+####################################################################################################
+##-SNMG_PAGERANK  tests ------------------------------------------------------------------------------
+#
+#set(SNMG_PAGERANK_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/snmg_pagerank/snmg_pagerank_test.cu")
+#
+#ConfigureTest(SNMG_PAGERANK_TEST "${SNMG_PAGERANK_TEST_SRC}" "")
+#
+####################################################################################################
+##-CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
+#
+#set(CONNECT_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
+#
+#  ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
+#
+####################################################################################################
+##-STRONGLY CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
+#
+#set(SCC_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/components/scc_test.cu")
+#
+#ConfigureTest(SCC_TEST "${SCC_TEST_SRC}" "")
+#
+####################################################################################################
+##-SORT tests ---------------------------------------------------------------------
+#
+#set(SORT_TEST_SRC
+#    "${CMAKE_CURRENT_SOURCE_DIR}/sort/sort_test.cu")
+#
+#ConfigureTest(SORT_TEST "${SORT_TEST_SRC}" "")
+#
+####################################################################################################
+##-FIND_MATCHES tests ---------------------------------------------------------------------
+#
+#set(FIND_MATCHES_TEST_SRC
+#    "${CMAKE_CURRENT_SOURCE_DIR}/db/find_matches_test.cu")
+#
+#ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
+#
 ###################################################################################################
-# - LOUVAIN tests ---------------------------------------------------------------------------------
-
-set(LOUVAIN_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_louvain.cpp")
-
-ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
-
+## - katz centrality tests -------------------------------------------------------------------------
+#
+#set(KATZ_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/katz_centrality_test.cu")
+#
+#  ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}" "")
+#
 ###################################################################################################
-# - JACCARD tests ---------------------------------------------------------------------------------
+# - grmat tests -----------------------------------------------------------------------------------
 
-set(JACCARD_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_jaccard.cpp")
+#set(GRMAT_TEST_SRC
+#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/grmat/grmat_test.cu")
 
-ConfigureTest(JACCARD_TEST "${JACCARD_TEST_SRC}" "")
-
+#ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC} " "")
 ###################################################################################################
-# - ECG tests ---------------------------------------------------------------------------------
-
-set(ECG_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/ecg_test.cu")
-
-ConfigureTest(ECG_TEST "${ECG_TEST_SRC}" "")
-
-###################################################################################################
-# - RENUMBERING tests -----------------------------------------------------------------------------
-
-set(RENUMBERING_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
-
-ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "${NVSTRINGS_LIBRARY}")
-
-###################################################################################################
-# - SNMG SpMV tests -------------------------------------------------------------------------------
-
-set(SNMG_SPMV_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/snmg_spmv/snmg_spmv_test.cu")
-
-ConfigureTest(SNMG_SPMV_TEST "${SNMG_SPMV_TEST_SRC}" "")
-
-###################################################################################################
-#-SNMG_DEGREE  tests ------------------------------------------------------------------------------
-
-set(SNMG_DEGREE_TEST_SRC
-        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_degree/snmg_degree_test.cu")
-
-ConfigureTest(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRC}" "")
-
-###################################################################################################
-#-SNMG_COO2CSR  tests ------------------------------------------------------------------------------
-
-set(SNMG_COO2CSR_TEST_SRC
-        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_coo2csr/snmg_coo2csr_test.cu")
-
-ConfigureTest(SNMG_COO2CSR_TEST "${SNMG_COO2CSR_TEST_SRC}" "")
-
-###################################################################################################
-#-SNMG_PAGERANK  tests ------------------------------------------------------------------------------
-
-set(SNMG_PAGERANK_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/snmg_pagerank/snmg_pagerank_test.cu")
-
-ConfigureTest(SNMG_PAGERANK_TEST "${SNMG_PAGERANK_TEST_SRC}" "")
-
-###################################################################################################
-#-CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
-
-set(CONNECT_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
-
-  ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
-
-###################################################################################################
-#-STRONGLY CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
-
-set(SCC_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/components/scc_test.cu")
-
-ConfigureTest(SCC_TEST "${SCC_TEST_SRC}" "")
-
-###################################################################################################
-#-SORT tests ---------------------------------------------------------------------
-
-set(SORT_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/sort/sort_test.cu")
-
-ConfigureTest(SORT_TEST "${SORT_TEST_SRC}" "")
-
-###################################################################################################
-#-FIND_MATCHES tests ---------------------------------------------------------------------
-
-set(FIND_MATCHES_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/db/find_matches_test.cu")
-
-ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
-
 ###################################################################################################
 ### enable testing ################################################################################
 ###################################################################################################

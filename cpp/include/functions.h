@@ -15,7 +15,6 @@
  */
 #pragma once 
 
-#include <cudf/cudf.h>
 #include "types.h"
 
 namespace cugraph {
@@ -44,9 +43,10 @@ namespace cugraph {
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
-void renumber_vertices(const gdf_column *src, const gdf_column *dst,
-				               gdf_column *src_renumbered, gdf_column *dst_renumbered,
-				               gdf_column *numbering_map);
+template <typename VT>
+void renumber_vertices(const VT *src, const VT *dst,
+				               VT *src_renumbered, VT *dst_renumbered,
+				               VT *numbering_map);
 
 /**
  * @Synopsis   Wrap existing gdf columns representing an edge list in a Graph.
@@ -65,10 +65,11 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void edge_list_view(Graph* graph,
-                    const gdf_column *source_indices,
-                    const gdf_column *destination_indices,
-                    const gdf_column *edge_data);
+template <typename VT, typename WT>
+void edge_list_view(Graph<VT, WT> *graph, const size_t e,
+                    VT *source_indices,
+                    VT *destination_indices,
+                    WT *edge_data = nullptr);
 
 /**
  * @Synopsis   Wrap existing gdf columns representing adjacency lists in a Graph.
@@ -87,106 +88,113 @@ void edge_list_view(Graph* graph,
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void adj_list_view (Graph* graph,
-                    const gdf_column *offsets,
-                    const gdf_column *indices,
-                    const gdf_column *edge_data);
+template <typename VT, typename WT>
+void adj_list_view (Graph<VT, WT> *graph, const size_t v, const size_t e,
+                    VT *offsets,
+                    VT *indices,
+                    WT *edge_data = nullptr);
 
 /**
  * @Synopsis   Create the adjacency lists of a Graph from its edge list.
  *             cuGRAPH allocates and owns the memory required for storing the created adjacency list.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[in, out]* graph            in  : graph descriptor containing a valid gdf_edge_list structure pointed by graph->edgeList
- *                                   out : graph->adjList is set to a gdf_adj_list structure containing the generated adjacency list
+ * @Param[in, out]* graph            in  : graph descriptor containing a valid edge_list structure pointed by graph->edgeList
+ *                                   out : graph->adjList is set to a adj_list structure containing the generated adjacency list
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void transposed_adj_list_view (Graph *graph,
-                               const gdf_column *offsets,
-                               const gdf_column *indices,
-                               const gdf_column *edge_data);
+template <typename VT, typename WT>
+void transposed_adj_list_view (Graph<VT, WT> *graph, const size_t v, const size_t e,
+                               VT *offsets,
+                               VT *indices,
+                               WT *edge_data = nullptr);
 
 /**
  * @Synopsis   Create the transposed adjacency lists of a gdf_graph from its edge list.
  *             cuGRAPH allocates and owns the memory required for storing the created adjacency list.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[in, out] *graph            in  : graph descriptor containing a valid gdf_edge_list structure pointed by graph->edgeList
- *                                   out : graph->adjList is set to a gdf_adj_list structure containing the generated adjacency list
+ * @Param[in, out] *graph            in  : graph descriptor containing a valid edge_list structure pointed by graph->edgeList
+ *                                   out : graph->adjList is set to a adj_list structure containing the generated adjacency list
  *
  * @Returns                          GDF_SUCCESS upon successful completion. If graph->edgeList is nullptr then GDF_INVALID_API_CALL is returned.
  */
 /* ----------------------------------------------------------------------------*/
-void add_adj_list(Graph* graph);
+template <typename VT, typename WT>
+void add_adj_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Create the transposed adjacency list from the edge list of a Graph.
  *             cuGRAPH allocates and owns the memory required for storing the created transposed adjacency list.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[in, out]* graph            in  : graph descriptor containing either a valid gdf_edge_list structure pointed by graph->edgeList
- *                                         or a valid gdf_adj_list structure pointed by graph->adjList
- *                                   out : graph->transposedAdjList is set to a gdf_adj_list structure containing the generated transposed adjacency list
+ * @Param[in, out]* graph            in  : graph descriptor containing either a valid edge_list structure pointed by graph->edgeList
+ *                                         or a valid adj_list structure pointed by graph->adjList
+ *                                   out : graph->transposedAdjList is set to a adj_list structure containing the generated transposed adjacency list
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-
-void add_transposed_adj_list(Graph* graph);
+template <typename VT, typename WT>
+void add_transposed_adj_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Create the edge lists of a Graph from its adjacency list.
  *             cuGRAPH allocates and owns the memory required for storing the created edge list.
  *             This function does not delete any existing data in the cuGRAPH graph descriptor
  *
- * @Param[in, out]* graph            in  : graph descriptor containing a valid gdf_adj_list structure pointed by graph->adjList
- *                                   out : graph->edgeList is set to a gdf_edge_list structure containing the generated edge list
+ * @Param[in, out]* graph            in  : graph descriptor containing a valid adj_list structure pointed by graph->adjList
+ *                                   out : graph->edgeList is set to a edge_list structure containing the generated edge list
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void add_edge_list(Graph* graph);
+template <typename VT, typename WT>
+void add_edge_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Deletes the adjacency list of a Graph
  *
- * @Param[in, out]* graph            in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
+ * @Param[in, out]* graph            in  : graph descriptor with graph->adjList pointing to a adj_list structure
  *                                   out : graph descriptor with graph->adjList set to nullptr
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_adj_list(Graph* graph);
+template <typename VT, typename WT>
+void delete_adj_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Deletes the edge list of a Graph
  *
- * @Param[in, out]* graph            in  : graph descriptor with graph->edgeList pointing to a gdf_edge_list structure
+ * @Param[in, out]* graph            in  : graph descriptor with graph->edgeList pointing to a edge_list structure
  *                                   out : graph descriptor with graph->edgeList set to nullptr
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_edge_list(Graph* graph);
+template <typename VT, typename WT>
+void delete_edge_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Deletes the transposed adjacency list of a Graph
  *
- * @Param[in, out]* graph            in  : graph descriptor with graph->transposedAdjList pointing to a gdf_adj_list structure
+ * @Param[in, out]* graph            in  : graph descriptor with graph->transposedAdjList pointing to a adj_list structure
  *                                   out : graph descriptor with graph->transposedAdjList set to nullptr
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void delete_transposed_adj_list(Graph* graph);
+template <typename VT, typename WT>
+void delete_transposed_adj_list(Graph<VT, WT> *graph);
 
 /**
  * @Synopsis   Find pairs of vertices in the input graph such that each pair is connected by
  *             a path that is two hops in length.
  *
- * @param[in]* graph                 in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
+ * @param[in]* graph                 in  : graph descriptor with graph->adjList pointing to a adj_list structure
  *
  * @param[out] first                 out : An uninitialized gdf_column which will be initialized to contain the
  *                                         first entry of each result pair.
@@ -196,7 +204,8 @@ void delete_transposed_adj_list(Graph* graph);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
+template <typename VT, typename WT>
+void get_two_hop_neighbors(Graph<VT, WT> *graph, VT *first, VT *second);
 
 /**
  * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
@@ -217,7 +226,7 @@ void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
+// void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
 
 /**
  * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a Graph
@@ -234,18 +243,20 @@ void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void degree(Graph* graph, gdf_column *degree, int x);
+template <typename VT, typename WT>
+void degree(Graph<VT, WT> *graph, VT *degree, int x);
 int get_device(const void *ptr);
 
 /**
  * @Synopsis   Compute number of vertices from the edge list
  *
  * @Param[in, out]* graph            in  : graph descriptor with graph->edgeList populated
- *                                   out : graph descriptor with graph->numberOfVertices populated
+ *                                   out : graph descriptor with graph->v populated
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
-void number_of_vertices(Graph* graph);
+template <typename VT, typename WT>
+void number_of_vertices(Graph<VT, WT> *graph);
 
 } //namespace cugraph

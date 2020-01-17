@@ -130,20 +130,20 @@ void get_two_hop_neighbors_impl(IndexType num_verts,
 
 } //namespace
 
-void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second) {
+void get_two_hop_neighbors(Graph* graph, VT *first, VT *second) {
     CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
     CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter");
     CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter");
 
-    size_t num_verts = graph->adjList->offsets->size - 1;
-    switch (graph->adjList->offsets->dtype) {
+    size_t num_verts = graph->v;
+    switch (typeid(graph->adjList->offsets)) {
         case GDF_INT32: {
             int32_t* first_ptr;
             int32_t* second_ptr;
             int32_t outputSize;
             detail::get_two_hop_neighbors_impl((int32_t) num_verts,
-                                           (int32_t*) graph->adjList->offsets->data,
-                                           (int32_t*) graph->adjList->indices->data,
+                                           (int32_t*) graph->adjList->offsets,
+                                           (int32_t*) graph->adjList->indices,
                                            &first_ptr,
                                            &second_ptr,
                                            outputSize);
@@ -160,8 +160,8 @@ void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second) 
             int64_t* second_ptr;
             int64_t outputSize;
             detail::get_two_hop_neighbors_impl((int64_t) num_verts,
-                                           (int64_t*) graph->adjList->offsets->data,
-                                           (int64_t*) graph->adjList->indices->data,
+                                           (int64_t*) graph->adjList->offsets,
+                                           (int64_t*) graph->adjList->indices,
                                            &first_ptr,
                                            &second_ptr,
                                            outputSize);

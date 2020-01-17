@@ -472,18 +472,18 @@ namespace detail {
 } //namespace 
 
 template <typename VT>
-void bfs(Graph *graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
+void bfs(Graph<VT> *graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
   // TODO improve error msg
   // TODO fix me after gdf_column is removed from Graph
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(graph->adjList->offsets) == typeid(int*), "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(graph->adjList->indices) == typeid(int*), "Unsupported data type");
   CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported data type");
 
-  int n = graph->adjList->offsets->size - 1;
-  int e = graph->adjList->indices->size;
-  int* offsets_ptr = (int*)graph->adjList->offsets->data;
-  int* indices_ptr = (int*)graph->adjList->indices->data;
+  int n = graph->v;
+  int e = graph->e;
+  int* offsets_ptr = (int*)graph->adjList->offsets;
+  int* indices_ptr = graph->adjList->indices;
   int alpha = 15;
   int beta = 18;
 
@@ -492,6 +492,6 @@ void bfs(Graph *graph, VT *distances, VT *predecessors, const VT start_vertex, b
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int>(Graph* graph, int *distances, int *predecessors, const int source_vertex, bool directed);
+template void bfs<int>(Graph<int> *graph, int *distances, int *predecessors, const int source_vertex, bool directed);
 
 } //namespace 

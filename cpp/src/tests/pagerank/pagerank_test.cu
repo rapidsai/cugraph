@@ -82,8 +82,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      int m, k, nnz;
      MM_typecode mc;
      
-     Graph_ptr G{new cugraph::Graph, Graph_deleter};
-     gdf_column_ptr col_src, col_dest;
+     Graph_ptr<int,T> G{new cugraph::Graph<int,T>, Graph_deleter<int,T>};
      float tol = 1E-5f;
      // Default parameters
      /*
@@ -116,11 +115,10 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      ASSERT_EQ( (mm_to_coo<int,T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
      ASSERT_EQ(fclose(fpin),0);
     
-    // gdf columns
-    col_src = create_gdf_column(cooRowInd);
-    col_dest = create_gdf_column(cooColInd);
+    d_ptr<int> d_src = create_d_ptr(cooRowInd);
+    d_ptr<int> d_dst = create_d_ptr(cooColInd);
 
-    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
+    cugraph::edge_list_view(G.get(), cooRowInd.size(), d_src.get(), d_dst.get());
     cugraph::add_transposed_adj_list(G.get());
 
     cudaDeviceSynchronize();

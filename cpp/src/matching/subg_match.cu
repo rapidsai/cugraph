@@ -38,24 +38,24 @@ void subgraph_matching_impl(Graph *graph_src,
                                      cudaStream_t stream = nullptr)
 {
   static auto row_offsets_ = [](const Graph* G){
-    return static_cast<const SizeT*>(G->adjList->offsets->data);
+    return static_cast<const SizeT*>(G->adjList->offsets);
   };
 
   static auto col_indices_ = [](const Graph* G){
-    return static_cast<const VertexT*>(G->adjList->indices->data);
+    return static_cast<const VertexT*>(G->adjList->indices);
   };
 
   static auto values_ = [](const Graph* G){
-    return static_cast<const GValueT*>(G->adjList->edge_data->data);
+    return static_cast<const GValueT*>(G->adjList->edge_data);
   };
 
 
   static auto nrows_ = [](const Graph* G){
-    return static_cast<SizeT>(G->adjList->offsets->size - 1);
+    return static_cast<SizeT>(G->v);
   };
 
   static auto nnz_ = [](const Graph* G){
-    return static_cast<SizeT>(G->adjList->indices->size);
+    return static_cast<SizeT>(G->e);
   };
   std::array<Graph*, 2> arr_graph = {graph_src, graph_query};
 
@@ -71,10 +71,10 @@ void subgraph_matching_impl(Graph *graph_src,
 
       CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter");
     
-      auto type_id = graph->adjList->offsets->dtype;
+      auto type_id = typeid(graph->adjList->offsets);
       CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type");
   
-      CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type");
+      CUGRAPH_EXPECTS( type_id == typeid(graph->adjList->indices), "Unsupported data type");
   
       const SizeT* p_d_row_offsets = row_offsets_(graph);
       const VertexT* p_d_col_ind = col_indices_(graph);
@@ -118,15 +118,15 @@ void subgraph_matching(Graph *graph_src,
 
 {
   static auto row_offsets_t_ = [](const Graph* G){
-    return G->adjList->offsets->dtype;
+    return typeid(G->adjList->offsets);
   };
 
   static auto col_indices_t_ = [](const Graph* G){
-    return G->adjList->indices->dtype;
+    return typeid(G->adjList->indices);
   };
 
   static auto values_t_ = [](const Graph* G){
-    return G->adjList->edge_data->dtype;
+    return typeid(G->adjList->edge_data);
   };
 
   

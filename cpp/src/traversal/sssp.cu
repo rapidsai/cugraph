@@ -283,7 +283,7 @@ void SSSP<IndexType, DistType>::clean() {
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
 template <typename VT, typename WT>
-void sssp(Graph* graph,                                            
+void sssp(Graph<VT, WT> *graph,                                            
           WT *distances,                                                  
           VT *predecessors,                                               
           const VT source_vertex) {
@@ -297,10 +297,9 @@ void sssp(Graph* graph,
   if (typeid(VT) != typeid(int) )
     CUGRAPH_FAIL("Unsupported vertex data type, please use int");
 
-  // TODO fix me after gdf_column is removed from Graph
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32,
+  CUGRAPH_EXPECTS(typeid(graph->adjList->offsets) == typeid(VT*),
               "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32,
+  CUGRAPH_EXPECTS(typeid(graph->adjList->indices) == typeid(VT*),
               "Unsupported data type");
   // TODO fix me after gdf_column is removed from Graph
   // if (predecessors) CUGRAPH_EXPECTS(typeid(predecessors) == typeid(graph->adjList->indices), "predecessors and ID type mismatch");
@@ -314,66 +313,49 @@ void sssp(Graph* graph,
     // BFS also does only integer distances right now whereas we need float or
     // double
 
-    void* d_edge_data;
-    graph->adjList->edge_data = new gdf_column;
     cudaStream_t stream{nullptr};
 
     // If distances array is given and is double, generate the weights in
     // double
     if (distances && typeid(WT) == typeid(double)) {
-      std::vector<double> h_edge_data(graph->adjList->indices->size, 1.0);
+      std::vector<double> h_edge_data(graph->e, 1.0);
       size_t edge_data_size = sizeof(double) * h_edge_data.size();
-      ALLOC_TRY((void**)&d_edge_data, edge_data_size, stream);
-      CUDA_TRY(cudaMemcpy(d_edge_data,
+      ALLOC_TRY((void**)&graph->adjList->edge_data, edge_data_size, stream);
+      CUDA_TRY(cudaMemcpy(graph->adjList->edge_data,
                           &h_edge_data[0],
                           edge_data_size,
                           cudaMemcpyHostToDevice));
-      gdf_column_view(graph->adjList->edge_data,
-                      d_edge_data,
-                      nullptr,
-                      graph->adjList->indices->size,
-                      GDF_FLOAT64);
+
 
     } else {
       // Else generate float
-      std::vector<float> h_edge_data(graph->adjList->indices->size, 1.0);
+      std::vector<float> h_edge_data(graph->e, 1.0);
       size_t edge_data_size = sizeof(float) * h_edge_data.size();
-      ALLOC_TRY((void**)&d_edge_data, edge_data_size, stream);
-      CUDA_TRY(cudaMemcpy(d_edge_data,
+      ALLOC_TRY((void**)&graph->adjList->edge_data, edge_data_size, stream);
+      CUDA_TRY(cudaMemcpy(graph->adjList->edge_data,
                           &h_edge_data[0],
                           edge_data_size,
                           cudaMemcpyHostToDevice));
-      gdf_column_view(graph->adjList->edge_data,
-                      d_edge_data,
-                      nullptr,
-                      graph->adjList->indices->size,
-                      GDF_FLOAT32);
     }
   } else {
-    // Got weighted graph
-    CUGRAPH_EXPECTS(
-        graph->adjList->edge_data->size == graph->adjList->indices->size,
-        "Graph sizes mismatch");
-    // TODO fix me after gdf_column is removed from Graph
-    CUGRAPH_EXPECTS(graph->adjList->edge_data->dtype == GDF_FLOAT32 ||
-                    graph->adjList->edge_data->dtype == GDF_FLOAT64,
-                "Invalid API parameter");
-    // TODO fix me after gdf_column is removed from Graph
-    // if (distances) CUGRAPH_EXPECTS(typeid(distances) == typeid(graph->adjList->edge_data), "distances and weights type mismatch");
+    CUGRAPH_EXPECTS(typeid(graph->adjList->edge_data) == typeid(float*) ||
+                    typeid(graph->adjList->edge_data) == typeid(double*),
+                    "Invalid edge_data type");
+    if (distances) CUGRAPH_EXPECTS(typeid(distances) == typeid(graph->adjList->edge_data), "distances and weights type mismatch");
 
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
-    if (graph->prop && graph->prop->has_negative_edges == GDF_PROP_TRUE)
+    if (graph->prop && graph->prop->has_negative_edges == PROP_TRUE)
       std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
                    "converge if the graph has negative weight cycles\n";
   }
 
-  int n = graph->adjList->offsets->size - 1;
-  int e = graph->adjList->indices->size;
-  int* offsets_ptr = (int*)graph->adjList->offsets->data;
-  int* indices_ptr = (int*)graph->adjList->indices->data;
+  int n = graph->v;
+  int e = graph->e;
+  int* offsets_ptr = (int*)graph->adjList->offsets;
+  int* indices_ptr = graph->adjList->indices;
 
-  void* edge_weights_ptr = static_cast<void*>(graph->adjList->edge_data->data);
+  void* edge_weights_ptr = static_cast<void*>(graph->adjList->edge_data);
 
   if (typeid(WT) == typeid(float)) {
     cugraph::detail::SSSP<VT, WT> sssp(
@@ -391,14 +373,14 @@ void sssp(Graph* graph,
     sssp.configure(distances, predecessors, nullptr);
     sssp.traverse(source_vertex);
   } else {
-    CUGRAPH_EXPECTS(graph->adjList->edge_data->dtype == GDF_FLOAT32 ||
-                    graph->adjList->edge_data->dtype == GDF_FLOAT64,
-                "Invalid API parameter");
+    CUGRAPH_EXPECTS(typeid(graph->adjList->edge_data) == typeid(float*) ||
+                    typeid(graph->adjList->edge_data) == typeid(double*),
+                    "Invalid edge_data type");
   }
 }
 
 // explicit instantiation
-template void sssp<int, float>(Graph* graph, float *distances, int *predecessors, const int source_vertex);
-template void sssp<int, double>(Graph* graph, double *distances, int *predecessors, const int source_vertex);
+template void sssp<int, float>(Graph<int, float>* graph, float *distances, int *predecessors, const int source_vertex);
+template void sssp<int, double>(Graph<int, double>* graph, double *distances, int *predecessors, const int source_vertex);
 
 } //namespace

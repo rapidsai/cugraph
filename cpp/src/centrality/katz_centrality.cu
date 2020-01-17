@@ -35,18 +35,18 @@ void katz_centrality(Graph *graph,
                               bool has_guess,
                               bool normalized) {
   CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(graph->adjList->offsets) == typeid(int *), "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(graph->adjList->indices) == typeid(int *), "Unsupported data type");
   CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type");
-  CUGRAPH_EXPECTS(katz_centrality->size == graph->numberOfVertices, "Column size mismatch");
+  CUGRAPH_EXPECTS(katz_centrality->size == graph->v, "Column size mismatch");
 
   const bool isStatic = true;
   using HornetGraph = hornet::gpu::HornetStatic<int>;
   using HornetInit  = hornet::HornetInit<int>;
   using Katz = hornets_nest::KatzCentralityStatic;
-  HornetInit init(graph->numberOfVertices, graph->adjList->indices->size,
-      reinterpret_cast<int*>(graph->adjList->offsets->data),
-      reinterpret_cast<int*>(graph->adjList->indices->data));
+  HornetInit init(graph->v, graph->e,
+      reinterpret_cast<int*>(graph->adjList->offsets),
+      reinterpret_cast<int*>(graph->adjList->indices));
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
   Katz katz(hnt, alpha, max_iter, tol, normalized, isStatic, reinterpret_cast<double*>(katz_centrality->data));
   if (katz.getAlpha() < alpha) {

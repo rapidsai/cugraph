@@ -22,11 +22,10 @@
 #include "renumber.cuh"
 
 namespace cugraph {
-void renumber_vertices(const gdf_column *src, const gdf_column *dst,
-                                gdf_column *src_renumbered, gdf_column *dst_renumbered,
-                                gdf_column *numbering_map) {
-  CUGRAPH_EXPECTS( src->size == dst->size, "Column size mismatch" );
-  CUGRAPH_EXPECTS( src->dtype == dst->dtype, "Unsupported data type" );
+void renumber_vertices(const VT e, const VT *src, const VT *dst,
+                                VT *src_renumbered, VT *dst_renumbered,
+                                VT *numbering_map, VT* v) {
+  CUGRAPH_EXPECTS( typeid(src) == typeid(dst), "Unsupported data type" );
 
   //
   //  Added this back in.  Below I added support for strings, however the 
@@ -35,8 +34,8 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
   //  will prevent code from being executed.  Once cudf fully support string
   //  columns we can eliminate this check and debug the GDF_STRING case below.
   //
-  CUGRAPH_EXPECTS( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), "Unsupported data type" );
-  CUGRAPH_EXPECTS( src->size > 0, "Column is empty");
+  CUGRAPH_EXPECTS( ((typeid(src) == typeid(int*) )|| (typeid(src) == typeid(int64_t*))), "Unsupported data type" );
+  CUGRAPH_EXPECTS( e > 0, "e should be greater than 0");
 
   //
   //  TODO: we're currently renumbering without using valid.  We need to
@@ -56,7 +55,7 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
   //        cugraph assumes int32_t for vertex ids.  Until that assumption
   //        changes, we can just hardcode to int32_t.
   //
-  //    * I could match src->dtype - since if the raw values fit in an int32_t,
+  //    * I could match typeid(src) - since if the raw values fit in an int32_t,
   //      then the renumbered values must fit within an int32_t
   //    * If input is 64-bit, I could compute with 64 bit integers and check
   //      check if new_size < (2^31 - 1) then I could allocate 32-bit integers
@@ -68,17 +67,17 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
   //  Renumbering is different based upon the column types.  Note
   //  that we required src and dst data types to match above.
   //
-  switch (src->dtype) {
+  switch (typeid(src)) {
   case GDF_INT32:
     {
       size_t new_size;
       int32_t *tmp;
 
       ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
-      gdf_column_view(src_renumbered, tmp, src->valid, src->size, src->dtype);
+      gdf_column_view(src_renumbered, tmp, src->valid, src->size, typeid(src));
 
       ALLOC_TRY((void**) &tmp, sizeof(int32_t) * src->size, stream);
-      gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, dst->dtype);
+      gdf_column_view(dst_renumbered, tmp, dst->valid, dst->size, typeid(dst));
 
       cugraph::detail::renumber_vertices(src->size,
                                          static_cast<const int32_t *>(src->data),
@@ -90,7 +89,7 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
                                          cugraph::detail::HashFunctionObjectInt(hash_size),
                                          thrust::less<int32_t>()
                                          );
-      gdf_column_view(numbering_map, tmp, nullptr, new_size, src->dtype);
+      gdf_column_view(numbering_map, tmp, nullptr, new_size, typeid(src));
       break;
     }
 
@@ -140,7 +139,7 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
       //  columns (we want the numbering map to take us back to the
       //  original data, so it must match that column type).
       //
-      gdf_column_view(numbering_map, tmp, nullptr, new_size, src->dtype);
+      gdf_column_view(numbering_map, tmp, nullptr, new_size, typeid(src));
       break;
     }
 
@@ -198,7 +197,7 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
       //  columns (we want the numbering map to take us back to the
       //  original data, so it must match that column type).
       //
-      gdf_column_view(numbering_map, output_map, nullptr, new_size, src->dtype);
+      gdf_column_view(numbering_map, output_map, nullptr, new_size, typeid(src));
       break;
     }
 

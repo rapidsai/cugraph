@@ -36,9 +36,9 @@ void core_number_impl(Graph *graph,
   using HornetGraph = hornet::gpu::HornetStatic<int>;
   using HornetInit  = hornet::HornetInit<int>;
   using CoreNumber  = hornets_nest::CoreNumberStatic;
-  HornetInit init(graph->numberOfVertices, graph->adjList->indices->size,
-      static_cast<int*>(graph->adjList->offsets->data),
-      static_cast<int*>(graph->adjList->indices->data));
+  HornetInit init(graph->v, graph->e,
+      static_cast<int*>(graph->adjList->offsets),
+      static_cast<int*>(graph->adjList->indices));
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
   CoreNumber cn(hnt, core_number);
   cn.run();
@@ -71,7 +71,7 @@ void extract_edges(
   cudaStream_t stream{nullptr};
 
   //Allocate output columns
-  o_graph->edgeList = new gdf_edge_list;
+  o_graph->edgeList = new edge_list;
   o_graph->edgeList->src_indices = new gdf_column;
   o_graph->edgeList->dest_indices = new gdf_column;
   o_graph->edgeList->ownership = 2;
@@ -83,8 +83,8 @@ void extract_edges(
   ALLOC_TRY((void**)&o_src, sizeof(int) * filteredEdgeCount, stream);
   ALLOC_TRY((void**)&o_dst, sizeof(int) * filteredEdgeCount, stream);
 
-  int *i_src = static_cast<int*>(i_graph->edgeList->src_indices->data);
-  int *i_dst = static_cast<int*>(i_graph->edgeList->dest_indices->data);
+  int *i_src = static_cast<int*>(i_graph->edgeList->src_indices);
+  int *i_dst = static_cast<int*>(i_graph->edgeList->dest_indices);
   WT  *i_wgt = nullptr;
 
   gdf_column_view(o_graph->edgeList->src_indices, o_src,
@@ -96,12 +96,14 @@ void extract_edges(
   if (hasData) {
     o_graph->edgeList->edge_data   = new gdf_column;
     ALLOC_TRY((void**)&o_wgt, sizeof(WT)  * filteredEdgeCount, stream);
-    i_wgt = static_cast<WT*>(i_graph->edgeList->edge_data->data);
+    i_wgt = static_cast<WT*>(i_graph->edgeList->edge_data);
+    
+    //TODO Fix this while upgrading cuHornet based features by getting the type from the template
     gdf_column_view(o_graph->edgeList->edge_data,   o_wgt,
         nullptr, filteredEdgeCount, i_graph->edgeList->edge_data->dtype);
   }
 
-  gdf_size_type nE = i_graph->edgeList->src_indices->size;
+  gdf_size_type nE = i_graph->e;
 
   //If an edge satisfies k-core conditions i.e. core_num[src] and core_num[dst]
   //are both greater than or equal to k, copy it to the output graph
@@ -165,18 +167,19 @@ void extract_subgraph(Graph *in_graph,
 
   cugraph::add_edge_list(in_graph);
   thrust::device_ptr<int> src =
-    thrust::device_pointer_cast(static_cast<int*>(in_graph->edgeList->src_indices->data));
+    thrust::device_pointer_cast(static_cast<int*>(in_graph->edgeList->src_indices));
   thrust::device_ptr<int> dst =
-    thrust::device_pointer_cast(static_cast<int*>(in_graph->edgeList->dest_indices->data));
+    thrust::device_pointer_cast(static_cast<int*>(in_graph->edgeList->dest_indices));
 
   //Count number of edges in the input graph that satisfy kcore conditions
   //i.e. core_num[src] and core_num[dst] are both greater than or equal to k
-  gdf_size_type nE = in_graph->edgeList->src_indices->size;
+  gdf_size_type nE = in_graph->e;
   auto edge = thrust::make_zip_iterator(thrust::make_tuple(src, dst));
   int filteredEdgeCount = thrust::count_if(rmm::exec_policy(stream)->on(stream),
       edge, edge + nE, detail::FilterEdges(k, c_ptr));
 
   //Extract the relevant edges that have satisfied k-core conditions and put them in the output graph
+  //TODO Fix this while upgrading cuHornet based features by getting the type from the template
   if (in_graph->edgeList->edge_data != nullptr) {
     switch (in_graph->edgeList->edge_data->dtype) {
       case GDF_FLOAT32:   return detail::extract_edges<float> (in_graph, out_graph, c_ptr, k, filteredEdgeCount);
@@ -193,10 +196,10 @@ void core_number(Graph *graph,
                 gdf_column *core_number) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(graph->adjList->offsets) == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(graph->adjList->indices) == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(core_number->size == graph->numberOfVertices, "Column size mismatch");
+  CUGRAPH_EXPECTS(core_number->size == graph->v, "Column size mismatch");
 
   return detail::core_number_impl(graph, static_cast<int*>(core_number->data));
 }
@@ -208,9 +211,9 @@ void k_core(Graph *in_graph,
                      Graph *out_graph) {
 
   CUGRAPH_EXPECTS(out_graph != nullptr && in_graph != nullptr, "Invalid API parameter");
-  gdf_size_type nV = in_graph->numberOfVertices;
-  CUGRAPH_EXPECTS(in_graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(in_graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  gdf_size_type nV = in_graph->v;
+  CUGRAPH_EXPECTS(in_typeid(graph->adjList->offsets) == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(in_typeid(graph->adjList->indices) == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS((vertex_id != nullptr) && (core_number != nullptr), "Invalid API parameter");
   CUGRAPH_EXPECTS(vertex_id->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");

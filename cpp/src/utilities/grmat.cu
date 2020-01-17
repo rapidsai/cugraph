@@ -77,7 +77,7 @@ template<
     typename VertexId,
     typename SizeT,
     typename Value>
-gdf_error main_(gdf_column *src,  gdf_column *dest, gdf_column *val, CommandLineArgs *args, size_t &vertices, size_t &edges)
+gdf_error main_(VT *src,  gdf_column *dest, gdf_column *val, CommandLineArgs *args, size_t &vertices, size_t &edges)
 {
     CpuTimer cpu_timer, cpu_timer2;
     SizeT rmat_nodes = 1 << 10;
@@ -301,7 +301,7 @@ void free_args (char argc, char** args)
         free(args[i]);
 }
 
-gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, gdf_column *src,  gdf_column *dest, gdf_column *val)
+gdf_error gdf_grmat_gen (const char* argv, size_t& vertices, size_t& edges, VT *src,  gdf_column *dest, gdf_column *val)
 {
     int argc = 0;
     char* arg[32] = {0};

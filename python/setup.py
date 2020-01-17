@@ -28,7 +28,7 @@ INSTALL_REQUIRES = ['numba', 'cython']
 conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
-CYTHON_FILES = ['cugraph/**/*.pyx']
+CYTHON_FILES = ['cugraph/structure/graph_wrapper.pyx']
 
 CUDA_HOME = os.environ.get("CUDA_HOME", False)
 if not CUDA_HOME:

@@ -46,7 +46,7 @@ extern "C" {
 
 #include <rmm/rmm.h>
 
-#include "cugraph.h"
+#include "types.h"
 
 #include "utilities/error_utils.h"
 
@@ -61,21 +61,6 @@ extern "C" {
     }                          \
 }
 #endif
-
-std::function<void(gdf_column*)> gdf_col_deleter = [](gdf_column* col){
-  if (col) {
-    col->size = 0;
-    if(col->data){
-      cudaStream_t stream{nullptr};
-      ALLOC_FREE_TRY(col->data, stream);
-    }
-    delete col;
-  }
-};
-using gdf_column_ptr = typename std::unique_ptr<gdf_column, decltype(gdf_col_deleter)>;
-
-std::function<void(cugraph::Graph*)> Graph_deleter = [](cugraph::Graph* G){delete G;};
-using Graph_ptr = typename std::unique_ptr<cugraph::Graph,decltype(Graph_deleter)>;
 
 std::string getFileName(const std::string& s) {
 
@@ -630,117 +615,33 @@ int read_binary_vector ( FILE* fpin,
     return 0;
 }
 
-// Creates a gdf_column from a std::vector
-template <typename col_type>
-gdf_column_ptr create_gdf_column(std::vector<col_type> const & host_vector)
+
+// Creates a dev pointer from a std::vector
+template <typename T>
+void create_d_ptr(std::vector<T> const & host_vector, T* d_ptr)
 {
-  // Create a new instance of a gdf_column with a custom deleter that will free
-  // the associated device memory when it eventually goes out of scope
-  gdf_column_ptr the_column{new gdf_column, gdf_col_deleter};
   // Allocate device storage for gdf_column and copy contents from host_vector
-  const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
+  const size_t input_size_bytes = host_vector.size() * sizeof(T);
   cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
-  cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
-
-  // Deduce the type and set the gdf_dtype accordingly
-  gdf_dtype gdf_col_type;
-  if(std::is_same<col_type,int8_t>::value) gdf_col_type = GDF_INT8;
-  else if(std::is_same<col_type,uint8_t>::value) gdf_col_type = GDF_INT8;
-  else if(std::is_same<col_type,int16_t>::value) gdf_col_type = GDF_INT16;
-  else if(std::is_same<col_type,uint16_t>::value) gdf_col_type = GDF_INT16;
-  else if(std::is_same<col_type,int32_t>::value) gdf_col_type = GDF_INT32;
-  else if(std::is_same<col_type,uint32_t>::value) gdf_col_type = GDF_INT32;
-  else if(std::is_same<col_type,int64_t>::value) gdf_col_type = GDF_INT64;
-  else if(std::is_same<col_type,uint64_t>::value) gdf_col_type = GDF_INT64;
-  else if(std::is_same<col_type,float>::value) gdf_col_type = GDF_FLOAT32;
-  else if(std::is_same<col_type,double>::value) gdf_col_type = GDF_FLOAT64;
-  // Fill the gdf_column members
-  the_column->valid = nullptr;
-  the_column->null_count = 0;
-  the_column->size = host_vector.size();
-  the_column->dtype = gdf_col_type;
-  gdf_dtype_extra_info extra_info;
-  extra_info.time_unit = TIME_UNIT_NONE;
-  the_column->dtype_info = extra_info;
-  return the_column;
+  ALLOC_TRY((void**)&(d_ptr), input_size_bytes, stream);
+  cudaMemcpy(d_ptr, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
 }
 
-// Creates a gdf_column from a std::vector
-template <typename col_type>
-void create_gdf_column(std::vector<col_type> const & host_vector, gdf_column * the_column)
-{
 
-  // Allocate device storage for gdf_column and copy contents from host_vector
-  const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
-  cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
-
-  // Deduce the type and set the gdf_dtype accordingly
-  gdf_dtype gdf_col_type;
-  if(std::is_same<col_type,int8_t>::value) gdf_col_type = GDF_INT8;
-  else if(std::is_same<col_type,uint8_t>::value) gdf_col_type = GDF_INT8;
-  else if(std::is_same<col_type,int16_t>::value) gdf_col_type = GDF_INT16;
-  else if(std::is_same<col_type,uint16_t>::value) gdf_col_type = GDF_INT16;
-  else if(std::is_same<col_type,int32_t>::value) gdf_col_type = GDF_INT32;
-  else if(std::is_same<col_type,uint32_t>::value) gdf_col_type = GDF_INT32;
-  else if(std::is_same<col_type,int64_t>::value) gdf_col_type = GDF_INT64;
-  else if(std::is_same<col_type,uint64_t>::value) gdf_col_type = GDF_INT64;
-  else if(std::is_same<col_type,float>::value) gdf_col_type = GDF_FLOAT32;
-  else if(std::is_same<col_type,double>::value) gdf_col_type = GDF_FLOAT64;
-  // Fill the gdf_column members
-  the_column->valid = nullptr;
-  the_column->null_count = 0;
-  the_column->size = host_vector.size();
-  the_column->dtype = gdf_col_type;
-  gdf_dtype_extra_info extra_info;
-  extra_info.time_unit = TIME_UNIT_NONE;
-  the_column->dtype_info = extra_info;
-}
-
-void gdf_col_delete(gdf_column* col) {
-  if (col)
-  {
-    col->size = 0;
-    cudaStream_t stream{nullptr};
-    if(col->data)
-      ALLOC_FREE_TRY(col->data, stream);
-#if 1
-// If delete col is executed, the memory pointed by col is no longer valid and
-// can be used in another memory allocation, so executing col->data = nullptr
-// after delete col is dangerous, also, col = nullptr has no effect here (the
-// address is passed by value, for col = nullptr should work, the input
-// parameter should be gdf_column*& col (or alternatively, gdf_column** col and
-// *col = nullptr also work)
-    col->data = nullptr;
-    delete col;
-#else
-    delete col;
-    col->data = nullptr;
-    col = nullptr;
-#endif
-  }
-}
-
-template <typename col_type>
-bool gdf_column_equal(gdf_column* a, gdf_column* b) {
+template <typename Ta, typename Tb>
+bool d_eq(Ta* a, Tb* b, size_t n) {
   if (a == nullptr || b == nullptr){
-    std::cout << "A given column is null!\n";
+    std::cout << "null input!\n";
     return false;
   }
-  if (a->dtype != b->dtype){
-    std::cout << "Mismatched dtypes\n";
+  if (typeid(Ta) != typeid(Tb)){
+    std::cout << "Mismatched types\n";
     return false;
   }
-  if (a->size != b->size){
-    std::cout << "Mismatched sizes: a=" << a->size << " b=" << b->size << "\n";
-    return false;
-  }
-  std::vector<col_type>a_h(a->size);
-  std::vector<col_type>b_h(b->size);
-  cudaMemcpy(&a_h[0], a->data, sizeof(col_type) * a->size, cudaMemcpyDefault);
-  cudaMemcpy(&b_h[0], b->data, sizeof(col_type) * b->size, cudaMemcpyDefault);
+  std::vector<Ta>a_h(n);
+  std::vector<Tb>b_h(n);
+  cudaMemcpy(&a_h[0], a, sizeof(Ta) * n, cudaMemcpyDefault);
+  cudaMemcpy(&b_h[0], b, sizeof(Tb) * n, cudaMemcpyDefault);
   for (size_t i = 0; i < a_h.size(); i++) {
     if (a_h[i] != b_h[i]){
       std::cout << "Elements at " << i << " differ: a=" << a_h[i] << " b=" << b_h[i] << "\n";
@@ -750,32 +651,58 @@ bool gdf_column_equal(gdf_column* a, gdf_column* b) {
   return true;
 }
 
+template <typename T>
+std::function<void(T*)> d_ptr_deleter = [](T* ptr){RMM_FREE(ptr, nullptr);};
+
+template <typename T>
+using d_ptr = typename std::unique_ptr<T,decltype(d_ptr_deleter<T>)>;
+
+// Creates a device array (smart ptr) from a std::vector
+template <typename T>
+d_ptr<T> create_d_ptr(std::vector<T> const & host_vector)
+{
+  // Allocate device storage and copy contents from host_vector
+  const size_t input_size_bytes = host_vector.size() * sizeof(T);
+  cudaStream_t stream{nullptr};
+  T* raw;
+  ALLOC_TRY(& raw, input_size_bytes, stream);
+  cudaMemcpy(raw, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
+
+  // Create a new instance with a custom deleter that will free
+  // the associated device memory when it eventually goes out of scope
+  d_ptr<T> smart{raw, d_ptr_deleter<T>};
+  return smart;
+}
+
+template <typename VT, typename WT = float>
+std::function<void(cugraph::Graph<VT,WT>*)> Graph_deleter = [](cugraph::Graph<VT,WT>* G){delete G;};
+
+template <typename VT, typename WT = float>
+using Graph_ptr = typename std::unique_ptr<cugraph::Graph<VT,WT>,decltype(Graph_deleter<VT,WT>)>;
+
+
 template<typename idx_t>
-bool gdf_csr_equal(gdf_column* a_off, gdf_column* a_ind, gdf_column* b_off, gdf_column* b_ind) {
+bool csr_equal(idx_t v, idx_t e, idx_t* a_off, idx_t* a_ind, idx_t* b_off, idx_t* b_ind) {
   if (a_off == nullptr || a_ind == nullptr || b_off == nullptr || b_ind == nullptr) {
     std::cout << "A given column is null!\n";
     return false;
   }
-  auto type = a_off->dtype;
-  if (a_ind->dtype != type || b_off->dtype != type || b_ind->dtype != type) {
+  if (typeid(a_off) != typeid(int) || typeid(a_ind) != typeid(int) || typeid(b_off) != typeid(int)  || typeid(b_ind) != typeid(int) ) {
     std::cout << "Mismatched dtypes\n";
     return false;
   }
-  if (!gdf_column_equal<idx_t>(a_off, b_off)) {
+  if (!d_eq<idx_t>(a_off, b_off, v+1)) {
     std::cout << "Offsets arrays do not match!\n";
     return false;
   }
-  if (a_ind->size != b_ind->size) {
-    std::cout << "Size of indices arrays do not match\n";
-    return false;
-  }
+
   // Compare the elements of each section of the indices, regardless of order
-  std::vector<idx_t> a_off_h(a_off->size);
-  std::vector<idx_t> a_ind_h(a_ind->size);
-  std::vector<idx_t> b_ind_h(b_ind->size);
-  cudaMemcpy(&a_off_h[0], a_off->data, a_off->size * sizeof(idx_t), cudaMemcpyDefault);
-  cudaMemcpy(&a_ind_h[0], a_ind->data, a_ind->size * sizeof(idx_t), cudaMemcpyDefault);
-  cudaMemcpy(&b_ind_h[0], b_ind->data, b_ind->size * sizeof(idx_t), cudaMemcpyDefault);
+  std::vector<idx_t> a_off_h(v+1);
+  std::vector<idx_t> a_ind_h(e);
+  std::vector<idx_t> b_ind_h(e);
+  cudaMemcpy(&a_off_h[0], a_off, (v+1) * sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&a_ind_h[0], a_ind, e * sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&b_ind_h[0], b_ind, e * sizeof(idx_t), cudaMemcpyDefault);
   auto numVerts = a_off_h.size() - 1;
   for (size_t vert = 0; vert < numVerts; vert++){
     auto start = a_off_h[vert];
