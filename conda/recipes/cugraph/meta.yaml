@@ -1,0 +1,44 @@
+# Copyright (c) 2018, NVIDIA CORPORATION.
+
+# Usage:
+#   conda build -c nvidia -c rapidsai -c conda-forge -c defaults .
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set git_revision_count=environ.get('GIT_DESCRIBE_NUMBER', 0) %}
+{% set py_version=environ.get('CONDA_PY', 36) %}
+package:
+  name: cugraph
+  version: {{ version }}
+
+source:
+  path: ../../..
+
+build:
+  number: {{ git_revision_count }}
+  string: py{{ py_version }}_{{ git_revision_count }}
+  script_env:
+    - CC
+    - CXX
+    - CUDAHOSTCXX
+    - PARALLEL_LEVEL
+
+requirements:
+  build:
+    - python x.x
+    - libcugraph={{ version }}
+    - cudf={{ minor_version }}
+  run:
+    - python x.x
+    - libcugraph={{ version }}
+    - cudf={{ minor_version }}
+
+#test:
+#  commands:
+#    - test -f $PREFIX/include/cugraph.h
+
+
+about:
+  home: http://rapids.ai/
+  license: Apache-2.0
+  license_file: ../../../LICENSE
+  summary: libcugraph library

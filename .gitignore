@@ -1,0 +1,39 @@
+## Common
+__pycache__
+*.pyc
+*.a
+*.o
+*.so
+*.dylib
+.cache
+.coverage
+.vscode
+*.swp
+*.pytest_cache
+DartConfiguration.tcl
+.DS_Store
+	
+## Python build directories & artifacts
+htmlcov
+dist/
+cudf.egg-info/
+python/build
+python/cudf/bindings/*.cpp
+	
+## Patching
+*.diff
+*.orig
+*.rej
+	
+## C++ build directories & artifacts
+CMakeFiles/
+Debug
+build/
+	
+## Eclipse IDE
+.project
+.cproject
+.settings
+
+datasets/*
+.pydevproject
