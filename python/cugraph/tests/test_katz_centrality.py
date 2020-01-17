@@ -16,7 +16,6 @@ from itertools import product
 
 import pytest
 
-import pandas as pd
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -50,16 +49,16 @@ def calc_katz(graph_file):
     largest_out_degree = largest_out_degree['out_degree'][0]
     katz_alpha = 1/(largest_out_degree + 1)
 
-    k = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
+    k_df = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
 
     NM = utils.read_csv_for_nx(graph_file)
-    NM = NM.tocsr()
-    Gnx = nx.DiGraph(NM)
+    Gnx = nx.from_pandas_edgelist(NM, create_using=nx.DiGraph(),
+                                  source='0', target='1')
     nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
-    pdf = pd.DataFrame(nk, index=[0]).T
-    k['nx_katz'] = pdf[0]
-    k = k.rename({'katz_centrality': 'cu_katz'})
-    return k
+    pdf = [nk[k] for k in sorted(nk.keys())]
+    k_df['nx_katz'] = pdf
+    k_df = k_df.rename({'katz_centrality': 'cu_katz'})
+    return k_df
 
 
 DATASETS = ['../datasets/dolphins.csv',

@@ -38,12 +38,10 @@ def calc_k_cores(graph_file):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-
     ck = cugraph.k_core(G)
-
     NM = utils.read_csv_for_nx(graph_file)
-    NM = NM.tocsr()
-    Gnx = nx.DiGraph(NM)
+    Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
+                                  create_using=nx.DiGraph())
     nk = nx.k_core(Gnx)
     return ck, nk
 

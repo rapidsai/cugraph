@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from scipy.sparse import coo_matrix
-
 import cudf
 import pandas as pd
 
@@ -21,16 +19,19 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True):
     print('Reading ' + str(csv_file) + '...')
     if read_weights_in_sp is True:
         df = pd.read_csv(csv_file, delimiter=' ', header=None,
-                         names=['0', '1', '2'],
-                         dtype={'0': 'int32', '1': 'int32', '2': 'float32'})
+                         names=['0', '1', 'weight'],
+                         dtype={'0': 'int32', '1': 'int32',
+                                'weight': 'float32'})
     else:
         df = pd.read_csv(csv_file, delimiter=' ', header=None,
-                         names=['0', '1', '2'],
-                         dtype={'0': 'int32', '1': 'int32', '2': 'float64'})
+                         names=['0', '1', 'weight'],
+                         dtype={'0': 'int32', '1': 'int32',
+                                'weight': 'float64'})
 
-    nverts = 1 + max(df['0'].max(), df['1'].max())
+    # nverts = 1 + max(df['0'].max(), df['1'].max())
 
-    return coo_matrix((df['2'], (df['0'], df['1'])), shape=(nverts, nverts))
+    # return coo_matrix((df['2'], (df['0'], df['1'])), shape=(nverts, nverts))
+    return df
 
 
 def read_csv_file(csv_file, read_weights_in_sp=True):
