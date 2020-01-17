@@ -2,6 +2,8 @@
 
 ## New Features
 - PR #628 Add (Di)Graph constructor from Multi(Di)Graph
+- PR #630 Added ECG clustering
+- PR #636 Added Multi-column renumbering support
 
 ## Improvements
 - PR #640 remove gdf_column in sssp 
@@ -15,6 +17,8 @@
 - PR #634 renumber vertex ids passed in analytics
 - PR #649 Change variable names in wjaccard and woverlap to avoid exception
 - PR #651 fix cudf error in katz wrapper and test nstart
+- PR #663 Replaced use of cudf._lib.gdf_dtype_from_value based on cudf refactoring
+- PR #672 fix snmg pagerank based on cudf Buffer changes
 
 # cuGraph 0.11.0 (11 Dec 2019)
 
