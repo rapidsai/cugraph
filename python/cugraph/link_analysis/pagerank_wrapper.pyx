@@ -85,16 +85,18 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
+        personalization['vertex'] = personalization['vertex'].astype(np.int32)
+        personalization['values'] = personalization['values'].astype(df['pagerank'].dtype)
         if input_graph.renumbered is True:
-            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
-                                          index=input_graph.edgelist.renumber_map, dtype=np.int32)
-            vertex_renumbered = renumber_series.loc[personalization['vertex']]
-            c_pers_vtx = get_column_data_ptr(vertex_renumbered._column)
+            renumber_df = cudf.DataFrame()
+            renumber_df['map'] = input_graph.edgelist.renumber_map
+            renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
+            personalization_values = personalization.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
+            c_pers_vtx = get_column_data_ptr(personalization_values['id']._column)
+            c_pers_val = get_column_data_ptr(personalization_values['values']._column)
         else:
-            personalization_vertex = personalization['vertex'].astype(np.int32)
-            c_pers_vtx = get_column_data_ptr(personalization_vertex._column)
-        personalization_values = personalization['values'].astype(df['pagerank'].dtype)
-        c_pers_val = get_column_data_ptr(personalization_values._column)
+            c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
+            c_pers_val = get_column_data_ptr(personalization['values']._column)
     
     if (df['pagerank'].dtype == np.float32): 
         c_pagerank.pagerank[int, float](g, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,

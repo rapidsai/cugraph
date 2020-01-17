@@ -18,8 +18,8 @@ def to_gpu_array(df):
     """
     start_idx = df.index[0]
     stop_idx = df.index[-1]
-    gpu_array_src = df['src']._column._data.mem
-    gpu_array_dest = df['dst']._column._data.mem
+    gpu_array_src = df['src']._column.data_array_view
+    gpu_array_dest = df['dst']._column.data_array_view
     dev = device_of_devicendarray(gpu_array_src)
     return dev, (gpu_array_src, gpu_array_dest), (start_idx, stop_idx)
 

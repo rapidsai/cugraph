@@ -102,7 +102,7 @@ class Graph:
 
     def from_cudf_edgelist(self, input_df, source='source',
                            destination='destination',
-                           edge_attr=None, renumber=False):
+                           edge_attr=None, renumber=True):
         """
         Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed input_df argument
@@ -339,7 +339,9 @@ class Graph:
                 the second vertex id of a pair.
         """
         df = graph_wrapper.get_two_hop_neighbors(self)
-
+        if self.renumbered is True:
+            df['first'] = self.edgelist.renumber_map[df['first']]
+            df['second'] = self.edgelist.renumber_map[df['second']]
         return df
 
     def number_of_vertices(self):
