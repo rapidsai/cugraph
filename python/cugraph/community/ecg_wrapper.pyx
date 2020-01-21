@@ -59,7 +59,12 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
     cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
     g.adjList.get_vertex_identifiers(&c_index_col)
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+            unrenumered_df = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
+            cols = unrenumered_df.columns
+            df = unrenumered_df[[cols[1:], cols[0]]]
+        else:
+            df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
 
     df['partition'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef uintptr_t c_ecg_ptr = get_column_data_ptr(df['partition']._column)

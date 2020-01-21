@@ -97,7 +97,12 @@ def louvain(input_graph):
     
 
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+            unrenumered_df = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
+            cols = unrenumered_df.columns
+            df = unrenumered_df[[cols[1:], cols[0]]]
+        else:
+            df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
 
     if single_precision:
         return df, <double>final_modularity_single_precision

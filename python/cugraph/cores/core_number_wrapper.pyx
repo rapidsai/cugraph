@@ -68,6 +68,11 @@ def core_number(input_graph):
     c_core.core_number(g, &c_core_number_col)
 
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+            unrenumered_df = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
+            cols = unrenumered_df.columns
+            df = unrenumered_df[[cols[1:], cols[0]]]
+        else:
+            df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
 
     return df

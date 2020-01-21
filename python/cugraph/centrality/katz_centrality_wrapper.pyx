@@ -85,6 +85,11 @@ def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=Non
     c_katz.katz_centrality(g, &c_katz_centrality_col, alpha, max_iter, tol, has_guess, normalized)
 
     if input_graph.renumbered:
-        df['vertex']=input_graph.edgelist.renumber_map[df['vertex']]
+        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+            unrenumered_df = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
+            cols = unrenumered_df.columns
+            df = unrenumered_df[[cols[1:], cols[0]]]
+        else:
+            df['vertex']=input_graph.edgelist.renumber_map[df['vertex']]
 
     return df

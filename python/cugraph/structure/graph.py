@@ -219,13 +219,21 @@ class Graph:
             graph_wrapper.view_edge_list(self)
         edgelist_df = self.edgelist.edgelist_df
         if self.renumbered:
-            df = cudf.DataFrame()
-            for col in edgelist_df.columns:
-                if col in ['src', 'dst']:
-                    df[col] = self.edgelist.renumber_map[edgelist_df[col]]
-                    df[col] = self.edgelist.renumber_map[edgelist_df[col]]
-                else:
-                    df[col] = edgelist_df[col]
+            if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
+                df = cudf.DataFrame()
+                ncols = len(self.edgelist.edgelist_df) - 2
+                unrenumered_df_ = edgelist_df.merge(self.edgelist.renumber_map, left_on='src', right_on='id', how='left').drop(['id', 'src'])
+                unrenumered_df = unrenumered_df_.merge(self.edgelist.renumber_map, left_on='dst', right_on='id', how='left').drop(['id', 'dst'])
+                cols = unrenumered_df.columns
+                df = unrenumered_df[[cols[ncols:], cols[0:ncols]]]
+            else:
+                df = cudf.DataFrame()
+                for col in edgelist_df.columns:
+                    if col in ['src', 'dst']:
+                        df[col] = self.edgelist.renumber_map[edgelist_df[col]]
+                        df[col] = self.edgelist.renumber_map[edgelist_df[col]]
+                    else:
+                        df[col] = edgelist_df[col]
             return df
         else:
             return edgelist_df

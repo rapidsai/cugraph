@@ -113,11 +113,16 @@ def overlap_w(input_graph, weights_arr, vertex_pair=None):
         g.adjList.get_source_indices(&c_index_col);
         
         df['destination'] = cudf.Series(dest_data)
+        df['overlap_coeff'] = result
 
         if input_graph.renumbered:
-            df['source'] = input_graph.edgelist.renumber_map[df['source']]
-            df['destination'] = input_graph.edgelist.renumber_map[df['destination']]
-
-        df['overlap_coeff'] = result
+            if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+                unrenumered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='source', right_on='id', how='left').drop(['id', 'source'])
+                unrenumered_df = unrenumered_df_.merge(input_graph.edgelist.renumber_map, left_on='destination', right_on='id', how='left').drop(['id', 'destination'])
+                cols = unrenumered_df.columns
+                df = unrenumered_df[[cols[1:], cols[0]]]
+            else:
+                df['source'] = input_graph.edgelist.renumber_map[df['source']]
+                df['destination'] = input_graph.edgelist.renumber_map[df['destination']]
 
         return df
