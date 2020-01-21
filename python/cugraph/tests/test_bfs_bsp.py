@@ -32,7 +32,7 @@ def cugraph_call(cu_M, start_vertex):
     df = cu_M[['0', '1']]
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(df, source='0', destination='1')    
+    G.from_cudf_edgelist(df, source='0', destination='1')
 
     t1 = time.time()
     df = cugraph.bsp.traversal.bfs_pregel(G, start_vertex)
@@ -49,7 +49,7 @@ def cugraph_call_df(cu_M, start_vertex):
     df = cu_M[['0', '1']]
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(df, source='0', destination='1')    
+    G.from_cudf_edgelist(df, source='0', destination='1')
 
     t1 = time.time()
     df = cugraph.bsp.traversal.bfs_pregel_df(
