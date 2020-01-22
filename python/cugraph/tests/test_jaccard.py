@@ -214,7 +214,8 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
                                   edge_attr='weight', create_using=nx.Graph())
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=False)
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', 
+                         renumber=False)
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):
