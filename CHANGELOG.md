@@ -12,6 +12,8 @@
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 - PR #652 Remove gdf_column in BFS
 - PR #660 enable auto renumbering
+- PR #664 Added support for Louvain early termination.
+- PR #667 Drop `cython` from run requirements in conda recipe
 - PR #666 Incorporate multicolumn renumbering in python graph class for Multi(Di)Graph
 
 ## Bug Fixes
@@ -20,6 +22,7 @@
 - PR #651 fix cudf error in katz wrapper and test nstart
 - PR #663 Replaced use of cudf._lib.gdf_dtype_from_value based on cudf refactoring
 - PR #672 fix snmg pagerank based on cudf Buffer changes
+- PR #681 fix column length mismatch cudf issue
 
 # cuGraph 0.11.0 (11 Dec 2019)
 

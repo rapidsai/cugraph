@@ -27,13 +27,11 @@ requirements:
   build:
     - cmake>=3.12.4
     - libcudf={{ minor_version }}
-    - cython
     - cudatoolkit {{ cuda_version }}.*
     - boost-cpp>=1.66
     - libcypher-parser
   run:
     - libcudf={{ minor_version }}
-    - cython
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
 
 #test:
