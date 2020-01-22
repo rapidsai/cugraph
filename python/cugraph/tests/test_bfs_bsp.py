@@ -64,7 +64,7 @@ def cugraph_call_df(cu_M, start_vertex):
 
 def base_call(M, start_vertex):
 
-    M_csr = M.tocsr()
+    M_csr = coo_matrix.tocsr(M)
 
     offsets = M_csr.indptr
     indices = M_csr.indices
