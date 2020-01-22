@@ -21,6 +21,7 @@
 - PR #649 Change variable names in wjaccard and woverlap to avoid exception
 - PR #651 fix cudf error in katz wrapper and test nstart
 - PR #663 Replaced use of cudf._lib.gdf_dtype_from_value based on cudf refactoring
+- PR #670 Use cudf pandas version
 - PR #672 fix snmg pagerank based on cudf Buffer changes
 - PR #681 fix column length mismatch cudf issue
 
