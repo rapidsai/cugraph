@@ -101,7 +101,7 @@ DATASETS = ['../datasets/dolphins.csv',
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_bfs(managed, pool, graph_file):
+def test_bfs_bsp(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
@@ -130,7 +130,7 @@ def test_bfs(managed, pool, graph_file):
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_bfs_df(managed, pool, graph_file):
+def test_bfs_bsp_df(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
