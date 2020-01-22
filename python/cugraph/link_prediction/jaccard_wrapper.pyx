@@ -31,7 +31,7 @@ import rmm
 import numpy as np
 
 
-def jaccard(input_graph, first=None, second=None):
+def jaccard(input_graph, vertex_pair=None):
     """
     Call jaccard_list
     """
@@ -58,28 +58,38 @@ def jaccard(input_graph, first=None, second=None):
     cdef gdf_column c_second_col
     cdef gdf_column c_src_index_col
 
-    if type(first) == cudf.Series and type(second) == cudf.Series:
-        result_size = len(first)
+    if type(vertex_pair) == cudf.DataFrame:
+        result_size = len(vertex_pair)
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
-        c_first_col = get_gdf_column_view(first)
-        c_second_col = get_gdf_column_view(second)
+        df = cudf.DataFrame()
+        if input_graph.renumbered is True:
+            renumber_df = cudf.DataFrame()
+            renumber_df['map'] = input_graph.edgelist.renumber_map
+            renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
+            vp = vertex_pair.merge(renumber_df, left_on='first', right_on='map', how='left').drop('map').merge(renumber_df, left_on='second', right_on='map', how='left').drop('map')
+            df['source'] = vp['first']
+            df['destination'] = vp['second']
+            c_first_col = get_gdf_column_view(vp['id_x'])
+            c_second_col = get_gdf_column_view(vp['id_y'])
+        else:
+            first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
+            second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
+            df['source'] = first
+            df['destination'] = second
+            c_first_col = get_gdf_column_view(first)
+            c_second_col = get_gdf_column_view(second)
         c_jaccard.jaccard_list(g,
                                <gdf_column*> NULL,
                                &c_first_col,
                                &c_second_col,
                                &c_result_col)
-        
-        df = cudf.DataFrame()
-        df['source'] = first
-        df['destination'] = second
         df['jaccard_coeff'] = result
-
         return df
 
     else:
         # error check performed in jaccard.py
-        assert first is None and second is None
+        assert vertex_pair is None
         # we should add get_number_of_edges() to Graph (and this should be
         # used instead of g.adjList.indices.size)
         num_edges = g.adjList.indices.size

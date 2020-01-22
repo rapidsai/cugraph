@@ -55,7 +55,13 @@ def subgraph(input_graph, vertices, subgraph):
 
     cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
     cdef Graph* rg = <Graph*>rGraph
-    cdef gdf_column vert_col = get_gdf_column_view(vertices)
+    if input_graph.renumbered is True:
+        renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
+                                      index=input_graph.edgelist.renumber_map, dtype=np.int32)
+        vertices_renumbered = renumber_series.loc[vertices]
+        vert_col = get_gdf_column_view(vertices_renumbered)
+    else:
+        vert_col = get_gdf_column_view(vertices)
 
     extract_subgraph_vertex_nvgraph(g, &vert_col, rg)
 
