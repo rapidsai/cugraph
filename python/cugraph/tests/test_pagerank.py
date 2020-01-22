@@ -135,7 +135,7 @@ MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
 PERSONALIZATION_PERC = [0, 10, 50]
-HAS_GUESS = [0]
+HAS_GUESS = [0, 1]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
