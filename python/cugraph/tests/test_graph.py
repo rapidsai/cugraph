@@ -432,7 +432,8 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=False)
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2',
+                         renumber=False)
 
     df = G.get_two_hop_neighbors()
     Mnx = utils.read_csv_for_nx(graph_file)
