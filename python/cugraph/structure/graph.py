@@ -232,12 +232,12 @@ class Graph:
                 df = unrnb_df[[cols[ncols:], cols[0:ncols]]]
             else:
                 df = cudf.DataFrame()
-                for col in edgelist_df.columns:
-                    if col in ['src', 'dst']:
-                        df[col] = self.edgelist.renumber_map[edgelist_df[col]].\
+                for c in edgelist_df.columns:
+                    if c in ['src', 'dst']:
+                        df[c] = self.edgelist.renumber_map[edgelist_df[c]].\
                             reset_index().drop('index')
                     else:
-                        df[col] = edgelist_df[col]
+                        df[c] = edgelist_df[c]
             return df
         else:
             return edgelist_df
