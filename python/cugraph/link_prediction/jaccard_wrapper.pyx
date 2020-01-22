@@ -110,8 +110,8 @@ def jaccard(input_graph, vertex_pair=None):
         df['destination'] = cudf.Series(dest_data)
 
         if input_graph.renumbered:
-            df['source'] = input_graph.edgelist.renumber_map[df['source']]
-            df['destination'] = input_graph.edgelist.renumber_map[df['destination']]
+            df['source'] = input_graph.edgelist.renumber_map[df['source']].reset_index().drop('index')
+            df['destination'] = input_graph.edgelist.renumber_map[df['destination']].reset_index().drop('index')
 
         df['jaccard_coeff'] = result
 

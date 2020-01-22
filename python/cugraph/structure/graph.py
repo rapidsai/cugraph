@@ -208,8 +208,10 @@ class Graph:
         edgelist_df = self.edgelist.edgelist_df
         if self.renumbered:
             df = cudf.DataFrame()
-            df['src'] = self.edgelist.renumber_map[edgelist_df['src']]
-            df['dst'] = self.edgelist.renumber_map[edgelist_df['dst']]
+            df['src'] = self.edgelist.renumber_map[edgelist_df['src']].\
+                reset_index().drop('index')
+            df['dst'] = self.edgelist.renumber_map[edgelist_df['dst']].\
+                reset_index().drop('index')
             return df
         else:
             return edgelist_df
@@ -324,8 +326,10 @@ class Graph:
         """
         df = graph_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
-            df['first'] = self.edgelist.renumber_map[df['first']]
-            df['second'] = self.edgelist.renumber_map[df['second']]
+            df['first'] = self.edgelist.renumber_map[df['first']].\
+                reset_index().drop('index')
+            df['second'] = self.edgelist.renumber_map[df['second']].\
+                reset_index().drop('index')
         return df
 
     def number_of_vertices(self):
