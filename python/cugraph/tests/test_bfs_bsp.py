@@ -18,6 +18,7 @@ import time
 
 import numpy as np
 import pytest
+from scipy.sparse import coo_matrix
 
 import cugraph
 from cugraph.tests import utils
@@ -63,10 +64,10 @@ def cugraph_call_df(cu_M, start_vertex):
 
 def base_call(M, start_vertex):
 
-    M = M.tocsr()
+    M_csr = M.tocsr()
 
-    offsets = M.indptr
-    indices = M.indices
+    offsets = M_csr.indptr
+    indices = M_csr.indices
     num_verts = len(offsets) - 1
     dist = np.zeros(num_verts, dtype=np.int32)
     vertex = list(range(num_verts))
