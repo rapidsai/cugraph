@@ -98,7 +98,8 @@ DATASETS = ['../datasets/dolphins.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.skip(reason="BSP BFS produce different results sets than neetworkx")
+@pytest.mark.skip(
+    reason="BSP BFS produce different results sets than neetworkx")
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
@@ -127,7 +128,8 @@ def test_bfs_bsp(managed, pool, graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.skip(reason="BSP BFS produce different results sets than neetworkx")
+@pytest.mark.skip(
+    reason="BSP BFS produce different results sets than neetworkx")
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
