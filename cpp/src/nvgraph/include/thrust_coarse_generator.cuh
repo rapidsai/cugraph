@@ -236,12 +236,13 @@ void generate_superverticies_graph(const int n_vertex, const int num_aggregates,
 
 
   thrust::reduce_by_key(thrust::make_zip_iterator(thrust::make_tuple(I.begin(), J.begin())),
-         thrust::make_zip_iterator(thrust::make_tuple(I.end(),   J.end())),
-         V.begin(),
-         thrust::make_zip_iterator(thrust::make_tuple(new_row_indices.begin(), new_csr_ind_d.begin())),
-         new_csr_val_d.begin(),
-         thrust::equal_to< thrust::tuple<IndexType,IndexType> >(),
-         thrust::plus<ValueType>());
+                        thrust::make_zip_iterator(thrust::make_tuple(I.end(),   J.end())),
+                        V.begin(),
+                        thrust::make_zip_iterator(thrust::make_tuple(new_row_indices.begin(),
+                                                                     new_csr_ind_d.begin())),
+                        new_csr_val_d.begin(),
+                        thrust::equal_to< thrust::tuple<IndexType,IndexType> >(),
+                        thrust::plus<ValueType>());
   cudaCheckError();
   
   indices_to_offsets(thrust::device, new_row_indices, new_csr_ptr_d);

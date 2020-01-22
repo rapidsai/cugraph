@@ -69,8 +69,7 @@ __device__ void compute_k_i_in( const int n_vertex,
 
     IdxType i_start = *(csr_ptr_ptr + i);
     IdxType i_end = *(csr_ptr_ptr + i + 1);
-    
-#pragma unroll    
+
     for(int j = 0; j < i_end - i_start; ++j){
       IdxType j_idx = *(csr_idx_ptr + i_start + j);
       IdxType   c_j = *(cluster_ptr + j_idx);
@@ -87,11 +86,20 @@ __device__ void compute_k_i_in( const int n_vertex,
 // ptr version
 template<typename IdxType, typename ValType>
 __device__ void
-delta_modularity(const int n_vertex, const int c_size, bool updated,
-                 IdxType* csr_ptr_ptr, IdxType* csr_ind_ptr, ValType* csr_val_ptr, 
+delta_modularity(const int n_vertex,
+                 const int c_size,
+                 bool updated,
+                 IdxType* csr_ptr_ptr,
+                 IdxType* csr_ind_ptr,
+                 ValType* csr_val_ptr,
                  IdxType* cluster_ptr,
-                 ValType c_sum, ValType m2,
-                 IdxType row_idx, IdxType col_idx, IdxType c, ValType* k_vec_ptr, ValType* score){
+                 ValType c_sum,
+                 ValType m2,
+                 IdxType row_idx,
+                 IdxType col_idx,
+                 IdxType c,
+                 ValType* k_vec_ptr,
+                 ValType* score){
  
   // ki: sum of i's edges weight 
   // ki_in: sum of edge from i to c
@@ -102,14 +110,12 @@ delta_modularity(const int n_vertex, const int c_size, bool updated,
   ki_in = (int)(c_i!=c)*(*(csr_val_ptr + col_idx));
   ValType ki = *(k_vec_ptr + row_idx);
   
-
   if(!updated){
     compute_k_i_in(n_vertex, csr_ptr_ptr, csr_ind_ptr, csr_val_ptr, cluster_ptr, c, row_idx, &ki_in);
   }
 
   ValType sum_tot = c_sum - (int)(c_i == c)*ki;
   *score = ki_in - 2*sum_tot*ki/(m2);
-//  printf("i: %d\tci: %d\tc: %d\t2m: %1f\tkin: %f\tki: %f\tsum_tot: %f\tc_sum: %f\tdelta: %f\n", row_idx, c_i, c, m2, ki_in, ki, sum_tot, c_sum,*score );
 }
 
 
@@ -127,15 +133,11 @@ __device__ void compute_cluster_sum(const int n_vertex, const int c_size,
     c_start = *(cluster_inv_ptr_ptr + c);
     c_end = *(cluster_inv_ptr_ptr + c + 1);  
 
-#pragma unroll        
     for(IdxType* it = cluster_inv_ind_ptr + c_start; it!= cluster_inv_ind_ptr + c_end ; ++it){
       sum += (ValType)(*(k_ptr + *(it)));
     }
     *(cluster_sum_vec + c) = sum;
-    //printf("c: %d c_sum: %f\n", c, (ValType)(*(cluster_sum_vec + c)));
   }
-   
-
 }
 
 
@@ -174,12 +176,19 @@ kernel_compute_cluster_sum(const int n_vertex, const int c_size,
 ****************************************************************************************************/
 template<typename IdxType, typename ValType>
 __global__ void// __launch_bounds__(CUDA_MAX_KERNEL_THREADS) 
-build_delta_modularity_vec_flat(const int n_vertex, const int n_edges, const int c_size, ValType m2, bool updated,
-                          IdxType* coo_row_ind_ptr, IdxType* csr_ptr_ptr,  IdxType* csr_ind_ptr, ValType* csr_val_ptr, 
-                          IdxType* cluster_ptr,
-                          ValType* cluster_sum_vec_ptr,
-                          ValType* k_vec_ptr,
-                          ValType* delta_modularity_vec){
+build_delta_modularity_vec_flat(const int n_vertex,
+                                const int n_edges,
+                                const int c_size,
+                                ValType m2,
+                                bool updated,
+                                IdxType* coo_row_ind_ptr,
+                                IdxType* csr_ptr_ptr,
+                                IdxType* csr_ind_ptr,
+                                ValType* csr_val_ptr,
+                                IdxType* cluster_ptr,
+                                ValType* cluster_sum_vec_ptr,
+                                ValType* k_vec_ptr,
+                                ValType* delta_modularity_vec){
 
   ValType m2_s(m2); //privatize 
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -190,11 +199,20 @@ build_delta_modularity_vec_flat(const int n_vertex, const int n_edges, const int
     IdxType c = cluster_ptr[ col_idx ]; // target cluster c
     ValType c_sum = cluster_sum_vec_ptr[c]; 
 
-    delta_modularity(n_vertex, c_size, updated,
-                     csr_ptr_ptr,  csr_ind_ptr, csr_val_ptr,
+    delta_modularity(n_vertex,
+                     c_size,
+                     updated,
+                     csr_ptr_ptr,
+                     csr_ind_ptr,
+                     csr_val_ptr,
                      cluster_ptr,
-                     c_sum, m2_s,
-                     row_idx, col_idx, c, k_vec_ptr, delta_modularity_vec + tid); 
+                     c_sum,
+                     m2_s,
+                     row_idx,
+                     col_idx,
+                     c,
+                     k_vec_ptr,
+                     delta_modularity_vec + tid);
 
   }
 }

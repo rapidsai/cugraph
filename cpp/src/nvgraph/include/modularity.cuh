@@ -57,19 +57,11 @@ __device__ void compute_k_vec(const int n_vertex, IdxType* csr_ptr_ptr, ValType*
     int start_idx = *(csr_ptr_ptr + tid);
     int end_idx = *(csr_ptr_ptr + tid + 1);
 
-#ifdef DEBUG
-    if( end_idx > (*(csr_ptr_ptr + n_vertex)) ){
-      printf("Error computing ki iter but end_idx >= n_vertex %d >= %d\n");
-      *(k_vec + tid) = 0.0;
-    }
-#endif
-
     if(!weighted){
       *(k_vec + tid) = (ValType)end_idx - start_idx;
     }
     else{
       ValType sum = 0.0;    
-#pragma unroll 
       for(int i = 0 ; i < end_idx - start_idx; ++ i){
         sum += *(csr_val_ptr + start_idx + i);
       }    
@@ -90,8 +82,7 @@ modularity_i( const int n_vertex,
               IdxType* cluster_inv_ptr_ptr,
               IdxType* cluster_inv_ind_ptr,
               ValType* k_ptr,
-              ValType* Q_arr, 
-              ValType* temp_i, // size = n_edges
+              ValType* Q_arr, // size = n_edges
               ValType m2
               ){
 
@@ -108,25 +99,17 @@ modularity_i( const int n_vertex,
     c_i = *(cluster_ptr + i); 
     ki = *(k_ptr + i);
 
-    //only sees its neibors
+    //only sees its neighbors
     Ai = 0.0;
-#pragma unroll 
     for(int j = 0; j< end_idx - start_idx; ++j){ 
       IdxType j_idx = (IdxType)(*(csr_ind_ptr + j + start_idx));
       IdxType c_j = (IdxType)(*(cluster_ptr + j_idx));
       Ai += ((int)(c_i != c_j)*((ValType)(*(csr_val_ptr + j + start_idx))));
     }
     
-    
     start_c_idx = *(cluster_inv_ptr_ptr + c_i);
     end_c_idx = *(cluster_inv_ptr_ptr + c_i + 1); 
- 
 
-#ifdef DEBUG
-    if (temp_i == NULL) printf("Error in allocate temp_i memory in thread %d\n",i);
-#endif
-
-#pragma unroll
     for(int j = 0; j< end_c_idx-start_c_idx; ++j){
       IdxType j_idx = (IdxType)(*(cluster_inv_ind_ptr + j + start_c_idx));
       sum_k += (ValType)(*(k_ptr + j_idx)); 
@@ -134,8 +117,6 @@ modularity_i( const int n_vertex,
 
     sum_k = m2 - sum_k;    
     *(Q_arr + i) =( Ai - (( ki * sum_k )/ m2))/m2 ;
-//      printf("-- i: %d Q: %.6e Ai: %f ki*sum_k = %f x %f = %f\n", i, *(Q_arr + i), Ai, ki, sum_k, (ki * sum_k));
-
   }
   return;
 }
@@ -149,8 +130,7 @@ modularity_no_matrix(const int n_vertex, const int n_clusters, ValType m2,
                      IdxType* cluster_ptr, IdxType* cluster_inv_ptr_ptr, IdxType* cluster_inv_ind_ptr,
                      bool weighted, // bool identical_cluster, // todo  optimizaiton
                      ValType* k_vec, 
-                     ValType* Q_arr, 
-                     ValType* temp_i){
+                     ValType* Q_arr){
 
 
   compute_k_vec(n_vertex, csr_ptr_ptr, csr_val_ptr, weighted, k_vec);
@@ -159,7 +139,7 @@ modularity_no_matrix(const int n_vertex, const int n_clusters, ValType m2,
   modularity_i(n_vertex, n_clusters, 
                csr_ptr_ptr, csr_ind_ptr, csr_val_ptr, 
                cluster_ptr, cluster_inv_ptr_ptr, cluster_inv_ind_ptr, 
-               k_vec, Q_arr, temp_i, m2);
+               k_vec, Q_arr, m2);
 
 } 
 
@@ -170,32 +150,44 @@ __global__ void
 kernel_modularity_no_matrix(const int n_vertex, const int n_clusters, ValType m2,
                             IdxType* csr_ptr_ptr, IdxType* csr_ind_ptr, ValType* csr_val_ptr, 
                             IdxType* cluster_ptr, IdxType* cluster_inv_ptr_ptr, IdxType* cluster_inv_ind_ptr,
-                            bool weighted, ValType* k_vec_ptr, ValType* Q_arr_ptr, ValType* temp_i_ptr){
+                            bool weighted, ValType* k_vec_ptr, ValType* Q_arr_ptr){
   ValType m2_s(m2);
   modularity_no_matrix(n_vertex, n_clusters, m2_s, 
                        csr_ptr_ptr, csr_ind_ptr, csr_val_ptr, 
                        cluster_ptr, cluster_inv_ptr_ptr, cluster_inv_ind_ptr,
-                       weighted, k_vec_ptr, Q_arr_ptr, temp_i_ptr );
+                       weighted, k_vec_ptr, Q_arr_ptr);
 
 }
 
 template<typename IdxType, typename ValType>
 ValType 
-modularity(const int n_vertex, int n_edges, const int n_clusters, ValType m2,
-           IdxType* csr_ptr_ptr, IdxType* csr_ind_ptr, ValType* csr_val_ptr,
-           IdxType* cluster_ptr, IdxType* cluster_inv_ptr_ptr, IdxType* cluster_inv_ind_ptr,
-           bool weighted, ValType* k_vec_ptr, 
-           ValType* Q_arr_ptr, ValType* temp_i_ptr // temporary space for calculation
-           ){
-
-  thrust::fill(thrust::device, temp_i_ptr, temp_i_ptr + n_edges, 0.0);
-
+modularity(const int n_vertex,
+           int n_edges,
+           const int n_clusters,
+           ValType m2,
+           IdxType* csr_ptr_ptr,
+           IdxType* csr_ind_ptr,
+           ValType* csr_val_ptr,
+           IdxType* cluster_ptr,
+           IdxType* cluster_inv_ptr_ptr,
+           IdxType* cluster_inv_ind_ptr,
+           bool weighted,
+           ValType* k_vec_ptr,
+           ValType* Q_arr_ptr){
   int nthreads = min(n_vertex,CUDA_MAX_KERNEL_THREADS); 
   int nblocks = min((n_vertex + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS); 
-  kernel_modularity_no_matrix<<<nblocks, nthreads >>>(n_vertex, n_clusters, m2,
-                                                          csr_ptr_ptr, csr_ind_ptr, csr_val_ptr,
-                                                          cluster_ptr, cluster_inv_ptr_ptr, cluster_inv_ind_ptr,
-                                                          weighted, k_vec_ptr, Q_arr_ptr, temp_i_ptr);
+  kernel_modularity_no_matrix<<<nblocks, nthreads >>>(n_vertex,
+                                                      n_clusters,
+                                                      m2,
+                                                      csr_ptr_ptr,
+                                                      csr_ind_ptr,
+                                                      csr_val_ptr,
+                                                      cluster_ptr,
+                                                      cluster_inv_ptr_ptr,
+                                                      cluster_inv_ind_ptr,
+                                                      weighted,
+                                                      k_vec_ptr,
+                                                      Q_arr_ptr);
 
   CUDA_CALL(cudaDeviceSynchronize());
 

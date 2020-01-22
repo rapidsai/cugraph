@@ -139,14 +139,14 @@ Size2Selector<IndexType, ValueType>::Size2Selector()
 
 // setAggregates for block_dia_csr_matrix_d format
 template <typename IndexType, typename ValueType>
-NVGRAPH_ERROR Size2Selector<IndexType, ValueType>::setAggregates_common_sqblocks(
-cusparseHandle_t cusp_handle,
-const IndexType n_vertex,
-const IndexType n_edges, 
-IndexType *csr_ptr,
-IndexType *csr_ind,
-ValueType *csr_val, 
-Vector<IndexType> &aggregates, int &num_aggregates)
+NVGRAPH_ERROR Size2Selector<IndexType, ValueType>::setAggregates_common_sqblocks(cusparseHandle_t cusp_handle,
+                                                                                 const IndexType n_vertex,
+                                                                                 const IndexType n_edges,
+                                                                                 IndexType *csr_ptr,
+                                                                                 IndexType *csr_ind,
+                                                                                 ValueType *csr_val,
+                                                                                 Vector<IndexType> &aggregates,
+                                                                                 int &num_aggregates)
 {
   const IndexType n = n_vertex;
   const IndexType nnz = n_edges;

@@ -3447,11 +3447,11 @@ nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataT
     if (val_type == CUDA_R_32F)
         status = nvlouvain::louvain ((int*)csr_ptr, (int*)csr_ind, (float*)csr_val, num_vertex, num_edges,
                weighted_b, has_init_cluster_b, (int*)init_cluster, *((float*)final_modularity),
-              (int*)best_cluster_vec,*((int*)num_level), max_iter, log);
+              (int*)best_cluster_vec,*((int*)num_level), max_iter, std::cout);
     else
         status = nvlouvain::louvain ((int*)csr_ptr, (int*)csr_ind, (double*)csr_val, num_vertex, num_edges,
                 weighted_b, has_init_cluster_b, (int*)init_cluster, *((double*)final_modularity),
-                (int*)best_cluster_vec,*((int*)num_level), max_iter, log);
+                (int*)best_cluster_vec,*((int*)num_level), max_iter, std::cout);
 
     if (status != NVLOUVAIN_OK)
         return NVGRAPH_STATUS_INTERNAL_ERROR;

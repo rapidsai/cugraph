@@ -42,7 +42,9 @@
 
 namespace nvlouvain{
 
-//#define VERBOSE true
+
+#define VERBOSE true
+#define ENABLE_LOG
 
 #define LOG() (log<<COLOR_GRN<<"[ "<< time_now() <<" ] "<<COLOR_WHT)
 
@@ -51,15 +53,19 @@ namespace nvlouvain{
 The main program of louvain
 */
 template<typename IdxType=int, typename ValType>
-NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
-                  const size_t num_vertex, const size_t num_edges, 
-                  bool& weighted, bool has_init_cluster,
-                  IdxType* init_cluster, // size = n_vertex
-                  ValType& final_modularity,
-                  IdxType* cluster_vec, // size = n_vertex
-                  IdxType& num_level,
-                  IdxType max_iter = 100,
-                  std::ostream& log = std::cout){
+NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
+                         IdxType* csr_ind,
+                         ValType* csr_val,
+                         const size_t num_vertex,
+                         const size_t num_edges,
+                         bool& weighted,
+                         bool has_init_cluster,
+                         IdxType* init_cluster, // size = n_vertex
+                         ValType& final_modularity,
+                         IdxType* cluster_vec, // size = n_vertex
+                         IdxType& num_level,
+                         IdxType max_iter = 100,
+                         std::ostream& log = std::cout){
 #ifndef ENABLE_LOG
   log.setstate(std::ios_base::failbit);
 #endif
@@ -149,10 +155,18 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
 
   hr_clock.start();
   // Get the initialized modularity
-  new_Q = modularity( n_vertex, n_edges, c_size, m2,
-              csr_ptr_ptr, csr_ind_ptr, csr_val_ptr,
-              cluster_ptr, cluster_inv_ptr_ptr, cluster_inv_ind_ptr, 
-              weighted, k_vec_ptr, Q_arr_ptr, delta_Q_arr_ptr); // delta_Q_arr_ptr is temp_i
+  new_Q = modularity(n_vertex, n_edges,
+                     c_size,
+                     m2,
+                     csr_ptr_ptr,
+                     csr_ind_ptr,
+                     csr_val_ptr,
+                     cluster_ptr,
+                     cluster_inv_ptr_ptr,
+                     cluster_inv_ind_ptr,
+                     weighted,
+                     k_vec_ptr,
+                     Q_arr_ptr);
 
 
   hr_clock.stop(&timed);
@@ -183,17 +197,24 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
 
     hr_clock.start();
     // Compute delta modularity for each edges
-    build_delta_modularity_vector(cusp_handle, current_n_vertex, c_size, m2, updated, 
-                                  csr_ptr_d, csr_ind_d, csr_val_d, 
+    build_delta_modularity_vector(cusp_handle,
+                                  current_n_vertex,
+                                  c_size,
+                                  m2,
+                                  updated,
+                                  csr_ptr_d,
+                                  csr_ind_d,
+                                  csr_val_d,
                                   cluster_d, 
-                                  cluster_inv_ptr_ptr, cluster_inv_ind_ptr, 
-                                  k_vec_ptr, cluster_sum_vec_ptr, delta_Q_arr_ptr);
+                                  cluster_inv_ptr_ptr,
+                                  cluster_inv_ind_ptr,
+                                  k_vec_ptr,
+                                  cluster_sum_vec_ptr,
+                                  delta_Q_arr_ptr);
      
-    //display_vec(delta_Q_arr);
     hr_clock.stop(&timed);
     diff_time = timed;
     LOG()<<"Complete build_delta_modularity_vector  runtime: "<<diff_time/1000<<"\n";
-    //LOG()<<"Initial modularity value: "<<COLOR_MGT<<new_Q<<COLOR_WHT<<" runtime: "<<diff_time/1000<<"\n";  
 
 
     //  Start aggregates 
@@ -213,22 +234,24 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
     }
 
 
-    Size2Selector<IdxType, ValType> size2_sector(config, agg_deterministic, agg_max_iterations, agg_numUnassigned_tol, agg_two_phase, agg_merge_singletons, 0); 
-
-    //hollywood-2009 0.5
-
-
-#ifdef DEBUG
-    if((unsigned)cluster_d.size()!= current_n_vertex)
-      //LOG()<<"Error cluster_d.size()!= current_n_verte:qx"<< cluster_d.size() <<" != "<< current_n_vertex <<"\n";
-#endif 
-
-#ifdef VERBOSE
-    //LOG()<<"n_vertex: "<< csr_ptr_d.size()<<" "<<csr_ind_d.size()<< " " << csr_val_d.size()<<" a_size: "<<aggregates.size()<<std::endl;
-#endif
+    Size2Selector<IdxType, ValType> size2_sector(config,
+                                                 agg_deterministic,
+                                                 agg_max_iterations,
+                                                 agg_numUnassigned_tol,
+                                                 agg_two_phase,
+                                                 agg_merge_singletons,
+                                                 0);
 
     hr_clock.start();
-    size2_sector.setAggregates(cusp_handle, current_n_vertex, n_edges, csr_ptr_ptr, csr_ind_ptr, csr_val_ptr , aggregates, num_aggregates);
+    size2_sector.setAggregates(cusp_handle,
+                               current_n_vertex,
+                               n_edges,
+                               csr_ptr_ptr,
+                               csr_ind_ptr,
+                               csr_val_ptr,
+                               aggregates,
+                               num_aggregates);
+
     CUDA_CALL(cudaDeviceSynchronize());
     hr_clock.stop(&timed);
     diff_time = timed;
@@ -260,10 +283,18 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
 
 
     hr_clock.start();
-    new_Q = modularity(current_n_vertex, n_edges, c_size, m2,
-                       csr_ptr_ptr, csr_ind_ptr, csr_val_ptr,
-                       cluster_ptr, cluster_inv_ptr_ptr, cluster_inv_ind_ptr,
-                       weighted, k_vec_ptr, Q_arr_ptr, delta_Q_arr_ptr); //delta_Q_arr_ptr is temp_i and Q_arr is also temp store
+    new_Q = modularity(current_n_vertex,
+                       n_edges,
+                       c_size,
+                       m2,
+                       csr_ptr_ptr,
+                       csr_ind_ptr,
+                       csr_val_ptr,
+                       cluster_ptr,
+                       cluster_inv_ptr_ptr,
+                       cluster_inv_ind_ptr,
+                       weighted, k_vec_ptr,
+                       Q_arr_ptr);
 
 
     hr_clock.stop(&timed);
@@ -339,10 +370,19 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
       ValType* new_csr_val_ptr = thrust::raw_pointer_cast(new_csr_val.data());
 
 
-      new_Q = modularity( best_c_size, n_edges, best_c_size, m2,
-                          new_csr_ptr_ptr, new_csr_ind_ptr, new_csr_val_ptr,
-                          cluster_ptr, cluster_inv_ptr_ptr, cluster_inv_ind_ptr,
-                          weighted, k_vec_ptr, Q_arr_ptr, delta_Q_arr_ptr);
+      new_Q = modularity(best_c_size,
+                         n_edges,
+                         best_c_size,
+                         m2,
+                         new_csr_ptr_ptr,
+                         new_csr_ind_ptr,
+                         new_csr_val_ptr,
+                         cluster_ptr,
+                         cluster_inv_ptr_ptr,
+                         cluster_inv_ind_ptr,
+                         weighted,
+                         k_vec_ptr,
+                         Q_arr_ptr);
       
       hr_clock.stop(&timed);
 
@@ -423,15 +463,6 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
 
   } while(contin);
 
-#ifdef VERBOSE
-    display_vec(cluster_d);   
-    display_vec(csr_ptr_d);
-    display_vec(csr_ind_d);
-    display_vec(csr_val_d);
-
-#endif
-
-  //LOG()<<"Final modularity: "<<COLOR_MGT<<best_modularity<<COLOR_WHT<<std::endl;
   log.clear();  
   final_modularity = best_modularity;
   cudaMemcpy ( cluster_vec, thrust::raw_pointer_cast(clustering.data()), n_vertex*sizeof(int), cudaMemcpyDefault );
@@ -445,7 +476,6 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr, IdxType* csr_ind, ValType* csr_val,
                   IdxType* init_cluster, // size = n_vertex
                   ValType& final_modularity,
                   std::vector< std::vector<int> >& cluster_vec,
-//                  std::vector< IdxType* >& cluster_vec,
                   IdxType& num_level,
                   std::ostream& log = std::cout){
 #ifndef ENABLE_LOG
