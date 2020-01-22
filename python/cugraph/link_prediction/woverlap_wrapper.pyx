@@ -64,17 +64,21 @@ def overlap_w(input_graph, weights_arr, vertex_pair=None):
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
         c_weight_col = get_gdf_column_view(weights_arr)
-        first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
-        second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
-
+        df = cudf.DataFrame()
         if input_graph.renumbered is True:
-            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
-                                          index=input_graph.edgelist.renumber_map, dtype=np.int32)
-            first_renumbered = renumber_series.loc[first]
-            second_renumbered = renumber_series.loc[second]
-            c_first_col = get_gdf_column_view(first_renumbered)
-            c_second_col = get_gdf_column_view(second_renumbered)
+            renumber_df = cudf.DataFrame()
+            renumber_df['map'] = input_graph.edgelist.renumber_map
+            renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
+            vp = vertex_pair.merge(renumber_df, left_on='first', right_on='map', how='left').drop('map').merge(renumber_df, left_on='second', right_on='map', how='left').drop('map')
+            df['source'] = vp['first']
+            df['destination'] = vp['second']
+            c_first_col = get_gdf_column_view(vp['id_x'])
+            c_second_col = get_gdf_column_view(vp['id_y'])
         else:
+            first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
+            second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
+            df['source'] = first
+            df['destination'] = second
             c_first_col = get_gdf_column_view(first)
             c_second_col = get_gdf_column_view(second)
 
@@ -84,9 +88,6 @@ def overlap_w(input_graph, weights_arr, vertex_pair=None):
                                &c_second_col,
                                &c_result_col)
         
-        df = cudf.DataFrame()
-        df['source'] = first
-        df['destination'] = second
         df['overlap_coeff'] = result
         return df
 
@@ -114,8 +115,8 @@ def overlap_w(input_graph, weights_arr, vertex_pair=None):
         df['destination'] = cudf.Series(dest_data)
 
         if input_graph.renumbered:
-            df['source'] = input_graph.edgelist.renumber_map[df['source']]
-            df['destination'] = input_graph.edgelist.renumber_map[df['destination']]
+            df['source'] = input_graph.edgelist.renumber_map[df['source']].reset_index().drop('index')
+            df['destination'] = input_graph.edgelist.renumber_map[df['destination']].reset_index().drop('index')
 
         df['overlap_coeff'] = result
 
