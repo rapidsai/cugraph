@@ -113,7 +113,7 @@ def test_woverlap(managed, pool, graph_file):
 
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', renumber=False)
     pairs = G.get_two_hop_neighbors()
 
     cu_coeff = cugraph_call(cu_M, pairs)
