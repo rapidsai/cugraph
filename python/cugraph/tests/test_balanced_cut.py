@@ -96,7 +96,8 @@ def test_edge_cut_clustering(managed, pool, graph_file, partitions):
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
-def test_edge_cut_clustering_with_edgevals(managed, pool,graph_file, partitions):
+def test_edge_cut_clustering_with_edgevals(managed, pool,
+                                           graph_file, partitions):
     gc.collect()
 
     rmm.reinitialize(
