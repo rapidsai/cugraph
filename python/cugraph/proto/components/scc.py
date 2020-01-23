@@ -145,7 +145,7 @@ def _filter_list(vert_list, drop_list):
 
     df['d'] = df['d'].fillna(1)
     df = df.query('d == 1')
-    df.drop_column('d')
+    df.drop('d', inplace=True)
 
     return df
 
