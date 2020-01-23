@@ -205,7 +205,7 @@ seq_idx(n_vertex) [0, 1, 2, ... , n_vertex -1]
 ***********************/
 template<typename IdxIter, typename IdxType=int> 
 __global__ void
-generate_cluster_inv_ptr(const int n_vertex, const int c_size, IdxIter cluster_iter, IdxType* cluster_inv_ptr){
+generate_cluster_inv_ptr(const int n_vertex, IdxIter cluster_iter, IdxType* cluster_inv_ptr){
   int tid = blockDim.x * blockIdx.x + threadIdx.x; 
   IdxType ci;
   //Inital cluster_inv_ptr outside!!!
@@ -218,11 +218,10 @@ generate_cluster_inv_ptr(const int n_vertex, const int c_size, IdxIter cluster_i
 
 
 template<typename IdxType=int, typename IdxIter> 
-void
-generate_cluster_inv(const int n_vertex, const int c_size, 
-                    IdxIter cluster_iter, 
-                    rmm::device_vector<IdxType>& cluster_inv_ptr, 
-                    rmm::device_vector<IdxType>& cluster_inv_ind){
+void generate_cluster_inv(const int n_vertex, const int c_size,
+                          IdxIter cluster_iter,
+                          rmm::device_vector<IdxType>& cluster_inv_ptr,
+                          rmm::device_vector<IdxType>& cluster_inv_ind){
 
   int nthreads = min(n_vertex,CUDA_MAX_KERNEL_THREADS); 
   int nblocks = min((n_vertex + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS); 
@@ -230,7 +229,7 @@ generate_cluster_inv(const int n_vertex, const int c_size,
   cudaCheckError();
   IdxType* cluster_inv_ptr_ptr = thrust::raw_pointer_cast(cluster_inv_ptr.data());
 
-  generate_cluster_inv_ptr<<<nblocks,nthreads>>>(n_vertex, c_size, cluster_iter, cluster_inv_ptr_ptr);
+  generate_cluster_inv_ptr<<<nblocks,nthreads>>>(n_vertex, cluster_iter, cluster_inv_ptr_ptr);
   CUDA_CALL(cudaDeviceSynchronize());
 
 #ifdef DEBUG
@@ -238,14 +237,19 @@ generate_cluster_inv(const int n_vertex, const int c_size,
     std::cout<<"Error cluster_inv_ptr run out of memory\n";
 #endif
 
-  thrust::exclusive_scan(thrust::device, cluster_inv_ptr.begin(), cluster_inv_ptr.begin() + c_size + 1 , cluster_inv_ptr.begin());
+  thrust::exclusive_scan(thrust::device,
+                         cluster_inv_ptr.begin(),
+                         cluster_inv_ptr.begin() + c_size + 1 ,
+                         cluster_inv_ptr.begin());
   cudaCheckError();
 
   thrust::sequence(thrust::device, cluster_inv_ind.begin(), cluster_inv_ind.end(), 0); 
   cudaCheckError();
-  thrust::sort(thrust::device, cluster_inv_ind.begin(), cluster_inv_ind.begin() + n_vertex, sort_by_cluster<IdxType, IdxIter>(cluster_iter));
-  cudaCheckError();  
-  
+  thrust::sort(thrust::device,
+               cluster_inv_ind.begin(),
+               cluster_inv_ind.begin() + n_vertex,
+               sort_by_cluster<IdxType, IdxIter>(cluster_iter));
+  cudaCheckError();
 }
 
 

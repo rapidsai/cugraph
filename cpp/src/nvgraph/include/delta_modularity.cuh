@@ -175,20 +175,19 @@ kernel_compute_cluster_sum(const int n_vertex, const int c_size,
 *
 ****************************************************************************************************/
 template<typename IdxType, typename ValType>
-__global__ void// __launch_bounds__(CUDA_MAX_KERNEL_THREADS) 
-build_delta_modularity_vec_flat(const int n_vertex,
-                                const int n_edges,
-                                const int c_size,
-                                ValType m2,
-                                bool updated,
-                                IdxType* coo_row_ind_ptr,
-                                IdxType* csr_ptr_ptr,
-                                IdxType* csr_ind_ptr,
-                                ValType* csr_val_ptr,
-                                IdxType* cluster_ptr,
-                                ValType* cluster_sum_vec_ptr,
-                                ValType* k_vec_ptr,
-                                ValType* delta_modularity_vec){
+__global__ void build_delta_modularity_vec_flat(const int n_vertex,
+                                                const int n_edges,
+                                                const int c_size,
+                                                ValType m2,
+                                                bool updated,
+                                                IdxType* coo_row_ind_ptr,
+                                                IdxType* csr_ptr_ptr,
+                                                IdxType* csr_ind_ptr,
+                                                ValType* csr_val_ptr,
+                                                IdxType* cluster_ptr,
+                                                ValType* cluster_sum_vec_ptr,
+                                                ValType* k_vec_ptr,
+                                                ValType* delta_modularity_vec){
 
   ValType m2_s(m2); //privatize 
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -444,10 +443,17 @@ void build_delta_modularity_vector_old(const int n_vertex, const int c_size, Val
 //  
 //
 template<typename IdxType, typename ValType>
-void build_delta_modularity_vector(cusparseHandle_t cusp_handle, const int n_vertex, const int c_size, ValType m2, bool updated,
-                                   rmm::device_vector<IdxType>& csr_ptr_d, rmm::device_vector<IdxType>& csr_ind_d, rmm::device_vector<ValType>& csr_val_d, 
+void build_delta_modularity_vector(cusparseHandle_t cusp_handle,
+                                   const int n_vertex,
+                                   const int c_size,
+                                   ValType m2,
+                                   bool updated,
+                                   rmm::device_vector<IdxType>& csr_ptr_d,
+                                   rmm::device_vector<IdxType>& csr_ind_d,
+                                   rmm::device_vector<ValType>& csr_val_d,
                                    rmm::device_vector<IdxType>& cluster_d,
-                                   IdxType* cluster_inv_ptr_ptr, IdxType* cluster_inv_ind_ptr, // precompute cluster inverse
+                                   IdxType* cluster_inv_ptr_ptr,
+                                   IdxType* cluster_inv_ind_ptr, // precompute cluster inverse
                                    ValType* k_vec_ptr, // precompute ki's 
                                    ValType* cluster_sum_vec_ptr, 
                                    ValType* delta_Q_arr_ptr){
@@ -457,9 +463,12 @@ void build_delta_modularity_vector(cusparseHandle_t cusp_handle, const int n_ver
   dim3 grid_size_1d(BLOCK_SIZE_1D, 1, 1); 
   int n_edges = csr_ptr_d[n_vertex];
     
-  kernel_compute_cluster_sum<<<block_size_1d, grid_size_1d>>>( n_vertex, c_size, 
-                                                               cluster_inv_ptr_ptr, cluster_inv_ind_ptr,
-                                                               k_vec_ptr, cluster_sum_vec_ptr);
+  kernel_compute_cluster_sum<<<block_size_1d, grid_size_1d>>>(n_vertex,
+                                                              c_size,
+                                                              cluster_inv_ptr_ptr,
+                                                              cluster_inv_ind_ptr,
+                                                              k_vec_ptr,
+                                                              cluster_sum_vec_ptr);
   CUDA_CALL(cudaDeviceSynchronize());
     
   thrust::fill(thrust::cuda::par, delta_Q_arr_ptr, delta_Q_arr_ptr + n_edges, 0.0);
@@ -478,18 +487,32 @@ void build_delta_modularity_vector(cusparseHandle_t cusp_handle, const int n_ver
   block_size_1d = dim3((n_edges + BLOCK_SIZE_1D * 2 -1)/ BLOCK_SIZE_1D * 2, 1, 1);
   grid_size_1d  = dim3(BLOCK_SIZE_1D*2, 1, 1); 
 
-  build_delta_modularity_vec_flat<<<block_size_1d, grid_size_1d>>>(n_vertex, n_edges, c_size, m2, updated, 
-                                                                coo_row_ind_ptr, csr_ptr_ptr, csr_ind_ptr, csr_val_ptr,
-                                                                cluster_ptr,
-                                                                cluster_sum_vec_ptr,
-                                                                k_vec_ptr, delta_Q_arr_ptr);
+  build_delta_modularity_vec_flat<<<block_size_1d, grid_size_1d>>>(n_vertex,
+                                                                   n_edges,
+                                                                   c_size,
+                                                                   m2,
+                                                                   updated,
+                                                                   coo_row_ind_ptr,
+                                                                   csr_ptr_ptr,
+                                                                   csr_ind_ptr,
+                                                                   csr_val_ptr,
+                                                                   cluster_ptr,
+                                                                   cluster_sum_vec_ptr,
+                                                                   k_vec_ptr,
+                                                                   delta_Q_arr_ptr);
   CUDA_CALL(cudaDeviceSynchronize());
 
  // Done compute delta modularity vec
   block_size_1d = dim3(n_vertex, 1, 1);
   grid_size_1d  = dim3(WARP_SIZE, 1, 1);
  
-  max_delta_modularity_vec_stride<<<block_size_1d, grid_size_1d>>>(n_vertex, n_edges, csr_ptr_d.begin(), csr_ind_d.begin(), csr_val_d.begin(), cluster_d.begin(), delta_Q_arr_ptr );
+  max_delta_modularity_vec_stride<<<block_size_1d, grid_size_1d>>>(n_vertex,
+                                                                   n_edges,
+                                                                   csr_ptr_d.begin(),
+                                                                   csr_ind_d.begin(),
+                                                                   csr_val_d.begin(),
+                                                                   cluster_d.begin(),
+                                                                   delta_Q_arr_ptr);
   CUDA_CALL(cudaDeviceSynchronize());
  
 

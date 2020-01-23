@@ -39,6 +39,7 @@
 #include "high_res_clock.h"
 #include "size2_selector.cuh"
 #include "thrust_coarse_generator.cuh"
+#include "Louvain_matching.cuh"
 
 namespace nvlouvain{
 
