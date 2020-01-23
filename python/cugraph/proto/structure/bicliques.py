@@ -193,7 +193,7 @@ def get_src_from_dst(_gdf, id):
 
     _src_list = (_gdf.query('dst == @id'))
 
-    _src_list.drop_column('dst')
+    _src_list.drop('dst')
 
     return _src_list
 

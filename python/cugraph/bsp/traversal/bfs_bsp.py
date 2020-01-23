@@ -92,7 +92,7 @@ def bfs_df_pregel(_df, start, src_col='src', dst_col='dst', copy_data=True):
         # we do not want to hop to a vertex that has already been seen
         coo_data = coo_data.merge(frontier, on=['dst'], how='left')
         coo_data = coo_data[coo_data.distance.isnull()]
-        coo_data.drop_column('distance')
+        coo_data.drop('distance')
 
         # now update column names for finding source vertices
         frontier.rename(columns={'dst': 'src'}, inplace=True)
@@ -116,7 +116,7 @@ def bfs_df_pregel(_df, start, src_col='src', dst_col='dst', copy_data=True):
         # ---------------------------------
         # (B) get all the edges that where not touched
         coo_data = hop_df[hop_df.distance.isnull()]
-        coo_data.drop_column('distance')
+        coo_data.drop('distance')
 
         # ---------------------------------
         # update the answer
