@@ -15,6 +15,7 @@
 - PR #664 Added support for Louvain early termination.
 - PR #667 Drop `cython` from run requirements in conda recipe
 - PR #666 Incorporate multicolumn renumbering in python graph class for Multi(Di)Graph
+- PR #685 Avoid deep copy in index reset
 
 ## Bug Fixes
 - PR #634 renumber vertex ids passed in analytics
@@ -23,8 +24,9 @@
 - PR #663 Replaced use of cudf._lib.gdf_dtype_from_value based on cudf refactoring
 - PR #670 Use cudf pandas version
 - PR #672 fix snmg pagerank based on cudf Buffer changes
-- PR #684 Deprecated cudf calls
 - PR #681 fix column length mismatch cudf issue
+- PR #684 Deprecated cudf calls
+- PR #686 Balanced cut fix
 
 # cuGraph 0.11.0 (11 Dec 2019)
 
