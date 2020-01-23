@@ -14,6 +14,7 @@
 - PR #660 enable auto renumbering
 - PR #664 Added support for Louvain early termination.
 - PR #667 Drop `cython` from run requirements in conda recipe
+- PR #685 Avoid deep copy in index reset
 
 ## Bug Fixes
 - PR #634 renumber vertex ids passed in analytics
