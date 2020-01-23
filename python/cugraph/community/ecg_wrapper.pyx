@@ -20,6 +20,7 @@ cimport cugraph.community.ecg as c_ecg
 from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
+from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -58,8 +59,6 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
     g.adjList.get_vertex_identifiers(&c_index_col)
-    if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
 
     df['partition'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef uintptr_t c_ecg_ptr = get_column_data_ptr(df['partition']._column)
@@ -68,6 +67,9 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
         c_ecg.ecg[int32_t, float] (<Graph*>g, min_weight, ensemble_size, <int32_t*>c_ecg_ptr)
     else:
         c_ecg.ecg[int32_t, double] (<Graph*>g, min_weight, ensemble_size, <int32_t*>c_ecg_ptr)
+
+    if input_graph.renumbered:
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df
     
