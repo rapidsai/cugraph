@@ -20,6 +20,7 @@ cimport cugraph.community.louvain as c_louvain
 from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
+from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -97,7 +98,7 @@ def louvain(input_graph, max_iter=100):
     
 
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     if single_precision:
         return df, <double>final_modularity_single_precision

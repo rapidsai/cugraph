@@ -19,6 +19,7 @@
 cimport cugraph.link_analysis.pagerank as c_pagerank
 from cugraph.structure.graph cimport *
 from cugraph.utilities.column_utils cimport *
+from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -66,10 +67,11 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         if len(nstart) != num_verts:
             raise ValueError('nstart must have initial guess for all vertices')
         if input_graph.renumbered is True:
-            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
-                                          index=input_graph.edgelist.renumber_map, dtype=np.int32)        
-            vertex_renumbered = renumber_series.loc[nstart['vertex']]
-            df['pagerank'][vertex_renumbered] = nstart['values']
+            renumber_df = cudf.DataFrame()
+            renumber_df['map'] = input_graph.edgelist.renumber_map
+            renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
+            guess = nstart.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
+            df['pagerank'][guess['id']] = guess['values']
         else:
             df['pagerank'][nstart['vertex']] = nstart['values']
         has_guess = <bool> 1
@@ -106,5 +108,6 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     g.transposedAdjList.get_vertex_identifiers(&c_identifier)
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+
     return df
