@@ -108,11 +108,16 @@ def jaccard(input_graph, vertex_pair=None):
         g.adjList.get_source_indices(&c_src_index_col)
         
         df['destination'] = cudf.Series(dest_data)
+        df['jaccard_coeff'] = result
 
         if input_graph.renumbered:
-            df['source'] = input_graph.edgelist.renumber_map[df['source']]
-            df['destination'] = input_graph.edgelist.renumber_map[df['destination']]
-
-        df['jaccard_coeff'] = result
+            if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+                unrenumered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='source', right_on='id', how='left').drop(['id', 'source'])
+                unrenumered_df = unrenumered_df_.merge(input_graph.edgelist.renumber_map, left_on='destination', right_on='id', how='left').drop(['id', 'destination'])
+                cols = unrenumered_df.columns
+                df = unrenumered_df[[cols[1:], cols[0]]]
+            else:
+                df['source'] = input_graph.edgelist.renumber_map[df['source']].reset_index().drop('index')
+                df['destination'] = input_graph.edgelist.renumber_map[df['destination']].reset_index().drop('index')
 
         return df

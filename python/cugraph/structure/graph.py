@@ -14,6 +14,7 @@
 from cugraph.structure import graph_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
+from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
 import cudf
 import numpy as np
 import warnings
@@ -83,6 +84,8 @@ class Graph:
                                         source='src',
                                         destination='dst',
                                         edge_attr=edge_attr)
+                self.renumbered = m_graph.renumbered
+                self.edgelist.renumber_map = m_graph.edgelist.renumber_map
             else:
                 msg = "Graph can be initialized using MultiGraph\
  and DiGraph can be initialized using MultiDiGraph"
@@ -146,8 +149,6 @@ class Graph:
 
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
-        source_col = input_df[source]
-        dest_col = input_df[destination]
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception('edge_attr should be a list of column names')
@@ -160,9 +161,20 @@ class Graph:
             value_col = None
         renumber_map = None
         if renumber:
-            source_col, dest_col, renumber_map = rnb(input_df[source],
-                                                     input_df[destination])
+            if type(source) is list and type(destination) is list:
+                source_col, dest_col, renumber_map = multi_rnb(input_df,
+                                                               source,
+                                                               destination)
+            else:
+                source_col, dest_col, renumber_map = rnb(input_df[source],
+                                                         input_df[destination])
             self.renumbered = True
+        else:
+            if type(source) is list and type(destination) is list:
+                raise Exception('set renumber to True for multi column ids')
+            else:
+                source_col = input_df[source]
+                dest_col = input_df[destination]
         if not self.symmetrized and not self.multi:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(source_col,
@@ -207,9 +219,25 @@ class Graph:
             graph_wrapper.view_edge_list(self)
         edgelist_df = self.edgelist.edgelist_df
         if self.renumbered:
-            df = cudf.DataFrame()
-            df['src'] = self.edgelist.renumber_map[edgelist_df['src']]
-            df['dst'] = self.edgelist.renumber_map[edgelist_df['dst']]
+            if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
+                df = cudf.DataFrame()
+                ncols = len(self.edgelist.edgelist_df) - 2
+                unrnb_df_ = edgelist_df.merge(self.edgelist.renumber_map,
+                                              left_on='src', right_on='id',
+                                              how='left').drop(['id', 'src'])
+                unrnb_df = unrnb_df_.merge(self.edgelist.renumber_map,
+                                           left_on='dst', right_on='id',
+                                           how='left').drop(['id', 'dst'])
+                cols = unrnb_df.columns
+                df = unrnb_df[[cols[ncols:], cols[0:ncols]]]
+            else:
+                df = cudf.DataFrame()
+                for c in edgelist_df.columns:
+                    if c in ['src', 'dst']:
+                        df[c] = self.edgelist.renumber_map[edgelist_df[c]].\
+                            reset_index().drop('index')
+                    else:
+                        df[c] = edgelist_df[c]
             return df
         else:
             return edgelist_df
@@ -324,8 +352,10 @@ class Graph:
         """
         df = graph_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
-            df['first'] = self.edgelist.renumber_map[df['first']]
-            df['second'] = self.edgelist.renumber_map[df['second']]
+            df['first'] = self.edgelist.renumber_map[df['first']].\
+                reset_index().drop('index')
+            df['second'] = self.edgelist.renumber_map[df['second']].\
+                reset_index().drop('index')
         return df
 
     def number_of_vertices(self):
