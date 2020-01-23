@@ -117,7 +117,7 @@ def jaccard(input_graph, vertex_pair=None):
                 cols = unrenumered_df.columns
                 df = unrenumered_df[[cols[1:], cols[0]]]
             else:
-                df['source'] = input_graph.edgelist.renumber_map[df['source']].reset_index().drop('index')
-                df['destination'] = input_graph.edgelist.renumber_map[df['destination']].reset_index().drop('index')
+                df['source'] = input_graph.edgelist.renumber_map[df['source']].reset_index(drop=True)
+                df['destination'] = input_graph.edgelist.renumber_map[df['destination']].reset_index(drop=True)
 
         return df
