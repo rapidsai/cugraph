@@ -18,6 +18,7 @@ import time
 
 import numpy as np
 import pytest
+from scipy.sparse import coo_matrix
 
 import cugraph
 from cugraph.tests import utils
@@ -32,23 +33,24 @@ def cugraph_call(cu_M, start_vertex):
     df = cu_M[['0', '1']]
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(df, source='0', destination='1')    
+    G.from_cudf_edgelist(df, source='0', destination='1')
 
     t1 = time.time()
     df = cugraph.bsp.traversal.bfs_pregel(G, start_vertex)
-    
+
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
     # Return distances as np.array()
     return df['vertex'].to_array(), df['distance'].to_array()
 
+
 def cugraph_call_df(cu_M, start_vertex):
     # Device data
     df = cu_M[['0', '1']]
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(df, source='0', destination='1')    
+    G.from_cudf_edgelist(df, source='0', destination='1')
 
     t1 = time.time()
     df = cugraph.bsp.traversal.bfs_pregel_df(
@@ -59,12 +61,13 @@ def cugraph_call_df(cu_M, start_vertex):
     # Return distances as np.array()
     return df['vertex'].to_array(), df['distance'].to_array()
 
+
 def base_call(M, start_vertex):
 
-    M = M.tocsr()
+    M_csr = coo_matrix.tocsr(M)
 
-    offsets = M.indptr
-    indices = M.indices
+    offsets = M_csr.indptr
+    indices = M_csr.indices
     num_verts = len(offsets) - 1
     dist = np.zeros(num_verts, dtype=np.int32)
     vertex = list(range(num_verts))
@@ -86,20 +89,21 @@ def base_call(M, start_vertex):
     return vertex, dist
 
 
-DATASETS = ['../datasets/dolphins.csv'
-#            '../datasets/karate.csv',
-#            '../datasets/polbooks.csv',
-#            '../datasets/netscience.csv',
-#            '../datasets/email-Eu-core.csv'
-]
+DATASETS = ['../datasets/dolphins.csv',
+            '../datasets/karate.csv',
+            '../datasets/polbooks.csv',
+            '../datasets/netscience.csv',
+            '../datasets/email-Eu-core.csv'
+            ]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-#@pytest.mark.skip(reason="SG BFS is not yet formally supported")
+@pytest.mark.skip(
+    reason="BSP BFS produce different results sets than neetworkx")
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_bfs(managed, pool, graph_file):
+def test_bfs_bsp(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
@@ -117,17 +121,19 @@ def test_bfs(managed, pool, graph_file):
     cugraph_vid, cugraph_dist = cugraph_call(cu_M, np.int32(0))
 
     # Calculating mismatch
-    num_dist = np.count_nonzero(base_dist != _int_max) - np.count_nonzero(base_dist == 0)
+    num_dist = np.count_nonzero(
+        base_dist != _int_max) - np.count_nonzero(base_dist == 0)
 
     assert num_dist == len(cugraph_dist)
-    
-    
+
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
-#@pytest.mark.skip(reason="SG BFS is not yet formally supported")
+@pytest.mark.skip(
+    reason="BSP BFS produce different results sets than neetworkx")
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_bfs_df(managed, pool, graph_file):
+def test_bfs_bsp_df(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
@@ -145,7 +151,7 @@ def test_bfs_df(managed, pool, graph_file):
     cugraph_vid, cugraph_dist = cugraph_call_df(cu_M, np.int32(0))
 
     # Calculating mismatch
-    num_dist = np.count_nonzero(base_dist != _int_max) - np.count_nonzero(base_dist == 0)
+    num_dist = np.count_nonzero(
+        base_dist != _int_max) - np.count_nonzero(base_dist == 0)
 
-    assert num_dist == len(cugraph_dist)    
-    
+    assert num_dist == len(cugraph_dist)

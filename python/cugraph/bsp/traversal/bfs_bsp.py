@@ -15,11 +15,12 @@
 import cudf
 from collections import OrderedDict
 
+
 def bfs_pregel(G, start):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
-    
+
     NOTE: this function currently does NOT include unreachable vertices in
     the results.  Only those vertices that are reached are included
 
@@ -54,10 +55,11 @@ def bfs_pregel(G, start):
     >>> G.add_edge_from_cudf(gdf, sources='0', destinations='1', None)
     >>> df = cugraph.bfs(G, 0)
     """
-    
+
     df = G.view_edge_list()
-    
-    answer = bfs_pregel_df(df, start, src_col='src', dst_col='dst', copy_data=False)
+
+    answer = bfs_pregel_df(
+        df, start, src_col='src', dst_col='dst', copy_data=False)
 
     return answer
 
