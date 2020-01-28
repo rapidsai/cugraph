@@ -8,7 +8,7 @@ NUMARGS=$#
 ARGS=$*
 
 # Logger function for build status output
-function logger() {
+function logger {
   echo -e "\n>>>> $@\n"
 }
 
@@ -16,6 +16,19 @@ function logger() {
 function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
+
+# Cleanup function for datasets removal
+function cleanup {
+  logger "Remove `datasets/test` and `datasets/benchmark`..."
+  rm -rf $WORKSPACE/datasets/test
+  rm -rf $WORKSPACE/datasets/benchmark
+}
+
+# Set cleanup trap for Jenkins
+if [ -z "$JENKINS_HOME" ] ; then
+  logger "Jenkins environment detected, setting cleanup trap..."
+  trap cleanup EXIT
+fi
 
 # Set path, build parallel level, and CUDA version
 export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
