@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.community import triangle_count_wrapper
-
+from cugraph.structure.graph import Graph
 
 def triangles(G):
     """
@@ -41,6 +41,9 @@ def triangles(G):
     >>> G.add_edge_list(sources, destinations, None)
     >>> count = cugraph.triangles(G)
     """
+
+    if type(input_graph) is not Graph:
+        raise Exception("input graph must be undirected")
 
     result = triangle_count_wrapper.triangles(G)
 

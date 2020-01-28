@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.components import connectivity_wrapper
-
+from cugraph.structure.graph import Graph
 
 def weakly_connected_components(G):
     """
@@ -45,6 +45,9 @@ def weakly_connected_components(G):
     >>> G.add_edge_list(sources, destinations, None)
     >>> df = cugraph.weakly_connected_components(G)
     """
+
+    if type(input_graph) is not Graph:
+        raise Exception("input graph must be undirected")
 
     df = connectivity_wrapper.weakly_connected_components(G)
 

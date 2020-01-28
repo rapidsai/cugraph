@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.community import louvain_wrapper
-
+from cugraph.structure.graph import Graph
 
 def louvain(input_graph, max_iter=100):
     """
@@ -53,6 +53,9 @@ def louvain(input_graph, max_iter=100):
     >>> G.add_edge_list(sources, destinations, None)
     >>> parts, modularity_score = cugraph.louvain(G)
     """
+
+    if type(input_graph) is not Graph:
+        raise Exception("input graph must be undirected")
 
     parts, modularity_score = louvain_wrapper.louvain(input_graph,
                                                       max_iter=max_iter)
