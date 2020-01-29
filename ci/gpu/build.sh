@@ -25,7 +25,7 @@ function cleanup {
 }
 
 # Set cleanup trap for Jenkins
-if [ -z "$JENKINS_HOME" ] ; then
+if [ ! -z "$JENKINS_HOME" ] ; then
   logger "Jenkins environment detected, setting cleanup trap..."
   trap cleanup EXIT
 fi
