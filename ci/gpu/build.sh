@@ -19,7 +19,7 @@ function hasArg {
 
 # Cleanup function for datasets removal
 function cleanup {
-  logger "Remove `datasets/test` and `datasets/benchmark`..."
+  logger "Remove './datasets/test' and './datasets/benchmark'..."
   rm -rf $WORKSPACE/datasets/test
   rm -rf $WORKSPACE/datasets/benchmark
 }
