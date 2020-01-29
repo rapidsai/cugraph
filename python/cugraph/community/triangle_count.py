@@ -42,7 +42,7 @@ def triangles(G):
     >>> count = cugraph.triangles(G)
     """
 
-    if type(input_graph) is not Graph:
+    if type(G) is not Graph:
         raise Exception("input graph must be undirected")
 
     result = triangle_count_wrapper.triangles(G)

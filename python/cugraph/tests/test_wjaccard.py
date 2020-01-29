@@ -41,7 +41,7 @@ def cugraph_call(cu_M):
     weights_arr = cudf.Series(np.ones(max(cu_M['0'].max(),
                               cu_M['1'].max())+1, dtype=np.float32))
 
-    G = cugraph.DiGraph()
+    G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
     # cugraph Jaccard Call
