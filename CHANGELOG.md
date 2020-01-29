@@ -4,6 +4,8 @@
 
 ## Improvements
 
+- PR #688 Cleanup datasets after testing on gpuCI
+
 ## Bug Fixes
 
 
