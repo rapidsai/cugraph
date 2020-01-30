@@ -219,7 +219,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       MM_typecode mc;
 
       FILE* fpin = fopen(param.file_path_.c_str(), "r");
-      ASSERT_NE(fpin, static_cast<FILE*>(nullptr));
+      ASSERT_NE(fpin, static_cast<FILE*>(nullptr)) << "fopen (" << param.file_path_ << ") failure.";
+
       // mm_properties has only one template param which should be fixed there
       ASSERT_EQ(mm_properties<MaxVType>(fpin, 1, &mc, &m, &k, &nnz), 0)
           << "could not read Matrix Market file properties"
