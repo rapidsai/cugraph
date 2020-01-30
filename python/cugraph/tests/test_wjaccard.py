@@ -49,27 +49,25 @@ def cugraph_call(cu_M):
     df = cugraph.jaccard_w(G, weights_arr)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-
+    print(df)
     return df['jaccard_coeff']
 
 
 def networkx_call(M):
 
-    M = M.tocsr()
-    M = M.tocoo()
-    sources = M.row
-    destinations = M.col
+    sources = M['0']
+    destinations = M['1']
     edges = []
     for i in range(len(sources)):
         edges.append((sources[i], destinations[i]))
+    edges = sorted(edges)
     # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this
     # explicitly
     print('Format conversion ... ')
 
-    # Directed NetworkX graph
-    G = nx.DiGraph(M)
-    Gnx = G.to_undirected()
-
+    # NetworkX graph
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
     # Networkx Jaccard Call
     print('Solving... ')
     t1 = time.time()

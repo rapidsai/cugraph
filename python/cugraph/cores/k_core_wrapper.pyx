@@ -56,8 +56,19 @@ def k_core(input_graph, k_core_graph, k, core_number):
     cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
     cdef Graph* rg = <Graph*>rGraph
 
-    cdef gdf_column c_vertex = get_gdf_column_view(core_number['vertex'])
-    cdef gdf_column c_values = get_gdf_column_view(core_number['values'])
+    cdef gdf_column c_vertex
+    cdef gdf_column c_values
+    [core_number['vertex'], core_number['values']] = graph_wrapper.datatype_cast([core_number['vertex'], core_number['values']], [np.int32])
+    if input_graph.renumbered is True:
+          renumber_df = cudf.DataFrame()
+          renumber_df['map'] = input_graph.edgelist.renumber_map
+          renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
+          cn = core_number.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
+          c_vertex = get_gdf_column_view(cn['id'])
+          c_values = get_gdf_column_view(cn['values'])
+    else:
+          c_vertex = get_gdf_column_view(core_number['vertex'])
+          c_values = get_gdf_column_view(core_number['values'])
     c_k_core.k_core(g, k, &c_vertex, &c_values, rg)
 
     if rg.edgeList is not NULL:
@@ -65,12 +76,13 @@ def k_core(input_graph, k_core_graph, k, core_number):
         df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
         if vals is not None:
             df['val'] = vals
-            k_core_graph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='val')
+            k_core_graph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='val', renumber=False)
         else:
-            k_core_graph.from_cudf_edgelist(df, source='src', destination='dst')
+            k_core_graph.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
         if input_graph.edgelist is not None:
             k_core_graph.renumbered = input_graph.renumbered
             k_core_graph.edgelist.renumber_map = input_graph.edgelist.renumber_map
+            
     if rg.adjList is not NULL:
         off, ind, vals = graph_wrapper.get_adj_list(rGraph)
         k_core_graph.from_cudf_adjlist(off, ind, vals)

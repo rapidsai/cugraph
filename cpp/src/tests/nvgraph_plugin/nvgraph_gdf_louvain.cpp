@@ -55,7 +55,7 @@ TEST(nvgraph_louvain, success)
   
   ASSERT_EQ(NVGRAPH_STATUS_SUCCESS, nvgraphLouvain (CUDA_R_32I, CUDA_R_32F, no_vertex, ind_h.size(),
                             G.adjList->offsets->data, G.adjList->indices->data, G.adjList->edge_data->data, weighted, has_init_cluster, nullptr,
-                            (void*) &modularity, (void*) best_cluster_vec, (void *)(&num_level)));
+                            (void*) &modularity, (void*) best_cluster_vec, (void *)(&num_level), 100));
   
   std::vector<int> cluster_id (34, -1);
   cudaMemcpy ((void*) &(cluster_id[0]), best_cluster_vec, sizeof(int)*34, cudaMemcpyDeviceToHost);

@@ -20,6 +20,7 @@ cimport cugraph.community.louvain as c_louvain
 from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
+from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -30,7 +31,7 @@ import rmm
 import numpy as np
 
 
-def louvain(input_graph):
+def louvain(input_graph, max_iter=100):
     """
     Call louvain
     """
@@ -63,7 +64,7 @@ def louvain(input_graph):
     
 
     df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))
-    cdef gdf_column c_louvain_parts_col = get_gdf_column_view(df['partition'])
+    cdef uintptr_t c_louvain_parts_ptr = get_column_data_ptr(df['partition']._column)
 
     cdef bool single_precision = False
     # this implementation is tied to cugraph.cu line 503
@@ -87,15 +88,17 @@ def louvain(input_graph):
     if single_precision:
         c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_single_precision,
-                  <void*>&num_level, &c_louvain_parts_col)
+                  <void*>&num_level, <void*>c_louvain_parts_ptr,
+                  max_iter)
     else:
         c_louvain.louvain(<Graph*>g,
                   <void*>&final_modularity_double_precision,
-                  <void*>&num_level, &c_louvain_parts_col)
+                  <void*>&num_level, <void*>c_louvain_parts_ptr,
+                  max_iter)
     
 
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     if single_precision:
         return df, <double>final_modularity_single_precision

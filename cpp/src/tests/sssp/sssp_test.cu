@@ -20,6 +20,9 @@
 #include "test_utils.h"
 #include "high_res_clock.h"
 
+#include <thrust/fill.h>
+#include <thrust/device_vector.h>
+
 typedef enum graph_type { RMAT, MTX } GraphType;
 
 template <typename MaxEType, typename MaxVType, typename DistType>
@@ -162,7 +165,9 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
             bool DoDist,
             bool DoPreds>
   void run_current_test(const SSSP_Usecase& param) {
-    gdf_column col_src, col_dest, col_weights, col_distances, col_preds;
+    gdf_column col_src, col_dest, col_weights;
+    DistType* distances = nullptr;
+    MaxVType* preds = nullptr;
 
     MaxVType num_vertices;
     MaxEType num_edges;
@@ -200,19 +205,11 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     col_weights.valid = nullptr;
     col_weights.null_count = 0;
 
-    // Output
-    col_distances.data = nullptr;
-    col_distances.size = 0;
-    col_preds.data = nullptr;
-    col_preds.size = 0;
-
     if (param.type_ == RMAT) {
       // This is size_t due to grmat_gen which should be fixed there
-      size_t v, e;
+      // TODO rmat is disabled
+      return;
 
-      cugraph::gdf_grmat_gen(param.config_.c_str(), v, e, &col_src, &col_dest, &col_weights);
-      num_vertices = v;
-      num_edges = e;
     } else if (param.type_ == MTX) {
       MaxVType m, k;
       MaxEType nnz;
@@ -283,23 +280,28 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     cugraph::Graph G;
     cugraph::edge_list_view(&G, &col_src, &col_dest, &col_weights);
-    cugraph::add_adj_list(G.get());
+    cugraph::add_adj_list(&G);
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;
+    rmm::device_vector<DistType> ddist_vec;
+    rmm::device_vector<MaxVType> dpred_vec;
 
     if (DoDist) {
       dist_vec = std::vector<DistType>(num_vertices,
                                        std::numeric_limits<DistType>::max());
-      create_gdf_column(dist_vec, &col_distances);
+      //device alloc
+      ddist_vec.resize(num_vertices);
+      thrust::fill(ddist_vec.begin(), ddist_vec.end(), std::numeric_limits<DistType>::max());
+      distances = thrust::raw_pointer_cast(ddist_vec.data());
     }
 
     if (DoPreds) {
       pred_vec = std::vector<MaxVType>(num_vertices, -1);
-      create_gdf_column(pred_vec, &col_preds);
+      dpred_vec.resize(num_vertices);
+      preds = thrust::raw_pointer_cast(dpred_vec.data());
     }
 
-    gdf_error ret;
     HighResClock hr_clock;
     double time_tmp;
 
@@ -307,17 +309,15 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (auto i = 0; i < PERF_MULTIPLIER; ++i) {
-        ret = gdf_sssp(&G, &col_distances, &col_preds, src);
+        cugraph::sssp(&G, distances, preds, src);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       SSSP_time.push_back(time_tmp);
     } else {
-      ret = gdf_sssp(&G, &col_distances, &col_preds, src);
-      cudaDeviceSynchronize();
+        cugraph::sssp(&G, distances, preds, src);
+        cudaDeviceSynchronize();
     }
-
-    ASSERT_EQ(ret);
 
     // MTX may have zero-degree vertices. So reset num_vertices after
     // conversion to CSR
@@ -325,13 +325,13 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     if (DoDist)
       cudaMemcpy((void*)&dist_vec[0],
-                 col_distances.data,
+                 distances,
                  sizeof(DistType) * num_vertices,
                  cudaMemcpyDeviceToHost);
 
     if (DoPreds)
       cudaMemcpy((void*)&pred_vec[0],
-                 col_preds.data,
+                 preds,
                  sizeof(MaxVType) * num_vertices,
                  cudaMemcpyDeviceToHost);
 
@@ -403,10 +403,6 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     ALLOC_FREE_TRY(col_src.data, stream);
     ALLOC_FREE_TRY(col_dest.data, stream);
     ALLOC_FREE_TRY(col_weights.data, stream);
-    if (DoDist)
-      ALLOC_FREE_TRY(col_distances.data, stream);
-    if (DoPreds)
-      ALLOC_FREE_TRY(col_preds.data, stream);
   }
 };
 
@@ -437,14 +433,6 @@ INSTANTIATE_TEST_CASE_P(
     simple_test,
     Tests_SSSP,
     ::testing::Values(
-        SSSP_Usecase(RMAT,
-                     "grmat --rmat_scale=10 --rmat_edgefactor=16 --device=0  "
-                     "--normalized --quiet",
-                     0),
-        SSSP_Usecase(RMAT,
-                     "grmat --rmat_scale=12 --rmat_edgefactor=8 --device=0  "
-                     "--normalized --quiet",
-                     10),
         SSSP_Usecase(MTX, "test/datasets/dblp.mtx", 100),
         SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
         SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));

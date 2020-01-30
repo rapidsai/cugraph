@@ -5,13 +5,13 @@ channels:
 - rapidsai-nightly
 - conda-forge
 dependencies:
-- cudf=0.11.*
-- nvstrings=0.11.*
-- rmm=0.11.*
+- cudf=0.12.*
+- nvstrings=0.12.*
+- rmm=0.12.*
 - dask>=2.1.0
 - distributed>=2.1.0
-- dask-cuda=0.11*
-- dask-cudf=0.11*
+- dask-cuda=0.12*
+- dask-cudf=0.12*
 - scipy
 - networkx
 - python-louvain
@@ -19,7 +19,6 @@ dependencies:
 - cudatoolkit=10.1
 - cmake>=3.12
 - python>=3.6,<3.8
-- pandas>=0.24.2,<0.25
 - notebook>=0.5.0
 - boost
 - cython>=0.29,<0.30

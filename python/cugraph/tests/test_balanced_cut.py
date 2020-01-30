@@ -53,7 +53,7 @@ PARTITIONS = [2, 4, 8]
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
-def test_modularity_clustering(managed, pool, graph_file, partitions):
+def test_edge_cut_clustering(managed, pool, graph_file, partitions):
     gc.collect()
 
     rmm.reinitialize(
@@ -65,66 +65,78 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     assert(rmm.is_initialized())
 
     # Read in the graph and get a cugraph object
-    M = utils.read_csv_for_nx(graph_file).tocsr()
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
-    row_offsets = cudf.Series(M.indptr)
+    '''row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
 
     G_adj = cugraph.DiGraph()
-    G_adj.from_cudf_adjlist(row_offsets, col_indices)
+    G_adj.from_cudf_adjlist(row_offsets, col_indices)'''
     G_edge = cugraph.DiGraph()
     G_edge.from_cudf_edgelist(cu_M, source='0', destination='1')
 
-    # Get the modularity score for partitioning versus random assignment
-    cu_vid, cu_score = cugraph_call(G_adj, partitions)
+    # Get the edge_cut score for partitioning versus random assignment
+    '''cu_vid, cu_score = cugraph_call(G_adj, partitions)
     rand_vid, rand_score = random_call(G_adj, partitions)
-
-    # Assert that the partitioning has better modularity than the random
+    '''
+    # Assert that the partitioning has better edge_cut than the random
     # assignment
-    assert cu_score < rand_score
+    '''assert cu_score < rand_score'''
 
-    # Get the modularity score for partitioning versus random assignment
+    # Get the edge_cut score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_edge, partitions)
     rand_vid, rand_score = random_call(G_edge, partitions)
 
-    # Assert that the partitioning has better modularity than the random
+    # Assert that the partitioning has better edge_cut than the random
     # assignment
+    print(cu_score, rand_score)
     assert cu_score < rand_score
 
-
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
-def test_modularity_clustering_with_edgevals(graph_file, partitions):
+def test_edge_cut_clustering_with_edgevals(managed, pool,
+                                           graph_file, partitions):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
     # Read in the graph and get a cugraph object
-    M = utils.read_csv_for_nx(graph_file,
-                              read_weights_in_sp=False)
-    M = M.tocsr().sorted_indices()
+    # M = utils.read_csv_for_nx(graph_file,
+    #                          read_weights_in_sp=False)
+    # M = M.tocsr().sorted_indices()
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
-    row_offsets = cudf.Series(M.indptr)
+    '''row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
     val = cudf.Series(M.data)
 
     G_adj = cugraph.DiGraph()
     G_adj.from_cudf_adjlist(row_offsets, col_indices, val)
-
+    '''
     G_edge = cugraph.DiGraph()
     G_edge.from_cudf_edgelist(cu_M, source='0', destination='1',
                               edge_attr='2')
 
-    # Get the modularity score for partitioning versus random assignment
-    cu_vid, cu_score = cugraph_call(G_adj, partitions)
+    # Get the edge_cut score for partitioning versus random assignment
+    '''cu_vid, cu_score = cugraph_call(G_adj, partitions)
     rand_vid, rand_score = random_call(G_adj, partitions)
-
-    # Assert that the partitioning has better modularity than the random
+    '''
+    # Assert that the partitioning has better edge_cut than the random
     # assignment
-    assert cu_score < rand_score
+    '''assert cu_score < rand_score'''
 
-    # Get the modularity score for partitioning versus random assignment
+    # Get the edge_cut score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_edge, partitions)
     rand_vid, rand_score = random_call(G_edge, partitions)
 
-    # Assert that the partitioning has better modularity than the random
+    # Assert that the partitioning has better edge_cut than the random
     # assignment
+    print(cu_score, rand_score)
     assert cu_score < rand_score
