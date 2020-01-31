@@ -93,19 +93,24 @@ else
 
     logger "GoogleTest for libcugraph..."
     cd $WORKSPACE/cpp/build
-    export GTEST_OUTPUT="xml:${WORKSPACE}/test-results/"
+    GTEST_ARGS="--gtest_output=xml:${WORKSPACE}/test-results/"
+
     for gt in gtests/*; do
         test_name=`basename $gt`
         logger "Running GoogleTest $test_name"
         # FIXME: remove this ASAP
         if [[ ${gt} == "gtests/SNMG_SPMV_TEST" ]]; then
-            ${gt} --gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*
+            ${gt} ${GTEST_ARGS} --gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*
         else
-            ${gt}
+            ${gt} ${GTEST_ARGS}
         fi
     done
 
     logger "Python py.test for cuGraph..."
     cd $WORKSPACE/python
     py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
+
+    # Generate "top 20" longest running gtest report
+    echo "Top 20 longest-running gtests:"
+    python ${WORKSPACE}/ci/genGTestReport.py --results_dir=${WORKSPACE}/test-results | head -20
 fi
