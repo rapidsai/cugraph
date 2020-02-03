@@ -5,6 +5,7 @@
 ## Improvements
 
 - PR #688 Cleanup datasets after testing on gpuCI
+- PR #695 Reworking error messages
 
 ## Bug Fixes
 
