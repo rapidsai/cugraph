@@ -5,6 +5,7 @@
 ## Improvements
 
 - PR #688 Cleanup datasets after testing on gpuCI
+- PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
 
 ## Bug Fixes
 
