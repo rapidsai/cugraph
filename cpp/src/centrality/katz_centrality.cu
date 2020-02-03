@@ -34,9 +34,9 @@ void katz_centrality(Graph *graph,
                               double tol,
                               bool has_guess,
                               bool normalized) {
-  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter: Graph is empty");
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type: Graph vertex IDs needs to be int32");
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type: Graph vertex IDs needs to be int32");
   CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type");
   CUGRAPH_EXPECTS(katz_centrality->size == graph->numberOfVertices, "Column size mismatch");
 
