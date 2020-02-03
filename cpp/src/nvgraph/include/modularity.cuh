@@ -48,7 +48,11 @@ namespace nvlouvain{
 *
 ***************************************************************/
 template<typename ValType, typename IdxType>
-__device__ void compute_k_vec(const int n_vertex, IdxType* csr_ptr_ptr, ValType* csr_val_ptr, bool weighted, ValType* k_vec){
+__device__ void compute_k_vec(const int n_vertex,
+                              IdxType* csr_ptr_ptr,
+                              ValType* csr_val_ptr,
+                              bool weighted,
+                              ValType* k_vec) {
 
   int tid = blockDim.x*blockIdx.x + threadIdx.x;
 

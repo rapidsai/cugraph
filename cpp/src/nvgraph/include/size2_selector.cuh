@@ -114,6 +114,34 @@ void renumberAndCountAggregates(Vector<IndexType> &aggregates, const IndexType n
 
 }
 
+template <typename IndexType>
+void renumberAndCountAggregates(IndexType* aggregates, const IndexType n, IndexType& num_aggregates)
+{
+  // renumber aggregates
+  Vector<IndexType> scratch(n+1);
+  scratch.fill(0);
+  thrust::device_ptr<IndexType> aggregates_thrust_dev_ptr(aggregates);
+  thrust::device_ptr<IndexType> scratch_thrust_dev_ptr(scratch.raw());
+
+  // set scratch[aggregates[i]] = 1
+  thrust::fill(thrust::make_permutation_iterator(scratch_thrust_dev_ptr, aggregates_thrust_dev_ptr),
+               thrust::make_permutation_iterator(scratch_thrust_dev_ptr, aggregates_thrust_dev_ptr + n), 1);
+  //scratch.dump(0,scratch.get_size());
+
+  // do prefix sum on scratch
+  thrust::exclusive_scan(scratch_thrust_dev_ptr, scratch_thrust_dev_ptr + n + 1, scratch_thrust_dev_ptr);
+ // scratch.dump(0,scratch.get_size());
+
+  // aggregates[i] = scratch[aggregates[i]]
+  thrust::copy(thrust::make_permutation_iterator(scratch_thrust_dev_ptr, aggregates_thrust_dev_ptr),
+               thrust::make_permutation_iterator(scratch_thrust_dev_ptr, aggregates_thrust_dev_ptr + n),
+               aggregates_thrust_dev_ptr);
+  cudaCheckError();
+  cudaMemcpy(&num_aggregates, &scratch.raw()[scratch.get_size()-1], sizeof(int), cudaMemcpyDefault); //num_aggregates = scratch.raw()[scratch.get_size()-1];
+  cudaCheckError();
+
+}
+
 // ------------------
 // Constructors
 // ------------------

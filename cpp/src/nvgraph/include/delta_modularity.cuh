@@ -121,8 +121,10 @@ delta_modularity(const int n_vertex,
 
 
 template<typename IdxType=int, typename ValType>
-__device__ void compute_cluster_sum(const int n_vertex, const int c_size, 
-                                    IdxType* cluster_inv_ptr_ptr, IdxType* cluster_inv_ind_ptr, 
+__device__ void compute_cluster_sum(const int n_vertex,
+                                    const int c_size,
+                                    IdxType* cluster_inv_ptr_ptr,
+                                    IdxType* cluster_inv_ind_ptr,
                                     ValType* k_ptr, // pre-compute ki size: n_vertex
                                     ValType* cluster_sum_vec){
 
@@ -143,14 +145,19 @@ __device__ void compute_cluster_sum(const int n_vertex, const int c_size,
 
 template<typename IdxType=int, typename ValType>
 __global__ void
-kernel_compute_cluster_sum(const int n_vertex, const int c_size,
-                           IdxType* cluster_inv_ptr_ptr, IdxType* cluster_inv_ind_ptr,
+kernel_compute_cluster_sum(const int n_vertex,
+                           const int c_size,
+                           IdxType* cluster_inv_ptr_ptr,
+                           IdxType* cluster_inv_ind_ptr,
                            ValType* k_ptr, // pre-compute ki size: n_vertex
                            ValType* cluster_sum_vec){
 
-  compute_cluster_sum(n_vertex, c_size, 
-                      cluster_inv_ptr_ptr, cluster_inv_ind_ptr, 
-                      k_ptr, cluster_sum_vec);
+  compute_cluster_sum(n_vertex,
+                      c_size,
+                      cluster_inv_ptr_ptr,
+                      cluster_inv_ind_ptr,
+                      k_ptr,
+                      cluster_sum_vec);
   
 }
 

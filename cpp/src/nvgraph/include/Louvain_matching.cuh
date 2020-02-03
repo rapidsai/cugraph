@@ -26,7 +26,7 @@ __global__ void findBestMatches(IdxT num_verts,
                                 IdxT* clusters,
                                 IdxT* bestMatch,
                                 ValT* scores) {
-  IdxT tid = blockId.x * blockDim.x + threadIdx.x;
+  IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < num_verts) {
     IdxT start = csr_off[tid];
     IdxT end = csr_off[tid + 1];
@@ -41,6 +41,13 @@ __global__ void findBestMatches(IdxT num_verts,
         bestCluster = neighborCluster;
       }
     }
+
+    IdxT currentCluster = clusters[tid];
+    if (currentCluster == bestCluster) {
+//      printf("Current cluster %d is the same as best cluster!\n", currentCluster);
+      bestScore = 0.0;
+    }
+
     scores[tid] = bestScore;
     bestMatch[tid] = bestCluster;
     tid += gridDim.x * blockDim.x;
@@ -53,22 +60,31 @@ __global__ void assignMovers_partOne(IdxT num_verts,
                                      IdxT* csr_ind,
                                      ValT* scores,
                                      IdxT* movers) {
-  IdxT tid = blockId.x * blockDim.x + threadIdx.x;
+  IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < num_verts) {
-    IdxT start = csr_off[tid];
-    IdxT end = csr_off[tid + 1];
-    ValT myScore = scores[tid];
-    bool myScoreBest = true;
-    for (IdxT i = start; i < end; i++) {
-      IdxT neighborId = csr_ind[i];
-      ValT score = scores[neighborId];
-      if (score > myScore)
-        myScoreBest = false;
-    }
-    if (myScoreBest && myScore > 0.0) {
-      movers[tid] = 1;
-    }
+    IdxT myMoving = movers[tid];
 
+    if (myMoving == -1) {
+      IdxT start = csr_off[tid];
+      IdxT end = csr_off[tid + 1];
+      ValT myScore = scores[tid];
+      bool myScoreBest = true;
+      for (IdxT i = start; i < end; i++) {
+        IdxT neighborId = csr_ind[i];
+        ValT score = scores[neighborId];
+        if (score >= myScore && tid < neighborId)
+          myScoreBest = false;
+      }
+      if (myScoreBest && myScore > 0.0) {
+        movers[tid] = 1;
+      }
+      if (myScoreBest && myScore == 0.0) {
+        movers[tid] = 0;
+      }
+
+//      if (myScoreBest)
+//        printf("Thread: %d has best score of: %f\n", tid, myScore);
+    }
     tid += gridDim.x * blockDim.x;
   }
 }
@@ -80,7 +96,7 @@ __global__ void assignMovers_partTwo(IdxT num_verts,
                                      ValT* scores,
                                      IdxT* movers,
                                      IdxT* unassigned) {
-  IdxT tid = blockId.x * blockDim.x + threadIdx.x;
+  IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < num_verts) {
     IdxT start = csr_off[tid];
     IdxT end = csr_off[tid + 1];
@@ -96,24 +112,34 @@ __global__ void assignMovers_partTwo(IdxT num_verts,
         movers[tid] = 0;
         scores[tid] = 0.0;
       }
-      else
-        *unassigned = 1;
+      else {
+        ValT myScore = scores[tid];
+        if (myScore == 0.0)
+          movers[tid] = 0;
+        else {
+//          printf("Node %d remains unnassigned with score of: %f\n", tid, scores[tid]);
+          atomicAdd(unassigned, 1);
+        }
+      }
+//        *unassigned = 1;
     }
 
     tid += gridDim.x * blockDim.x;
   }
 }
 
-template<typename IdxT, typename ValT>
+template<typename IdxT>
 __global__ void makeMoves(IdxT num_verts,
                           IdxT* clusters,
                           IdxT* movers,
                           IdxT* bestMatch,
                           IdxT* num_moved) {
-  IdxT tid = blockId.x * blockDim.x + threadIdx.x;
+  IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < num_verts) {
     IdxT amImoving = movers[tid];
     if (amImoving == 1) {
+//      IdxT currentCluster = clusters[tid];
+//      printf("Node: %d moving from %d to %d\n", tid, currentCluster, bestMatch[tid]);
       clusters[tid] = bestMatch[tid];
       atomicAdd(num_moved, 1);
     }
@@ -130,45 +156,75 @@ IdxT makeSwaps(IdxT num_verts,
   dim3 grid, block;
   block.x = 512;
   grid.x = min((IdxT)CUDA_MAX_BLOCKS, (num_verts / 512 + 1));
+
   rmm::device_vector<ValT> scores(num_verts, 0.0);
   rmm::device_vector<IdxT> movers(num_verts, -1);
   rmm::device_vector<IdxT> bestMatch(num_verts, -1);
   rmm::device_vector<IdxT> unassigned(1,0);
   rmm::device_vector<IdxT> swapCount(1,0);
+  ValT* scores_ptr = thrust::raw_pointer_cast(scores.data());
+  IdxT* movers_ptr = thrust::raw_pointer_cast(movers.data());
+  IdxT* bestMatch_ptr = thrust::raw_pointer_cast(bestMatch.data());
+  IdxT* unassigned_ptr = thrust::raw_pointer_cast(unassigned.data());
+  IdxT* swapCount_ptr = thrust::raw_pointer_cast(swapCount.data());
+
+  cudaDeviceSynchronize();
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    std::cout << "Cuda error detected before findBestMatches: " << cudaGetErrorString(error)
+        << "\n";
+  }
 
   findBestMatches<<<grid, block, 0, nullptr>>>(num_verts,
                                                csr_off,
                                                csr_ind,
                                                deltaModularity,
                                                clusters,
-                                               bestMatch.begin(),
-                                               scores.begin());
+                                               bestMatch_ptr,
+                                               scores_ptr);
+
+  cudaDeviceSynchronize();
+  error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    std::cout << "Cuda error detected after findBestMatches: " << cudaGetErrorString(error)
+        << "\n";
+  }
 
   IdxT unnassigned = 1;
   while (unnassigned > 0) {
     assignMovers_partOne<<<grid, block, 0, nullptr>>>(num_verts,
                                                       csr_off,
                                                       csr_ind,
-                                                      scores.begin(),
-                                                      movers.begin());
+                                                      scores_ptr,
+                                                      movers_ptr);
+    cudaDeviceSynchronize();
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      std::cout << "Cuda error detected after assignMovers_partOne: " << cudaGetErrorString(error) << "\n";
+    }
     assignMovers_partTwo<<<grid, block, 0, nullptr>>>(num_verts,
                                                       csr_off,
                                                       csr_ind,
-                                                      scores.begin(),
-                                                      movers.begin(),
-                                                      unassigned.begin());
-    cudaMemcpy(&unnassigned, unassigned.begin(), sizeof(IdxT), cudaMemcpydefault);
-    unassigned.fill(0);
+                                                      scores_ptr,
+                                                      movers_ptr,
+                                                      unassigned_ptr);
+    cudaMemcpy(&unnassigned, unassigned_ptr, sizeof(IdxT), cudaMemcpyDefault);
+    std::cout << "Assign Movers done: " << unnassigned << " remain unassigned\n";
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      std::cout << "Cuda error detected after part two: " << cudaGetErrorString(error) << "\n";
+    }
+    thrust::fill(thrust::cuda::par, unassigned.begin(), unassigned.end(), 0);
   }
 
   makeMoves<<<grid, block, 0, nullptr>>>(num_verts,
                                          clusters,
-                                         movers.begin(),
-                                         bestMatch.begin(),
-                                         swapCount.begin());
+                                         movers_ptr,
+                                         bestMatch_ptr,
+                                         swapCount_ptr);
 
   IdxT swapsMade = 0;
-  cudaMemcpy(&swapsMade, swapCount.begin(), sizeof(IdxT), cudaMemcpyDefault);
+  cudaMemcpy(&swapsMade, swapCount_ptr, sizeof(IdxT), cudaMemcpyDefault);
   return swapsMade;
 }
 

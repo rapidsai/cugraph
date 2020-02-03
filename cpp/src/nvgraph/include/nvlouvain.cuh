@@ -40,6 +40,7 @@
 #include "size2_selector.cuh"
 #include "thrust_coarse_generator.cuh"
 #include "Louvain_matching.cuh"
+#include "Louvain_modularity.cuh"
 
 namespace nvlouvain{
 
@@ -90,10 +91,10 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
   //size_t mem_tot= 0;
   //size_t mem_free = 0;
 
-  int c_size(n_vertex);
+  IdxType c_size(n_vertex);
   unsigned int best_c_size = (unsigned) n_vertex;
   unsigned current_n_vertex(n_vertex);
-  int num_aggregates(n_edges);
+//  int num_aggregates(n_edges);
   ValType m2 = thrust::reduce(thrust::cuda::par, csr_val_d.begin(), csr_val_d.begin() + n_edges);
 
   ValType best_modularity = -1;
@@ -112,6 +113,13 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
   rmm::device_vector<ValType> cluster_sum_vec(c_size, 0);
   thrust::host_vector<IdxType> best_cluster_h(n_vertex, 0);
   Vector<IdxType> aggregates((int) current_n_vertex, 0);
+
+  rmm::device_vector<ValType> e_c(n_vertex, 0);
+  rmm::device_vector<ValType> k_c(n_vertex, 0);
+  rmm::device_vector<ValType> m_c(n_vertex, 0);
+  ValType* e_c_ptr = thrust::raw_pointer_cast(e_c.data());
+  ValType* k_c_ptr = thrust::raw_pointer_cast(k_c.data());
+  ValType* m_c_ptr = thrust::raw_pointer_cast(m_c.data());
 
   IdxType* cluster_inv_ptr_ptr = thrust::raw_pointer_cast(cluster_inv_ptr.data());
   IdxType* cluster_inv_ind_ptr = thrust::raw_pointer_cast(cluster_inv_ind.data());
@@ -152,7 +160,7 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
 
   ValType new_Q, cur_Q, delta_Q, delta_Q_final;
   unsigned old_c_size(c_size); 
-  bool updated = true;
+//  bool updated = true;
 
   hr_clock.start();
   // Get the initialized modularity
@@ -169,11 +177,24 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
                      k_vec_ptr,
                      Q_arr_ptr);
 
+  ValType new_new_Q = compute_modularity(n_vertex,
+                                         n_edges,
+                                         c_size,
+                                         csr_ptr_ptr,
+                                         csr_ind_ptr,
+                                         csr_val_ptr,
+                                         k_vec_ptr,
+                                         cluster_ptr,
+                                         (ValType)1.0,
+                                         m2,
+                                         e_c_ptr,
+                                         k_c_ptr,
+                                         m_c_ptr);
 
   hr_clock.stop(&timed);
   diff_time = timed;
 
-  LOG()<<"Initial modularity value: "<<COLOR_MGT<<new_Q<<COLOR_WHT<<" runtime: "<<diff_time/1000<<"\n";  
+  LOG()<<"Initial modularity value: "<<COLOR_MGT<<new_Q << " new value: " << new_new_Q<<COLOR_WHT<<" runtime: "<<diff_time/1000<<"\n";
 
   bool contin(true);
   int bound = 0;
@@ -189,98 +210,140 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
     cur_Q = new_Q;
     old_c_size = c_size;
 
-#ifdef VERBOSE
-      LOG()<<"Current cluster inv: \n";
-      nvlouvain::display_vec(cluster_inv_ptr, log);
-      nvlouvain::display_vec(cluster_inv_ind, log);
-#endif
+//#ifdef VERBOSE
+//      LOG()<<"Current cluster inv: \n";
+//      nvlouvain::display_vec(cluster_inv_ptr, log);
+//      nvlouvain::display_vec(cluster_inv_ind, log);
+//#endif
 
+    IdxType num_moved = 1;
+    while (num_moved > 0) {
+      hr_clock.start();
+//      // Compute delta modularity for each edges
+//      build_delta_modularity_vector(cusp_handle,
+//                                    current_n_vertex,
+//                                    c_size,
+//                                    m2,
+//                                    false,
+//                                    csr_ptr_d,
+//                                    csr_ind_d,
+//                                    csr_val_d,
+//                                    cluster_d,
+//                                    cluster_inv_ptr_ptr,
+//                                    cluster_inv_ind_ptr,
+//                                    k_vec_ptr,
+//                                    cluster_sum_vec_ptr,
+//                                    delta_Q_arr_ptr);
 
-    hr_clock.start();
-    // Compute delta modularity for each edges
-    build_delta_modularity_vector(cusp_handle,
-                                  current_n_vertex,
-                                  c_size,
-                                  m2,
-                                  updated,
-                                  csr_ptr_d,
-                                  csr_ind_d,
-                                  csr_val_d,
-                                  cluster_d, 
-                                  cluster_inv_ptr_ptr,
-                                  cluster_inv_ind_ptr,
-                                  k_vec_ptr,
-                                  cluster_sum_vec_ptr,
-                                  delta_Q_arr_ptr);
-     
-    hr_clock.stop(&timed);
-    diff_time = timed;
-    LOG()<<"Complete build_delta_modularity_vector  runtime: "<<diff_time/1000<<"\n";
+      ValType new_new_Q = compute_modularity(n_vertex,
+                                             n_edges,
+                                             c_size,
+                                             csr_ptr_ptr,
+                                             csr_ind_ptr,
+                                             csr_val_ptr,
+                                             k_vec_ptr,
+                                             cluster_ptr,
+                                             (ValType) 1.0,
+                                             m2,
+                                             e_c_ptr,
+                                             k_c_ptr,
+                                             m_c_ptr);
 
-
-    //  Start aggregates 
-    Matching_t config = nvlouvain::USER_PROVIDED;
-    //Size2Selector<IdxType, ValType> size2_sector(config, 0, 50, 0.6, true, false, 0);
-    int agg_deterministic = 1;
-    int agg_max_iterations = 25;
-    ValType agg_numUnassigned_tol = 0.85;
-    bool agg_two_phase =  false;
-    bool agg_merge_singletons = true;
-    
-
-    if (current_n_vertex<8)
-    {
-      agg_merge_singletons = false;
-      //agg_max_iterations = 4;
-    }
-
-
-    Size2Selector<IdxType, ValType> size2_sector(config,
-                                                 agg_deterministic,
-                                                 agg_max_iterations,
-                                                 agg_numUnassigned_tol,
-                                                 agg_two_phase,
-                                                 agg_merge_singletons,
-                                                 0);
-
-    hr_clock.start();
-    size2_sector.setAggregates(cusp_handle,
-                               current_n_vertex,
-                               n_edges,
+      compute_delta_modularity(n_edges,
+                               (IdxType)current_n_vertex,
                                csr_ptr_ptr,
                                csr_ind_ptr,
                                csr_val_ptr,
-                               aggregates,
-                               num_aggregates);
+                               cluster_ptr,
+                               e_c_ptr,
+                               k_c_ptr,
+                               m_c_ptr,
+                               k_vec_ptr,
+                               delta_Q_arr_ptr,
+                               (ValType)1.0,
+                               m2);
 
-    CUDA_CALL(cudaDeviceSynchronize());
-    hr_clock.stop(&timed);
-    diff_time = timed;
+      nvlouvain::display_vec(delta_Q_arr, log);
+      hr_clock.stop(&timed);
+      diff_time = timed;
+      LOG() << "Complete build_delta_modularity_vector  runtime: " << diff_time / 1000 << "Current modularity: " << new_new_Q << "\n";
 
-    LOG()<<"Complete aggregation size: "<< num_aggregates<<" runtime: "<<diff_time/1000<<std::endl;
+      // Make swaps
+      num_moved = makeSwaps((IdxType)current_n_vertex,
+                            csr_ptr_ptr,
+                            csr_ind_ptr,
+                            delta_Q_arr_ptr,
+                            cluster_ptr);
 
-    // Done aggregates 
-    c_size = num_aggregates;
-    thrust::copy(thrust::device, aggregates.begin(), aggregates.begin() + current_n_vertex, cluster_d.begin());
-    weighted = true;
+      renumberAndCountAggregates(cluster_ptr, (IdxType)current_n_vertex, c_size);
+//      generate_cluster_inv(current_n_vertex, c_size, cluster_d.begin(), cluster_inv_ptr, cluster_inv_ind);
 
-    // start update modularty 
-    hr_clock.start();
-    CUDA_CALL(cudaDeviceSynchronize());
+      LOG() << "Completed makeSwaps: " << num_moved << " swaps made. Now there are " << c_size << " clusters\n";
+    }
 
-    generate_cluster_inv(current_n_vertex, c_size, cluster_d.begin(), cluster_inv_ptr, cluster_inv_ind);
-    CUDA_CALL(cudaDeviceSynchronize());
+//    //  Start aggregates
+//    Matching_t config = nvlouvain::USER_PROVIDED;
+//    //Size2Selector<IdxType, ValType> size2_sector(config, 0, 50, 0.6, true, false, 0);
+//    int agg_deterministic = 1;
+//    int agg_max_iterations = 25;
+//    ValType agg_numUnassigned_tol = 0.85;
+//    bool agg_two_phase =  false;
+//    bool agg_merge_singletons = true;
+//
+//
+//    if (current_n_vertex<8)
+//    {
+//      agg_merge_singletons = false;
+//      //agg_max_iterations = 4;
+//    }
+//
+//
+//    Size2Selector<IdxType, ValType> size2_sector(config,
+//                                                 agg_deterministic,
+//                                                 agg_max_iterations,
+//                                                 agg_numUnassigned_tol,
+//                                                 agg_two_phase,
+//                                                 agg_merge_singletons,
+//                                                 0);
+//
+//    hr_clock.start();
+//    size2_sector.setAggregates(cusp_handle,
+//                               current_n_vertex,
+//                               n_edges,
+//                               csr_ptr_ptr,
+//                               csr_ind_ptr,
+//                               csr_val_ptr,
+//                               aggregates,
+//                               num_aggregates);
+//
+//    CUDA_CALL(cudaDeviceSynchronize());
+//    hr_clock.stop(&timed);
+//    diff_time = timed;
+//
+//    LOG()<<"Complete aggregation size: "<< num_aggregates<<" runtime: "<<diff_time/1000<<std::endl;
+//
+//    // Done aggregates
+//    c_size = num_aggregates;
+//    thrust::copy(thrust::device, aggregates.begin(), aggregates.begin() + current_n_vertex, cluster_d.begin());
+//    weighted = true;
+//
+//    // start update modularty
+//    hr_clock.start();
+//    CUDA_CALL(cudaDeviceSynchronize());
+//
+//    generate_cluster_inv(current_n_vertex, c_size, cluster_d.begin(), cluster_inv_ptr, cluster_inv_ind);
+//    CUDA_CALL(cudaDeviceSynchronize());
+//
+//    hr_clock.stop(&timed);
+//    diff_time = timed;
+//
+//    LOG()<<"Complete generate_cluster_inv runtime: "<<diff_time/1000<<std::endl;
 
-    hr_clock.stop(&timed);
-    diff_time = timed;
 
-    LOG()<<"Complete generate_cluster_inv runtime: "<<diff_time/1000<<std::endl;
-
-
-#ifdef VERBOSE     
-      display_vec(cluster_inv_ptr, log);
-      display_vec(cluster_inv_ind, log);
-#endif
+//#ifdef VERBOSE
+//      display_vec(cluster_inv_ptr, log);
+//      display_vec(cluster_inv_ind, log);
+//#endif
 
 
     hr_clock.start();
@@ -320,7 +383,7 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
     if(best_modularity < new_Q ){
 
       LOG()<< "Start Update best cluster\n";
-      updated = true;
+//      updated = true;
       num_level ++;
 
       thrust::copy(thrust::device, cluster_d.begin(), cluster_d.begin() + current_n_vertex, aggregates_tmp_d.begin());
@@ -446,7 +509,7 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
       //std::cout<<"Mem usage : "<< (float)(mem_tot-mem_free)/(1<<30) <<std::endl;
     }else {
       LOG()<<"Didn't increase in modularity\n";
-      updated = false;
+//      updated = false;
       except --;
     }
     // end better   
@@ -466,7 +529,10 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
 
   log.clear();  
   final_modularity = best_modularity;
-  cudaMemcpy ( cluster_vec, thrust::raw_pointer_cast(clustering.data()), n_vertex*sizeof(int), cudaMemcpyDefault );
+  cudaMemcpy(cluster_vec,
+             thrust::raw_pointer_cast(clustering.data()),
+             n_vertex * sizeof(int),
+             cudaMemcpyDefault);
   return NVLOUVAIN_OK;
 }
 
