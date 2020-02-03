@@ -63,13 +63,10 @@ void subgraph_matching_impl(Graph *graph_src,
   //
   for(auto&& graph: arr_graph)
     {
-      CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
-    
-      CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-    
-      CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter");
-
-      CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter");
+      CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter: Graph is NULL");
+      CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: Graph is empty");
+      CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter: Graph is empty");
+      CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter: Graph is empty");
     
       auto type_id = graph->adjList->offsets->dtype;
       CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type");

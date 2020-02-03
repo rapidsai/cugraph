@@ -35,7 +35,7 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   CUGRAPH_EXPECTS(!((gdf_G->edgeList == nullptr) &&
                   (gdf_G->adjList == nullptr) &&
                   (gdf_G->transposedAdjList == nullptr)),
-              "Invalid API parameter");
+              "Invalid API parameter: Graph is empty");
   nvgraphTopologyType_t TT;
   cudaDataType_t settype;
   // create an nvgraph graph handle
@@ -44,7 +44,7 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   if (use_transposed) {
     // convert edgeList to transposedAdjList
     CUGRAPH_EXPECTS(gdf_G->transposedAdjList != nullptr,
-              "Invalid API parameter");
+              "Invalid API parameter: Graph transposed is NULL");
     // using exiting transposedAdjList if it exisits and if adjList is missing
     TT = NVGRAPH_CSC_32;
     nvgraphCSCTopology32I_st topoData;
@@ -74,14 +74,14 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                         (double * ) gdf_G->transposedAdjList->edge_data->data))
           break;
         default:
-          CUGRAPH_FAIL("Unsupported data type");
+          CUGRAPH_FAIL("Unsupported data type: edge data");
       }
     }
 
   }
   else {
     CUGRAPH_EXPECTS(gdf_G->adjList != nullptr,
-              "Invalid API parameter");
+              "Invalid API parameter: Graph is empty");
     TT = NVGRAPH_CSR_32;
     nvgraphCSRTopology32I_st topoData;
     topoData.nvertices = gdf_G->adjList->offsets->size - 1;
@@ -111,7 +111,7 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
                                         (double * ) gdf_G->adjList->edge_data->data))
           break;
         default:
-          CUGRAPH_FAIL("Unsupported data type");
+          CUGRAPH_FAIL("Unsupported data type: edge data");
       }
     }
   }

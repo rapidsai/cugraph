@@ -435,18 +435,23 @@ namespace cugraph {
       // Clean up allocations
       if (!givenInputFrontier)
         ALLOC_FREE_TRY(frontier_ptr, nullptr);
+      
       ALLOC_FREE_TRY(exsum_degree, nullptr);
       ALLOC_FREE_TRY(block_bucket_offsets, nullptr);
       ALLOC_FREE_TRY(tempSpace, nullptr);
       ALLOC_FREE_TRY(compactSize_d, nullptr);
       ALLOC_FREE_TRY(flags, nullptr);
+      
       if (outputA != nullptr)
         ALLOC_FREE_TRY(outputA, nullptr);
-      if (outputB != nullptr)
+      
+        if (outputB != nullptr)
         ALLOC_FREE_TRY(outputB, nullptr);
-      if (outputC != nullptr)
+      
+        if (outputC != nullptr)
         ALLOC_FREE_TRY(outputC, nullptr);
-      if (outputD != nullptr)
+      
+        if (outputD != nullptr)
         ALLOC_FREE_TRY(outputD, nullptr);
 
       // Return the result

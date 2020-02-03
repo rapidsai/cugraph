@@ -70,26 +70,22 @@ std::enable_if_t<std::is_signed<IndexT>::value>
   gdf_column* labels = table->get_column(0);
   gdf_column* verts = table->get_column(1);
 
-  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
-    
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-    
-  CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter: Graph is NULL");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: Graph is empty");
 
-  CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter: Graph is empty");
+  CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter: Graph is empty");
   
   CUGRAPH_EXPECTS(labels->data != nullptr, "Invalid API parameter");
-
   CUGRAPH_EXPECTS(verts->data != nullptr, "Invalid API parameter");
   
   auto type_id = graph->adjList->offsets->dtype;
-  CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type");
-  
-  CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type");
+  CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type: Graph must be int32 or int64");
+  CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type: Graph must be int32 or int64");
   
   //TODO: relax this requirement:
   //
-  CUGRAPH_EXPECTS( type_id == labels->dtype, "Unsupported data type");
+  CUGRAPH_EXPECTS( type_id == labels->dtype, "Unsupported data type: labels->dtype must be int32 or int64");
 
   IndexT* p_d_labels = static_cast<IndexT*>(labels->data);
   IndexT* p_d_verts = static_cast<IndexT*>(verts->data);
@@ -135,7 +131,7 @@ std::enable_if_t<std::is_signed<IndexT>::value>
                <<"\n";
 #endif
       
-      CUGRAPH_EXPECTS( is_symmetric, "Invalid API parameter");
+      CUGRAPH_EXPECTS( is_symmetric, "Invalid API parameter; Graph must be symmetric");
       MLCommon::Sparse::weak_cc_entry<IndexT, TPB_X>(p_d_labels,
                                                      p_d_row_offsets,
                                                      p_d_col_ind,
@@ -161,7 +157,6 @@ std::enable_if_t<std::is_signed<IndexT>::value>
 
       if( n2 > prop.totalGlobalMem )
         {
-
           CUGRAPH_FAIL("ERROR: Insufficient device memory for SCC");
         }
       SCC_Data<ByteT, IndexT> sccd(nrows, p_d_row_offsets, p_d_col_ind);
@@ -205,8 +200,8 @@ void connected_components(Graph *graph,
 {
   cudaStream_t stream{nullptr};
 
-  CUGRAPH_EXPECTS(table != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(table->num_columns() > 1, "Invalid API parameter");
+  CUGRAPH_EXPECTS(table != nullptr, "Invalid API parameter: table parameter is NULL");
+  CUGRAPH_EXPECTS(table->num_columns() > 1, "Invalid API parameter: table is empty");
   
   gdf_column* labels = table->get_column(0);
   gdf_column* verts = table->get_column(1);
@@ -229,6 +224,6 @@ void connected_components(Graph *graph,
     default:
       break;//warning eater
     }
-  CUGRAPH_FAIL("Unsupported data type");
+  CUGRAPH_FAIL("Unsupported data type: ");
 }
 } //namespace

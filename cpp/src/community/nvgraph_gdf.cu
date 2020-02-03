@@ -320,7 +320,7 @@ void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
   nvgraphTopologyType_t TT = NVGRAPH_CSR_32;
   NVG_TRY(nvgraphGetGraphStructure(nvg_handle, nvg_result, (void*)&topo, &TT));
   if (TT != NVGRAPH_CSR_32)
-    CUGRAPH_FAIL("Unsupported nvgraph topology");
+    CUGRAPH_FAIL("Unsupported nvgraph topology: only int32 types are supported");
   int num_verts = topo.nvertices;
   int num_edges = topo.nedges;
   result->adjList = new gdf_adj_list;
@@ -355,8 +355,8 @@ void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
 
 void triangle_count_nvgraph(Graph* G, uint64_t* result) {
   
-  CUGRAPH_EXPECTS(G != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(G->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(G != nullptr, "Invalid API parameter: Graph is NULL");
+  CUGRAPH_EXPECTS(G->adjList != nullptr, "Invalid API parameter: Graph is empty");
 
   // Initialize Nvgraph and wrap the graph
   nvgraphHandle_t nvg_handle = nullptr;
@@ -372,7 +372,8 @@ void triangle_count_nvgraph(Graph* G, uint64_t* result) {
 
 void louvain(Graph *graph, void *final_modularity, void *num_level, void *louvain_parts_ptr, int max_iter) {
 
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter: Graph is NULL");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: Graph is empty");
 
   size_t n = graph->adjList->offsets->size - 1;
   size_t e = graph->adjList->indices->size;

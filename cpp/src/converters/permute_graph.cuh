@@ -26,7 +26,7 @@ struct permutation_functor{
  */
 template<typename IdxT, typename ValT>
 cugraph::Graph* permute_graph(cugraph::Graph* graph, IdxT* permutation) {
-  CUGRAPH_EXPECTS(graph->adjList || graph->edgeList, "Graph requires connectivity information.");
+  CUGRAPH_EXPECTS(graph->adjList || graph->edgeList, "Graph is empty");
   IdxT nnz;
   if (graph->edgeList) {
     nnz = graph->edgeList->src_indices->size;
