@@ -78,11 +78,12 @@ void transposed_adj_list_view(Graph *graph, const gdf_column *offsets,
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
-    (graph->transposedAdjList == nullptr)), "Invalid API parameter");
-  CUGRAPH_EXPECTS( offsets->null_count == 0 , "Input column has non-zero null count");
-  CUGRAPH_EXPECTS( indices->null_count == 0 , "Input column has non-zero null count");
-  CUGRAPH_EXPECTS( (offsets->dtype == indices->dtype), "Unsupported data type" );
-  CUGRAPH_EXPECTS( ((offsets->dtype == GDF_INT32)), "Unsupported data type" );
+    (graph->transposedAdjList == nullptr)), "Invalid API parameter: Graph is empty");
+
+  CUGRAPH_EXPECTS( offsets->null_count == 0 , "Input column has non-zero null count: Graph is empty");
+  CUGRAPH_EXPECTS( indices->null_count == 0 , "Input column has non-zero null count: Graph is empty");
+  CUGRAPH_EXPECTS( (offsets->dtype == indices->dtype), "Unsupported data type: Graph is of wrong data type" );
+  CUGRAPH_EXPECTS( ((offsets->dtype == GDF_INT32)), "Unsupported data type: graph is of wrong data type" );
   CUGRAPH_EXPECTS( (offsets->size > 0), "Column is empty");
 
   graph->transposedAdjList = new gdf_adj_list;
@@ -153,7 +154,7 @@ void adj_list_view(Graph *graph, const gdf_column *offsets,
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
   CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
-    (graph->transposedAdjList == nullptr)), "Invalid API parameter");
+    (graph->transposedAdjList == nullptr)), "Invalid API parameter: Graph is empty");
   CUGRAPH_EXPECTS( offsets->null_count == 0 , "Input column has non-zero null count");
   CUGRAPH_EXPECTS( indices->null_count == 0 , "Input column has non-zero null count");
   CUGRAPH_EXPECTS( (offsets->dtype == indices->dtype), "Unsupported data type" );
