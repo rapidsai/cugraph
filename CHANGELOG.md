@@ -8,6 +8,8 @@
 
 ## Bug Fixes
 
+- PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
+
 
 # cuGraph 0.12.0 (Date TBD)
 
