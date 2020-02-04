@@ -89,11 +89,12 @@ public:
     std::cout << test_id << "\n";
     int m, k, nnz, n_gpus;
     MM_typecode mc;
-    
+
 
     double t;
 
     FILE* fpin = fopen(param.matrix_file.c_str(), "r");
+    ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
 
     if (!fpin) {
       std::cout << "Could not open file: " << param.matrix_file << "\n";
@@ -156,7 +157,7 @@ public:
 
         t = omp_get_wtime();
         cugraph::snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        
+
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
@@ -217,7 +218,7 @@ public:
 
         t = omp_get_wtime();
         cugraph::snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        
+
 #pragma omp master
         {
           std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
@@ -313,7 +314,7 @@ public:
         + std::string("_") + ss.str().c_str();
     std::cout << "Filename: " << param.matrix_file << ", x=" << param.x << "\n";
     int m, nnz, n_gpus;
-    
+
     std::vector<idx_t> cooRowInd, cooColInd;
     double t;
 
@@ -366,7 +367,7 @@ public:
         //printv(col_val->size,(float*)col_val->data,0);
         t = omp_get_wtime();
         cugraph::snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        
+
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
@@ -425,7 +426,7 @@ public:
         //printv(col_val->size,(float*)col_val->data,0);
         t = omp_get_wtime();
         cugraph::snmg_degree(param.x, &part_offset[0], col_off, col_ind, col_x);
-        
+
 #pragma omp master
         {
           std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
