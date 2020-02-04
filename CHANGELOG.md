@@ -1,4 +1,4 @@
-# cuGraph 0.12.0 (Date TBD)
+# cuGraph 0.12.0 (04 Feb 2020)
 
 ## New Features
 - PR #628 Add (Di)Graph constructor from Multi(Di)Graph
