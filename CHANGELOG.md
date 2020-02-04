@@ -3,10 +3,10 @@
 ## New Features
 
 ## Improvements
-
 - PR #688 Cleanup datasets after testing on gpuCI
 
 ## Bug Fixes
+- PR #697 Updated versions in conda environments.
 
 
 # cuGraph 0.12.0 (Date TBD)
