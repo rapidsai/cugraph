@@ -93,7 +93,8 @@ else
 
     logger "GoogleTest for libcugraph..."
     cd $WORKSPACE/cpp/build
-    GTEST_ARGS="--gtest_output=xml:${WORKSPACE}/test-results/"
+    TESTRESULTS_DIR=${WORKSPACE}/test-results
+    GTEST_ARGS=--gtest_output=xml:${TESTRESULTS_DIR}/
 
     for gt in gtests/*; do
         test_name=`basename $gt`
@@ -112,5 +113,5 @@ else
 
     # Generate "top 20" longest running gtest report
     echo "Top 20 longest-running gtests:"
-    python ${WORKSPACE}/ci/genGTestReport.py --results_dir=${WORKSPACE}/test-results | head -20
+    python ${WORKSPACE}/ci/genGTestReport.py --results_dir=${TESTRESULTS_DIR} | head -20
 fi
