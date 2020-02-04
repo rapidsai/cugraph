@@ -372,7 +372,7 @@ void triangle_count_nvgraph(Graph* G, uint64_t* result) {
 
 void louvain(Graph *graph, void *final_modularity, void *num_level, void *louvain_parts_ptr, int max_iter) {
 
-  CUGRAPH_EXPECTS(gdf_G != nullptr, "Invalid API parameter: Graph is NULL");
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter: Graph is NULL");
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: Graph is empty");
 
   size_t n = graph->adjList->offsets->size - 1;
