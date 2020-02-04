@@ -15,7 +15,6 @@
  */
 #pragma once
 
-
 // TODO : [WIP] improve graph class and types 
 
 namespace cugraph {

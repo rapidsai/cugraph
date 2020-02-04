@@ -46,15 +46,16 @@ def compare_edges(cg, nxg, verts):
 def cugraph_call(M, verts):
     G = cugraph.DiGraph()
     cu_M = cudf.DataFrame()
-    cu_M['src'] = cudf.Series(M.row)
-    cu_M['dst'] = cudf.Series(M.col)
-    G.from_cudf_edgelist(cu_M, source='src', target='dst')
+    cu_M['src'] = cudf.Series(M['0'])
+    cu_M['dst'] = cudf.Series(M['1'])
+    G.from_cudf_edgelist(cu_M, source='src', destination='dst')
     cu_verts = cudf.Series(verts)
     return cugraph.subgraph(G, cu_verts)
 
 
 def nx_call(M, verts):
-    G = nx.DiGraph(M)
+    G = nx.from_pandas_edgelist(M, source='0', target='1',
+                                create_using=nx.DiGraph())
     return nx.subgraph(G, verts)
 
 

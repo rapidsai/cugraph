@@ -16,7 +16,6 @@ from itertools import product
 
 import pytest
 
-import pandas as pd
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -38,16 +37,16 @@ print('Networkx version : {} '.format(nx.__version__))
 def calc_core_number(graph_file):
     M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(M, source='0', target='1')
+    G.from_cudf_edgelist(M, source='0', destination='1')
 
     cn = cugraph.core_number(G)
 
     NM = utils.read_csv_for_nx(graph_file)
-    NM = NM.tocsr()
-    Gnx = nx.Graph(NM)
+    Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
+                                  create_using=nx.Graph())
     nc = nx.core_number(Gnx)
-    pdf = pd.DataFrame(nc, index=[0]).T
-    cn['nx_core_number'] = pdf[0]
+    pdf = [nc[k] for k in sorted(nc.keys())]
+    cn['nx_core_number'] = pdf
     cn = cn.rename({'core_number': 'cu_core_number'})
     return cn
 

@@ -1,3 +1,4 @@
+
 # Copyright (c) 2019, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,25 +34,26 @@ with warnings.catch_warnings():
 
 
 def cugraph_call(M, edgevals=False):
-    M = M.tocoo()
-    G = cugraph.DiGraph()
+    G = cugraph.Graph()
     cu_M = cudf.DataFrame()
-    cu_M['src'] = cudf.Series(M.row)
-    cu_M['dst'] = cudf.Series(M.col)
+    cu_M['src'] = cudf.Series(M['0'])
+    cu_M['dst'] = cudf.Series(M['1'])
     if edgevals is True:
-        cu_M['weights'] = cudf.Series(M.data)
-        G.from_cudf_edgelist(cu_M, source='src', target='dst',
+        cu_M['weights'] = cudf.Series(M['weight'])
+        G.from_cudf_edgelist(cu_M, source='src', destination='dst',
                              edge_attr='weights')
     else:
-        G.from_cudf_edgelist(cu_M, source='src', target='dst')
+        G.from_cudf_edgelist(cu_M, source='src', destination='dst')
     return cugraph.triangles(G)
 
 
 def networkx_call(M):
-    Gnx = nx.Graph(M)
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
     dic = nx.triangles(Gnx)
+    print(dic)
     count = 0
-    for i in range(len(dic)):
+    for i in dic.keys():
         count += dic[i]
     return count
 

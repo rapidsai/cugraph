@@ -140,7 +140,7 @@ void transposed_adj_list_view(Graph *graph, const gdf_column *offsets,
     graph->prop->has_negative_edges =
         (has_neg_val) ? GDF_PROP_TRUE : GDF_PROP_FALSE;
   } else {
-    graph->adjList->edge_data = nullptr;
+    graph->transposedAdjList->edge_data = nullptr;
     graph->prop->has_negative_edges = GDF_PROP_FALSE;
   }
 

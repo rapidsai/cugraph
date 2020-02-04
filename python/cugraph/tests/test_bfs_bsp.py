@@ -74,7 +74,9 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv',
             '../datasets/email-Eu-core.csv']
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.skip(reason="SG BFS is not yet formally supported")
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)

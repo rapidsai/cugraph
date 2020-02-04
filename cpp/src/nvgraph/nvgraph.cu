@@ -3434,7 +3434,7 @@ nvgraphStatus_t NVGRAPH_API nvgraphTriangleCount(nvgraphHandle_t handle,
 
 nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataType_t val_type, const size_t num_vertex, const size_t num_edges,
                             void* csr_ptr, void* csr_ind, void* csr_val, int weighted, int has_init_cluster, void* init_cluster,
-                            void* final_modularity, void* best_cluster_vec, void* num_level)
+                            void* final_modularity, void* best_cluster_vec, void* num_level, int max_iter)
 {
     NVLOUVAIN_STATUS status = NVLOUVAIN_OK;
     if ((csr_ptr == NULL) || (csr_ind == NULL) || ((csr_val == NULL) && (weighted == 1)) ||
@@ -3447,11 +3447,11 @@ nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataT
     if (val_type == CUDA_R_32F)
         status = nvlouvain::louvain ((int*)csr_ptr, (int*)csr_ind, (float*)csr_val, num_vertex, num_edges,
                weighted_b, has_init_cluster_b, (int*)init_cluster, *((float*)final_modularity),
-              (int*)best_cluster_vec,*((int*)num_level), log);
+              (int*)best_cluster_vec,*((int*)num_level), max_iter, log);
     else
         status = nvlouvain::louvain ((int*)csr_ptr, (int*)csr_ind, (double*)csr_val, num_vertex, num_edges,
                 weighted_b, has_init_cluster_b, (int*)init_cluster, *((double*)final_modularity),
-                (int*)best_cluster_vec,*((int*)num_level), log);
+                (int*)best_cluster_vec,*((int*)num_level), max_iter, log);
 
     if (status != NVLOUVAIN_OK)
         return NVGRAPH_STATUS_INTERNAL_ERROR;
