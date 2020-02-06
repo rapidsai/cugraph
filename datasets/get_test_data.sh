@@ -39,7 +39,7 @@ benchmark
 "
 
 EXTENDED_DATASET_DATA="
-# ~42s download - tests using this dataset are currently not run in test.sh by default!
+# ~42s download - tests using this dataset are currently not run in test.sh with --ci-mode
 https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
 benchmark
 "
@@ -70,10 +70,12 @@ rm -rf benchmark
 mkdir -p test/ref
 mkdir benchmark
 
+# Iterate over the arrays and untar the nth tarfile to the nth dest directory.
+# The tarfile name is derived from the download url.
 echo Decompressing ...
 for index in ${!DESTDIRS[*]}; do
-    basename=$(basename ${URLS[$index]})
-    tar xvzf tmp/${basename} -C ${DESTDIRS[$index]}
+    tfname=$(basename ${URLS[$index]})
+    tar xvzf tmp/${tfname} -C ${DESTDIRS[$index]}
 done
 
 rm -rf tmp

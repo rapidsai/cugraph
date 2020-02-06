@@ -1,4 +1,7 @@
+#!/bin/bash
+
 set -o pipefail
+
 NUMARGS=$#
 ARGS=$*
 THISDIR=$(cd $(dirname $0);pwd)
