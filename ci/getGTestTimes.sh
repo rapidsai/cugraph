@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # This script will print the gtest results sorted by runtime. This will print
-# the results two ways: first grouped by test binary with tests sorted by
-# runtime within the group, then all tests grouped together sorted by runtime.
+# the results two ways: first by printing all tests sorted by runtime, then by
+# printing all tests grouped by test binary with tests sorted by runtime within
+# the group.
 #
 # To use this script, capture the test run output to a file then run this script
 # with the file as the first arg, or just redirect test output to this script.
@@ -22,7 +23,7 @@ awk '/^Running GoogleTest .+$/ {
         system("echo \"" alltestdata "\" | sort -r -t\( -nk2")
         print "\n================================================================================"
         # Print test binaries with tests sorted by time
-        print "All tests grouped by test binary:"
+        print "Tests grouped by test binary:"
         for (testbinary in testdata) {
            print testbinary
            system("echo \"" testdata[testbinary] "\" | sort -r -t\( -nk2")
