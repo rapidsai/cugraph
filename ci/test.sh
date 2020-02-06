@@ -41,8 +41,6 @@ for gt in gtests/*; do
     ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
 done
 
-exit 0
-
 echo "Python py.test for cuGraph..."
 cd ${CUGRAPH_ROOT}/python
 py.test --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v
