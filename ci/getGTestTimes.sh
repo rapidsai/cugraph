@@ -20,13 +20,13 @@ awk '/^Running GoogleTest .+$/ {
      }
      END {
         # Print all tests sorted by time
-        system("echo \"" alltestdata "\" | sort -r -t\( -nk2")
+        system("echo \"" alltestdata "\" | sort -r -t\\( -nk2")
         print "\n================================================================================"
         # Print test binaries with tests sorted by time
         print "Tests grouped by test binary:"
         for (testbinary in testdata) {
            print testbinary
-           system("echo \"" testdata[testbinary] "\" | sort -r -t\( -nk2")
+           system("echo \"" testdata[testbinary] "\" | sort -r -t\\( -nk2")
         }
         print "\n================================================================================"
         print totaltime " milliseconds = " totaltime/60000 " minutes"
