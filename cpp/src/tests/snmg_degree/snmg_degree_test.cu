@@ -477,8 +477,12 @@ INSTANTIATE_TEST_CASE_P(hibench_test,
                                                            ,
                                           MGDegree_Usecase("benchmark/hibench/1/Input-large/edges/part-00000",
                                                            2)
-                                                           ,
-                                          MGDegree_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000",
+                                                           )
+                                                           );
+
+INSTANTIATE_TEST_CASE_P(hibench_test_huge,
+                        Tests_MGDegree_hibench,
+                        ::testing::Values(MGDegree_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000",
                                                            0)
                                                            ,
                                           MGDegree_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000",

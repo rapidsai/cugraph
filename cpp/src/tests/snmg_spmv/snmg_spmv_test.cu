@@ -555,7 +555,11 @@ INSTANTIATE_TEST_CASE_P(mtx_test, Tests_MGSpmv_unsorted,
 INSTANTIATE_TEST_CASE_P(hibench_test, Tests_MGSpmv_hibench,
                         ::testing::Values(   MGSpmv_Usecase("benchmark/hibench/1/Input-small/edges/part-00000")
                                              ,MGSpmv_Usecase("benchmark/hibench/1/Input-large/edges/part-00000")
-                                             ,MGSpmv_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")
+                                         )
+                       );
+
+INSTANTIATE_TEST_CASE_P(hibench_test_huge, Tests_MGSpmv_hibench,
+                        ::testing::Values(   MGSpmv_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")
                                          )
                        );
 

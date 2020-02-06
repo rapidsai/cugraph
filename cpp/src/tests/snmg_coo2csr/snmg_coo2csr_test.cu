@@ -699,8 +699,11 @@ TEST_P(Tests_MGcoo2csr_hibench, CheckFP64_hibench) {
 INSTANTIATE_TEST_CASE_P(hibench_test,
                         Tests_MGcoo2csr_hibench,
                         ::testing::Values(MGcoo2csr_Usecase("benchmark/hibench/1/Input-small/edges/part-00000"),
-                                          MGcoo2csr_Usecase("benchmark/hibench/1/Input-large/edges/part-00000"),
-                                          MGcoo2csr_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")));
+                                          MGcoo2csr_Usecase("benchmark/hibench/1/Input-large/edges/part-00000")));
+
+INSTANTIATE_TEST_CASE_P(hibench_test_huge,
+                        Tests_MGcoo2csr_hibench,
+                        ::testing::Values(MGcoo2csr_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")));
 
 int main( int argc, char** argv )
 {

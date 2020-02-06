@@ -4,6 +4,7 @@
 # cuGraph GPU build & testscript for CI  #
 ##########################################
 set -e
+set -o pipefail
 NUMARGS=$#
 ARGS=$*
 
@@ -100,31 +101,9 @@ else
     logger "Check GPU usage..."
     nvidia-smi
 
-    logger "Download datasets..."
-    cd $WORKSPACE/datasets
-    source ./get_test_data.sh
-
-    logger "GoogleTest for libcugraph..."
-    cd $WORKSPACE/cpp/build
-    TESTRESULTS_DIR=${WORKSPACE}/test-results
-    GTEST_ARGS=--gtest_output=xml:${TESTRESULTS_DIR}/
-
-    for gt in gtests/*; do
-        test_name=`basename $gt`
-        logger "Running GoogleTest $test_name"
-        # FIXME: remove this ASAP
-        if [[ ${gt} == "gtests/SNMG_SPMV_TEST" ]]; then
-            ${gt} ${GTEST_ARGS} --gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*
-        else
-            ${gt} ${GTEST_ARGS}
-        fi
-    done
-
-    logger "Python py.test for cuGraph..."
-    cd $WORKSPACE/python
-    py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
-
-    # Generate "top 20" longest running gtest report
-    echo "Top 20 longest-running gtests:"
-    python ${WORKSPACE}/ci/genGTestReport.py --results_dir=${TESTRESULTS_DIR} | head -20
+    # Run the tests in "CI mode": skip downloading large datasets and don't run
+    # the slow-running tests that use them (nightly testing runs the full suite)
+    ${WORKSPACE}/ci/test.sh --ci-mode | tee testoutput.txt
+    echo -e "\nTOP 20 SLOWEST TESTS:\n"
+    ${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20
 fi

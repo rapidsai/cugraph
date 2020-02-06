@@ -1,4 +1,14 @@
 #!/bin/bash
+set -e
+set -o pipefail
+NUMARGS=$#
+ARGS=$*
+
+# FIXME: consider using getopts for option parsing
+# Arg parsing function
+function hasArg {
+    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+}
 
 # Update this to add/remove/change a dataset, using the following format:
 #
@@ -6,7 +16,7 @@
 #  dataset download URL
 #  destination dir to untar to
 #  blank line separator
-DATASET_DATA="
+BASE_DATASET_DATA="
 # ~22s download
 https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/datasets.tgz
 test
@@ -19,10 +29,6 @@ test/ref
 https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/sssp.tgz
 test/ref
 
-# ~42s download
-https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
-benchmark
-
 # ~15s download
 https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_large.tgz
 benchmark
@@ -32,12 +38,26 @@ https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hiben
 benchmark
 "
 
+EXTENDED_DATASET_DATA="
+# ~42s download - tests using this dataset are currently not run in test.sh by default!
+https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
+benchmark
+"
+
+# Select the datasets to install
+if hasArg "--ci-mode"; then
+    DATASET_DATA="${BASE_DATASET_DATA}"
+else
+    DATASET_DATA="${BASE_DATASET_DATA} ${EXTENDED_DATASET_DATA}"
+fi
+
 ################################################################################
 # Do not change the script below this line if only adding/updating a dataset
 URLS=($(echo "$DATASET_DATA"|awk '{if (NR%4 == 3) print $0}'))  # extract 3rd fields to a bash array
 DESTDIRS=($(echo "$DATASET_DATA"|awk '{if (NR%4 == 0) print $0}'))  # extract 4th fields to a bash array
 
 echo Downloading ...
+rm -rf tmp
 mkdir tmp
 cd tmp
 for url in ${URLS[*]}; do
