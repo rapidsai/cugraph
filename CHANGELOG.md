@@ -3,12 +3,15 @@
 ## New Features
 
 ## Improvements
-
 - PR #688 Cleanup datasets after testing on gpuCI
+- PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
 - PR #701 Add option to filter datasets and tests when run from CI
 
 ## Bug Fixes
+- PR #697 Updated versions in conda environments.
 
+- PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
+- PR #702 Add libcypher include path to target_include_directories
 
 # cuGraph 0.12.0 (Date TBD)
 
