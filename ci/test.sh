@@ -20,7 +20,7 @@ function hasArg {
 }
 
 # Add options unique to running a "quick" subset of tests here:
-#  - pass --small flag to download script to skip large downloads
+#  - pass --subset flag to download script to skip large downloads
 #  - filter the "huge" dataset tests
 if hasArg "--quick"; then
     echo "Running \"quick\" tests only..."
