@@ -39,13 +39,13 @@ benchmark
 "
 
 EXTENDED_DATASET_DATA="
-# ~42s download - tests using this dataset are currently not run in test.sh with --ci-mode
+# ~42s download - tests using this dataset are currently not run in test.sh with --quick
 https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
 benchmark
 "
 
 # Select the datasets to install
-if hasArg "--ci-mode"; then
+if hasArg "--subset"; then
     DATASET_DATA="${BASE_DATASET_DATA}"
 else
     DATASET_DATA="${BASE_DATASET_DATA} ${EXTENDED_DATASET_DATA}"

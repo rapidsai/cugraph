@@ -9,7 +9,7 @@ ARGS=$*
 THISDIR=$(cd $(dirname $0);pwd)
 CUGRAPH_ROOT=$(cd ${THISDIR}/..;pwd)
 GTEST_ARGS="--gtest_output=xml:${CUGRAPH_ROOT}/test-results/"
-CI_MODE_FLAG_TO_PASS=""
+DOWNLOAD_MODE=""
 ERRORCODE=0
 
 export RAPIDS_DATASET_ROOT_DIR=${CUGRAPH_ROOT}/datasets
@@ -19,13 +19,16 @@ function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
-# Add options unique to running tests in CI here:
-#  - pass --ci-mode flag to download script to skip large downloads
+# Add options unique to running a "quick" subset of tests here:
+#  - pass --small flag to download script to skip large downloads
 #  - filter the "huge" dataset tests
-if hasArg "--ci-mode"; then
-    CI_MODE_FLAG_TO_PASS="--ci-mode"
+if hasArg "--quick"; then
+    echo "Running \"quick\" tests only..."
+    DOWNLOAD_MODE="--subset"
     GTEST_FILTER="--gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*:*huge*"
 else
+    echo "Running all tests..."
+    # FIXME: do we still need to always filter these tests?
     GTEST_FILTER="--gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*"
 fi
 
@@ -34,7 +37,7 @@ if hasArg "--skip-download"; then
 else
     echo "Download datasets..."
     cd ${RAPIDS_DATASET_ROOT_DIR}
-    bash ./get_test_data.sh ${CI_MODE_FLAG_TO_PASS}
+    bash ./get_test_data.sh ${DOWNLOAD_MODE}
     ERRORCODE=$((ERRORCODE | $?))
     # no need to run tests if dataset download fails
     if (( ${ERRORCODE} != 0 )); then

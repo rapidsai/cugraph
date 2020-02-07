@@ -99,9 +99,16 @@ else
     logger "Check GPU usage..."
     nvidia-smi
 
-    # Run the tests in "CI mode": skip downloading large datasets and don't run
-    # the slow-running tests that use them (assume full suite is run nightly)
-    ${WORKSPACE}/ci/test.sh --ci-mode | tee testoutput.txt
+    # If this is a PR build, skip downloading large datasets and don't run the
+    # slow-running tests that use them.
+    # See: https://docs.rapids.ai/maintainers/gpuci/#environment-variables
+    if [ "$BUILD_MODE" = "pull-request" ]; then
+        TEST_MODE_FLAG="--quick"
+    else
+        TEST_MODE_FLAG=""
+    fi
+
+    ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
 
     echo -e "\nTOP 20 SLOWEST TESTS:\n"
     # Wrap in echo to prevent non-zero exit since this command is non-essential
