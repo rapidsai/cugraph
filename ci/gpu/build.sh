@@ -8,21 +8,19 @@ set -o pipefail
 NUMARGS=$#
 ARGS=$*
 
-# Logger function for build status output
 function logger {
   echo -e "\n>>>> $@\n"
 }
 
-# Arg parsing function
 function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
-# Cleanup function for datasets removal
 function cleanup {
-  logger "Remove './datasets/test' and './datasets/benchmark'..."
+  logger "Removing datasets and temp files..."
   rm -rf $WORKSPACE/datasets/test
   rm -rf $WORKSPACE/datasets/benchmark
+  rm -f testoutput.txt
 }
 
 # Set cleanup trap for Jenkins
@@ -102,8 +100,10 @@ else
     nvidia-smi
 
     # Run the tests in "CI mode": skip downloading large datasets and don't run
-    # the slow-running tests that use them (nightly testing runs the full suite)
+    # the slow-running tests that use them (assume full suite is run nightly)
     ${WORKSPACE}/ci/test.sh --ci-mode | tee testoutput.txt
+
     echo -e "\nTOP 20 SLOWEST TESTS:\n"
-    ${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20
+    # Wrap in echo to prevent non-zero exit since this command is non-essential
+    echo "$(${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20)"
 fi
