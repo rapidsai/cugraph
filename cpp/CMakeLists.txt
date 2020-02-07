@@ -325,6 +325,7 @@ add_library(cugraph SHARED
 target_include_directories(cugraph
     PRIVATE
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+    "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CUDF_INCLUDE}"
