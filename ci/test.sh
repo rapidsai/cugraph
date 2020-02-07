@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# note: do not use set -e in order to allow all gtest invocations to take place,
+# and instead keep track of exit status and exit with an overall exit status
 set -o pipefail
 
 NUMARGS=$#
@@ -8,6 +10,8 @@ THISDIR=$(cd $(dirname $0);pwd)
 CUGRAPH_ROOT=$(cd ${THISDIR}/..;pwd)
 GTEST_ARGS="--gtest_output=xml:${CUGRAPH_ROOT}/test-results/"
 CI_MODE_FLAG_TO_PASS=""
+ERRORCODE=0
+
 export RAPIDS_DATASET_ROOT_DIR=${CUGRAPH_ROOT}/datasets
 
 # FIXME: consider using getopts for option parsing
@@ -31,6 +35,11 @@ else
     echo "Download datasets..."
     cd ${RAPIDS_DATASET_ROOT_DIR}
     bash ./get_test_data.sh ${CI_MODE_FLAG_TO_PASS}
+    ERRORCODE=$((ERRORCODE | $?))
+    # no need to run tests if dataset download fails
+    if (( ${ERRORCODE} != 0 )); then
+        exit ${ERRORCODE}
+    fi
 fi
 
 cd ${CUGRAPH_ROOT}/cpp/build
@@ -39,8 +48,12 @@ for gt in gtests/*; do
     test_name=$(basename $gt)
     echo "Running GoogleTest $test_name"
     ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
+    ERRORCODE=$((ERRORCODE | $?))
 done
 
 echo "Python py.test for cuGraph..."
 cd ${CUGRAPH_ROOT}/python
 py.test --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v
+ERRORCODE=$((ERRORCODE | $?))
+
+exit ${ERRORCODE}
