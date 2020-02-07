@@ -4,24 +4,23 @@
 # cuGraph GPU build & testscript for CI  #
 ##########################################
 set -e
+set -o pipefail
 NUMARGS=$#
 ARGS=$*
 
-# Logger function for build status output
 function logger {
   echo -e "\n>>>> $@\n"
 }
 
-# Arg parsing function
 function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
-# Cleanup function for datasets removal
 function cleanup {
-  logger "Remove './datasets/test' and './datasets/benchmark'..."
+  logger "Removing datasets and temp files..."
   rm -rf $WORKSPACE/datasets/test
   rm -rf $WORKSPACE/datasets/benchmark
+  rm -f testoutput.txt
 }
 
 # Set cleanup trap for Jenkins
@@ -100,25 +99,18 @@ else
     logger "Check GPU usage..."
     nvidia-smi
 
-    logger "Download datasets..."
-    cd $WORKSPACE/datasets
-    source ./get_test_data.sh
+    # If this is a PR build, skip downloading large datasets and don't run the
+    # slow-running tests that use them.
+    # See: https://docs.rapids.ai/maintainers/gpuci/#environment-variables
+    if [ "$BUILD_MODE" = "pull-request" ]; then
+        TEST_MODE_FLAG="--quick"
+    else
+        TEST_MODE_FLAG=""
+    fi
 
-    logger "GoogleTest for libcugraph..."
-    cd $WORKSPACE/cpp/build
-    export GTEST_OUTPUT="xml:${WORKSPACE}/test-results/"
-    for gt in gtests/*; do
-        test_name=`basename $gt`
-        logger "Running GoogleTest $test_name"
-        # FIXME: remove this ASAP
-        if [[ ${gt} == "gtests/SNMG_SPMV_TEST" ]]; then
-            ${gt} --gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*
-        else
-            ${gt}
-        fi
-    done
+    ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
 
-    logger "Python py.test for cuGraph..."
-    cd $WORKSPACE/python
-    py.test --cache-clear --junitxml=${WORKSPACE}/junit-cugraph.xml -v
+    echo -e "\nTOP 20 SLOWEST TESTS:\n"
+    # Wrap in echo to prevent non-zero exit since this command is non-essential
+    echo "$(${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20)"
 fi

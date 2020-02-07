@@ -5,6 +5,7 @@
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
 - PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
+- PR #701 Add option to filter datasets and tests when run from CI
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
@@ -20,8 +21,8 @@
 - PR #636 Added Multi-column renumbering support
 
 ## Improvements
-- PR #640 remove gdf_column in sssp 
-- PR #629 get rid of gdf_column in pagerank 
+- PR #640 remove gdf_column in sssp
+- PR #629 get rid of gdf_column in pagerank
 - PR #641 Add codeowners
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 - PR #652 Remove gdf_column in BFS
