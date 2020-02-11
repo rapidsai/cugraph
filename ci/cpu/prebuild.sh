@@ -3,7 +3,7 @@
 export BUILD_CUGRAPH=1
 export BUILD_LIBCUGRAPH=1
 
-if [[ "$CUDA" == "9.2" ]]; then
+if [[ "$CUDA" == "10.0" ]]; then
     export UPLOAD_CUGRAPH=1
 else
     export UPLOAD_CUGRAPH=0
