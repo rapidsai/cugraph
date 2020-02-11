@@ -261,12 +261,13 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-	src/db/db_object.cu
-	src/db/db_parser_integration_test.cu
-	src/db/db_operators.cu
+    src/db/db_object.cu
+    src/db/db_parser_integration_test.cu
+    src/db/db_operators.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
+    src/structure/graph.cpp
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
     src/traversal/sssp.cu
@@ -329,6 +330,7 @@ target_include_directories(cugraph
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CUDF_INCLUDE}"
+    "${CUDF_INCLUDE}/libcudf/libcudacxx"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cub"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornet/include"

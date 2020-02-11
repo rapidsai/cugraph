@@ -33,6 +33,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
         "${GTEST_INCLUDE_DIR}"
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
+        "${CUDF_INCLUDE}/libcudf/libcudacxx"
         "${CMAKE_SOURCE_DIR}/../thirdparty/cub"
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio"
         "${CMAKE_SOURCE_DIR}/include"
@@ -129,6 +130,14 @@ set(GDFGRAPH_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/Graph/Graph.cu")
 
 ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
+
+###################################################################################################
+# - Graph tests --------------------------------------------------------------------------------
+
+set(GRAPH_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/Graph/GraphNew.cu")
+
+ConfigureTest(GRAPH_TEST "${GRAPH_TEST_SRC}" "")
 
 ###################################################################################################
 # - grmat tests -----------------------------------------------------------------------------------
