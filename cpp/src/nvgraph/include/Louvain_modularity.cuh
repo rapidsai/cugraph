@@ -262,7 +262,8 @@ __global__ void compute_delta_modularity_vector(IdxT nnz,
       ValT startM = m_c[startCluster];
       ValT endM = m_c[endCluster];
       ValT finalScore = newEndScore - endM + newStartScore - startM;
-//      printf("Thread: %d, finalScore %f, newEndScore %f, oldEndScore %f, newStartScore %f, oldStartScore %f\n", tid, finalScore, newEndScore, endM, newStartScore, startM);
+      if (finalScore > .0001)
+        printf("Vertex: %d, moving from %d to %d finalScore %f, newEndScore %f, oldEndScore %f, newStartScore %f, oldStartScore %f\n", startVertex, startCluster, endCluster, finalScore, newEndScore, endM, newStartScore, startM);
       if (newEndScore < endM)
         finalScore = 0.0;
       delta[tid] = finalScore < .0001 ? 0.0 : finalScore;

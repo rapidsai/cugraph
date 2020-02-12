@@ -335,3 +335,40 @@ void generate_supervertices_graph(const int n_vertex,
   cudaCheckError();
 }
 
+template<typename IdxT>
+__global__ void project_kernel(IdxT coarse_verts,
+                               IdxT* cluster_inv_off,
+                               IdxT* cluster_inv_ind,
+                               IdxT* coarse_clusters,
+                               IdxT* fine_clusters) {
+  IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
+  while (tid < coarse_verts) {
+    IdxT myCluster = coarse_clusters[tid];
+    IdxT start = cluster_inv_off[tid];
+    IdxT end = cluster_inv_off[tid + 1];
+    for (IdxT i = start; i < end; i++) {
+      fine_clusters[cluster_inv_ind[i]] = myCluster;
+    }
+
+    tid += gridDim.x * blockDim.x;
+  }
+}
+
+template<typename IdxT>
+void project(IdxT coarse_verts,
+             IdxT* cluster_inv_off,
+             IdxT* cluster_inv_ind,
+             IdxT* coarse_clusters,
+             IdxT* fine_clusters) {
+  dim3 grid, block;
+  block.x = 64;
+  grid.x = min((IdxT)CUDA_MAX_BLOCKS, (coarse_verts / 64 + 1));
+  project_kernel<<<grid, block, 0, nullptr>>>(coarse_verts,
+                                              cluster_inv_off,
+                                              cluster_inv_ind,
+                                              coarse_clusters,
+                                              fine_clusters);
+  cudaDeviceSynchronize();
+  cudaCheckError();
+}
+

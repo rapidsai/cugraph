@@ -125,56 +125,21 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
   levels.back().cluster_inv_off = cluster_inv_off;
   levels.back().cluster_inv_ind = cluster_inv_ind;
 
-//  rmm::device_vector<IdxType> csr_ptr_d(csr_ptr, csr_ptr + n_vertex + 1);
-//  rmm::device_vector<IdxType> csr_ind_d(csr_ind, csr_ind + n_edges);
-//  rmm::device_vector<ValType> csr_val_d(csr_val, csr_val + n_edges);
-
-  //std::vector<IdxType> clustering(n_vertex);
-//  rmm::device_vector<IdxType> clustering(n_vertex);
-//  int upper_bound = max_iter;
-
   HighResClock hr_clock;
   double timed, diff_time;
-  //size_t mem_tot= 0;
-  //size_t mem_free = 0;
-
-//  IdxType c_size(n_vertex);
-//  unsigned int best_c_size = (unsigned) n_vertex;
-//  unsigned current_n_vertex(n_vertex);
   ValType m2 = thrust::reduce(thrust::cuda::par,
                               levels.back().csr_val,
                               levels.back().csr_val + n_edges);
 
-//  ValType best_modularity = -1;
-
-//  rmm::device_vector<IdxType> new_csr_ptr(n_vertex, 0);
-//  rmm::device_vector<IdxType> new_csr_ind(n_edges, 0);
-//  rmm::device_vector<ValType> new_csr_val(n_edges, 0);
-//
-//  rmm::device_vector<IdxType> cluster_d(n_vertex);
-//  rmm::device_vector<IdxType> aggregates_tmp_d(n_vertex, 0);
-//  rmm::device_vector<IdxType> cluster_inv_ptr(c_size + 1, 0);
-//  rmm::device_vector<IdxType> cluster_inv_ind(n_vertex, 0);
   rmm::device_vector<ValType> k_vec(n_vertex, 0);
-//  rmm::device_vector<ValType> Q_arr(n_vertex, 0);
   rmm::device_vector<ValType> delta_Q_arr(n_edges, 0);
-//  rmm::device_vector<ValType> cluster_sum_vec(c_size, 0);
-//  thrust::host_vector<IdxType> best_cluster_h(n_vertex, 0);
-//  Vector<IdxType> aggregates((int) current_n_vertex, 0);
-//
+
   rmm::device_vector<ValType> e_c(n_vertex, 0);
   rmm::device_vector<ValType> k_c(n_vertex, 0);
   rmm::device_vector<ValType> m_c(n_vertex, 0);
   ValType* e_c_ptr = thrust::raw_pointer_cast(e_c.data());
   ValType* k_c_ptr = thrust::raw_pointer_cast(k_c.data());
   ValType* m_c_ptr = thrust::raw_pointer_cast(m_c.data());
-//
-//  IdxType* cluster_inv_ptr_ptr = thrust::raw_pointer_cast(cluster_inv_ptr.data());
-//  IdxType* cluster_inv_ind_ptr = thrust::raw_pointer_cast(cluster_inv_ind.data());
-//  IdxType* csr_ptr_ptr = thrust::raw_pointer_cast(csr_ptr_d.data());
-//  IdxType* csr_ind_ptr = thrust::raw_pointer_cast(csr_ind_d.data());
-//  ValType* csr_val_ptr = thrust::raw_pointer_cast(csr_val_d.data());
-//  IdxType* cluster_ptr = thrust::raw_pointer_cast(cluster_d.data());
 
   if (!has_init_cluster) {
     // if there is no initialized cluster
@@ -266,6 +231,7 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
 
     IdxType num_moved = 1;
     IdxType total_moved = 0;
+    ValType best_Q = 0.0;
     while (num_moved > 0) {
       hr_clock.start();
       ValType new_new_Q = compute_modularity(levels.back().num_verts,
@@ -315,12 +281,32 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
                                  levels.back().num_clusters);
       LOG() << "Completed makeSwaps: " << num_moved << " swaps made. Now there are " << levels.back().num_clusters
           << " clusters\n";
+
     }
     
     // If we got through the swapping phase without making any swaps we are done.
-    if (total_moved == 0)
+    if (total_moved == 0 && levels.size() == 1)
       break;
     
+    if (total_moved == 0) {
+      while (levels.size() > 1) {
+        // Do some magic and project down the last level to the previous level
+        level_info<IdxType, ValType>last = levels.back();
+        level_info<IdxType, ValType>prev = levels[levels.size() - 2];
+        project(last.num_verts,
+                prev.cluster_inv_off,
+                prev.cluster_inv_ind,
+                last.clusters,
+                prev.clusters);
+        LOG() << "Projected level " << levels.size() << " down\n";
+        // Delete the last frame and pop it off
+        levels.back().delete_all();
+        levels.pop_back();
+      }
+      LOG() << "Starting to iterate again on projected result:\n";
+      continue;
+    }
+
     // Check to see if we have computed up to the max level specified:
     if ((IdxType)levels.size() >= max_iter)
       break;
@@ -363,165 +349,62 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
                      new_clusters,
                      new_clusters + prev.num_clusters,
                      0);
-
-
-//    // start shinking graph
-//    if (best_modularity < new_Q) {
-//
-//      LOG() << "Start Update best cluster\n";
-////      updated = true;
-//      num_level++;
-//
-//      thrust::copy(thrust::device,
-//                   cluster_d.begin(),
-//                   cluster_d.begin() + current_n_vertex,
-//                   aggregates_tmp_d.begin());
-//
-//      // if we would like to record the best cluster assignment for each level
-//      // we push back current cluster assignment to cluster_vec
-//      //TODO
-//
-//      best_modularity = new_Q;
-//      best_c_size = c_size;
-//
-//      hr_clock.start();
-//      // generate super vertices graph
-//      generate_superverticies_graph(current_n_vertex, best_c_size,
-//                                    csr_ptr_d,
-//                                    csr_ind_d, csr_val_d,
-//                                    new_csr_ptr,
-//                                    new_csr_ind, new_csr_val,
-//                                    aggregates_tmp_d);
-//
-//      CUDA_CALL(cudaDeviceSynchronize());
-//      if (current_n_vertex == num_vertex) {
-//        // copy inital aggregates assignments as initial clustering
-//        thrust::copy(thrust::device,
-//                     aggregates_tmp_d.begin(),
-//                     aggregates_tmp_d.begin() + current_n_vertex,
-//                     clustering.begin());
-//      }
-//      else {
-//        // update, clustering[i] = aggregates[clustering[i]];
-//        update_clustering((int) num_vertex,
-//                          thrust::raw_pointer_cast(clustering.data()),
-//                          thrust::raw_pointer_cast(aggregates_tmp_d.data()));
-//      }
-//      hr_clock.stop(&timed);
-//      diff_time = timed;
-//      LOG() << "Complete generate_superverticies_graph size of graph: " << current_n_vertex
-//          << " -> " << best_c_size << " runtime: " << diff_time / 1000 << std::endl;
-//
-//      // update cluster_d as a sequence
-//      thrust::sequence(thrust::cuda::par, cluster_d.begin(), cluster_d.begin() + current_n_vertex);
-//      cudaCheckError()
-//              ;
-//
-//      // generate cluster inv in CSR form as sequence
-//      thrust::sequence(thrust::cuda::par,
-//                       cluster_inv_ptr.begin(),
-//                       cluster_inv_ptr.begin() + best_c_size + 1);
-//      thrust::sequence(thrust::cuda::par,
-//                       cluster_inv_ind.begin(),
-//                       cluster_inv_ind.begin() + best_c_size);
-//
-//      cluster_inv_ptr_ptr = thrust::raw_pointer_cast(cluster_inv_ptr.data());
-//      cluster_inv_ind_ptr = thrust::raw_pointer_cast(cluster_inv_ind.data());
-//
-//      //display_vec(cluster_inv_ind, log);
-//      hr_clock.start();
-//      // get new modularity after we generate super vertices.
-//      IdxType* new_csr_ptr_ptr = thrust::raw_pointer_cast(new_csr_ptr.data());
-//      IdxType* new_csr_ind_ptr = thrust::raw_pointer_cast(new_csr_ind.data());
-//      ValType* new_csr_val_ptr = thrust::raw_pointer_cast(new_csr_val.data());
-//
-//      new_Q = modularity(best_c_size,
-//                         n_edges,
-//                         best_c_size,
-//                         m2,
-//                         new_csr_ptr_ptr,
-//                         new_csr_ind_ptr,
-//                         new_csr_val_ptr,
-//                         cluster_ptr,
-//                         cluster_inv_ptr_ptr,
-//                         cluster_inv_ind_ptr,
-//                         weighted,
-//                         k_vec_ptr,
-//                         Q_arr_ptr);
-//
-//      hr_clock.stop(&timed);
-//
-//      diff_time = timed;
-//
-//      // modularity keeps the same after we generate super vertices
-//      // shouldn't happen
-//      if (std::fabs(new_Q - best_modularity) > 0.0001) {
-//        printf("Warning new_Q != best_Q %f != %f \n", new_Q, best_modularity);
-//      }
-//
-//      LOG() << "Update vectors and variables\n";
-//
-//      if (cur_Q - new_Q && (bound < upper_bound)) {
-//        current_n_vertex = best_c_size;
-//        n_edges = new_csr_ptr[best_c_size];
-//        thrust::copy(thrust::device,
-//                     new_csr_ptr.begin(),
-//                     new_csr_ptr.begin() + current_n_vertex + 1,
-//                     csr_ptr_d.begin());
-//        thrust::copy(thrust::device,
-//                     new_csr_ind.begin(),
-//                     new_csr_ind.begin() + n_edges,
-//                     csr_ind_d.begin());
-//        thrust::copy(thrust::device,
-//                     new_csr_val.begin(),
-//                     new_csr_val.begin() + n_edges,
-//                     csr_val_d.begin());
-//      }
-//
-//      //cudaMemGetInfo(&mem_free, &mem_tot);
-//      //std::cout<<"Mem usage : "<< (float)(mem_tot-mem_free)/(1<<30) <<std::endl;
-//    } else {
-//      LOG() << "Didn't increase in modularity\n";
-////      updated = false;
-//      except--;
-//    }
-//    // end better
-//
-//    delta_Q_final = cur_Q - new_Q;
-//
-//    contin = ((delta_Q_final > 0.0001 || except > 0) && (bound < upper_bound));
-//
-//    LOG() << "======================= modularity: " << COLOR_MGT << new_Q << COLOR_WHT
-//        << " delta modularity: " << delta_Q_final
-//        << " runtime: " << diff_time / 1000 << " best_c_size: " << best_c_size << std::endl;
-//
-//    ++bound;
-
   } while (contin);
 
   // Now that we have finished with the levels, it's time to project the solution back down
   // As we project the solution down we will also be deleting temporary memory allocations from each level
   // Start off by ignoring the last level, since nothing changed in it.
   if (levels.size() > 1) {
+    LOG() << "Popping off level " << levels.size() << "\n";
     levels.back().delete_all();
     levels.pop_back();
   }
   while (levels.size() > 1) {
     // Do some magic and project down the last level to the previous level
-
+    level_info<IdxType, ValType> last = levels.back();
+    level_info<IdxType, ValType> prev = levels[levels.size() - 2];
+    project(last.num_verts,
+            prev.cluster_inv_off,
+            prev.cluster_inv_ind,
+            last.clusters,
+            prev.clusters);
+    LOG() << "Projected level " << levels.size() << " down\n";
     // Delete the last frame and pop it off
     levels.back().delete_all();
     levels.pop_back();
   }
 
+  // Compute the final modularity
+  renumberAndCountAggregates(levels.back().clusters,
+                             levels.back().num_verts,
+                             levels.back().num_clusters);
+  m2 = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr),
+                      levels.back().csr_val,
+                      levels.back().csr_val + levels.back().nnz);
+  compute_k_vec((IdxType) levels.back().num_verts,
+                levels.back().csr_off,
+                levels.back().csr_val,
+                k_vec_ptr);
+  final_modularity = compute_modularity(levels.back().num_verts,
+                                        levels.back().nnz,
+                                        levels.back().num_clusters,
+                                        levels.back().csr_off,
+                                        levels.back().csr_ind,
+                                        levels.back().csr_val,
+                                        k_vec_ptr,
+                                        levels.back().clusters,
+                                        (ValType) 1.0,
+                                        m2,
+                                        e_c_ptr,
+                                        k_c_ptr,
+                                        m_c_ptr);
+  LOG() << "Final modularity " << final_modularity << "\n";
 
-
-  log.clear();
-//  final_modularity = best_modularity;
-//  cudaMemcpy(cluster_vec,
-//             thrust::raw_pointer_cast(clustering.data()),
-//             n_vertex * sizeof(int),
-//             cudaMemcpyDefault);
+  cudaMemcpy(cluster_vec,
+             levels.back().clusters,
+             levels.back().num_verts * sizeof(IdxType),
+             cudaMemcpyDefault);
+  levels.back().delete_added();
   return NVLOUVAIN_OK;
 }
 
