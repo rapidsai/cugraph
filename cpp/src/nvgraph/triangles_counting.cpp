@@ -35,7 +35,11 @@ TrianglesCount<IndexType>::TrianglesCount(const CsrGraph <IndexType>& graph, cud
     else
         m_dev_id = device_id;
 
-    cudaGetDeviceProperties(&m_dev_props, m_dev_id);
+    cudaDeviceGetAttribute(&m_shared_mem_per_block, cudaDevAttrMaxSharedMemoryPerBlock, m_dev_id);
+    cudaCheckError();
+    cudaDeviceGetAttribute(&m_multi_processor_count, cudaDevAttrMultiProcessorCount, m_dev_id);
+    cudaCheckError();
+    cudaDeviceGetAttribute(&m_max_threads_per_multi_processor, cudaDevAttrMaxThreadsPerMultiProcessor, m_dev_id);
     cudaCheckError();
     cudaSetDevice(m_dev_id);
     cudaCheckError();
@@ -62,7 +66,7 @@ void TrianglesCount<IndexType>::tcount_bsh()
 {
 //    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
     
-    if (m_dev_props.sharedMemPerBlock*8 < (size_t)m_mat.nrows) 
+    if (m_shared_mem_per_block * 8 < (size_t)m_mat.nrows) 
     {
         FatalError("Number of vertices too high to use this kernel!", NVGRAPH_ERR_BAD_PARAMETERS);
     }
@@ -180,7 +184,7 @@ void TrianglesCount<IndexType>::tcount_thr()
 {
 //    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
 
-    int maxblocks = m_dev_props.multiProcessorCount * m_dev_props.maxThreadsPerMultiProcessor / THREADS;
+    int maxblocks = m_multi_processor_count * m_max_threads_per_multi_processor / THREADS;
 
     int nblock = MIN(maxblocks, DIV_UP(m_mat.nrows,THREADS));
 
@@ -219,7 +223,7 @@ NVGRAPH_ERROR TrianglesCount<IndexType>::count(TrianglesCountAlgo algo)
                 else 
                 {
                     const int shMinBlkXSM = 6;
-                    if (m_dev_props.sharedMemPerBlock*8/shMinBlkXSM < (size_t)m_mat.N)
+                    if (m_shared_mem_per_block * 8/shMinBlkXSM < (size_t)m_mat.N)
                         tcount_b2b();
                     else    
                         tcount_bsh();
