@@ -1,3 +1,4 @@
+
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features
@@ -13,7 +14,8 @@
 - PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
 - PR #702 Add libcypher include path to target_include_directories
 
-# cuGraph 0.12.0 (Date TBD)
+
+# cuGraph 0.12.0 (04 Feb 2020)
 
 ## New Features
 - PR #628 Add (Di)Graph constructor from Multi(Di)Graph
@@ -42,6 +44,7 @@
 - PR #681 fix column length mismatch cudf issue
 - PR #684 Deprecated cudf calls
 - PR #686 Balanced cut fix
+
 
 # cuGraph 0.11.0 (11 Dec 2019)
 
