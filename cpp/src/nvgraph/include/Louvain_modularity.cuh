@@ -54,7 +54,7 @@ __global__ void compute_e_c_vector(IdxT nnz,
     IdxT startCluster = clusters[startVertex];
     IdxT endCluster = clusters[endVertex];
     cluster_id[tid] = startCluster;
-    e_c_sum[tid] = (startCluster == endCluster) ? edge_weights[tid] : (ValT)0.0;
+    e_c_sum[tid] = (startCluster == endCluster && startVertex != endVertex) ? edge_weights[tid] : (ValT)0.0;
 
     tid += gridDim.x * blockDim.x;
   }
@@ -75,6 +75,13 @@ void compute_e_c(IdxT nnz,
   IdxT* cluster_id_ptr = thrust::raw_pointer_cast(cluster_id.data());
   IdxT* cluster_id_out_ptr = thrust::raw_pointer_cast(cluster_id_out.data());
 
+  cudaDeviceSynchronize();
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    std::cout << "Cuda error detected before compute_e_c_vector: " << cudaGetErrorString(error)
+        << "\n";
+  }
+
   dim3 grid, block;
   block.x = 512;
   grid.x = min((IdxT) CUDA_MAX_BLOCKS, (nnz / 512 + 1));
@@ -88,7 +95,7 @@ void compute_e_c(IdxT nnz,
                                                   e_c_sum_ptr);
 
   cudaDeviceSynchronize();
-  cudaError_t error = cudaGetLastError();
+  error = cudaGetLastError();
   if (error != cudaSuccess) {
     std::cout << "Cuda error detected after compute_e_c_vector: " << cudaGetErrorString(error)
         << "\n";
@@ -168,6 +175,7 @@ __global__ void compute_m_c_vector(IdxT num_clusters,
     ValT kVal = k_c[tid];
     ValT eVal = e_c[tid];
     ValT mVal = (eVal/m2) - gamma * ((kVal * kVal) / m2 / m2);
+//    printf("Thread %d, kVal %f, eVal %f, mVal %f\n", tid, kVal, eVal, mVal);
     m_c[tid] = mVal;
     tid += gridDim.x * blockDim.x;
   }
@@ -239,9 +247,9 @@ __global__ void compute_delta_modularity_vector(IdxT nnz,
       for (IdxT i = start; i < end; i++) {
         IdxT neighborId = csr_ind[i];
         IdxT neighborCluster = clusters[neighborId];
-        if (neighborCluster == startCluster)
+        if (neighborCluster == startCluster && neighborId != startVertex)
           startEdges += edge_weights[i];
-        if (neighborCluster == endCluster)
+        if (neighborCluster == endCluster && neighborId != startVertex)
           endEdges += edge_weights[i];
       }
       ValT end_e = e_c[endCluster];
@@ -254,7 +262,10 @@ __global__ void compute_delta_modularity_vector(IdxT nnz,
       ValT startM = m_c[startCluster];
       ValT endM = m_c[endCluster];
       ValT finalScore = newEndScore - endM + newStartScore - startM;
-      delta[tid] = finalScore;
+//      printf("Thread: %d, finalScore %f, newEndScore %f, oldEndScore %f, newStartScore %f, oldStartScore %f\n", tid, finalScore, newEndScore, endM, newStartScore, startM);
+      if (newEndScore < endM)
+        finalScore = 0.0;
+      delta[tid] = finalScore < .0001 ? 0.0 : finalScore;
     }
 
     tid += gridDim.x * blockDim.x;

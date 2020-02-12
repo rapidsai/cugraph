@@ -163,6 +163,14 @@ kernel_modularity_no_matrix(const int n_vertex, const int n_clusters, ValType m2
 
 }
 
+template<typename IdxT, typename ValT>
+__global__ void compute_k_vec_kernel(IdxT n_vertex,
+                                     IdxT* csr_off,
+                                     ValT* csr_val,
+                                     ValT* k_vec) {
+  compute_k_vec(n_vertex, csr_off, csr_val, true, k_vec);
+}
+
 template<typename IdxType, typename ValType>
 ValType 
 modularity(const int n_vertex,
@@ -201,6 +209,20 @@ modularity(const int n_vertex,
 
 } 
 
+template<typename IdxT, typename ValT>
+void compute_k_vec(IdxT n_vertex,
+                   IdxT* csr_off,
+                   ValT* csr_val,
+                   ValT* k_vec) {
+  int nthreads = min(n_vertex,CUDA_MAX_KERNEL_THREADS);
+  int nblocks = min((n_vertex + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS);
+  compute_k_vec_kernel<<<nblocks, nthreads>>>(n_vertex,
+                                              csr_off,
+                                              csr_val,
+                                              k_vec);
+  CUDA_CALL(cudaDeviceSynchronize());
+}
+
 /***********************
 cluster_iter(n_vertex)
 cluster_inv_ptr(c_size + 1)
@@ -222,7 +244,8 @@ generate_cluster_inv_ptr(const int n_vertex, IdxIter cluster_iter, IdxType* clus
 
 
 template<typename IdxType=int, typename IdxIter> 
-void generate_cluster_inv(const int n_vertex, const int c_size,
+void generate_cluster_inv(const int n_vertex,
+                          const int c_size,
                           IdxIter cluster_iter,
                           rmm::device_vector<IdxType>& cluster_inv_ptr,
                           rmm::device_vector<IdxType>& cluster_inv_ind){
@@ -253,6 +276,34 @@ void generate_cluster_inv(const int n_vertex, const int c_size,
                cluster_inv_ind.begin(),
                cluster_inv_ind.begin() + n_vertex,
                sort_by_cluster<IdxType, IdxIter>(cluster_iter));
+  cudaCheckError();
+}
+
+template<typename IdxType>
+void generate_cluster_inv(const IdxType n_vertex,
+                          const IdxType c_size,
+                          IdxType* cluster_iter,
+                          IdxType* cluster_inv_ptr,
+                          IdxType* cluster_inv_ind){
+
+  int nthreads = min(n_vertex,CUDA_MAX_KERNEL_THREADS);
+  int nblocks = min((n_vertex + nthreads - 1)/nthreads,CUDA_MAX_BLOCKS);
+  thrust::fill(rmm::exec_policy(nullptr)->on(nullptr), cluster_inv_ptr, cluster_inv_ptr + n_vertex + 1, 0);
+  generate_cluster_inv_ptr<<<nblocks,nthreads>>>(n_vertex, cluster_iter, cluster_inv_ptr);
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  thrust::exclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
+                         cluster_inv_ptr,
+                         cluster_inv_ptr + c_size + 1 ,
+                         cluster_inv_ptr);
+  cudaCheckError();
+
+  thrust::sequence(thrust::device, cluster_inv_ind, cluster_inv_ind + n_vertex, 0);
+  cudaCheckError();
+  thrust::sort(thrust::device,
+               cluster_inv_ind,
+               cluster_inv_ind + n_vertex,
+               sort_by_cluster<IdxType, IdxType*>(cluster_iter));
   cudaCheckError();
 }
 
