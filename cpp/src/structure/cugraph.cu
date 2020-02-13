@@ -77,9 +77,8 @@ void transposed_adj_list_view(Graph *graph, const gdf_column *offsets,
                             const gdf_column *edge_data) {
   //This function returns an error if this graph object has at least one graph
   //representation to prevent a single object storing two different graphs.
-  CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
-  CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) &&
-    (graph->transposedAdjList == nullptr)), "Invalid API parameter: Graph data is NULL");
+  CUGRAPH_EXPECTS( ((graph->edgeList == nullptr) && (graph->adjList == nullptr) && (graph->transposedAdjList == nullptr)), 
+    "Invalid API parameter: Graph data is NULL");
 
   CUGRAPH_EXPECTS( offsets->null_count == 0 , "Input column has non-zero null count: offsets->null_count is 0");
   CUGRAPH_EXPECTS( indices->null_count == 0 , "Input column has non-zero null count: indices->null_count is 0");
