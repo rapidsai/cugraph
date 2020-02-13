@@ -252,8 +252,6 @@ __global__ void compute_delta_modularity_vector(IdxT nnz,
         if (neighborCluster == endCluster && neighborId != startVertex)
           endEdges += edge_weights[i];
       }
-      endEdges *= 2;
-      startEdges *=2;
       ValT end_e = e_c[endCluster];
       ValT end_k = k_c[endCluster];
       ValT my_k = k_vec[startVertex];
