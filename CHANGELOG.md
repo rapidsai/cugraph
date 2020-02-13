@@ -1,4 +1,23 @@
-# cuGraph 0.12.0 (Date TBD)
+
+# cuGraph 0.13.0 (Date TBD)
+
+## New Features
+
+## Improvements
+- PR #688 Cleanup datasets after testing on gpuCI
+- PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
+- PR #701 Add option to filter datasets and tests when run from CI
+- PR #715 Added new YML file for CUDA 10.2
+
+## Bug Fixes
+- PR #697 Updated versions in conda environments.
+
+- PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
+- PR #702 Add libcypher include path to target_include_directories
+- PR #716 Fixed bug due to disappearing get_column_data_ptr function in cudf
+
+
+# cuGraph 0.12.0 (04 Feb 2020)
 
 ## New Features
 - PR #628 Add (Di)Graph constructor from Multi(Di)Graph
@@ -6,22 +25,28 @@
 - PR #636 Added Multi-column renumbering support
 
 ## Improvements
-- PR #640 remove gdf_column in sssp 
-- PR #629 get rid of gdf_column in pagerank 
+- PR #640 remove gdf_column in sssp
+- PR #629 get rid of gdf_column in pagerank
 - PR #641 Add codeowners
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 - PR #652 Remove gdf_column in BFS
 - PR #660 enable auto renumbering
 - PR #664 Added support for Louvain early termination.
 - PR #667 Drop `cython` from run requirements in conda recipe
+- PR #666 Incorporate multicolumn renumbering in python graph class for Multi(Di)Graph
+- PR #685 Avoid deep copy in index reset
 
 ## Bug Fixes
 - PR #634 renumber vertex ids passed in analytics
 - PR #649 Change variable names in wjaccard and woverlap to avoid exception
 - PR #651 fix cudf error in katz wrapper and test nstart
 - PR #663 Replaced use of cudf._lib.gdf_dtype_from_value based on cudf refactoring
+- PR #670 Use cudf pandas version
 - PR #672 fix snmg pagerank based on cudf Buffer changes
 - PR #681 fix column length mismatch cudf issue
+- PR #684 Deprecated cudf calls
+- PR #686 Balanced cut fix
+
 
 # cuGraph 0.11.0 (11 Dec 2019)
 

@@ -20,6 +20,7 @@ cimport cugraph.community.louvain as c_louvain
 from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
+from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -63,8 +64,9 @@ def louvain(input_graph, max_iter=100):
     
 
     df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))
-    cdef uintptr_t c_louvain_parts_ptr = get_column_data_ptr(df['partition']._column)
-
+    #cdef uintptr_t c_louvain_parts_ptr = get_column_data_ptr(df['partition']._column)
+    cdef uintptr_t c_louvain_parts_ptr = df['partition'].__cuda_array_interface__['data'][0]
+    
     cdef bool single_precision = False
     # this implementation is tied to cugraph.cu line 503
     # cudaDataType_t val_type = graph->adjList->edge_data?
@@ -97,7 +99,7 @@ def louvain(input_graph, max_iter=100):
     
 
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     if single_precision:
         return df, <double>final_modularity_single_precision

@@ -44,7 +44,7 @@ namespace{ //un-nammed
 	matrix_file = a;
       }
     }
-    
+
     const std::string& get_matrix_file(void) const
     {
       return matrix_file;
@@ -52,19 +52,19 @@ namespace{ //un-nammed
   private:
     std::string matrix_file;
   };
-  
+
 }//end un-nammed namespace
 
 struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
 {
   Tests_Weakly_CC() {  }
   static void SetupTestCase() {  }
-  static void TearDownTestCase() { 
+  static void TearDownTestCase() {
     if (PERF) {
      for (unsigned int i = 0; i < weakly_cc_time.size(); ++i) {
       std::cout <<  weakly_cc_time[i] << std::endl;
      }
-    } 
+    }
   }
   virtual void SetUp() {  }
   virtual void TearDown() {  }
@@ -73,17 +73,17 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
 
   void run_current_test(const Usecase& param) {
     const ::testing::TestInfo* const test_info =::testing::UnitTest::GetInstance()->current_test_info();
-    std::stringstream ss; 
+    std::stringstream ss;
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) + std::string("_") + getFileName(param.get_matrix_file())+ std::string("_") + ss.str().c_str();
 
     int m, k, nnz; //
     MM_typecode mc;
-     
+
     HighResClock hr_clock;
     double time_tmp;
 
     FILE* fpin = fopen(param.get_matrix_file().c_str(),"r");
-    ASSERT_TRUE( fpin != nullptr );
+    ASSERT_NE(fpin, nullptr) << "fopen (" << param.get_matrix_file() << ") failure.";
 
     ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
@@ -92,11 +92,11 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
 
     //rmmInitialize(nullptr);
 
-#ifdef _DEBUG_WEAK_CC 
+#ifdef _DEBUG_WEAK_CC
     std::cout<<"matrix nrows: "<<m<<"\n";
     std::cout<<"matrix nnz: "<<nnz<<"\n";
 #endif
-    
+
     // Allocate memory on host
     std::vector<int> cooRowInd(nnz);
     std::vector<int> cooColInd(nnz);
@@ -131,7 +131,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     //
     cugraph::add_adj_list(G.get());
 
-    
+
     if (PERF)
       {
         hr_clock.start();
@@ -152,12 +152,12 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
         cudaProfilerStop();
         cudaDeviceSynchronize();
       }
-    
-    
+
+
     //rmmFinalize();
   }
 };
- 
+
 std::vector<double> Tests_Weakly_CC::weakly_cc_time;
 
 TEST_P(Tests_Weakly_CC, Weakly_CC) {
@@ -165,7 +165,7 @@ TEST_P(Tests_Weakly_CC, Weakly_CC) {
 }
 
 // --gtest_filter=*simple_test*
-INSTANTIATE_TEST_CASE_P(simple_test, Tests_Weakly_CC, 
+INSTANTIATE_TEST_CASE_P(simple_test, Tests_Weakly_CC,
                         ::testing::Values(   Usecase("test/datasets/dolphins.mtx")
                                            , Usecase("test/datasets/coPapersDBLP.mtx")
                                            , Usecase("test/datasets/coPapersCiteseer.mtx")
@@ -181,5 +181,3 @@ int main( int argc, char** argv )
     rmmFinalize();
     return rc;
 }
-
-
