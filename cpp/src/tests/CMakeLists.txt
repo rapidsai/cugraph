@@ -135,7 +135,7 @@ ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
 # - Graph tests --------------------------------------------------------------------------------
 
 set(GRAPH_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/Graph/GraphNew.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/Graph/graph_test.cu")
 
 ConfigureTest(GRAPH_TEST "${GRAPH_TEST_SRC}" "")
 
