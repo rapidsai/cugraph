@@ -59,7 +59,7 @@ __device__ void compute_k_vec(const int n_vertex, IdxType* csr_ptr_ptr, ValType*
 
 #ifdef DEBUG
     if( end_idx > (*(csr_ptr_ptr + n_vertex)) ){
-      printf("Error computing ki iter but end_idx >= n_vertex %d >= %d\n");
+      printf("Error computing ki iter but end_idx >= n_vertex %d >= %d\n", end_idx, (*(csr_ptr_ptr + n_vertex)) );
       *(k_vec + tid) = 0.0;
     }
 #endif

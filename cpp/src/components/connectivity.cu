@@ -70,18 +70,18 @@ std::enable_if_t<std::is_signed<IndexT>::value>
   gdf_column* labels = table->get_column(0);
   gdf_column* verts = table->get_column(1);
 
-  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter: Graph is NULL");
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: Graph is empty");
+  CHECK_GRAPH(graph);
 
-  CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter: Graph is empty");
-  CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter: Graph is empty");
+  CUGRAPH_EXPECTS(row_offsets_(graph) != nullptr, "Invalid API parameter: row_offsets_(graph) is NULL");
+  CUGRAPH_EXPECTS(col_indices_(graph) != nullptr, "Invalid API parameter: col_indices_(graph) is empty");
   
-  CUGRAPH_EXPECTS(labels->data != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(verts->data != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(labels->data != nullptr, "Invalid API parameter: labels data is NULL");
+  CUGRAPH_EXPECTS(verts->data != nullptr, "Invalid API parameter: verts data is NULL");
   
   auto type_id = graph->adjList->offsets->dtype;
-  CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type: Graph must be int32 or int64");
-  CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype, "Unsupported data type: Graph must be int32 or int64");
+  CUGRAPH_EXPECTS( type_id == GDF_INT32 || type_id == GDF_INT64, "Unsupported data type: graph must be int32 or int64");
+  CUGRAPH_EXPECTS( type_id == graph->adjList->indices->dtype,  
+    "Unsupported data type: offsets and indices in the adjacency list have different types");
   
   //TODO: relax this requirement:
   //
@@ -131,7 +131,7 @@ std::enable_if_t<std::is_signed<IndexT>::value>
                <<"\n";
 #endif
       
-      CUGRAPH_EXPECTS( is_symmetric, "Invalid API parameter; Graph must be symmetric");
+      CUGRAPH_EXPECTS( is_symmetric, "Invalid API parameter: graph must be symmetric");
       MLCommon::Sparse::weak_cc_entry<IndexT, TPB_X>(p_d_labels,
                                                      p_d_row_offsets,
                                                      p_d_col_ind,
@@ -199,6 +199,8 @@ void connected_components(Graph *graph,
                                     cudf::table *table)  
 {
   cudaStream_t stream{nullptr};
+
+  CHECK_GRAPH(graph);
 
   CUGRAPH_EXPECTS(table != nullptr, "Invalid API parameter: table parameter is NULL");
   CUGRAPH_EXPECTS(table->num_columns() > 1, "Invalid API parameter: table is empty");
