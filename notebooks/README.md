@@ -34,7 +34,8 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 |                 | [Symmetrize](structure/Symmetrize.ipynb)                     | Symmetrize the edges in a graph                              |
 
 
-
+## RAPIDS notebooks
+Visit the main RAPIDS [notebooks](https://github.com/rapidsai/notebooks) repo for a listing of all notebooks across all RAPIDS libraries.
 
 ## Requirements
 
