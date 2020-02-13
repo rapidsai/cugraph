@@ -79,7 +79,9 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     #TODO FIX ME when graph class is upgraded to remove gdf_column
     cdef gdf_column c_identifier = get_gdf_column_view(df['vertex'])
 
-    cdef uintptr_t c_pagerank_val = get_column_data_ptr(df['pagerank']._column)
+    #cdef uintptr_t c_pagerank_val = get_column_data_ptr(df['pagerank']._column)
+    cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
+    
     cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
     cdef sz = 0
@@ -93,11 +95,15 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             renumber_df['map'] = input_graph.edgelist.renumber_map
             renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
             personalization_values = personalization.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
-            c_pers_vtx = get_column_data_ptr(personalization_values['id']._column)
-            c_pers_val = get_column_data_ptr(personalization_values['values']._column)
+            #c_pers_vtx = get_column_data_ptr(personalization_values['id']._column)
+            c_pers_vtx = personalization_values['id'].__cuda_array_interface__['data'][0]
+            #c_pers_val = get_column_data_ptr(personalization_values['values']._column)
+            c_pers_val = personalization_values['values'].__cuda_array_interface__['data'][0]
         else:
-            c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
-            c_pers_val = get_column_data_ptr(personalization['values']._column)
+            #c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
+            c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
+            #c_pers_val = get_column_data_ptr(personalization['values']._column)
+            c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
     
     if (df['pagerank'].dtype == np.float32): 
         c_pagerank.pagerank[int, float](g, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
