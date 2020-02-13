@@ -231,7 +231,7 @@ NVLOUVAIN_STATUS louvain(IdxType* csr_ptr,
 
     IdxType num_moved = 1;
     IdxType total_moved = 0;
-    ValType best_Q = 0.0;
+//    ValType best_Q = 0.0;
     while (num_moved > 0) {
       hr_clock.start();
       ValType new_new_Q = compute_modularity(levels.back().num_verts,
