@@ -25,8 +25,8 @@ namespace cugraph {
 void renumber_vertices(const gdf_column *src, const gdf_column *dst,
                                 gdf_column *src_renumbered, gdf_column *dst_renumbered,
                                 gdf_column *numbering_map) {
-  CUGRAPH_EXPECTS( src->size == dst->size, "Column size mismatch" );
-  CUGRAPH_EXPECTS( src->dtype == dst->dtype, "Unsupported data type" );
+  CUGRAPH_EXPECTS( src->size == dst->size, "Source and Distination column size mismatch" );
+  CUGRAPH_EXPECTS( src->dtype == dst->dtype, "Source and Distination columns are different data types" );
 
   //
   //  Added this back in.  Below I added support for strings, however the 
@@ -35,8 +35,10 @@ void renumber_vertices(const gdf_column *src, const gdf_column *dst,
   //  will prevent code from being executed.  Once cudf fully support string
   //  columns we can eliminate this check and debug the GDF_STRING case below.
   //
-  CUGRAPH_EXPECTS( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), "Unsupported data type" );
-  CUGRAPH_EXPECTS( src->size > 0, "Column is empty");
+  CUGRAPH_EXPECTS( ((src->dtype == GDF_INT32) || (src->dtype == GDF_INT64)), 
+    "Source and Distination columns need to be of type int32" );
+
+  CUGRAPH_EXPECTS( src->size > 0, "Source Column is empty");
 
   //
   //  TODO: we're currently renumbering without using valid.  We need to
