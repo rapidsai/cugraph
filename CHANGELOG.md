@@ -7,6 +7,7 @@
 - PR #688 Cleanup datasets after testing on gpuCI
 - PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
 - PR #701 Add option to filter datasets and tests when run from CI
+- PR #715 Added new YML file for CUDA 10.2
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
