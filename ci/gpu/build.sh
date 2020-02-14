@@ -66,7 +66,9 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       distributed>=2.1.0 \
       dask-cudf=${MINOR_VERSION} \
       dask-cuda=${MINOR_VERSION} \
-      libcypher-parser
+      libcypher-parser \
+      ipython=7.3* \
+      jupyterlab
 
 # Install the master version of dask and distributed
 logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps"
@@ -114,5 +116,6 @@ else
     # Wrap in echo to prevent non-zero exit since this command is non-essential
     echo "$(${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20)"
 
-    ${WORKSPACE}/ci/gpu/test-notebooks.sh
+    ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
+    python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
 fi
