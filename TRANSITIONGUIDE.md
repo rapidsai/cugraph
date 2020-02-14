@@ -1,3 +1,22 @@
+# 0.12
+
+## Python API
+
+### Loading an edge list
+Renumbering is now enabled by default in `from_cudf_edgelist`. 
+The renumbering feature allows us to hide the fact that we need vertices to be integers starting at 0. The auto-renumbering feature converts the data into the proper data type required by the underlying implementation. All algorithms accepting vertex identifiers (like the souce vertex for SSSP) now automatically accept user's notation too. On output, it will  transparently un-renumber results, basically convert the internal IDs back. 
+
+## C++ API
+Pagerank, BFS, and SSSP have dropped the `gdf_column` dependency in favor of basic types and templates  
+
+Example : 
+```
+// 0.11 API 
+cugraph::pagerank(cugraph::Graph, gdf_column *pagerank, ...) 
+// 0.12 API 
+cugraph::pagerank<int,float>(cugraph::Graph, float *pagerank ...) 
+```
+
 # 0.11
 
 ## Python API
