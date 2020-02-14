@@ -44,22 +44,40 @@ struct GraphProperties {
 };
 
 /**
- * @Synopsis    A graph stored in COO (COOrdinate) format.
+ * @Synopsis    Base class graphs, all but vertices and edges
  *
  * @tparam VT   Type of vertex (defaults to int)
  * @tparam WT   Type of weight (defaults to float)
  */
-template <typename VT = int, typename WT = float>
-class GraphCOO {
+template <typename WT>
+class GraphBase {
 public:
-  VT const *src_indices;   ///< rowInd
-  VT const *dst_indices;   ///< colInd
   WT const *edge_data;     ///< edge weight
 
   GraphProperties          prop;
 
   size_t                   number_of_vertices;
   size_t                   number_of_edges;
+
+  GraphBase(WT const *edge_data_, size_t number_of_vertices_, size_t number_of_edges_):
+    edge_data(edge_data_),
+    prop(),
+    number_of_vertices(number_of_vertices_),
+    number_of_edges(number_of_edges_)
+  {}
+};
+
+/**
+ * @Synopsis    A graph stored in COO (COOrdinate) format.
+ *
+ * @tparam VT   Type of vertex (defaults to int)
+ * @tparam WT   Type of weight (defaults to float)
+ */
+template <typename VT = int, typename WT = float>
+class GraphCOO: public GraphBase<WT> {
+public:
+  VT const *src_indices;   ///< rowInd
+  VT const *dst_indices;   ///< colInd
 
   /**
    * @Synopsis   Wrap existing arrays representing an edge list in a Graph.
@@ -77,32 +95,23 @@ public:
    */
   GraphCOO(VT const *src_indices_, VT const *dst_indices_, WT const *edge_data_,
            size_t number_of_vertices_, size_t number_of_edges_):
+    GraphBase<WT>(edge_data_, number_of_vertices_, number_of_edges_),
     src_indices(src_indices_),
-    dst_indices(dst_indices_),
-    prop(),
-    edge_data(edge_data_),
-    number_of_vertices(number_of_vertices_),
-    number_of_edges(number_of_edges_)
+    dst_indices(dst_indices_)
   {}
 };
 
 /**
- * @Synopsis    A graph stored in CSR (Compressed Sparse Row) format.
+ * @Synopsis    Base class for graph stored in CSR (Compressed Sparse Row) format.
  *
  * @tparam VT   Type of vertex (defaults to int)
  * @tparam WT   Type of weight (defaults to float)
  */
 template <typename VT = int, typename WT = float>
-class GraphCSR {
+class GraphCSRBase: public GraphBase<WT> {
 public:
   VT const *offsets;       ///< CSR offsets
   VT const *indices;       ///< CSR indices
-  WT const *edge_data;     ///< edge weight
-
-  GraphProperties          prop;
-
-  size_t                   number_of_vertices;
-  size_t                   number_of_edges;
 
   /**
    * @Synopsis    Fill the identifiers array with the vertex identifiers.
@@ -111,7 +120,7 @@ public:
    */
   void get_vertex_identifiers(VT *identifiers) const {
     CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-    cugraph::detail::sequence<VT>(number_of_vertices, identifiers);
+    cugraph::detail::sequence<VT>(GraphBase<WT>::number_of_vertices, identifiers);
   }
   
   /**
@@ -121,7 +130,7 @@ public:
    */
   void get_source_indices(VT *src_indices) const {
     CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-    cugraph::detail::offsets_to_indices<VT>(offsets, number_of_vertices+1, src_indices);
+    cugraph::detail::offsets_to_indices<VT>(offsets, GraphBase<WT>::number_of_vertices+1, src_indices);
   }
 
   /**
@@ -138,14 +147,40 @@ public:
    * @Param  number_of_vertices    The number of vertices in the graph
    * @Param  number_of_edges       The number of edges in the graph
    */
+  GraphCSRBase(VT const *offsets_, VT const *indices_, WT const *edge_data_,
+               size_t number_of_vertices_, size_t number_of_edges_):
+    GraphBase<WT>(edge_data_, number_of_vertices_, number_of_edges_),
+    offsets(offsets_),
+    indices(indices_)
+  {}
+};
+
+/**
+ * @Synopsis    A graph stored in CSR (Compressed Sparse Row) format.
+ *
+ * @tparam VT   Type of vertex (defaults to int)
+ * @tparam WT   Type of weight (defaults to float)
+ */
+template <typename VT = int, typename WT = float>
+class GraphCSR: public GraphCSRBase<VT,WT> {
+public:
+  /**
+   * @Synopsis   Wrap existing arrays representing adjacency lists in a Graph.
+   *             GraphCSR does not own the memory used to represent this graph. This
+   *             function does not allocate memory.
+   *
+   * @Param  offsets               This array of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
+   *                               Offsets must be in the range [0, E] (number of edges).
+   * @Param  indices               This array of size E contains the index of the destination for each edge.
+   *                               Indices must be in the range [0, V-1].
+   * @Param  edge_data             This array of size E (number of edges) contains the weight for each edge.  This
+   *                               array can be null in which case the graph is considered unweighted.
+   * @Param  number_of_vertices    The number of vertices in the graph
+   * @Param  number_of_edges       The number of edges in the graph
+   */
   GraphCSR(VT const *offsets_, VT const *indices_, WT const *edge_data_,
            size_t number_of_vertices_, size_t number_of_edges_):
-    offsets(offsets_),
-    indices(indices_),
-    prop(),
-    edge_data(edge_data_),
-    number_of_vertices(number_of_vertices_),
-    number_of_edges(number_of_edges_)
+    GraphCSRBase<VT,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
 };
 
@@ -156,39 +191,8 @@ public:
  * @tparam WT   Type of weight (defaults to float)
  */
 template <typename VT = int, typename WT = float>
-class GraphCSC {
+class GraphCSC: public GraphCSRBase<VT,WT> {
 public:
-  VT const *offsets;       ///< CSC offsets
-  VT const *indices;       ///< CSC indices
-  WT const *edge_data;     ///< edge weight
-
-  GraphProperties          prop;
-
-  size_t                   number_of_vertices;
-  size_t                   number_of_edges;
-
-  /**
-   * @Synopsis    Fill the identifiers array with the vertex identifiers.
-   *
-   * @param[out]    identifier      Pointer to device memory to store the vertex identifiers
-   */
-  void get_vertex_identifiers(VT *identifiers) const {
-    CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
-    cugraph::detail::sequence<VT>(number_of_vertices, identifiers);
-  }
-  
-  /**
-   * @Synopsis    Fill the identifiers in the array with the source vertex identifiers
-   *
-   * @param[out]    src_indices      Pointer to device memory to store the source vertex identifiers
-   */
-  //  TODO:  Should this be get_destination_indices, since we're CSC?  The source
-  //         indices will be in the indices array and the offsets are by destination, aren't they?
-  void get_source_indices(VT *src_indices) const {
-    CUGRAPH_EXPECTS( offsets != nullptr , "Invalid API parameter");
-    cugraph::detail::offsets_to_indices<VT>(offsets, number_of_vertices+1, src_indices);
-  }
-
   /**
    * @Synopsis   Wrap existing arrays representing transposed adjacency lists in a Graph.
    *             GraphCSC does not own the memory used to represent this graph. This
@@ -205,12 +209,7 @@ public:
    */
   GraphCSC(VT const *offsets_, VT const *indices_, WT const *edge_data_,
            size_t number_of_vertices_, size_t number_of_edges_):
-    offsets(offsets_),
-    indices(indices_),
-    prop(),
-    edge_data(edge_data_),
-    number_of_vertices(number_of_vertices_),
-    number_of_edges(number_of_edges_)
+    GraphCSRBase<VT,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
 };
 
