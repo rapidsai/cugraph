@@ -113,4 +113,6 @@ else
     echo -e "\nTOP 20 SLOWEST TESTS:\n"
     # Wrap in echo to prevent non-zero exit since this command is non-essential
     echo "$(${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20)"
+
+    ${WORKSPACE}/ci/test-notebooks.sh
 fi
