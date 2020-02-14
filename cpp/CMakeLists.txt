@@ -329,7 +329,6 @@ target_include_directories(cugraph
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CUDF_INCLUDE}"
-    #"${CUDF_INCLUDE}/libcudf/libcudacxx"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cub"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornet/include"
