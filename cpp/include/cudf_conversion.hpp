@@ -59,6 +59,167 @@ void check_adj_list_columns(cudf::column_view const &indices,
  * @Param[in]  number_of_vertices    The number of vertices in the graph
  * @Param[in]  number_of_edges       The number of edges in the graph
  *
+ * @Returns    GraphCOO object
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ */
+template <typename VT = int, typename WT = float>
+GraphCOO<VT,WT> from_edge_list(cudf::column_view const &source_indices,
+                               cudf::column_view const &destination_indices,
+                               size_t number_of_vertices,
+                               size_t number_of_edges) {
+  detail::check_edge_list_columns(source_indices, destination_indices);
+  return GraphCOO<VT,WT>(source_indices.data<VT>(), destination_indices.data<VT>(), nullptr, number_of_vertices, number_of_edges);
+}
+
+/**
+ * @Synopsis   Wrap existing cudf columns representing an edge list in a Graph.
+ *             cuGRAPH does not own the memory used to represent this graph. This
+ *             function does not allocate memory.
+ *
+ * @Param[in]  source_indices        This column_view of size E (number of edges) contains the index of the source for each edge.
+ *                                   Indices must be in the range [0, V-1].
+ * @Param[in]  destination_indices   This column_view of size E (number of edges) contains the index of the destination for each edge.
+ *                                   Indices must be in the range [0, V-1].
+ * @Param[in]  edge_data             This column_view of size E (number of edges) contains the weight for each edge.
+ * @Param[in]  number_of_vertices    The number of vertices in the graph
+ * @Param[in]  number_of_edges       The number of edges in the graph
+ *
+ * @Returns    unique pointer to a Graph object
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ */
+template <typename VT = int, typename WT = float>
+GraphCOO<VT,WT> from_edge_list(cudf::column_view const &source_indices,
+                               cudf::column_view const &destination_indices,
+                               cudf::column_view const &edge_data,
+                               size_t number_of_vertices,
+                               size_t number_of_edges) {
+  detail::check_edge_list_columns(source_indices, destination_indices);
+  CUGRAPH_EXPECTS( size_t{edge_data.size()} == number_of_edges , "Edge data must contain number_of_edges elements");
+  return GraphCOO<VT,WT>(source_indices.data<VT>(), destination_indices.data<VT>(), edge_data.data<WT>(), number_of_vertices, number_of_edges);
+}
+
+/**
+ * @Synopsis   Wrap existing cudf columns representing adjacency lists in a Graph.
+ *             cuGRAPH does not own the memory used to represent this graph. This
+ *             function does not allocate memory.
+ *
+ * @Param[in]  offsets               This column_view of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
+ *                                   Offsets must be in the range [0, E] (number of edges).
+ * @Param[in]  indices               This column_view of size E contains the index of the destination for each edge.
+ *                                   Indices must be in the range [0, V-1].
+ * @Param[in]  number_of_vertices    The number of vertices in the graph
+ * @Param[in]  number_of_edges       The number of edges in the graph
+ *
+ * @Returns    unique pointer to a Graph object
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ */
+template <typename VT = int, typename WT = float>
+GraphCSR<VT,WT> from_adj_list(cudf::column_view const &offsets,
+                              cudf::column_view const &indices,
+                              size_t number_of_vertices,
+                              size_t number_of_edges) {
+  detail::check_adj_list_columns(offsets, indices);
+  return GraphCSR<VT,WT>(offsets.data<VT>(), indices.data<VT>(), nullptr, number_of_vertices, number_of_edges);
+}
+
+/**
+ * @Synopsis   Wrap existing cudf columns representing adjacency lists in a Graph.
+ *             cuGRAPH does not own the memory used to represent this graph. This
+ *             function does not allocate memory.
+ *
+ * @Param[in]  offsets               This column_view of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
+ *                                   Offsets must be in the range [0, E] (number of edges).
+ * @Param[in]  indices               This column_view of size E contains the index of the destination for each edge.
+ *                                   Indices must be in the range [0, V-1].
+ * @Param[in]  edge_data             This column_view of size E (number of edges) contains the weight for each edge.
+ * @Param[in]  number_of_vertices    The number of vertices in the graph
+ * @Param[in]  number_of_edges       The number of edges in the graph
+ *
+ * @Returns    unique pointer to a Graph object
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ */
+template <typename VT = int, typename WT = float>
+GraphCSR<VT,WT> from_adj_list(cudf::column_view const &offsets,
+                              cudf::column_view const &indices,
+                              cudf::column_view const &edge_data,
+                              size_t number_of_vertices,
+                              size_t number_of_edges) {
+  detail::check_adj_list_columns(offsets, indices);
+  CUGRAPH_EXPECTS( size_t{edge_data.size()} == number_of_edges , "Edge data must contain number_of_edges elements");
+  return GraphCSR<VT,WT>(offsets.data<VT>(), indices.data<VT>(), edge_data.data<WT>(), number_of_vertices, number_of_edges);
+}
+
+/**
+ * @Synopsis   Wrap existing cudf columns representing transposed adjacency lists in a Graph.
+ *             cuGRAPH does not own the memory used to represent this graph. This
+ *             function does not allocate memory.
+ *
+ * @Param[in]  offsets               This column_view of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
+ *                                   Offsets must be in the range [0, E] (number of edges).
+ * @Param[in]  indices               This column_view of size E contains the index of the destination for each edge.
+ *                                   Indices must be in the range [0, V-1].
+ * @Param[in]  number_of_vertices    The number of vertices in the graph
+ * @Param[in]  number_of_edges       The number of edges in the graph
+ *
+ * @Returns    unique pointer to a Graph object
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ */
+template <typename VT = int, typename WT = float>
+GraphCSC<VT,WT> from_transposed_adj_list(cudf::column_view const &offsets,
+                                         cudf::column_view const &indices,
+                                         size_t number_of_vertices,
+                                         size_t number_of_edges) {
+  detail::check_adj_list_columns(offsets, indices);
+  return GraphCSC<VT,WT>(offsets.data<VT>(), indices.data<VT>(), nullptr, number_of_vertices, number_of_edges);
+}
+
+/**
+ * @Synopsis   Wrap existing cudf columns representing transposed adjacency lists in a Graph.
+ *             cuGRAPH does not own the memory used to represent this graph. This
+ *             function does not allocate memory.
+ *
+ * @Param[in]  offsets               This column_view of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
+ *                                   Offsets must be in the range [0, E] (number of edges).
+ * @Param[in]  indices               This column_view of size E contains the index of the destination for each edge.
+ *                                   Indices must be in the range [0, V-1].
+ * @Param[in]  edge_data             This column_view of size E (number of edges) contains the weight for each edge.
+ * @Param[in]  number_of_vertices    The number of vertices in the graph
+ * @Param[in]  number_of_edges       The number of edges in the graph
+ *
+ * @Returns    unique pointer to a Graph object
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ */
+template <typename VT = int, typename WT = float>
+GraphCSC<VT,WT> from_transposed_adj_list(cudf::column_view const &offsets,
+                                         cudf::column_view const &indices,
+                                         cudf::column_view const &edge_data,
+                                         size_t number_of_vertices,
+                                         size_t number_of_edges) {
+  detail::check_adj_list_columns(offsets, indices);
+  CUGRAPH_EXPECTS( size_t{edge_data.size()} == number_of_edges , "Edge data must contain number_of_edges elements");
+  return GraphCSC<VT,WT>(offsets.data<VT>(), indices.data<VT>(), edge_data.data<WT>(), number_of_vertices, number_of_edges);
+}
+
+
+#if 0
+/**
+ * @Synopsis   Wrap existing cudf columns representing an edge list in a Graph.
+ *             cuGRAPH does not own the memory used to represent this graph. This
+ *             function does not allocate memory.
+ *
+ * @Param[in]  source_indices        This column_view of size E (number of edges) contains the index of the source for each edge.
+ *                                   Indices must be in the range [0, V-1].
+ * @Param[in]  destination_indices   This column_view of size E (number of edges) contains the index of the destination for each edge.
+ *                                   Indices must be in the range [0, V-1].
+ * @Param[in]  number_of_vertices    The number of vertices in the graph
+ * @Param[in]  number_of_edges       The number of edges in the graph
+ *
  * @Returns    unique pointer to a Graph object
  *
  * @throws     cugraph::logic_error when an error occurs.
@@ -205,6 +366,7 @@ static std::unique_ptr<Graph<VT,WT>> from_transposed_adj_list(cudf::column_view 
   CUGRAPH_EXPECTS( size_t{edge_data.size()} == number_of_edges , "Edge data must contain number_of_edges elements");
   return Graph<VT,WT>::from_transposed_adj_list(offsets.data<VT>(), indices.data<VT>(), edge_data.data<WT>(), number_of_vertices, number_of_edges);
 }
+#endif
 
 
 } //namespace experimental

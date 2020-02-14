@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -28,6 +28,7 @@
 #include "utilities/graph_utils.cuh"
 #include "utilities/error_utils.h"
 #include <cugraph.h>
+#include <graph.hpp>
 
 namespace cugraph { 
 namespace detail {
@@ -35,14 +36,15 @@ namespace detail {
 #ifdef DEBUG
   #define PR_VERBOSE
 #endif
+
 template <typename IndexType, typename ValueType>
-bool pagerankIteration(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd,ValueType *cscVal,
+bool pagerankIteration(IndexType n, IndexType e, IndexType const *cscPtr, IndexType const *cscInd,ValueType *cscVal,
                        ValueType alpha, ValueType *a, ValueType *b, float tolerance, int iter, int max_iter,
                        ValueType * &tmp,  void* cub_d_temp_storage, size_t  cub_temp_storage_bytes,
                        ValueType * &pr, ValueType *residual) {
     ValueType  dot_res;
     CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
-                                    cscPtr, cscInd, tmp, pr, n, n, e));
+                                    (IndexType *) cscPtr, (IndexType *) cscInd, tmp, pr, n, n, e));
 
     scal(n, alpha, pr);
     dot_res = dot( n, a, tmp);
@@ -70,7 +72,7 @@ bool pagerankIteration(IndexType n, IndexType e, IndexType *cscPtr, IndexType *c
 }
 
 template <typename IndexType, typename ValueType>
-int pagerankSolver(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscInd, ValueType *cscVal,
+int pagerankSolver(IndexType n, IndexType e, IndexType const *cscPtr, IndexType const *cscInd, ValueType *cscVal,
              IndexType *prsVtx, ValueType *prsVal, IndexType prsLen, bool has_personalization,
              ValueType alpha, ValueType *a, bool has_guess, float tolerance, int max_iter,
              ValueType * &pagerank_vector, ValueType * &residual) {
@@ -130,7 +132,7 @@ int pagerankSolver(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscIn
   update_dangling_nodes(n, a, alpha);
 
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
-                                  cscPtr, cscInd, tmp, pagerank_vector, n, n, e));
+                                  (IndexType *) cscPtr, (IndexType *) cscInd, tmp, pagerank_vector, n, n, e));
    // Allocate temporary storage
   ALLOC_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
   CUDA_CHECK_LAST()
@@ -147,10 +149,10 @@ int pagerankSolver(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscIn
   while (!converged && i < max_it)
   {
       i++;
-      converged = pagerankIteration(n, e, cscPtr, cscInd, cscVal,
-                                    alpha, a, b, tol, i, max_it, tmp,
-                                    cub_d_temp_storage, cub_temp_storage_bytes,
-                                    pagerank_vector, residual);
+      converged = pagerankIteration<IndexType, ValueType>(n, e, cscPtr, cscInd, cscVal,
+                                                          alpha, a, b, tol, i, max_it, tmp,
+                                                          cub_d_temp_storage, cub_temp_storage_bytes,
+                                                          pagerank_vector, residual);
 #ifdef PR_VERBOSE
       ss.str(std::string());
       ss << std::setw(10) << i ;
@@ -176,25 +178,27 @@ int pagerankSolver(IndexType n, IndexType e, IndexType *cscPtr, IndexType *cscIn
 }
 
 //template int pagerankSolver<int, half> (  int n, int e, int *cscPtr, int *cscInd,half *cscVal, half alpha, half *a, bool has_guess, float tolerance, int max_iter, half * &pagerank_vector, half * &residual);
-template int pagerankSolver<int, float> (  int n, int e, int *cscPtr, int *cscInd,float *cscVal,
+template int pagerankSolver<int, float> (  int n, int e, int const *cscPtr, int const *cscInd, float *cscVal,
         int *prsVtx, float *prsVal, int prsLen, bool has_personalization,
         float alpha, float *a, bool has_guess, float tolerance, int max_iter, float * &pagerank_vector, float * &residual);
-template int pagerankSolver<int, double> (  int n, int e, int *cscPtr, int *cscInd,double *cscVal,
+template int pagerankSolver<int, double> (  int n, int e, const int *cscPtr, int const *cscInd, double *cscVal,
         int *prsVtx,  double *prsVal, int prsLen, bool has_personalization,
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
 template <typename VT,typename WT>
-void pagerank_impl (Graph *graph,
+void pagerank_impl (experimental::GraphCSC<VT,WT> const &graph,
                     WT* pagerank,
-                    size_t personalization_subset_size=0, VT* personalization_subset=nullptr,WT* personalization_values=nullptr,
+                    size_t personalization_subset_size=0,
+                    VT* personalization_subset=nullptr,
+                    WT* personalization_values=nullptr,
                     float alpha = 0.85,
                     float tolerance = 1e-4, int max_iter = 200,
                     bool has_guess = false) {
 
   bool has_personalization = false;
   int prsLen = 0;
-  int m=graph->transposedAdjList->offsets->size-1, nnz = graph->transposedAdjList->indices->size, status = 0;
-  WT *d_pr, *d_val = nullptr, *d_leaf_vector = nullptr;
+  int m = graph.number_of_vertices, nnz = graph.number_of_edges, status{0};
+  WT *d_pr, *d_val{nullptr}, *d_leaf_vector{nullptr};
   WT res = 1.0;
   WT *residual = &res;
   cudaStream_t stream{nullptr};
@@ -216,24 +220,22 @@ void pagerank_impl (Graph *graph,
 #endif
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
-  HT_matrix_csc_coo(m, nnz, (int *)graph->transposedAdjList->offsets->data, (int *)graph->transposedAdjList->indices->data, d_val, d_leaf_vector);
+  HT_matrix_csc_coo(m, nnz, graph.offsets, graph.indices, d_val, d_leaf_vector);
 
-  if (has_guess)
-  {
-    CUGRAPH_EXPECTS( pagerank != nullptr, "Column must be valid" );
+  if (has_guess) {
     copy<WT>(m, (WT*)pagerank, d_pr);
   }
 
-  status = pagerankSolver<int32_t,WT>( m,nnz, (int*)graph->transposedAdjList->offsets->data, (int*)graph->transposedAdjList->indices->data, d_val,
-    personalization_subset, personalization_values, prsLen, has_personalization,
-    alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
+  status = pagerankSolver<int32_t,WT>( m,nnz, graph.offsets, graph.indices, d_val,
+                                       personalization_subset, personalization_values, prsLen, has_personalization,
+                                       alpha, d_leaf_vector, has_guess, tolerance, max_iter, d_pr, residual);
 
-  if (status !=0)
-    switch ( status ) {
-      case -1: CUGRAPH_FAIL("Error : bad parameters in Pagerank");
-      case 1: CUGRAPH_FAIL("Warning : Pagerank did not reached the desired tolerance");
-      default:  CUGRAPH_FAIL("Pagerank exec failed");
-    }
+  switch ( status ) {
+  case 0:   break;
+  case -1:  CUGRAPH_FAIL("Error : bad parameters in Pagerank");
+  case 1:   CUGRAPH_FAIL("Warning : Pagerank did not reached the desired tolerance");
+  default:  CUGRAPH_FAIL("Pagerank exec failed");
+  }
 
   copy<WT>(m, d_pr, (WT*)pagerank);
 
@@ -244,43 +246,33 @@ void pagerank_impl (Graph *graph,
   ALLOC_FREE_TRY(d_pr, stream);
 #endif
   ALLOC_FREE_TRY(d_leaf_vector, stream);
-
 }
 }
 
 template <typename VT, typename WT>
-void pagerank(Graph *graph,WT* pagerank, size_t personalization_subset_size,
-  VT* personalization_subset,WT* personalization_values,
-  float alpha, float tolerance, int max_iter, bool has_guess) {
+void pagerank(experimental::GraphCSC<VT,WT> const &graph, WT* pagerank,
+              size_t personalization_subset_size,
+              VT* personalization_subset, WT* personalization_values,
+              float alpha, float tolerance, int max_iter, bool has_guess) {
   //
-  //  Pagerank operates on CSR and can't currently support 64-bit integers.
+  //  Pagerank operates on CSC and can't currently support 64-bit integers.
   //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
   //
-  CUGRAPH_EXPECTS(graph->transposedAdjList != nullptr, "Invalid API parameter: Transposed Adj List is needed by pagerank");
-
-  if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double))
-    CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
-  
-  if (typeid(VT) != typeid(int) )
-    CUGRAPH_FAIL("Unsupported personalization_subset data type, please use int");
-
   CUGRAPH_EXPECTS( pagerank != nullptr , "Invalid API parameter: Pagerank array should be of size V" );
 
-  if (personalization_subset_size != 0) {
-    CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported personalization_subset data type");
-  }
-
   return detail::pagerank_impl<VT,WT>(graph, pagerank,
-                                  personalization_subset_size, personalization_subset, personalization_values,
-                                  alpha, tolerance, max_iter, has_guess);
+                                      personalization_subset_size,
+                                      personalization_subset,
+                                      personalization_values,
+                                      alpha, tolerance, max_iter, has_guess);
 }
 
 // explicit instantiation
-template void pagerank<int, float>(Graph *graph,float* pagerank,
-  size_t personalization_subset_size, int* personalization_subset,float* personalization_values,
+template void pagerank<int, float>(experimental::GraphCSC<int,float> const &graph, float* pagerank,
+  size_t personalization_subset_size, int* personalization_subset, float* personalization_values,
   float alpha, float tolerance, int max_iter, bool has_guess);
-template void pagerank<int, double>(Graph *graph,double* pagerank,
-  size_t personalization_subset_size, int* personalization_subset,double* personalization_values,
+template void pagerank<int, double>(experimental::GraphCSC<int,double> const &graph, double* pagerank,
+  size_t personalization_subset_size, int* personalization_subset, double* personalization_values,
   float alpha, float tolerance, int max_iter, bool has_guess);
 
 } //namespace cugraph 

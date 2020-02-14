@@ -494,7 +494,7 @@ namespace detail {
 
             for (int i = 0; i < rowNnz; i += blockDim.x) {
                 if ((colStart + tid + i) < colEnd) {
-                    indices[colStart + tid + i] = j;
+                  indices[colStart + tid + i] = j;
                 }
             }
         }

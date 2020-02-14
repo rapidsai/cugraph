@@ -19,7 +19,6 @@
 #include <rmm_utils.h>
 
 using cudf::column;
-using cugraph::experimental::Graph;
 
 TEST(edge_list, size_mismatch)
 {
@@ -88,9 +87,9 @@ TEST(adj_list, success)
   std::vector<int> off2_h(off_h.size()), ind2_h(ind_h.size());
   std::vector<float> w2_h(w_h.size());
 
-  cudaMemcpy(&off2_h[0], G->adjList.offsets, sizeof(int) * off_h.size(), cudaMemcpyDeviceToHost);
-  cudaMemcpy(&ind2_h[0], G->adjList.indices, sizeof(int) * ind_h.size(), cudaMemcpyDeviceToHost);
-  cudaMemcpy(&w2_h[0], G->adjList.edge_data, sizeof(float) * w_h.size(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&off2_h[0], G.offsets, sizeof(int) * off_h.size(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&ind2_h[0], G.indices, sizeof(int) * ind_h.size(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&w2_h[0], G.edge_data, sizeof(float) * w_h.size(), cudaMemcpyDeviceToHost);
   
   ASSERT_EQ(off_h,off2_h);
   ASSERT_EQ(ind_h,ind2_h);
@@ -114,8 +113,8 @@ TEST(adj_list, success_no_weights)
   
   std::vector<int> off2_h(off_h.size()), ind2_h(ind_h.size());
 
-  cudaMemcpy(&off2_h[0], G->adjList.offsets, sizeof(int) * off_h.size(), cudaMemcpyDeviceToHost);
-  cudaMemcpy(&ind2_h[0], G->adjList.indices, sizeof(int) * ind_h.size(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&off2_h[0], G.offsets, sizeof(int) * off_h.size(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&ind2_h[0], G.indices, sizeof(int) * ind_h.size(), cudaMemcpyDeviceToHost);
   
   ASSERT_EQ(off_h,off2_h);
   ASSERT_EQ(ind_h,ind2_h);
@@ -167,7 +166,7 @@ TEST(Graph, get_vertex_identifiers)
   // TODO:  implement get_vertex_identifiers and get_source_indices
   thrust::device_vector<int>   idx2(off_h.size()-1);
 
-  G->adjList.get_vertex_identifiers(idx2.data().get());
+  G.get_vertex_identifiers(idx2.data().get());
 
   cudaMemcpy(&idx2_h[0], idx2.data().get(), sizeof(int) * idx2.size(), cudaMemcpyDeviceToHost);
   
@@ -193,9 +192,9 @@ TEST(Graph, get_source_indices)
 
   auto G = cugraph::experimental::from_adj_list<int,float>(*col_off, *col_ind, off_h.size()-1, off_h[off_h.size()-1]);
   
-  thrust::device_vector<int>   src2(ind_h.size());
+  thrust::device_vector<int>   src2(ind_h.size(), 0);
 
-  G->adjList.get_source_indices(src2.data().get());
+  G.get_source_indices(src2.data().get());
   cudaMemcpy(&src2_h[0], src2.data().get(), sizeof(int) * src2.size(), cudaMemcpyDeviceToHost);
   
   offsets2indices(off_h, src_h);
