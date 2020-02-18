@@ -2,8 +2,8 @@ import warnings
 import gc
 import dask_cudf
 import pandas as pd
-
 import pytest
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -16,6 +16,7 @@ with warnings.catch_warnings():
     import cugraph.dask.pagerank as dcg
     from dask_cuda import LocalCUDACluster
     import networkx as nx
+
 
 @pytest.mark.skip(reason="DASK issues")
 def test_pagerank():
