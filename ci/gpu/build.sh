@@ -117,7 +117,5 @@ else
     echo "$(${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20)"
 
     ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
-    EXITCODE=$? 
     python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
-    exit ${EXITCODE}
 fi
