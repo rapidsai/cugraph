@@ -33,8 +33,8 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 
   // check input
   CHECK_GRAPH(gdf_G)
-  CUGRAPH_EXPECTS( gdf_G->transposedAdjList != nullptr,
-              "Invalid API parameter: transposedAdjList is NULL");
+  //CUGRAPH_EXPECTS( gdf_G->transposedAdjList != nullptr,
+  //            "Invalid API parameter: transposedAdjList is NULL");
 
   nvgraphTopologyType_t TT;
   cudaDataType_t settype;
