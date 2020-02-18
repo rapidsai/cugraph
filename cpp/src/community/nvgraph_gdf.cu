@@ -365,7 +365,7 @@ void triangle_count_nvgraph(Graph* G, uint64_t* result) {
 
 void louvain(Graph *graph, void *final_modularity, void *num_level, void *louvain_parts_ptr, int max_iter) {
 
-  CHECK_GRAPH(G);
+  CHECK_GRAPH(graph);
 
   size_t n = graph->adjList->offsets->size - 1;
   size_t e = graph->adjList->indices->size;
