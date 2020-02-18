@@ -25,8 +25,8 @@ namespace cugraph {
 void renumber_vertices(const gdf_column *src, const gdf_column *dst,
                                 gdf_column *src_renumbered, gdf_column *dst_renumbered,
                                 gdf_column *numbering_map) {
-  CUGRAPH_EXPECTS( src->size == dst->size, "Source and Distination column size mismatch" );
-  CUGRAPH_EXPECTS( src->dtype == dst->dtype, "Source and Distination columns are different data types" );
+  CUGRAPH_EXPECTS( src->size == dst->size, "Source and Destination column size mismatch" );
+  CUGRAPH_EXPECTS( src->dtype == dst->dtype, "Source and Destination columns are different data types" );
 
   //
   //  Added this back in.  Below I added support for strings, however the 

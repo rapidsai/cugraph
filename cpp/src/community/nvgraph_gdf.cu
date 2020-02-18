@@ -256,7 +256,7 @@ void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
                                                   float* score) {
 
   CHECK_GRAPH(gdf_G);
-  CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter: graph edge data NULL");
+  CUGRAPH_EXPECTS(gdf_G->adjList->edge_data != nullptr, "Invalid API parameter: graph edge data is NULL");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid API parameter: clustering is NULL");
   CUGRAPH_EXPECTS(clustering->data != nullptr, "Invalid API parameter: clustering data is NULL");
   CUGRAPH_EXPECTS(!clustering->valid, "Column must be valid");
@@ -365,7 +365,7 @@ void triangle_count_nvgraph(Graph* G, uint64_t* result) {
 
 void louvain(Graph *graph, void *final_modularity, void *num_level, void *louvain_parts_ptr, int max_iter) {
 
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: graph adjList is NULL");
+  CHECK_GRAPH(G);
 
   size_t n = graph->adjList->offsets->size - 1;
   size_t e = graph->adjList->indices->size;

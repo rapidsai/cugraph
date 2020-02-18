@@ -202,7 +202,7 @@ void connected_components(Graph *graph,
   cudaStream_t stream{nullptr};
 
   CUGRAPH_EXPECTS(table != nullptr, "Invalid API parameter: table parameter is NULL");
-  CUGRAPH_EXPECTS(table->num_columns() > 1, "Invalid API parameter: table has no columns");
+  CUGRAPH_EXPECTS(table->num_columns() > 0, "Invalid API parameter: table has no columns");
   
   gdf_column* labels = table->get_column(0);
   gdf_column* verts = table->get_column(1);
