@@ -17,7 +17,7 @@
 - PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
 - PR #702 Add libcypher include path to target_include_directories
 - PR #716 Fixed bug due to disappearing get_column_data_ptr function in cudf
-
+- PR #726 Fixed SSSP notebook issues in last cell
 
 # cuGraph 0.12.0 (04 Feb 2020)
 
