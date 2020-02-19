@@ -16,8 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.link_analysis.pagerank as c_pagerank
-from cugraph.structure.graph cimport *
+#cimport cugraph.link_analysis.pagerank as c_pagerank
+from cugraph.link_analysis.pagerank cimport pagerank as c_pagerank
+from cugraph.structure.graph_new cimport *
 from cugraph.utilities.column_utils cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
@@ -36,27 +37,11 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     Call pagerank
     """
 
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    if not input_graph.transposedadjlist:
+        input_graph.view_transposed_adj_list()
 
-    if input_graph.transposedadjlist:
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices], [np.int32])
-        [weights] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.weights], [np.float32, np.float64])
-        graph_wrapper.add_transposed_adj_list(graph, offsets, indices, weights)
-    else:
-        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
-        if input_graph.edgelist.weights:
-            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-            graph_wrapper.add_edge_list(graph, src, dst, weights)    
-        else:
-            graph_wrapper.add_edge_list(graph, src, dst)
-        add_transposed_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_transposed_adj_list(graph)
-        input_graph.transposedadjlist = input_graph.transposedAdjList(offsets, indices, values)
-
-    # we should add get_number_of_vertices() to Graph (and this should be
-    # used instead of g.transposedAdjList.offsets.size - 1)
-    num_verts = g.transposedAdjList.offsets.size - 1
+    num_verts = input_graph.number_of_vertices()
+    num_edges = input_graph.number_of_edges()
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -76,14 +61,22 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             df['pagerank'][nstart['vertex']] = nstart['values']
         has_guess = <bool> 1
 
-    #TODO FIX ME when graph class is upgraded to remove gdf_column
-    cdef gdf_column c_identifier = get_gdf_column_view(df['vertex'])
-
+    cdef uintptr_t c_identifier = get_column_data_ptr(df['vertex']._column)
     cdef uintptr_t c_pagerank_val = get_column_data_ptr(df['pagerank']._column)
     cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
     cdef sz = 0
 
+    cdef uintptr_t offsets = get_column_data_ptr(input_graph.transposedadjlist.offsets._column)
+    cdef uintptr_t indices = get_column_data_ptr(input_graph.transposedadjlist.indices._column)
+    cdef uintptr_t weights = <uintptr_t>NULL
+
+    if input_graph.transposedadjlist.weights:
+        weights = get_column_data_ptr(input_graph.transposedadjlist.weights._column)
+
+    cdef GraphCSC[int,float] graph_float
+    cdef GraphCSC[int,double] graph_double
+    
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
         personalization['vertex'] = personalization['vertex'].astype(np.int32)
@@ -100,13 +93,17 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             c_pers_val = get_column_data_ptr(personalization['values']._column)
     
     if (df['pagerank'].dtype == np.float32): 
-        c_pagerank.pagerank[int, float](g, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
-                                     <float> alpha, <float> tol, <int> max_iter, has_guess)
-    else: 
-        c_pagerank.pagerank[int, double](g, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
-                            <float> alpha, <float> tol, <int> max_iter, has_guess)
+        graph_float = GraphCSC[int,float](<int*>offsets, <int*>indices, <float*>weights, num_verts, num_edges)
 
-    g.transposedAdjList.get_vertex_identifiers(&c_identifier)
+        c_pagerank[int, float](graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+                               <float> alpha, <float> tol, <int> max_iter, has_guess)
+        graph_float.get_vertex_identifiers(<int*>c_identifier)
+    else: 
+        graph_double = GraphCSC[int, double](<int*>offsets, <int*>indices, <double*>weights, num_verts, num_edges)
+        c_pagerank[int, double](graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+                            <float> alpha, <float> tol, <int> max_iter, has_guess)
+        graph_double.get_vertex_identifiers(<int*>c_identifier)
+
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 

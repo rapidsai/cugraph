@@ -16,14 +16,14 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 from libcpp cimport bool
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void pagerank[int, WT](
-        Graph *graph,
+        const GraphCSC[int,WT] &graph,
         WT *pagerank,
         size_t size,
         int *personalization_subset,

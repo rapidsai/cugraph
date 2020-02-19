@@ -15,23 +15,10 @@
  */
 #pragma once
 
-#include <utilities/error_utils.h>
-#include "utilities/graph_utils.cuh"
-
 namespace cugraph {
 namespace experimental {
 
 typedef enum prop_type{PROP_UNDEF, PROP_FALSE, PROP_TRUE} PropType;
-
-  // TODO:
-  //    New idea... get rid of EdgeList and AdjList
-  //    Create three classes:
-  //        GraphCOO<VT,WT>
-  //        GraphCSR<VT,WT>
-  //        GraphCSC<VT,WT>
-  //
-  //    Then checks to be sure we're using the correct graph type can be done at compile time.
-  //
 
 struct GraphProperties {
   bool directed;
@@ -80,6 +67,11 @@ public:
   VT const *dst_indices;   ///< colInd
 
   /**
+   * @Synopsis   Default constructor
+   */
+  GraphCOO(): GraphBase<WT>(nullptr, 0, 0), src_indices(nullptr), dst_indices(nullptr) {}
+  
+  /**
    * @Synopsis   Wrap existing arrays representing an edge list in a Graph.
    *             GraphCOO does not own the memory used to represent this graph. This
    *             function does not allocate memory.
@@ -118,20 +110,14 @@ public:
    *
    * @param[out]    identifier      Pointer to device memory to store the vertex identifiers
    */
-  void get_vertex_identifiers(VT *identifiers) const {
-    CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-    cugraph::detail::sequence<VT>(GraphBase<WT>::number_of_vertices, identifiers);
-  }
+  void get_vertex_identifiers(VT *identifiers) const;
   
   /**
    * @Synopsis    Fill the identifiers in the array with the source vertex identifiers
    *
    * @param[out]    src_indices      Pointer to device memory to store the source vertex identifiers
    */
-  void get_source_indices(VT *src_indices) const {
-    CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-    cugraph::detail::offsets_to_indices<VT>(offsets, GraphBase<WT>::number_of_vertices+1, src_indices);
-  }
+  void get_source_indices(VT *src_indices) const;
 
   /**
    * @Synopsis   Wrap existing arrays representing adjacency lists in a Graph.
@@ -165,6 +151,11 @@ template <typename VT = int, typename WT = float>
 class GraphCSR: public GraphCSRBase<VT,WT> {
 public:
   /**
+   * @Synopsis   Default constructor
+   */
+  GraphCSR(): GraphCSRBase<VT,WT>(nullptr, nullptr, nullptr, 0, 0) {}
+  
+  /**
    * @Synopsis   Wrap existing arrays representing adjacency lists in a Graph.
    *             GraphCSR does not own the memory used to represent this graph. This
    *             function does not allocate memory.
@@ -193,6 +184,11 @@ public:
 template <typename VT = int, typename WT = float>
 class GraphCSC: public GraphCSRBase<VT,WT> {
 public:
+  /**
+   * @Synopsis   Default constructor
+   */
+  GraphCSC(): GraphCSRBase<VT,WT>(nullptr, nullptr, nullptr, 0, 0) {}
+  
   /**
    * @Synopsis   Wrap existing arrays representing transposed adjacency lists in a Graph.
    *             GraphCSC does not own the memory used to represent this graph. This

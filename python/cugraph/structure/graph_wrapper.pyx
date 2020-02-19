@@ -232,6 +232,21 @@ def view_adj_list(input_graph):
             offsets, indices, values = get_adj_list(graph)
             input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
+def view_transposed_adj_list(input_graph):
+    cdef uintptr_t graph = allocate_cpp_graph()
+    cdef Graph * g = <Graph*> graph
+    if input_graph.adjlist is None:
+        if input_graph.edgelist is None:
+            raise Exception('Graph is Empty')
+        else:
+            if len(input_graph.edgelist.edgelist_df.columns)>2:
+                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+            else:
+                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+            c_graph.add_transposed_adj_list(g)
+            offsets, indices, values = get_transposed_adj_list(graph)
+            input_graph.transposedadjlist = input_graph.transposedAdjList(offsets, indices, values)
+
 def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
