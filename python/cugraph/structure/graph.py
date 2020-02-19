@@ -358,8 +358,10 @@ class Graph:
         """
         if self.transposedadjlist is None:
             graph_wrapper.view_transposed_adj_list(self)
-            
-        return self.transposedadjlist.offsets, self.transposedadjlist.indices, self.transposedadjlist.weights
+
+        return (self.transposedadjlist.offsets,
+                self.transposedadjlist.indices,
+                self.transposedadjlist.weights)
 
     def delete_adj_list(self):
         """
