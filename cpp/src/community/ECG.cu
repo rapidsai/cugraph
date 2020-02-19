@@ -124,10 +124,9 @@ void ecg(cugraph::Graph* graph,
               ValT min_weight,
               size_t ensemble_size,
               IdxT* ecg_parts) {
-  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Graph must have adjacency list");
-  CUGRAPH_EXPECTS(graph->adjList->edge_data != nullptr, "Graph must have weights");
+  CHECK_GRAPH(graph);
+  CUGRAPH_EXPECTS(graph->adjList->edge_data != nullptr, "Invalid API parameter: graph must have edge weights");
+  CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter: ecg_parts is NULL");
 
   IdxT size = graph->adjList->offsets->size - 1;
   IdxT nnz = graph->adjList->indices->size;

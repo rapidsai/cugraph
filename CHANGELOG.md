@@ -8,7 +8,8 @@
 - PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
 - PR #701 Add option to filter datasets and tests when run from CI
 - PR #715 Added new YML file for CUDA 10.2
-- PR #719 Updatted docs to remove CUDA 9.2 and add CUDA 10.2
+- PR #719 Updated docs to remove CUDA 9.2 and add CUDA 10.2
+- PR #720 Updated error messages
 - PR #723 Added notebook testing to gpuCI gpu build
 
 ## Bug Fixes
@@ -16,7 +17,7 @@
 - PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
 - PR #702 Add libcypher include path to target_include_directories
 - PR #716 Fixed bug due to disappearing get_column_data_ptr function in cudf
-
+- PR #726 Fixed SSSP notebook issues in last cell
 
 # cuGraph 0.12.0 (04 Feb 2020)
 
