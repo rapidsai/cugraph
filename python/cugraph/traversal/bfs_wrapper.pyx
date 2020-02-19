@@ -64,8 +64,10 @@ def bfs(input_graph, start, directed=True):
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     cdef gdf_column c_vertex_col = get_gdf_column_view(df['vertex'])
-    cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
-    cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
+    #cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
+    cdef uintptr_t c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
+    #cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
+    cdef uintptr_t c_predecessors_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
 
     g.adjList.get_vertex_identifiers(&c_vertex_col)
 

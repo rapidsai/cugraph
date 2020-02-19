@@ -47,6 +47,7 @@ for i in range(len(gdf_page)):
 | Spectral Clustering - Balanced-Cut            | Single-GPU |                              |
 | Spectral Clustering - Modularity Maximization | Single-GPU |                              |
 | Louvain                                       | Single-GPU |                              |
+| Ensemble Clustering for Graphs (ECG)          | Single-GPU |                              |
 | Renumbering                                   | Single-GPU |                              |
 | Basic Graph Statistics                        | Single-GPU |                              |
 | Weakly Connected Components                   | Single-GPU |                              |
@@ -95,14 +96,15 @@ It is easy to install cuGraph using conda. You can get a minimal conda installat
 Install and update cuGraph using the conda command:
 
 ```bash
-# CUDA 9.2
-conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=9.2
 
 # CUDA 10.0
 conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.0
 
 # CUDA 10.1
 conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.1
+
+# CUDA 10.2
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.2
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.

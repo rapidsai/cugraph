@@ -1,3 +1,4 @@
+
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features
@@ -6,14 +7,19 @@
 - PR #688 Cleanup datasets after testing on gpuCI
 - PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
 - PR #701 Add option to filter datasets and tests when run from CI
+- PR #715 Added new YML file for CUDA 10.2
+- PR #719 Updated docs to remove CUDA 9.2 and add CUDA 10.2
+- PR #720 Updated error messages
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
 
 - PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
 - PR #702 Add libcypher include path to target_include_directories
+- PR #716 Fixed bug due to disappearing get_column_data_ptr function in cudf
 
-# cuGraph 0.12.0 (Date TBD)
+
+# cuGraph 0.12.0 (04 Feb 2020)
 
 ## New Features
 - PR #628 Add (Di)Graph constructor from Multi(Di)Graph
@@ -42,6 +48,7 @@
 - PR #681 fix column length mismatch cudf issue
 - PR #684 Deprecated cudf calls
 - PR #686 Balanced cut fix
+
 
 # cuGraph 0.11.0 (11 Dec 2019)
 

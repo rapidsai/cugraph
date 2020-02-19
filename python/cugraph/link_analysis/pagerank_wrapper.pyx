@@ -61,8 +61,9 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             df['pagerank'][nstart['vertex']] = nstart['values']
         has_guess = <bool> 1
 
-    cdef uintptr_t c_identifier = get_column_data_ptr(df['vertex']._column)
-    cdef uintptr_t c_pagerank_val = get_column_data_ptr(df['pagerank']._column)
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
+
     cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
     cdef sz = 0
@@ -86,11 +87,15 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             renumber_df['map'] = input_graph.edgelist.renumber_map
             renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
             personalization_values = personalization.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
-            c_pers_vtx = get_column_data_ptr(personalization_values['id']._column)
-            c_pers_val = get_column_data_ptr(personalization_values['values']._column)
+            #c_pers_vtx = get_column_data_ptr(personalization_values['id']._column)
+            c_pers_vtx = personalization_values['id'].__cuda_array_interface__['data'][0]
+            #c_pers_val = get_column_data_ptr(personalization_values['values']._column)
+            c_pers_val = personalization_values['values'].__cuda_array_interface__['data'][0]
         else:
-            c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
-            c_pers_val = get_column_data_ptr(personalization['values']._column)
+            #c_pers_vtx = get_column_data_ptr(personalization['vertex']._column)
+            c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
+            #c_pers_val = get_column_data_ptr(personalization['values']._column)
+            c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
     
     if (df['pagerank'].dtype == np.float32): 
         graph_float = GraphCSC[int,float](<int*>offsets, <int*>indices, <float*>weights, num_verts, num_edges)
