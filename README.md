@@ -68,7 +68,7 @@ The current version of cuGraph has some limitations:
 
 cuGraph provides the renumber function to mitigate this problem. Input vertex IDs for the renumber function can be either 32-bit or 64-bit integers, can be non-contiguous, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
-Release 0.11 includes a new 'Graph' class that could cause errors to existing code.  Please see the [Trainsition Guide](TRANSITIONGUIDE.md)
+Release 0.11 includes a new 'Graph' class that could cause errors to existing code.  Please see the [Transition Guide](TRANSITIONGUIDE.md)
 
 
 
