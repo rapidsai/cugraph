@@ -75,8 +75,8 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     if input_graph.transposedadjlist.weights:
         c_weights = input_graph.transposedadjlist.weights.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSC[int,float] graph_float
-    cdef GraphCSC[int,double] graph_double
+    cdef GraphCSC[int,int,float] graph_float
+    cdef GraphCSC[int,int,double] graph_double
     
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
@@ -94,14 +94,14 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
     
     if (df['pagerank'].dtype == np.float32): 
-        graph_float = GraphCSC[int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
+        graph_float = GraphCSC[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
 
-        c_pagerank[int, float](graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+        c_pagerank[int,int,float](graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
                                <float> alpha, <float> tol, <int> max_iter, has_guess)
         graph_float.get_vertex_identifiers(<int*>c_identifier)
     else: 
-        graph_double = GraphCSC[int, double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
-        c_pagerank[int, double](graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+        graph_double = GraphCSC[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
+        c_pagerank[int,int,double](graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, has_guess)
         graph_double.get_vertex_identifiers(<int*>c_identifier)
 

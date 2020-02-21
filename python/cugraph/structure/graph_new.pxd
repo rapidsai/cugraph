@@ -33,32 +33,32 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         bool tree
         prop_type has_negative_edges
 
-    cdef cppclass GraphBase[WT]:
+    cdef cppclass GraphBase[VT,ET,WT]:
         WT *edge_data
         GraphProperties prop
-        size_t number_of_vertices
-        size_t number_of_edges
-        GraphBase(WT*,size_t,size_t)
+        VT number_of_vertices
+        ET number_of_edges
+        GraphBase(WT*,VT,ET)
 
-    cdef cppclass GraphCOO[VT,WT](GraphBase[WT]):
+    cdef cppclass GraphCOO[VT,ET,WT](GraphBase[VT,ET,WT]):
         const VT *src_indices
         const VT *dst_indices
         GraphCOO()
-        GraphCOO(const VT *, const VT *, const WT *, size_t, size_t)
+        GraphCOO(const VT *, const ET *, const WT *, size_t, size_t)
 
-    cdef cppclass GraphCSRBase[VT,WT](GraphBase[WT]):
+    cdef cppclass GraphCompressedSparseBase[VT,ET,WT](GraphBase[VT,ET,WT]):
         const VT *offsets
         const VT *indices
 
         void get_vertex_identifiers(VT *) const
         void get_source_indices(VT *) const
         
-        GraphCSRBase(const VT *, const VT *, const WT *, size_t, size_t)
+        GraphCompressedSparseBase(const VT *, const ET *, const WT *, size_t, size_t)
 
-    cdef cppclass GraphCSR[VT,WT](GraphCSRBase[VT,WT]):
+    cdef cppclass GraphCSR[VT,ET,WT](GraphCompressedSparseBase[VT,ET,WT]):
         GraphCSR()
-        GraphCSR(const VT *, const VT *, const WT *, size_t, size_t)
+        GraphCSR(const VT *, const ET *, const WT *, size_t, size_t)
 
-    cdef cppclass GraphCSC[VT,WT](GraphCSRBase[VT,WT]):
+    cdef cppclass GraphCSC[VT,ET,WT](GraphCompressedSparseBase[VT,ET,WT]):
         GraphCSC()
-        GraphCSC(const VT *, const VT *, const WT *, size_t, size_t)
+        GraphCSC(const VT *, const ET *, const WT *, size_t, size_t)
