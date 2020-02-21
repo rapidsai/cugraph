@@ -42,8 +42,10 @@ def get_ipc_handle(data):
     """
     dev, gpu_array, idx = data
     import ctypes
-    gpu_array[0].gpu_data.owner.handle = ctypes.c_ulong(gpu_array[0].gpu_data.owner.ptr)
-    gpu_array[1].gpu_data.owner.handle = ctypes.c_ulong(gpu_array[1].gpu_data.owner.ptr)
+    gpu_array[0].gpu_data.owner.handle = ctypes.c_ulong(gpu_array[0].
+                                                        gpu_data.owner.ptr)
+    gpu_array[1].gpu_data.owner.handle = ctypes.c_ulong(gpu_array[1].
+                                                        gpu_data.owner.ptr)
 
     in_handle_src = gpu_array[0].get_ipc_handle()
     in_handle_dest = gpu_array[1].get_ipc_handle()
