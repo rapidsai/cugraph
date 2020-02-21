@@ -2,7 +2,6 @@ import warnings
 import gc
 import dask_cudf
 import pandas as pd
-import pytest
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
