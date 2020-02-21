@@ -116,20 +116,20 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      CSR_Result_Weighted<int,T>   result;
      ConvertCOOtoCSR_weighted(&cooColInd[0], &cooRowInd[0], &cooVal[0], nnz, result);
 
-     cugraph::experimental::GraphCSC<int,T> G(result.rowOffsets, result.colIndices, result.edgeWeights, m, nnz);
+     cugraph::experimental::GraphCSC<int,int,T> G(result.rowOffsets, result.colIndices, result.edgeWeights, m, nnz);
     
      cudaDeviceSynchronize();
      if (PERF) {
        hr_clock.start();
        for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-         cugraph::pagerank<int,T>(G, d_pagerank);
+         cugraph::pagerank<int,int,T>(G, d_pagerank);
          cudaDeviceSynchronize();
       }
        hr_clock.stop(&time_tmp);
        pagerank_time.push_back(time_tmp);
      } else {
        cudaProfilerStart();
-       cugraph::pagerank<int,T>(G, d_pagerank);
+       cugraph::pagerank<int,int,T>(G, d_pagerank);
        cudaProfilerStop();
        cudaDeviceSynchronize();
     }

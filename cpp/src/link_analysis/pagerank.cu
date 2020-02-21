@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string>
- #include <sstream>
+#include <sstream>
 #include <iostream>
 #include <iomanip>
 #include "cub/cub.cuh"
@@ -185,23 +185,25 @@ template int pagerankSolver<int, double> (  int n, int e, const int *cscPtr, int
         int *prsVtx,  double *prsVal, int prsLen, bool has_personalization,
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
-template <typename VT,typename WT>
-void pagerank_impl (experimental::GraphCSC<VT,WT> const &graph,
+template <typename VT, typename ET, typename WT>
+void pagerank_impl (experimental::GraphCSC<VT,ET,WT> const &graph,
                     WT* pagerank,
-                    size_t personalization_subset_size=0,
+                    VT personalization_subset_size=0,
                     VT* personalization_subset=nullptr,
                     WT* personalization_values=nullptr,
-                    float alpha = 0.85,
-                    float tolerance = 1e-4, int max_iter = 200,
+                    double alpha = 0.85,
+                    double tolerance = 1e-4,
+                    int64_t max_iter = 200,
                     bool has_guess = false) {
 
   bool has_personalization = false;
   int prsLen = 0;
-  int m = graph.number_of_vertices, nnz = graph.number_of_edges, status{0};
-  WT *d_pr, *d_val{nullptr}, *d_leaf_vector{nullptr};
+  VT m = graph.number_of_vertices;
+  ET nnz = graph.number_of_edges;
+  int status{0};
+  WT *d_pr{nullptr}, *d_val{nullptr}, *d_leaf_vector{nullptr};
   WT res = 1.0;
   WT *residual = &res;
-  cudaStream_t stream{nullptr};
 
   if (personalization_subset_size != 0) {
     CUGRAPH_EXPECTS( personalization_subset != nullptr , "Invalid API parameter: personalization_subset array should be of size personalization_subset_size" );
@@ -211,13 +213,18 @@ void pagerank_impl (experimental::GraphCSC<VT,WT> const &graph,
     prsLen = static_cast<VT>(personalization_subset_size);
   }
 
-  ALLOC_TRY((void**)&d_leaf_vector, sizeof(WT) * m, stream);
-  ALLOC_TRY((void**)&d_val, sizeof(WT) * nnz , stream);
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
   CUDA_TRY(cudaMalloc((void**)&d_pr, sizeof(WT) * m));
 #else
-  ALLOC_TRY((void**)&d_pr, sizeof(WT) * m, stream);
+  thrust::device_vector<WT>  pr(m);
+  d_pr = pr.data().get();
 #endif
+
+  thrust::device_vector<WT>  leaf_vector(m);
+  thrust::device_vector<WT>  val(nnz);
+
+  d_leaf_vector = leaf_vector.data().get();
+  d_val = val.data().get();
 
   //  The templating for HT_matrix_csc_coo assumes that m, nnz and data are all the same type
   HT_matrix_csc_coo(m, nnz, graph.offsets, graph.indices, d_val, d_leaf_vector);
@@ -239,40 +246,33 @@ void pagerank_impl (experimental::GraphCSC<VT,WT> const &graph,
 
   copy<WT>(m, d_pr, (WT*)pagerank);
 
-  ALLOC_FREE_TRY(d_val, stream);
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
   CUDA_TRY(cudaFree(d_pr));
-#else
-  ALLOC_FREE_TRY(d_pr, stream);
 #endif
-  ALLOC_FREE_TRY(d_leaf_vector, stream);
 }
 }
 
-template <typename VT, typename WT>
-void pagerank(experimental::GraphCSC<VT,WT> const &graph, WT* pagerank,
-              size_t personalization_subset_size,
+template <typename VT, typename ET, typename WT>
+void pagerank(experimental::GraphCSC<VT,ET,WT> const &graph, WT* pagerank,
+              VT personalization_subset_size,
               VT* personalization_subset, WT* personalization_values,
-              float alpha, float tolerance, int max_iter, bool has_guess) {
-  //
-  //  Pagerank operates on CSC and can't currently support 64-bit integers.
-  //  If csr doesn't exist, create it.  Then check type to make sure it is 32-bit.
-  //
+              double alpha, double tolerance, int64_t max_iter, bool has_guess) {
+
   CUGRAPH_EXPECTS( pagerank != nullptr , "Invalid API parameter: Pagerank array should be of size V" );
 
-  return detail::pagerank_impl<VT,WT>(graph, pagerank,
-                                      personalization_subset_size,
-                                      personalization_subset,
-                                      personalization_values,
-                                      alpha, tolerance, max_iter, has_guess);
+  return detail::pagerank_impl<VT,ET,WT>(graph, pagerank,
+                                         personalization_subset_size,
+                                         personalization_subset,
+                                         personalization_values,
+                                         alpha, tolerance, max_iter, has_guess);
 }
 
 // explicit instantiation
-template void pagerank<int, float>(experimental::GraphCSC<int,float> const &graph, float* pagerank,
-  size_t personalization_subset_size, int* personalization_subset, float* personalization_values,
-  float alpha, float tolerance, int max_iter, bool has_guess);
-template void pagerank<int, double>(experimental::GraphCSC<int,double> const &graph, double* pagerank,
-  size_t personalization_subset_size, int* personalization_subset, double* personalization_values,
-  float alpha, float tolerance, int max_iter, bool has_guess);
+template void pagerank<int, int, float>(experimental::GraphCSC<int,int,float> const &graph, float* pagerank,
+  int personalization_subset_size, int* personalization_subset, float* personalization_values,
+  double alpha, double tolerance, int64_t max_iter, bool has_guess);
+template void pagerank<int, int, double>(experimental::GraphCSC<int,int,double> const &graph, double* pagerank,
+  int personalization_subset_size, int* personalization_subset, double* personalization_values,
+  double alpha, double tolerance, int64_t max_iter, bool has_guess);
 
 } //namespace cugraph 

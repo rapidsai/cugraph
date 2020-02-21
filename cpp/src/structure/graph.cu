@@ -16,21 +16,21 @@
 namespace cugraph {
 namespace experimental {
 
-template <typename VT, typename WT>
-void GraphCSRBase<VT,WT>::get_vertex_identifiers(VT *identifiers) const {
+template <typename VT, typename ET, typename WT>
+void GraphCompressedSparseBase<VT,ET,WT>::get_vertex_identifiers(VT *identifiers) const {
   CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-  cugraph::detail::sequence<VT>(GraphBase<WT>::number_of_vertices, identifiers);
+  cugraph::detail::sequence<VT>(GraphBase<VT,ET,WT>::number_of_vertices, identifiers);
 }
 
-template <typename VT, typename WT>
-void GraphCSRBase<VT,WT>::get_source_indices(VT *src_indices) const {
+template <typename VT, typename ET, typename WT>
+void GraphCompressedSparseBase<VT,ET,WT>::get_source_indices(VT *src_indices) const {
   CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-  cugraph::detail::offsets_to_indices<VT>(offsets, GraphBase<WT>::number_of_vertices+1, src_indices);
+  cugraph::detail::offsets_to_indices<VT>(offsets, GraphBase<VT,ET,WT>::number_of_vertices+1, src_indices);
 }
 
 // explicit instantiation
-template class GraphCSRBase<int,float>;
-template class GraphCSRBase<int,double>;
+template class GraphCompressedSparseBase<int32_t,int32_t,float>;
+template class GraphCompressedSparseBase<int32_t,int32_t,double>;
 
 }
 }
