@@ -24,12 +24,11 @@ from cugraph.community import (
 )
 
 from cugraph.structure import (
-    Graph, 
-    DiGraph, 
-    MultiGraph,
-    MultiDiGraph,
-    renumber, 
-    symmetrize, 
+    Graph,
+    DiGraph,
+    from_cudf_edgelist,
+    renumber,
+    symmetrize,
     symmetrize_df,
     renumber_from_cudf
 )
