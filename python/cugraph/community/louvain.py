@@ -14,6 +14,7 @@
 from cugraph.community import louvain_wrapper
 from cugraph.structure.graph import Graph
 
+
 def louvain(input_graph, max_iter=100):
     """
     Compute the modularity optimizing partition of the input graph using the

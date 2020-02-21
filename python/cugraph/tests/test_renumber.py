@@ -213,6 +213,7 @@ def test_renumber_files_col(managed, pool, graph_file):
         assert sources[i] == (numbering['0'][src[i]] - translate)
         assert destinations[i] == (numbering['0'][dst[i]] - translate)
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))

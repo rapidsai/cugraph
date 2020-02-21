@@ -14,6 +14,7 @@
 from cugraph.community import triangle_count_wrapper
 from cugraph.structure.graph import Graph
 
+
 def triangles(G):
     """
     Compute the triangle (number of cycles of length three) count of the

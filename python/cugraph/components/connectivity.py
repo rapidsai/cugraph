@@ -13,6 +13,7 @@
 
 from cugraph.components import connectivity_wrapper
 
+
 def weakly_connected_components(G):
     """
     Generate the weakly connected components and attach a component label to
