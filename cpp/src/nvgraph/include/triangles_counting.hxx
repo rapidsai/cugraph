@@ -44,7 +44,9 @@ private:
     uint64_t            m_triangles_number;
     spmat_t<IndexType>  m_mat;
     int                 m_dev_id;
-    cudaDeviceProp      m_dev_props;
+    int m_shared_mem_per_block{};
+    int m_multi_processor_count{};
+    int m_max_threads_per_multi_processor{};
 
     Vector<IndexType>   m_seq;
 

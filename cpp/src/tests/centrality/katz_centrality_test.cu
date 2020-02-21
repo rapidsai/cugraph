@@ -9,12 +9,11 @@
 #include <fstream>
 
 std::vector<int>
-getGoldenTopKIds(std::string file, int k = 10) {
+getGoldenTopKIds(std::ifstream& fs_result, int k = 10) {
   std::vector<int> vec;
-  std::ifstream fin(file);
   int val;
   int count = 0;
-  while (fin>>val && ((count++) < k)) {
+  while (fs_result>>val && ((count++) < k)) {
     vec.push_back(val);
   }
   vec.resize(k);
@@ -87,6 +86,9 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
        FILE* fpin = fopen(param.matrix_file.c_str(),"r");
        ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
 
+       std::ifstream fs_result(param.result_file);
+       ASSERT_EQ(fs_result.is_open(), true) << "file open (" << param.result_file << ") failure.";
+
        int m, k;
        int nnz;
        MM_typecode mc;
@@ -117,7 +119,7 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
       cugraph::katz_centrality(G.get(), col_katz_centrality.get(), alpha, 100, 1e-6, false, true);
 
       std::vector<int> top10CUGraph = getTopKIds(std::move(col_katz_centrality));
-      std::vector<int> top10Golden  = getGoldenTopKIds(param.result_file);
+      std::vector<int> top10Golden  = getGoldenTopKIds(fs_result);
 
       EXPECT_THAT(top10CUGraph, ::testing::ContainerEq(top10Golden));
   }

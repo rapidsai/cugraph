@@ -62,16 +62,21 @@ def jaccard(input_graph, vertex_pair=None):
         result_size = len(vertex_pair)
         result = cudf.Series(np.ones(result_size, dtype=np.float32))
         c_result_col = get_gdf_column_view(result)
-        first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
-        second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
+        df = cudf.DataFrame()
         if input_graph.renumbered is True:
-            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
-                                          index=input_graph.edgelist.renumber_map, dtype=np.int32)
-            first_renumbered = renumber_series.loc[first]
-            second_renumbered = renumber_series.loc[second]
-            c_first_col = get_gdf_column_view(first_renumbered)
-            c_second_col = get_gdf_column_view(second_renumbered)
+            renumber_df = cudf.DataFrame()
+            renumber_df['map'] = input_graph.edgelist.renumber_map
+            renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
+            vp = vertex_pair.merge(renumber_df, left_on='first', right_on='map', how='left').drop('map').merge(renumber_df, left_on='second', right_on='map', how='left').drop('map')
+            df['source'] = vp['first']
+            df['destination'] = vp['second']
+            c_first_col = get_gdf_column_view(vp['id_x'])
+            c_second_col = get_gdf_column_view(vp['id_y'])
         else:
+            first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
+            second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
+            df['source'] = first
+            df['destination'] = second
             c_first_col = get_gdf_column_view(first)
             c_second_col = get_gdf_column_view(second)
         c_jaccard.jaccard_list(g,
@@ -79,12 +84,7 @@ def jaccard(input_graph, vertex_pair=None):
                                &c_first_col,
                                &c_second_col,
                                &c_result_col)
-        
-        df = cudf.DataFrame()
-        df['source'] = first
-        df['destination'] = second
         df['jaccard_coeff'] = result
-
         return df
 
     else:
@@ -108,11 +108,16 @@ def jaccard(input_graph, vertex_pair=None):
         g.adjList.get_source_indices(&c_src_index_col)
         
         df['destination'] = cudf.Series(dest_data)
+        df['jaccard_coeff'] = result
 
         if input_graph.renumbered:
-            df['source'] = input_graph.edgelist.renumber_map[df['source']]
-            df['destination'] = input_graph.edgelist.renumber_map[df['destination']]
-
-        df['jaccard_coeff'] = result
+            if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+                unrenumered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='source', right_on='id', how='left').drop(['id', 'source'])
+                unrenumered_df = unrenumered_df_.merge(input_graph.edgelist.renumber_map, left_on='destination', right_on='id', how='left').drop(['id', 'destination'])
+                cols = unrenumered_df.columns
+                df = unrenumered_df[[cols[1:], cols[0]]]
+            else:
+                df['source'] = input_graph.edgelist.renumber_map[df['source']].reset_index(drop=True)
+                df['destination'] = input_graph.edgelist.renumber_map[df['destination']].reset_index(drop=True)
 
         return df
