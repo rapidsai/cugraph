@@ -18,7 +18,6 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-@pytest.mark.skip(reason="DASK issues")
 def test_pagerank():
     gc.collect()
     input_data_path = r"../datasets/karate.csv"
