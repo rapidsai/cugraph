@@ -30,6 +30,9 @@
 #include <cugraph.h>
 #include <graph.hpp>
 
+#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_buffer.hpp>
+
 namespace cugraph { 
 namespace detail {
 
@@ -80,7 +83,8 @@ int pagerankSolver(IndexType n, IndexType e, IndexType const *cscPtr, IndexType 
   float tol;
   bool converged = false;
   ValueType randomProbability = static_cast<ValueType>( 1.0/n);
-  ValueType *b=0, *tmp=0;
+  ValueType *tmp_d{nullptr};
+  ValueType *b_d{nullptr};
   void* cub_d_temp_storage = NULL;
   size_t cub_temp_storage_bytes = 0;
 
@@ -101,41 +105,45 @@ int pagerankSolver(IndexType n, IndexType e, IndexType const *cscPtr, IndexType 
 
   cudaStream_t stream{nullptr};
 
-  ALLOC_TRY((void**)&b, sizeof(ValueType) * n, stream);
+  rmm::device_vector<ValueType>  b(n);
+  b_d = b.data().get();
+
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
-  CUDA_TRY(cudaMalloc((void**)&tmp, sizeof(ValueType) * n));
+  CUDA_TRY(cudaMalloc((void**)&tmp_d, sizeof(ValueType) * n));
 #else
-  ALLOC_TRY((void**)&tmp, sizeof(ValueType) * n, stream);
+  rmm::device_vector<WT>  tmp(n);
+  tmp_d = pr.data().get();
 #endif
   CUDA_CHECK_LAST();
 
   if (!has_guess) {
        fill(n, pagerank_vector, randomProbability);
-       fill(n, tmp, randomProbability);
+       fill(n, tmp_d, randomProbability);
   }
   else {
-    copy(n, pagerank_vector, tmp);
+    copy(n, pagerank_vector, tmp_d);
   }
 
   if (has_personalization) {
     ValueType sum = nrm1(prsLen, prsVal);
     if (static_cast<ValueType>(0) == sum) {
-      fill(n, b, randomProbability);
+      fill(n, b_d, randomProbability);
     } else {
       scal(n, static_cast<ValueType>(1.0/sum), prsVal);
-      fill(n, b, static_cast<ValueType>(0));
-      scatter(prsLen, prsVal, b, prsVtx);
+      fill(n, b_d, static_cast<ValueType>(0));
+      scatter(prsLen, prsVal, b_d, prsVtx);
     }
   } else {
-    fill(n, b, randomProbability);
+    fill(n, b_d, randomProbability);
   }
   update_dangling_nodes(n, a, alpha);
 
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage, cub_temp_storage_bytes, cscVal,
-                                  (IndexType *) cscPtr, (IndexType *) cscInd, tmp, pagerank_vector, n, n, e));
+                                  (IndexType *) cscPtr, (IndexType *) cscInd, tmp_d, pagerank_vector, n, n, e));
    // Allocate temporary storage
-  ALLOC_TRY ((void**)&cub_d_temp_storage, cub_temp_storage_bytes, stream);
-  CUDA_CHECK_LAST()
+  rmm::device_buffer  cub_temp_storage(cub_temp_storage_bytes);
+  cub_d_temp_storage = cub_temp_storage.data();
+
 #ifdef PR_VERBOSE
   std::stringstream ss;
   ss.str(std::string());
@@ -150,7 +158,7 @@ int pagerankSolver(IndexType n, IndexType e, IndexType const *cscPtr, IndexType 
   {
       i++;
       converged = pagerankIteration<IndexType, ValueType>(n, e, cscPtr, cscInd, cscVal,
-                                                          alpha, a, b, tol, i, max_it, tmp,
+                                                          alpha, a, b_d, tol, i, max_it, tmp_d,
                                                           cub_d_temp_storage, cub_temp_storage_bytes,
                                                           pagerank_vector, residual);
 #ifdef PR_VERBOSE
@@ -164,15 +172,11 @@ int pagerankSolver(IndexType n, IndexType e, IndexType const *cscPtr, IndexType 
   #ifdef PR_VERBOSE
   std::cout <<" --------------------------------------------"<< std::endl;
   #endif
-  //printv(n,pagerank_vector,0);
 
-  ALLOC_FREE_TRY(b, stream);
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
-  CUDA_TRY(cudaFree(tmp));
-#else
-  ALLOC_FREE_TRY(tmp, stream);
+  CUDA_TRY(cudaFree(tmp_d));
 #endif
-  ALLOC_FREE_TRY(cub_d_temp_storage, stream);
+  //ALLOC_FREE_TRY(cub_d_temp_storage, stream);
 
   return converged ? 0 : 1;
 }
@@ -216,12 +220,12 @@ void pagerank_impl (experimental::GraphCSC<VT,ET,WT> const &graph,
 #if 1/* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
   CUDA_TRY(cudaMalloc((void**)&d_pr, sizeof(WT) * m));
 #else
-  thrust::device_vector<WT>  pr(m);
+  rmm::device_vector<WT>  pr(m);
   d_pr = pr.data().get();
 #endif
 
-  thrust::device_vector<WT>  leaf_vector(m);
-  thrust::device_vector<WT>  val(nnz);
+  rmm::device_vector<WT>  leaf_vector(m);
+  rmm::device_vector<WT>  val(nnz);
 
   d_leaf_vector = leaf_vector.data().get();
   d_val = val.data().get();

@@ -104,7 +104,7 @@ public:
 template <typename VT, typename ET, typename WT>
 class GraphCompressedSparseBase: public GraphBase<VT,ET,WT> {
 public:
-  VT const *offsets{nullptr};       ///< CSR offsets
+  ET const *offsets{nullptr};       ///< CSR offsets
   VT const *indices{nullptr};       ///< CSR indices
 
   /**
@@ -135,7 +135,7 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCompressedSparseBase(VT const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCompressedSparseBase(ET const *offsets_, VT const *indices_, WT const *edge_data_,
                             VT number_of_vertices_, ET number_of_edges_):
     GraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
     offsets{offsets_},
@@ -172,7 +172,7 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSR(VT const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCSR(ET const *offsets_, VT const *indices_, WT const *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
     GraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
@@ -207,7 +207,7 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSC(VT const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCSC(ET const *offsets_, VT const *indices_, WT const *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
     GraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
