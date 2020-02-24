@@ -276,6 +276,7 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/community/nvgraph_gdf.cu
     src/community/ECG.cu
+    src/community/Leiden.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu

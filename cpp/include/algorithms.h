@@ -227,9 +227,9 @@ void louvain(Graph* graph,
 template<typename IdxT, typename ValT>
 void leiden(Graph* graph,
             int metric,
-            double gamma,
+            ValT gamma,
             IdxT* leiden_parts,
-            int max_iter = 100);
+            IdxT max_level = 100);
 
 /**
  * @brief Computes the ecg clustering of the given graph.

@@ -17,7 +17,7 @@
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 
-namespace nvlouvain {
+namespace {
 template<typename IndexType>
 __device__ IndexType binsearch_maxle(const IndexType *vec,
                                       const IndexType val,
@@ -251,6 +251,10 @@ __global__ void compute_delta_modularity_vector(IdxT nnz,
           startEdges += edge_weights[i];
         if (neighborCluster == endCluster && neighborId != startVertex)
           endEdges += edge_weights[i];
+        if (neighborCluster == startCluster && neighborId == startVertex){
+          startEdges += edge_weights[i];
+          endEdges += edge_weights[i];
+        }
       }
       ValT end_e = e_c[endCluster];
       ValT end_k = k_c[endCluster];
@@ -264,8 +268,6 @@ __global__ void compute_delta_modularity_vector(IdxT nnz,
       ValT finalScore = newEndScore - endM + newStartScore - startM;
       if (finalScore > .0001)
         printf("Vertex: %d, moving from %d to %d finalScore %f, newEndScore %f, oldEndScore %f, newStartScore %f, oldStartScore %f\n", startVertex, startCluster, endCluster, finalScore, newEndScore, endM, newStartScore, startM);
-      if (newEndScore < endM)
-        finalScore = 0.0;
       delta[tid] = finalScore < .0001 ? 0.0 : finalScore;
     }
 
@@ -311,4 +313,4 @@ void compute_delta_modularity(IdxT nnz,
   }
 }
 
-} // namespace nvlouvain
+} // namespace anonymous

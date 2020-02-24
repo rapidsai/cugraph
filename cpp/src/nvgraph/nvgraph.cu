@@ -3436,7 +3436,7 @@ nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataT
                             void* csr_ptr, void* csr_ind, void* csr_val, int weighted, int has_init_cluster, void* init_cluster,
                             void* final_modularity, void* best_cluster_vec, void* num_level, int max_iter)
 {
-    NVLOUVAIN_STATUS status = NVLOUVAIN_OK;
+    nvlouvain::NVLOUVAIN_STATUS status = nvlouvain::NVLOUVAIN_OK;
     if ((csr_ptr == NULL) || (csr_ind == NULL) || ((csr_val == NULL) && (weighted == 1)) ||
         ((init_cluster == NULL) && (has_init_cluster == 1)) || (final_modularity == NULL) || (best_cluster_vec == NULL) || (num_level == NULL))
        return NVGRAPH_STATUS_INVALID_VALUE;
@@ -3453,7 +3453,7 @@ nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataT
                 weighted_b, has_init_cluster_b, (int*)init_cluster, *((double*)final_modularity),
                 (int*)best_cluster_vec,*((int*)num_level), max_iter, std::cout);
 
-    if (status != NVLOUVAIN_OK)
+    if (status != nvlouvain::NVLOUVAIN_OK)
         return NVGRAPH_STATUS_INTERNAL_ERROR;
 
     return NVGRAPH_STATUS_SUCCESS;

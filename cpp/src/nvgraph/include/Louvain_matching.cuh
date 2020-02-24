@@ -17,7 +17,7 @@
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 
-namespace nvlouvain {
+namespace {
 template<typename IdxT, typename ValT>
 __global__ void findBestMatches(IdxT num_verts,
                                 IdxT* csr_off,
@@ -48,6 +48,9 @@ __global__ void findBestMatches(IdxT num_verts,
       bestScore = 0.0;
     }
 
+    if (bestScore > 0.0)
+      printf("Vertex %d moving from %d to %d with score %f\n", tid, currentCluster, bestCluster, bestScore);
+
     scores[tid] = bestScore;
     bestMatch[tid] = bestCluster;
     tid += gridDim.x * blockDim.x;
@@ -72,7 +75,11 @@ __global__ void assignMovers_partOne(IdxT num_verts,
       for (IdxT i = start; i < end; i++) {
         IdxT neighborId = csr_ind[i];
         ValT score = scores[neighborId];
-        if (score >= myScore && tid < neighborId)
+        if (score == myScore) {
+          if (tid < neighborId)
+            myScoreBest = false;
+        }
+        if (score > myScore)
           myScoreBest = false;
       }
       if (myScoreBest && myScore > 0.0) {
@@ -82,8 +89,8 @@ __global__ void assignMovers_partOne(IdxT num_verts,
         movers[tid] = 0;
       }
 
-//      if (myScoreBest)
-//        printf("Thread: %d has best score of: %f\n", tid, myScore);
+      if (myScoreBest)
+        printf("Thread: %d has best score of: %f\n", tid, myScore);
     }
     tid += gridDim.x * blockDim.x;
   }
@@ -95,7 +102,7 @@ __global__ void assignMovers_partTwo(IdxT num_verts,
                                      IdxT* csr_ind,
                                      ValT* scores,
                                      IdxT* movers,
-                                     IdxT* unassigned) {
+                                     int* unassigned) {
   IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < num_verts) {
     IdxT start = csr_off[tid];
@@ -133,7 +140,7 @@ __global__ void makeMoves(IdxT num_verts,
                           IdxT* clusters,
                           IdxT* movers,
                           IdxT* bestMatch,
-                          IdxT* num_moved) {
+                          int* num_moved) {
   IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < num_verts) {
     IdxT amImoving = movers[tid];
@@ -148,7 +155,7 @@ __global__ void makeMoves(IdxT num_verts,
 }
 
 template<typename IdxT, typename ValT>
-IdxT makeSwaps(IdxT num_verts,
+int makeSwaps(IdxT num_verts,
                IdxT* csr_off,
                IdxT* csr_ind,
                ValT* deltaModularity,
@@ -160,13 +167,13 @@ IdxT makeSwaps(IdxT num_verts,
   rmm::device_vector<ValT> scores(num_verts, 0.0);
   rmm::device_vector<IdxT> movers(num_verts, -1);
   rmm::device_vector<IdxT> bestMatch(num_verts, -1);
-  rmm::device_vector<IdxT> unassigned(1,0);
-  rmm::device_vector<IdxT> swapCount(1,0);
+  rmm::device_vector<int> unassigned(1,0);
+  rmm::device_vector<int> swapCount(1,0);
   ValT* scores_ptr = thrust::raw_pointer_cast(scores.data());
   IdxT* movers_ptr = thrust::raw_pointer_cast(movers.data());
   IdxT* bestMatch_ptr = thrust::raw_pointer_cast(bestMatch.data());
-  IdxT* unassigned_ptr = thrust::raw_pointer_cast(unassigned.data());
-  IdxT* swapCount_ptr = thrust::raw_pointer_cast(swapCount.data());
+  int* unassigned_ptr = thrust::raw_pointer_cast(unassigned.data());
+  int* swapCount_ptr = thrust::raw_pointer_cast(swapCount.data());
 
   cudaDeviceSynchronize();
   cudaError_t error = cudaGetLastError();
@@ -190,7 +197,7 @@ IdxT makeSwaps(IdxT num_verts,
         << "\n";
   }
 
-  IdxT unnassigned = 1;
+  int unnassigned = 1;
   while (unnassigned > 0) {
     assignMovers_partOne<<<grid, block, 0, nullptr>>>(num_verts,
                                                       csr_off,
@@ -208,7 +215,7 @@ IdxT makeSwaps(IdxT num_verts,
                                                       scores_ptr,
                                                       movers_ptr,
                                                       unassigned_ptr);
-    cudaMemcpy(&unnassigned, unassigned_ptr, sizeof(IdxT), cudaMemcpyDefault);
+    cudaMemcpy(&unnassigned, unassigned_ptr, sizeof(int), cudaMemcpyDefault);
     std::cout << "Assign Movers done: " << unnassigned << " remain unassigned\n";
     error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -223,12 +230,12 @@ IdxT makeSwaps(IdxT num_verts,
                                          bestMatch_ptr,
                                          swapCount_ptr);
 
-  IdxT swapsMade = 0;
-  cudaMemcpy(&swapsMade, swapCount_ptr, sizeof(IdxT), cudaMemcpyDefault);
+  int swapsMade = 0;
+  cudaMemcpy(&swapsMade, swapCount_ptr, sizeof(int), cudaMemcpyDefault);
   return swapsMade;
 }
 
-} // namespace nvlouvain
+} // namespace anonymous
 
 
 
