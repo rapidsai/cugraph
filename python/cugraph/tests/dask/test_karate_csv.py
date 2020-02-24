@@ -2,7 +2,6 @@ import warnings
 import gc
 import dask_cudf
 import pandas as pd
-import pytest
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -18,7 +17,6 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-@pytest.mark.skip(reason="DASK issues")
 def test_pagerank():
     gc.collect()
     input_data_path = r"../datasets/karate.csv"
