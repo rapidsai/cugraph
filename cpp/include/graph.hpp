@@ -18,7 +18,7 @@
 namespace cugraph {
 namespace experimental {
 
-typedef enum prop_type{PROP_UNDEF, PROP_FALSE, PROP_TRUE} PropType;
+enum class PropType{PROP_UNDEF, PROP_FALSE, PROP_TRUE};
 
 struct GraphProperties {
   bool directed{false};
@@ -26,7 +26,7 @@ struct GraphProperties {
   bool multigraph{multigraph};
   bool bipartite{false};
   bool tree{false};
-  PropType has_negative_edges{PROP_UNDEF};
+  PropType has_negative_edges{PropType::PROP_UNDEF};
   GraphProperties() = default;
 };
 

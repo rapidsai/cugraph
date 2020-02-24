@@ -20,10 +20,10 @@ from libcpp cimport bool
 
 cdef extern from "graph.hpp" namespace "cugraph::experimental":
 
-    ctypedef enum prop_type:
-        GDF_PROP_UNDEF = 0
-        GDF_PROP_FALSE
-        GDF_PROP_TRUE
+    ctypedef enum PropType:
+        PROP_UNDEF "cugraph::experimental::PROP_UNDEF"
+        PROP_FALSE "cugraph::experimental::PROP_FALSE"
+        PROP_TRUE "cugraph::experimental::PROP_TRUE"
 
     struct GraphProperties:
         bool directed
@@ -31,7 +31,7 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         bool multigraph
         bool bipartite
         bool tree
-        prop_type has_negative_edges
+        PropType has_negative_edges
 
     cdef cppclass GraphBase[VT,ET,WT]:
         WT *edge_data

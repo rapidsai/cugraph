@@ -103,8 +103,6 @@ int pagerankSolver(IndexType n, IndexType e, IndexType const *cscPtr, IndexType 
   if (alpha <= 0.0f || alpha >= 1.0f)
       return -1;
 
-  cudaStream_t stream{nullptr};
-
   rmm::device_vector<ValueType>  b(n);
   b_d = b.data().get();
 
