@@ -92,6 +92,7 @@ def test_edge_cut_clustering(managed, pool, graph_file, partitions):
     print(cu_score, rand_score)
     assert cu_score < rand_score
 
+
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)

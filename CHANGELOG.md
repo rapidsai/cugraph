@@ -49,6 +49,7 @@
 - PR #681 fix column length mismatch cudf issue
 - PR #684 Deprecated cudf calls
 - PR #686 Balanced cut fix
+- PR #689 Check graph input type, disable Multi(Di)Graph, add cugraph.from_cudf_edgelist
 
 
 # cuGraph 0.11.0 (11 Dec 2019)
