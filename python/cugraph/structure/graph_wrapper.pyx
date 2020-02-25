@@ -235,7 +235,7 @@ def view_adj_list(input_graph):
 def view_transposed_adj_list(input_graph):
     cdef uintptr_t graph = allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
-    if input_graph.adjlist is None:
+    if input_graph.transposedadjlist is None:
         if input_graph.edgelist is None:
             raise Exception('Graph is Empty')
         else:
