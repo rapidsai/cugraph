@@ -10,6 +10,7 @@
 - PR #715 Added new YML file for CUDA 10.2
 - PR #719 Updated docs to remove CUDA 9.2 and add CUDA 10.2
 - PR #720 Updated error messages
+- PR #722 Refactor graph to remove gdf_column
 - PR #723 Added notebook testing to gpuCI gpu build
 
 ## Bug Fixes

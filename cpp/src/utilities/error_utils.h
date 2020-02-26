@@ -152,6 +152,7 @@ inline void check_stream(cudaStream_t stream, const char* file,
  * GDF_REQUIRE should be considered deprecated.
  *
  *---------------------------------------------------------------------------**/
+#ifndef CUDA_TRY
 #define CUDA_TRY(call)                                            \
   do {                                                            \
     cudaError_t const status = (call);                            \
@@ -159,6 +160,7 @@ inline void check_stream(cudaStream_t stream, const char* file,
       cugraph::detail::throw_cuda_error(status, __FILE__, __LINE__); \
     }                                                             \
   } while (0);
+#endif
 #endif
 
 #define CUDA_CHECK_LAST() {                                       \
