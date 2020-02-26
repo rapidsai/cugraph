@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.community import (
+    leiden,
     ecg,
     louvain,
     spectralBalancedCutClustering,

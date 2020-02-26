@@ -208,7 +208,6 @@ struct sort_by_cluster{
     bool operator()(const IdxType& a, const IdxType& b){   
       return (IdxType)(*(cluster_iter + a)) < (IdxType)(*(cluster_iter + b));
     }
-
 };
 
 

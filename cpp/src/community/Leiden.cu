@@ -22,6 +22,7 @@
 #include "community/Graph_Coarsening.cuh"
 #include "nvgraph/include/Louvain_modularity.cuh"
 #include "nvgraph/include/Louvain_matching.cuh"
+#include "community/Leiden_modularity.cuh"
 
 namespace cugraph {
 template<typename IdxT, typename ValT>
@@ -196,6 +197,63 @@ void leiden(Graph* graph,
     }
 
     // We made swaps so now we refine the partition (Leiden)
+    rmm::device_vector<IdxT> constraint(levels.back().num_verts);
+    IdxT* constraint_ptr = thrust::raw_pointer_cast(constraint.data());
+    thrust::copy(rmm::exec_policy(nullptr)->on(nullptr),
+                 levels.back().clusters,
+                 levels.back().clusters + levels.back().num_verts,
+                 constraint_ptr);
+    thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr),
+                     levels.back().clusters,
+                     levels.back().clusters + levels.back().num_verts);
+    levels.back().num_clusters = levels.back().num_verts;
+    num_moved = 1;
+    while (num_moved > 0) {
+      // Compute modularity to initialize e_c, k_c, and m_c vectors
+      ValT modularity = compute_modularity(levels.back().num_verts,
+                                           levels.back().nnz,
+                                           levels.back().num_clusters,
+                                           levels.back().csr_off,
+                                           levels.back().csr_ind,
+                                           levels.back().csr_val,
+                                           k_vec_ptr,
+                                           levels.back().clusters,
+                                           gamma,
+                                           m2,
+                                           e_c_ptr,
+                                           k_c_ptr,
+                                           m_c_ptr);
+      // Compute the delta modularity vector
+      compute_delta_modularity_constrained(levels.back().nnz,
+                                           levels.back().num_verts,
+                                           levels.back().csr_off,
+                                           levels.back().csr_ind,
+                                           levels.back().csr_val,
+                                           levels.back().clusters,
+                                           constraint_ptr,
+                                           e_c_ptr,
+                                           k_c_ptr,
+                                           m_c_ptr,
+                                           k_vec_ptr,
+                                           delta_modularity_ptr,
+                                           gamma,
+                                           m2);
+
+      // Make swaps
+      num_moved = makeSwaps(levels.back().num_verts,
+                            levels.back().csr_off,
+                            levels.back().csr_ind,
+                            delta_modularity_ptr,
+                            levels.back().clusters);
+      total_moved += num_moved;
+
+      // Renumber and count the resulting aggregates
+      renumberAndCountAggregates(levels.back().clusters,
+                                 levels.back().num_verts,
+                                 levels.back().num_clusters);
+
+      std::cout << num_moved << " swaps made (constrained), now there are " << levels.back().num_clusters << " clusters\n";
+    }
 
     // And now coarsen the graph
     generate_cluster_inv(levels.back().num_verts,
