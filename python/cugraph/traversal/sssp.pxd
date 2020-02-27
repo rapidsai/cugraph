@@ -24,4 +24,5 @@ cdef extern from "cugraph.h" namespace "cugraph":
         Graph *graph,
         WT *distances,
         int *predecessors,
+        int *sp_counters,
         int start_vertex) except +

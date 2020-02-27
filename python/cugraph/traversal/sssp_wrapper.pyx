@@ -77,6 +77,10 @@ def sssp(input_graph, source):
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
+    # TODO(xcadet) Should be generated only if user asks for it
+    df['sp_counters'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    cdef uintptr_t c_sp_counters_ptr = df['sp_counters'].__cuda_array_interface__['data'][0]
+
     #cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
     cdef uintptr_t c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
     #cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
@@ -87,12 +91,13 @@ def sssp(input_graph, source):
     
     if g.adjList.edge_data:
         if (df['distance'].dtype == np.float32):
-            c_sssp.sssp[int, float](g, <float*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
+            c_sssp.sssp[int, float](g, <float*>c_distance_ptr, <int*>c_predecessors_ptr, <int*>c_sp_counters_ptr, <int>source)
         else :
-            c_sssp.sssp[int, double](g, <double*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
+            c_sssp.sssp[int, double](g, <double*>c_distance_ptr, <int*>c_predecessors_ptr, <int*>c_sp_counters_ptr, <int>source)
     else:
         c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
 
+    # TODO(xcadet) Handle renumbering for sp_counters also
     if input_graph.renumbered:
         if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
             n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
