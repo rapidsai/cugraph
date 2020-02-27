@@ -287,6 +287,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;
     std::vector<int> sp_counters_vec;
+
     rmm::device_vector<DistType> ddist_vec;
     rmm::device_vector<MaxVType> dpred_vec;
     rmm::device_vector<int> dsp_counters_vec;
@@ -307,9 +308,9 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     }
 
     if (DoSPCounters) {
-      sp_counters_vec = std::vector<int>(num_vertices, -1);
+      sp_counters_vec = std::vector<int>(num_vertices, 0);
       dsp_counters_vec.resize(num_vertices);
-      sp_counters = thrust::raw_pointer_cast(dpred_vec.data());
+      sp_counters = thrust::raw_pointer_cast(dsp_counters_vec.data());
     }
 
     HighResClock hr_clock;
@@ -346,7 +347,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                  cudaMemcpyDeviceToHost);
 
     if (DoSPCounters)
-      cudaMemcpy((void*)&pred_vec[0],
+      cudaMemcpy((void*)&sp_counters_vec[0],
                  sp_counters,
                  sizeof(int) * num_vertices,
                  cudaMemcpyDeviceToHost);
@@ -357,7 +358,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     std::vector<MaxVType> elist(num_edges);
     std::vector<DistType> ref_distances(num_vertices), weights(num_edges);
     std::vector<MaxVType> ref_predecessors(num_vertices);
-    // TODO: Should create ref host sp_counters
+    // TODO(xcadet) Should create ref host sp_counters
 
     cudaMemcpy((void*)&vlist[0],
                G.adjList->offsets->data,
@@ -443,7 +444,7 @@ TEST_P(Tests_SSSP, CheckFP64_NO_DIST_PREDS_NO_COUNTERS) {
 TEST_P(Tests_SSSP, CheckFP64_DIST_PREDS_NO_COUNTERS) {
   run_current_test<int, int, double, true, true, false>(GetParam());
 }
-// Tests for sp_counters
+// TODO(xcadet) Add actual tests for counters
 TEST_P(Tests_SSSP, CheckFP32_DIST_NO_PREDS_COUNTERS) {
   run_current_test<int, int, float, true, false, true>(GetParam());
 }

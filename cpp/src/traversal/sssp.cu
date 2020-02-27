@@ -114,6 +114,7 @@ void SSSP<IndexType, DistType>::configure(DistType* _distances,
   useEdgeMask = (edge_mask != NULL);
   computeDistances = (distances != NULL);
   computePredecessors = (predecessors != NULL);
+  computeSPCounters = (sp_counters != NULL);
 
   // We need distances for SSSP even if the caller doesn't need them
   if (!computeDistances)
@@ -129,10 +130,19 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   traversal::fill_vec(
       next_distances, n, traversal::vec_t<DistType>::max, stream);
 
+
   // If needed, set all predecessors to non-existent (-1)
   if (computePredecessors) {
     cudaMemsetAsync(predecessors, -1, n * sizeof(IndexType), stream);
   }
+
+  // TOOD(xcadet) probably a better way than this
+  if (computeSPCounters) {
+    traversal::fill_vec(sp_counters, n, 0, stream);
+    int tmp = 1;
+    cudaMemcpy(&sp_counters[source_vertex], &tmp, sizeof(int), cudaMemcpyHostToDevice);
+  }
+
 
   //
   // Initial frontier
@@ -332,6 +342,7 @@ void sssp(Graph* graph,
                           &h_edge_data[0],
                           edge_data_size,
                           cudaMemcpyHostToDevice));
+
       gdf_column_view(graph->adjList->edge_data,
                       d_edge_data,
                       nullptr,

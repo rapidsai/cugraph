@@ -220,6 +220,11 @@ __global__ void populate_frontier_and_preds(
                 // Set bit in next_frontier_bmap to 1 and check for old value
                 // to check for success
 
+                // TODO(xcadet) If our relaxation is the last one then we want to update
+                if (sp_counters) {
+                  //atomicAdd(&sp_counters[src_id], 1);
+                }
+
                 int old_val = atomicOr(&next_frontier_bmap[dst_id / INT_SIZE],
                                        1 << (dst_id % INT_SIZE));
 
@@ -241,9 +246,6 @@ __global__ void populate_frontier_and_preds(
                   // Add src_id to predecessor in either case if needed
                   if (predecessors) {
                     predecessors[dst_id] = src_id;
-                  }
-                  if (sp_counters) {
-                    //atomicAdd(&sp_counters[src_id], 1);
                   }
                 }
                 // else lost the tie

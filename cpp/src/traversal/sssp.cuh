@@ -36,7 +36,7 @@ class SSSP {
   DistType* distances;
   DistType* next_distances;
   IndexType* predecessors;
-  int* sp_counters;
+  int* sp_counters = nullptr;
   int* edge_mask;
 
   // Working data
