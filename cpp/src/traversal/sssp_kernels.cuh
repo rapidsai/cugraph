@@ -220,11 +220,6 @@ __global__ void populate_frontier_and_preds(
                 // Set bit in next_frontier_bmap to 1 and check for old value
                 // to check for success
 
-                // TODO(xcadet) If our relaxation is the last one then we want to update
-                if (sp_counters) {
-                  //atomicAdd(&sp_counters[src_id], 1);
-                }
-
                 int old_val = atomicOr(&next_frontier_bmap[dst_id / INT_SIZE],
                                        1 << (dst_id % INT_SIZE));
 
@@ -249,6 +244,14 @@ __global__ void populate_frontier_and_preds(
                   }
                 }
                 // else lost the tie
+
+                // Predecessors kept count of shortest paths to themselves
+                // The number of shortest-paths reaching the current vertex is the sum of all
+                // shortest-paths up to this node.
+                // (This relies on non negativity of all edge weights)
+                if (sp_counters) {
+                  atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
+                }
               }
               // else somebody else relaxed it to a lower value after us in the
               // previous kernel
