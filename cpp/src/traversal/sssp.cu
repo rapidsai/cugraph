@@ -217,6 +217,7 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
         distances,
         next_distances,
         predecessors,
+        sp_counters,
         edge_mask,
         next_frontier_bmap,
         relaxed_edges_bmap,

@@ -47,6 +47,7 @@ __global__ void populate_frontier_and_preds(
     DistType* distances,
     DistType* next_distances,
     IndexType* predecessors,
+    int* sp_counters,
     const int* edge_mask) {
   // BlockScan
   typedef cub::BlockScan<IndexType, TOP_DOWN_EXPAND_DIMX> BlockScan;
@@ -240,6 +241,9 @@ __global__ void populate_frontier_and_preds(
                   // Add src_id to predecessor in either case if needed
                   if (predecessors) {
                     predecessors[dst_id] = src_id;
+                  }
+                  if (sp_counters) {
+                    //atomicAdd(&sp_counters[src_id], 1);
                   }
                 }
                 // else lost the tie
@@ -533,6 +537,7 @@ void frontier_expand(
     DistType* distances,
     DistType* next_distances,
     IndexType* predecessors,
+    int* sp_counters,
     const int* edge_mask,
     int* next_frontier_bmap,
     int* relaxed_edges_bmap,
@@ -587,6 +592,7 @@ void frontier_expand(
       distances,
       next_distances,
       predecessors,
+      sp_counters,
       edge_mask);
 
   CUDA_CHECK_LAST();
