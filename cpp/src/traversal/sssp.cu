@@ -104,9 +104,11 @@ void SSSP<IndexType, DistType>::setup() {
 template <typename IndexType, typename DistType>
 void SSSP<IndexType, DistType>::configure(DistType* _distances,
                                           IndexType* _predecessors,
+                                          int *_sp_counters,
                                           int* _edge_mask) {
   distances = _distances;
   predecessors = _predecessors;
+  sp_counters = _sp_counters;
   edge_mask = _edge_mask;
 
   useEdgeMask = (edge_mask != NULL);
@@ -286,6 +288,7 @@ template <typename VT, typename WT>
 void sssp(Graph* graph,                                            
           WT *distances,                                                  
           VT *predecessors,                                               
+          int *sp_counters,
           const VT source_vertex) {
 
   CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: graph adjList is NULL");
@@ -379,7 +382,7 @@ void sssp(Graph* graph,
     cugraph::detail::SSSP<VT, WT> sssp(
         n, e, offsets_ptr, indices_ptr, static_cast<WT*>(edge_weights_ptr));
 
-    sssp.configure(distances, predecessors, nullptr);
+    sssp.configure(distances, predecessors, sp_counters, nullptr);
     sssp.traverse(source_vertex);
   } else if (typeid(WT) == typeid(double)) {
     cugraph::detail::SSSP<VT, WT> sssp(n,
@@ -388,7 +391,7 @@ void sssp(Graph* graph,
                                     indices_ptr,
                                     static_cast<WT*>(edge_weights_ptr));
 
-    sssp.configure(distances, predecessors, nullptr);
+    sssp.configure(distances, predecessors, sp_counters, nullptr);
     sssp.traverse(source_vertex);
   } else {
     CUGRAPH_EXPECTS(graph->adjList->edge_data->dtype == GDF_FLOAT32 ||
@@ -398,7 +401,7 @@ void sssp(Graph* graph,
 }
 
 // explicit instantiation
-template void sssp<int, float>(Graph* graph, float *distances, int *predecessors, const int source_vertex);
-template void sssp<int, double>(Graph* graph, double *distances, int *predecessors, const int source_vertex);
+template void sssp<int, float>(Graph* graph, float *distances, int *predecessors, int *sp_counters, const int source_vertex);
+template void sssp<int, double>(Graph* graph, double *distances, int *predecessors, int *sp_counters, const int source_vertex);
 
 } //namespace

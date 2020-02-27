@@ -32,10 +32,11 @@ class SSSP {
   bool useEdgeMask;
   bool computeDistances;
   bool computePredecessors;
+  bool computeSPCounters;
   DistType* distances;
   DistType* next_distances;
   IndexType* predecessors;
-  int *sp_counters;
+  int* sp_counters;
   int* edge_mask;
 
   // Working data
@@ -76,7 +77,7 @@ class SSSP {
     setup();
   }
 
-  void configure(DistType* distances, IndexType* predecessors, int* edge_mask);
+  void configure(DistType* distances, IndexType* predecessors, int* sp_counters, int* edge_mask);
   void traverse(IndexType source_vertex);
 };
 } } //namespace

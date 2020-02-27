@@ -163,11 +163,13 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
             typename MaxEType,
             typename DistType,
             bool DoDist,
-            bool DoPreds>
+            bool DoPreds,
+            bool DoSPCounters>
   void run_current_test(const SSSP_Usecase& param) {
     gdf_column col_src, col_dest, col_weights;
     DistType* distances = nullptr;
     MaxVType* preds = nullptr;
+    int *sp_counters = nullptr;
 
     MaxVType num_vertices;
     MaxEType num_edges;
@@ -284,8 +286,10 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     std::vector<DistType> dist_vec;
     std::vector<MaxVType> pred_vec;
+    std::vector<int> sp_counters_vec;
     rmm::device_vector<DistType> ddist_vec;
     rmm::device_vector<MaxVType> dpred_vec;
+    rmm::device_vector<int> dsp_counters_vec;
 
     if (DoDist) {
       dist_vec = std::vector<DistType>(num_vertices,
@@ -302,6 +306,12 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       preds = thrust::raw_pointer_cast(dpred_vec.data());
     }
 
+    if (DoSPCounters) {
+      sp_counters_vec = std::vector<int>(num_vertices, -1);
+      dsp_counters_vec.resize(num_vertices);
+      sp_counters = thrust::raw_pointer_cast(dpred_vec.data());
+    }
+
     HighResClock hr_clock;
     double time_tmp;
 
@@ -309,13 +319,13 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (auto i = 0; i < PERF_MULTIPLIER; ++i) {
-        cugraph::sssp(&G, distances, preds, src);
+        cugraph::sssp(&G, distances, preds, sp_counters, src);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       SSSP_time.push_back(time_tmp);
     } else {
-        cugraph::sssp(&G, distances, preds, src);
+        cugraph::sssp(&G, distances, preds, sp_counters, src);
         cudaDeviceSynchronize();
     }
 
@@ -335,12 +345,19 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                  sizeof(MaxVType) * num_vertices,
                  cudaMemcpyDeviceToHost);
 
+    if (DoSPCounters)
+      cudaMemcpy((void*)&pred_vec[0],
+                 sp_counters,
+                 sizeof(int) * num_vertices,
+                 cudaMemcpyDeviceToHost);
+
     // Create ref host structures
 
     std::vector<MaxEType> vlist(num_vertices + 1);
     std::vector<MaxVType> elist(num_edges);
     std::vector<DistType> ref_distances(num_vertices), weights(num_edges);
     std::vector<MaxVType> ref_predecessors(num_vertices);
+    // TODO: Should create ref host sp_counters
 
     cudaMemcpy((void*)&vlist[0],
                G.adjList->offsets->data,
@@ -408,23 +425,42 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
 std::vector<double> Tests_SSSP::SSSP_time;
 
-TEST_P(Tests_SSSP, CheckFP32_DIST_NO_PREDS) {
-  run_current_test<int, int, float, true, false>(GetParam());
+TEST_P(Tests_SSSP, CheckFP32_DIST_NO_PREDS_NO_COUNTERS) {
+  run_current_test<int, int, float, true, false, false>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP32_NO_DIST_PREDS) {
-  run_current_test<int, int, float, false, true>(GetParam());
+TEST_P(Tests_SSSP, CheckFP32_NO_DIST_PREDS_NO_COUNTERS) {
+  run_current_test<int, int, float, false, true, false>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP32_DIST_PREDS) {
-  run_current_test<int, int, float, true, true>(GetParam());
+TEST_P(Tests_SSSP, CheckFP32_DIST_PREDS_NO_COUNTERS) {
+  run_current_test<int, int, float, true, true, false>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP64_DIST_NO_PREDS) {
-  run_current_test<int, int, double, true, false>(GetParam());
+TEST_P(Tests_SSSP, CheckFP64_DIST_NO_PREDS_NO_COUNTERS) {
+  run_current_test<int, int, double, true, false, false>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP64_NO_DIST_PREDS) {
-  run_current_test<int, int, double, false, true>(GetParam());
+TEST_P(Tests_SSSP, CheckFP64_NO_DIST_PREDS_NO_COUNTERS) {
+  run_current_test<int, int, double, false, true, false>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP64_DIST_PREDS) {
-  run_current_test<int, int, double, true, true>(GetParam());
+TEST_P(Tests_SSSP, CheckFP64_DIST_PREDS_NO_COUNTERS) {
+  run_current_test<int, int, double, true, true, false>(GetParam());
+}
+// Tests for sp_counters
+TEST_P(Tests_SSSP, CheckFP32_DIST_NO_PREDS_COUNTERS) {
+  run_current_test<int, int, float, true, false, true>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP32_NO_DIST_PREDS_COUNTERS) {
+  run_current_test<int, int, float, false, true, true>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP32_DIST_PREDS_COUNTERS) {
+  run_current_test<int, int, float, true, true, true>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP64_DIST_NO_PREDS_COUNTERS) {
+  run_current_test<int, int, double, true, false, true>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP64_NO_DIST_PREDS_COUNTERS) {
+  run_current_test<int, int, double, false, true, true>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP64_DIST_PREDS_COUNTERS) {
+  run_current_test<int, int, double, true, true, true>(GetParam());
 }
 
 // --gtest_filter=*simple_test*

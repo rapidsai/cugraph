@@ -132,6 +132,8 @@ void bfs(Graph* graph,
  *                                                                              
  * @Param[out] *predecessors         If set to a valid pointer, array of size V populated by the SSSP predecessor of every vertex. Memory is provided and owned by the caller.
  *                                                                              
+ * @Param[out] *sp_counters         If set to a valid pointer, array of size V populated by the shortests path counter of every vertex. Memory is provided and owned by the caller.
+ *
  * @Param[in] start_vertex           The starting vertex for SSSP               
  *                                                                              
  * @throws     cugraph::logic_error with a custom message when an error occurs.
@@ -141,6 +143,7 @@ template <typename VT, typename WT>
 void sssp(Graph* graph,                                            
           WT *distances,                                                  
           VT *predecessors,                                               
+          int *sp_counters,
           const VT source_vertex);                      
 
 /**
