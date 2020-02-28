@@ -11,6 +11,7 @@
 - PR #719 Updated docs to remove CUDA 9.2 and add CUDA 10.2
 - PR #720 Updated error messages
 - PR #723 Added notebook testing to gpuCI gpu build
+- PR #734 Updated view_edge_list for Graph, added unrenumering test, fixed column access issues
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
