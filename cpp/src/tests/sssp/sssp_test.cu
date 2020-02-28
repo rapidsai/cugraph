@@ -414,6 +414,10 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
               << " actual " << pred_vec[i];
         }
       }
+      // FIXME(xcadet) Implement test, until then it should fail
+      if (DoSPCounters) {
+        ASSERT_TRUE(false);
+      }
     }
 
     // Done with device mem. Free it
