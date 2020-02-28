@@ -79,8 +79,8 @@ def bfs(input_graph, start, directed=True):
             unrenumered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
             unrenumered_df = unrenumered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
             unrenumered_df.columns = ['distance']+['vertex_'+str(i) for i in range(n_cols)]+['predecessor_'+str(i) for i in range(n_cols)]
-            cols = unrenumered_df.columns
-            df = unrenumered_df[[cols[1:n_cols+1], cols[0], cols[n_cols:]]]
+            cols = unrenumered_df.columns.to_list()
+            df = unrenumered_df[cols[1:n_cols+1] + [cols[0]] + cols[n_cols:]]
         else:
             df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
             df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
