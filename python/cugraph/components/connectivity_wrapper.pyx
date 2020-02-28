@@ -22,6 +22,8 @@ from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.utils cimport table_from_dataframe
 from libc.stdint cimport uintptr_t
+from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.graph import Graph as type_Graph
 
 import cudf
 import cudf._lib as libcudf
@@ -34,7 +36,7 @@ def weakly_connected_components(input_graph):
     cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
 
-    if input_graph.adjlist:
+    if type(input_graph) is type_Graph and input_graph.adjlist:
         [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
         [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
         graph_wrapper.add_adj_list(graph, offsets, indices, weights)
@@ -42,12 +44,17 @@ def weakly_connected_components(input_graph):
         [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
         if input_graph.edgelist.weights:
             [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            if type(input_graph) is not type_Graph:
+                src, dst, weights = symmetrize(src, dst, weights)
             graph_wrapper.add_edge_list(graph, src, dst, weights)
         else:
+            if type(input_graph) is not type_Graph:
+                src, dst = symmetrize(src, dst)
             graph_wrapper.add_edge_list(graph, src, dst)
         add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+        if type(input_graph) is type_Graph:
+            offsets, indices, values = graph_wrapper.get_adj_list(graph)
+            input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
 
     # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)

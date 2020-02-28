@@ -25,6 +25,7 @@ build:
 requirements:
   build:
     - python x.x
+    - cython>=0.29,<0.30
     - libcugraph={{ version }}
     - cudf={{ minor_version }}
   run:

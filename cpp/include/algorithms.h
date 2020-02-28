@@ -21,45 +21,6 @@
 namespace cugraph {
 
 /**
- * @Synopsis   Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
- * The number of iterations depends on the properties of the network itself; it increases when the tolerance descreases and/or alpha increases toward the limiting value of 1.
- * The user is free to use default values or to provide inputs for the initial guess, tolerance and maximum number of iterations.
- *
- * @tparam VT the type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam WT the type of edge weights. Supported value : float or double.   
- *
- * @Param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSR). Edge weights are not used for this algorithm.
- * @Param[in] alpha                  The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
-                                     Thus, 1.0-alpha is the probability to “teleport” to a random vertex. Alpha should be greater than 0.0 and strictly lower than 1.0.
- *                                   The initial guess must not be the vector of 0s. Any value other than 1 or 0 is treated as an invalid value.
- * @Param[in] pagerank               Array of size V. Should contain the initial guess if has_guess=true. In this case the initial guess cannot be the vector of 0s. Memory is provided and owned by the caller.
- * @Param[in] personalization_subset_size (optional) The number of vertices for to personalize. Initialized to 0 by default.
- * @Param[in] personalization_subset (optional) Array of size personalization_subset_size containing vertices for running personalized pagerank. Initialized to nullptr by default. Memory is provided and owned by the caller.
- * @Param[in] personalization_values (optional) Array of size personalization_subset_size containing values associated with personalization_subset vertices. Initialized to nullptr by default. Memory is provided and owned by the caller.
- * @Param[in] tolerance              Set the tolerance the approximation, this parameter should be a small magnitude value.
- *                                   The lower the tolerance the better the approximation. If this value is 0.0f, cuGRAPH will use the default value which is 1.0E-5.
- *                                   Setting too small a tolerance can lead to non-convergence due to numerical roundoff. Usually values between 0.01 and 0.00001 are acceptable.
- * @Param[in] max_iter               (optional) The maximum number of iterations before an answer is returned. This can be used to limit the execution time and do an early exit before the solver reaches the convergence tolerance.
- *                                   If this value is lower or equal to 0 cuGRAPH will use the default value, which is 500.
-  * @Param[in] has_guess             (optional) This parameter is used to notify cuGRAPH if it should use a user-provided initial guess. False means the user does not have a guess, in this case cuGRAPH will use a uniform vector set to 1/V.
- *                                   If the value is True, cuGRAPH will read the pagerank parameter and use this as an initial guess.
- * @Param[out] *pagerank             The PageRank : pagerank[i] is the PageRank of vertex i. Memory remains provided and owned by the caller.
- *
- * @throws                           cugraph::logic_error with a custom message when an error occurs.
- */
-/* ----------------------------------------------------------------------------*/
-template <typename VT, typename WT>
-void pagerank(Graph *graph,
-              WT* pagerank,
-              size_t personalization_subset_size=0, 
-              VT* personalization_subset=nullptr, 
-              WT* personalization_values=nullptr,
-              float alpha = 0.85,
-              float tolerance = 1e-5, 
-              int max_iter = 500,
-              bool has_guess = false);
-
-/**
  * @Synopsis   Creates source, destination and value columns based on the specified R-MAT model
  *
  * @Param[in] *argv                  String that accepts the following arguments
@@ -100,7 +61,9 @@ void grmat_gen(const char* argv,
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
  *
- * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @tparam VT the type of vertex identifiers. Supported value : int (signed, 32-bit)
+ *
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid adjList
  *
  * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
  *
@@ -113,11 +76,12 @@ void grmat_gen(const char* argv,
  * @throws     cugraph::logic_error when an error occurs.
  */
 /* ----------------------------------------------------------------------------*/
+template <typename VT>
 void bfs(Graph* graph,
-         gdf_column *distances,
-         gdf_column *predecessors,
-         int start_vertex,
-         bool directed);
+         VT *distances,
+         VT *predecessors,
+         const VT start_vertex,
+         bool directed = true);
 /**                                                                             
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
  *     
@@ -203,7 +167,30 @@ void overlap_list(Graph* graph,
 void louvain(Graph* graph,
              void *final_modularity,
              void *num_level,
-             gdf_column *louvain_parts);
+             void *louvain_parts,
+             int max_iter = 100);
+
+/**
+ * @brief Computes the ecg clustering of the given graph.
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ * @throws `cudf::logic_error` if graph is null.
+ * @throws `cudf::logic_error` if ecg_parts is null.
+ * @throws `cudf::logic_error` if graph does not have an adjacency list.
+ * @throws `cudf::logic_error` if graph does not have edge weights.
+ * @param graph The input graph
+ * @param min_weight The minimum weight parameter
+ * @param ensemble_size The ensemble size parameter
+ * @param ecg_parts A pointer to a gdf_column which has allocated memory for the resulting partition identifiers.
+ */
+template<typename IdxT, typename ValT>
+void ecg(Graph* graph,
+         ValT min_weight,
+         size_t ensemble_size,
+         IdxT *ecg_parts);
 
 /**
  * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is

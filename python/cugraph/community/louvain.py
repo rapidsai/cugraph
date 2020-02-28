@@ -12,9 +12,10 @@
 # limitations under the License.
 
 from cugraph.community import louvain_wrapper
+from cugraph.structure.graph import Graph
 
 
-def louvain(input_graph):
+def louvain(input_graph, max_iter=100):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain heuristic
@@ -27,6 +28,12 @@ def louvain(input_graph):
         The adjacency list will be computed if not already present. The graph
         should be undirected where an undirected edge is represented by a
         directed edge in both direction.
+
+    max_iter : integer
+        This controls the maximum number of levels/iterations of the Louvain
+        algorithm. When specified the algorithm will terminate after no more
+        than the specified number of iterations. No error occurs when the
+        algorithm terminates early in this manner.
 
     Returns
     -------
@@ -48,6 +55,10 @@ def louvain(input_graph):
     >>> parts, modularity_score = cugraph.louvain(G)
     """
 
-    parts, modularity_score = louvain_wrapper.louvain(input_graph)
+    if type(input_graph) is not Graph:
+        raise Exception("input graph must be undirected")
+
+    parts, modularity_score = louvain_wrapper.louvain(input_graph,
+                                                      max_iter=max_iter)
 
     return parts, modularity_score

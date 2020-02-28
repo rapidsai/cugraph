@@ -152,6 +152,7 @@ inline void check_stream(cudaStream_t stream, const char* file,
  * GDF_REQUIRE should be considered deprecated.
  *
  *---------------------------------------------------------------------------**/
+#ifndef CUDA_TRY
 #define CUDA_TRY(call)                                            \
   do {                                                            \
     cudaError_t const status = (call);                            \
@@ -159,6 +160,7 @@ inline void check_stream(cudaStream_t stream, const char* file,
       cugraph::detail::throw_cuda_error(status, __FILE__, __LINE__); \
     }                                                             \
   } while (0);
+#endif
 #endif
 
 #define CUDA_CHECK_LAST() {                                       \
@@ -189,3 +191,20 @@ inline void check_stream(cudaStream_t stream, const char* file,
 #else
 #define CHECK_STREAM(stream) static_cast<void>(0)
 #endif
+
+/**---------------------------------------------------------------------------*
+ * @brief Macro for checking graph object that throws an exception when  
+ * a condition is violated.
+ * 
+ * Example usage:
+ * 
+ * @code
+ * CHECK_GRAPH(graph);
+ * @endcode
+ *
+ * @param[in] the Graph class 
+ * @throw cugraph::logic_error if the condition evaluates to false.
+ *---------------------------------------------------------------------------**/
+#define CHECK_GRAPH(graph) \
+  CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter: graph is NULL"); \
+  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter: graph is empty");

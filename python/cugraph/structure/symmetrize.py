@@ -136,7 +136,7 @@ def symmetrize(source_col, dest_col, value_col=None):
 
     if value_col is not None:
         csg.null_check(value_col)
-        input_df.add_column('value', value_col)
+        input_df.insert(len(input_df.columns), 'value', value_col)
 
     output_df = symmetrize_df(input_df, 'source', 'destination')
 

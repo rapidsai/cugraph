@@ -288,7 +288,7 @@ void sssp(Graph* graph,
           VT *predecessors,                                               
           const VT source_vertex) {
 
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: graph adjList is NULL");
 
   CUGRAPH_EXPECTS(distances || predecessors, "Invalid API parameter, both outputs are nullptr");
 

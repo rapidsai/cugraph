@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.12.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.13.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -262,12 +262,10 @@ link_directories(
 
 add_library(cugraph SHARED
     src/ktruss/ktruss.cu
-	src/db/db_object.cu
-	src/db/db_parser_integration_test.cu
-	src/db/db_operators.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
+    src/structure/graph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
     src/traversal/sssp.cu
@@ -276,6 +274,7 @@ add_library(cugraph SHARED
     src/converters/nvgraph.cu
     src/converters/renumber.cu
     src/community/nvgraph_gdf.cu
+    src/community/ECG.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
@@ -325,6 +324,7 @@ add_library(cugraph SHARED
 target_include_directories(cugraph
     PRIVATE
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+    "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CUDF_INCLUDE}"

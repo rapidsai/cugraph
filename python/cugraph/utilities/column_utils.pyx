@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 #from cugraph.structure.graph cimport *
-from cudf._lib.cudf cimport get_column_data_ptr, get_column_valid_ptr
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
@@ -25,6 +24,11 @@ import cudf
 import cudf._lib as libcudf
 import numpy as np
 
+cdef uintptr_t get_column_data_ptr(col):
+    """
+    Get the data pointer from a cudf.Series object
+    """
+    return col.__cuda_array_interface__['data'][0]
 
 cdef gdf_column get_gdf_column_view(col):
     """
@@ -47,7 +51,8 @@ cdef gdf_column get_gdf_column_view(col):
     if col._column._mask is None:
         valid_ptr = 0
     else:
-        valid_ptr = get_column_valid_ptr(col._column)
+        #valid_ptr = get_column_valid_ptr(col._column)
+        valid_ptr = 0
     cdef uintptr_t category = 0
     cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(
         time_unit=TIME_UNIT_NONE,
@@ -58,7 +63,7 @@ cdef gdf_column get_gdf_column_view(col):
                                     <void*> data_ptr,
                                     <valid_type*> valid_ptr,
                                     <size_type> len(col),
-                                    gdf_dtype_from_value(col),
+                                    gdf_dtype_from_dtype(col.dtype),
                                     <size_type> col.null_count,
                                     c_extra_dtype_info)
     libcudf.cudf.check_gdf_error(err)
@@ -80,9 +85,10 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
                                     <void*> data_ptr,
                                     <valid_type*> valid_ptr,
                                     <size_type> col_len,
-                                    gdf_dtype_from_value(None, np.int32),
+                                    gdf_dtype_from_dtype(np.int32),
                                     <size_type> 0,
                                     c_extra_dtype_info)
+    
     libcudf.cudf.check_gdf_error(err)
     return c_col
 

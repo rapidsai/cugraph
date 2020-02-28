@@ -11,12 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.structure.graph import Graph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.structure.graph import null_check
 import cudf
 
 
-def jaccard(input_graph, first=None, second=None):
+def jaccard(input_graph, vertex_pair=None):
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -36,12 +37,10 @@ def jaccard(input_graph, first=None, second=None):
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
-    first : cudf.Series
-        Specifies the first vertices of each pair of vertices to compute for,
-        must be specified along with second.
-    second : cudf.Series
-        Specifies the second vertices of each pair of vertices to compute for,
-        must be specified along with first.
+    vertex_pair : cudf.DataFrame
+        A GPU dataframe consisting of two columns representing pairs of
+        vertices. If provided, the jaccard coefficient is computed for the
+        given vertex pairs, else, it is computed for all vertex pairs.
 
     Returns
     -------
@@ -70,16 +69,17 @@ def jaccard(input_graph, first=None, second=None):
     >>> G.add_edge_list(sources, destinations, None)
     >>> df = cugraph.jaccard(G)
     """
+    if type(input_graph) is not Graph:
+        raise Exception("input graph must be undirected")
 
-    if (type(first) == cudf.Series and
-            type(second) == cudf.Series):
-        null_check(first)
-        null_check(second)
-    elif first is None and second is None:
+    if (type(vertex_pair) == cudf.DataFrame):
+        null_check(vertex_pair[vertex_pair.columns[0]])
+        null_check(vertex_pair[vertex_pair.columns[1]])
+    elif vertex_pair is None:
         pass
     else:
-        raise ValueError("Specify first and second or neither")
+        raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = jaccard_wrapper.jaccard(input_graph, first, second)
+    df = jaccard_wrapper.jaccard(input_graph, vertex_pair)
 
     return df

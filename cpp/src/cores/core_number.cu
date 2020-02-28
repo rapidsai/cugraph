@@ -182,7 +182,7 @@ void extract_subgraph(Graph *in_graph,
     switch (in_graph->edgeList->edge_data->dtype) {
       case GDF_FLOAT32:   return detail::extract_edges<float> (in_graph, out_graph, c_ptr, k, filteredEdgeCount);
       case GDF_FLOAT64:   return detail::extract_edges<double>(in_graph, out_graph, c_ptr, k, filteredEdgeCount);
-      default: CUGRAPH_FAIL("Unsupported data type");
+      default: CUGRAPH_FAIL("Unsupported data type: edge data needs to be float32 or float64");
     }
   }
   else {
@@ -193,10 +193,10 @@ void extract_subgraph(Graph *in_graph,
 void core_number(Graph *graph,
                 gdf_column *core_number) {
 
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");
+  CHECK_GRAPH(graph)
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type: graph needs to be int32");
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type: graph needs to be int32");
+  CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type: core number needs to be int32");
   CUGRAPH_EXPECTS(core_number->size == graph->numberOfVertices, "Column size mismatch");
 
   return detail::core_number_impl(graph, static_cast<int*>(core_number->data));
@@ -208,10 +208,12 @@ void k_core(Graph *in_graph,
                      gdf_column *core_number,
                      Graph *out_graph) {
 
-  CUGRAPH_EXPECTS(out_graph != nullptr && in_graph != nullptr, "Invalid API parameter");
+  CUGRAPH_EXPECTS(out_graph != nullptr, "Invalid API parameter: out_graph is NULL");
+  CUGRAPH_EXPECTS(in_graph != nullptr, "Invalid API parameter: in_graph is NULL");
   gdf_size_type nV = in_graph->numberOfVertices;
-  CUGRAPH_EXPECTS(in_graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(in_graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+  
+  CUGRAPH_EXPECTS(in_graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type: graph needs to be int32");
+  CUGRAPH_EXPECTS(in_graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type: graph needs to be int32");
   CUGRAPH_EXPECTS((vertex_id != nullptr) && (core_number != nullptr), "Invalid API parameter");
   CUGRAPH_EXPECTS(vertex_id->dtype == GDF_INT32, "Unsupported data type");
   CUGRAPH_EXPECTS(core_number->dtype == GDF_INT32, "Unsupported data type");

@@ -59,6 +59,8 @@ def sssp(input_graph, source):
     # used instead of g.adjList.offsets.size - 1)
     num_verts = g.adjList.offsets.size - 1
 
+    if input_graph.renumbered is True:
+        source = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map==source].index[0]
     if not 0 <= source < num_verts:                
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
@@ -75,24 +77,32 @@ def sssp(input_graph, source):
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
-    cdef uintptr_t c_distance_col = get_column_data_ptr(df['distance']._column)
-    cdef uintptr_t c_predecessors_col = get_column_data_ptr(df['predecessor']._column)
+    #cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
+    cdef uintptr_t c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
+    #cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
+    cdef uintptr_t c_predecessors_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
 
     g.adjList.get_vertex_identifiers(&c_identifier_col)
 
     
     if g.adjList.edge_data:
         if (df['distance'].dtype == np.float32):
-            c_sssp.sssp[int, float](g, <float*>c_distance_col, <int*>c_predecessors_col, <int>source)
+            c_sssp.sssp[int, float](g, <float*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
         else :
-            c_sssp.sssp[int, double](g, <double*>c_distance_col, <int*>c_predecessors_col, <int>source)
+            c_sssp.sssp[int, double](g, <double*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
     else:
-        #TODO FIX ME when porting BFS (can't use pointers as the API still uses gdf_columns)
-        raise ValueError("Please use BFS as the unweighted path is temporarily disabled in SSSP until refactoring is completed")
-        #c_bfs.bfs(g, <int*>c_distance_col, <int*>c_predecessors_col, <int>source, <bool>True)
+        c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>source)
 
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-        df['predecessor'] = input_graph.edgelist.renumber_map[df['predecessor']]
+        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+            n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
+            unrenumered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
+            unrenumered_df = unrenumered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
+            unrenumered_df.columns = ['distance']+['vertex_'+str(i) for i in range(n_cols)]+['predecessor_'+str(i) for i in range(n_cols)]
+            cols = unrenumered_df.columns
+            df = unrenumered_df[[cols[1:n_cols+1], cols[0], cols[n_cols:]]]
+        else:
+            df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+            df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
 
     return df

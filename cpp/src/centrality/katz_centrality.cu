@@ -34,10 +34,10 @@ void katz_centrality(Graph *graph,
                               double tol,
                               bool has_guess,
                               bool normalized) {
-  CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type");
+  CHECK_GRAPH(graph);
+  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type: offsets need to be int32");
+  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type: indices need to be int32");
+  CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type: centrality needs to be float64");
   CUGRAPH_EXPECTS(katz_centrality->size == graph->numberOfVertices, "Column size mismatch");
 
   const bool isStatic = true;

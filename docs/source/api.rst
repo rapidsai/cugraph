@@ -56,6 +56,13 @@ Louvain
     :members:
     :undoc-members:
 
+ECG
+---
+
+.. automodule:: cugraph.community.ecg
+	:members:
+	:undoc-members:
+
 Spectral Clustering
 -------------------
 
