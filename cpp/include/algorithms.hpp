@@ -62,4 +62,28 @@ void pagerank(experimental::GraphCSC<VT,ET,WT> const &graph,
               int64_t max_iter = 500,
               bool has_guess = false);
 
+/**
+ * @brief     Compute betweenness centrality for a graph
+ *
+ * Betweenness centrality for a vertex is the sum of the fraction of
+ * all pairs shortest paths that pass through the vertex.
+ * 
+ * @throws                           cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ * @tparam result_t                  Type of computed result.  Supported values :  float
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSR). Edge weights are not used for this algorithm.
+ * @param[out] result                Device array of centrality scores
+ *
+ *
+ * TODO:  Could add parameters for sampling and normalization, current implementation
+ *        computes exact answer and normalizes.
+ */
+template <typename VT, typename ET, typename WT, typename result_t>
+void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
+                            result_t *result);
+
 } //namespace cugraph
