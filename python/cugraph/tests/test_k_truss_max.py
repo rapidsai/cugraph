@@ -68,6 +68,8 @@ def compare_k_truss(graph_file, k_truss_nx):
 
 DATASETS = [('../datasets/polbooks.csv', 6),
             ('../datasets/netscience.csv', 20)]
+
+
 @pytest.mark.parametrize('managed, pool',
                          list(product([False], [False])))
 @pytest.mark.parametrize('graph_file,nx_ground_truth', DATASETS)
