@@ -71,9 +71,6 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
 
-    cu_M = cu_M.sort_values('1')
-    cu_M = cu_M.sort_values('0')
-
     G_adj = cugraph.DiGraph()
     G_adj.from_cudf_adjlist(row_offsets, col_indices)
     G_edge = cugraph.DiGraph()
@@ -104,9 +101,6 @@ def test_modularity_clustering_with_edgevals(graph_file, partitions):
                               read_weights_in_sp=False)
     M = M.tocsr().sorted_indices()
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
-
-    cu_M = cu_M.sort_values('1')
-    cu_M = cu_M.sort_values('0')
 
     row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)

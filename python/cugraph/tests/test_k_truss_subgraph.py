@@ -34,52 +34,43 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def networkx_k_truss_max(graph_file):
-    NM = utils.read_csv_for_nx(graph_file)
-    NM = NM.tocsr()
-
-    k = 3
-    Gnx = nx.Graph(NM)
-    Gnx = Gnx.to_undirected()
-
-    while(not nx.is_empty(Gnx)):
-        Gnx = nx.k_truss(Gnx, k)
-        k = k+1
-    k = k-2
-
-    return k
+def ktruss_ground_truth(graph_file):
+    subgraph = utils.read_csv_for_nx(graph_file)
+    nxktruss_subgraph = nx.DiGraph(subgraph.tocsr())
+    return nxktruss_subgraph
 
 
-def cugraph_k_truss_max(graph_file):
+def cugraph_k_truss_subgraph(graph_file, k):
     cu_M = utils.read_csv_file(graph_file)
-
     G = cugraph.DiGraph()
-
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-
-    k_max = cugraph.ktruss_max(G)
-    return k_max
-
-
-def compare_k_truss(graph_file, k_truss_nx):
-    k_truss_cugraph = cugraph_k_truss_max(graph_file)
-    assert (k_truss_cugraph == k_truss_nx)
+    k_subgraph = cugraph.ktruss_subgraph(G, k)
+    return k_subgraph
 
 
-DATASETS = [('../datasets/polbooks.csv', 6),
-            ('../datasets/netscience.csv', 20)]
+def compare_k_truss(graph_file, k, ground_truth_file):
+    k_truss_cugraph = cugraph_k_truss_subgraph(graph_file, k)
+    k_truss_nx = ktruss_ground_truth(ground_truth_file)
+
+    edgelist_df = k_truss_cugraph.view_edge_list()
+    src, dest = edgelist_df['src'], edgelist_df['dst'],
+    for i in range(len(src)):
+        assert k_truss_nx.has_edge(src[i], dest[i]) or k_truss_nx.has_edge(dest[i], src[i])
+    return True
+
+
+DATASETS = [('../datasets/polbooks.csv', '../datasets/ref/ktruss/polbooks.csv'),
+            ('../datasets/netscience.csv', '../datasets/ref/ktruss/netscience.csv')]
 @pytest.mark.parametrize('managed, pool',
                          list(product([False], [False])))
-@pytest.mark.parametrize('graph_file,nx_ground_truth', DATASETS)
+@pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
 def test_ktruss_max(managed, pool, graph_file, nx_ground_truth):
     gc.collect()
 
     rmm.reinitialize(
         managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
+        pool_allocator=pool)
 
     assert(rmm.is_initialized())
 
-    compare_k_truss(graph_file, nx_ground_truth)
+    compare_k_truss(graph_file, 5, nx_ground_truth)

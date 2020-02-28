@@ -11,9 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph import Graph
-
 from cugraph.ktruss import ktruss_subgraph_wrapper
+from cugraph.structure.graph import DiGraph
 
 
 def ktruss_subgraph(G, k):
@@ -77,8 +76,9 @@ def ktruss_subgraph(G, k):
     >>> k_max = cugraph.ktruss_max(G)
     """
 
-    # subgraph_truss = cugraph.Graph()
-    subgraph_truss = Graph()
+    KTrussSubgraph = DiGraph()
 
-    ktruss_subgraph_wrapper.ktruss_subgraph(G.graph_ptr, k,
-                                            subgraph_truss.graph_ptr)
+    ktruss_subgraph_wrapper.ktruss_subgraph(G, k,
+                                            KTrussSubgraph)
+
+    return KTrussSubgraph
