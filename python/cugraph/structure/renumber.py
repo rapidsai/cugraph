@@ -161,7 +161,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     del _s
     del _d
 
-    _src_ids  = _tmp_df_src.merge(
+    _src_ids = _tmp_df_src.merge(
         _tmp_df, on=_vals, how='left').drop(_vals).sort_values(by='index')
 
     _dst_ids = _tmp_df_dst.merge(
