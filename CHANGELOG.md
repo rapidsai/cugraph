@@ -2,6 +2,7 @@
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features
+- PR #736 cuHornet KTruss integration
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
