@@ -104,7 +104,7 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     dst_ids : cudf.Series
         The new destination vertex IDs
     numbering_df : cudf.DataFrame
-        a dataframe that maps a vertex ID to the unique
+        a dataframe that maps a vertex ID to the unique values
 
 
     Examples
@@ -161,10 +161,16 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     del _s
     del _d
 
-    _src_ids = _tmp_df_src.merge(
+    _src_ids  = _tmp_df_src.merge(
         _tmp_df, on=_vals, how='left').drop(_vals).sort_values(by='index')
 
     _dst_ids = _tmp_df_dst.merge(
         _tmp_df, on=_vals, how='left').drop(_vals).sort_values(by='index')
 
-    return _src_ids['id'], _dst_ids['id'], _tmp_df
+    _s_id = cudf.Series(_src_ids['id']).reset_index(drop=True)
+    _d_id = cudf.Series(_dst_ids['id']).reset_index(drop=True)
+
+    del _src_ids
+    del _dst_ids
+
+    return _s_id, _d_id, _tmp_df
