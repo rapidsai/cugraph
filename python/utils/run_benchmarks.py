@@ -86,7 +86,7 @@ def createGraph(edgelist_gdf, auto_csr):
                     edgelist_gdf["val"])
     if auto_csr == 0:
         G.view_adj_list()
-        G.view_transposed_adj_list()
+        #G.view_transposed_adj_list()
     return G
 
 
@@ -212,14 +212,14 @@ if __name__ == "__main__":
     if args.update_results_dir:
         raise NotImplementedError
 
-    # import pprint
-    # pprint.pprint(perfData, open("data","w"))
-
     if args.update_asv_dir:
         # special case: do not include the full path to the datasetName, since
         # the leading parts are redundant and take up UI space.
         datasetName = "/".join(args.file.split("/")[-3:])
 
+        #f = open("perfData.py", "w")
+        #f.write("perfData=%s" % repr(perfData))
+        #f.close()
         cugraph_update_asv(asvDir=args.update_asv_dir,
                            datasetName=datasetName,
                            algoRunResults=perfData,
