@@ -31,8 +31,8 @@
 - PR #636 Added Multi-column renumbering support
 
 ## Improvements
-- PR #640 remove gdf_column in sssp 
-- PR #629 get rid of gdf_column in pagerank 
+- PR #640 remove gdf_column in sssp
+- PR #629 get rid of gdf_column in pagerank
 - PR #641 Add codeowners
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 - PR #652 Remove gdf_column in BFS
