@@ -285,6 +285,7 @@ add_library(cugraph SHARED
     src/snmg/utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
+    src/centrality/betweenness_centrality.cu
     src/snmg/degree/degree.cu
     src/snmg/COO2CSR/COO2CSR.cu
     src/nvgraph/arnoldi.cu
