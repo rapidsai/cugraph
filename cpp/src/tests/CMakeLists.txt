@@ -123,6 +123,14 @@ set(KATZ_TEST_SRC
   ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}" "")
 
 ###################################################################################################
+# - Betweenness Centrality tests ------------------------------------------------------------------------------------
+set(BC_TEST_SRCS
+	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/centrality/betweenness_centrality_test.cu")
+
+ConfigureTest(BC_TEST "${BC_TEST_SRCS}" "")
+
+###################################################################################################
 # - gdfgraph tests --------------------------------------------------------------------------------
 
 set(GDFGRAPH_TEST_SRC
