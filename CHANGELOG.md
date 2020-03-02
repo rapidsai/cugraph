@@ -12,6 +12,7 @@
 - PR #720 Updated error messages
 - PR #722 Refactor graph to remove gdf_column
 - PR #723 Added notebook testing to gpuCI gpu build
+- PR #737 Integrate cugunrock as a cmake ExternalProject
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
@@ -20,6 +21,7 @@
 - PR #716 Fixed bug due to disappearing get_column_data_ptr function in cudf
 - PR #726 Fixed SSSP notebook issues in last cell
 - PR #728 Temporary fix for dask attribute error issue
+- PR #733 Fixed multi-column renumbering issues with indexes
 
 # cuGraph 0.12.0 (04 Feb 2020)
 
