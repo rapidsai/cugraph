@@ -31,7 +31,7 @@ import numpy as np
 import numpy.ctypeslib as ctypeslib
 
 
-def betweenness_centrality(input_graph):
+def betweenness_centrality(input_graph, normalized):
     """
     Call betweenness centrality
     """
@@ -56,7 +56,8 @@ def betweenness_centrality(input_graph):
     
     graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
-    c_betweenness_centrality[int,int,float,float](graph, <float*> c_betweenness)
+    c_betweenness_centrality[int,int,float,float](graph, <float*> c_betweenness, normalized)
+
     graph.get_vertex_identifiers(<int*>c_identifier)
 
     if input_graph.renumbered:

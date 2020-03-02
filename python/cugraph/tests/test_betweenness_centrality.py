@@ -34,17 +34,17 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def calc_betweenness_centrality(graph_file):
+def calc_betweenness_centrality(graph_file, normalized=True):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
-    df = cugraph.betweenness_centrality(G)
+    df = cugraph.betweenness_centrality(G, normalized)
 
     NM = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(NM, create_using=nx.DiGraph(),
                                   source='0', target='1')
-    nb = nx.betweenness_centrality(Gnx)
+    nb = nx.betweenness_centrality(Gnx, normalized=normalized)
     pdf = [nb[k] for k in sorted(nb.keys())]
     df['nx'] = pdf
     df = df.rename({'betweenness_centrality': 'cu'})
@@ -69,6 +69,32 @@ def test_betweenness_centrality(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     scores = calc_betweenness_centrality(graph_file)
+
+    err = 0
+    epsilon = 0.0001
+    
+    for i in range(len(scores)):
+        if (scores['cu'][i] < (scores['nx'][i] * (1 - epsilon)) or
+            scores['cu'][i] > (scores['nx'][i] * (1 + epsilon))):
+            err = err + 1
+            print('ERROR: cu = {}, nx = {}'.format(scores['cu'][i], scores['nx'][i]))
+
+    assert err == 0
+
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_betweenness_centrality_unnormalized(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool
+    )
+
+    assert(rmm.is_initialized())
+
+    scores = calc_betweenness_centrality(graph_file, False)
 
     err = 0
     epsilon = 0.0001

@@ -24,4 +24,6 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void betweenness_centrality[VT,ET,WT,result_t](
         const GraphCSR[VT,ET,WT] &graph,
-        result_t *result) except +
+        result_t *result,
+        bool normalized) except +
+

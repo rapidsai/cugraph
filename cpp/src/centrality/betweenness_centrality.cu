@@ -28,9 +28,14 @@
 
 namespace cugraph {
 
+namespace detail {
+
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
-                            result_t *result) {
+                            result_t *result,
+                            bool normalize,
+                            VT const *sample_seeds = nullptr,
+                            VT number_of_sample_seeds = 0) {
 
   cudaStream_t stream{nullptr};
 
@@ -54,29 +59,57 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
   CUDA_TRY(cudaMemcpy(v_offsets.data(), graph.offsets, sizeof(ET) * (graph.number_of_vertices + 1), cudaMemcpyDeviceToHost));
   CUDA_TRY(cudaMemcpy(v_indices.data(), graph.indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDeviceToHost));
 
-  bc(graph.number_of_vertices,
-     graph.number_of_edges,
-     v_offsets.data(),
-     v_indices.data(),
-     -1,
-     v_result.data(),
-     v_sigmas.data(),
-     v_labels.data());
+  if (sample_seeds == nullptr) {
+    bc(graph.number_of_vertices,
+       graph.number_of_edges,
+       v_offsets.data(),
+       v_indices.data(),
+       -1,
+       v_result.data(),
+       v_sigmas.data(),
+       v_labels.data());
+  } else {
+    //
+    //  Gunrock, as currently implemented
+    //  doesn't support this method.
+    //
+    CUGRAPH_FAIL("gunrock doesn't currently support sampling seeds");
+  }
 
   // copy to results
   CUDA_TRY(cudaMemcpy(result, v_result.data(), sizeof(result_t) * graph.number_of_vertices, cudaMemcpyHostToDevice));
 
   // normalize result
-  float denominator = (graph.number_of_vertices - 1) * (graph.number_of_vertices - 2);
+  if (normalize) {
+    float denominator = (graph.number_of_vertices - 1) * (graph.number_of_vertices - 2);
 
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
-                    result, result + graph.number_of_vertices, result,
-                    [denominator] __device__ (float f) {
+    thrust::transform(rmm::exec_policy(stream)->on(stream),
+                      result, result + graph.number_of_vertices, result,
+                      [denominator] __device__ (float f) {
                         return (f * 2) / denominator;
-                    });
+                      });
+  } else {
+    //
+    //  gunrock answer needs to be doubled to match networkx
+    //
+    thrust::transform(rmm::exec_policy(stream)->on(stream),
+                      result, result + graph.number_of_vertices, result,
+                      [] __device__ (float f) {
+                        return (f * 2);
+                      });
+  }
 }
 
-template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int,int,float> const &graph, float* result);
+} // namespace detail
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
+                            result_t *result,
+                            bool normalize) {
+  detail::betweenness_centrality(graph, result, normalize);
+}
+
+template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int,int,float> const &, float*, bool);
 
 } //namespace cugraph
 
