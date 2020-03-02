@@ -16,9 +16,9 @@ from cugraph.centrality import betweenness_centrality_wrapper
 
 def betweenness_centrality(G, normalized=True):
     """
-    Compute betweenness centrality for the nodes of the graph G. cuGraph does not
-    currently support the 'endpoints' and 'weight' parameters as seen in the
-    corresponding networkX call.
+    Compute betweenness centrality for the nodes of the graph G. cuGraph
+    does not currently support the 'endpoints' and 'weight' parameters
+    as seen in the corresponding networkX call.
 
     Parameters
     ----------
@@ -28,8 +28,8 @@ def betweenness_centrality(G, normalized=True):
         represented as directed edges in both directions.
     normalized : bool, optional
         Value defaults to true.  If true, the betweenness values are normalized
-        by 2/((n-1)(n-2)) for graphs, and 1 / ((n-1)(n-2)) for directed graphs where
-        n is the number of nodes in G.
+        by 2/((n-1)(n-2)) for graphs, and 1 / ((n-1)(n-2)) for directed graphs
+        where n is the number of nodes in G.
 
     Returns
     -------

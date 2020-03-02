@@ -72,12 +72,13 @@ def test_betweenness_centrality(managed, pool, graph_file):
 
     err = 0
     epsilon = 0.0001
-    
+
     for i in range(len(scores)):
         if (scores['cu'][i] < (scores['nx'][i] * (1 - epsilon)) or
-            scores['cu'][i] > (scores['nx'][i] * (1 + epsilon))):
+           scores['cu'][i] > (scores['nx'][i] * (1 + epsilon))):
             err = err + 1
-            print('ERROR: cu = {}, nx = {}'.format(scores['cu'][i], scores['nx'][i]))
+            print('ERROR: cu = {}, nx = {}'.format(scores['cu'][i],
+                                                   scores['nx'][i]))
 
     assert err == 0
 
@@ -98,11 +99,12 @@ def test_betweenness_centrality_unnormalized(managed, pool, graph_file):
 
     err = 0
     epsilon = 0.0001
-    
+
     for i in range(len(scores)):
         if (scores['cu'][i] < (scores['nx'][i] * (1 - epsilon)) or
-            scores['cu'][i] > (scores['nx'][i] * (1 + epsilon))):
+           scores['cu'][i] > (scores['nx'][i] * (1 + epsilon))):
             err = err + 1
-            print('ERROR: cu = {}, nx = {}'.format(scores['cu'][i], scores['nx'][i]))
+            print('ERROR: cu = {}, nx = {}'.format(scores['cu'][i],
+                                                   scores['nx'][i]))
 
     assert err == 0
