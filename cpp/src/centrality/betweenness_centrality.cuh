@@ -19,18 +19,23 @@
 
 namespace cugraph {
 namespace detail {
-template <typename IndexType, typename DistType>
+template <typename VT, typename WT>
 class BC {
    private:
-      DistType* betweenness;
+      VT *src_indices;
+      VT *dest_indices;
+      WT *edge_weights;
+      WT *betweenness;
 
       cudaStream_t stream;
       void setup();
+      void traverse();
       void clean();
 
    public:
       virtual ~BC(void) { clean(); }
-      BC(cudaStream_t _stream = 0) : stream(_stream) { setup(); }
+      BC(Graph *graph, WT *betweenness, cudaStream_t _stream = 0)
+      : stream(_stream) { setup(); }
 
       void configure();
       void compute();

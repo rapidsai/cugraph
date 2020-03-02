@@ -320,6 +320,19 @@ void snmg_pagerank (gdf_column **src_col_ptrs,
                     const size_t n_gpus, 
                     const float damping_factor, 
                     const int n_iter);
+/**
+ * @Synopsis   Compute the Betweenness centrality for the nodes of the graph G
+ *
+ * @Param[in] *graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ *
+ * @Param[out] *betweenness_centrality  If set to a valid pointer, array of size V populated by the betweenness centrality of every vertex. Memory is provided and owned by the caller.
+ * TODO(xcadet): Should add the following parameters
+ * @Param[in] normalized                If True normalize the resulting betweenness centrality values
+ */
+/* ----------------------------------------------------------------------------*/
+template <typename VT, typename ET, typename WT>
+void betweenness_centrality(Graph* graph, WT *betweenness_centrality);
+
 /**                                                                             
  * @Synopsis   Compute the Katz centrality for the nodes of the graph G
  *                                                                              
