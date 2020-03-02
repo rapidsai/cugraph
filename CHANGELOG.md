@@ -12,6 +12,7 @@
 - PR #720 Updated error messages
 - PR #722 Refactor graph to remove gdf_column
 - PR #723 Added notebook testing to gpuCI gpu build
+- PR #737 Integrate cugunrock as a cmake ExternalProject
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
