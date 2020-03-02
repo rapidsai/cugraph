@@ -165,30 +165,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - gunrock ------------------------------------------------------------------------------------------
-#   TODO:  TEMPORARY... Rick is working on a better solution
-
-find_path(GUNROCK_INCLUDE "gunrock"
-    HINTS
-    "$ENV{GUNROCK_ROOT}/include"
-    "$ENV{CONDA_PREFIX}/include/gunrock"
-    "$ENV{CONDA_PREFIX}/include")
-
-find_library(GUNROCK_LIBRARY "gunrock"
-    HINTS
-    "$ENV{GUNROCK_ROOT}/lib"
-    "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "GUNROCK: GUNROCK_LIBRARY set to ${GUNROCK_LIBRARY}")
-message(STATUS "GUNROCK: GUNROCK_INCLUDE set to ${GUNROCK_INCLUDE}")
-
-add_library(gunrock STATIC IMPORTED ${GUNROCK_LIBRARY})
-if (GUNROCK_INCLUDE AND GUNROCK_LIBRARY)
-    set_target_properties(gunrock PROPERTIES IMPORTED_LOCATION ${GUNROCK_LIBRARY})
-endif (GUNROCK_INCLUDE AND GUNROCK_LIBRARY)
-
-
-###################################################################################################
 # - NVStrings -------------------------------------------------------------------------------------
 
 find_path(NVSTRINGS_INCLUDE "nvstrings"
@@ -288,9 +264,15 @@ ExternalProject_Add(cugunrock
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
+                    -DGUNROCK_BUILD_TESTS=OFF
+  BUILD_COMMAND     ${CMAKE_MAKE_PROGRAM} -j${PARALLEL_LEVEL} VERBOSE=1
 )
 
 add_library(gunrock STATIC IMPORTED)
+
+add_dependencies(gunrock cugunrock)
+
+set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${CUGUNROCK_DIR}/lib/libgunrock.a)
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
@@ -364,6 +346,12 @@ add_library(cugraph SHARED
     src/nvgraph/widest_path.cu
 )
 
+#
+# NOTE:  This dependency will force the building of cugraph to
+#        wait until after cugunrock is constructed.
+#
+add_dependencies(cugraph cugunrock)
+
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
 
@@ -381,6 +369,7 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/xlib/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CUGUNROCK_DIR}/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -389,7 +378,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${GUNROCK_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
