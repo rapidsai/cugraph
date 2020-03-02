@@ -265,7 +265,6 @@ ExternalProject_Add(cugunrock
                     -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
-  BUILD_COMMAND     ${CMAKE_MAKE_PROGRAM} -j${PARALLEL_LEVEL} VERBOSE=1
 )
 
 add_library(gunrock STATIC IMPORTED)
