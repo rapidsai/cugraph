@@ -250,6 +250,26 @@ if (RMM_INCLUDE AND RMM_LIBRARY)
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
+# - External Projects -----------------------------------------------------------------------------
+
+# https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
+include(ExternalProject)
+
+set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
+  "Path to cugunrock repo")
+
+ExternalProject_Add(cugunrock
+  GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
+  GIT_TAG           fea_full_bc      # provide a branch, a tag, or even a commit hash
+  PREFIX            ${CUGUNROCK_DIR}
+  CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+                    -DGPU_ARCHS=""
+                    -DGUNROCK_BUILD_SHARED_LIBS=OFF
+)
+
+add_library(gunrock STATIC IMPORTED)
+
+###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 
 # target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
