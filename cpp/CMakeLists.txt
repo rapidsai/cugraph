@@ -406,7 +406,7 @@ if(BUILD_TESTS)
         # link_directoires (we should switch to target_link_directories once 3.13 becomes the
         # minimum required version).
         link_directories(${GTEST_LIBRARY_DIR})
-        add_subdirectory(${CMAKE_SOURCE_DIR}/src/tests)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
 
