@@ -67,6 +67,8 @@ void pagerank(experimental::GraphCSC<VT,ET,WT> const &graph,
  *
  * Betweenness centrality for a vertex is the sum of the fraction of
  * all pairs shortest paths that pass through the vertex.
+ *
+ * Note that gunrock (current implementation) does not support a weighted graph.
  * 
  * @throws                           cugraph::logic_error with a custom message when an error occurs.
  *
@@ -76,8 +78,8 @@ void pagerank(experimental::GraphCSC<VT,ET,WT> const &graph,
  * @tparam result_t                  Type of computed result.  Supported values :  float
  *
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSR). Edge weights are not used for this algorithm.
- * @param[in] normalized             If true, return normalized scores, if false return unnormalized scores.
  * @param[out] result                Device array of centrality scores
+ * @param[in] normalized             If true, return normalized scores, if false return unnormalized scores.
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
