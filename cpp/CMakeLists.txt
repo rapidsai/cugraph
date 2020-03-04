@@ -254,6 +254,34 @@ endif (RMM_INCLUDE AND RMM_LIBRARY)
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 include(ExternalProject)
 
+# - CUB
+set(CUB_DIR ${CMAKE_CURRENT_BINARY_DIR}/cub CACHE STRING "Path to cub repo")
+set(CUB_INCLUDE_DIR ${CUB_DIR}/src/cub CACHE STRING "Path to cub includes")
+
+ExternalProject_Add(cub
+  GIT_REPOSITORY    https://github.com/NVlabs/cub.git
+  GIT_TAG           v1.8.0
+  PREFIX            ${CUB_DIR}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND     ""
+  INSTALL_COMMAND   ""
+)
+
+# - CUHORNET
+set(CUHORNET_DIR ${CMAKE_CURRENT_BINARY_DIR}/cuhornet CACHE STRING "Path to cuhornet repo")
+set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuhornet includes")
+
+
+ExternalProject_Add(cuhornet
+  GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
+  GIT_TAG           master
+  PREFIX            ${CUHORNET_DIR}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND     ""
+  INSTALL_COMMAND   ""
+)
+
+# - GUNROCK
 set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
   "Path to cugunrock repo")
 
@@ -362,11 +390,11 @@ target_include_directories(cugraph
     "${RMM_INCLUDE}"
     "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cub"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornet/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornetsnest/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/xlib/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/primitives"
+    "${CUB_INCLUDE_DIR}"
+    "${CUHORNET_INCLUDE_DIR}/hornet/include"
+    "${CUHORNET_INCLUDE_DIR}/hornetsnest/include"
+    "${CUHORNET_INCLUDE_DIR}/xlib/include"
+    "${CUHORNET_INCLUDE_DIR}/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUGUNROCK_DIR}/include"
     PUBLIC
