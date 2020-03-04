@@ -33,7 +33,7 @@ from cugraph.structure import (
     renumber_from_cudf
 )
 
-from cugraph.centrality import katz_centrality
+from cugraph.centrality import katz_centrality, betweenness_centrality
 from cugraph.cores import core_number, k_core
 from cugraph.components import weakly_connected_components, strongly_connected_components
 from cugraph.link_analysis import pagerank

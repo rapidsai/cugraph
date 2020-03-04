@@ -2,6 +2,7 @@
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features
+- PR #735 Integration gunrock's betweenness centrality
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
