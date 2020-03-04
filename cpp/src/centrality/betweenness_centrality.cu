@@ -28,7 +28,7 @@
 
 namespace cugraph {
 
-namespace detail {
+namespace gunrock {
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
@@ -105,11 +105,25 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
                             result_t *result,
-                            bool normalize) {
-  detail::betweenness_centrality(graph, result, normalize);
+                            bool normalize,
+                            bool endpoints,
+                            WT const *weight,
+                            VT k,
+                            VT const *vertices) {
+
+  //
+  // NOTE:  gunrock implementation doesn't yet support the unused parameters:
+  //     - endpoints
+  //     - weight
+  //     - k
+  //     - vertices
+  //
+  // These parameters are present in the API to support future features.
+  //
+  gunrock::betweenness_centrality(graph, result, normalize);
 }
 
-template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int,int,float> const &, float*, bool);
+template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int,int,float> const &, float*, bool, bool, float const *, int, int const *);
 
 } //namespace cugraph
 

@@ -31,7 +31,7 @@ import numpy as np
 import numpy.ctypeslib as ctypeslib
 
 
-def betweenness_centrality(input_graph, normalized):
+def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertices):
     """
     Call betweenness centrality
     """
@@ -51,12 +51,24 @@ def betweenness_centrality(input_graph, normalized):
 
     cdef uintptr_t c_offsets = input_graph.adjlist.offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = input_graph.adjlist.indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weight  = <uintptr_t> NULL
+    cdef uintptr_t c_vertices = <uintptr_t> NULL
+
+    if weight is not None:
+        c_weight = weight.__cuda_array_interface__['data'][0]
+
+    if vertices is not None:
+        c_vertices = vertices.__cuda_array_interface__['data'][0]
+
+    c_k = 0
+    if k is not None:
+        c_k = k
 
     cdef GraphCSR[int,int,float] graph
     
     graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
-    c_betweenness_centrality[int,int,float,float](graph, <float*> c_betweenness, normalized)
+    c_betweenness_centrality[int,int,float,float](graph, <float*> c_betweenness, normalized, endpoints, <float*> c_weight, c_k, <int*>c_vertices)
 
     graph.get_vertex_identifiers(<int*>c_identifier)
 

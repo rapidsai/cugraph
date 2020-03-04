@@ -39,7 +39,7 @@ def calc_betweenness_centrality(graph_file, normalized=True):
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
-    df = cugraph.betweenness_centrality(G, normalized)
+    df = cugraph.betweenness_centrality(G, normalized=normalized)
 
     NM = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(NM, create_using=nx.DiGraph(),

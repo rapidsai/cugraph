@@ -14,7 +14,7 @@
 from cugraph.centrality import betweenness_centrality_wrapper
 
 
-def betweenness_centrality(G, normalized=True):
+def betweenness_centrality(G, k=None, normalized=True, weight=None, endpoints=False, seed=None):
     """
     Compute betweenness centrality for the nodes of the graph G. cuGraph
     does not currently support the 'endpoints' and 'weight' parameters
@@ -26,10 +26,20 @@ def betweenness_centrality(G, normalized=True):
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges where undirected edges are
         represented as directed edges in both directions.
+    k : int, optional
+        If k is not None, use k node samples to estimate betweenness.  Higher
+        values give better approximation
     normalized : bool, optional
         Value defaults to true.  If true, the betweenness values are normalized
         by 2/((n-1)(n-2)) for graphs, and 1 / ((n-1)(n-2)) for directed graphs
         where n is the number of nodes in G.
+    weight : cudf.Series
+        Specifies the weights to be used for each vertex.
+    endpoints : bool, optional
+        If true, include the endpoints in the shortest path counts
+    seed : optional
+        k is specified and seed is not None, use seed to initialize the random
+        number generator
 
     Returns
     -------
@@ -53,5 +63,22 @@ def betweenness_centrality(G, normalized=True):
     >>> bc = cugraph.betweenness_centrality(G)
     """
 
-    df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized)
+    #
+    # Some features not implemented for gunrock implementation, failing fast,
+    # but passing parameters through
+    #
+    # vertices is intended to be a cuDF series that contains a sampling of
+    # k vertices out of the graph.
+    #
+    # NOTE: cuDF doesn't currently support sampling, but there is a python
+    # workaround.
+    #
+    vertices = None
+    if k is not None:
+        raise Exception("sampling feature of betweenness centrality not currently supported")
+
+    if weight is not None:
+        raise Exception("weighted implementation of betweenness centrality not currently supported")
+
+    df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized, endpoints, weight, k, vertices)
     return df

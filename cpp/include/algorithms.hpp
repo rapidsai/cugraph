@@ -77,14 +77,22 @@ void pagerank(experimental::GraphCSC<VT,ET,WT> const &graph,
  * @tparam WT                        Type of edge weights. Supported values : float or double.   
  * @tparam result_t                  Type of computed result.  Supported values :  float
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSR). Edge weights are not used for this algorithm.
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
  * @param[out] result                Device array of centrality scores
  * @param[in] normalized             If true, return normalized scores, if false return unnormalized scores.
+ * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
+ * @param[in] weight                 If specified, device array of weights for each edge
+ * @param[in] k                      If specified, number of vertex samples defined in the vertices array
+ * @param[in] vertices               If specified, device array of sampled vertex ids to estimate betweenness centrality.
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
                             result_t *result,
-                            bool normalized = true);
+                            bool normalized = true,
+                            bool endpoints = false,
+                            WT const *weight = nullptr,
+                            VT k = 0,
+                            VT const *vertices = nullptr);
 
 } //namespace cugraph
