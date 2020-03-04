@@ -39,6 +39,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
+    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges()
 
@@ -49,8 +51,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0];
 
-    cdef uintptr_t c_offsets = input_graph.adjlist.offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices = input_graph.adjlist.indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weight  = <uintptr_t> NULL
     cdef uintptr_t c_vertices = <uintptr_t> NULL
 
