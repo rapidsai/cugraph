@@ -22,22 +22,41 @@ namespace detail {
 template <typename VT, typename WT>
 class BC {
    private:
-      VT *src_indices;
-      VT *dest_indices;
-      WT *edge_weights;
-      WT *betweenness;
+      // --- Information concerning the graph ---
+      Graph *graph = nullptr;
+      // --- These information are extracted on setup ---
+      VT number_vertices;        // Number of vertices in the graph
+      VT number_edges;           // Number of edges in the graph
+      VT *offsets_ptr;           // Pointer of the offsets
+      VT *indices_ptr;           // Pointers to the indices
+      WT *edge_weights_ptr;      // Pointer to the weights
+
+      bool configured = false;   // Falg to ensure configuration was called
+
+      // --- Output ----
+      // betweenness is set/read by users - using Vectors
+      WT *betweenness = nullptr;
+
+      // --- Data required to perform computation ----
+      /*
+      VT *predecessors = nullptr; // Predecessors required by sssp
+      VT *sp_counters = nullptr;  // Shortest-Path counter required by sssp
+      WT *sigmas = nullptr;       // Floating point version of sp_counters
+      WT *deltas = nullptr;       // Dependencies counter
+      */
 
       cudaStream_t stream;
       void setup();
-      void traverse();
       void clean();
+      void accumulate(thrust::host_vector<WT> &h_betweenness,
+                      thrust::host_vector<VT> &predecessors,
+                      thrust::host_vector<VT> &h_sp_counters,
+                      VT source);
 
    public:
       virtual ~BC(void) { clean(); }
-      BC(Graph *graph, WT *betweenness, cudaStream_t _stream = 0)
-      : stream(_stream) { setup(); }
-
-      void configure();
+      BC(Graph *_graph, cudaStream_t _stream = 0) :graph(_graph), stream(_stream) { setup(); }
+      void configure(WT *betweenness);
       void compute();
 };
 } // namespace detail

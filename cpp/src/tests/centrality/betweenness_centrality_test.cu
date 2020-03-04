@@ -148,7 +148,7 @@ public:
     ASSERT_EQ(fclose(fp_in), 0);
     fs_ref.close();
 
-    // TODO(xcadet) Update for new Graph without gdf_column
+    // TODO(xcadet) Update needed for new Graph without gdf_column
     create_gdf_column(cooRowInd, &col_src);
     create_gdf_column(cooColInd, &col_dest);
     create_gdf_column(cooVal, &col_weights);
@@ -202,6 +202,7 @@ public:
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_BC,
                         ::testing::Values(BC_Usecase("../../bc_simple_data/data/line3.mtx", "../../bc_simple_data/ref/line3.csv")//,
                                           //BC_Usecase("../../bc_simple_data/data/line4.mtx", "../../bc_simple_data/ref/line4.csv"),
+                                          //BC_Usecase("karate.mtx", "../../bc_simple_data/ref/karate.csv")//,
                                           //BC_Usecase("../../bc_simple_data/data/bridge3.mtx", "../../bc_simple_data/ref/bridge3.csv"),
                                           //BC_Usecase("../../bc_simple_data/data/bridge4.mtx", "../../bc_simple_data/ref/bridge4.csv")
                                          )
