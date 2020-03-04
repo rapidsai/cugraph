@@ -261,12 +261,13 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-	src/db/db_object.cu
-	src/db/db_parser_integration_test.cu
-	src/db/db_operators.cu
+    src/db/db_object.cu
+    src/db/db_parser_integration_test.cu
+    src/db/db_operators.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
+    src/structure/graph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
     src/traversal/sssp.cu
@@ -405,7 +406,7 @@ if(BUILD_TESTS)
         # link_directoires (we should switch to target_link_directories once 3.13 becomes the
         # minimum required version).
         link_directories(${GTEST_LIBRARY_DIR})
-        add_subdirectory(${CMAKE_SOURCE_DIR}/src/tests)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
 

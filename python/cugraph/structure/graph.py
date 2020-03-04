@@ -332,6 +332,37 @@ class Graph:
             graph_wrapper.view_adj_list(self)
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
+    def view_transposed_adj_list(self):
+        """
+        Display the transposed adjacency list. Compute it if needed.
+
+        Returns
+        -------
+        offset_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size V + 1 (V: number of
+            vertices).
+            The gdf column contains the offsets for the vertices in this graph.
+            Offsets are in the range [0, E] (E: number of edges).
+        index_col : cudf.Series
+            This cudf.Series wraps a gdf_column of size E (E: number of edges).
+            The gdf column contains the destination index for each edge.
+            Destination indices are in the range [0, V) (V: number of
+            vertices).
+        value_col : cudf.Series or ``None``
+            This pointer is ``None`` for unweighted graphs.
+            For weighted graphs, this cudf.Series wraps a gdf_column of size E
+            (E: number of edges).
+            The gdf column contains the weight value for each edge.
+            The expected type of the gdf_column element is floating point
+            number.
+        """
+        if self.transposedadjlist is None:
+            graph_wrapper.view_transposed_adj_list(self)
+
+        return (self.transposedadjlist.offsets,
+                self.transposedadjlist.indices,
+                self.transposedadjlist.weights)
+
     def delete_adj_list(self):
         """
         Delete the adjacency list.
