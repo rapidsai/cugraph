@@ -14,7 +14,8 @@
 from cugraph.centrality import betweenness_centrality_wrapper
 
 
-def betweenness_centrality(G, k=None, normalized=True, weight=None, endpoints=False, seed=None):
+def betweenness_centrality(G, k=None, normalized=True,
+                           weight=None, endpoints=False, seed=None):
     """
     Compute betweenness centrality for the nodes of the graph G. cuGraph
     does not currently support the 'endpoints' and 'weight' parameters
@@ -75,10 +76,15 @@ def betweenness_centrality(G, k=None, normalized=True, weight=None, endpoints=Fa
     #
     vertices = None
     if k is not None:
-        raise Exception("sampling feature of betweenness centrality not currently supported")
+        raise Exception("sampling feature of betweenness "
+                        "centrality not currently supported")
 
     if weight is not None:
-        raise Exception("weighted implementation of betweenness centrality not currently supported")
+        raise Exception("weighted implementation of betweenness "
+                        "centrality not currently supported")
 
-    df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized, endpoints, weight, k, vertices)
+    df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
+                                                               endpoints,
+                                                               weight,
+                                                               k, vertices)
     return df
