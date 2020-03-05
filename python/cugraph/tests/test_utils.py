@@ -12,16 +12,10 @@
 # limitations under the License.
 
 import gc
-from itertools import product
-import time
-import numpy as np
-
 import pytest
 
-import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 DATASETS = ['../datasets/dolphins.csv',
             '../datasets/karate.csv',
@@ -29,7 +23,6 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv',
             '../datasets/email-Eu-core.csv']
 
-#@pytest.mark.parametrize('graph_file', DATASETS)
 
 def test_bfs_paths():
     with pytest.raises(ValueError) as ErrorMsg:
@@ -40,13 +33,12 @@ def test_bfs_paths():
         cu_M = utils.read_csv_file(graph_file)
 
         G = cugraph.Graph()
-        G.from_cudf_edgelist(cu_M, source='0', destination='1',
-                            edge_attr='2')
+        G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
 
-        # run BFS starting at vertex 17 
+        # run BFS starting at vertex 17
         df = cugraph.bfs(G,  16)
 
-        # Get the path to vertex 1 
+        # Get the path to vertex 1
         p_df = cugraph.utils.get_traversed_path(df, 0)
 
         assert len(p_df) == 3
