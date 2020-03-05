@@ -49,6 +49,7 @@ class BC {
       void setup();
       void clean();
       void accumulate(thrust::host_vector<WT> &h_betweenness,
+                      thrust::host_vector<VT> &h_nodes,
                       thrust::host_vector<VT> &predecessors,
                       thrust::host_vector<VT> &h_sp_counters,
                       VT source);

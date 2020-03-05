@@ -200,11 +200,11 @@ public:
 
 // TODO(xcadet): Adding some small tests for local use, need to updated for last version
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_BC,
-                        ::testing::Values(BC_Usecase("../../bc_simple_data/data/line3.mtx", "../../bc_simple_data/ref/line3.csv")//,
-                                          //BC_Usecase("../../bc_simple_data/data/line4.mtx", "../../bc_simple_data/ref/line4.csv"),
-                                          //BC_Usecase("karate.mtx", "../../bc_simple_data/ref/karate.csv")//,
-                                          //BC_Usecase("../../bc_simple_data/data/bridge3.mtx", "../../bc_simple_data/ref/bridge3.csv"),
-                                          //BC_Usecase("../../bc_simple_data/data/bridge4.mtx", "../../bc_simple_data/ref/bridge4.csv")
+                        ::testing::Values(BC_Usecase("../../bc_simple_data/data/line3-False-1.0.mtx", "../../bc_simple_data/ref/line3-False-1.0.csv"),
+                                          BC_Usecase("../../bc_simple_data/data/line4.mtx", "../../bc_simple_data/ref/line4.csv"),
+                                          BC_Usecase("karate.mtx", "../../bc_simple_data/ref/karate.csv"),
+                                          BC_Usecase("../../bc_simple_data/data/bridge3.mtx", "../../bc_simple_data/ref/bridge3.csv"),
+                                          BC_Usecase("../../bc_simple_data/data/bridge4.mtx", "../../bc_simple_data/ref/bridge4.csv")
                                          )
                        );
 
