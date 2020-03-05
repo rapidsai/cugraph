@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,13 +22,12 @@ from libcpp cimport bool
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void pagerank[VT,ET,WT](
-        const GraphCSC[VT,ET,WT] &graph,
-        WT *pagerank,
-        VT size,
-        VT *personalization_subset,
-        WT *personalization_values,
-        double alpha,
-        double tolerance,
-        long long max_iter,
-        bool has_guess) except +
+    cdef void betweenness_centrality[VT,ET,WT,result_t](
+        const GraphCSR[VT,ET,WT] &graph,
+        result_t *result,
+        bool normalized,
+        bool endpoints,
+        const WT *weight,
+        VT k,
+        const VT *vertices) except +
+

@@ -164,7 +164,6 @@ if(BUILD_TESTS)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
 
-
 ###################################################################################################
 # - NVStrings -------------------------------------------------------------------------------------
 
@@ -250,6 +249,59 @@ if (RMM_INCLUDE AND RMM_LIBRARY)
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
+# - External Projects -----------------------------------------------------------------------------
+
+# https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
+include(ExternalProject)
+
+# - CUB
+set(CUB_DIR ${CMAKE_CURRENT_BINARY_DIR}/cub CACHE STRING "Path to cub repo")
+set(CUB_INCLUDE_DIR ${CUB_DIR}/src/cub CACHE STRING "Path to cub includes")
+
+ExternalProject_Add(cub
+  GIT_REPOSITORY    https://github.com/NVlabs/cub.git
+  GIT_TAG           v1.8.0
+  PREFIX            ${CUB_DIR}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND     ""
+  INSTALL_COMMAND   ""
+)
+
+# - CUHORNET
+set(CUHORNET_DIR ${CMAKE_CURRENT_BINARY_DIR}/cuhornet CACHE STRING "Path to cuhornet repo")
+set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuhornet includes")
+
+
+ExternalProject_Add(cuhornet
+  GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
+  GIT_TAG           master
+  PREFIX            ${CUHORNET_DIR}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND     ""
+  INSTALL_COMMAND   ""
+)
+
+# - GUNROCK
+set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
+  "Path to cugunrock repo")
+
+ExternalProject_Add(cugunrock
+  GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
+  GIT_TAG           fea_full_bc      # provide a branch, a tag, or even a commit hash
+  PREFIX            ${CUGUNROCK_DIR}
+  CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+                    -DGPU_ARCHS=""
+                    -DGUNROCK_BUILD_SHARED_LIBS=OFF
+                    -DGUNROCK_BUILD_TESTS=OFF
+)
+
+add_library(gunrock STATIC IMPORTED)
+
+add_dependencies(gunrock cugunrock)
+
+set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${CUGUNROCK_DIR}/lib/libgunrock.a)
+
+###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 
 # target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
@@ -261,12 +313,13 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-	src/db/db_object.cu
-	src/db/db_parser_integration_test.cu
-	src/db/db_operators.cu
+    src/db/db_object.cu
+    src/db/db_parser_integration_test.cu
+    src/db/db_operators.cu
     src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
+    src/structure/graph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
     src/traversal/sssp.cu
@@ -285,6 +338,7 @@ add_library(cugraph SHARED
     src/snmg/utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
+    src/centrality/betweenness_centrality.cu
     src/snmg/degree/degree.cu
     src/snmg/COO2CSR/COO2CSR.cu
     src/nvgraph/arnoldi.cu
@@ -319,6 +373,12 @@ add_library(cugraph SHARED
     src/nvgraph/widest_path.cu
 )
 
+#
+# NOTE:  This dependency will force the building of cugraph to
+#        wait until after cugunrock is constructed.
+#
+add_dependencies(cugraph cugunrock)
+
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
 
@@ -330,12 +390,13 @@ target_include_directories(cugraph
     "${RMM_INCLUDE}"
     "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cub"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornet/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/hornetsnest/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/xlib/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/cuhornet/primitives"
+    "${CUB_INCLUDE_DIR}"
+    "${CUHORNET_INCLUDE_DIR}/hornet/include"
+    "${CUHORNET_INCLUDE_DIR}/hornetsnest/include"
+    "${CUHORNET_INCLUDE_DIR}/xlib/include"
+    "${CUHORNET_INCLUDE_DIR}/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CUGUNROCK_DIR}/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -344,7 +405,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
@@ -405,7 +466,7 @@ if(BUILD_TESTS)
         # link_directoires (we should switch to target_link_directories once 3.13 becomes the
         # minimum required version).
         link_directories(${GTEST_LIBRARY_DIR})
-        add_subdirectory(${CMAKE_SOURCE_DIR}/src/tests)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
 
