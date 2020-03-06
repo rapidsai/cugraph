@@ -28,12 +28,8 @@ def get_traversed_path(df, id):
 
     Returns
     ---------
-    src_ids : cudf.Series
-        The new source vertex IDs
-    dst_ids : cudf.Series
-        The new destination vertex IDs
-    numbering_df : cudf.DataFrame
-        a dataframe that maps a vertex ID to the unique values
+    df : cudf.DataFrame
+        a dataframe containing the path steps
 
 
     Examples
