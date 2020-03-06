@@ -48,6 +48,7 @@ def test_bfs_paths():
 
         assert "not in the result set" in str(ErrorMsg)
 
+
 def test_bfs_paths_array():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
@@ -68,6 +69,6 @@ def test_bfs_paths_array():
         assert len(answer) == 3
 
         # Get path to vertex 0 - which is not in graph
-        p_df = cugraph.utils.get_traversed_path_list(df, 100)
+        answer = cugraph.utils.get_traversed_path_list(df, 100)
 
         assert "not in the result set" in str(ErrorMsg)
