@@ -25,7 +25,7 @@
 #include <iostream>
 #include <fstream>
 
-// We assume here that the betweennees are ordered based on Vertices Indices
+// We assume here that the betweenness are ordered based on Vertices Indices
 template<typename WT>
 std::vector<WT> extract_ref_betweenness(std::ifstream &fs_ref) {
   std::vector<WT> vec;
@@ -35,7 +35,6 @@ std::vector<WT> extract_ref_betweenness(std::ifstream &fs_ref) {
   }
   return vec;
 }
-
 
 typedef struct BC_Usecase_t {
   std::string graph_file;
@@ -190,8 +189,9 @@ public:
               sizeof(WT) * num_vertices,
               cudaMemcpyDeviceToHost);
     // --- Actual tests ---
+    //TODO(xcadet): Add tolerance as parameter?
     for (auto idx = 0; idx < num_vertices;  ++idx) {
-      ASSERT_EQ(betweenness_centrality_vec[idx], ref_betweenness_centrality[idx])
+      EXPECT_NEAR(betweenness_centrality_vec[idx], ref_betweenness_centrality[idx], static_cast<WT>(1e-3))
       << "idx: " << idx << " ref betweenness " << ref_betweenness_centrality[idx]
       << " actual betweenness " << betweenness_centrality_vec[idx];
     }
@@ -201,10 +201,13 @@ public:
 // TODO(xcadet): Adding some small tests for local use, need to updated for last version
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_BC,
                         ::testing::Values(BC_Usecase("../../bc_simple_data/data/line3-False-1.0.mtx", "../../bc_simple_data/ref/line3-False-1.0.csv"),
-                                          BC_Usecase("../../bc_simple_data/data/line4.mtx", "../../bc_simple_data/ref/line4.csv"),
+                                          BC_Usecase("../../bc_simple_data/data/line4-False-1.0.mtx", "../../bc_simple_data/ref/line4-False-1.0.csv"),
                                           BC_Usecase("karate.mtx", "../../bc_simple_data/ref/karate.csv"),
-                                          BC_Usecase("../../bc_simple_data/data/bridge3.mtx", "../../bc_simple_data/ref/bridge3.csv"),
-                                          BC_Usecase("../../bc_simple_data/data/bridge4.mtx", "../../bc_simple_data/ref/bridge4.csv")
+                                          BC_Usecase("../../bc_simple_data/data/bridge3-False-1.0.mtx", "../../bc_simple_data/ref/bridge3-False-1.0.csv"),
+                                          BC_Usecase("../../bc_simple_data/data/bridge4-False-1.0.mtx", "../../bc_simple_data/ref/bridge4-False-1.0.csv"),
+                                          BC_Usecase("dolphins.mtx", "../../bc_simple_data/ref/dolphins.csv")//,
+                                          //BC_Usecase("../../bc_simple_data/mtx_tests/karate-rw.mtx", "../../bc_simple_data/ref/karate-rw.csv")//
+                                          //BC_Usecase("netscience.mtx", "../../bc_simple_data/ref/netscience.csv")
                                          )
                        );
 

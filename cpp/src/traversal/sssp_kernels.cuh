@@ -205,6 +205,25 @@ __global__ void populate_frontier_and_preds(
             IndexType edge =
                 row_ptr[src_id] + gid - frontier_degrees_exclusive_sum[k];
 
+            IndexType dst_id = col_ind[edge];
+            DistType dst_val = next_distances[dst_id];
+            DistType expected_val = distances[src_id] + edge_weights[edge];
+            if (expected_val == dst_val) {
+              // Add src_id to predecessor in either case if needed
+              if (predecessors) {
+                atomicMax(&predecessors[dst_id], src_id);
+                //predecessors[dst_id] = src_id;
+                // Predecessors kept count of shortest paths to themselves
+                // The number of shortest-paths reaching the current vertex is the sum of all
+                // shortest-paths up to this node.
+                // (This relies on non negativity of all edge weights)
+              }
+              if (sp_counters) {
+                atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
+              }
+            }
+
+
             bool was_edge_relaxed =
                 relaxed_edges_bmap[gid / INT_SIZE] & (1 << (gid % INT_SIZE));
             // Check if this edge was relaxed in relax_edges earlier
@@ -237,21 +256,8 @@ __global__ void populate_frontier_and_preds(
                     vec_frontier_candidate[iv] = dst_id;
                     ++naccepted_vertices;
                   }
-
-                  // Add src_id to predecessor in either case if needed
-                  if (predecessors) {
-                    predecessors[dst_id] = src_id;
-                  }
                 }
                 // else lost the tie
-
-                // Predecessors kept count of shortest paths to themselves
-                // The number of shortest-paths reaching the current vertex is the sum of all
-                // shortest-paths up to this node.
-                // (This relies on non negativity of all edge weights)
-                if (sp_counters) {
-                  atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
-                }
               }
               // else somebody else relaxed it to a lower value after us in the
               // previous kernel

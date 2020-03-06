@@ -101,7 +101,19 @@ void BC<VT, WT>::compute() {
         std::cout << "\n";
         */
         // Step 3) Accumulation
+        /*
+        std::vector<int>  stl_tmp_nodes {26, 29, 22, 20, 18, 15, 14, 23, 25, 24, 33, 16, 32, 28, 27, 9, 30, 31, 21, 19, 17, 13, 12, 11, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0};
+        thrust::host_vector<int> tmp_nodes = stl_tmp_nodes;
+        std::cout << "Nodes for" << source_vertex << "\n";
+        thrust::copy(tmp_nodes.begin(), tmp_nodes.end(), std::ostream_iterator<int>(std::cout, ", "));
+        std::cout << "\n";
+        */
         accumulate(h_betweenness, h_nodes, h_predecessors, h_sp_counters, source_vertex);
+        /*
+        std::cout << "Betweeness after " << source_vertex << "\n";
+        thrust::copy(h_betweenness.begin(), h_betweenness.end(), std::ostream_iterator<float>(std::cout, ", "));
+        std::cout << "\n";
+        */
     }
     cudaMemcpyAsync(betweenness, &h_betweenness[0],
                     number_vertices * sizeof(WT),
@@ -123,13 +135,13 @@ void BC<VT, WT>::accumulate(thrust::host_vector<WT> &h_betweenness,
                             VT source) {
     // TODO(xcadet) Remove the debugs messages (+ 1 are for testing on line3-False-1.0 against Python custom test)
     /*
-    std::cout << "[CUDA] Accumulating from " << source + 1<< "\n";
+    std::cout << "[CUDA] Accumulating from " << source << "\n";
     std::cout << "\t[CUDA] Predecessors: ";
     thrust::copy(h_predecessors.begin(), h_predecessors.end(), std::ostream_iterator<float>(std::cout, ", "));
     std::cout << "\n";
     std::cout << "\t[CUDA]sp_counters: ";
     thrust::copy(h_sp_counters.begin(), h_sp_counters.end(), std::ostream_iterator<float>(std::cout, ", "));
-    std::cout << "\n";
+    //std::cout << "\n";
     */
 
     thrust::host_vector<WT> h_deltas(number_vertices, static_cast<WT>(0));
@@ -138,18 +150,20 @@ void BC<VT, WT>::accumulate(thrust::host_vector<WT> &h_betweenness,
         if (w == -1) { // The nodes after this ones have not been visited and should not update anything
             break;
         }
-        //std::cout << "\t[CUDA] Visiting " << w + 1 << "\n";
+        //std::cout << "\t[CUDA] Visiting " << w << "\n";
         WT factor = (static_cast<WT>(1.0) + h_deltas[w]) / static_cast<WT>(h_sp_counters[w]);
         // TODO(xcadet) The current SSSP implementation only stores 1 Node
         VT v = h_predecessors[w];
         if (v != -1) { // This node has predecessor
-            h_deltas[v] = h_deltas[v] + static_cast<WT>(h_sp_counters[v]) * factor;
-            //std::cout << "\t\t[CUDA] Updated depencies for node " << v + 1<< " with " << h_deltas[v] << "\n";
+            WT old = h_deltas[v];
+            h_deltas[v] += static_cast<WT>(h_sp_counters[v]) * factor;
+            //std::cout << "\t\t[CUDA] Updated depencies for node " << v << " with " << h_deltas[v] << "\n";
+            //std::cout << "\t\t\t[CUDA] From " << old << " to " << h_deltas[v] << ", with factor = " << factor << "\n";
         } // We should not updated our dependencies
         // The node is different than the source
         if (w != source) {
             h_betweenness[w] += h_deltas[w];
-            //std::cout << "\t\t[CUDA] Betweenness for " << w + 1 << " updated to " << h_betweenness[w] << "\n";
+            //std::cout << "\t\t[CUDA] Betweenness for " << w << " updated to " << h_betweenness[w] << "\n";
         }
     }
 
