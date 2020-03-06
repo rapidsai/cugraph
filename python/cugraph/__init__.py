@@ -33,7 +33,7 @@ from cugraph.structure import (
     renumber_from_cudf
 )
 
-from cugraph.centrality import katz_centrality
+from cugraph.centrality import katz_centrality, betweenness_centrality
 from cugraph.cores import core_number, k_core
 from cugraph.components import weakly_connected_components, strongly_connected_components
 from cugraph.ktruss import ktruss_max, ktruss_subgraph
@@ -43,6 +43,7 @@ from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
 from cugraph.traversal import bfs, sssp, filter_unreachable
 # from cugraph.utilities import grmat_gen
 from cugraph.utilities import device_of_gpu_pointer
+from cugraph.utilities import utils
 
 from cugraph.snmg.link_analysis.mg_pagerank import mg_pagerank
 
