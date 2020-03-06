@@ -15,7 +15,7 @@
 - PR #723 Added notebook testing to gpuCI gpu build
 - PR #738 Move tests directory up a level
 - PR #739 Updated Notebooks
-
+- PR #740 added utility to extract paths from SSSP/BFS results
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
