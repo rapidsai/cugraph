@@ -47,3 +47,27 @@ def test_bfs_paths():
         p_df = cugraph.utils.get_traversed_path(df, 100)
 
         assert "not in the result set" in str(ErrorMsg)
+
+def test_bfs_paths_array():
+    with pytest.raises(ValueError) as ErrorMsg:
+        gc.collect()
+
+        graph_file = '../datasets/karate.csv'
+
+        cu_M = utils.read_csv_file(graph_file)
+
+        G = cugraph.Graph()
+        G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+
+        # run BFS starting at vertex 17
+        df = cugraph.bfs(G,  16)
+
+        # Get the path to vertex 1
+        answer = cugraph.utils.get_traversed_path_list(df, 0)
+
+        assert len(answer) == 3
+
+        # Get path to vertex 0 - which is not in graph
+        p_df = cugraph.utils.get_traversed_path_list(df, 100)
+
+        assert "not in the result set" in str(ErrorMsg)
