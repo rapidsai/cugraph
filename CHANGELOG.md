@@ -2,6 +2,7 @@
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features
+- PR #735 Integration gunrock's betweenness centrality
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
@@ -12,6 +13,9 @@
 - PR #720 Updated error messages
 - PR #722 Refactor graph to remove gdf_column
 - PR #723 Added notebook testing to gpuCI gpu build
+- PR #738 Move tests directory up a level
+- PR #739 Updated Notebooks
+- PR #740 added utility to extract paths from SSSP/BFS results
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.

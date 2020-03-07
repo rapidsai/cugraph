@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,5 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.centrality.katz_centrality import katz_centrality
-from cugraph.centrality.betweenness_centrality import betweenness_centrality
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph_new cimport *
+from libcpp cimport bool
+
+
+cdef extern from "algorithms.hpp" namespace "cugraph":
+
+    cdef void betweenness_centrality[VT,ET,WT,result_t](
+        const GraphCSR[VT,ET,WT] &graph,
+        result_t *result,
+        bool normalized,
+        bool endpoints,
+        const WT *weight,
+        VT k,
+        const VT *vertices) except +
+

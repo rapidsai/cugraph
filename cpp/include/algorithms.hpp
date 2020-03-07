@@ -163,4 +163,37 @@ void overlap_list(experimental::GraphCSR<VT,ET,WT> const &graph,
                   VT const *second,
                   WT *result);
 
+/**
+ * @brief     Compute betweenness centrality for a graph
+ *
+ * Betweenness centrality for a vertex is the sum of the fraction of
+ * all pairs shortest paths that pass through the vertex.
+ *
+ * Note that gunrock (current implementation) does not support a weighted graph.
+ * 
+ * @throws                           cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ * @tparam result_t                  Type of computed result.  Supported values :  float
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ * @param[out] result                Device array of centrality scores
+ * @param[in] normalized             If true, return normalized scores, if false return unnormalized scores.
+ * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
+ * @param[in] weight                 If specified, device array of weights for each edge
+ * @param[in] k                      If specified, number of vertex samples defined in the vertices array
+ * @param[in] vertices               If specified, device array of sampled vertex ids to estimate betweenness centrality.
+ *
+ */
+template <typename VT, typename ET, typename WT, typename result_t>
+void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
+                            result_t *result,
+                            bool normalized = true,
+                            bool endpoints = false,
+                            WT const *weight = nullptr,
+                            VT k = 0,
+                            VT const *vertices = nullptr);
+
 } //namespace cugraph
