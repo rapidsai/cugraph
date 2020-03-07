@@ -16,6 +16,7 @@
 - PR #738 Move tests directory up a level
 - PR #739 Updated Notebooks
 - PR #740 added utility to extract paths from SSSP/BFS results
+- PR #742 Rremove gdf column from jaccard
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
