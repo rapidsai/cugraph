@@ -32,14 +32,27 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
     """
     Call jaccard or jaccard_list
     """
+    offsets = None
+    indices = None
 
-    if not input_graph.adjlist:
+    if input_graph.adjlist:
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets,
+                                                          input_graph.adjlist.indices], [np.int32])
+    elif input_graph.transposedadjlist:
+        #
+        # NOTE: jaccard ONLY operates on an undirected graph, so CSR and CSC should be
+        #       equivalent.  The undirected check has already happened, so we'll just use
+        #       the CSC as if it were CSR.
+        #
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.offsets,
+                                                           input_graph.transposedadjlist.indices], [np.int32])
+    else:
         input_graph.view_adj_list()
-
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets,
+                                                           input_graph.adjlist.indices], [np.int32])
+        
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges()
-
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     cdef uintptr_t c_result_col = <uintptr_t> NULL
     cdef uintptr_t c_first_col = <uintptr_t> NULL
