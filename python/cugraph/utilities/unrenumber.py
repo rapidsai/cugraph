@@ -9,5 +9,5 @@ def unrenumber(renumber_map, df, col):
         cols = unrenumered_df.columns
         df = unrenumered_df[[cols[1:], cols[0]]]
     else:
-        df[col] = renumber_map[df[col]]
+        df[col] = renumber_map[df[col]].reset_index(drop=True)
     return df
