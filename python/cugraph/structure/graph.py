@@ -204,6 +204,22 @@ class Graph:
         """
         Display the edge list. Compute it if needed.
 
+        NOTE: If the graph is of type Graph() then the displayed undirected edges
+        are the same as displayed by networkx Graph(), but the direction could be
+        different i.e. an edge displayed by cugraph as (src, dst) could be
+        displayed as (dst, src) by networkx. 
+
+        cugraph.Graph stores symmetrized edgelist internally. For displaying
+        undirected edgelist for a Graph the upper trianglar matrix of the symmetrized
+        edgelist is returned.
+
+        networkx.Graph renumbers the input and stores the upper triangle of this
+        renumbered input. Since the internal renumbering of networx and cugraph 
+        is different, the upper triangular matrix of networkx renumbered input may
+        not be the same as cugraph's upper trianglar matrix of the symmetrized
+        edgelist. Hence the displayed source and destination pairs in both will
+        represent the same edge but node values could be swapped.
+
         Returns
         -------
         edgelist_df : cudf.DataFrame
