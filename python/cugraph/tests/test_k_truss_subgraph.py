@@ -69,7 +69,7 @@ DATASETS = [('../datasets/polbooks.csv',
 @pytest.mark.parametrize('managed, pool',
                          list(product([False], [False])))
 @pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
-def test_ktruss_max(managed, pool, graph_file, nx_ground_truth):
+def test_ktruss_subgraph(managed, pool, graph_file, nx_ground_truth):
     gc.collect()
 
     rmm.reinitialize(
