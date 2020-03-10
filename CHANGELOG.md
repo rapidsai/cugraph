@@ -16,6 +16,7 @@
 - PR #734 Updated view_edge_list for Graph, added unrenumbering test, fixed column access issues
 - PR #738 Move tests directory up a level
 - PR #739 Updated Notebooks
+- PR #740 added utility to extract paths from SSSP/BFS results
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
