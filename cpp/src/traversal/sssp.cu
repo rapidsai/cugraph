@@ -139,8 +139,8 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   // TOOD(xcadet) probably a better way than this
   if (computeSPCounters) {
     traversal::fill_vec(sp_counters, n, 0, stream);
-    int tmp = 1;
-    cudaMemcpy(&sp_counters[source_vertex], &tmp, sizeof(int), cudaMemcpyHostToDevice);
+    int tmp = 2;
+    cudaMemcpy(&sp_counters[source_vertex], &tmp, sizeof(IndexType), cudaMemcpyHostToDevice);
   }
 
 

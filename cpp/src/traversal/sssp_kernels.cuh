@@ -205,6 +205,7 @@ __global__ void populate_frontier_and_preds(
             IndexType edge =
                 row_ptr[src_id] + gid - frontier_degrees_exclusive_sum[k];
 
+            /* TODO(xcadet) This works for homogeneous weights and multiples predecessors
             IndexType dst_id = col_ind[edge];
             DistType dst_val = next_distances[dst_id];
             DistType expected_val = distances[src_id] + edge_weights[edge];
@@ -222,6 +223,7 @@ __global__ void populate_frontier_and_preds(
                 atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
               }
             }
+            */
 
 
             bool was_edge_relaxed =
@@ -255,6 +257,22 @@ __global__ void populate_frontier_and_preds(
                   if (!is_isolated) {
                     vec_frontier_candidate[iv] = dst_id;
                     ++naccepted_vertices;
+                  }
+                  // Add src_id to predecessor in either case if needed
+                  if (predecessors) {
+                    predecessors[dst_id] = src_id;
+                    //atomicMax(&predecessors[dst_id], src_id);
+                    if (sp_counters) {
+                      sp_counters[dst_id] = 0;
+                    }
+                    //predecessors[dst_id] = src_id;
+                    // Predecessors kept count of shortest paths to themselves
+                    // The number of shortest-paths reaching the current vertex is the sum of all
+                    // shortest-paths up to this node.
+                    // (This relies on non negativity of all edge weights)
+                  }
+                  if (sp_counters) {
+                    atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
                   }
                 }
                 // else lost the tie

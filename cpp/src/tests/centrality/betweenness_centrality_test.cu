@@ -68,10 +68,10 @@ public:
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  template<typename VT, typename ET, typename WT>
+  template<typename VT, typename ET, typename WT, typename result_t>
   void run_current_test(const BC_Usecase& param) {
     gdf_column col_src, col_dest, col_weights;
-    WT *betweenness_centrality = nullptr;
+    result_t *betweenness_centrality = nullptr;
 
     VT num_vertices;
     //ET num_edges;
@@ -141,7 +141,7 @@ public:
       std::fill(cooVal.begin(), cooVal.end(), static_cast<WT>(1));
     }
     // --- Read Betweenness from ref_file ---
-    std::vector<WT> ref_betweenness_centrality = extract_ref_betweenness<WT>(fs_ref);
+    std::vector<result_t> ref_betweenness_centrality = extract_ref_betweenness<WT>(fs_ref);
 
     // --- Closing files ---
     ASSERT_EQ(fclose(fp_in), 0);
@@ -165,18 +165,23 @@ public:
     cugraph::add_adj_list(&G);
 
     // Host Alloc
-    std::vector<WT> betweenness_centrality_vec;//(num_vertices, static_cast<WT>(0));
+    std::vector<result_t> betweenness_centrality_vec;//(num_vertices, static_cast<WT>(0));
 
     // Device alloc
-    rmm::device_vector<WT> dbetweenness_centrality_vec;
+    rmm::device_vector<result_t> dbetweenness_centrality_vec;
 
-    betweenness_centrality_vec = std::vector<WT>(num_vertices, static_cast<WT>(0));
+    betweenness_centrality_vec = std::vector<result_t>(num_vertices, static_cast<result_t>(0));
     dbetweenness_centrality_vec.resize(num_vertices);
-    thrust::fill(dbetweenness_centrality_vec.begin(), dbetweenness_centrality_vec.end(), static_cast<WT>(0));
+    thrust::fill(dbetweenness_centrality_vec.begin(), dbetweenness_centrality_vec.end(), static_cast<result_t>(0));
     betweenness_centrality = thrust::raw_pointer_cast(dbetweenness_centrality_vec.data());
 
+    // TODO(xcadet) Add normalize / sample_seends / number_of_sample_seeds
+    bool normalize = true;
+    VT const *sample_seeds = nullptr;
+    VT number_of_sample_seeds = 0;
+
     // --- Betweenness Centrality call ---
-    cugraph::betweenness_centrality<VT, ET, WT>(&G, betweenness_centrality);
+    cugraph::betweenness_centrality<VT, ET, WT, result_t>(&G, betweenness_centrality, normalize, sample_seeds, number_of_sample_seeds);
     cudaDeviceSynchronize();
 
     // MTX may have zero-degree vertices. So reset num_vertices after
@@ -190,11 +195,17 @@ public:
               cudaMemcpyDeviceToHost);
     // --- Actual tests ---
     //TODO(xcadet): Add tolerance as parameter?
+    printf("{");
     for (auto idx = 0; idx < num_vertices;  ++idx) {
       EXPECT_NEAR(betweenness_centrality_vec[idx], ref_betweenness_centrality[idx], static_cast<WT>(1e-3))
       << "idx: " << idx << " ref betweenness " << ref_betweenness_centrality[idx]
       << " actual betweenness " << betweenness_centrality_vec[idx];
+      /*
+      */
+      printf( idx < num_vertices - 1 ? "%d: %f, " : "%d: %f", idx, betweenness_centrality_vec[idx]);
     }
+    printf("}\n");
+  //ASSERT_TRUE(false);
   }
 };
 
@@ -205,18 +216,19 @@ INSTANTIATE_TEST_CASE_P(simple_test, Tests_BC,
                                           BC_Usecase("karate.mtx", "../../bc_simple_data/ref/karate.csv"),
                                           BC_Usecase("../../bc_simple_data/data/bridge3-False-1.0.mtx", "../../bc_simple_data/ref/bridge3-False-1.0.csv"),
                                           BC_Usecase("../../bc_simple_data/data/bridge4-False-1.0.mtx", "../../bc_simple_data/ref/bridge4-False-1.0.csv"),
-                                          BC_Usecase("dolphins.mtx", "../../bc_simple_data/ref/dolphins.csv")//,
-                                          //BC_Usecase("../../bc_simple_data/mtx_tests/karate-rw.mtx", "../../bc_simple_data/ref/karate-rw.csv")//
+                                          BC_Usecase("dolphins.mtx", "../../bc_simple_data/ref/dolphins.csv"),
+                                          BC_Usecase("../../bc_simple_data/mtx_tests/karate-rw.mtx", "../../bc_simple_data/ref/karate-rw.csv")
                                           //BC_Usecase("netscience.mtx", "../../bc_simple_data/ref/netscience.csv")
+                                          //BC_Usecase("test/datasets/dblp.mtx", "../../bc_simple_data/ref/netscience.csv")
                                          )
                        );
 
 TEST_P(Tests_BC, CheckFP32) {
-  run_current_test<int, int, float>(GetParam());
+  run_current_test<int, int, float, float>(GetParam());
 }
 
 TEST_P(Tests_BC, CheckFP64) {
-  run_current_test<int, int, double>(GetParam());
+  run_current_test<int, int, double, double>(GetParam());
 }
 
 int main(int argc, char **argv) {

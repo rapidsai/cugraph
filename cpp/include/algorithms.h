@@ -330,8 +330,10 @@ void snmg_pagerank (gdf_column **src_col_ptrs,
  * @Param[in] normalized                If True normalize the resulting betweenness centrality values
  */
 /* ----------------------------------------------------------------------------*/
-template <typename VT, typename ET, typename WT>
-void betweenness_centrality(Graph* graph, WT *betweenness_centrality);
+template <typename VT, typename ET, typename WT, typename result_t>
+void betweenness_centrality(Graph *graph, result_t *betweenness, bool normalize,
+                            VT const *sample_seeds = nullptr,
+                            VT number_of_sample_seeds = 0);
 
 /**                                                                             
  * @Synopsis   Compute the Katz centrality for the nodes of the graph G

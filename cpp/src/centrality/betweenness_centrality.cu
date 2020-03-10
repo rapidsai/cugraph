@@ -23,11 +23,11 @@
 namespace cugraph {
 namespace detail {
 
-template <typename VT, typename WT>
-void BC<VT, WT>::setup() {
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::setup() {
     // --- Set up parameters from graph adjList ---
     number_vertices  = graph-> adjList->offsets->size - 1;
-    //number_vertices  = graph-> adjList->offsets->size;
+
     number_edges = graph->adjList->indices->size;
     offsets_ptr = (int*)graph->adjList->offsets->data;
     indices_ptr = (int*)graph->adjList->indices->data;
@@ -35,11 +35,16 @@ void BC<VT, WT>::setup() {
     edge_weights_ptr = static_cast<WT*>(graph->adjList->edge_data->data);
 }
 
-template <typename VT, typename WT>
-void BC<VT, WT>::configure(WT *_betweenness) {
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness, bool _normalize,
+                                         VT const *_sample_seeds,
+                                         VT _number_of_sample_seeds) {
     // --- Working data allocation ---
     // --- Bind betweenness output vector to internal ---
     betweenness = _betweenness;
+    apply_normalization = _normalize;
+    sample_seeds = _sample_seeds;
+    number_of_sample_seeds =  _number_of_sample_seeds;
     // --- Confirm that configuration went through ---
     configured = true;
 }
@@ -53,8 +58,75 @@ struct ifNegativeReplace {
   }
 };
 
-template <typename VT, typename WT>
-void BC<VT, WT>::compute() {
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::normalize() {
+    thrust::device_vector<result_t> normalizer(number_vertices);
+    thrust::fill(normalizer.begin(), normalizer.end(), ((number_vertices - 1) * (number_vertices - 2)));
+
+    if (typeid(result_t) == typeid(float)) {
+        thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness, betweenness + number_vertices, normalizer.begin(), betweenness, thrust::divides<float>());
+    } else if (typeid(result_t) == typeid(double)) {
+        thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness, betweenness + number_vertices, normalizer.begin(), betweenness, thrust::divides<double>());
+    }
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::accumulate(thrust::host_vector<result_t> &h_betweenness,
+                            thrust::host_vector<VT> &h_nodes,
+                            thrust::host_vector<VT> &h_predecessors,
+                            thrust::host_vector<VT> &h_sp_counters,
+                            VT source) {
+    // TODO(xcadet) Remove the debugs messages (+ 1 are for testing on line3-False-1.0 against Python custom test)
+    /*
+    std::cout << "[CUDA] Accumulating from " << source << "\n";
+    std::cout << "\t[CUDA] Predecessors: ";
+    thrust::copy(h_predecessors.begin(), h_predecessors.end(), std::ostream_iterator<float>(std::cout, ", "));
+    std::cout << "\n";
+    std::cout << "\t[CUDA]sp_counters: ";
+    thrust::copy(h_sp_counters.begin(), h_sp_counters.end(), std::ostream_iterator<float>(std::cout, ", "));
+    std::cout << "\n";
+    */
+
+    thrust::host_vector<result_t> h_deltas(number_vertices, static_cast<WT>(0));
+    // TODO(xcadet) There is most likely a more efficient way to handle it
+    for (VT w : h_nodes) {
+        if (w == -1) { // The nodes after this ones have not been visited and should not update anything
+            break;
+        }
+        //std::cout << "\t[CUDA] Visiting " << w << "\n";
+        result_t factor = (static_cast<result_t>(1.0) + h_deltas[w]) / static_cast<result_t>(h_sp_counters[w]);
+        // TODO(xcadet) The current SSSP implementation only stores 1 Node
+        VT v = h_predecessors[w];
+        if (v != -1) { // This node has predecessor
+            WT old = h_deltas[v];
+            h_deltas[v] += static_cast<result_t>(h_sp_counters[v]) * factor;
+            //std::cout << "\t\t[CUDA] Updated depencies for node " << v << " with " << h_deltas[v] << "\n";
+            //std::cout << "\t\t\t[CUDA] From " << old << " to " << h_deltas[v] << ", with factor = " << factor << "\n";
+        } // We should not updated our dependencies
+        // The node is different than the source
+        if (w != source) {
+            h_betweenness[w] += h_deltas[w];
+            //std::cout << "\t\t[CUDA] Betweenness for " << w << " updated to " << h_betweenness[w] << "\n";
+        }
+    }
+
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::clean() {
+    //ALLOC_FREE_TRY(predecessors, nullptr);
+    //ALLOC_FREE_TRY(sp_counters, nullptr);
+    //ALLOC_FREE_TRY(sigmas, nullptr);
+    //ALLOC_FREE_TRY(deltas, nullptr);
+    // ---  Betweenness is not ours ---
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::check_input() {
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::compute() {
     CUGRAPH_EXPECTS(configured, "BC must be configured before computation");
 
     // TODO(xcadet) There are too many of them
@@ -65,7 +137,7 @@ void BC<VT, WT>::compute() {
     thrust::host_vector<WT> h_distances(number_vertices, static_cast<WT>(0));
     thrust::host_vector<VT> h_predecessors(number_vertices, static_cast<VT>(0));
     thrust::host_vector<VT> h_sp_counters(number_vertices, static_cast<VT>(0));
-    thrust::host_vector<WT> h_betweenness(number_vertices, static_cast<WT>(0));
+    thrust::host_vector<result_t> h_betweenness(number_vertices, static_cast<result_t>(0));
 
     thrust::host_vector<VT> h_nodes(number_vertices);
 
@@ -88,98 +160,24 @@ void BC<VT, WT>::compute() {
         thrust::sort_by_key(thrust::host, h_distances.begin(), h_distances.end(), h_nodes.begin(), thrust::greater<VT>());
         thrust::transform(thrust::host, h_distances.begin(), h_distances.end(), h_nodes.begin(), h_nodes.begin(), ifNegativeReplace<WT>());
         cudaDeviceSynchronize(); // TODO(xcadet) Is this one mandatory ?
-        // TODO(xcadet) Remove printing information
-        /*
-        std::cout << "Sigmas for source " << source_vertex << ": ";
-        thrust::copy(h_sp_counters.begin(), h_sp_counters.end(), std::ostream_iterator<float>(std::cout, ", "));
-        std::cout << "\n";
-        std::cout << "Distances for source " << source_vertex << ": ";
-        thrust::copy(h_distances.begin(), h_distances.end(), std::ostream_iterator<float>(std::cout, ", "));
-        std::cout << "\n";
-        std::cout << "Nodes ordering for source " << source_vertex << "\n";
-        thrust::copy(h_nodes.begin(), h_nodes.end(), std::ostream_iterator<VT>(std::cout, ", "));
-        std::cout << "\n";
-        */
         // Step 3) Accumulation
-        /*
-        std::vector<int>  stl_tmp_nodes {26, 29, 22, 20, 18, 15, 14, 23, 25, 24, 33, 16, 32, 28, 27, 9, 30, 31, 21, 19, 17, 13, 12, 11, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0};
-        thrust::host_vector<int> tmp_nodes = stl_tmp_nodes;
-        std::cout << "Nodes for" << source_vertex << "\n";
-        thrust::copy(tmp_nodes.begin(), tmp_nodes.end(), std::ostream_iterator<int>(std::cout, ", "));
-        std::cout << "\n";
-        */
         accumulate(h_betweenness, h_nodes, h_predecessors, h_sp_counters, source_vertex);
         /*
-        std::cout << "Betweeness after " << source_vertex << "\n";
+        std::cout << "Betweeness fter " << source_vertex << "\n";
         thrust::copy(h_betweenness.begin(), h_betweenness.end(), std::ostream_iterator<float>(std::cout, ", "));
         std::cout << "\n";
         */
+        //break;
+
     }
+    // Step 4: Rescale results based on number of vertices and directed or u
     cudaMemcpyAsync(betweenness, &h_betweenness[0],
                     number_vertices * sizeof(WT),
                     cudaMemcpyHostToDevice, stream);
     cudaDeviceSynchronize();
-    /* TODO(xcadet) Remove printing information
-    std::cout << "Betweeness: ";
-    thrust::copy(h_betweenness.begin(), h_betweenness.end(), std::ostream_iterator<float>(std::cout, ", "));
-    std::cout << "\n";
-    */
-}
-
-
-template <typename VT, typename WT>
-void BC<VT, WT>::accumulate(thrust::host_vector<WT> &h_betweenness,
-                            thrust::host_vector<VT> &h_nodes,
-                            thrust::host_vector<VT> &h_predecessors,
-                            thrust::host_vector<VT> &h_sp_counters,
-                            VT source) {
-    // TODO(xcadet) Remove the debugs messages (+ 1 are for testing on line3-False-1.0 against Python custom test)
-    /*
-    std::cout << "[CUDA] Accumulating from " << source << "\n";
-    std::cout << "\t[CUDA] Predecessors: ";
-    thrust::copy(h_predecessors.begin(), h_predecessors.end(), std::ostream_iterator<float>(std::cout, ", "));
-    std::cout << "\n";
-    std::cout << "\t[CUDA]sp_counters: ";
-    thrust::copy(h_sp_counters.begin(), h_sp_counters.end(), std::ostream_iterator<float>(std::cout, ", "));
-    //std::cout << "\n";
-    */
-
-    thrust::host_vector<WT> h_deltas(number_vertices, static_cast<WT>(0));
-    // TODO(xcadet) There is most likely a more efficient way to handle it
-    for (VT w : h_nodes) {
-        if (w == -1) { // The nodes after this ones have not been visited and should not update anything
-            break;
-        }
-        //std::cout << "\t[CUDA] Visiting " << w << "\n";
-        WT factor = (static_cast<WT>(1.0) + h_deltas[w]) / static_cast<WT>(h_sp_counters[w]);
-        // TODO(xcadet) The current SSSP implementation only stores 1 Node
-        VT v = h_predecessors[w];
-        if (v != -1) { // This node has predecessor
-            WT old = h_deltas[v];
-            h_deltas[v] += static_cast<WT>(h_sp_counters[v]) * factor;
-            //std::cout << "\t\t[CUDA] Updated depencies for node " << v << " with " << h_deltas[v] << "\n";
-            //std::cout << "\t\t\t[CUDA] From " << old << " to " << h_deltas[v] << ", with factor = " << factor << "\n";
-        } // We should not updated our dependencies
-        // The node is different than the source
-        if (w != source) {
-            h_betweenness[w] += h_deltas[w];
-            //std::cout << "\t\t[CUDA] Betweenness for " << w << " updated to " << h_betweenness[w] << "\n";
-        }
+    if (apply_normalization) {
+        normalize();
     }
-
-}
-
-template <typename IndexType, typename BetweennessType>
-void BC<IndexType, BetweennessType>::clean() {
-    //ALLOC_FREE_TRY(predecessors, nullptr);
-    //ALLOC_FREE_TRY(sp_counters, nullptr);
-    //ALLOC_FREE_TRY(sigmas, nullptr);
-    //ALLOC_FREE_TRY(deltas, nullptr);
-    // ---  Betweenness is not ours ---
-}
-
-template <typename VT, typename ET, typename WT>
-void _check_input(Graph *graph, WT *betweenness) {
 }
 
 } //namespace detail
@@ -189,19 +187,26 @@ void _check_input(Graph *graph, WT *betweenness) {
   *
   * @file betweenness_centrality.cu
   * --------------------------------------------------------------------------*/
-  template <typename VT, typename ET, typename WT>
-  void betweenness_centrality(Graph *graph, WT *betweenness) {
+  template <typename VT, typename ET, typename WT, typename result_t>
+  //void betweenness_centrality(Graph *graph, WT *betweenness, bool normalized, w) {
+  // TODO(xcadet) use experimental::GraphCSR<VT,ET,WT> const &graph
+  void betweenness_centrality(Graph *graph, result_t *betweenness, bool normalize,
+                              VT const *sample_seeds,
+                              VT number_of_sample_seeds) {
     CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: graph adjList is NULL");
     CUGRAPH_EXPECTS(betweenness != nullptr, "Invalid API parameter: output is nullptr");
 
     if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double)) {
         CUGRAPH_FAIL("Unsupported betweenness data type, please use float or double");
     }
+
+    CUGRAPH_EXPECTS(sample_seeds == nullptr, "Sampling seeds is currently not supported");
     // TODO fix me after gdf_column is removed from Graph
     CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32,
                     "Unsupported data type");
     CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32,
                     "Unsupported data type");
+
     // Handle Unweighted
     if (!graph->adjList->edge_data) {
         // Generate unit weights
@@ -241,8 +246,8 @@ void _check_input(Graph *graph, WT *betweenness) {
     }
     // Verify that WT is either float or double
     if (typeid(WT) == typeid(float) || typeid(WT) == typeid(double)) {
-        cugraph::detail::BC<VT, WT> bc(graph);
-        bc.configure(betweenness);
+        cugraph::detail::BC<VT, ET, WT, result_t> bc(graph);
+        bc.configure(betweenness, normalize, sample_seeds, number_of_sample_seeds);
         bc.compute();
     } else { // Otherwise the datatype is invalid
         CUGRAPH_EXPECTS(graph->adjList->edge_data->dtype == GDF_FLOAT32 ||
@@ -252,6 +257,6 @@ void _check_input(Graph *graph, WT *betweenness) {
   }
 
   // explicit instantiation
-  template void betweenness_centrality<int, int, float>(Graph *graph, float *betweenness);
-  template void betweenness_centrality<int, int, double>(Graph *graph, double *betweenness);
+  template void betweenness_centrality<int, int, float, float>(Graph *graph, float *betweenness, bool, int const *, int);
+  template void betweenness_centrality<int, int, double, double>(Graph *graph, double *betweenness, bool, int const *, int);
 } //namespace cugraph

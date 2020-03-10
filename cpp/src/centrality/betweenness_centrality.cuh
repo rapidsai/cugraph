@@ -19,7 +19,7 @@
 
 namespace cugraph {
 namespace detail {
-template <typename VT, typename WT>
+template <typename VT, typename ET, typename WT, typename result_t>
 class BC {
    private:
       // --- Information concerning the graph ---
@@ -31,11 +31,15 @@ class BC {
       VT *indices_ptr;           // Pointers to the indices
       WT *edge_weights_ptr;      // Pointer to the weights
 
-      bool configured = false;   // Falg to ensure configuration was called
+      // --- Information from configuration --- //
+      bool configured = false;   // Flag to ensure configuration was called
+      bool apply_normalization;            // If True normalize the betweenness
+      VT const *sample_seeds;    //
+      VT number_of_sample_seeds; //
 
       // --- Output ----
       // betweenness is set/read by users - using Vectors
-      WT *betweenness = nullptr;
+      result_t *betweenness = nullptr;
 
       // --- Data required to perform computation ----
       /*
@@ -48,16 +52,21 @@ class BC {
       cudaStream_t stream;
       void setup();
       void clean();
-      void accumulate(thrust::host_vector<WT> &h_betweenness,
+
+      void accumulate(thrust::host_vector<result_t> &h_betweenness,
                       thrust::host_vector<VT> &h_nodes,
                       thrust::host_vector<VT> &predecessors,
                       thrust::host_vector<VT> &h_sp_counters,
                       VT source);
+      void normalize();
+      void check_input();
 
    public:
       virtual ~BC(void) { clean(); }
       BC(Graph *_graph, cudaStream_t _stream = 0) :graph(_graph), stream(_stream) { setup(); }
-      void configure(WT *betweenness);
+      void configure(result_t *betweenness, bool normalize,
+                     VT const *sample_seeds,
+                     VT number_of_sample_seeds);
       void compute();
 };
 } // namespace detail
