@@ -73,7 +73,7 @@ def ktruss_subgraph(G, k):
     >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sources, destinations, None)
-    >>> k_max = cugraph.ktruss_max(G)
+    >>> k_subgraph = cugraph.ktruss_subgraph(G)
     """
 
     KTrussSubgraph = DiGraph()

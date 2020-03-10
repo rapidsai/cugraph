@@ -115,8 +115,8 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
  *
  */
 template <typename VT, typename ET, typename WT>
-void k_truss_subgraph(experimental::GraphCOO<VT, ET, ET> const &graph,
+void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
                       int k,
-                      experimental::GraphCOO<VT, ET, ET> &output_graph);
+                      experimental::GraphCOO<VT, ET, WT> &output_graph);
 
 } //namespace cugraph

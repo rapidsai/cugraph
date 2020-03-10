@@ -11,5 +11,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.ktruss.ktruss_max import ktruss_max
 from cugraph.ktruss.ktruss_subgraph import ktruss_subgraph
