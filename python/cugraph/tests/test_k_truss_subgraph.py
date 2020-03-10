@@ -58,10 +58,10 @@ def compare_k_truss(graph_file, k, ground_truth_file):
 
     edgelist_df = k_truss_cugraph.view_edge_list()
     src, dest = edgelist_df['src'], edgelist_df['dst'],
-    #for i in range(len(src)):
-    #    assert (k_truss_nx.has_edge(src[i], dest[i]) or
-    #            k_truss_nx.has_edge(dest[i], src[i]))
-    #return True
+    for i in range(len(src)):
+        assert (k_truss_nx.has_edge(src[i], dest[i]) or
+                k_truss_nx.has_edge(dest[i], src[i]))
+    return True
 
 
 DATASETS = [('../datasets/polbooks.csv',
