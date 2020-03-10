@@ -428,7 +428,7 @@ def test_view_edge_list_for_Graph(managed, pool, graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     # Create nx Graph
-    pdf = cu_M.to_pandas()[['0','1']]
+    pdf = cu_M.to_pandas()[['0', '1']]
     nx_graph = nx.from_pandas_edgelist(pdf, source='0',
                                        target='1',
                                        create_using=nx.Graph)
@@ -447,14 +447,14 @@ def test_view_edge_list_for_Graph(managed, pool, graph_file):
     # Get edges as upper triangle of matrix
     edges = []
     for edge in nx_edges:
-        if edge[0]>edge[1]:
-            edges.append([edge[1],edge[0]])
+        if edge[0] > edge[1]:
+            edges.append([edge[1], edge[0]])
         else:
-            edges.append([edge[0],edge[1]])
+            edges.append([edge[0], edge[1]])
     edges = list(edges)
     edges.sort()
     nx_edge_list = cudf.DataFrame(edges, columns=['src', 'dst'])
-    
+
     # Compare nx and cugraph edges when viewing edgelist
     assert cu_edge_list.equals(nx_edge_list)
 
