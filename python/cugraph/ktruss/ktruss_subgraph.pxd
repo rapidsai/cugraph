@@ -16,13 +16,11 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-cdef extern from "cugraph.h":
-
-	cdef void k_truss_subgraph(
-		Graph *in_graph,
-		int k,
-        Graph *truss_subgraph) except +
-
+        cdef void k_truss_subgraph[VT,ET,WT](
+        const GraphCOO[VT,ET,WT] &graph,
+        int k,
+        GraphCOO[VT,ET,WT] &output_graph) except +

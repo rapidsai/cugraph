@@ -29,124 +29,30 @@
 #include <StandardAPI.hpp>
 #include <rmm_utils.h>
 #include <nvgraph_gdf.h>
+#include <algorithms.hpp>
 
 using namespace hornets_nest;
 
 namespace cugraph {
+
 namespace detail {
 
-void ktruss_max_impl(Graph *graph,
-                     int *k_max) {
-  int * src = static_cast<int*>(graph->edgeList->src_indices->data);
-  int * dst = static_cast<int*>(graph->edgeList->dest_indices->data);
-
-  using HornetGraph = hornet::gpu::Hornet<int>;
-  using UpdatePtr   = ::hornet::BatchUpdatePtr<int, hornet::EMPTY, hornet::DeviceType::DEVICE>;
-  using Update      = ::hornet::gpu::BatchUpdate<int>;
-
-  UpdatePtr ptr(graph->edgeList->src_indices->size, src, dst);
+template <typename VT, typename ET, typename WT>
+void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
+                      int k,
+                      experimental::GraphCOO<VT, ET, WT> &output_graph) {
+  using HornetGraph = hornet::gpu::Hornet<VT>;
+  using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::EMPTY, hornet::DeviceType::DEVICE>;
+  using Update      = hornet::gpu::BatchUpdate<VT>; cudaStream_t stream{nullptr};
+  UpdatePtr ptr(graph.number_of_edges, graph.src_indices, graph.dst_indices);
   Update batch(ptr);
-  number_of_vertices(graph);
 
-  HornetGraph hnt(graph->numberOfVertices+1);
+  HornetGraph hnt(graph.number_of_vertices+1);
   hnt.insert(batch);
-
   KTruss kt(hnt);
 
   kt.init();
   kt.reset();
-
-  kt.createOffSetArray();
-
-  kt.setInitParameters(4, 8, 2, 64000, 32);
-  kt.reset();
-  kt.sortHornet();
-
-  kt.run();
-
-  *k_max = kt.getMaxK();
-
-  kt.release();
-}
-
-} // detail namespace
-
-void k_truss_max(Graph *graph,
-                          int *k_max) {
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr ||
-      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr ||
-      graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
-
-  CUGRAPH_EXPECTS(graph->adjList->offsets != nullptr ||
-      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->data != nullptr ||
-      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
-
-  CUGRAPH_EXPECTS(graph->adjList->indices != nullptr ||
-      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->indices->data != nullptr ||
-      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
-
-
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype == GDF_INT32,
-      "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32,
-      "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32,
-      "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32,
-      "Unsupported data type");
-
-  detail::ktruss_max_impl(graph, k_max);
-}
-
-namespace detail {
-
-void createOutputGraph(Graph *ktrussgraph, KTruss& kt) {
-  cudaStream_t stream{nullptr};
-
-  //Allocate output columns
-  ktrussgraph->edgeList = new gdf_edge_list;
-  ktrussgraph->edgeList->src_indices = new gdf_column;
-  ktrussgraph->edgeList->dest_indices = new gdf_column;
-  ktrussgraph->edgeList->ownership = 2;
-
-  int edge_count = kt.getGraphEdgeCount();
-
-  int *o_src, *o_dst;
-  ALLOC_TRY((void**)&o_src, sizeof(int) * edge_count, stream);
-  ALLOC_TRY((void**)&o_dst, sizeof(int) * edge_count, stream);
-
-  kt.copyGraph(o_src, o_dst);
-
-  gdf_column_view(ktrussgraph->edgeList->src_indices, o_src,
-      nullptr, edge_count, GDF_INT32);
-  gdf_column_view(ktrussgraph->edgeList->dest_indices, o_dst,
-      nullptr, edge_count, GDF_INT32);
-}
-
-void ktruss_subgraph_impl(Graph *graph,
-                          int k,
-                          Graph *ktrussgraph) {
-  int * src = static_cast<int*>(graph->edgeList->src_indices->data);
-  int * dst = static_cast<int*>(graph->edgeList->dest_indices->data);
-  using HornetGraph = hornet::gpu::Hornet<int>;
-  using UpdatePtr   = ::hornet::BatchUpdatePtr<int, hornet::EMPTY,
-      hornet::DeviceType::DEVICE>;
-  using Update      = ::hornet::gpu::BatchUpdate<int>;
-
-  UpdatePtr ptr(graph->edgeList->src_indices->size, src, dst);
-  Update batch(ptr);
-  number_of_vertices(graph);
-  HornetGraph hnt(graph->numberOfVertices);
-  hnt.insert(batch);
-
-  KTruss kt(hnt);
-
-  kt.init();
-  kt.reset();
-
   kt.createOffSetArray();
   kt.setInitParameters(4, 8, 2, 64000, 32);
   kt.reset();
@@ -154,27 +60,27 @@ void ktruss_subgraph_impl(Graph *graph,
 
   kt.runForK(k);
 
-  createOutputGraph(ktrussgraph, kt);
+  ET edge_count = kt.getGraphEdgeCount();
+  ALLOC_TRY((void**)&output_graph.src_indices, sizeof(int) * edge_count, stream);
+  ALLOC_TRY((void**)&output_graph.dst_indices, sizeof(int) * edge_count, stream);
+  kt.copyGraph(output_graph.src_indices, output_graph.dst_indices);
+  output_graph.number_of_vertices = graph.number_of_vertices;
+  output_graph.number_of_edges = edge_count;
+  output_graph.prop.directed = true;
 
   kt.release();
 }
+
 } // detail namespace
 
-void k_truss_subgraph(Graph *graph,
-                          int k,
-                          Graph *ktrussgraph) {
+template <typename VT, typename ET, typename WT>
+void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
+                      int k,
+                      experimental::GraphCOO<VT, ET, WT> &output_graph) {
+  CUGRAPH_EXPECTS(graph->src_indices != nullptr, "Graph source indices cannot be a nullptr");
+  CUGRAPH_EXPECTS(graph->dst_indices != nullptr, "Graph destination indices cannot be a nullptr");
 
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices != nullptr ||
-      graph->edgeList->dest_indices != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices->data != nullptr ||
-      graph->edgeList->dest_indices->data != nullptr, "Invalid API parameter");
-
-  CUGRAPH_EXPECTS(graph->edgeList->src_indices->dtype ==  GDF_INT32,
-      "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->edgeList->dest_indices->dtype == GDF_INT32,
-      "Unsupported data type");
-
-  detail::ktruss_subgraph_impl(graph, k, ktrussgraph);
+  detail::ktruss_subgraph_impl(graph, k, output_graph);
 }
 
 
