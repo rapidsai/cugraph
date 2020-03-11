@@ -61,6 +61,7 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       rmm=${MINOR_VERSION} \
       networkx>=2.3 \
       python-louvain \
+      fa2l \
       cudatoolkit=$CUDA_REL \
       dask>=2.12.0 \
       distributed>=2.12.0 \
