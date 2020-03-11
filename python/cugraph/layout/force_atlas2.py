@@ -11,12 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.layout import force_atlas_wrapper
+from cugraph.layout import force_atlas2_wrapper
 from cugraph.structure.graph import Graph
 
 
-def force_atlas(input_graph,
+def force_atlas2(input_graph,
                 max_iter=1000,
+                pos_list=None,
                 gravity=1.0,
 		scaling_ratio=1.0,
                 barnes_hut_theta=0.5,
@@ -52,18 +53,19 @@ def force_atlas(input_graph,
 
 	Returns
 	-------
-	parts : cudf.DataFrame
-	GPU data frame of size V containing two columns the vertex id and the
-	partition id it is assigned to.
+	pos : cudf.DataFrame
+	GPU data frame of size V containing three columns the vertex id and the
+	x and y positions it is assigned to.
 
 	"""
 
-	parts = force_atlas_wrapper.force_atlas(input_graph,
+	pos = force_atlas2_wrapper.force_atlas2(input_graph,
 						max_iter=max_iter,
-						gravity=gravity
+                                                pos_list=pos_list,
+						gravity=gravity,
 						scaling_ratio=scaling_ratio,
                                                 barnes_hut_theta=barnes_hut_theta,
 						edge_weight_influence=edge_weight_influence,
                                                 lin_log_mode=lin_log_mode,
                                                 prevent_overlapping=prevent_overlapping)
-	return parts
+	return pos

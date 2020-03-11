@@ -21,10 +21,10 @@ from cugraph.structure.graph cimport *
 
 cdef extern from "cugraph.h" namespace "cugraph":
 
-    cdef void force_atlas(
+    cdef void force_atlas2(
         Graph *graph,
-        void *c_fa_x_ptr,
-        void *c_fa_y_ptr,
+        void *c_fa2_x_ptr,
+        void *c_fa2_y_ptr,
         int max_iter,
         float gravity,
         float scaling_ratio,
