@@ -66,11 +66,12 @@ public:
     std::cout << test_id << "\n";
     int m, k, nnz, n_gpus;
     MM_typecode mc;
-    
+
 
     double t;
 
     FILE* fpin = fopen(param.matrix_file.c_str(), "r");
+    ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
 
     if (!fpin) {
       std::cout << "Could not open file: " << param.matrix_file << "\n";
@@ -149,7 +150,7 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-        
+
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
@@ -293,11 +294,12 @@ public:
     std::cout << test_id << "\n";
     int m, k, nnz, n_gpus;
     MM_typecode mc;
-    
+
 
     double t;
 
     FILE* fpin = fopen(param.matrix_file.c_str(), "r");
+    ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
 
     if (!fpin) {
       std::cout << "Could not open file: " << param.matrix_file << "\n";
@@ -376,14 +378,14 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-        
+
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
         }
 
         // Compare the results with those generated on the host
-      
+
         EXPECT_EQ(part_offset[0], part_offset_r[0]);
         EXPECT_EQ(part_offset[1], part_offset_r[1]);
         EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
@@ -459,7 +461,7 @@ public:
         }
 
         // Compare the results with those generated on the host
-        
+
         for (int j = 0; j < n_gpus + 1; j++)
           EXPECT_EQ(part_offset[j], part_offset_r[j]);
         EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
@@ -520,7 +522,7 @@ public:
         + std::string("_") + ss.str().c_str();
     std::cout << "Filename: " << param.matrix_file << "\n";
     int m, nnz, n_gpus;
-    
+
     std::vector<idx_t> cooRowInd, cooColInd;
     double t;
 
@@ -587,14 +589,14 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-        
+
 #pragma omp master
         {
           std::cout << "GPU time: " << omp_get_wtime() - t << "\n";
         }
 
         // Compare the results with those generated on the host
-        
+
         EXPECT_EQ(part_offset[0], part_offset_r[0]);
         EXPECT_EQ(part_offset[1], part_offset_r[1]);
         EXPECT_TRUE(gdf_csr_equal<idx_t>(csr_off, csr_ind, col_off, col_ind));
@@ -660,7 +662,7 @@ public:
                                   csr_off,
                                   csr_ind,
                                   csr_val);
-        
+
 #pragma omp master
         {
           std::cout << "multi-GPU time: " << omp_get_wtime() - t << "\n";
@@ -697,8 +699,11 @@ TEST_P(Tests_MGcoo2csr_hibench, CheckFP64_hibench) {
 INSTANTIATE_TEST_CASE_P(hibench_test,
                         Tests_MGcoo2csr_hibench,
                         ::testing::Values(MGcoo2csr_Usecase("benchmark/hibench/1/Input-small/edges/part-00000"),
-                                          MGcoo2csr_Usecase("benchmark/hibench/1/Input-large/edges/part-00000"),
-                                          MGcoo2csr_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")));
+                                          MGcoo2csr_Usecase("benchmark/hibench/1/Input-large/edges/part-00000")));
+
+INSTANTIATE_TEST_CASE_P(hibench_test_huge,
+                        Tests_MGcoo2csr_hibench,
+                        ::testing::Values(MGcoo2csr_Usecase("benchmark/hibench/1/Input-huge/edges/part-00000")));
 
 int main( int argc, char** argv )
 {

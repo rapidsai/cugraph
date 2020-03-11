@@ -20,6 +20,7 @@ cimport cugraph.cores.core_number as c_core
 from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
+from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -68,6 +69,6 @@ def core_number(input_graph):
     c_core.core_number(g, &c_core_number_col)
 
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df

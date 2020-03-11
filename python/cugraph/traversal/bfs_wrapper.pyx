@@ -72,7 +72,15 @@ def bfs(input_graph, start, directed=True):
     c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>start)
 
     if input_graph.renumbered:
-        df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-        df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
+        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+            n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
+            unrenumered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
+            unrenumered_df = unrenumered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
+            unrenumered_df.columns = ['distance']+['vertex_'+str(i) for i in range(n_cols)]+['predecessor_'+str(i) for i in range(n_cols)]
+            cols = unrenumered_df.columns
+            df = unrenumered_df[[cols[1:n_cols+1], cols[0], cols[n_cols:]]]
+        else:
+            df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+            df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
 
     return df
