@@ -2,18 +2,30 @@
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features
+- PR #735 Integration gunrock's betweenness centrality
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
 - PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
 - PR #701 Add option to filter datasets and tests when run from CI
+- PR #715 Added new YML file for CUDA 10.2
+- PR #719 Updated docs to remove CUDA 9.2 and add CUDA 10.2
+- PR #720 Updated error messages
+- PR #722 Refactor graph to remove gdf_column
+- PR #723 Added notebook testing to gpuCI gpu build
+- PR #734 Updated view_edge_list for Graph, added unrenumbering test, fixed column access issues
+- PR #738 Move tests directory up a level
+- PR #739 Updated Notebooks
+- PR #740 added utility to extract paths from SSSP/BFS results
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
-
 - PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
 - PR #702 Add libcypher include path to target_include_directories
-
+- PR #716 Fixed bug due to disappearing get_column_data_ptr function in cudf
+- PR #726 Fixed SSSP notebook issues in last cell
+- PR #728 Temporary fix for dask attribute error issue
+- PR #733 Fixed multi-column renumbering issues with indexes
 
 # cuGraph 0.12.0 (04 Feb 2020)
 
@@ -44,6 +56,7 @@
 - PR #681 fix column length mismatch cudf issue
 - PR #684 Deprecated cudf calls
 - PR #686 Balanced cut fix
+- PR #689 Check graph input type, disable Multi(Di)Graph, add cugraph.from_cudf_edgelist
 
 
 # cuGraph 0.11.0 (11 Dec 2019)

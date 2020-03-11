@@ -64,8 +64,9 @@ def louvain(input_graph, max_iter=100):
     
 
     df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))
-    cdef uintptr_t c_louvain_parts_ptr = get_column_data_ptr(df['partition']._column)
-
+    #cdef uintptr_t c_louvain_parts_ptr = get_column_data_ptr(df['partition']._column)
+    cdef uintptr_t c_louvain_parts_ptr = df['partition'].__cuda_array_interface__['data'][0]
+    
     cdef bool single_precision = False
     # this implementation is tied to cugraph.cu line 503
     # cudaDataType_t val_type = graph->adjList->edge_data?

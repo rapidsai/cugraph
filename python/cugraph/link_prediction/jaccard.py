@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.structure.graph import Graph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.structure.graph import null_check
 import cudf
@@ -68,6 +69,8 @@ def jaccard(input_graph, vertex_pair=None):
     >>> G.add_edge_list(sources, destinations, None)
     >>> df = cugraph.jaccard(G)
     """
+    if type(input_graph) is not Graph:
+        raise Exception("input graph must be undirected")
 
     if (type(vertex_pair) == cudf.DataFrame):
         null_check(vertex_pair[vertex_pair.columns[0]])
