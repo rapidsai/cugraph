@@ -11,14 +11,15 @@ from benchmark import (
     Benchmark, logExeTime, logGpuMetrics, printLastResult, nop
 )
 
-################################################################################
+
+###############################################################################
 # Update this function to add new algos
-################################################################################
+###############################################################################
 def getBenchmarks(G, edgelist_gdf, args):
     """
-    Returns a dictionary of benchmark name to Benchmark objs. This dictionary is
-    used when processing the command-line args to this script so the script can
-    run a specific benchmakr by name.
+    Returns a dictionary of benchmark name to Benchmark objs. This dictionary
+    is used when processing the command-line args to this script so the script
+    can run a specific benchmakr by name.
 
     The "edgelist_gdf" and "args" args are common to many benchmark runs, and
     provided to this function to make it easy to pass to individual Benchmark
@@ -30,18 +31,21 @@ def getBenchmarks(G, edgelist_gdf, args):
     "benches" list below.
 
      * The Benchmark instance ctor takes 3 args:
-       * "name" - the name of the benchmark which will show up in reports, output, etc.
-       * "func" - the function object which the benchmark will call.  This can be any callable.
+       * "name" - the name of the benchmark which will show up in reports,
+                  output, etc.
+       * "func" - the function object which the benchmark will call.  This can
+                  be any callable.
        * "args" - a tuple of args that are to be passed to the func callable.
 
-    A Benchmark object will, by default, run the callable with the args provided
-    as-is, and log the execution time and various GPU metrics.  The callable
-    provided is written independent of the benchmarking code (this is good for
-    separation of concerns, bad if you need to do a custom measurement).
+    A Benchmark object will, by default, run the callable with the args
+    provided as-is, and log the execution time and various GPU metrics.  The
+    callable provided is written independent of the benchmarking code (this is
+    good for separation of concerns, bad if you need to do a custom
+    measurement).
 
-    If a new benchmark needs a special command-line parameter, add a new flag to
-    the command-line processing function and access it via the "args" dictionary
-    when passing args to the Benchmark ctor.
+    If a new benchmark needs a special command-line parameter, add a new flag
+    to the command-line processing function and access it via the "args"
+    dictionary when passing args to the Benchmark ctor.
     """
 
     benches = [
