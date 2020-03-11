@@ -205,10 +205,19 @@ __global__ void populate_frontier_and_preds(
             IndexType edge =
                 row_ptr[src_id] + gid - frontier_degrees_exclusive_sum[k];
 
-            /* TODO(xcadet) This works for homogeneous weights and multiples predecessors
+            /*
             IndexType dst_id = col_ind[edge];
             DistType dst_val = next_distances[dst_id];
             DistType expected_val = distances[src_id] + edge_weights[edge];
+            // TODO(xcadet) This works for homogeneous weights and multiples predecessors
+            if (dst_id == 2) {
+              if (predecessors) {
+                printf("[CU] %d is competing against (%d) for predecessor of %d for a distance of %f\n", src_id, predecessors[dst_id], dst_id, dst_val);
+              }
+            }
+            */
+
+            /* ---
             if (expected_val == dst_val) {
               // Add src_id to predecessor in either case if needed
               if (predecessors) {
@@ -219,17 +228,105 @@ __global__ void populate_frontier_and_preds(
                 // shortest-paths up to this node.
                 // (This relies on non negativity of all edge weights)
               }
-              if (sp_counters) {
-                atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
-              }
             }
+            --- */
+            /*
             */
-
-
+            //IndexType dst_id = col_ind[edge];
+            IndexType dst_id = col_ind[edge];
+            DistType dst_val = next_distances[dst_id];
+            DistType expected_val = distances[src_id] + edge_weights[edge];
             bool was_edge_relaxed =
                 relaxed_edges_bmap[gid / INT_SIZE] & (1 << (gid % INT_SIZE));
             // Check if this edge was relaxed in relax_edges earlier
             if (was_edge_relaxed) {
+
+              if (expected_val == dst_val) {
+                // Our relaxation was the last one (not necessarily unique)
+                // Try to become the parent in the SSSP tree atomically to
+                // break potential ties
+                // Set bit in next_frontier_bmap to 1 and check for old value
+                // to check for success
+
+                int old_val = atomicOr(&next_frontier_bmap[dst_id / INT_SIZE],
+                                       1 << (dst_id % INT_SIZE));
+
+                bool fail = (old_val >> (dst_id % INT_SIZE)) & 1;
+
+                if (!fail) {
+                  // Add dst_id to frontier if dst is not isolated
+                  // (Can't have zero degree verts in frontier for the
+                  // bucket/prefix-sum logic to work)
+                  bool is_isolated = (isolated_bmap[dst_id / INT_SIZE] >>
+                                      (dst_id % INT_SIZE)) &
+                      1;
+
+                  if (!is_isolated) {
+                    vec_frontier_candidate[iv] = dst_id;
+                    ++naccepted_vertices;
+                  }
+                  if (predecessors) {
+                    //predecessors[dst_id] = src_id;
+                    auto old = atomicExch(&predecessors[dst_id], src_id);
+                    if (distances[old] == distances[src_id]) {
+                      old = atomicMax(&predecessors[dst_id], old);
+                      printf("Maybe should not have changed\n");
+                    }
+                    printf("[CU] [HARD] [RELAXED] Node %d won the tie for node %d and updated %d -> %d\n", src_id, dst_id, old, predecessors[dst_id]);
+                    //atomicMax(&predecessors[dst_id], src_id);
+                    if (sp_counters) {
+                      sp_counters[dst_id] = 0;
+                    }
+                  }
+                }
+              }
+            }
+
+            // Deplace ca dans le fail et faire en sorte que le fail overwrite vu que c'est celui de la relaxation, autoriser la verification a l'exterieur
+            if (expected_val == dst_val) {
+              int old_val = atomicOr(&next_frontier_bmap[dst_id / INT_SIZE],
+                                      1 << (dst_id % INT_SIZE));
+              bool fail = (old_val >> (dst_id % INT_SIZE)) & 1;
+                printf("[CU] UNRELAXED Node %d competing to be %d's predecessor\n", src_id, dst_id);
+              if (!fail) {
+                // Add src_id to predecessor in either case if needed
+                if (predecessors) {
+                  printf("[CU] [HARD] [UNRELAXED] Node %d won the tie for node %d\n", src_id, dst_id);
+                  //predecessors[dst_id] = src_id;
+                  auto old = atomicExch(&predecessors[dst_id], src_id);
+                  if (distances[old] == distances[src_id]) {
+                    old = atomicMax(&predecessors[dst_id], old);
+                    printf("Maybe should not have changed\n");
+                  }
+                  //atomicExch(&predecessors[dst_id], src_id);
+                  //atomicMax(&predecessors[dst_id], src_id);
+                  if (sp_counters) {
+                    sp_counters[dst_id] = 0;
+                  }
+                  //predecessors[dst_id] = src_id;
+                  // Predecessors kept count of shortest paths to themselves
+                  // The number of shortest-paths reaching the current vertex is the sum of all
+                  // shortest-paths up to this node.
+                  // (This relies on non negativity of all edge weights)
+                }
+              } else { // else lost the tie
+                //auto tmp = predecessors[dst_id];
+                //printf("[CU] Node %d lost the tie for node %d and should max only from (%d)\n", src_id, dst_id, tmp);
+                if (predecessors) {
+                  auto old = atomicMax(&predecessors[dst_id], src_id);
+                  printf("[CU] Node %d lost the tie but predessor for node %d updated: %d -> %d\n", src_id, dst_id, old, predecessors[dst_id]);
+                }
+              }
+              if (sp_counters) {
+                atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
+              }
+            }
+            /* TODO(xcadet) Copy for backup
+            bool was_edge_relaxed =
+                relaxed_edges_bmap[gid / INT_SIZE] & (1 << (gid % INT_SIZE));
+            // Check if this edge was relaxed in relax_edges earlier
+            if (was_edge_relaxed) {
+
               IndexType dst_id = col_ind[edge];
               DistType dst_val = next_distances[dst_id];
               DistType expected_val = distances[src_id] + edge_weights[edge];
@@ -260,7 +357,9 @@ __global__ void populate_frontier_and_preds(
                   }
                   // Add src_id to predecessor in either case if needed
                   if (predecessors) {
-                    predecessors[dst_id] = src_id;
+                    printf("Node %d won the tie for node %d\n", src_id, dst_id);
+                    //predecessors[dst_id] = src_id;
+                    atomicExch(&predecessors[dst_id], src_id);
                     //atomicMax(&predecessors[dst_id], src_id);
                     if (sp_counters) {
                       sp_counters[dst_id] = 0;
@@ -271,15 +370,18 @@ __global__ void populate_frontier_and_preds(
                     // shortest-paths up to this node.
                     // (This relies on non negativity of all edge weights)
                   }
-                  if (sp_counters) {
-                    atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
-                  }
+                } else { // else lost the tie
+                  printf("Node %d lost the tie for node %d\n", src_id, dst_id);
+                  atomicMax(&predecessors[dst_id], src_id);
                 }
-                // else lost the tie
+                if (sp_counters) {
+                  atomicAdd(&sp_counters[dst_id], sp_counters[src_id]);
+                }
               }
               // else somebody else relaxed it to a lower value after us in the
               // previous kernel
             }
+            */
           }
         }
 
