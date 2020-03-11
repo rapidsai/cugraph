@@ -414,6 +414,55 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
+def test_view_edge_list_for_Graph(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file)
+
+    # Create nx Graph
+    pdf = cu_M.to_pandas()[['0', '1']]
+    nx_graph = nx.from_pandas_edgelist(pdf, source='0',
+                                       target='1',
+                                       create_using=nx.Graph)
+    nx_edges = nx_graph.edges()
+
+    # Create Cugraph Graph from DataFrame
+    G = cugraph.from_cudf_edgelist(cu_M, source='0',
+                                   destination='1',
+                                   create_using=cugraph.Graph)
+    cu_edge_list = G.view_edge_list()
+
+    # Check if number of Edges is same
+    assert len(nx_edges) == len(cu_edge_list)
+    assert nx_graph.number_of_edges() == G.number_of_edges()
+
+    # Get edges as upper triangle of matrix
+    edges = []
+    for edge in nx_edges:
+        if edge[0] > edge[1]:
+            edges.append([edge[1], edge[0]])
+        else:
+            edges.append([edge[0], edge[1]])
+    edges = list(edges)
+    edges.sort()
+    nx_edge_list = cudf.DataFrame(edges, columns=['src', 'dst'])
+
+    # Compare nx and cugraph edges when viewing edgelist
+    assert cu_edge_list.equals(nx_edge_list)
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
 def test_networkx_compatibility(managed, pool, graph_file):
     gc.collect()
 

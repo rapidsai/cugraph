@@ -77,6 +77,8 @@ class Graph:
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
+        self.edge_count = None
+        self.node_count = None
         if m_graph is not None:
             if ((type(self) is Graph and type(m_graph) is MultiGraph)
                or (type(self) is DiGraph and type(m_graph) is MultiDiGraph)):
@@ -202,6 +204,23 @@ class Graph:
         """
         Display the edge list. Compute it if needed.
 
+        NOTE: If the graph is of type Graph() then the displayed undirected
+        edges are the same as displayed by networkx Graph(), but the direction
+        could be different i.e. an edge displayed by cugraph as (src, dst)
+        could be displayed as (dst, src) by networkx.
+
+        cugraph.Graph stores symmetrized edgelist internally. For displaying
+        undirected edgelist for a Graph the upper trianglar matrix of the
+        symmetrized edgelist is returned.
+
+        networkx.Graph renumbers the input and stores the upper triangle of
+        this renumbered input. Since the internal renumbering of networx and
+        cugraph is different, the upper triangular matrix of networkx
+        renumbered input may not be the same as cugraph's upper trianglar
+        matrix of the symmetrized edgelist. Hence the displayed source and
+        destination pairs in both will represent the same edge but node values
+        could be swapped.
+
         Returns
         -------
         edgelist_df : cudf.DataFrame
@@ -217,19 +236,25 @@ class Graph:
         """
         if self.edgelist is None:
             graph_wrapper.view_edge_list(self)
-        edgelist_df = self.edgelist.edgelist_df
+        if type(self) is Graph:
+            edgelist_df = self.edgelist.edgelist_df[self.edgelist.edgelist_df[
+                          'src'] <= self.edgelist.edgelist_df['dst']].\
+                          reset_index(drop=True)
+            self.edge_count = len(edgelist_df)
+        else:
+            edgelist_df = self.edgelist.edgelist_df
         if self.renumbered:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 df = cudf.DataFrame()
-                ncols = len(self.edgelist.edgelist_df) - 2
+                ncols = len(edgelist_df.columns) - 2
                 unrnb_df_ = edgelist_df.merge(self.edgelist.renumber_map,
                                               left_on='src', right_on='id',
                                               how='left').drop(['id', 'src'])
                 unrnb_df = unrnb_df_.merge(self.edgelist.renumber_map,
                                            left_on='dst', right_on='id',
                                            how='left').drop(['id', 'dst'])
-                cols = unrnb_df.columns
-                df = unrnb_df[[cols[ncols:], cols[0:ncols]]]
+                cols = unrnb_df.columns.to_list()
+                df = unrnb_df[cols[ncols:]+cols[0:ncols]]
             else:
                 df = cudf.DataFrame()
                 for c in edgelist_df.columns:
@@ -390,13 +415,14 @@ class Graph:
         return df
 
     def number_of_vertices(self):
-        if self.adjlist is not None:
-            num_vertices = len(self.adjlist.offsets)-1
-        elif self.transposedadjlist is not None:
-            num_vertices = len(self.transposedadjlist.offsets)-1
-        else:
-            num_vertices = graph_wrapper.number_of_vertices(self)
-        return num_vertices
+        if self.node_count is None:
+            if self.adjlist is not None:
+                self.node_count = len(self.adjlist.offsets)-1
+            elif self.transposedadjlist is not None:
+                self.node_count = len(self.transposedadjlist.offsets)-1
+            else:
+                self.node_count = graph_wrapper.number_of_vertices(self)
+        return self.node_count
 
     def number_of_nodes(self):
         """
@@ -409,14 +435,22 @@ class Graph:
         """
         Get the number of edges in the graph.
         """
-        if self.edgelist is not None:
-            return len(self.edgelist.edgelist_df)
-        elif self.adjlist is not None:
-            return len(self.adjlist.indices)
-        elif self.transposedadjlist is not None:
-            return len(self.transposedadjlist.indices)
-        else:
-            raise ValueError('Graph is Empty')
+        if self.edge_count is None:
+            if self.edgelist is not None:
+                if type(self) is Graph:
+                    self.edge_count = len(self.edgelist.edgelist_df[
+                                          self.edgelist.edgelist_df['src']
+                                          >= self.edgelist.edgelist_df['dst']]
+                                          )
+                else:
+                    self.edge_count = len(self.edgelist.edgelist_df)
+            elif self.adjlist is not None:
+                self.edge_count = len(self.adjlist.indices)
+            elif self.transposedadjlist is not None:
+                self.edge_count = len(self.transposedadjlist.indices)
+            else:
+                raise ValueError('Graph is Empty')
+        return self.edge_count
 
     def in_degree(self, vertex_subset=None):
         """
