@@ -52,16 +52,26 @@ void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
 
   HornetGraph hnt(graph.number_of_vertices+1);
   hnt.insert(batch);
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to initialize graph");
+
   KTruss kt(hnt);
 
   kt.init();
   kt.reset();
   kt.createOffSetArray();
-  kt.setInitParameters(4, 8, 2, 64000, 32);
+  //NOTE : These parameters will become obsolete once we move to the updated
+  //algorithm (https://ieeexplore.ieee.org/document/8547581)
+  kt.setInitParameters(
+      4,//Number of threads per block per list intersection
+      8,//Number of intersections per block
+      2,//log2(Number of threads)
+      64000,//Total number of blocks launched
+      32//Thread block dimension);
   kt.reset();
   kt.sortHornet();
 
   kt.runForK(k);
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
   ET subgraph_edge_count = kt.getGraphEdgeCount();
 
@@ -79,6 +89,7 @@ void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
   output_graph = subgraph;
   output_graph.prop.directed = true;
   kt.release();
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
 }
 
 } // detail namespace
