@@ -66,7 +66,7 @@ void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
       8,//Number of intersections per block
       2,//log2(Number of threads)
       64000,//Total number of blocks launched
-      32//Thread block dimension);
+      32);//Thread block dimension
   kt.reset();
   kt.sortHornet();
 

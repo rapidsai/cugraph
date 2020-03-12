@@ -35,12 +35,12 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-#These ground truth files have been created by running the networkx ktruss
-#function on reference graphs. Currently networkx ktruss has an error such
-#that nx.k_truss(G,k-2) gives the expected result for running ktruss with
-#parameter k. This fix (https://github.com/networkx/networkx/pull/3713) is
-#currently in networkx master and will hopefully will make it to a release
-#soon.
+# These ground truth files have been created by running the networkx ktruss
+# function on reference graphs. Currently networkx ktruss has an error such
+# that nx.k_truss(G,k-2) gives the expected result for running ktruss with
+# parameter k. This fix (https://github.com/networkx/networkx/pull/3713) is
+# currently in networkx master and will hopefully will make it to a release
+# soon.
 def ktruss_ground_truth(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx['0']), max(Mnx['1'])) + 1
