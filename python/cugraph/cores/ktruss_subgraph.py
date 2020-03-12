@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.ktruss import ktruss_subgraph_wrapper
+from cugraph.cores import ktruss_subgraph_wrapper
 from cugraph.structure.graph import DiGraph
 
 
@@ -69,10 +69,8 @@ def ktruss_subgraph(G, k):
     --------
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edge_list(M, source='0', destination='1')
     >>> k_subgraph = cugraph.ktruss_subgraph(G)
     """
 
