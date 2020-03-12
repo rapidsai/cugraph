@@ -16,18 +16,20 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
+from libcpp cimport bool
 
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-cdef extern from "cugraph.h" namespace "cugraph":
-
-    cdef void force_atlas2(
-        Graph *graph,
-        void *c_fa2_x_ptr,
-        void *c_fa2_y_ptr,
+    cdef void force_atlas2[VT, ET, WT](
+        const GraphCOO[VT, ET, WT] &graph,
+        float *x_pos,
+        float *y_pos,
+        float *x_start,
+        float *y_start,
         int max_iter,
         float gravity,
         float scaling_ratio,
-        int edge_weight_influence,
-        int lin_log_mode,
-        int prevent_overlapping) except +
+        float edge_weight_influence,
+        bool lin_log_mode,
+        bool prevent_overlapping) except +

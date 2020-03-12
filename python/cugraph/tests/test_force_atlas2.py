@@ -104,7 +104,7 @@ def networkx_call(M, max_iter,
 DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv']
 
-MAX_ITERATIONS = [500]
+MAX_ITERATIONS = [0]
 LIN_LOG_MODE = [True, False]
 PREVENT_OVERLAPPING = [True, False]
 EDGE_WEIGHT_INFLUENCE = [1.0]
@@ -159,18 +159,25 @@ def test_force_atlas2(managed, pool, graph_file):
     cu_pos = cugraph_call(cu_M, max_iter, pos_list, gravity, scaling_ratio,
                         barnes_hut_theta, edge_weight_influence, lin_log_mode,
                         prevent_overlapping)
-    nx_pos = networkx_call(M, max_iter, pos_list, node_masses=None,
-                        outbound_attraction_distribution=False, lin_log_mode,
-                        prevent_overlapping, edge_weight_influence,
-                        jitter_tolerance, barnes_hut_optimize=True,
-                        barnes_hut_theta, scaling_ratio, strong_gravity_mode=False,
-                        multithread=False, gravity)
+    nx_pos = networkx_call(M, max_iter, pos_list,
+                        node_masses=None,
+                        outbound_attraction_distribution=False,
+                        lin_log_mode=lin_log_mode,
+                        prevent_overlapping=prevent_overlapping,
+                        edge_weight_influence=edge_weight_influence,
+                        jitter_tolerance=jitter_tolerance,
+                        barnes_hut_optimize=True,
+                        barnes_hut_theta=barnes_hut_theta,
+                        scaling_ratio=scaling_ratio,
+                        strong_gravity_mode=False,
+                        multithread=False,
+                        gravity=gravity)
    
     # Check positions are the same
     assert len(cu_pos) == len(nx_pos)
     err = 0
     for i in range(len(cu_pos)):
-        if abs(cu_pos[i][0] - nx_pos[i][0]) > 0.01
+        if abs(cu_pos[i][0] - nx_pos[i][0]) > 0.01 \
         and abs(cu_pos[i][1] - nx_pos[i][1]) > 0.01:
             err += 1
     print("Mismatched points:", err)

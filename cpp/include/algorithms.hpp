@@ -469,6 +469,7 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          const VT start_vertex,
          bool directed = true);
 
+<<<<<<< cec8849c3f0f6436a693d033c6d130e026dc53dd
 namespace nvgraph {
 
 /**

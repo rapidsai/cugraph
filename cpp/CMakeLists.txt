@@ -302,6 +302,7 @@ add_library(cugraph SHARED
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
+    src/layout/force_atlas2.cu
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
