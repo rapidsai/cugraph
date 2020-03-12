@@ -40,6 +40,9 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     if not input_graph.transposedadjlist:
         input_graph.view_transposed_adj_list()
 
+    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices], [np.int32])
+    [weights] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.weights], [np.float32, np.float64])
+
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges()
 
@@ -68,12 +71,12 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
     cdef sz = 0
 
-    cdef uintptr_t c_offsets = input_graph.transposedadjlist.offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices = input_graph.transposedadjlist.indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
-    if input_graph.transposedadjlist.weights:
-        c_weights = input_graph.transposedadjlist.weights.__cuda_array_interface__['data'][0]
+    if weights is not None:
+        c_weights = weights.__cuda_array_interface__['data'][0]
 
     cdef GraphCSC[int,int,float] graph_float
     cdef GraphCSC[int,int,double] graph_double

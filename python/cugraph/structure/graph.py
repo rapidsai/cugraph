@@ -31,18 +31,17 @@ class Graph:
         def __init__(self, source, destination, edge_attr=None,
                      renumber_map=None):
             self.renumber_map = renumber_map
-            df = cudf.DataFrame()
-            df['src'] = source
-            df['dst'] = destination
+            self.edgelist_df = cudf.DataFrame()
+            self.edgelist_df['src'] = source
+            self.edgelist_df['dst'] = destination
             self.weights = False
             if edge_attr is not None:
                 self.weights = True
                 if type(edge_attr) is dict:
                     for k in edge_attr.keys():
-                        df[k] = edge_attr[k]
+                        sel.edgelist_df[k] = edge_attr[k]
                 else:
-                    df['weights'] = edge_attr
-            self.edgelist_df = df
+                    self.edgelist_df['weights'] = edge_attr
 
     class AdjList:
         def __init__(self, offsets, indices, value=None):
@@ -243,6 +242,7 @@ class Graph:
             self.edge_count = len(edgelist_df)
         else:
             edgelist_df = self.edgelist.edgelist_df
+
         if self.renumbered:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 df = cudf.DataFrame()
