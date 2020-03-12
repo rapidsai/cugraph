@@ -75,7 +75,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
-    if input_graph.transposedadjlist.weights:
+    if input_graph.transposedadjlist.weights is not None:
         c_weights = input_graph.transposedadjlist.weights.__cuda_array_interface__['data'][0]
 
     cdef GraphCSC[int,int,float] graph_float
