@@ -36,10 +36,10 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges()
-
     [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
 
     cdef uintptr_t c_result_col = <uintptr_t> NULL
     cdef uintptr_t c_first_col = <uintptr_t> NULL
