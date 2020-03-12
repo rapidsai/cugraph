@@ -255,7 +255,6 @@ def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
 
-    [offset_col, index_col] = datatype_cast([offset_col, index_col], [np.int32])
     cdef gdf_column c_offset_col = get_gdf_column_view(offset_col)
     cdef gdf_column c_index_col = get_gdf_column_view(index_col)
     cdef gdf_column c_value_col
@@ -263,7 +262,6 @@ def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     if value_col is None:
         c_value_col_ptr = NULL
     else:
-        [value_col] = datatype_cast([value_col], [np.float32, np.float64])
         c_value_col = get_gdf_column_view(value_col)
         c_value_col_ptr = &c_value_col
 
@@ -363,10 +361,12 @@ def get_two_hop_neighbors(input_graph):
 def number_of_vertices(input_graph):
     cdef uintptr_t graph = allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
+    [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
     if input_graph.edgelist.weights:
-        add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+        [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+        add_edge_list(graph, src, dst, weights)
     else:
-        add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+        add_edge_list(graph, src, dst)
     c_graph.number_of_vertices(g)
     return g.numberOfVertices
 
