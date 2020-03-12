@@ -62,8 +62,8 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       networkx>=2.3 \
       python-louvain \
       cudatoolkit=$CUDA_REL \
-      dask>=2.1.0 \
-      distributed>=2.1.0 \
+      dask>=2.12.0 \
+      distributed>=2.12.0 \
       dask-cudf=${MINOR_VERSION} \
       dask-cuda=${MINOR_VERSION} \
       libcypher-parser \
