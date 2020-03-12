@@ -27,6 +27,7 @@
 - PR #726 Fixed SSSP notebook issues in last cell
 - PR #728 Temporary fix for dask attribute error issue
 - PR #733 Fixed multi-column renumbering issues with indexes
+- PR #746 Dask + Distributed 2.12.0+
 
 # cuGraph 0.12.0 (04 Feb 2020)
 
