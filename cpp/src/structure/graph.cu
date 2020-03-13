@@ -25,7 +25,7 @@ void GraphCompressedSparseBase<VT,ET,WT>::get_vertex_identifiers(VT *identifiers
 template <typename VT, typename ET, typename WT>
 void GraphCompressedSparseBase<VT,ET,WT>::get_source_indices(VT *src_indices) const {
   CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-  cugraph::detail::offsets_to_indices<VT>(offsets, GraphBase<VT,ET,WT>::number_of_vertices+1, src_indices);
+  cugraph::detail::offsets_to_indices<VT>(offsets, GraphBase<VT,ET,WT>::number_of_vertices, src_indices);
 }
 
 // explicit instantiation
