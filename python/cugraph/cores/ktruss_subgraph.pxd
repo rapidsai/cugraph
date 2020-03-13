@@ -11,6 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.cores.core_number import core_number
-from cugraph.cores.k_core import k_core
-from cugraph.cores.ktruss_subgraph import ktruss_subgraph
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph_new cimport *
+
+
+cdef extern from "algorithms.hpp" namespace "cugraph":
+
+    cdef void k_truss_subgraph[VT,ET,WT](
+        const GraphCOO[VT,ET,WT] &graph,
+        int k,
+        GraphCOO[VT,ET,WT] &output_graph) except +

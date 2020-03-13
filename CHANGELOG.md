@@ -2,6 +2,7 @@
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features
+- PR #736 cuHornet KTruss integration
 - PR #735 Integration gunrock's betweenness centrality
 
 ## Improvements
