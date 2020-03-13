@@ -58,7 +58,6 @@ def cugraph_call(cu_M, max_iter, pos_list, gravity,
                             prevent_overlapping=prevent_overlapping)
     t2 = time.time() - t1
     print('Cugraph Time : ' + str(t2))
-
     return pos
 
 
@@ -183,14 +182,13 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
                         multithread=False,
                         gravity=gravity)
    
+    nx_pos = sorted(nx_pos)
     # Check positions are the same
     assert len(cu_pos) == len(nx_pos)
-    """
     err = 0
     for i in range(len(cu_pos)):
-        if abs(cu_pos[i][0] - nx_pos[i][0]) > 0.01 \
-        and abs(cu_pos[i][1] - nx_pos[i][1]) > 0.01:
+        if abs(cu_pos['x'][i] - nx_pos[i][0]) > 0.01 \
+        and abs(cu_pos['y'][i] - nx_pos[i][1]) > 0.01:
             err += 1
     print("Mismatched points:", err)
     assert err < 0.01 * len(cu_pos)
-    """

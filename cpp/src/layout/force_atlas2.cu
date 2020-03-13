@@ -1,7 +1,23 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <string>
+#include <sstream>
+#include <iostream>
+#include <iomanip>
+#include "cub/cub.cuh"
+#include <algorithm>
+#include <iomanip>
+
+#include <rmm_utils.h>
+
+#include "utilities/graph_utils.cuh"
+#include "utilities/error_utils.h"
 #include <cugraph.h>
 #include <graph.hpp>
 
-#include "utilities/error_utils.h"
+#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_buffer.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -18,6 +34,11 @@ void force_atlas2_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
                   float edge_weight_influence=1.0,
                   bool lin_log_mode=false,
                   bool prevent_overlapping=false) {
+
+    int n = graph.number_of_vertices;
+    copy(n, x_start, x_pos);
+    copy(n, y_start, y_pos);
+
     return;
 }
 } //namespace detail
