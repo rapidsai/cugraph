@@ -42,7 +42,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges()
+    num_edges = len(indices)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))

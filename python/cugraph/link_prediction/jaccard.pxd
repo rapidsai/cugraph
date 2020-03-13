@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,17 +16,20 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void jaccard(Graph * graph,
-                               gdf_column * weights,
-                               gdf_column * result) except +
+    cdef void jaccard[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
+        const WT *weights,
+        WT *result) except +
     
-    cdef void jaccard_list(Graph * graph,
-                                    gdf_column * weights,
-                                    gdf_column * first,
-                                    gdf_column * second,
-                                    gdf_column * result) except +
+    cdef void jaccard_list[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
+        const WT *weights,
+        ET num_pairs,
+        const VT *first,
+        const VT *second,
+        WT *result) except +
