@@ -61,7 +61,6 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       rmm=${MINOR_VERSION} \
       networkx>=2.3 \
       python-louvain \
-      fa2l \
       cudatoolkit=$CUDA_REL \
       dask>=2.12.0 \
       distributed>=2.12.0 \
@@ -79,6 +78,8 @@ pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
 logger "pip install git+https://github.com/dask/dask.git --upgrade --no-deps"
 pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
+#Install Force Atlas 2
+pip install fa2
 
 logger "Check versions..."
 python --version

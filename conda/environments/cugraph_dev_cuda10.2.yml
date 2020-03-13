@@ -35,3 +35,4 @@ dependencies:
 - libcypher-parser
 - pip:
   - sphinx-markdown-tables
+  - fa2
