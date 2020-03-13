@@ -48,18 +48,24 @@ def force_atlas2(input_graph,
 	    algorithm terminates early in this manner.
         pos_list: cudf.Series
             Dictionary of initial positions indexed by vertex id.
-        gravity : float
-            Attracts nodes to the center. Prevents islands from drifting away.
-        scaling_ratio: : float
-            How much repulsion you want. More makes a more sparse graph.
-	edge_weight_influence: float
-            How much influence you give to the edges weight. 0 is “no influence” and 1 is “normal”.
-	    lin_log_mode: bool
-        prevent_overlapping:
+        outbound_attraction_distribution: bool
+          Distributes attraction along outbound edges.
+          Hubs attract less and thus are pushed to the borders. 
         lin_log_mode: bool
             Switch ForceAtlas model from lin-lin to lin-log. Makes clusters more tight.
         prevent_overlapping: bool
-            
+            Prevent nodes to overlap.
+	edge_weight_influence: float
+            How much influence you give to the edges weight. 0 is “no influence” and 1 is “normal”.
+        jitter_tolerance: float
+            How much swinging you allow. Above 1 discouraged.
+            Lower gives less speed and more precision
+        barnes_hut_theta: float
+        scaling_ratio: : float
+            How much repulsion you want. More makes a more sparse graph.
+        gravity : float
+            Attracts nodes to the center. Prevents islands from drifting away.
+
 
 	Returns
 	-------
