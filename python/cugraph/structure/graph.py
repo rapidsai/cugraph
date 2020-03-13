@@ -39,7 +39,7 @@ class Graph:
                 self.weights = True
                 if type(edge_attr) is dict:
                     for k in edge_attr.keys():
-                        sel.edgelist_df[k] = edge_attr[k]
+                        self.edgelist_df[k] = edge_attr[k]
                 else:
                     self.edgelist_df['weights'] = edge_attr
 
@@ -410,9 +410,19 @@ class Graph:
         if self.renumbered is True:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 n_cols = len(self.edgelist.renumber_map.columns) - 1
-                unrenumbered_df_ = df.merge(self.edgelist.renumber_map, left_on='first', right_on='id', how='left').drop(['id', 'first'])
-                unrenumbered_df = unrenumbered_df_.merge(self.edgelist.renumber_map, left_on='second', right_on='id', how='left').drop(['id', 'second'])
-                unrenumbered_df.columns = ['first_'+str(i) for i in range(n_cols)]+['second_'+str(i) for i in range(n_cols)]
+                unrenumbered_df_ = df.merge(self.edgelist.renumber_map,
+                                            left_on='first', right_on='id',
+                                            how='left').\
+                    drop(['id', 'first'])
+                unrenumbered_df = unrenumbered_df_.merge(self.edgelist.
+                                                         renumber_map,
+                                                         left_on='second',
+                                                         right_on='id',
+                                                         how='left').\
+                    drop(['id', 'second'])
+                unrenumbered_df.columns = ['first_' + str(i)
+                                           for i in range(n_cols)]\
+                    + ['second_' + str(i) for i in range(n_cols)]
                 df = unrenumbered_df
             else:
                 df['first'] = self.edgelist.renumber_map[df['first']].\
