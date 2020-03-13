@@ -292,4 +292,5 @@ void k_core(Graph* in_graph,
             gdf_column *vertex_id,
             gdf_column *core_number,
             Graph* out_graph);
+
 } //namespace cugraph

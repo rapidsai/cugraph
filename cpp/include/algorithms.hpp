@@ -196,4 +196,28 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
                             VT k = 0,
                             VT const *vertices = nullptr);
 
+/**
+ * @brief     Compute k truss for a graph
+ *
+ * K Truss is the maximal subgraph of a graph which contains at least three
+ * vertices where every edge is incident to at least k-2 triangles.
+ *
+ * Note that current implementation does not support a weighted graph.
+ *
+ * @throws                           cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a COO
+ * @param[in] k                      The order of the truss
+ * @param[out] output_graph          cuGRAPH graph descriptor with the k-truss subgraph as a COO
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
+                      int k,
+                      experimental::GraphCOO<VT, ET, WT> &output_graph);
+
 } //namespace cugraph
