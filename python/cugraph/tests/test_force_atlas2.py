@@ -14,9 +14,11 @@
 import gc
 from itertools import product
 import time
+import numpy as np
 
 import pytest
 
+import cudf
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -30,7 +32,7 @@ from random import randint
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import fa2l
+    import fa2
     import networkx as nx
 
 
@@ -79,22 +81,29 @@ def networkx_call(M, max_iter,
     # Networkx Force Atlas 2 Call
     print('Solving... ')
     t1 = time.time()
-    pos = fa2l.force_atlas2_layout(Gnx,
-                                iterations=max_iter,
-                                pos_list=pos_list,
-                                node_masses=node_masses,
-                                outbound_attraction_distribution=outbound_attraction_distribution,
-                                lin_log_mode=lin_log_mode,
-                                prevent_overlapping=prevent_overlapping,
-                                edge_weight_influence=edge_weight_influence,
-                                jitter_tolerance=jitter_tolerance,
-                                barnes_hut_optimize=barnes_hut_optimize,
-                                barnes_hut_theta=barnes_hut_theta,
-                                scaling_ratio=scaling_ratio,
-                                strong_gravity_mode=strong_gravity_mode,
-                                multithread=multithread,
-                                gravity=gravity)
+    forceatlas2 = fa2.ForceAtlas2(
+            # Behavior alternatives
+            outboundAttractionDistribution=outbound_attraction_distribution,# Dissuade hubs
+            linLogMode=False,  # NOT IMPLEMENTED
+            adjustSizes=False,  # Prevent overlap (NOT IMPLEMENTED)
+            edgeWeightInfluence=edge_weight_influence,
 
+            # Performance
+            jitterTolerance=jitter_tolerance,  # Tolerance
+            barnesHutOptimize=barnes_hut_theta,
+            barnesHutTheta=barnes_hut_optimize,
+            multiThreaded=False,  # NOT IMPLEMENTED
+
+            # Tuning
+            scalingRatio=scaling_ratio,
+            strongGravityMode=scaling_ratio,
+            gravity=gravity,
+
+            # Log
+            verbose=False)
+
+    pos = forceatlas2.forceatlas2_networkx_layout(Gnx, pos=pos_list, iterations=max_iter)
+    
     t2 = time.time() - t1
 
     print('Networkx Time : ' + str(t2))
@@ -105,8 +114,7 @@ DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv']
 
 MAX_ITERATIONS = [0]
-LIN_LOG_MODE = [True, False]
-PREVENT_OVERLAPPING = [True, False]
+OUTBOUND_ATTRACTION_DISTRIBUTION = [True]
 EDGE_WEIGHT_INFLUENCE = [1.0]
 JITTER_TOLERANCE = [1.0]
 BARNES_HUT_THETA = [0.5]
@@ -118,14 +126,16 @@ GRAVITY = [1.0]
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
-@pytest.mark.parametrize('lin_log_mode', LIN_LOG_MODE)
-@pytest.mark.parametrize('prevent_overlapping', PREVENT_OVERLAPPING)
+@pytest.mark.parametrize('outbound_attraction_distribution', OUTBOUND_ATTRACTION_DISTRIBUTION)
 @pytest.mark.parametrize('edge_weight_influence', EDGE_WEIGHT_INFLUENCE)
 @pytest.mark.parametrize('jitter_tolerance', JITTER_TOLERANCE)
 @pytest.mark.parametrize('barnes_hut_theta', BARNES_HUT_THETA)
 @pytest.mark.parametrize('scaling_ratio', SCALING_RATIO)
 @pytest.mark.parametrize('gravity', GRAVITY)
-def test_force_atlas2(managed, pool, graph_file):
+def test_force_atlas2(managed, pool, graph_file, max_iter,
+                      outbound_attraction_distribution, edge_weight_influence,
+                      jitter_tolerance, barnes_hut_theta, scaling_ratio,
+                      gravity):
     gc.collect()
 
     rmm.reinitialize(
@@ -156,14 +166,14 @@ def test_force_atlas2(managed, pool, graph_file):
                                 'x': x,
                                 'y' : y}) 
  
-    cu_pos = cugraph_call(cu_M, max_iter, pos_list, gravity, scaling_ratio,
-                        barnes_hut_theta, edge_weight_influence, lin_log_mode,
-                        prevent_overlapping)
-    nx_pos = networkx_call(M, max_iter, pos_list,
+    cu_pos = cugraph_call(cu_M, max_iter, cu_pos_list, gravity, scaling_ratio,
+                        barnes_hut_theta, edge_weight_influence, lin_log_mode=False,
+                        prevent_overlapping=False)
+    nx_pos = networkx_call(M, max_iter, nx_pos_list,
                         node_masses=None,
-                        outbound_attraction_distribution=False,
-                        lin_log_mode=lin_log_mode,
-                        prevent_overlapping=prevent_overlapping,
+                        outbound_attraction_distribution=outbound_attraction_distribution,
+                        lin_log_mode=False,
+                        prevent_overlapping=False,
                         edge_weight_influence=edge_weight_influence,
                         jitter_tolerance=jitter_tolerance,
                         barnes_hut_optimize=True,
@@ -175,6 +185,7 @@ def test_force_atlas2(managed, pool, graph_file):
    
     # Check positions are the same
     assert len(cu_pos) == len(nx_pos)
+    """
     err = 0
     for i in range(len(cu_pos)):
         if abs(cu_pos[i][0] - nx_pos[i][0]) > 0.01 \
@@ -182,3 +193,4 @@ def test_force_atlas2(managed, pool, graph_file):
             err += 1
     print("Mismatched points:", err)
     assert err < 0.01 * len(cu_pos)
+    """

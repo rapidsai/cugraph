@@ -51,20 +51,17 @@ def force_atlas2(input_graph,
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges()
 
+    cdef GraphCOO[int,int,float] graph_float
+
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['x'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
     df['y'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
 
     cdef uintptr_t c_weights = <uintptr_t>NULL
-    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
 
-    if input_graph.transposedadjlist.weights:
-        c_weights = input_graph.transposedadjlist.weights.__cuda_array_interface__['data'][0]
-    
-    cdef GraphCOO[int,int,float] graph_float
-    cdef uintptr_t c_src_indices = input_graph.edgelist.source.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst_indices = input_graph.edgelist.dest.__cuda_array_interface__['data'][0]
     graph_float = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
     
     cdef uintptr_t x_pos = df['x'].__cuda_array_interface__['data'][0]
