@@ -16,15 +16,17 @@ from cugraph.structure.graph import Graph
 
 
 def force_atlas2(input_graph,
-                max_iter=1000,
-                pos_list=None,
-                gravity=1.0,
-		scaling_ratio=1.0,
-                barnes_hut_theta=0.5,
-                edge_weight_influence=1.0,
-                lin_log_mode=False,
-                prevent_overlapping=False,
-                ):
+                 max_iter=1000,
+                 pos_list=None,
+                 outbound_attraction_distribution=True,
+                 lin_log_mode=False,
+                 prevent_overlapping=False,
+                 edge_weight_influence=1.0,
+                 jitter_tolerance=1.0,
+                 barnes_hut_theta=0.5,
+                 scaling_ratio=2.0,
+                 strong_gravity_mode=False,
+                 gravity=1.0):
 
 	"""
         ForceAtlas2 is a continuous graph layout algorithm for handy network
@@ -40,22 +42,30 @@ def force_atlas2(input_graph,
 	directed edge in both direction.
 
 	max_iter : integer
-	This controls the maximum number of levels/iterations of the Force Atlas
-	algorithm. When specified the algorithm will terminate after no more
-	than the specified number of iterations. No error occurs when the
-	algorithm terminates early in this manner.
-
-	gravity:
-        scaling_ratio:
-	edge_weight_influence:
-	lin_log_mode:
+	    This controls the maximum number of levels/iterations of the Force Atlas
+	    algorithm. When specified the algorithm will terminate after no more
+	    than the specified number of iterations. No error occurs when the
+	    algorithm terminates early in this manner.
+        pos_list: cudf.Series
+            Dictionary of initial positions indexed by vertex id.
+        gravity : float
+            Attracts nodes to the center. Prevents islands from drifting away.
+        scaling_ratio: : float
+            How much repulsion you want. More makes a more sparse graph.
+	edge_weight_influence: float
+            How much influence you give to the edges weight. 0 is “no influence” and 1 is “normal”.
+	    lin_log_mode: bool
         prevent_overlapping:
+        lin_log_mode: bool
+            Switch ForceAtlas model from lin-lin to lin-log. Makes clusters more tight.
+        prevent_overlapping: bool
+            
 
 	Returns
 	-------
 	pos : cudf.DataFrame
-	GPU data frame of size V containing three columns the vertex id and the
-	x and y positions it is assigned to.
+	    GPU data frame of size V containing two columns the x and y positions
+            indexed by vertex id
 
 	"""
 

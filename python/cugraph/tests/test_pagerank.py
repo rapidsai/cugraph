@@ -55,13 +55,14 @@ def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
     t2 = time.time() - t1
     print('Cugraph Time : '+str(t2))
 
+    print(df)
     # Sort Pagerank values
     sorted_pr = []
     pr_scores = df['pagerank'].to_array()
     for i, rank in enumerate(pr_scores):
         sorted_pr.append((i, rank))
 
-    return sorted_pr
+    return soted_pr
 
 
 # The function selects personalization_perc% of accessible vertices in graph M

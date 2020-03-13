@@ -39,23 +39,27 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def cugraph_call(cu_M, max_iter, pos_list, gravity,
-                 scaling_ratio, barnes_hut_theta,
-                 edge_weight_influence, lin_log_mode,
-                 prevent_overlapping):
+def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
+                 lin_log_mode, prevent_overlapping, edge_weight_influence,
+                 jitter_tolerance, barnes_hut_theta, scaling_ratio,
+                 strong_gravity_mode, gravity):
 
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
     # cugraph Force Atlas 2 Call
     t1 = time.time()
     pos = cugraph.force_atlas2(G,
-                            max_iter=max_iter,
-                            pos_list=pos_list,
-                            gravity=gravity,
-                            scaling_ratio=scaling_ratio,
-                            edge_weight_influence=edge_weight_influence,
-                            lin_log_mode=lin_log_mode,
-                            prevent_overlapping=prevent_overlapping)
+                               max_iter=max_iter,
+                               pos_list=pos_list,
+                               outbound_attraction_distribution=outbound_attraction_distribution,
+                               lin_log_mode=lin_log_mode,
+                               prevent_overlapping=prevent_overlapping,
+                               edge_weight_influence=edge_weight_influence,
+                               jitter_tolerance=jitter_tolerance,
+                               barnes_hut_theta=barnes_hut_theta,
+                               scaling_ratio=scaling_ratio,
+                               strong_gravity_mode=strong_gravity_mode,
+                               gravity=gravity)
     t2 = time.time() - t1
     print('Cugraph Time : ' + str(t2))
     return pos
@@ -118,6 +122,7 @@ EDGE_WEIGHT_INFLUENCE = [1.0]
 JITTER_TOLERANCE = [1.0]
 BARNES_HUT_THETA = [0.5]
 SCALING_RATIO = [2.0]
+STRONG_GRAVITY_MODE = [False]
 GRAVITY = [1.0]
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -130,11 +135,12 @@ GRAVITY = [1.0]
 @pytest.mark.parametrize('jitter_tolerance', JITTER_TOLERANCE)
 @pytest.mark.parametrize('barnes_hut_theta', BARNES_HUT_THETA)
 @pytest.mark.parametrize('scaling_ratio', SCALING_RATIO)
+@pytest.mark.parametrize('strong_gravity_mode', STRONG_GRAVITY_MODE)
 @pytest.mark.parametrize('gravity', GRAVITY)
 def test_force_atlas2(managed, pool, graph_file, max_iter,
                       outbound_attraction_distribution, edge_weight_influence,
                       jitter_tolerance, barnes_hut_theta, scaling_ratio,
-                      gravity):
+                      strong_gravity_mode, gravity):
     gc.collect()
 
     rmm.reinitialize(
@@ -154,35 +160,45 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
     # Init nodes at same positions
 
     nx_pos_list = dict()
-    for node in Gnx.nodes():
-        nx_pos_list[node] = randint(-100, 100), randint(-100, 100)
+    for i in range(Gnx.number_of_nodes()):
+        nx_pos_list[i] = randint(-100, 100), randint(-100, 100)
 
     k = np.fromiter(nx_pos_list.keys(), dtype='int32')
     x = np.fromiter([x for x, _ in nx_pos_list.values()], dtype='float32')
     y = np.fromiter([y for _, y in nx_pos_list.values()], dtype='float32')
 
-    cu_pos_list = cudf.DataFrame({'vertex': k,
-                                'x': x,
-                                'y' : y}) 
+    cu_pos_list = cudf.DataFrame({'x': x,
+                                  'y' : y}) 
  
-    cu_pos = cugraph_call(cu_M, max_iter, cu_pos_list, gravity, scaling_ratio,
-                        barnes_hut_theta, edge_weight_influence, lin_log_mode=False,
-                        prevent_overlapping=False)
-    nx_pos = networkx_call(M, max_iter, nx_pos_list,
-                        node_masses=None,
-                        outbound_attraction_distribution=outbound_attraction_distribution,
-                        lin_log_mode=False,
-                        prevent_overlapping=False,
-                        edge_weight_influence=edge_weight_influence,
-                        jitter_tolerance=jitter_tolerance,
-                        barnes_hut_optimize=True,
-                        barnes_hut_theta=barnes_hut_theta,
-                        scaling_ratio=scaling_ratio,
-                        strong_gravity_mode=False,
-                        multithread=False,
-                        gravity=gravity)
+    cu_pos = cugraph_call(cu_M,
+                          max_iter=max_iter,
+                          pos_list=cu_pos_list,
+                          outbound_attraction_distribution=outbound_attraction_distribution,
+                          lin_log_mode=False,
+                          prevent_overlapping=False,
+                          edge_weight_influence=edge_weight_influence,
+                          jitter_tolerance=jitter_tolerance,
+                          barnes_hut_theta=barnes_hut_theta,
+                          scaling_ratio=scaling_ratio,
+                          strong_gravity_mode=strong_gravity_mode,
+                          gravity=gravity)
+
+    nx_pos = networkx_call(M,
+                           max_iter=max_iter,
+                           pos_list=nx_pos_list,
+                           node_masses=None,
+                           outbound_attraction_distribution=outbound_attraction_distribution,
+                           lin_log_mode=False,
+                           prevent_overlapping=False,
+                           edge_weight_influence=edge_weight_influence,
+                           jitter_tolerance=jitter_tolerance,
+                           barnes_hut_optimize=True,
+                           barnes_hut_theta=barnes_hut_theta,
+                           scaling_ratio=scaling_ratio,
+                           strong_gravity_mode=strong_gravity_mode,
+                           multithread=False,
+                           gravity=gravity)
    
-    nx_pos = sorted(nx_pos)
     # Check positions are the same
     assert len(cu_pos) == len(nx_pos)
     err = 0

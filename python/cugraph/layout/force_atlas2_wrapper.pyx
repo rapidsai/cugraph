@@ -32,14 +32,17 @@ import numpy.ctypeslib as ctypeslib
 
 
 def force_atlas2(input_graph,
-                max_iter=1000,
-                pos_list=None,
-                gravity=1.0,
-                scaling_ratio=1.0,
-                barnes_hut_theta=0.5,
-                edge_weight_influence=1.0,
-                lin_log_mode=False,
-                prevent_overlapping=False):
+                 max_iter=1000,
+                 pos_list=None,
+                 outbound_attraction_distribution=True,
+                 lin_log_mode=False,
+                 prevent_overlapping=False,
+                 edge_weight_influence=1.0,
+                 jitter_tolerance=1.0,
+                 barnes_hut_theta=0.5,
+                 scaling_ratio=1.0,
+                 strong_gravity_mode = False,
+                 gravity=1.0):
 
     """
     Call force_atlas2
@@ -54,7 +57,6 @@ def force_atlas2(input_graph,
     cdef GraphCOO[int,int,float] graph_float
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['x'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
     df['y'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
 
@@ -75,16 +77,20 @@ def force_atlas2(input_graph,
 
 
     c_force_atlas2[int, int, float](graph_float,
-                    <float*> x_pos,
-                    <float*> y_pos,
-                    <float*> x_start,
-                    <float*> y_start,
+                    <float*>x_pos,
+                    <float*>y_pos,
                     <int>max_iter,
-                    <float>gravity,
-                    <float>scaling_ratio,
-                    <float>edge_weight_influence,
+                    <float*>x_start,
+                    <float*>y_start,
+                    <bool>outbound_attraction_distribution,
                     <bool>lin_log_mode,
-                    <bool>prevent_overlapping)
+                    <bool>prevent_overlapping,
+                    <float>edge_weight_influence,
+                    <float>jitter_tolerance,
+                    <float>barnes_hut_theta,
+                    <float>scaling_ratio,
+                    <bool> strong_gravity_mode,
+                    <float>gravity)
 
     return df
 
