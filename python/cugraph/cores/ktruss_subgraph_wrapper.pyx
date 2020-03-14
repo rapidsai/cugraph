@@ -49,6 +49,9 @@ def ktruss_subgraph(input_graph, k, subgraph_truss):
     cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t> NULL
 
+    if input_graph.edgelist.weights:
+        c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
+
     input_coo = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
     output_coo = GraphCOO[int,int,float]()
     k_truss_subgraph(input_coo, k, output_coo);
@@ -68,4 +71,11 @@ def ktruss_subgraph(input_graph, k, subgraph_truss):
         unrenumber(input_graph.edgelist.renumber_map, df, 'src')
         unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
 
-    subgraph_truss.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
+    if input_graph.edgelist.weights:
+        weight_array = rmm.device_array_from_ptr(<uintptr_t> output_coo.edge_data,
+                nelem=output_coo.number_of_edges,
+                dtype=np.float)
+        df['weights'] = cudf.Series(weight_array)
+        subgraph_truss.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='weights', renumber=False)
+    else:
+        subgraph_truss.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)

@@ -42,21 +42,16 @@ print('Networkx version : {} '.format(nx.__version__))
 # currently in networkx master and will hopefully will make it to a release
 # soon.
 def ktruss_ground_truth(graph_file):
-    Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
-    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
-                                   shape=(N, N))
-    nxktruss_subgraph = nx.DiGraph(Mcsr)
-    return nxktruss_subgraph
-
+    G = nx.read_edgelist(graph_file, nodetype=int, data=(('weight',float),))
+    df = nx.to_pandas_edgelist(G)
+    return df
 
 def cugraph_k_truss_subgraph(graph_file, k):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
     k_subgraph = cugraph.ktruss_subgraph(G, k)
     return k_subgraph
-
 
 def compare_k_truss(graph_file, k, ground_truth_file):
     k_truss_cugraph = cugraph_k_truss_subgraph(graph_file, k)

@@ -92,6 +92,64 @@ void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
 }
 
+template <typename VT, typename ET, typename WT>
+void weighted_ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
+                      int k,
+                      experimental::GraphCOO<VT, ET, WT> &output_graph) {
+  using HornetGraph = hornet::gpu::Hornet<VT, hornet::EMPTY, hornet::TypeList<WT>>;
+  using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::TypeList<WT>, hornet::DeviceType::DEVICE>;
+  using Update      = hornet::gpu::BatchUpdate<VT, hornet::TypeList<WT>>;
+  VT * src = const_cast<VT*>(graph.src_indices);
+  VT * dst = const_cast<VT*>(graph.dst_indices);
+  WT * wgt = const_cast<WT*>(graph.edge_data);
+  cudaStream_t stream{nullptr};
+  UpdatePtr ptr(graph.number_of_edges, src, dst, wgt);
+  Update batch(ptr);
+
+  HornetGraph hnt(graph.number_of_vertices+1);
+  hnt.insert(batch);
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to initialize graph");
+
+  KTrussWeighted<WT> kt(hnt);
+
+  kt.init();
+  kt.reset();
+  kt.createOffSetArray();
+  //NOTE : These parameters will become obsolete once we move to the updated
+  //algorithm (https://ieeexplore.ieee.org/document/8547581)
+  kt.setInitParameters(
+      4,//Number of threads per block per list intersection
+      8,//Number of intersections per block
+      2,//log2(Number of threads)
+      64000,//Total number of blocks launched
+      32);//Thread block dimension
+  kt.reset();
+  kt.sortHornet();
+
+  kt.runForK(k);
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
+
+  ET subgraph_edge_count = kt.getGraphEdgeCount();
+
+  VT * out_src;
+  VT * out_dst;
+  WT * out_wgt;
+  ALLOC_TRY((void**)&out_src, sizeof(VT) * subgraph_edge_count, stream);
+  ALLOC_TRY((void**)&out_dst, sizeof(VT) * subgraph_edge_count, stream);
+  ALLOC_TRY((void**)&out_wgt, sizeof(WT) * subgraph_edge_count, stream);
+
+  kt.copyGraph(out_src, out_dst, out_wgt);
+
+  experimental::GraphCOO<VT, ET, WT> subgraph(
+      const_cast<const VT*>(out_src), const_cast<const VT*>(out_dst),
+      const_cast<const WT*>(out_wgt), graph.number_of_vertices, subgraph_edge_count);
+
+  output_graph = subgraph;
+  output_graph.prop.directed = true;
+  kt.release();
+  CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
+}
+
 } // detail namespace
 
 template <typename VT, typename ET, typename WT>
@@ -101,7 +159,11 @@ void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
   CUGRAPH_EXPECTS(graph.src_indices != nullptr, "Graph source indices cannot be a nullptr");
   CUGRAPH_EXPECTS(graph.dst_indices != nullptr, "Graph destination indices cannot be a nullptr");
 
-  detail::ktruss_subgraph_impl(graph, k, output_graph);
+  if (graph.edge_data == nullptr) {
+    detail::ktruss_subgraph_impl(graph, k, output_graph);
+  } else {
+    detail::weighted_ktruss_subgraph_impl(graph, k, output_graph);
+  }
 }
 
 template void k_truss_subgraph<int, int, float>(experimental::GraphCOO<int, int, float> const &graph,
