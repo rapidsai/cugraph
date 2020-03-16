@@ -33,7 +33,7 @@ class BC {
 
       // --- Information from configuration --- //
       bool configured = false;   // Flag to ensure configuration was called
-      bool apply_normalization;            // If True normalize the betweenness
+      bool apply_normalization;  // If True normalize the betweenness
       VT const *sample_seeds;    //
       VT number_of_sample_seeds; //
 
@@ -42,22 +42,18 @@ class BC {
       result_t *betweenness = nullptr;
 
       // --- Data required to perform computation ----
-      /*
-      VT *predecessors = nullptr; // Predecessors required by sssp
-      VT *sp_counters = nullptr;  // Shortest-Path counter required by sssp
-      WT *sigmas = nullptr;       // Floating point version of sp_counters
-      WT *deltas = nullptr;       // Dependencies counter
-      */
+      WT *distances = nullptr;      // array<WT>(|V|) stores the distances gathered by the latest SSSP
+      VT *predecessors = nullptr;   // array<WT>(|V|) stores the predecessors of the latest SSSP
+      VT *nodes = nullptr;          // array<WT>(|V|) stores the nodes based on their distances in the latest SSSP
+      VT *sp_counters = nullptr;    // array<VT>(|V|) stores the shortest path counter for the latest SSSP
+      result_t *deltas = nullptr;   // array<result_t>(|V|) stores the dependencies for the latest SSSP
 
       cudaStream_t stream;
       void setup();
       void clean();
 
-      void accumulate(thrust::host_vector<result_t> &h_betweenness,
-                      thrust::host_vector<VT> &h_nodes,
-                      thrust::host_vector<VT> &predecessors,
-                      thrust::host_vector<VT> &h_sp_counters,
-                      VT source);
+      void accumulate(result_t *betweenness, VT *nodes, VT *predecessors,
+                      int *sp_counters, result_t *deltas, VT source);
       void normalize();
       void check_input();
 
@@ -69,6 +65,5 @@ class BC {
                      VT number_of_sample_seeds);
       void compute();
 };
-} // namespace detail
-
+} // namespace cugraph::detail
 } // namespace cugraph

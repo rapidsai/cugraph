@@ -39,22 +39,37 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness, bool _normalize,
                                          VT const *_sample_seeds,
                                          VT _number_of_sample_seeds) {
-    // --- Working data allocation ---
     // --- Bind betweenness output vector to internal ---
     betweenness = _betweenness;
     apply_normalization = _normalize;
     sample_seeds = _sample_seeds;
     number_of_sample_seeds =  _number_of_sample_seeds;
+
+    // --- Working data allocation ---
+    ALLOC_TRY(&distances, number_vertices * sizeof(WT), nullptr);
+    ALLOC_TRY(&predecessors, number_vertices * sizeof(VT), nullptr);
+    ALLOC_TRY(&nodes, number_vertices * sizeof(VT), nullptr);
+    ALLOC_TRY(&sp_counters, number_vertices * sizeof(int), nullptr);
+    ALLOC_TRY(&deltas, number_vertices * sizeof(result_t), nullptr);
     // --- Confirm that configuration went through ---
     configured = true;
 }
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::clean() {
+    ALLOC_FREE_TRY(distances, nullptr);
+    ALLOC_FREE_TRY(predecessors, nullptr);
+    ALLOC_FREE_TRY(nodes, nullptr);
+    ALLOC_FREE_TRY(sp_counters, nullptr);
+    ALLOC_FREE_TRY(deltas, nullptr);
+    // ---  Betweenness is not ours ---
+}
 
-template <typename T>
+template <typename WT, typename VT>
 struct ifNegativeReplace {
   __host__ __device__
-  T operator()(const T& dist, const T& node) const
+  VT operator()(const WT& dist, const VT& node) const
   {
-    return (dist == -1) ? -1 : node;
+    return (dist == static_cast<WT>(-1)) ? static_cast<VT>(-1) : node;
   }
 };
 
@@ -70,55 +85,46 @@ void BC<VT, ET, WT, result_t>::normalize() {
     }
 }
 
+/* TODO(xcadet) Use an iteration based node system, to process nodes of the same level at the same time
+** For now all the work is done on the first thread */
 template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::accumulate(thrust::host_vector<result_t> &h_betweenness,
-                            thrust::host_vector<VT> &h_nodes,
-                            thrust::host_vector<VT> &h_predecessors,
-                            thrust::host_vector<VT> &h_sp_counters,
-                            VT source) {
-    // TODO(xcadet) Remove the debugs messages (+ 1 are for testing on line3-False-1.0 against Python custom test)
-    /*
-    std::cout << "[CUDA] Accumulating from " << source << "\n";
-    std::cout << "\t[CUDA] Predecessors: ";
-    thrust::copy(h_predecessors.begin(), h_predecessors.end(), std::ostream_iterator<float>(std::cout, ", "));
-    std::cout << "\n";
-    std::cout << "\t[CUDA]sp_counters: ";
-    thrust::copy(h_sp_counters.begin(), h_sp_counters.end(), std::ostream_iterator<float>(std::cout, ", "));
-    std::cout << "\n";
-    */
-
-    thrust::host_vector<result_t> h_deltas(number_vertices, static_cast<WT>(0));
-    // TODO(xcadet) There is most likely a more efficient way to handle it
-    for (VT w : h_nodes) {
-        if (w == -1) { // The nodes after this ones have not been visited and should not update anything
-            break;
-        }
-        //std::cout << "\t[CUDA] Visiting " << w << "\n";
-        result_t factor = (static_cast<result_t>(1.0) + h_deltas[w]) / static_cast<result_t>(h_sp_counters[w]);
-        // TODO(xcadet) The current SSSP implementation only stores 1 Node
-        VT v = h_predecessors[w];
-        if (v != -1) { // This node has predecessor
-            WT old = h_deltas[v];
-            h_deltas[v] += static_cast<result_t>(h_sp_counters[v]) * factor;
-            //std::cout << "\t\t[CUDA] Updated depencies for node " << v << " with " << h_deltas[v] << "\n";
-            //std::cout << "\t\t\t[CUDA] From " << old << " to " << h_deltas[v] << ", with factor = " << factor << "\n";
-        } // We should not updated our dependencies
-        // The node is different than the source
-        if (w != source) {
-            h_betweenness[w] += h_deltas[w];
-            //std::cout << "\t\t[CUDA] Betweenness for " << w << " updated to " << h_betweenness[w] << "\n";
+__global__ void accumulate_kernel(result_t *betweenness, VT number_vertices,
+                                 VT *nodes, VT *predecessors, int *sp_counters,
+                                 result_t *deltas, VT source) {
+    int global_id = (blockIdx.x * blockDim.x)  + threadIdx.x;
+    if (global_id == 0) { // global_id < number_vertices
+        for (int idx = 0; idx < number_vertices; ++idx) {
+            VT w = nodes[idx];
+            if (w == -1) { // This node and the following have not been visited in the sssp
+                break;
+            }
+            result_t factor = (static_cast<result_t>(1.0) + deltas[w]) / static_cast<result_t>(sp_counters[w]);
+            VT v = predecessors[w]; // Multiples nodes could have the same predecessor
+            if (v != -1) {
+                atomicAdd(&deltas[v], static_cast<result_t>(sp_counters[v]) * factor);
+            }
+            if (w != source) {
+                atomicAdd(&betweenness[w], deltas[w]);
+            }
         }
     }
-
 }
 
+// TODO(xcadet) We might be able to handle different nodes with a kernel
 template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::clean() {
-    //ALLOC_FREE_TRY(predecessors, nullptr);
-    //ALLOC_FREE_TRY(sp_counters, nullptr);
-    //ALLOC_FREE_TRY(sigmas, nullptr);
-    //ALLOC_FREE_TRY(deltas, nullptr);
-    // ---  Betweenness is not ours ---
+void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* nodes,
+                                          VT *predecessors, int *sp_counters,
+                                          result_t *deltas, VT source) {
+    // Step 1) Dependencies (deltas) are initialized to 0 before starting
+    thrust::fill(rmm::exec_policy(stream)->on(stream), deltas,
+                 deltas + number_vertices, static_cast<result_t>(0));
+
+    // Step 2) Process each node, -1 is used to notify unreached nodes in the sssp
+    accumulate_kernel<VT, ET, WT, result_t>
+                     <<<1, 1, 0, stream>>>(betweenness, number_vertices,
+                                           nodes, predecessors, sp_counters,
+                                           deltas, source);
+    cudaDeviceSynchronize();
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -129,51 +135,46 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute() {
     CUGRAPH_EXPECTS(configured, "BC must be configured before computation");
 
-    // TODO(xcadet) There are too many of them
-    thrust::device_vector<WT> d_distances(number_vertices, static_cast<WT>(0));
-    thrust::device_vector<VT> d_predecessors(number_vertices, static_cast<VT>(0));
-    thrust::device_vector<VT> d_sp_counters(number_vertices, static_cast<VT>(0));
-
-    thrust::host_vector<WT> h_distances(number_vertices, static_cast<WT>(0));
-    thrust::host_vector<VT> h_predecessors(number_vertices, static_cast<VT>(0));
-    thrust::host_vector<VT> h_sp_counters(number_vertices, static_cast<VT>(0));
-    thrust::host_vector<result_t> h_betweenness(number_vertices, static_cast<result_t>(0));
-
-    thrust::host_vector<VT> h_nodes(number_vertices);
-
-    WT *d_distances_ptr = thrust::raw_pointer_cast(&d_distances[0]);
-    VT *d_predecessors_ptr = thrust::raw_pointer_cast(&d_predecessors[0]);
-    VT *d_sp_counters_ptr = thrust::raw_pointer_cast(&d_sp_counters[0]);
-
-    for (int source_vertex = 0; source_vertex < number_vertices ; ++source_vertex) {
-        // Step 0) Set information for upcoming sssp
-        thrust::sequence(thrust::host, h_nodes.begin(), h_nodes.end(), 0);
+    for (int source_vertex = 0; source_vertex < number_vertices;
+         ++source_vertex) {
+        /* Step 0) Set information for upcoming sssp, nodes is reinitialized
+        ** as a sequence. [0, number of vertices[ */
+        thrust::sequence(rmm::exec_policy(stream)->on(stream), nodes,
+                         nodes + number_vertices, 0);
 
         // Step 1) Singe-source shortest-path problem
-        cugraph::sssp(graph, d_distances_ptr, d_predecessors_ptr, d_sp_counters_ptr, source_vertex);
-        thrust::copy(d_distances.begin(), d_distances.end(), h_distances.begin());
-        thrust::copy(d_predecessors.begin(), d_predecessors.end(), h_predecessors.begin());
-        thrust::copy(d_sp_counters.begin(), d_sp_counters.end(), h_sp_counters.begin());
+        cugraph::sssp(graph, distances, predecessors, sp_counters,
+                      source_vertex);
 
-        // Step 2) We need to generate the nodes order (leverage distance to keep sssp lighter) ?
-        thrust::replace(thrust::host, h_distances.begin(), h_distances.end(), std::numeric_limits<WT>::max(), static_cast<WT>(-1));
-        thrust::sort_by_key(thrust::host, h_distances.begin(), h_distances.end(), h_nodes.begin(), thrust::greater<VT>());
-        thrust::transform(thrust::host, h_distances.begin(), h_distances.end(), h_nodes.begin(), h_nodes.begin(), ifNegativeReplace<WT>());
-        cudaDeviceSynchronize(); // TODO(xcadet) Is this one mandatory ?
+        /* Step 2) To generate the load order (use distances, it is
+        ** assumed that the weights are non negative, the accumualtion relies
+        ** on this property. */
+
+        /* 2.1: First replace the maximal value of WT by -1 so we can compare
+        ** in descending order. */
+        thrust::replace(rmm::exec_policy(stream)->on(stream), distances,
+                        distances + number_vertices,
+                        std::numeric_limits<WT>::max(),
+                        static_cast<WT>(-1));
+
+        /* 2.2: Use thrust sort_by_key to sort "nodes" in descending order
+        ** based on the distances. */
+        thrust::sort_by_key(rmm::exec_policy(stream)->on(stream), distances,
+                            distances + number_vertices, nodes,
+                            thrust::greater<WT>());
+
+        /* 2.3: -1 in distances meant that the node was never reached,
+        ** such vertices are replaced by -1 in "nodes" for the
+        accumulation phase. */
+        thrust::transform(rmm::exec_policy(stream)->on(stream),
+                          distances, distances + number_vertices,
+                          nodes, nodes, ifNegativeReplace<WT, VT>());
+
+        cudaDeviceSynchronize(); // TODO(xcadet) Is this mandatory?
         // Step 3) Accumulation
-        accumulate(h_betweenness, h_nodes, h_predecessors, h_sp_counters, source_vertex);
-        /*
-        std::cout << "Betweeness fter " << source_vertex << "\n";
-        thrust::copy(h_betweenness.begin(), h_betweenness.end(), std::ostream_iterator<float>(std::cout, ", "));
-        std::cout << "\n";
-        */
-        //break;
-
+        accumulate(betweenness, nodes, predecessors, sp_counters, deltas, source_vertex);
     }
     // Step 4: Rescale results based on number of vertices and directed or u
-    cudaMemcpyAsync(betweenness, &h_betweenness[0],
-                    number_vertices * sizeof(WT),
-                    cudaMemcpyHostToDevice, stream);
     cudaDeviceSynchronize();
     if (apply_normalization) {
         normalize();
