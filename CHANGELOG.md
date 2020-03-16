@@ -20,6 +20,7 @@
 - PR #740 added utility to extract paths from SSSP/BFS results
 - PR #742 Rremove gdf column from jaccard
 - PR #741 Added documentation for running and adding new benchmarks and shell script to automate
+- PR #747 updated viewing of graph, datatypecasting and two hop neighbor unrenumbering for multi column
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
