@@ -54,6 +54,10 @@ class SSSP {
   void* d_cub_exclusive_sum_storage;
   size_t cub_exclusive_sum_storage_bytes;
 
+  // Working Data for Betweenness Centrality
+  IndexType* d_frontier_predecessors = nullptr; // array<int>(|V|) will enforce highest id for predecessor
+  int* d_frontier_sp_counters = nullptr;        // array<int>(|V|) will allow proper summing over all predecessors
+
   cudaStream_t stream;
 
   void setup();

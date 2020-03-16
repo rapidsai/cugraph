@@ -28,12 +28,30 @@
 namespace cugraph { 
 namespace detail {
 
+/*
+** ifMinusOneReplace: functor for thrust transformation
+** For Predecessors: We want to overwrite non -1 from the d_frontier_predecessors, as it means it got relaxed
+*/
+template <typename T>
+struct ifNotEqualReplaceByFirst {
+  const T value;
+
+  ifNotEqualReplaceByFirst(T _value) : value(_value) {}
+
+  __host__ __device__
+  T operator()(const T& new_value, const T& old_value) const
+  {
+    return (new_value != value) ? new_value : old_value; // TODO(xcadet) looks like CAS
+  }
+};
+
 template <typename IndexType, typename DistType>
 void SSSP<IndexType, DistType>::setup() {
   // Working data
   // Each vertex can be in the frontier at most once
   ALLOC_TRY(&frontier, n * sizeof(IndexType), nullptr);
   ALLOC_TRY(&new_frontier, n * sizeof(IndexType), nullptr);
+
 
   // size of bitmaps for vertices
   vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
@@ -119,8 +137,17 @@ void SSSP<IndexType, DistType>::configure(DistType* _distances,
   // We need distances for SSSP even if the caller doesn't need them
   if (!computeDistances)
     ALLOC_TRY(&distances, n * sizeof(DistType), nullptr);
+
   // Need next_distances in either case
   ALLOC_TRY(&next_distances, n * sizeof(DistType), nullptr);
+
+  // We need to allocate vectors for extra information process in BC
+  if (predecessors) {
+    ALLOC_TRY(&d_frontier_predecessors, n * sizeof(IndexType), nullptr);
+  }
+  if (sp_counters) {
+    ALLOC_TRY(&d_frontier_sp_counters, n * sizeof(int), nullptr);
+  }
 }
 
 template <typename IndexType, typename DistType>
@@ -133,16 +160,15 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
 
   // If needed, set all predecessors to non-existent (-1)
   if (computePredecessors) {
-    cudaMemsetAsync(predecessors, -1, n * sizeof(IndexType), stream);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), predecessors, predecessors + n, -1);
   }
 
-  // TOOD(xcadet) probably a better way than this
+  // TODO(xcadet) probably a better way than this
   if (computeSPCounters) {
     traversal::fill_vec(sp_counters, n, 0, stream);
     int tmp = 2;
     cudaMemcpy(&sp_counters[source_vertex], &tmp, sizeof(IndexType), cudaMemcpyHostToDevice);
   }
-
 
   //
   // Initial frontier
@@ -166,7 +192,6 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   // If source is isolated (zero outdegree), we are done
   if ((m & current_isolated_bmap_source_vert)) {
     // Init distances and predecessors are done; stream is synchronized
-    
   }
 
   // Adding source_vertex to init frontier
@@ -199,7 +224,18 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
                     sizeof(IndexType),
                     cudaMemcpyDeviceToHost,
                     stream);
+    /*
+    ** Before each iteration we want to reset d_frontier_predecessors nad d_frontier_sp_counters
+    */
+    // frontier predecessors are set to -1, so we can use an atomicMax
+    if (predecessors) {
+      thrust::fill(rmm::exec_policy(stream)->on(stream), d_frontier_predecessors, d_frontier_predecessors + n, -1);
+    }
 
+    // frontier predecessors are set to 0, so they include only current
+    if (sp_counters) {
+      thrust::fill(rmm::exec_policy(stream)->on(stream), d_frontier_sp_counters, d_frontier_sp_counters + n, 0);
+    }
     // We need mf to know the next kernel's launch dims
     cudaStreamSynchronize(stream);
 
@@ -227,7 +263,9 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
         distances,
         next_distances,
         predecessors,
+        d_frontier_predecessors,
         sp_counters,
+        d_frontier_sp_counters,
         edge_mask,
         next_frontier_bmap,
         relaxed_edges_bmap,
@@ -249,6 +287,37 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
 
     CUDA_CHECK_LAST();
 
+    /*
+    ** After the latest expansion we want to update our predecessors
+    ** Before the frontier expansion we set d_frontier_predecessors to -1
+    ** If there was any relaxation, the predecessors got updated to the max value for the pass
+    ** TODO(xcadet) We could only use the indexes of the nodes in the frontier and updated them. (1)
+    ** We need to overwrite all non -1 values in predecessors by the the non -1 values from d_frontier_predecessors
+    ** (1) Required that we proceed to the updated before swapping frontier
+    */
+    if (predecessors) {
+      thrust::transform(rmm::exec_policy(stream)->on(stream),
+                      d_frontier_predecessors,
+                      d_frontier_predecessors + n,
+                      predecessors,
+                      predecessors,
+                      ifNotEqualReplaceByFirst<IndexType>(-1));
+    }
+    /*
+    ** After the latest expansion, we want to update our sp_counters
+    ** If our d_frontier_sp_counters is different from 0, we want to update our sp_counters
+    ** If d_frontier_sp_counters is different from 0, it means that the predecessors got updated
+    ** TODO(xcadet) If all predecessors are required this approach already gathers the shortest_path counter from all of them
+    ** However, a different approach for the predecessors will be required.
+    */
+    if (sp_counters) {
+      thrust::transform(rmm::exec_policy(stream)->on(stream),
+                      d_frontier_sp_counters,
+                      d_frontier_sp_counters + n,
+                      sp_counters,
+                      sp_counters,
+                      ifNotEqualReplaceByFirst<int>(0));
+    }
     // We need nf for the loop
     cudaStreamSynchronize(stream);
 
@@ -263,7 +332,6 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
       CUGRAPH_FAIL("ERROR: Max iterations exceeded. Check the graph for negative weight cycles");
     }
   }
-  
 }
 
 template <typename IndexType, typename DistType>
@@ -285,6 +353,16 @@ void SSSP<IndexType, DistType>::clean() {
 
   // next_distances were working data
   ALLOC_FREE_TRY(next_distances, nullptr);
+
+  // d_frontier_predecessors were working data
+  if (predecessors) {
+    ALLOC_FREE_TRY(d_frontier_predecessors, nullptr);
+  }
+
+  // d_frontier_sp_counters were working data
+  if (sp_counters) {
+    ALLOC_FREE_TRY(d_frontier_sp_counters, nullptr);
+  }
 }
 
 } //namespace
