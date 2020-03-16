@@ -34,7 +34,7 @@ from cugraph.structure import (
 )
 
 from cugraph.centrality import katz_centrality, betweenness_centrality
-from cugraph.cores import core_number, k_core
+from cugraph.cores import core_number, k_core, ktruss_subgraph
 from cugraph.components import weakly_connected_components, strongly_connected_components
 from cugraph.link_analysis import pagerank
 

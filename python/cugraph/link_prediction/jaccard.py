@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,6 +29,42 @@ def jaccard(input_graph, vertex_pair=None):
     first is specified but second is not, or vice versa, an exception will be
     thrown.
 
+    NOTE: If the vertex_pair parameter is not specified then the behavior
+    of cugraph.jaccard is different from the behavior of
+    networkx.jaccard_coefficient.
+
+    cugraph.jaccard, in the absence of a specified vertex pair list, will
+    use the edges of the graph to construct a vertex pair list and will
+    return the jaccard coefficient for those vertex pairs.
+
+    networkx.jaccard_coefficient, in the absence of a specified vertex
+    pair list, will return an upper triangular dense matrix, excluding
+    the diagonal as well as vertex pairs that are directly connected
+    by an edge in the graph, of jaccard coefficients.  Technically, networkx
+    returns a lazy iterator across this upper triangular matrix where
+    the actual jaccard coefficient is computed when the iterator is
+    dereferenced.  Computing a dense matrix of results is not feasible
+    if the number of vertices in the graph is large (100,000 vertices
+    would result in 4.9 billion values in that iterator).
+
+    If your graph is small enough (or you have enough memory and patience)
+    you can get the interesting (non-zero) values that are part of the networkx
+    solution by doing the following:
+
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> G = cugraph.Graph()
+    >>> G.add_edge_list(sources, destinations, None)
+    >>> pairs = G.get_two_hop_neighbors()
+    >>> df = cugraph.jaccard(G, pairs)
+
+    But please remember that cugraph will fill the dataframe with the entire
+    solution you request, so you'll need enough memory to store the 2-hop
+    neighborhood dataframe.
+
+
     Parameters
     ----------
     graph : cugraph.Graph
@@ -40,7 +76,9 @@ def jaccard(input_graph, vertex_pair=None):
     vertex_pair : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the jaccard coefficient is computed for the
-        given vertex pairs, else, it is computed for all vertex pairs.
+        given vertex pairs.  If the vertex_pair is not provided then the
+        current implementation computes the jaccard coefficient for all
+        adjacent vertices in the graph.
 
     Returns
     -------
@@ -80,6 +118,6 @@ def jaccard(input_graph, vertex_pair=None):
     else:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = jaccard_wrapper.jaccard(input_graph, vertex_pair)
+    df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
 
     return df

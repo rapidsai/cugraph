@@ -90,7 +90,8 @@ public:
    */
   GraphCOO(VT const *src_indices_, VT const *dst_indices_, WT const *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
-    GraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_)
+    GraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
+    src_indices(src_indices_), dst_indices(dst_indices_)
   {}
 };
 

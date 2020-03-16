@@ -11,13 +11,43 @@ from benchmark import (
     Benchmark, logExeTime, logGpuMetrics, printLastResult, nop
 )
 
-from asv_report import (
-    cugraph_update_asv
-)
 
-
+###############################################################################
 # Update this function to add new algos
+###############################################################################
 def getBenchmarks(G, edgelist_gdf, args):
+    """
+    Returns a dictionary of benchmark name to Benchmark objs. This dictionary
+    is used when processing the command-line args to this script so the script
+    can run a specific benchmakr by name.
+
+    The "edgelist_gdf" and "args" args are common to many benchmark runs, and
+    provided to this function to make it easy to pass to individual Benchmark
+    objs.  The "args" arg in particular is a dictionary built from processing
+    the command line args to this script, and allow special parameters to be
+    added to the command line for use by specific benchmarks.
+
+    To add a new benchmark to run, simply add an instance of a Benchmark to the
+    "benches" list below.
+
+     * The Benchmark instance ctor takes 3 args:
+       * "name" - the name of the benchmark which will show up in reports,
+                  output, etc.
+       * "func" - the function object which the benchmark will call.  This can
+                  be any callable.
+       * "args" - a tuple of args that are to be passed to the func callable.
+
+    A Benchmark object will, by default, run the callable with the args
+    provided as-is, and log the execution time and various GPU metrics.  The
+    callable provided is written independent of the benchmarking code (this is
+    good for separation of concerns, bad if you need to do a custom
+    measurement).
+
+    If a new benchmark needs a special command-line parameter, add a new flag
+    to the command-line processing function and access it via the "args"
+    dictionary when passing args to the Benchmark ctor.
+    """
+
     benches = [
         Benchmark(name="cugraph.pagerank",
                   func=cugraph.pagerank,
@@ -216,6 +246,10 @@ if __name__ == "__main__":
     # pprint.pprint(perfData, open("data","w"))
 
     if args.update_asv_dir:
+        # import this here since it pulls in a 3rd party package (asvdb) which
+        # may not be appreciated by non-ASV users.
+        from asv_report import cugraph_update_asv
+
         # special case: do not include the full path to the datasetName, since
         # the leading parts are redundant and take up UI space.
         datasetName = "/".join(args.file.split("/")[-3:])

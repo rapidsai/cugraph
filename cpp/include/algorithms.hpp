@@ -31,6 +31,7 @@ namespace cugraph {
  * @throws                           cugraph::logic_error with a custom message when an error occurs.
  *
  * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers. Supported value : int (signed, 32-bit)
  * @tparam WT                        Type of edge weights. Supported value : float or double.   
  *
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSR). Edge weights are not used for this algorithm.
@@ -61,6 +62,106 @@ void pagerank(experimental::GraphCSC<VT,ET,WT> const &graph,
               double tolerance = 1e-5, 
               int64_t max_iter = 500,
               bool has_guess = false);
+
+/**
+ * @brief     Compute jaccard similarity coefficient for all vertices
+ *
+ * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
+ * which are connected by an edge.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT              Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET              Type of edge identifiers. Supported value : int (signed, 32-bit)
+ * @tparam WT              Type of edge weights. Supported value : float or double.   
+ *
+ * @param[in] graph        The input graph object
+ * @param[in] weights      device pointer to input vertex weights for weighted Jaccard, may be NULL for
+ *                         unweighted Jaccard.
+ * @param[out] result      Device pointer to result values, memory needs to be pre-allocated by caller
+ */
+template <typename VT, typename ET, typename WT>
+void jaccard(experimental::GraphCSR<VT,ET,WT> const &graph,
+             WT const *weights,
+             WT *result);
+
+/**
+ * @brief     Compute jaccard similarity coefficient for selected vertex pairs
+ *
+ * Computes the Jaccard similarity coefficient for each pair of specified vertices.
+ * Vertices are specified as pairs where pair[n] = (first[n], second[n])
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT              Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET              Type of edge identifiers. Supported value : int (signed, 32-bit)
+ * @tparam WT              Type of edge weights. Supported value : float or double.   
+ *
+ * @param[in] graph        The input graph object
+ * @param[in] weights      The input vertex weights for weighted Jaccard, may be NULL for
+ *                         unweighted Jaccard.
+ * @param[in] num_pairs    The number of vertex ID pairs specified
+ * @param[in] first        Device pointer to first vertex ID of each pair
+ * @param[in] second       Device pointer to second vertex ID of each pair
+ * @param[out] result      Device pointer to result values, memory needs to be pre-allocated by caller
+ */
+template <typename VT, typename ET, typename WT>
+void jaccard_list(experimental::GraphCSR<VT,ET,WT> const &graph,
+                  WT const *weights,
+                  ET num_pairs,
+                  VT const *first,
+                  VT const *second,
+                  WT *result);
+
+/**
+ * @brief     Compute overlap coefficient for all vertices in the graph
+ *
+ * Computes the Overlap Coefficient for every pair of vertices in the graph which are
+ * connected by an edge.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT              Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET              Type of edge identifiers. Supported value : int (signed, 32-bit)
+ * @tparam WT              Type of edge weights. Supported value : float or double.   
+ *
+ * @param[in] graph        The input graph object
+ * @param[in] weights      device pointer to input vertex weights for weighted overlap, may be NULL for
+ *                         unweighted overlap.
+ * @param[out] result      Device pointer to result values, memory needs to be pre-allocated by caller
+ */
+template <typename VT, typename ET, typename WT>
+void overlap(experimental::GraphCSR<VT,ET,WT> const &graph,
+             WT const *weights,
+             WT *result);
+
+/**
+ * @brief     Compute overlap coefficient for select pairs of vertices
+ *
+ * Computes the overlap coefficient for each pair of specified vertices.
+ * Vertices are specified as pairs where pair[n] = (first[n], second[n])
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT              Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET              Type of edge identifiers. Supported value : int (signed, 32-bit)
+ * @tparam WT              Type of edge weights. Supported value : float or double.   
+ *
+ * @param[in] graph        The input graph object
+ * @param[in] weights      device pointer to input vertex weights for weighted overlap, may be NULL for
+ *                         unweighted overlap.
+ * @param[in] num_pairs    The number of vertex ID pairs specified
+ * @param[in] first        Device pointer to first vertex ID of each pair
+ * @param[in] second       Device pointer to second vertex ID of each pair
+ * @param[out] result      Device pointer to result values, memory needs to be pre-allocated by caller
+ */
+template <typename VT, typename ET, typename WT>
+void overlap_list(experimental::GraphCSR<VT,ET,WT> const &graph,
+                  WT const *weights,
+                  ET num_pairs,
+                  VT const *first,
+                  VT const *second,
+                  WT *result);
 
 /**
  * @brief     Compute betweenness centrality for a graph
@@ -94,5 +195,29 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
                             WT const *weight = nullptr,
                             VT k = 0,
                             VT const *vertices = nullptr);
+
+/**
+ * @brief     Compute k truss for a graph
+ *
+ * K Truss is the maximal subgraph of a graph which contains at least three
+ * vertices where every edge is incident to at least k-2 triangles.
+ *
+ * Note that current implementation does not support a weighted graph.
+ *
+ * @throws                           cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a COO
+ * @param[in] k                      The order of the truss
+ * @param[out] output_graph          cuGRAPH graph descriptor with the k-truss subgraph as a COO
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
+                      int k,
+                      experimental::GraphCOO<VT, ET, WT> &output_graph);
 
 } //namespace cugraph
