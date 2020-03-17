@@ -18,7 +18,7 @@
 
 #pragma once
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
 template <typename IndexType, typename DistType>
 class SSSP {

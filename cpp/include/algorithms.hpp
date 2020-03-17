@@ -220,4 +220,29 @@ void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
                       int k,
                       experimental::GraphCOO<VT, ET, WT> &output_graph);
 
+/**
+ * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
+ *
+ * @throws     cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ *
+ * @param[out] distances            If set to a valid pointer, array of size V populated by distance of every vertex in the graph from the starting vertex. Memory is provided and owned by the caller.
+ *
+ * @param[out] predecessors         If set to a valid pointer, array of size V populated by the SSSP predecessor of every vertex. Memory is provided and owned by the caller.
+ *
+ * @param[in] start_vertex           The starting vertex for SSSP
+ *
+ */
+/* ----------------------------------------------------------------------------*/
+template <typename VT, typename ET, typename WT>
+void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
+          WT *distances,
+          VT *predecessors,
+          const VT source_vertex);
+
 } //namespace cugraph
