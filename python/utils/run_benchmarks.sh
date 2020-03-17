@@ -22,7 +22,7 @@ for ds in ${DATASET_DIR}/csv/undirected/*; do
       echo "SKIPPING ${ds}"
       echo
    else
-      python ${UTILS_DIR}/run_benchmarks.py ${ASV_OUTPUT_OPTION} --report_cuda_ver=${CUDA_VERSION} --report_python_ver=${PYTHON_VERSION} --report_os_type=${LINUX_VERSION} --report_machine_name=${MACHINE_NAME} ${ds}
+      python ${UTILS_DIR}/run_benchmarks.py ${ASV_OUTPUT_OPTION} --auto_csr --report_cuda_ver=${CUDA_VERSION} --report_python_ver=${PYTHON_VERSION} --report_os_type=${LINUX_VERSION} --report_machine_name=${MACHINE_NAME} ${ds}
       exitcode=$?
       if (( ${exitcode} != 0 )); then
          ERROR=${exitcode}
@@ -33,7 +33,7 @@ for ds in ${DATASET_DIR}/csv/undirected/*; do
 done
 for ds in ${DATASET_DIR}/csv/directed/*; do
    echo "================================ ${ds}"
-   python ${UTILS_DIR}/run_benchmarks.py ${ASV_OUTPUT_OPTION} --report_cuda_ver=${CUDA_VERSION} --report_python_ver=${PYTHON_VERSION} --report_os_type=${LINUX_VERSION} --report_machine_name=${MACHINE_NAME} --algo=cugraph.pagerank --algo=cugraph.bfs --algo=cugraph.sssp --algo=cugraph.overlap --algo=cugraph.renumber --algo=cugraph.graph.view_adj_list --algo=cugraph.graph.degree --algo=cugraph.graph.degrees ${ds}
+   python ${UTILS_DIR}/run_benchmarks.py ${ASV_OUTPUT_OPTION} --auto_csr --report_cuda_ver=${CUDA_VERSION} --report_python_ver=${PYTHON_VERSION} --report_os_type=${LINUX_VERSION} --report_machine_name=${MACHINE_NAME} --algo=cugraph.pagerank --algo=cugraph.bfs --algo=cugraph.sssp --algo=cugraph.overlap --algo=cugraph.renumber --algo=cugraph.graph.view_adj_list --algo=cugraph.graph.degree --algo=cugraph.graph.degrees --digraph ${ds}
    exitcode=$?
    if (( ${exitcode} != 0 )); then
       ERROR=${exitcode}

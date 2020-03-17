@@ -7,17 +7,14 @@ from scipy.io import mmread
 import cugraph
 import cudf
 
-from benchmark import (
-    Benchmark, logExeTime, logGpuMetrics, printLastResult, nop
-)
+from benchmark import Benchmark
 
 
 ###############################################################################
 # Update this function to add new algos
 ###############################################################################
 def getBenchmarks(G, edgelist_gdf, args):
-    """
-    Returns a dictionary of benchmark name to Benchmark objs. This dictionary
+    """Returns a dictionary of benchmark name to Benchmark objs. This dictionary
     is used when processing the command-line args to this script so the script
     can run a specific benchmakr by name.
 
@@ -46,6 +43,7 @@ def getBenchmarks(G, edgelist_gdf, args):
     If a new benchmark needs a special command-line parameter, add a new flag
     to the command-line processing function and access it via the "args"
     dictionary when passing args to the Benchmark ctor.
+
     """
 
     benches = [
@@ -59,7 +57,6 @@ def getBenchmarks(G, edgelist_gdf, args):
         Benchmark(name="cugraph.sssp",
                   func=cugraph.sssp,
                   args=(G, args.source)),
-        #         extraRunWrappers=[noStdoutWrapper]),
         Benchmark(name="cugraph.jaccard",
                   func=cugraph.jaccard,
                   args=(G,)),
@@ -110,11 +107,18 @@ def loadDataFile(file_name, csv_delimiter=' '):
     return edgelist_gdf
 
 
-def createGraph(edgelist_gdf, auto_csr):
-    G = cugraph.Graph()
-    G.add_edge_list(edgelist_gdf["src"], edgelist_gdf["dst"],
-                    edgelist_gdf["val"])
-    if auto_csr == 0:
+def createGraph(edgelist_gdf, digraph, auto_csr, renumber, symmetrized):
+    if digraph:
+        G = cugraph.DiGraph()
+    else:
+        G = cugraph.Graph(symmetrized=symmetrized)
+    G.from_cudf_edgelist(edgelist_gdf, source="src",
+                         destination="dst", edge_attr="val",
+                         renumber=renumber)
+    # FIXME: always calling both view_adj_list() and view_transposed_adj_list()
+    # will unnecessarily double GPU mem usage, need to selectively call only
+    # one.
+    if auto_csr:
         G.view_adj_list()
         G.view_transposed_adj_list()
     return G
@@ -134,15 +138,16 @@ def read_mtx(mtx_file):
 
 
 def read_csv(csv_file, delimiter):
-    cols = ["src", "dst"]
+    cols = ["src", "dst", "val"]
     dtypes = OrderedDict([
             ("src", "int32"),
-            ("dst", "int32")
+            ("dst", "int32"),
+            ("val", "float32"),
             ])
 
     gdf = cudf.read_csv(csv_file, names=cols, delimiter=delimiter,
                         dtype=list(dtypes.values()))
-    gdf['val'] = 1.0
+    #gdf['val'] = 1.0
     if gdf['val'].null_count > 0:
         print("The reader failed to parse the input")
     if gdf['src'].null_count > 0:
@@ -171,10 +176,10 @@ def parseCLI(argv):
                         'is 1e-5')
     parser.add_argument('--source', type=int, default=0,
                         help='Source for bfs or sssp. Default is 0')
-    parser.add_argument('--auto_csr', type=int, default=0,
+    parser.add_argument('--auto_csr', action="store_true",
                         help='Automatically do the csr and transposed '
-                        'transformations. Default is 0, switch to another '
-                        'value to enable')
+                        'transformations. Default is to NOT run csr and '
+                        'transposed transformations.')
     parser.add_argument('--delimiter', type=str, choices=["tab", "space"],
                         default="space",
                         help='Delimiter for csv files (default is space)')
@@ -191,17 +196,35 @@ def parseCLI(argv):
                         help='The OS type to include in reports')
     parser.add_argument('--report_machine_name', type=str, default="",
                         help='The machine name to include in reports')
+    parser.add_argument('--digraph', action="store_true",
+                        help='Create a directed graph (default is undirected)')
 
     return parser.parse_args(argv)
 
 
 def getAllPossibleAlgos():
+    # Use the getBenchmarks() function to generate a list of benchmark names
+    # from the keys of the dictionary getBenchmarks() returns.  Use a "nop"
+    # object since getBenchmarks() will try to access attrs for the args passed
+    # in, and there's no point in keeping track of the actual objects needed
+    # here since all this needs is the keys (not the values).
+    class Nop:
+        def __getattr__(self, attr):
+            return Nop()
+
+        def __getitem__(self, key):
+            return Nop()
+
+        def __call__(self, *args, **kwargs):
+            return Nop()
+
+    nop = Nop()
+
     return list(getBenchmarks(nop, nop, nop).keys())
 
 
 ###############################################################################
 if __name__ == "__main__":
-    perfData = {}
     args = parseCLI(sys.argv[1:])
 
     # set algosToRun based on the command line args
@@ -216,34 +239,39 @@ if __name__ == "__main__":
     else:
         algosToRun = allPossibleAlgos
 
-    # Update the various wrappers with a list to log to and formatting settings
-    logExeTime.perfData = perfData
-    logGpuMetrics.perfData = perfData
-    printLastResult.perfData = perfData
-
-    # Load the data file and create a Graph, treat these as benchmarks too
+    # Load the data file and create a Graph, treat these as benchmarks too.  The
+    # Benchmark run() method returns the result of the function being
+    # benchmarked. In this case, "loadDataFile" and "createGraph" return a
+    # Dataframe and Graph object respectively, so save those and use them for
+    # future benchmarks.
     csvDelim = {"space": ' ', "tab": '\t'}[args.delimiter]
-    edgelist_gdf = Benchmark(loadDataFile, "cugraph.loadDataFile",
+    edgelist_gdf = Benchmark(loadDataFile,
+                             "cugraph.loadDataFile",
                              args=(args.file, csvDelim)).run()
-    G = Benchmark(createGraph, "cugraph.createGraph",
-                  args=(edgelist_gdf, args.auto_csr)).run()
+    renumber = True
+    symmetrized = True
+
+    G = Benchmark(createGraph,
+                  "cugraph.createGraph",
+                  args=(edgelist_gdf, args.digraph, args.auto_csr, renumber,
+                        symmetrized)).run()
 
     if G is None:
         raise RuntimeError("could not create graph!")
 
     print("-" * 80)
 
+    # get the individual benchmark functions and run them
     benches = getBenchmarks(G, edgelist_gdf, args)
-
     for algo in algosToRun:
-        benches[algo].run()
+        benches[algo].run(n=3)
 
     # reports ########################
     if args.update_results_dir:
         raise NotImplementedError
 
     # import pprint
-    # pprint.pprint(perfData, open("data","w"))
+    # pprint.pprint(Benchmark.resultsDict, open("data","w"))
 
     if args.update_asv_dir:
         # import this here since it pulls in a 3rd party package (asvdb) which
@@ -256,7 +284,7 @@ if __name__ == "__main__":
 
         cugraph_update_asv(asvDir=args.update_asv_dir,
                            datasetName=datasetName,
-                           algoRunResults=perfData,
+                           algoRunResults=Benchmark.resultsDict,
                            cudaVer=args.report_cuda_ver,
                            pythonVer=args.report_python_ver,
                            osType=args.report_os_type,
