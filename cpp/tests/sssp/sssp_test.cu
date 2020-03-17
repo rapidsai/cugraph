@@ -214,8 +214,6 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_FALSE(mm_is_skew(mc));
 
       // Allocate memory on host
-      //std::vector<MaxVType> cooRowInd(nnz), cooColInd(nnz);
-      //std::vector<DistType> cooVal;
       cooRowInd.resize(nnz);
       cooColInd.resize(nnz);
 
@@ -268,8 +266,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                            G(result.rowOffsets,
                              result.colIndices,
                              result.edgeWeights,
-                             num_vertices,
-                             num_edges);
+                             result.size,
+                             result.nnz);
     cudaDeviceSynchronize();
 
     std::vector<DistType> dist_vec;
