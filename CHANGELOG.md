@@ -33,6 +33,7 @@
 - PR #746 Dask + Distributed 2.12.0+
 - PR #753 ECG Error
 - PR #758 Fix for graph comparison failure
+- PR #761 Added flag to not treat deprecation warnings as errors, for now
 
 # cuGraph 0.12.0 (04 Feb 2020)
 
