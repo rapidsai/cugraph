@@ -16,11 +16,13 @@
 #include <limits>
 #include "rmm_utils.h"
 
+#include "graph.hpp"
+
 #include "utilities/graph_utils.cuh"
 #include "traversal_common.cuh"
 #include "bfs_kernels.cuh"
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
   enum BFS_ALGO_STATE {
     TOPDOWN, BOTTOMUP
@@ -469,29 +471,26 @@ namespace detail {
   }
 
   template class Bfs<int> ;
-} //namespace 
+} //namespace
 
-template <typename VT>
-void bfs(Graph *graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
-  // TODO improve error msg
-  // TODO fix me after gdf_column is removed from Graph
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
+template <typename VT, typename ET, typename WT>
+void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, WT *distances, VT *predecessors, const VT start_vertex, bool directed) {
   CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(ET) == typeid(int), "Unsupported data type");
+  CUGRAPH_EXPECTS(typeid(WT) == typeid(int), "Unsupported data type");
 
-  int n = graph->adjList->offsets->size - 1;
-  int e = graph->adjList->indices->size;
-  int* offsets_ptr = (int*)graph->adjList->offsets->data;
-  int* indices_ptr = (int*)graph->adjList->indices->data;
+  int n = graph.number_of_vertices;
+  int e = graph.number_of_edges;
+  int* offsets_ptr = (int*)graph.offsets;
+  int* indices_ptr = (int*)graph.indices;
   int alpha = 15;
   int beta = 18;
 
-  cugraph::detail::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
+  cugraph::detail::Bfs<VT> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
   bfs.configure(distances, predecessors, nullptr);
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int>(Graph* graph, int *distances, int *predecessors, const int source_vertex, bool directed);
+template void bfs<int>(experimental::GraphCSR<int, int, int> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
 
-} //namespace 
+} //namespace

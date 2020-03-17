@@ -384,12 +384,6 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
         }
       }
     }
-
-    // Done with device mem. Free it
-    //cudaStream_t stream{nullptr};
-    //ALLOC_FREE_TRY(col_src.data, stream);
-    //ALLOC_FREE_TRY(col_dest.data, stream);
-    //ALLOC_FREE_TRY(col_weights.data, stream);
   }
 };
 

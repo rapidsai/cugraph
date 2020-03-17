@@ -17,7 +17,7 @@
 
 #define TRAVERSAL_DEFAULT_BETA 18
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
 	template<typename IndexType>
 	class Bfs {
@@ -73,7 +73,7 @@ namespace detail {
 			clean();
 		}
 
-		Bfs(	IndexType _n,
+		Bfs(IndexType _n,
 				IndexType _nnz,
 				IndexType *_row_offsets,
 				IndexType *_col_indices,
@@ -97,4 +97,3 @@ namespace detail {
 		void traverse(IndexType source_vertex);
 	};
 } } //namespace
-
