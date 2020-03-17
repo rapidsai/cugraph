@@ -28,6 +28,7 @@
 - PR #740 added utility to extract paths from SSSP/BFS results
 - PR #742 Rremove gdf column from jaccard
 - PR #741 Added documentation for running and adding new benchmarks and shell script to automate
+- PR #747 updated viewing of graph, datatypecasting and two hop neighbor unrenumbering for multi column
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
@@ -39,6 +40,7 @@
 - PR #733 Fixed multi-column renumbering issues with indexes
 - PR #746 Dask + Distributed 2.12.0+
 - PR #753 ECG Error
+- PR #758 Fix for graph comparison failure
 
 # cuGraph 0.12.0 (04 Feb 2020)
 

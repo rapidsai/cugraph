@@ -31,18 +31,17 @@ class Graph:
         def __init__(self, source, destination, edge_attr=None,
                      renumber_map=None):
             self.renumber_map = renumber_map
-            df = cudf.DataFrame()
-            df['src'] = source
-            df['dst'] = destination
+            self.edgelist_df = cudf.DataFrame()
+            self.edgelist_df['src'] = source
+            self.edgelist_df['dst'] = destination
             self.weights = False
             if edge_attr is not None:
                 self.weights = True
                 if type(edge_attr) is dict:
                     for k in edge_attr.keys():
-                        df[k] = edge_attr[k]
+                        self.edgelist_df[k] = edge_attr[k]
                 else:
-                    df['weights'] = edge_attr
-            self.edgelist_df = df
+                    self.edgelist_df['weights'] = edge_attr
 
     class AdjList:
         def __init__(self, offsets, indices, value=None):
@@ -243,6 +242,7 @@ class Graph:
             self.edge_count = len(edgelist_df)
         else:
             edgelist_df = self.edgelist.edgelist_df
+
         if self.renumbered:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 df = cudf.DataFrame()
@@ -408,10 +408,27 @@ class Graph:
         """
         df = graph_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
-            df['first'] = self.edgelist.renumber_map[df['first']].\
-                reset_index(drop=True)
-            df['second'] = self.edgelist.renumber_map[df['second']].\
-                reset_index(drop=True)
+            if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
+                n_cols = len(self.edgelist.renumber_map.columns) - 1
+                unrenumbered_df_ = df.merge(self.edgelist.renumber_map,
+                                            left_on='first', right_on='id',
+                                            how='left').\
+                    drop(['id', 'first'])
+                unrenumbered_df = unrenumbered_df_.merge(self.edgelist.
+                                                         renumber_map,
+                                                         left_on='second',
+                                                         right_on='id',
+                                                         how='left').\
+                    drop(['id', 'second'])
+                unrenumbered_df.columns = ['first_' + str(i)
+                                           for i in range(n_cols)]\
+                    + ['second_' + str(i) for i in range(n_cols)]
+                df = unrenumbered_df
+            else:
+                df['first'] = self.edgelist.renumber_map[df['first']].\
+                    reset_index(drop=True)
+                df['second'] = self.edgelist.renumber_map[df['second']].\
+                    reset_index(drop=True)
         return df
 
     def number_of_vertices(self):
