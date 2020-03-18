@@ -64,12 +64,12 @@ namespace detail {
 #endif
     }
 
-    template<typename IdxType, typename ValType>
+    template<typename count_t, typename index_t, typename value_t>
     __inline__   __device__
-    ValType parallel_prefix_sum(IdxType n, IdxType *ind, ValType *w) {
-        IdxType i, j, mn;
-        ValType v, last;
-        ValType sum = 0.0;
+    value_t parallel_prefix_sum(count_t n, index_t const *ind, value_t const *w) {
+        count_t i, j, mn;
+        value_t v, last;
+        value_t sum = 0.0;
         bool valid;
 
         //Parallel prefix sum (using __shfl)

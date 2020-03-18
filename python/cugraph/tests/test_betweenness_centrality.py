@@ -82,6 +82,7 @@ def test_betweenness_centrality(managed, pool, graph_file):
 
     assert err == 0
 
+
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
