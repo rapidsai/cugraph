@@ -31,7 +31,7 @@ import cudf._lib as libcudf
 import rmm
 import numpy as np
 
-def ktruss_subgraph_double(input_graph, k, subgraph_truss):
+def ktruss_subgraph_double(input_graph, k, use_weights, subgraph_truss):
     """
     Call ktruss
     """
@@ -70,7 +70,7 @@ def ktruss_subgraph_double(input_graph, k, subgraph_truss):
         unrenumber(input_graph.edgelist.renumber_map, df, 'src')
         unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
 
-    if input_graph.edgelist.weights:
+    if input_graph.edgelist.weights and use_weights:
         weight_array = rmm.device_array_from_ptr(<uintptr_t> output_coo.edge_data,
                 nelem=output_coo.number_of_edges,
                 dtype=np.float)
@@ -79,7 +79,7 @@ def ktruss_subgraph_double(input_graph, k, subgraph_truss):
     else:
         subgraph_truss.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
 
-def ktruss_subgraph_float(input_graph, k, subgraph_truss):
+def ktruss_subgraph_float(input_graph, k, use_weights, subgraph_truss):
     """
     Call ktruss
     """
@@ -118,7 +118,7 @@ def ktruss_subgraph_float(input_graph, k, subgraph_truss):
         unrenumber(input_graph.edgelist.renumber_map, df, 'src')
         unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
 
-    if input_graph.edgelist.weights:
+    if input_graph.edgelist.weights and use_weights:
         weight_array = rmm.device_array_from_ptr(<uintptr_t> output_coo.edge_data,
                 nelem=output_coo.number_of_edges,
                 dtype=np.float32)
@@ -127,11 +127,11 @@ def ktruss_subgraph_float(input_graph, k, subgraph_truss):
     else:
         subgraph_truss.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
 
-def ktruss_subgraph(input_graph, k, subgraph_truss):
+def ktruss_subgraph(input_graph, k, use_weights, subgraph_truss):
     if input_graph.edgelist.weights:
         if (input_graph.edgelist.edgelist_df['weights'].dtype == np.float32):
-            ktruss_subgraph_float(input_graph, k, subgraph_truss)
+            ktruss_subgraph_float(input_graph, k, use_weights, subgraph_truss)
         else:
-            ktruss_subgraph_double(input_graph, k, subgraph_truss)
+            ktruss_subgraph_double(input_graph, k, use_weights, subgraph_truss)
     else:
-        ktruss_subgraph_float(input_graph, k, subgraph_truss)
+        ktruss_subgraph_float(input_graph, k, use_weights, subgraph_truss)
