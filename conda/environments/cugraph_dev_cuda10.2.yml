@@ -8,8 +8,8 @@ dependencies:
 - cudf=0.13.*
 - nvstrings=0.13.*
 - rmm=0.13.*
-- dask>=2.1.0
-- distributed>=2.1.0
+- dask>=2.12.0
+- distributed>=2.12.0
 - dask-cuda=0.13*
 - dask-cudf=0.13*
 - scipy

@@ -2,6 +2,8 @@
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features
+- PR #736 cuHornet KTruss integration
+- PR #735 Integration gunrock's betweenness centrality
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
@@ -10,7 +12,15 @@
 - PR #715 Added new YML file for CUDA 10.2
 - PR #719 Updated docs to remove CUDA 9.2 and add CUDA 10.2
 - PR #720 Updated error messages
+- PR #722 Refactor graph to remove gdf_column
 - PR #723 Added notebook testing to gpuCI gpu build
+- PR #734 Updated view_edge_list for Graph, added unrenumbering test, fixed column access issues
+- PR #738 Move tests directory up a level
+- PR #739 Updated Notebooks
+- PR #740 added utility to extract paths from SSSP/BFS results
+- PR #742 Rremove gdf column from jaccard
+- PR #741 Added documentation for running and adding new benchmarks and shell script to automate
+- PR #747 updated viewing of graph, datatypecasting and two hop neighbor unrenumbering for multi column
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
@@ -19,6 +29,11 @@
 - PR #716 Fixed bug due to disappearing get_column_data_ptr function in cudf
 - PR #726 Fixed SSSP notebook issues in last cell
 - PR #728 Temporary fix for dask attribute error issue
+- PR #733 Fixed multi-column renumbering issues with indexes
+- PR #746 Dask + Distributed 2.12.0+
+- PR #753 ECG Error
+- PR #758 Fix for graph comparison failure
+- PR #761 Added flag to not treat deprecation warnings as errors, for now
 
 # cuGraph 0.12.0 (04 Feb 2020)
 

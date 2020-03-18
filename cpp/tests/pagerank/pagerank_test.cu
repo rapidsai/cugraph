@@ -15,11 +15,12 @@
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 #include "cuda_profiler_api.h"
-#include <cugraph.h>
 #include "test_utils.h"
 #include <rmm/thrust_rmm_allocator.h>
+#include <converters/COOtoCSR.cuh>
+#include <graph.hpp>
+#include <algorithms.hpp>
 
-//#include "functions.h"
 // do the perf measurements
 // enabled by command line parameter s'--perf'
 static int PERF = 0;
@@ -27,10 +28,6 @@ static int PERF = 0;
 // iterations for perf tests
 // enabled by command line parameter '--perf-iters"
 static int PERF_MULTIPLIER = 5;
-
-void dumy(void* in, void* out ) {
-
-}
 
 typedef struct Pagerank_Usecase_t {
   std::string matrix_file;
@@ -82,9 +79,8 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      int m, k, nnz;
      MM_typecode mc;
      
-     Graph_ptr G{new cugraph::Graph, Graph_deleter};
-     gdf_column_ptr col_src, col_dest;
      float tol = 1E-5f;
+
      // Default parameters
      /*
      float alpha = 0.85;
@@ -115,34 +111,31 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
      // Read
      ASSERT_EQ( (mm_to_coo<int,T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
      ASSERT_EQ(fclose(fpin),0);
+
+     //  Pagerank runs on CSC, so feed COOtoCSR the row/col backwards.
+     CSR_Result_Weighted<int,T>   result;
+     ConvertCOOtoCSR_weighted(&cooColInd[0], &cooRowInd[0], &cooVal[0], nnz, result);
+
+     cugraph::experimental::GraphCSC<int,int,T> G(result.rowOffsets, result.colIndices, result.edgeWeights, m, nnz);
     
-    // gdf columns
-    col_src = create_gdf_column(cooRowInd);
-    col_dest = create_gdf_column(cooColInd);
-
-    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
-    cugraph::add_transposed_adj_list(G.get());
-
-    cudaDeviceSynchronize();
-    if (PERF) {
-      hr_clock.start();
-      for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-       cugraph::pagerank<int,T>(G.get(), d_pagerank);
-       cudaDeviceSynchronize();
+     cudaDeviceSynchronize();
+     if (PERF) {
+       hr_clock.start();
+       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
+         cugraph::pagerank<int,int,T>(G, d_pagerank);
+         cudaDeviceSynchronize();
       }
-      hr_clock.stop(&time_tmp);
-      pagerank_time.push_back(time_tmp);
-    }
-    else {
-      cudaProfilerStart();
-      cugraph::pagerank<int,T>(G.get(), d_pagerank);
-      cudaProfilerStop();
-      cudaDeviceSynchronize();
+       hr_clock.stop(&time_tmp);
+       pagerank_time.push_back(time_tmp);
+     } else {
+       cudaProfilerStart();
+       cugraph::pagerank<int,int,T>(G, d_pagerank);
+       cudaProfilerStop();
+       cudaDeviceSynchronize();
     }
     
     // Check vs golden data
-    if (param.result_file.length()>0)
-    {
+    if (param.result_file.length() > 0) {
       std::vector<T> calculated_res(m);
 
       CUDA_RT_CALL(cudaMemcpy(&calculated_res[0], d_pagerank,   sizeof(T) * m, cudaMemcpyDeviceToHost));
@@ -195,5 +188,3 @@ int main( int argc, char** argv )
     rmmFinalize();
     return rc;
 }
-
-

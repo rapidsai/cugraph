@@ -33,7 +33,8 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
         "${GTEST_INCLUDE_DIR}"
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
-        "${CMAKE_SOURCE_DIR}/../thirdparty/cub"
+        "${CUDF_INCLUDE}/libcudf/libcudacxx"
+        "${CUB_INCLUDE_DIR}"
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio"
         "${CMAKE_SOURCE_DIR}/include"
         "${CMAKE_SOURCE_DIR}/src"
@@ -121,6 +122,14 @@ set(KATZ_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/centrality/katz_centrality_test.cu")
 
   ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}" "")
+
+###################################################################################################
+# - betweenness centrality tests -------------------------------------------------------------------------
+
+set(BETWEENNESS_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/betweenness_centrality_test.cu")
+
+  ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}" "")
 
 ###################################################################################################
 # - gdfgraph tests --------------------------------------------------------------------------------
