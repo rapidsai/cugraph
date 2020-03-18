@@ -16,15 +16,15 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 from libcpp cimport bool
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void bfs[int](
-        Graph *graph,
-        int *distances,
-        int *predecessors,
-        int start_vertex,
+    cdef void bfs[VT, ET, WT](
+        const GraphCSR[VT, ET, WT] &graph,
+        WT *distances,
+        VT *predecessors,
+        VT start_vertex,
         bool directed) except +

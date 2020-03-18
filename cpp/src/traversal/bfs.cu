@@ -491,6 +491,6 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, WT *distances, VT *pre
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int>(experimental::GraphCSR<int, int, int> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
+template void bfs<int, int, int>(experimental::GraphCSR<int, int, int> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
 
 } //namespace
