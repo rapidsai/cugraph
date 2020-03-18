@@ -15,9 +15,6 @@
  */
 #pragma once
 
-///#include "cuda_utils.h"
-///#include "array/array.h"
-
 #include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
@@ -29,12 +26,12 @@
 #include <iomanip>
 #include <type_traits>
 
+#include "utilities/cuda_utils.cuh"
 #include "utils.h"
-
+#include "rmmAllocatorAdapter.hpp"
 
 namespace MLCommon {
 
-  
 /**
  * @brief Provide a ceiling division operation ie. ceil(a / b)
  * @tparam IntType supposed to be only integers for now!
@@ -46,338 +43,303 @@ IntType1 ceildiv(IntType1 a, IntType2 b) {
   return (a + b - 1) / b;
 }
 
-template<typename T, typename IndexT = int>
-__device__ IndexT get_stop_idx(T row, IndexT m, IndexT nnz, const T *ind) {
-    IndexT stop_idx = 0;
-    if(row < (m-1))
-        stop_idx = ind[row+1];
-    else
-        stop_idx = nnz;
-
-    return stop_idx;
-}
-  
 namespace Sparse {
 
-template<typename T = int>
 class WeakCCState {
 public:
-  //using bool_ = char;
-  
   bool *xa;
   bool *fa;
   bool *m;
   bool owner;
 
-  WeakCCState(T n):
-    xa(nullptr),
-    fa(nullptr),
-    m(nullptr),
-    owner(true)
-  {
-    MLCommon::allocate(xa, n, true);
-    MLCommon::allocate(fa, n, true);
-    MLCommon::allocate(m, 1, true);
-    // h_p_d_xa = new thrust::device_vector<bool>(n, 1);
-    // h_p_d_fa = new thrust::device_vector<bool>(n, 1);
-    // h_p_d_m = new thrust::device_vector<bool>(1, 1);
+  WeakCCState(bool *xa, bool *fa, bool *m) : xa(xa), fa(fa), m(m) {}
+};
 
-    // xa = h_p_d_xa->data().get();
-    // fa = h_p_d_fa->data().get();
-    // m  = h_p_d_m->data().get();
-  }
+template <typename vertex_t, typename edge_t, int TPB_X = 32>
+__global__ void weak_cc_label_device(vertex_t *labels,
+                                     edge_t const *offsets,
+                                     vertex_t const *indices,
+                                     edge_t nnz,
+                                     bool *fa,
+                                     bool *xa,
+                                     bool *m,
+                                     vertex_t startVertexId,
+                                     vertex_t batchSize) {
 
-  WeakCCState(bool *xa, bool *fa, bool *m):
-    owner(false), xa(xa), fa(fa), m(m) {
-  }
+  vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;
+  if (tid < batchSize) {
+    if (fa[tid + startVertexId]) {
+      fa[tid + startVertexId] = false;
+      vertex_t ci, cj;
+      bool ci_mod = false;
+      ci = labels[tid + startVertexId];
 
-  ~WeakCCState() {
-    if(owner) {
-      try {
-        // delete h_p_d_xa;
-        // delete h_p_d_fa;
-        // delete h_p_d_m;
-               
-        cudaStream_t stream{nullptr};
-        
-        if( xa )
-          ALLOC_FREE_TRY(xa, stream);
-          //CUDA_CHECK(cudaFree(xa));
+      // TODO:
+      //    This can't be optimal.  A high degree vertex will cause
+      //    terrible load balancing, since one thread on the GPU will
+      //    have to do all of that work.
+      //
 
-        if( fa )
-          ALLOC_FREE_TRY(fa, stream);
-          //CUDA_CHECK(cudaFree(fa));
+      //
+      // NOTE: reworked this loop.  In cugraph offsets is one element
+      //       longer so you can always do this memory reference.
+      //
+      //  edge_t degree = get_stop_idx(tid, batchSize, nnz, offsets) - offsets[tid];
+      //
+      //edge_t degree = offsets[tid+1] - offsets[tid];
+      //for (auto j = 0 ; j < degree ; j++) { // TODO: Can't this be calculated from the ex_scan?
+      //  vertex_t j_ind = indices[start+j];
+      //  ...
+      // }
+      //
+      for (edge_t j = offsets[tid] ; j < offsets[tid+1] ; ++j) {
+        vertex_t j_ind = indices[j];
+        cj = labels[j_ind];
+        if (ci < cj) {
+          cugraph::atomicMin(labels + j_ind, ci);
+          xa[j_ind] = true;
+          m[0] = true;
+        } else if (ci > cj) {
+          ci = cj;
+          ci_mod = true;
+        }
+      }
 
-        if( m )
-          ALLOC_FREE_TRY(m,  stream);
-          //CUDA_CHECK(cudaFree(m));
-
-        xa = nullptr;
-        fa = nullptr;
-        m = nullptr;
-          
-        
-      } catch(Exception &e) {
-        std::cout << "Exception freeing memory for WeakCCState: " <<
-          e.what() << std::endl;
+      if (ci_mod) {
+        cugraph::atomicMin(labels + startVertexId + tid, ci);
+        xa[startVertexId + tid] = true;
+        m[0] = true;
       }
     }
   }
-// private:
-//   thrust::device_vector<bool>* h_p_d_xa;
-//   thrust::device_vector<bool>* h_p_d_fa;
-//   thrust::device_vector<bool>* h_p_d_m;
-};
-
-template <typename Type, int TPB_X = 32>
-__global__ void weak_cc_label_device(
-        Type *labels,
-        const Type *row_ind, const Type *row_ind_ptr, Type nnz,
-        bool *fa, bool *xa, bool *m,
-        Type startVertexId, Type batchSize) {
-    Type tid = threadIdx.x + blockIdx.x*TPB_X;
-    if(tid<batchSize) {
-        if(fa[tid + startVertexId]) {
-            fa[tid + startVertexId] = false;
-            Type start = row_ind[tid];
-            Type ci, cj;
-            bool ci_mod = false;
-            ci = labels[tid + startVertexId];
-
-            Type degree = get_stop_idx(tid, batchSize,nnz, row_ind) - row_ind[tid];
-
-            for(auto j=0; j< degree; j++) { // TODO: Can't this be calculated from the ex_scan?
-                cj = labels[row_ind_ptr[start + j]];
-                if(ci<cj) {
-                    atomicMin(labels + row_ind_ptr[start +j], ci);
-                    xa[row_ind_ptr[start+j]] = true;
-                    m[0] = true;
-                }
-                else if(ci>cj) {
-                    ci = cj;
-                    ci_mod = true;
-                }
-            }
-            if(ci_mod) {
-                atomicMin(labels + startVertexId + tid, ci);
-                xa[startVertexId + tid] = true;
-                m[0] = true;
-            }
-        }
-    }
 }
 
+template <typename vertex_t, int TPB_X = 32, typename Lambda>
+__global__ void weak_cc_init_label_kernel(vertex_t *labels,
+                                          vertex_t startVertexId,
+                                          vertex_t batchSize,
+                                          vertex_t MAX_LABEL,
+                                          Lambda filter_op) {
 
-template <typename Type, int TPB_X = 32, typename Lambda>
-__global__ void weak_cc_init_label_kernel(Type *labels, Type startVertexId, Type batchSize,
-        Type MAX_LABEL, Lambda filter_op) {
-    /** F1 and F2 in the paper correspond to fa and xa */
-    /** Cd in paper corresponds to db_cluster */
-    Type tid = threadIdx.x + blockIdx.x*TPB_X;
-    if(tid<batchSize) {
-        if(filter_op(tid) && labels[tid + startVertexId]==MAX_LABEL)
-            labels[startVertexId + tid] = Type(startVertexId + tid + 1);
-    }
+  /** F1 and F2 in the paper correspond to fa and xa */
+  /** Cd in paper corresponds to db_cluster */
+  vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;
+  if (tid<batchSize) {
+    if (filter_op(tid) && labels[tid + startVertexId] == MAX_LABEL)
+      labels[startVertexId + tid] = vertex_t{startVertexId + tid + 1};
+  }
 }
 
-template <typename Type, int TPB_X = 32>
-__global__ void weak_cc_init_all_kernel(Type *labels, bool *fa, bool *xa,
-        Type N, Type MAX_LABEL) {
-    Type tid = threadIdx.x + blockIdx.x*TPB_X;
-    if(tid<N) {
-        labels[tid] = MAX_LABEL;
-        fa[tid] = true;
-        xa[tid] = false;
-    }
+template <typename vertex_t, int TPB_X = 32>
+__global__ void weak_cc_init_all_kernel(vertex_t *labels, bool *fa, bool *xa,
+                                        vertex_t N, vertex_t MAX_LABEL) {
+  vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;
+  if (tid<N) {
+    labels[tid] = MAX_LABEL;
+    fa[tid] = true;
+    xa[tid] = false;
+  }
 }
 
-  template <typename Type, int TPB_X = 32, typename Lambda>
-void weak_cc_label_batched(Type *labels,
-        const Type* row_ind, const Type* row_ind_ptr, Type nnz, Type N,
-        WeakCCState<Type> *state,
-        Type startVertexId, Type batchSize,
-        cudaStream_t stream, Lambda filter_op) {
-    bool host_m;
-    bool *host_fa = (bool*)malloc(sizeof(bool)*N);
-    bool *host_xa = (bool*)malloc(sizeof(bool)*N);
+template <typename vertex_t, typename edge_t, int TPB_X = 32, typename Lambda>
+void weak_cc_label_batched(vertex_t *labels,
+                           edge_t const *offsets,
+                           vertex_t const *indices,
+                           edge_t nnz,
+                           vertex_t N,
+                           WeakCCState &state,
+                           vertex_t startVertexId,
+                           vertex_t batchSize,
+                           cudaStream_t stream,
+                           Lambda filter_op) {
+  ASSERT(sizeof(vertex_t) == 4 || sizeof(vertex_t) == 8,
+         "Index_ should be 4 or 8 bytes");
 
-    dim3 blocks(ceildiv(batchSize, TPB_X));
-    dim3 threads(TPB_X);
-    Type MAX_LABEL = std::numeric_limits<Type>::max();
+bool host_m{true};
 
-    weak_cc_init_label_kernel<Type, TPB_X><<<blocks, threads, 0, stream>>>(labels,
-            startVertexId, batchSize, MAX_LABEL, filter_op);
+  //std::vector<bool> h_fa(N);
+  //std::vector<bool> h_xa(N);
+  //bool *host_fa{h_fa.data()};
+  //bool *host_xa{h_xa.data()};
+
+  dim3 blocks(ceildiv(batchSize, vertex_t{TPB_X}));
+  dim3 threads(TPB_X);
+  vertex_t MAX_LABEL = std::numeric_limits<vertex_t>::max();
+
+  weak_cc_init_label_kernel<vertex_t, TPB_X><<<blocks, threads, 0, stream>>>(
+    labels, startVertexId, batchSize, MAX_LABEL, filter_op);
+
+  CUDA_CHECK(cudaPeekAtLastError());
+
+  int n_iters = 0;
+  do {
+    CUDA_CHECK(cudaMemsetAsync(state.m, false, sizeof(bool), stream));
+
+    weak_cc_label_device<vertex_t, edge_t, TPB_X><<<blocks, threads, 0, stream>>>(
+      labels, offsets, indices, nnz, state.fa, state.xa, state.m,
+      startVertexId, batchSize);
     CUDA_CHECK(cudaPeekAtLastError());
-    do {
-        CUDA_CHECK( cudaMemsetAsync(state->m, false, sizeof(bool), stream) );
-        weak_cc_label_device<Type, TPB_X><<<blocks, threads, 0, stream>>>(
-                labels,
-                row_ind, row_ind_ptr, nnz,
-                state->fa, state->xa, state->m,
-                startVertexId, batchSize);
-        CUDA_CHECK(cudaPeekAtLastError());
+    CUDA_CHECK(cudaStreamSynchronize(stream));
 
-        //** swapping F1 and F2
-        MLCommon::updateHost(host_fa, state->fa, N, stream);
-        MLCommon::updateHost(host_xa, state->xa, N, stream);
-        MLCommon::updateDevice(state->fa, host_xa, N, stream);
-        MLCommon::updateDevice(state->xa, host_fa, N, stream);
+    //** swapping F1 and F2
+    //
+    //  Q (chuck):  Can't we just swap pointers here?
+    //              copying to host and back seems more expensive
+    //              than thrust::swap(state.fa,state.xa);
+    //
+    thrust::swap(state.fa, state.xa);
+    //MLCommon::updateHost(host_fa, state.fa, N, stream);
+    //MLCommon::updateHost(host_xa, state.xa, N, stream);
+    //MLCommon::updateDevice(state.fa, host_xa, N, stream);
+    //MLCommon::updateDevice(state.xa, host_fa, N, stream);
 
-        //** Updating m *
-        MLCommon::updateHost(&host_m, state->m, 1, stream);
-        CUDA_CHECK(cudaStreamSynchronize(stream));
-    } while(host_m);
+    //** Updating m *
+    MLCommon::updateHost(&host_m, state.m, 1, stream);
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+
+    n_iters++;
+  } while (host_m);
 }
 
 /**
- * @brief Compute weakly connected components. Note that the resulting labels
- * may not be taken from a monotonically increasing set (eg. numbers may be
- * skipped). The MLCommon::Array package contains a primitive `make_monotonic`,
- * which will make a monotonically increasing set of labels.
+ * @brief Compute weakly connected components.
+ *
+ * Note that the resulting labels may not be taken from a monotonically
+ * increasing set (eg. numbers may be skipped). The MLCommon::Array
+ * package contains a primitive `make_monotonic`, which will make a
+ * monotonically increasing set of labels.
  *
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
  * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
  *
- * @tparam Type the numeric type of non-floating point elements
- * @tparam TPB_X the threads to use per block when configuring the kernel
+ * @tparam vertex_t   The type of a vertex id
+ * @tparam edge_t     The type of an edge id
+ * @tparam TPB_X      Number of threads to use per block when configuring the kernel
  * @tparam Lambda the type of an optional filter function (int)->bool
- * @param labels an array for the output labels
- * @param row_ind the compressed row index of the CSR array
- * @param row_ind_ptr the row index pointer of the CSR array
- * @param nnz the size of row_ind_ptr array
- * @param N number of vertices
- * @param startVertexId the starting vertex index for the current batch
- * @param batchSize number of vertices for current batch
- * @param state instance of inter-batch state management
- * @param stream the cuda stream to use
- * @param filter_op an optional filtering function to determine which points
- * should get considered for labeling.
+ *
+ * @param labels      Array for the output labels
+ * @param offsets     CSR offsets array
+ * @param indices     CSR indices array
+ * @param nnz         Number of edges
+ * @param N           Number of vertices
+ * @param stream      Cuda stream to use
+ * @param filter_op   Optional filtering function to determine which points
+ *                    should get considered for labeling.
  */
-template<typename Type = int, int TPB_X = 32, typename Lambda = auto (Type)->bool>
-void weak_cc_batched(Type *labels, const Type* row_ind, const Type* row_ind_ptr,
-        Type nnz, Type N, Type startVertexId, Type batchSize,
-        WeakCCState<Type> *state, cudaStream_t stream, Lambda filter_op) {
+template<typename vertex_t, typename edge_t, int TPB_X = 32,
+         typename Lambda = auto(vertex_t)->bool>
+void weak_cc_batched(vertex_t *labels,
+                     edge_t const *offsets,
+                     vertex_t const *indices,
+                     edge_t nnz,
+                     vertex_t N,
+                     vertex_t startVertexId,
+                     vertex_t batchSize,
+                     WeakCCState &state,
+                     cudaStream_t stream,
+                     Lambda filter_op) {
 
     dim3 blocks(ceildiv(N, TPB_X));
     dim3 threads(TPB_X);
 
-    Type MAX_LABEL = std::numeric_limits<Type>::max();
-    if(startVertexId == 0) {
-        weak_cc_init_all_kernel<Type, TPB_X><<<blocks, threads, 0, stream>>>
-            (labels, state->fa, state->xa, N, MAX_LABEL);
-        CUDA_CHECK(cudaPeekAtLastError());
+    vertex_t MAX_LABEL = std::numeric_limits<vertex_t>::max();
+    if (startVertexId == 0) {
+      weak_cc_init_all_kernel<vertex_t, TPB_X><<<blocks, threads, 0, stream>>>
+        (labels, state.fa, state.xa, N, MAX_LABEL);
+      CUDA_CHECK(cudaPeekAtLastError());
     }
-    weak_cc_label_batched<Type, TPB_X>(labels, row_ind, row_ind_ptr, nnz, N, state,
-            startVertexId, batchSize, stream, filter_op);
+
+    weak_cc_label_batched<vertex_t, edge_t, TPB_X>(labels, offsets, indices,
+                                                   nnz, N, state,
+                                                   startVertexId, batchSize,
+                                                   stream, filter_op);
 }
 
 /**
- * @brief Compute weakly connected components. Note that the resulting labels
- * may not be taken from a monotonically increasing set (eg. numbers may be
- * skipped). The MLCommon::Array package contains a primitive `make_monotonic`,
- * which will make a monotonically increasing set of labels.
+ * @brief Compute weakly connected components.
+ *
+ * Note that the resulting labels may not be taken from a monotonically
+ * increasing set (eg. numbers may be skipped). The MLCommon::Array
+ * package contains a primitive `make_monotonic`, which will make a
+ * monotonically increasing set of labels.
  *
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
  * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
  *
- * @tparam Type the numeric type of non-floating point elements
- * @tparam TPB_X the threads to use per block when configuring the kernel
+ * @tparam vertex_t   The type of a vertex id
+ * @tparam edge_t     The type of an edge id
+ * @tparam TPB_X      Number of threads to use per block when configuring the kernel
  * @tparam Lambda the type of an optional filter function (int)->bool
- * @param labels an array for the output labels
- * @param row_ind the compressed row index of the CSR array
- * @param row_ind_ptr the row index pointer of the CSR array
- * @param nnz the size of row_ind_ptr array
- * @param N number of vertices
- * @param startVertexId the starting vertex index for the current batch
- * @param batchSize number of vertices for current batch
- * @param state instance of inter-batch state management
- * @param stream the cuda stream to use
+ *
+ * @param labels      Array for the output labels
+ * @param offsets     CSR offsets array
+ * @param indices     CSR indices array
+ * @param nnz         Number of edges
+ * @param N           Number of vertices
+ * @param stream      Cuda stream to use
+ * @param filter_op   Optional filtering function to determine which points
+ *                    should get considered for labeling.
  */
-template<typename Type = int, int TPB_X = 32>
-void weak_cc_batched(Type *labels, const Type* row_ind,  const Type* row_ind_ptr,
-        Type nnz, Type N, Type startVertexId, Type batchSize,
-        WeakCCState<Type> *state, cudaStream_t stream) {
+template<typename vertex_t, typename edge_t, int TPB_X = 32,
+         typename Lambda = auto(vertex_t)->bool>
+void weak_cc(vertex_t *labels,
+             edge_t const *offsets,
+             vertex_t const *indices,
+             edge_t nnz,
+             vertex_t N,
+             std::shared_ptr<deviceAllocator> d_alloc,
+             cudaStream_t stream,
+             Lambda filter_op) {
 
-    weak_cc_batched(labels, row_ind, row_ind_ptr, nnz, N, startVertexId, batchSize,
-            state, stream, [] __device__ (Type tid) {return true;});
+  rmm::device_vector<bool> xa(N);
+  rmm::device_vector<bool> fa(N);
+  rmm::device_vector<bool> m(1);
+
+  WeakCCState state(xa.data().get(), fa.data().get(), m.data().get());
+  weak_cc_batched<vertex_t, edge_t, TPB_X>(labels, offsets, indices,
+                                           nnz, N, 0, N, state, stream, filter_op);
 }
 
 /**
- * @brief Compute weakly connected components. Note that the resulting labels
- * may not be taken from a monotonically increasing set (eg. numbers may be
- * skipped). The MLCommon::Array package contains a primitive `make_monotonic`,
- * which will make a monotonically increasing set of labels.
+ * @brief Compute weakly connected components.
+ *
+ * Note that the resulting labels may not be taken from a monotonically
+ * increasing set (eg. numbers may be skipped). The MLCommon::Array
+ * package contains a primitive `make_monotonic`, which will make a
+ * monotonically increasing set of labels.
  *
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
  * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
  *
- * @tparam Type the numeric type of non-floating point elements
- * @tparam TPB_X the threads to use per block when configuring the kernel
- * @tparam Lambda the type of an optional filter function (int)->bool
- * @param labels an array for the output labels
- * @param row_ind the compressed row index of the CSR array
- * @param row_ind_ptr the row index pointer of the CSR array
- * @param nnz the size of row_ind_ptr array
- * @param N number of vertices
- * @param stream the cuda stream to use
- * @param filter_op an optional filtering function to determine which points
- * should get considered for labeling.
+ * @tparam vertex_t   The type of a vertex id
+ * @tparam edge_t     The type of an edge id
+ * @tparam TPB_X      Number of threads to use per block when configuring the kernel
+ *
+ * @param labels      Array for the output labels
+ * @param offsets     CSR offsets array
+ * @param indices     CSR indices array
+ * @param nnz         Number of edges
+ * @param N           Number of vertices
+ * @param stream      Cuda stream to use
  */
-template<typename Type = int, int TPB_X = 32, typename Lambda = auto (Type)->bool>
-void weak_cc(Type *labels, const Type* row_ind, const Type* row_ind_ptr,
-        Type nnz, Type N, cudaStream_t stream, Lambda filter_op) {
-
-    WeakCCState<Type> state(N);
-    weak_cc_batched<Type, TPB_X>(
-            labels, row_ind, row_ind_ptr,
-            nnz, N, 0, N, stream,
-            filter_op);
-}
-
-/**
- * @brief Compute weakly connected components. Note that the resulting labels
- * may not be taken from a monotonically increasing set (eg. numbers may be
- * skipped). The MLCommon::Array package contains a primitive `make_monotonic`,
- * which will make a monotonically increasing set of labels.
- *
- * This implementation comes from [1] and solves component labeling problem in
- * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
- *
- * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
- *
- * @tparam Type the numeric type of non-floating point elements
- * @tparam TPB_X the threads to use per block when configuring the kernel
- * @tparam Lambda the type of an optional filter function (int)->bool
- * @param labels an array for the output labels
- * @param row_ind the compressed row index of the CSR array
- * @param row_ind_ptr the row index pointer of the CSR array
- * @param nnz the size of row_ind_ptr array
- * @param N number of vertices
- * @param stream the cuda stream to use
- * should get considered for labeling.
- */
-template<typename Type = int, int TPB_X = 32>
-void weak_cc_entry(Type *labels,
-                   const Type* row_ind,
-                   const Type* row_ind_ptr,
-                   Type nnz,
-                   Type N,
+template<typename vertex_t, typename edge_t, int TPB_X = 32>
+void weak_cc_entry(vertex_t *labels,
+                   edge_t const *offsets,
+                   vertex_t const *indices,
+                   edge_t nnz,
+                   vertex_t N,
+                   std::shared_ptr<deviceAllocator> d_alloc,
                    cudaStream_t stream) {
 
-  WeakCCState<Type> state(N);
-  //WeakCCState<Type>* p_state(new WeakCCState<Type>(N));//leak memory on purpose...
-  weak_cc_batched<Type, TPB_X>(labels, row_ind, row_ind_ptr,
-                               nnz, N, 0, N, &state, stream);
-  ///[] __device__ (Type t){return true;});//this works, but subject to deprecation
-  
-  cudaDeviceSynchronize();
+  weak_cc(labels, offsets, indices, nnz, N, d_alloc, stream,
+          [] __device__ (vertex_t) { return true; });
 }
   
-}
-}
+} //namespace Sparse
+} //namespace MLCommon
