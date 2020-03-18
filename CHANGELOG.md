@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #765 Remove gdf_column from connected components
 
 ## Bug Fixes
 
