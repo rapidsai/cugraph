@@ -49,8 +49,8 @@ connected_components_impl(experimental::GraphCSR<VT,ET,WT> const &graph,
 
   using ByteT = unsigned char;//minimum addressable unit
   
-  CUGRAPH_EXPECTS(graph.offsets != nullptr, "Invalid API parameter: row_offsets_(graph) is NULL");
-  CUGRAPH_EXPECTS(graph.indices != nullptr, "Invalid API parameter: col_indices_(graph) is empty");
+  CUGRAPH_EXPECTS(graph.offsets != nullptr, "Invalid API parameter: graph.offsets is nullptr");
+  CUGRAPH_EXPECTS(graph.indices != nullptr, "Invalid API parameter: graph.indices is nullptr");
   
   VT nrows = graph.number_of_vertices;
   
@@ -60,7 +60,7 @@ connected_components_impl(experimental::GraphCSR<VT,ET,WT> const &graph,
       //
       bool is_symmetric = cugraph::detail::check_symmetry(graph.number_of_vertices, graph.offsets, graph.number_of_edges, graph.indices);
 
-      auto xxx = std::shared_ptr<MLCommon::deviceAllocator>{new MLCommon::defaultDeviceAllocator()};
+      auto d_alloc = std::shared_ptr<MLCommon::deviceAllocator>{new MLCommon::defaultDeviceAllocator()};
       
       CUGRAPH_EXPECTS( is_symmetric, "Invalid API parameter: graph must be symmetric");
       MLCommon::Sparse::weak_cc_entry<VT, ET, TPB_X>(labels,
@@ -68,7 +68,7 @@ connected_components_impl(experimental::GraphCSR<VT,ET,WT> const &graph,
                                                      graph.indices,
                                                      graph.number_of_edges,
                                                      graph.number_of_vertices,
-                                                     xxx,
+                                                     d_alloc,
                                                      stream);
   } else {
     //device memory requirements: 2n^2 + 2n x sizeof(IndexT) + 1 (for flag)
