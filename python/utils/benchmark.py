@@ -1,5 +1,3 @@
-import os
-import sys
 # from time import process_time_ns   # only in 3.7!
 from time import clock_gettime, CLOCK_MONOTONIC_RAW
 
@@ -8,110 +6,11 @@ import numpy as np
 from gpu_metric_poller import startGpuMetricPolling, stopGpuMetricPolling
 
 
-# wrappers
-## def exeTimeMeasured(func, resultsDict, name=""):
-##     def wrapper(*args):
-##         retVal = None
-##         # Return or create the results dict unique to the function name
-##         funcResultsDict = resultsDict.setdefault(name or func.__name__, {})
-##         try:
-##             # st = process_time_ns()
-##             st = clock_gettime(CLOCK_MONOTONIC_RAW)
-##             retVal = func(*args)
-##         except Exception as e:
-##             funcResultsDict["ERROR"] = str(e)
-##             return
-##         # exeTime = (process_time_ns() - st) / 1e9
-##         exeTime = clock_gettime(CLOCK_MONOTONIC_RAW) - st
-##         funcResultsDict["exeTime"] = exeTime
-##         return retVal
-##     return wrapper
-##
-##
-## def gpuMetricsMeasured(func, resultsDict, name=""):
-##     def wrapper(*args):
-##         retVal = None
-##         # Return or create the results dict unique to the function name
-##         funcResultsDict = resultsDict.setdefault(name or func.__name__, {})
-##         try:
-##             gpuPollObj = startGpuMetricPolling()
-##             retVal = func(*args)
-##             stopGpuMetricPolling(gpuPollObj)
-##         except Exception as e:
-##             funcResultsDict["ERROR"] = str(e)
-##             return
-##         funcResultsDict["maxGpuUtil"] = gpuPollObj.maxGpuUtil
-##         funcResultsDict["maxGpuMemUsed"] = gpuPollObj.maxGpuMemUsed
-##         return retVal
-##     return wrapper
-##
-##
-## def printLastResult(func, resultsDict, name=""):
-##     def wrapper(*args):
-##         retVal = func(*args)
-##         funcNames = resultsDict.keys()
-##         diff = set(funcNames) - printLastResult.funcsPrinted
-##         if diff:
-##             metricNameWidth = printLastResult.metricNameCellWidth
-##             valWidth = printLastResult.valueCellWidth
-##             funcName = diff.pop()
-##             valDict = resultsDict[funcName]
-##             print(funcName)
-##             for metricName in sorted(valDict.keys()):
-##                 val = valDict[metricName]
-##                 print("   %s | %s" % (metricName.ljust(metricNameWidth),
-##                                       str(val).ljust(valWidth)))
-##             printLastResult.funcsPrinted = set(funcNames)
-##         return retVal
-##     return wrapper
-##
-## printLastResult.metricNameCellWidth = 20
-## printLastResult.valueCellWidth = 40
-## printLastResult.funcsPrinted = set()
-##
-##
-## def averageValues(func, resultsDict, name="", keys=None, n=1):
-##     pass
-##
-##
-## class WrappedFunc:
-##     wrappers = []
-##     resultsDict = {}
-##
-##     def __init__(self, func, name="", args=None, extraRunWrappers=None):
-##         """
-##         func = the callable to wrap
-##         resultsDict = dictionary where results are stored or None if no results
-##         name = name of callable, needed mostly for bookkeeping
-##         args = args to pass the callable (default is no args)
-##         extraRunWrappers = list of functions that return a callable, used for
-##            wrapping the callable further to modify its environment, add timers,
-##            log calls, etc.
-##         """
-##         self.func = func
-##         self.name = name or func.__name__
-##         self.args = args or ()
-##         runWrappers = (extraRunWrappers or []) + self.wrappers
-##
-##         # The callable is the callable obj returned after all wrappers applied
-##         for wrapper in runWrappers:
-##             self.func = wrapper(self.func, self.resultsDict, self.name)
-##             self.func.__name__ = self.name
-##
-##     def run(self):
-##         return self.func(*self.args)
-##
-##
-## class Benchmark(WrappedFunc):
-##     wrappers = [exeTimeMeasured, gpuMetricsMeasured, printLastResult]
-##
-
 class Benchmark:
 
     resultsDict = {}
     metricNameCellWidth = 20
     valueCellWidth = 40
-
 
     def __init__(self, func, name="", args=None):
         """
@@ -123,11 +22,10 @@ class Benchmark:
         self.name = name or func.__name__
         self.args = args or ()
 
-
     def run(self, n=1):
         """
-        Run self.func() n times and compute the average of all runs for all metrics after
-        discarding the min and max values for each.
+        Run self.func() n times and compute the average of all runs for all
+        metrics after discarding the min and max values for each.
         """
         retVal = None
         # Return or create the results dict unique to the function name

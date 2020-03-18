@@ -251,7 +251,7 @@ if __name__ == "__main__":
     else:
         algosToRun = allPossibleAlgos
 
-    # Load the data file and create a Graph, treat these as benchmarks too.  The
+    # Load the data file and create a Graph, treat these as benchmarks too. The
     # Benchmark run() method returns the result of the function being
     # benchmarked. In this case, "loadDataFile" and "createGraph" return a
     # Dataframe and Graph object respectively, so save those and use them for
@@ -305,9 +305,6 @@ if __name__ == "__main__":
         # the leading parts are redundant and take up UI space.
         datasetName = "/".join(args.file.split("/")[-3:])
 
-        #f = open("perfData.py", "w")
-        #f.write("perfData=%s" % repr(perfData))
-        #f.close()
         cugraph_update_asv(asvDir=args.update_asv_dir,
                            datasetName=datasetName,
                            algoRunResults=Benchmark.resultsDict,
