@@ -134,16 +134,15 @@ class Benchmark:
         funcResultsDict = self.resultsDict.setdefault(self.name, {})
 
         # FIXME: use a proper logger
-        print("Running %s" % self.name, end="")
+        print("Running %s" % self.name, end="", flush=True)
 
-        retVal = self.func(*self.args)
         try:
             exeTimes = []
             gpuMems = []
             gpuUtils = []
 
             if n > 1:
-                print("  - iteration ", end="")
+                print("  - iteration ", end="", flush=True)
 
             for i in range(n):
                 if n > 1:
@@ -160,7 +159,7 @@ class Benchmark:
                 gpuMems.append(gpuPollObj.maxGpuUtil)
                 gpuUtils.append(gpuPollObj.maxGpuMemUsed)
 
-            print("  - done running %s." % self.name)
+            print("  - done running %s." % self.name, flush=True)
 
         except Exception as e:
             funcResultsDict["ERROR"] = str(e)
@@ -173,12 +172,11 @@ class Benchmark:
         funcResultsDict["maxGpuUtil"] = self.__computeValue(gpuMems)
         funcResultsDict["maxGpuMemUsed"] = self.__computeValue(gpuUtils)
 
-        if n > 1:
-            print()
         for metricName in ["exeTime", "maxGpuUtil", "maxGpuMemUsed"]:
             val = funcResultsDict[metricName]
             print("   %s | %s" % (metricName.ljust(self.metricNameCellWidth),
-                                  str(val).ljust(self.valueCellWidth)))
+                                  str(val).ljust(self.valueCellWidth)),
+                  flush=True)
 
         return retVal
 
