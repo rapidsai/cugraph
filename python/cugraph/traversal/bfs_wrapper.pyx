@@ -71,7 +71,6 @@ def bfs(input_graph, start, directed=True):
     """
     cdef GraphCSR[int, int, float] graph_float
 
-    cdef uintptr_t c_weights = <uintptr_t> NULL
     cdef uintptr_t c_offsets = <uintptr_t> NULL
     cdef uintptr_t c_indices = <uintptr_t> NULL
 
@@ -84,19 +83,15 @@ def bfs(input_graph, start, directed=True):
         input_graph.view_adj_list()
 
     [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    # But it should not be used with weighted graphs
-    [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.int32])
+
     c_offsets = offsets.__cuda_array_interface__['data'][0]
     c_indices = indices.__cuda_array_interface__['data'][0]
-    c_weights = weights.__cuda_array_interface__['data'][0]
 
-    # we should add get_number_of_vertices() to Graph (and this should be
-    # used instead of g.adjList.offsets.size - 1)
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
 
     if input_graph.renumbered is True:
-        start = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map==start].index[0]
+        start = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map == start].index[0]
     if not 0 <= start < num_verts:
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
@@ -124,6 +119,7 @@ def bfs(input_graph, start, directed=True):
     graph_float.get_vertex_identifiers(<int*>c_vertex_col)
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        # TODO(xcadet) There is still something to do with the predecessors
     """
 
     if input_graph.renumbered:

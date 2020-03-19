@@ -97,20 +97,10 @@ def test_bfs(managed, pool, graph_file):
     cugraph_vid, cugraph_dist = cugraph_call(cu_M, 0)
 
     # Calculating mismatch
-    #assert len(base_vid) == len(cugraph_vid), "Mismatch on the number of vertices"
-    #assert len(base_dist) == len(cugraph_dist), "Mismatch on the number of distances"
-    #assert len(cugraph_vid) == len(cugraph_dist), "Mismacth on number of vertices and distances"
-
-    # assert len(base_dist) == len(cugraph_dist)
-    idx = 0
-    err = 0
-    while idx < len(cugraph_dist):
-        if base_vid[idx] == cugraph_vid[idx]:
-            assert base_dist[idx] == cugraph_dist[idx]
-        else:
-            err = err + 1
-        idx = idx + 1
-    if (err > 0):
-        #print(base_vid)
-        #print(cugraph_vid)
-    assert err == 0
+    i = 0
+    j = 0
+    while i < len(cugraph_dist):
+        if base_vid[j] == cugraph_vid[i]:
+            assert base_dist[j] == cugraph_dist[i]
+            i = i + 1
+        j = j + 1

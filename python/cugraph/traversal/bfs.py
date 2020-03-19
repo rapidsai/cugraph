@@ -55,6 +55,5 @@ def bfs(G, start, directed=True):
     """
 
     df = bfs_wrapper.bfs(G, start, directed)
-    print(df)
 
     return df
