@@ -62,8 +62,8 @@ def weakly_connected_components(input_graph):
     num_verts = g.adjList.offsets.size - 1
 
     df = cudf.DataFrame()
-    df['label'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     
     cdef cudf_table* tbl = table_from_dataframe(df)
 
@@ -74,7 +74,7 @@ def weakly_connected_components(input_graph):
     del tbl
 
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
 
     return df
 
@@ -102,8 +102,8 @@ def strongly_connected_components(input_graph):
     num_verts = g.adjList.offsets.size - 1
 
     df = cudf.DataFrame()
-    df['label'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     
     cdef cudf_table* tbl = table_from_dataframe(df)
 
@@ -114,6 +114,6 @@ def strongly_connected_components(input_graph):
     del tbl
 
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
 
     return df

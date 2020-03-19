@@ -70,7 +70,7 @@ def cugraph_weak_call(cu_M):
 
     label_vertex_dict = defaultdict(list)
     for i in range(len(df)):
-        label_vertex_dict[df['label'][i]].append(df['vertex'][i])
+        label_vertex_dict[df['labels'][i]].append(df['vertices'][i])
     return label_vertex_dict
 
 
@@ -103,7 +103,7 @@ def cugraph_strong_call(cu_M):
 
     label_vertex_dict = defaultdict(list)
     for i in range(len(df)):
-        label_vertex_dict[df['label'][i]].append(df['vertex'][i])
+        label_vertex_dict[df['labels'][i]].append(df['vertices'][i])
     return label_vertex_dict
 
 
