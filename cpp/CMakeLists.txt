@@ -328,6 +328,7 @@ add_library(cugraph SHARED
     src/link_prediction/overlap.cu
     src/converters/nvgraph.cu
     src/converters/renumber.cu
+    src/converters/COOtoCSR.cu
     src/community/nvgraph_gdf.cu
     src/community/ECG.cu
     src/cores/core_number.cu
