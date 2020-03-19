@@ -16,8 +16,10 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.traversal.bfs as c_bfs
-from cugraph.structure.graph cimport *
+#cimport cugraph.traversal.bfs as c_bfs
+"""
+from  cugraph.traversal.bfs cimport bfs as c_bfs
+from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
@@ -26,33 +28,72 @@ from libc.stdint cimport uintptr_t
 import cudf
 import cudf._lib as libcudf
 import numpy as np
+"""
+
+"""
+cimport cugraph.traversal.bfs as c_bfs
+
+from cugraph.structure import graph_wrapper
+from cugraph.structure.graph_new cimport *
+from cugraph.utilities.column_utils cimport *
+from cugraph.utilities.unrenumber import unrenumber
+from libcpp cimport bool
+from libc.stdint cimport uintptr_t
+from libc.stdlib cimport calloc, malloc, free
+
+import cudf
+import cudf._lib as libcudf
+import rmm
+import numpy as np
+import numpy.ctypeslib as ctypeslib
+"""
+cimport cugraph.traversal.bfs as c_bfs
+from cugraph.structure.graph_new cimport *
+from cugraph.structure import graph_wrapper
+from cugraph.utilities.column_utils cimport *
+from cudf._lib.cudf cimport np_dtype_from_gdf_column
+from cugraph.utilities.unrenumber import unrenumber
+from libcpp cimport bool
+from libc.stdint cimport uintptr_t
+from libc.stdlib cimport calloc, malloc, free
+from libc.float cimport FLT_MAX_EXP
+
+import cudf
+import cudf._lib as libcudf
+import rmm
+import numpy as np
+
 
 
 def bfs(input_graph, start, directed=True):
     """
     Call bfs
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    cdef GraphCSR[int, int, float] graph_float
 
-    if input_graph.adjlist:
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
-        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
-    else:
-        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
-        if input_graph.edgelist.weights:
-            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-            graph_wrapper.add_edge_list(graph, src, dst, weights)
-        else:
-            graph_wrapper.add_edge_list(graph, src, dst)
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+    cdef uintptr_t c_weights = <uintptr_t> NULL
+    cdef uintptr_t c_offsets = <uintptr_t> NULL
+    cdef uintptr_t c_indices = <uintptr_t> NULL
+
+    cdef uintptr_t c_vertex_col = <uintptr_t> NULL
+    cdef uintptr_t c_distance_col = <uintptr_t> NULL
+    cdef uintptr_t c_predecessors_col = <uintptr_t> NULL
+
+
+    if input_graph.adjlist is None:
+        input_graph.view_adj_list()
+
+    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    # But it should not be used with weighted graphs
+    [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.int32])
+    c_offsets = offsets.__cuda_array_interface__['data'][0]
+    c_indices = indices.__cuda_array_interface__['data'][0]
+    c_weights = weights.__cuda_array_interface__['data'][0]
 
     # we should add get_number_of_vertices() to Graph (and this should be
     # used instead of g.adjList.offsets.size - 1)
-    num_verts = g.adjList.offsets.size - 1
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
 
     if input_graph.renumbered is True:
         start = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map==start].index[0]
@@ -61,17 +102,29 @@ def bfs(input_graph, start, directed=True):
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    c_vertex_col = df['vertex'].__cuda_array_interface__['data'][0]
+
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    c_distance_col = df['distance'].__cuda_array_interface__['data'][0]
+
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_vertex_col = get_gdf_column_view(df['vertex'])
-    #cdef uintptr_t c_distance_ptr = get_column_data_ptr(df['distance']._column)
-    cdef uintptr_t c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
-    #cdef uintptr_t c_predecessors_ptr = get_column_data_ptr(df['predecessor']._column)
-    cdef uintptr_t c_predecessors_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
+    c_predecessor_col = df['predecessor'].__cuda_array_interface__['data'][0]
 
-    g.adjList.get_vertex_identifiers(&c_vertex_col)
-
-    c_bfs.bfs[int](g, <int*>c_distance_ptr, <int*>c_predecessors_ptr, <int>start)
+    # TODO: Either we set [int, int, float] or we add an explicit [int, int, int] in graph.cu
+    graph_float = GraphCSR[int, int, float](<int*>c_offsets,
+                                        <int*>c_indices,
+                                        <float*>NULL,
+                                        num_verts,
+                                        num_edges)
+    c_bfs.bfs[int, int, float](graph_float,
+                             <int*>c_distance_col,
+                             <int*>c_predecessors_col,
+                             <int>start,
+                             directed)
+    graph_float.get_vertex_identifiers(<int*>c_vertex_col)
+    if input_graph.renumbered:
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+    """
 
     if input_graph.renumbered:
         if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
@@ -85,4 +138,5 @@ def bfs(input_graph, start, directed=True):
             df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
             df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
 
+    """
     return df

@@ -22,6 +22,7 @@ from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.cudf cimport np_dtype_from_gdf_column
+from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
@@ -37,9 +38,8 @@ def sssp(input_graph, source):
     """
     Call sssp_nvgraph
     """
-    cdef GraphCSR[int, int, int]    graph_int       # For unweighted graph (BFS)
-    cdef GraphCSR[int, int, float]  graph_float     # For weighted float graph (SSSP)
-    cdef GraphCSR[int, int, double] graph_double    # For weighted double grap (SSSP)
+    cdef GraphCSR[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
+    cdef GraphCSR[int, int, double] graph_double    # For weighted double graph (SSSP)
 
     cdef uintptr_t c_weights = <uintptr_t> NULL     #
     cdef uintptr_t c_offsets = <uintptr_t> NULL     #
@@ -81,13 +81,12 @@ def sssp(input_graph, source):
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     c_distance_col = df['predecessor'].__cuda_array_interface__['data'][0]
 
-    if input_graph.adjlist.edge_data:
-        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist], [np.float32, np.float64])
+    if input_graph.edgelist.weights:
+        [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
         c_weights = weights.__cuda_array_interface__['data'][0]
 
         df['distance'] = cudf.Series(np.zeros(num_verts, dtype=weights.dtype))
         c_distance_col = df['distance'].__cuda_array_interface__['data'][0]
-
 
         if (df['distance'].dtype == np.float32):
             graph_float = GraphCSR[int, int, float](<int*>c_offsets,
@@ -96,25 +95,28 @@ def sssp(input_graph, source):
                                                      num_verts,
                                                      num_edges)
             c_sssp.sssp[int, int, float](graph_float, <float*>c_distance_col, <int*>c_predecessor_col, <int>source)
-        else :
+            graph_float.get_vertex_identifiers(<int*>c_vertex_col)
+        else: # Should probably check for it
             graph_double = GraphCSR[int, int, double](<int*>c_offsets,
                                                       <int*>c_indices,
                                                       <double*>c_weights,
                                                       num_verts,
                                                       num_edges)
             c_sssp.sssp[int, int, double](graph_double, <double*>c_distance_col, <int*>c_predecessor_col, <int>source)
+            graph_double.get_vertex_identifiers(<int*>c_vertex_col)
     else:
         df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
         c_distance_col = df['distance'].__cuda_array_interface__['data'][0]
-        graph_int = GraphCSR[int, int, int](<int*>c_offsets,
-                                            <int*>c_indices,
-                                            NULL,
-                                            num_verts,
-                                            num_edges)
-        c_bfs.bfs[int, int, int](graph_int, <int*>c_distance_col, <int*>c_predecessor_col, <int>source)
+        graph_float = GraphCSR[int, int, float](<int*>c_offsets,
+                                                <int*>c_indices,
+                                                <float*>NULL,
+                                                num_verts,
+                                                num_edges)
+        c_bfs.bfs[int, int, float](graph_float, <int*>c_distance_col, <int*>c_predecessor_col, <int>source)
 
     if input_graph.renumbered:
         if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
+            raise NotImplementedError
             n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
             unrenumbered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
             unrenumbered_df = unrenumbered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
@@ -122,6 +124,7 @@ def sssp(input_graph, source):
             cols = unrenumbered_df.columns.to_list()
             df = unrenumbered_df[cols[1:n_cols+1] + [cols[0]] + cols[n_cols:]]
         else:
-            df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-            df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
+            df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+            #df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
+            #df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
     return df

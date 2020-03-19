@@ -22,9 +22,9 @@ from libcpp cimport bool
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void bfs[VT, ET, WT](
-        const GraphCSR[VT, ET, WT] &graph,
-        WT *distances,
+    cdef void bfs[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
+        VT *distances,
         VT *predecessors,
-        VT start_vertex,
+        const VT start_vertex,
         bool directed) except +

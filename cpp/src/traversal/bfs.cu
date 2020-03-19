@@ -471,13 +471,13 @@ namespace detail {
   }
 
   template class Bfs<int> ;
-} //namespace
+} // !namespace cugraph::detail
 
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, WT *distances, VT *predecessors, const VT start_vertex, bool directed) {
+void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
   CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported data type");
   CUGRAPH_EXPECTS(typeid(ET) == typeid(int), "Unsupported data type");
-  CUGRAPH_EXPECTS(typeid(WT) == typeid(int), "Unsupported data type");
+  CUGRAPH_EXPECTS((typeid(WT) == typeid(float)) || (typeid(WT) == typeid(double)), "Unsupported data type");
 
   int n = graph.number_of_vertices;
   int e = graph.number_of_edges;
@@ -491,6 +491,6 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, WT *distances, VT *pre
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int, int, int>(experimental::GraphCSR<int, int, int> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
+template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
 
-} //namespace
+} // !namespace cugraph
