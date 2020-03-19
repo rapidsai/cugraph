@@ -1,135 +1,93 @@
-import os
-import sys
 # from time import process_time_ns   # only in 3.7!
 from time import clock_gettime, CLOCK_MONOTONIC_RAW
+
+import numpy as np
 
 from gpu_metric_poller import startGpuMetricPolling, stopGpuMetricPolling
 
 
-class Nop:
-    def __getattr__(self, attr):
-        return Nop()
+class Benchmark:
 
-    def __getitem__(self, key):
-        return Nop()
+    resultsDict = {}
+    metricNameCellWidth = 20
+    valueCellWidth = 40
 
-    def __call__(self, *args, **kwargs):
-        return Nop()
-
-
-nop = Nop()
-
-
-# wrappers
-def noStdoutWrapper(func):
-    def wrapper(*args):
-        prev = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
-        try:
-            retVal = func(*args)
-            sys.stdout = prev
-            return retVal
-        except Exception:
-            sys.stdout = prev
-            raise
-    return wrapper
-
-
-def logExeTime(func, name=""):
-    def wrapper(*args):
-        retVal = None
-        # Return or create the results dict for the function name
-        perfData = logExeTime.perfData.setdefault(name or func.__name__, {})
-        try:
-            # st = process_time_ns()
-            st = clock_gettime(CLOCK_MONOTONIC_RAW)
-            retVal = func(*args)
-        except Exception as e:
-            perfData["ERROR"] = str(e)
-            return
-        # exeTime = (process_time_ns() - st) / 1e9
-        exeTime = clock_gettime(CLOCK_MONOTONIC_RAW) - st
-        perfData["exeTime"] = exeTime
-        return retVal
-    return wrapper
-
-
-logExeTime.perfData = {}
-
-
-def logGpuMetrics(func, name=""):
-    def wrapper(*args):
-        retVal = None
-        # Return or create the results dict for the function name
-        perfData = logGpuMetrics.perfData.setdefault(name or func.__name__, {})
-
-        try:
-            gpuPollObj = startGpuMetricPolling()
-            retVal = func(*args)
-            stopGpuMetricPolling(gpuPollObj)
-        except Exception as e:
-            perfData["ERROR"] = str(e)
-            return
-        perfData["maxGpuUtil"] = gpuPollObj.maxGpuUtil
-        perfData["maxGpuMemUsed"] = gpuPollObj.maxGpuMemUsed
-        return retVal
-    return wrapper
-
-
-logGpuMetrics.perfData = {}
-
-
-def printLastResult(func, name=""):
-    def wrapper(*args):
-        retVal = func(*args)
-        funcNames = printLastResult.perfData.keys()
-        diff = set(funcNames) - printLastResult.funcsPrinted
-        if diff:
-            metricNameWidth = printLastResult.metricNameCellWidth
-            valWidth = printLastResult.valueCellWidth
-            funcName = diff.pop()
-            valDict = printLastResult.perfData[funcName]
-            print(funcName)
-            for metricName in sorted(valDict.keys()):
-                val = valDict[metricName]
-                print("   %s | %s" % (metricName.ljust(metricNameWidth),
-                                      str(val).ljust(valWidth)))
-            printLastResult.funcsPrinted = set(funcNames)
-        return retVal
-    return wrapper
-
-
-printLastResult.perfData = {}
-printLastResult.metricNameCellWidth = 20
-printLastResult.valueCellWidth = 40
-printLastResult.funcsPrinted = set()
-
-
-class WrappedFunc:
-    wrappers = []
-
-    def __init__(self, func, name="", args=None, extraRunWrappers=None):
+    def __init__(self, func, name="", args=None):
         """
         func = the callable to wrap
         name = name of callable, needed mostly for bookkeeping
         args = args to pass the callable (default is no args)
-        extraRunWrappers = list of functions that return a callable, used for
-           wrapping the callable further to modify its environment, add timers,
-           log calls, etc.
         """
         self.func = func
         self.name = name or func.__name__
         self.args = args or ()
-        runWrappers = (extraRunWrappers or []) + self.wrappers
 
-        # The callable is the callable obj returned after all wrappers applied
-        for wrapper in runWrappers:
-            self.func = wrapper(self.func, self.name)
-            self.func.__name__ = self.name
+    def run(self, n=1):
+        """
+        Run self.func() n times and compute the average of all runs for all
+        metrics after discarding the min and max values for each.
+        """
+        retVal = None
+        # Return or create the results dict unique to the function name
+        funcResultsDict = self.resultsDict.setdefault(self.name, {})
 
-    def run(self):
-        return self.func(*self.args)
+        # FIXME: use a proper logger
+        print("Running %s" % self.name, end="", flush=True)
 
+        try:
+            exeTimes = []
+            gpuMems = []
+            gpuUtils = []
 
-class Benchmark(WrappedFunc):
-    wrappers = [logExeTime, logGpuMetrics, printLastResult]
+            if n > 1:
+                print("  - iteration ", end="", flush=True)
+
+            for i in range(n):
+                if n > 1:
+                    print(i+1, end="...", flush=True)
+                gpuPollObj = startGpuMetricPolling()
+                # st = process_time_ns()
+                st = clock_gettime(CLOCK_MONOTONIC_RAW)
+                retVal = self.func(*self.args)
+                stopGpuMetricPolling(gpuPollObj)
+
+                # exeTime = (process_time_ns() - st) / 1e9
+                exeTime = clock_gettime(CLOCK_MONOTONIC_RAW) - st
+                exeTimes.append(exeTime)
+                gpuMems.append(gpuPollObj.maxGpuUtil)
+                gpuUtils.append(gpuPollObj.maxGpuMemUsed)
+
+            print("  - done running %s." % self.name, flush=True)
+
+        except Exception as e:
+            funcResultsDict["ERROR"] = str(e)
+            print("   %s | %s" % ("ERROR".ljust(self.metricNameCellWidth),
+                                  str(e).ljust(self.valueCellWidth)))
+            stopGpuMetricPolling(gpuPollObj)
+            return
+
+        funcResultsDict["exeTime"] = self.__computeValue(exeTimes)
+        funcResultsDict["maxGpuUtil"] = self.__computeValue(gpuMems)
+        funcResultsDict["maxGpuMemUsed"] = self.__computeValue(gpuUtils)
+
+        for metricName in ["exeTime", "maxGpuUtil", "maxGpuMemUsed"]:
+            val = funcResultsDict[metricName]
+            print("   %s | %s" % (metricName.ljust(self.metricNameCellWidth),
+                                  str(val).ljust(self.valueCellWidth)),
+                  flush=True)
+
+        return retVal
+
+    def __computeValue(self, vals):
+        """
+        Return the avergage val from the list of vals filtered to remove 2
+        std-deviations from the original average.
+        """
+        avg = np.mean(vals)
+        std = np.std(vals)
+        filtered = [x for x in vals if
+                    ((avg - (2*std)) <= x <= (avg + (2*std)))]
+        if(len(filtered) != len(vals)):
+            print("filtered outliers: %s" % (set(vals) - set(filtered)))
+
+        return np.average(filtered)
