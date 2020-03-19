@@ -24,6 +24,7 @@ from cudf._lib.utils cimport table_from_dataframe
 from libc.stdint cimport uintptr_t
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.graph import Graph as type_Graph
+from cugraph.utilities.unrenumber import unrenumber
 
 import cudf
 import cudf._lib as libcudf
@@ -61,8 +62,8 @@ def weakly_connected_components(input_graph):
     num_verts = g.adjList.offsets.size - 1
 
     df = cudf.DataFrame()
-    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['label'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     
     cdef cudf_table* tbl = table_from_dataframe(df)
 
@@ -71,6 +72,9 @@ def weakly_connected_components(input_graph):
     
 
     del tbl
+
+    if input_graph.renumbered:
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df
 
@@ -98,8 +102,8 @@ def strongly_connected_components(input_graph):
     num_verts = g.adjList.offsets.size - 1
 
     df = cudf.DataFrame()
-    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['label'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     
     cdef cudf_table* tbl = table_from_dataframe(df)
 
@@ -108,5 +112,8 @@ def strongly_connected_components(input_graph):
     
 
     del tbl
+
+    if input_graph.renumbered:
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df
