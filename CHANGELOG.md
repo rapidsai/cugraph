@@ -13,6 +13,7 @@
 ## New Features
 - PR #736 cuHornet KTruss integration
 - PR #735 Integration gunrock's betweenness centrality
+- PR #760 cuHornet Weighted KTruss
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
@@ -30,6 +31,7 @@
 - PR #742 Rremove gdf column from jaccard
 - PR #741 Added documentation for running and adding new benchmarks and shell script to automate
 - PR #747 updated viewing of graph, datatypecasting and two hop neighbor unrenumbering for multi column
+- PR #766 benchmark script improvements/refactorings: separate ETL steps, averaging, cleanup
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
