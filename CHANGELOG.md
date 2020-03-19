@@ -12,6 +12,7 @@
 ## New Features
 - PR #736 cuHornet KTruss integration
 - PR #735 Integration gunrock's betweenness centrality
+- PR #760 cuHornet Weighted KTruss
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
