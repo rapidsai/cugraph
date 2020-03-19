@@ -155,12 +155,7 @@ void weak_cc_label_batched(vertex_t *labels,
   ASSERT(sizeof(vertex_t) == 4 || sizeof(vertex_t) == 8,
          "Index_ should be 4 or 8 bytes");
 
-bool host_m{true};
-
-  //std::vector<bool> h_fa(N);
-  //std::vector<bool> h_xa(N);
-  //bool *host_fa{h_fa.data()};
-  //bool *host_xa{h_xa.data()};
+  bool host_m{true};
 
   dim3 blocks(ceildiv(batchSize, vertex_t{TPB_X}));
   dim3 threads(TPB_X);
@@ -181,17 +176,7 @@ bool host_m{true};
     CUDA_CHECK(cudaPeekAtLastError());
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
-    //** swapping F1 and F2
-    //
-    //  Q (chuck):  Can't we just swap pointers here?
-    //              copying to host and back seems more expensive
-    //              than thrust::swap(state.fa,state.xa);
-    //
     thrust::swap(state.fa, state.xa);
-    //MLCommon::updateHost(host_fa, state.fa, N, stream);
-    //MLCommon::updateHost(host_xa, state.xa, N, stream);
-    //MLCommon::updateDevice(state.fa, host_xa, N, stream);
-    //MLCommon::updateDevice(state.xa, host_fa, N, stream);
 
     //** Updating m *
     MLCommon::updateHost(&host_m, state.m, 1, stream);

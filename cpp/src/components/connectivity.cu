@@ -55,14 +55,8 @@ connected_components_impl(experimental::GraphCSR<VT,ET,WT> const &graph,
   VT nrows = graph.number_of_vertices;
   
   if (connectivity_type == cugraph_cc_t::CUGRAPH_WEAK) {
-      //check if graph is undirected; return w/ error, if not?
-      //Yes, for now; in the future we may remove this constraint; 
-      //
-      bool is_symmetric = cugraph::detail::check_symmetry(graph.number_of_vertices, graph.offsets, graph.number_of_edges, graph.indices);
-
       auto d_alloc = std::shared_ptr<MLCommon::deviceAllocator>{new MLCommon::defaultDeviceAllocator()};
       
-      CUGRAPH_EXPECTS( is_symmetric, "Invalid API parameter: graph must be symmetric");
       MLCommon::Sparse::weak_cc_entry<VT, ET, TPB_X>(labels,
                                                      graph.offsets,
                                                      graph.indices,
@@ -71,22 +65,6 @@ connected_components_impl(experimental::GraphCSR<VT,ET,WT> const &graph,
                                                      d_alloc,
                                                      stream);
   } else {
-    //device memory requirements: 2n^2 + 2n x sizeof(IndexT) + 1 (for flag)
-    //( n = |V|)
-    //
-    size_t n2 = 2 * graph.number_of_vertices;
-    n2 = n2 * (graph.number_of_vertices * sizeof(ByteT) + sizeof(VT)) + 1;
-
-    int device;
-    cudaDeviceProp prop;
-      
-    cudaGetDevice(&device);
-    cudaGetDeviceProperties(&prop, device);
-
-    if( n2 > prop.totalGlobalMem ) {
-      CUGRAPH_FAIL("ERROR: Insufficient device memory for SCC");
-    }
-
     SCC_Data<ByteT, VT> sccd(nrows, graph.offsets, graph.indices);
     sccd.run_scc(labels);
   }
