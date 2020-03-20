@@ -156,7 +156,7 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex) {
   // If source is isolated (zero outdegree), we are done
   if ((m & current_isolated_bmap_source_vert)) {
     // Init distances and predecessors are done; stream is synchronized
-    
+
   }
 
   // Adding source_vertex to init frontier
@@ -289,16 +289,17 @@ void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
           VT *predecessors,
           const VT source_vertex) {
 
-  //CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter: graph adjList is NULL");
-
   CUGRAPH_EXPECTS(distances || predecessors, "Invalid API parameter, both outputs are nullptr");
 
-  if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double))
-    CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
   if (typeid(VT) != typeid(int))
     CUGRAPH_FAIL("Unsupported vertex id data type, please use int");
   if (typeid(ET) != typeid(int))
     CUGRAPH_FAIL("Unsupported edge id data type, please use int");
+  if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double))
+    CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
+
+  WT* edge_weights_ptr = nullptr;
+  bool should_free_weights = false;
 
   if (!graph.edge_data) {
     // Generate unit weights
@@ -309,48 +310,22 @@ void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
     // BFS also does only integer distances right now whereas we need float or
     // double
 
-    /* TODO(xcadet) Need to update this part
-    void* d_edge_data;
-    graph->adjList->edge_data = new gdf_column;
     cudaStream_t stream{nullptr};
-
-    // If distances array is given and is double, generate the weights in
-    // double
-    if (distances && typeid(WT) == typeid(double)) {
-      std::vector<double> h_edge_data(graph->adjList->indices->size, 1.0);
-      size_t edge_data_size = sizeof(double) * h_edge_data.size();
-      ALLOC_TRY((void**)&d_edge_data, edge_data_size, stream);
-      CUDA_TRY(cudaMemcpy(d_edge_data,
-                          &h_edge_data[0],
-                          edge_data_size,
-                          cudaMemcpyHostToDevice));
-      gdf_column_view(graph->adjList->edge_data,
-                      d_edge_data,
-                      nullptr,
-                      graph->adjList->indices->size,
-                      GDF_FLOAT64);
-    } else {
-      // Else generate float
-      std::vector<float> h_edge_data(graph->adjList->indices->size, 1.0);
-      size_t edge_data_size = sizeof(float) * h_edge_data.size();
-      ALLOC_TRY((void**)&d_edge_data, edge_data_size, stream);
-      CUDA_TRY(cudaMemcpy(d_edge_data,
-                          &h_edge_data[0],
-                          edge_data_size,
-                          cudaMemcpyHostToDevice));
-      gdf_column_view(graph->adjList->edge_data,
-                      d_edge_data,
-                      nullptr,
-                      graph->adjList->indices->size,
-                      GDF_FLOAT32);
-    }
-    */
+    std::vector<WT> h_edge_data(graph.number_of_edges, static_cast<WT>(1));
+    size_t edge_data_size = sizeof(WT) * h_edge_data.size();
+    ALLOC_TRY((WT**)&edge_weights_ptr, edge_data_size, stream);
+    CUDA_TRY(cudaMemcpy(edge_weights_ptr,
+                        &h_edge_data[0],
+                        edge_data_size,
+                        cudaMemcpyHostToDevice));
+    should_free_weights = true;
   } else {
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
     if (graph.prop.has_negative_edges == experimental::PropType::PROP_TRUE)
       std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
                    "converge if the graph has negative weight cycles\n";
+    edge_weights_ptr = (WT*)graph.edge_data;
   }
 
   int n = graph.number_of_vertices;
@@ -359,13 +334,14 @@ void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
   VT* offsets_ptr = (VT*)graph.offsets;
   VT* indices_ptr = (VT*)graph.indices;
 
-  WT* edge_weights_ptr = (WT*)graph.edge_data;
-
   // We already enforced WT to be either float or double
   cugraph::detail::SSSP<VT, WT> sssp(n, e, offsets_ptr, indices_ptr,
                                      edge_weights_ptr);
   sssp.configure(distances, predecessors, nullptr);
   sssp.traverse(source_vertex);
+  if (should_free_weights) {
+    ALLOC_FREE_TRY(edge_weights_ptr, nullptr);
+  }
 }
 
 // explicit instantiation

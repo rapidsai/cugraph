@@ -132,9 +132,9 @@ def sssp(input_graph, source):
                                                 num_edges)
         graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
         c_bfs.bfs[int, int, float](graph_float,
-                                   <int*>c_distance_ptr,
-                                   <int*>c_predecessor_ptr,
-                                   <int>source)
+                                   <int*> c_distance_ptr,
+                                   <int*> c_predecessor_ptr,
+                                   <int> source)
 
     # Step 9: Renumber before return
     #         It is only required to renumber vertex and predecessors

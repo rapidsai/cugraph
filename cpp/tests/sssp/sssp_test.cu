@@ -168,6 +168,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
   template <typename MaxVType,
             typename MaxEType,
             typename DistType,
+            bool doRandomWeights,
             bool DoDist,
             bool DoPreds>
   void run_current_test(const SSSP_Usecase& param) {
@@ -261,13 +262,15 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     }
     CSR_Result_Weighted<MaxVType, DistType> result;
     ConvertCOOtoCSR_weighted(&cooRowInd[0], &cooColInd[0], &cooVal[0], num_edges, result);
-
     cugraph::experimental::GraphCSR<MaxVType, MaxEType, DistType>
-                           G(result.rowOffsets,
-                             result.colIndices,
-                             result.edgeWeights,
-                             result.size,
-                             result.nnz);
+                             G(result.rowOffsets,
+                              result.colIndices,
+                              (DistType*)nullptr,
+                              result.size,
+                              result.nnz);
+    if (doRandomWeights) {
+      G.edge_data = result.edgeWeights;
+    }
     cudaDeviceSynchronize();
 
     std::vector<DistType> dist_vec;
@@ -337,10 +340,14 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                G.indices,
                sizeof(MaxVType) * (num_edges),
                cudaMemcpyDeviceToHost);
-    cudaMemcpy((void*)&weights[0],
-               G.edge_data,
-               sizeof(DistType) * (num_edges),
-               cudaMemcpyDeviceToHost);
+    if (G.edge_data != nullptr) {
+      cudaMemcpy((void*)&weights[0],
+                 G.edge_data,
+                 sizeof(DistType) * (num_edges),
+                 cudaMemcpyDeviceToHost);
+    } else { // If SSSP is given no weights it uses unit weights by default
+      std::fill(weights.begin(), weights.end(), static_cast<DistType>(1));
+    }
 
     std::map<std::pair<MaxVType, MaxVType>, DistType> min_edge_map;
 
@@ -389,23 +396,43 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
 std::vector<double> Tests_SSSP::SSSP_time;
 
-TEST_P(Tests_SSSP, CheckFP32_DIST_NO_PREDS) {
-  run_current_test<int, int, float, true, false>(GetParam());
+TEST_P(Tests_SSSP, CheckFP32_NO_RANDOM_DIST_NO_PREDS) {
+  run_current_test<int, int, float, false,true, false>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP32_NO_DIST_PREDS) {
-  run_current_test<int, int, float, false, true>(GetParam());
+TEST_P(Tests_SSSP, CheckFP32_NO_RANDOM_NO_DIST_PREDS) {
+  run_current_test<int, int, float, false, false, true>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP32_DIST_PREDS) {
-  run_current_test<int, int, float, true, true>(GetParam());
+TEST_P(Tests_SSSP, CheckFP32_NO_RANDOM_DIST_PREDS) {
+  run_current_test<int, int, float, false, true, true>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP64_DIST_NO_PREDS) {
-  run_current_test<int, int, double, true, false>(GetParam());
+TEST_P(Tests_SSSP, CheckFP64_NO_RANDOM_DIST_NO_PREDS) {
+  run_current_test<int, int, double, false, true, false>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP64_NO_DIST_PREDS) {
-  run_current_test<int, int, double, false, true>(GetParam());
+TEST_P(Tests_SSSP, CheckFP64_NO_RANDOM_NO_DIST_PREDS) {
+  run_current_test<int, int, double, false, false, true>(GetParam());
 }
-TEST_P(Tests_SSSP, CheckFP64_DIST_PREDS) {
-  run_current_test<int, int, double, true, true>(GetParam());
+TEST_P(Tests_SSSP, CheckFP64_NO_RANDOM_DIST_PREDS) {
+  run_current_test<int, int, double, false, true, true>(GetParam());
+}
+
+// TODO: There might be some tests that are done twice (MTX that are not patterns)
+TEST_P(Tests_SSSP, CheckFP32_RANDOM_DIST_NO_PREDS) {
+  run_current_test<int, int, float, true, true, false>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP32_RANDOM_NO_DIST_PREDS) {
+  run_current_test<int, int, float, true, false, true>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP32_RANDOM_DIST_PREDS) {
+  run_current_test<int, int, float, true, true, true>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP64_RANDOM_DIST_NO_PREDS) {
+  run_current_test<int, int, double, true, true, false>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP64_RANDOM_NO_DIST_PREDS) {
+  run_current_test<int, int, double, true, false, true>(GetParam());
+}
+TEST_P(Tests_SSSP, CheckFP64_RANDOM_DIST_PREDS) {
+  run_current_test<int, int, double, true, true, true>(GetParam());
 }
 
 // --gtest_filter=*simple_test*
