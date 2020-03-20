@@ -47,6 +47,7 @@
 - PR #758 Fix for graph comparison failure
 - PR #761 Added flag to not treat deprecation warnings as errors, for now
 - PR #771 Added unrenumbering in wcc and scc. Updated tests to compare vertices of largest component
+- PR #774 Raise TypeError if a DiGraph is used with spectral*Clustering()
 
 # cuGraph 0.12.0 (04 Feb 2020)
 
