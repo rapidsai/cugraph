@@ -37,6 +37,7 @@
 - PR #753 ECG Error
 - PR #758 Fix for graph comparison failure
 - PR #761 Added flag to not treat deprecation warnings as errors, for now
+- PR #774 Raise TypeError if a DiGraph is used with spectral*Clustering()
 
 # cuGraph 0.12.0 (04 Feb 2020)
 
