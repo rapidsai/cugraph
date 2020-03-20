@@ -33,6 +33,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         bool prevent_overlapping,
         float edge_weight_influence,
         float jitter_tolerance,
+        bool barnes_hut_optimize,
         float barnes_hut_theta,
         float scaling_ratio,
         bool strong_gravity_mode,

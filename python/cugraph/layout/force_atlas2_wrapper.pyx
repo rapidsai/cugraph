@@ -39,6 +39,7 @@ def force_atlas2(input_graph,
                  prevent_overlapping=False,
                  edge_weight_influence=1.0,
                  jitter_tolerance=1.0,
+                 barnes_hut_optimize=True,
                  barnes_hut_theta=0.5,
                  scaling_ratio=1.0,
                  strong_gravity_mode = False,
@@ -57,6 +58,7 @@ def force_atlas2(input_graph,
     cdef GraphCOO[int,int,float] graph_float
 
     df = cudf.DataFrame()
+    df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
     df['x'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
     df['y'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
 
@@ -64,14 +66,17 @@ def force_atlas2(input_graph,
     cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
 
+
     graph_float = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
-    
+
+
     cdef uintptr_t x_pos = df['x'].__cuda_array_interface__['data'][0]
     cdef uintptr_t y_pos = df['y'].__cuda_array_interface__['data'][0]
 
     cdef uintptr_t x_start = <uintptr_t>NULL 
     cdef uintptr_t y_start = <uintptr_t>NULL 
     if pos_list is not None:
+        df['vertex'] = pos_list['vertex']
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
@@ -87,10 +92,10 @@ def force_atlas2(input_graph,
                     <bool>prevent_overlapping,
                     <float>edge_weight_influence,
                     <float>jitter_tolerance,
+                    <bool>barnes_hut_optimize,
                     <float>barnes_hut_theta,
                     <float>scaling_ratio,
                     <bool> strong_gravity_mode,
                     <float>gravity)
-
     return df
 

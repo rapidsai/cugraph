@@ -27,7 +27,7 @@ from random import randint
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, these import fa2l and import networkx need to be
+# python 3.7.  Also, these import fa2 and import networkx need to be
 # relocated in the third-party group once this gets fixed.
 import warnings
 with warnings.catch_warnings():
@@ -41,8 +41,8 @@ print('Networkx version : {} '.format(nx.__version__))
 
 def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
                  lin_log_mode, prevent_overlapping, edge_weight_influence,
-                 jitter_tolerance, barnes_hut_theta, scaling_ratio,
-                 strong_gravity_mode, gravity):
+                 jitter_tolerance, barnes_hut_theta, barnes_hut_optimize,
+                 scaling_ratio, strong_gravity_mode, gravity):
 
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
@@ -56,6 +56,7 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
                                prevent_overlapping=prevent_overlapping,
                                edge_weight_influence=edge_weight_influence,
                                jitter_tolerance=jitter_tolerance,
+                               barnes_hut_optimize=barnes_hut_optimize,
                                barnes_hut_theta=barnes_hut_theta,
                                scaling_ratio=scaling_ratio,
                                strong_gravity_mode=strong_gravity_mode,
@@ -113,8 +114,8 @@ def networkx_call(M, max_iter,
     return pos
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv']
+DATASETS = ['../datasets/karate.csv']
+            #'../datasets/dolphins.csv']
 
 MAX_ITERATIONS = [0]
 OUTBOUND_ATTRACTION_DISTRIBUTION = [True]
@@ -157,17 +158,20 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
                                   edge_attr='weight', create_using=nx.Graph())
 
+    print(Gnx.nodes())
     # Init nodes at same positions
 
     nx_pos_list = dict()
-    for i in range(Gnx.number_of_nodes()):
-        nx_pos_list[i] = randint(-100, 100), randint(-100, 100)
+    for node in Gnx:
+        nx_pos_list[node] = randint(-100, 100), randint(-100, 100)
 
+    print(nx_pos_list)
     k = np.fromiter(nx_pos_list.keys(), dtype='int32')
     x = np.fromiter([x for x, _ in nx_pos_list.values()], dtype='float32')
     y = np.fromiter([y for _, y in nx_pos_list.values()], dtype='float32')
 
-    cu_pos_list = cudf.DataFrame({'x': x,
+    cu_pos_list = cudf.DataFrame({'vertex': k,
+                                  'x': x,
                                   'y' : y}) 
  
     cu_pos = cugraph_call(cu_M,
@@ -178,6 +182,7 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
                           prevent_overlapping=False,
                           edge_weight_influence=edge_weight_influence,
                           jitter_tolerance=jitter_tolerance,
+                          barnes_hut_optimize=False,
                           barnes_hut_theta=barnes_hut_theta,
                           scaling_ratio=scaling_ratio,
                           strong_gravity_mode=strong_gravity_mode,
@@ -192,19 +197,25 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
                            prevent_overlapping=False,
                            edge_weight_influence=edge_weight_influence,
                            jitter_tolerance=jitter_tolerance,
-                           barnes_hut_optimize=True,
+                           barnes_hut_optimize=False,
                            barnes_hut_theta=barnes_hut_theta,
                            scaling_ratio=scaling_ratio,
                            strong_gravity_mode=strong_gravity_mode,
                            multithread=False,
                            gravity=gravity)
    
+    print("Cu pos")
+    print(cu_pos)
+    print()
+    print("Nx pos")
+    print(nx_pos)
     # Check positions are the same
     assert len(cu_pos) == len(nx_pos)
     err = 0
-    for i in range(len(cu_pos)):
-        if abs(cu_pos['x'][i] - nx_pos[i][0]) > 0.01 \
-        and abs(cu_pos['y'][i] - nx_pos[i][1]) > 0.01:
+    for i in range(len(cu_pos_list)):
+        node = cu_pos_list['vertex'][i]
+        if abs(cu_pos['x'][i] - nx_pos[node][0]) > 0.01 \
+        and abs(cu_pos['y'][i] - nx_pos[node][1]) > 0.01:
             err += 1
     print("Mismatched points:", err)
     assert err < 0.01 * len(cu_pos)
