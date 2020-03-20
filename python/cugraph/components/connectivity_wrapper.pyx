@@ -25,6 +25,7 @@ from cudf._lib.utils cimport table_from_dataframe
 from libc.stdint cimport uintptr_t
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.graph import Graph as type_Graph
+from cugraph.utilities.unrenumber import unrenumber
 
 import cudf
 import cudf._lib as libcudf
@@ -76,6 +77,9 @@ def weakly_connected_components(input_graph):
 
     g.get_vertex_identifiers(<int*>c_identifier)
 
+    if input_graph.renumbered:
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
+
     return df
 
 
@@ -108,5 +112,8 @@ def strongly_connected_components(input_graph):
     connected_components(g, <cugraph_cc_t>connect_type, <int *>c_labels_val)
 
     g.get_vertex_identifiers(<int*>c_identifier)
+
+    if input_graph.renumbered:
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
 
     return df
