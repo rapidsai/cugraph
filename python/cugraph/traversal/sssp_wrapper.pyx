@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,98 +33,112 @@ import cudf._lib as libcudf
 import rmm
 import numpy as np
 
-
 def sssp(input_graph, source):
     """
-    Call sssp_nvgraph
+    Call sssp
     """
+    # Step 1: Declare the different variables
     cdef GraphCSR[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
     cdef GraphCSR[int, int, double] graph_double    # For weighted double graph (SSSP)
 
-    cdef uintptr_t c_weights = <uintptr_t> NULL     #
-    cdef uintptr_t c_offsets = <uintptr_t> NULL     #
-    cdef uintptr_t c_indices = <uintptr_t> NULL     #
+    # Pointers required for CSR Graph
+    cdef uintptr_t c_offsets_ptr        = <uintptr_t> NULL # Pointer to the CSR offsets
+    cdef uintptr_t c_indices_ptr        = <uintptr_t> NULL # Pointer to the CSR indices
+    cdef uintptr_t c_weights_ptr        = <uintptr_t> NULL # Pointer to the CSR weights
 
-    cdef uintptr_t c_vertex_col = <uintptr_t> NULL      #
-    cdef uintptr_t c_distance_col = <uintptr_t> NULL    #
-    cdef uintptr_t c_predecessor_col = <uintptr_t> NULL #
+    # Pointers for SSSP / BFS
+    cdef uintptr_t c_identifier_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
+    cdef uintptr_t c_distance_ptr       = <uintptr_t> NULL # Pointer to the DataFrame 'distance' Series
+    cdef uintptr_t c_predecessor_ptr    = <uintptr_t> NULL # Pointer to the DataFrame 'predecessor' Series
 
-    offset = None
-    indices = None
-
-    # SSSP is expecting the graph to be in CSR format
+    # Step 2: Verify that input_graph has the expected format
+    #         the SSSP implementation expects CSR format
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    # Obtain CSR offsets and indices from the input_graph.adjlist
-    # Offsets and indices data type can only be int (signed, 32-bit)
+    # Step 3: Extract CSR offsets, indices and indices
+    #         - offsets: int (signed, 32-bit)
+    #         - indices: int (signed, 32-bit)
+    #         - weights: float / double
+    #         Extract data_type from weights (not None: float / double, None: signed int 32-bit)
     [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    c_offsets = offsets.__cuda_array_interface__['data'][0]
-    c_indices = indices.__cuda_array_interface__['data'][0]
+    [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
+    c_indices_ptr = indices.__cuda_array_interface__['data'][0]
 
+    data_type = np.int32
+    if weights is not None:
+        data_type = weights.dtype
+        c_weights_ptr = weights.__cuda_array_interface__['data'][0]
+
+    # Step 4: Setup number of vertices and number of edges
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
 
+    # Step 5: Handle the case our graph had to be renumbered
+    #         Our source index might no longer be valid
     if input_graph.renumbered is True:
         source = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map == source].index[0]
     if not 0 <= source < num_verts:
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
-
-    # Generation of the result
+    # Step 6: Generation of the result cudf.DataFrame
+    #         Distances depends on data_type (c.f. Step 3)
     df = cudf.DataFrame()
 
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    c_vertex_col = df['vertex'].__cuda_array_interface__['data'][0]
-
-
+    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    c_distance_col = df['predecessor'].__cuda_array_interface__['data'][0]
 
-    if input_graph.edgelist.weights:
-        [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-        c_weights = weights.__cuda_array_interface__['data'][0]
+    # Step 7: Associate <uintptr_t> to cudf Series
+    c_identifier_ptr = df['vertex'].__cuda_array_interface__['data'][0]
+    c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
+    c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
 
-        df['distance'] = cudf.Series(np.zeros(num_verts, dtype=weights.dtype))
-        c_distance_col = df['distance'].__cuda_array_interface__['data'][0]
-
-        if (df['distance'].dtype == np.float32):
-            graph_float = GraphCSR[int, int, float](<int*>c_offsets,
-                                                     <int*>c_indices,
-                                                     <float*>c_weights,
+    # Step 8: Dispatch to SSSP / BFS Based on weights
+    #         - weights is not None: SSSP float or SSSP double
+    #         - weights is None: BFS
+    if weights is not None:
+        if data_type == np.float32:
+            graph_float = GraphCSR[int, int, float](<int*> c_offsets_ptr,
+                                                     <int*> c_indices_ptr,
+                                                     <float*> c_weights_ptr,
                                                      num_verts,
                                                      num_edges)
-            c_sssp.sssp[int, int, float](graph_float, <float*>c_distance_col, <int*>c_predecessor_col, <int>source)
-            graph_float.get_vertex_identifiers(<int*>c_vertex_col)
-        else: # Should probably check for it
-            graph_double = GraphCSR[int, int, double](<int*>c_offsets,
-                                                      <int*>c_indices,
-                                                      <double*>c_weights,
+            graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
+            c_sssp.sssp[int, int, float](graph_float,
+                                         <float*> c_distance_ptr,
+                                         <int*> c_predecessor_ptr,
+                                         <int> source)
+        elif data_type == np.float64:
+            graph_double = GraphCSR[int, int, double](<int*> c_offsets_ptr,
+                                                      <int*> c_indices_ptr,
+                                                      <double*> c_weights_ptr,
                                                       num_verts,
                                                       num_edges)
-            c_sssp.sssp[int, int, double](graph_double, <double*>c_distance_col, <int*>c_predecessor_col, <int>source)
-            graph_double.get_vertex_identifiers(<int*>c_vertex_col)
+            graph_double.get_vertex_identifiers(<int*> c_identifier_ptr)
+            c_sssp.sssp[int, int, double](graph_double,
+                                          <double*> c_distance_ptr,
+                                          <int*> c_predecessor_ptr,
+                                          <int> source)
+        else: # This case should not happen
+            raise NotImplementedError
     else:
-        df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-        c_distance_col = df['distance'].__cuda_array_interface__['data'][0]
-        graph_float = GraphCSR[int, int, float](<int*>c_offsets,
-                                                <int*>c_indices,
-                                                <float*>NULL,
+        # TODO: Something might be done here considering WT = float
+        graph_float = GraphCSR[int, int, float](<int*> c_offsets_ptr,
+                                                <int*> c_indices_ptr,
+                                                <float*> NULL,
                                                 num_verts,
                                                 num_edges)
-        c_bfs.bfs[int, int, float](graph_float, <int*>c_distance_col, <int*>c_predecessor_col, <int>source)
+        graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
+        c_bfs.bfs[int, int, float](graph_float,
+                                   <int*>c_distance_ptr,
+                                   <int*>c_predecessor_ptr,
+                                   <int>source)
 
+    # Step 9: Renumber before return
+    #         It is only required to renumber vertex and predecessors
     if input_graph.renumbered:
-        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
-            raise NotImplementedError
-            n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
-            unrenumbered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
-            unrenumbered_df = unrenumbered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
-            unrenumbered_df.columns = ['distance']+['vertex_'+str(i) for i in range(n_cols)]+['predecessor_'+str(i) for i in range(n_cols)]
-            cols = unrenumbered_df.columns.to_list()
-            df = unrenumbered_df[cols[1:n_cols+1] + [cols[0]] + cols[n_cols:]]
-        else:
-            df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-            #df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-            #df['predecessor'][df['predecessor']>-1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor']>-1]]
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        df['predecessor'][df['predecessor'] >- 1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor'] >- 1]]
     return df
