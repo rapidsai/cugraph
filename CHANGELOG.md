@@ -1,3 +1,12 @@
+# cuGraph 0.14.0 (Date TBD)
+
+## New Features
+
+## Improvements
+- PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
+- PR #765 Remove gdf_column from connected components
+
+## Bug Fixes
 
 # cuGraph 0.13.0 (Date TBD)
 
