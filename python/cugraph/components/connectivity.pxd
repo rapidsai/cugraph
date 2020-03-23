@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,18 +16,18 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
-from cudf._lib.cudf cimport *
+from cugraph.structure.graph_new cimport *
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
-
-    cdef void connected_components(
-        Graph *graph,
-        cugraph_cc_t connect_type,
-        cudf_table* table) except +
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
     ctypedef enum cugraph_cc_t:
-        CUGRAPH_WEAK = 0,
-        CUGRAPH_STRONG,
-        NUM_CONNECTIVITY_TYPES
+        CUGRAPH_WEAK "cugraph::cugraph_cc_t::CUGRAPH_WEAK"
+        CUGRAPH_STRONG "cugraph::cugraph_cc_t::CUGRAPH_STRONG"
+        NUM_CONNECTIVITY_TYPES "cugraph::cugraph_cc_t::NUM_CONNECTIVITY_TYPES"
+
+    cdef void connected_components[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
+        cugraph_cc_t connect_type,
+        VT *labels) except +
+

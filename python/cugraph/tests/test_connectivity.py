@@ -14,7 +14,7 @@
 import gc
 from itertools import product
 import time
-
+from collections import defaultdict
 import pytest
 
 import cugraph
@@ -53,7 +53,6 @@ def networkx_weak_call(M):
     # same parameters as in NVGRAPH
     result = nx.weakly_connected_components(Gnx)
     t2 = time.time() - t1
-
     print('Time : ' + str(t2))
 
     labels = sorted(result)
@@ -69,10 +68,10 @@ def cugraph_weak_call(cu_M):
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
-    result = df['labels'].to_array()
-
-    labels = sorted(result)
-    return labels
+    label_vertex_dict = defaultdict(list)
+    for i in range(len(df)):
+        label_vertex_dict[df['labels'][i]].append(df['vertices'][i])
+    return label_vertex_dict
 
 
 def networkx_strong_call(M):
@@ -97,16 +96,15 @@ def cugraph_strong_call(cu_M):
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    print(G.number_of_vertices())
     t1 = time.time()
     df = cugraph.strongly_connected_components(G)
     t2 = time.time() - t1
     print('Time : '+str(t2))
 
-    result = df['labels'].to_array()
-
-    labels = sorted(result)
-    return labels
+    label_vertex_dict = defaultdict(list)
+    for i in range(len(df)):
+        label_vertex_dict[df['labels'][i]].append(df['vertices'][i])
+    return label_vertex_dict
 
 
 # these should come w/ cugraph/python:
@@ -117,27 +115,6 @@ DATASETS = ['../datasets/dolphins.csv',
 STRONGDATASETS = ['../datasets/dolphins.csv',
                   '../datasets/netscience.csv',
                   '../datasets/email-Eu-core.csv']
-
-
-# vcount how many `val`s in ls container:
-#
-def counter_f(ls, val):
-    return sum(1 for x in ls if x == val)
-
-
-# return number of uniques values in lst container:
-#
-def get_n_uniqs(lst):
-    return len(set(lst))
-
-
-# gets unique values of list and then counts the
-# occurences of each unique value within list;
-# note: because of using set(), the "keys"
-# (unique values) will be sorted in set(lst)
-#
-def get_uniq_counts(lst):
-    return [counter_f(lst, uniq_val) for uniq_val in set(lst)]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -167,17 +144,25 @@ def test_weak_cc(managed, pool, graph_file):
     # while cugraph returns a component label for each vertex;
 
     nx_n_components = len(netx_labels)
-    cg_n_components = get_n_uniqs(cugraph_labels)
+    cg_n_components = len(cugraph_labels)
 
+    # Comapre number of components
     assert nx_n_components == cg_n_components
 
-    lst_nx_components_lens = [len(c) for c in sorted(netx_labels, key=len)]
+    lst_nx_components = sorted(netx_labels, key=len, reverse=True)
+    lst_nx_components_lens = [len(c) for c in lst_nx_components]
 
-    # get counts of uniques:
-    #
-    lst_cg_components_lens = sorted(get_uniq_counts(cugraph_labels))
+    cugraph_vertex_lst = cugraph_labels.values()
+    lst_cg_components = sorted(cugraph_vertex_lst, key=len, reverse=True)
+    lst_cg_components_lens = [len(c) for c in lst_cg_components]
 
+    # Compare lengths of each component
     assert lst_nx_components_lens == lst_cg_components_lens
+
+    # Compare vertices of largest component
+    nx_vertices = sorted(lst_nx_components[0])
+    cg_vertices = sorted(lst_cg_components[0])
+    assert nx_vertices == cg_vertices
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -207,14 +192,22 @@ def test_strong_cc(managed, pool, graph_file):
     # while cugraph returns a component label for each vertex;
 
     nx_n_components = len(netx_labels)
-    cg_n_components = get_n_uniqs(cugraph_labels)
+    cg_n_components = len(cugraph_labels)
 
+    # Comapre number of components
     assert nx_n_components == cg_n_components
 
-    lst_nx_components_lens = [len(c) for c in sorted(netx_labels, key=len)]
+    lst_nx_components = sorted(netx_labels, key=len, reverse=True)
+    lst_nx_components_lens = [len(c) for c in lst_nx_components]
 
-    # get counts of uniques:
-    #
-    lst_cg_components_lens = sorted(get_uniq_counts(cugraph_labels))
+    cugraph_vertex_lst = cugraph_labels.values()
+    lst_cg_components = sorted(cugraph_vertex_lst, key=len, reverse=True)
+    lst_cg_components_lens = [len(c) for c in lst_cg_components]
 
+    # Compare lengths of each component
     assert lst_nx_components_lens == lst_cg_components_lens
+
+    # Compare vertices of largest component
+    nx_vertices = sorted(lst_nx_components[0])
+    cg_vertices = sorted(lst_cg_components[0])
+    assert nx_vertices == cg_vertices

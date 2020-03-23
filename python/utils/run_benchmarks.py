@@ -7,17 +7,14 @@ from scipy.io import mmread
 import cugraph
 import cudf
 
-from benchmark import (
-    Benchmark, logExeTime, logGpuMetrics, printLastResult, nop
-)
+from benchmark import Benchmark
 
 
 ###############################################################################
 # Update this function to add new algos
 ###############################################################################
 def getBenchmarks(G, edgelist_gdf, args):
-    """
-    Returns a dictionary of benchmark name to Benchmark objs. This dictionary
+    """Returns a dictionary of benchmark name to Benchmark objs. This dictionary
     is used when processing the command-line args to this script so the script
     can run a specific benchmakr by name.
 
@@ -46,6 +43,7 @@ def getBenchmarks(G, edgelist_gdf, args):
     If a new benchmark needs a special command-line parameter, add a new flag
     to the command-line processing function and access it via the "args"
     dictionary when passing args to the Benchmark ctor.
+
     """
 
     benches = [
@@ -59,7 +57,6 @@ def getBenchmarks(G, edgelist_gdf, args):
         Benchmark(name="cugraph.sssp",
                   func=cugraph.sssp,
                   args=(G, args.source)),
-        #         extraRunWrappers=[noStdoutWrapper]),
         Benchmark(name="cugraph.jaccard",
                   func=cugraph.jaccard,
                   args=(G,)),
@@ -84,8 +81,6 @@ def getBenchmarks(G, edgelist_gdf, args):
         Benchmark(name="cugraph.renumber",
                   func=cugraph.renumber,
                   args=(edgelist_gdf["src"], edgelist_gdf["dst"])),
-        Benchmark(name="cugraph.graph.view_adj_list",
-                  func=G.view_adj_list),
         Benchmark(name="cugraph.graph.degree",
                   func=G.degree),
         Benchmark(name="cugraph.graph.degrees",
@@ -110,14 +105,28 @@ def loadDataFile(file_name, csv_delimiter=' '):
     return edgelist_gdf
 
 
-def createGraph(edgelist_gdf, auto_csr):
-    G = cugraph.Graph()
-    G.add_edge_list(edgelist_gdf["src"], edgelist_gdf["dst"],
-                    edgelist_gdf["val"])
-    if auto_csr == 0:
-        G.view_adj_list()
-        G.view_transposed_adj_list()
+def createGraph(edgelist_gdf, createDiGraph, renumber, symmetrized):
+    if createDiGraph:
+        G = cugraph.DiGraph()
+    else:
+        G = cugraph.Graph(symmetrized=symmetrized)
+    G.from_cudf_edgelist(edgelist_gdf, source="src",
+                         destination="dst", edge_attr="val",
+                         renumber=renumber)
     return G
+
+
+def computeAdjList(graphObj, transposed=False):
+    """
+    Compute the adjacency list (or transposed adjacency list if transposed is
+    True) on the graph obj. This can be run as a benchmark itself, and is often
+    run separately so adj list computation isn't factored into an algo
+    benchmark.
+    """
+    if transposed:
+        G.view_transposed_adj_list()
+    else:
+        G.view_adj_list()
 
 
 def read_mtx(mtx_file):
@@ -134,21 +143,23 @@ def read_mtx(mtx_file):
 
 
 def read_csv(csv_file, delimiter):
-    cols = ["src", "dst"]
+    cols = ["src", "dst", "val"]
     dtypes = OrderedDict([
             ("src", "int32"),
-            ("dst", "int32")
+            ("dst", "int32"),
+            ("val", "float32"),
             ])
 
     gdf = cudf.read_csv(csv_file, names=cols, delimiter=delimiter,
                         dtype=list(dtypes.values()))
-    gdf['val'] = 1.0
-    if gdf['val'].null_count > 0:
-        print("The reader failed to parse the input")
+
     if gdf['src'].null_count > 0:
         print("The reader failed to parse the input")
     if gdf['dst'].null_count > 0:
         print("The reader failed to parse the input")
+    # Assume an edge weight of 1.0 if dataset does not provide it
+    if gdf['val'].null_count > 0:
+        gdf['val'] = 1.0
     return gdf
 
 
@@ -171,10 +182,16 @@ def parseCLI(argv):
                         'is 1e-5')
     parser.add_argument('--source', type=int, default=0,
                         help='Source for bfs or sssp. Default is 0')
-    parser.add_argument('--auto_csr', type=int, default=0,
-                        help='Automatically do the csr and transposed '
-                        'transformations. Default is 0, switch to another '
-                        'value to enable')
+    parser.add_argument('--compute_adj_list', action="store_true",
+                        help='Compute and benchmark the adjacency list '
+                        'computation separately. Default is to NOT compute '
+                        'the adjacency list and allow the algo to compute it '
+                        'if necessary.')
+    parser.add_argument('--compute_transposed_adj_list', action="store_true",
+                        help='Compute and benchmark the transposed adjacency '
+                        'list computation separately. Default is to NOT '
+                        'compute the transposed adjacency list and allow the '
+                        'algo to compute it if necessary.')
     parser.add_argument('--delimiter', type=str, choices=["tab", "space"],
                         default="space",
                         help='Delimiter for csv files (default is space)')
@@ -191,17 +208,35 @@ def parseCLI(argv):
                         help='The OS type to include in reports')
     parser.add_argument('--report_machine_name', type=str, default="",
                         help='The machine name to include in reports')
+    parser.add_argument('--digraph', action="store_true",
+                        help='Create a directed graph (default is undirected)')
 
     return parser.parse_args(argv)
 
 
 def getAllPossibleAlgos():
+    # Use the getBenchmarks() function to generate a list of benchmark names
+    # from the keys of the dictionary getBenchmarks() returns.  Use a "nop"
+    # object since getBenchmarks() will try to access attrs for the args passed
+    # in, and there's no point in keeping track of the actual objects needed
+    # here since all this needs is the keys (not the values).
+    class Nop:
+        def __getattr__(self, attr):
+            return Nop()
+
+        def __getitem__(self, key):
+            return Nop()
+
+        def __call__(self, *args, **kwargs):
+            return Nop()
+
+    nop = Nop()
+
     return list(getBenchmarks(nop, nop, nop).keys())
 
 
 ###############################################################################
 if __name__ == "__main__":
-    perfData = {}
     args = parseCLI(sys.argv[1:])
 
     # set algosToRun based on the command line args
@@ -216,34 +251,50 @@ if __name__ == "__main__":
     else:
         algosToRun = allPossibleAlgos
 
-    # Update the various wrappers with a list to log to and formatting settings
-    logExeTime.perfData = perfData
-    logGpuMetrics.perfData = perfData
-    printLastResult.perfData = perfData
-
-    # Load the data file and create a Graph, treat these as benchmarks too
+    # Load the data file and create a Graph, treat these as benchmarks too. The
+    # Benchmark run() method returns the result of the function being
+    # benchmarked. In this case, "loadDataFile" and "createGraph" return a
+    # Dataframe and Graph object respectively, so save those and use them for
+    # future benchmarks.
     csvDelim = {"space": ' ', "tab": '\t'}[args.delimiter]
-    edgelist_gdf = Benchmark(loadDataFile, "cugraph.loadDataFile",
+    edgelist_gdf = Benchmark(loadDataFile,
+                             "cugraph.loadDataFile",
                              args=(args.file, csvDelim)).run()
-    G = Benchmark(createGraph, "cugraph.createGraph",
-                  args=(edgelist_gdf, args.auto_csr)).run()
+    renumber = True
+    symmetrized = True
+
+    G = Benchmark(createGraph,
+                  "cugraph.createGraph",
+                  args=(edgelist_gdf, args.digraph, renumber,
+                        symmetrized)).run()
 
     if G is None:
         raise RuntimeError("could not create graph!")
 
+    # compute the adjacency list upfront as a separate benchmark. Special case:
+    # if pagerank is being benchmarked and the transposed adj matrix is
+    # requested, compute that too or instead. It's recommended that a pagerank
+    # benchmark be performed in a separate run since there's only one Graph obj
+    # and both an adj list and transposed adj list are probably not needed.
+    if args.compute_adj_list:
+        Benchmark(computeAdjList,
+                  "cugraph.graph.view_adj_list",
+                  args=(G, False)).run()
+    if args.compute_transposed_adj_list and ("cugraph.pagerank" in algosToRun):
+        Benchmark(computeAdjList,
+                  "cugraph.graph.view_transposed_adj_list",
+                  args=(G, True)).run()
+
     print("-" * 80)
 
+    # get the individual benchmark functions and run them
     benches = getBenchmarks(G, edgelist_gdf, args)
-
     for algo in algosToRun:
-        benches[algo].run()
+        benches[algo].run(n=3)  # mean of 3 runs
 
     # reports ########################
     if args.update_results_dir:
         raise NotImplementedError
-
-    # import pprint
-    # pprint.pprint(perfData, open("data","w"))
 
     if args.update_asv_dir:
         # import this here since it pulls in a 3rd party package (asvdb) which
@@ -256,7 +307,7 @@ if __name__ == "__main__":
 
         cugraph_update_asv(asvDir=args.update_asv_dir,
                            datasetName=datasetName,
-                           algoRunResults=perfData,
+                           algoRunResults=Benchmark.resultsDict,
                            cudaVer=args.report_cuda_ver,
                            pythonVer=args.report_python_ver,
                            osType=args.report_os_type,

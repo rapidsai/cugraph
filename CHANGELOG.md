@@ -13,6 +13,7 @@
 ## New Features
 - PR #736 cuHornet KTruss integration
 - PR #735 Integration gunrock's betweenness centrality
+- PR #760 cuHornet Weighted KTruss
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
@@ -30,6 +31,8 @@
 - PR #742 Rremove gdf column from jaccard
 - PR #741 Added documentation for running and adding new benchmarks and shell script to automate
 - PR #747 updated viewing of graph, datatypecasting and two hop neighbor unrenumbering for multi column
+- PR #766 benchmark script improvements/refactorings: separate ETL steps, averaging, cleanup
+- PR #770 Updated README-benchmark.md with up-to-date info on scripts and code
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.
@@ -42,6 +45,9 @@
 - PR #746 Dask + Distributed 2.12.0+
 - PR #753 ECG Error
 - PR #758 Fix for graph comparison failure
+- PR #761 Added flag to not treat deprecation warnings as errors, for now
+- PR #771 Added unrenumbering in wcc and scc. Updated tests to compare vertices of largest component
+- PR #774 Raise TypeError if a DiGraph is used with spectral*Clustering()
 
 # cuGraph 0.12.0 (04 Feb 2020)
 

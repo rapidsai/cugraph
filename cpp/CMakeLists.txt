@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.13.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.14.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wno-error=deprecated-declarations")
 
 ###################################################################################################
 ###   C++ ABI changes.
@@ -328,6 +328,7 @@ add_library(cugraph SHARED
     src/link_prediction/overlap.cu
     src/converters/nvgraph.cu
     src/converters/renumber.cu
+    src/converters/COOtoCSR.cu
     src/community/nvgraph_gdf.cu
     src/community/ECG.cu
     src/cores/core_number.cu
