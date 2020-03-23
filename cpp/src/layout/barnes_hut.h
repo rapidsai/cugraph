@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,15 @@
  */
 
 #pragma once
+
 #include "bh_kernels.h"
-#include "utils.h"
 
 namespace cugraph {
-namespace ForceAtlas2 {
+namespace detail {
 
-template <typename IndexType, typename ValueType>
-void barnes_hut(const IndexType *row, const IndexType *col,
-        const ValueType *val, const int nnz, float *x_pos,
+template <typename vertex_t, typename edge_t, typename weight_t>
+void barnes_hut(const edge_t *csrPtr, const vertex_t *csrInd,
+        const weight_t *v, const vertex_t n, float *x_pos,
         float *y_pos, int max_iter, float *x_start, float *y_start,
         bool outbount_attraction_distribution, bool lin_log_mode,
         bool prevent_overlapping, float edge_weight_influence,
@@ -32,5 +32,5 @@ void barnes_hut(const IndexType *row, const IndexType *col,
     return;
 }
 
-} // namespace ForceAtlas2
+} // namespace detail
 } // namespace cugraph
