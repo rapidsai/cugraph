@@ -4,6 +4,7 @@
 
 ## Improvements
 - PR #765 Remove gdf_column from connected components
+- PR #780 Remove gdf_column from cuhornet features
 
 ## Bug Fixes
 
