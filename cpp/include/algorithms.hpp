@@ -34,7 +34,7 @@ namespace cugraph {
  * @tparam ET                        Type of edge identifiers. Supported value : int (signed, 32-bit)
  * @tparam WT                        Type of edge weights. Supported value : float or double.   
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSR). Edge weights are not used for this algorithm.
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSC). Edge weights are not used for this algorithm.
  * @param[in] alpha                  The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
                                      Thus, 1.0-alpha is the probability to “teleport” to a random vertex. Alpha should be greater than 0.0 and strictly lower than 1.0.
  *                                   The initial guess must not be the vector of 0s. Any value other than 1 or 0 is treated as an invalid value.
@@ -309,26 +309,49 @@ template <typename VT, typename ET, typename WT>
 void core_number(experimental::GraphCSR<VT, ET, WT> const &graph, VT *core_number);
 
 /**                                                                             
- * @Synopsis   Compute K Core of the graph G
- *                                                                              
- * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
- *                                                                              
- * @Param[in] k                      Order of the core. This value must not be negative.
- *                                                                              
- * @Param[in] *vertex_id             User specified vertex identifiers for which core number values are supplied
- *                                                                              
- * @Param[in] *core_number           User supplied core number values corresponding to vertex_id
- *                                                                              
- * @Param[out] *out_graph            K Core subgraph
- *                                                                              
+ * @brief   Compute K Core of the graph G
+ *
  * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *                                                                              
+ * @param[in]  graph              cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @param[in]  k                  Order of the core. This value must not be negative.
+ * @param[in]  vertex_id          User specified vertex identifiers for which core number values are supplied
+ * @param[in]  core_number        User supplied core number values corresponding to vertex_id
+ * @param[out] out_graph          K Core subgraph
  */                                                                             
-/* ----------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
 void k_core(experimental::GraphCSR<VT, ET, WT> const &graph,
             int k,
             VT *vertex_id,
             VT *core_number,
             experimental::GraphCOO<VT,ET,WT> &out_graph);
+
+/**
+ * @brief      Find all 2-hop neighbors in the graph
+ *
+ * Find pairs of vertices in the input graph such that each pair is connected by
+ * a path that is two hops in length.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph        The input graph object
+ * @param[out] first        Upon return will be a device pointer pointing to an array containing
+ *                          the first entry of each result pair.
+ * @param[out] second       Upon return will be a device pointer pointing to an array containing
+ *                          the second entry of each result pair.
+ * @return    The number of pairs
+ */
+template <typename VT, typename ET, typename WT>
+ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph,
+                         VT **first,
+                         VT **second);
 
 } //namespace cugraph

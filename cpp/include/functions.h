@@ -183,22 +183,6 @@ void delete_edge_list(Graph* graph);
 void delete_transposed_adj_list(Graph* graph);
 
 /**
- * @Synopsis   Find pairs of vertices in the input graph such that each pair is connected by
- *             a path that is two hops in length.
- *
- * @param[in]* graph                 in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
- *
- * @param[out] first                 out : An uninitialized gdf_column which will be initialized to contain the
- *                                         first entry of each result pair.
- * @param[out] second                out : An uninitialized gdf_column which will be initialized to contain the
- *                                         second entry of each result pair.
- *
- * @throws     cugraph::logic_error when an error occurs.
- */
-/* ----------------------------------------------------------------------------*/
-void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
-
-/**
  * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
  *             Should be called in an omp parallel section with one thread per device.
  *             Each device is expected to have a part of the matrix and a copy of the vector

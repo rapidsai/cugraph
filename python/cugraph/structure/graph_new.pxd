@@ -66,3 +66,11 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
     cdef cppclass GraphCSC[VT,ET,WT](GraphCompressedSparseBase[VT,ET,WT]):
         GraphCSC()
         GraphCSC(const VT *, const ET *, const WT *, size_t, size_t)
+
+
+cdef extern from "algorithms.hpp" namespace "cugraph":
+
+    cdef ET get_two_hop_neighbors[VT,ET,WT](
+        const GraphCSR[VT, ET, WT] &graph,
+        VT **first,
+        VT **second) except +

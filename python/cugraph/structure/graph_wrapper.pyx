@@ -313,51 +313,6 @@ def get_transposed_adj_list(graph_ptr):
     return offset_col, index_col, value_col
 
 
-def get_two_hop_neighbors(input_graph):
-    cdef uintptr_t graph = allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
-
-    if input_graph.adjlist:
-        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-        [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
-        add_adj_list(graph, offsets, indices, weights)
-    else:
-        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
-        if input_graph.edgelist.weights:
-            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-            add_edge_list(graph, src, dst, weights)
-        else:
-            add_edge_list(graph, src, dst)
-        c_graph.add_adj_list(g)
-        offsets, indices, values = get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
-
-    cdef gdf_column c_first_col
-    cdef gdf_column c_second_col
-    c_graph.get_two_hop_neighbors(g, &c_first_col, &c_second_col)
-    
-    df = cudf.DataFrame()
-    if c_first_col.dtype == GDF_INT32:
-        first_out = rmm.device_array_from_ptr(<uintptr_t>c_first_col.data,
-                                              nelem=c_first_col.size,
-                                              dtype=np.int32)
-        second_out = rmm.device_array_from_ptr(<uintptr_t>c_second_col.data,
-                                               nelem=c_second_col.size,
-                                               dtype=np.int32)
-        df['first'] = first_out
-        df['second'] = second_out
-    if c_first_col.dtype == GDF_INT64:
-        first_out = rmm.device_array_from_ptr(<uintptr_t>c_first_col.data,
-                                              nelem=c_first_col.size,
-                                              dtype=np.int64)
-        second_out = rmm.device_array_from_ptr(<uintptr_t>c_second_col.data,
-                                               nelem=c_second_col.size,
-                                               dtype=np.int64)
-        df['first'] = first_out
-        df['second'] = second_out
-
-    return df
-
 def number_of_vertices(input_graph):
     cdef uintptr_t graph = allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph

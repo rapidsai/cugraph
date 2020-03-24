@@ -17,6 +17,7 @@
 # cython: language_level = 3
 
 from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_new cimport get_two_hop_neighbors as c_get_two_hop_neighbors
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
@@ -105,3 +106,44 @@ def _degrees(input_graph):
     verts, outdegrees = _degree(input_graph, 2)
     
     return verts, indegrees, outdegrees
+
+
+def get_two_hop_neighbors(input_graph):
+    cdef GraphCSR[int,int,float] graph
+
+    offsets = None
+    indices = None
+    transposed = False
+
+    if input_graph.adjlist:
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    elif input_graph.transposedadjlist:
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        transposed = True
+    else:
+        input_graph.view_adj_list()
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+
+
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_first = <uintptr_t> NULL
+    cdef uintptr_t c_second = <uintptr_t> NULL
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
+
+    graph = GraphCSR[int,int,float](<int*>c_offsets, <int*> c_indices, <float*>NULL, num_verts, num_edges)
+
+    count = c_get_two_hop_neighbors(graph, <int**> &c_first, <int**> &c_second)
+    
+    df = cudf.DataFrame()
+    df['first'] = rmm.device_array_from_ptr(c_first,
+                                            nelem=count,
+                                            dtype=np.int32)
+    df['second'] = rmm.device_array_from_ptr(c_second,
+                                             nelem=count,
+                                             dtype=np.int32)
+
+    return df
+

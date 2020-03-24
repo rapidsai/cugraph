@@ -407,7 +407,7 @@ class Graph:
             df['second'] : cudf.Series
                 the second vertex id of a pair.
         """
-        df = graph_wrapper.get_two_hop_neighbors(self)
+        df = graph_new_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 n_cols = len(self.edgelist.renumber_map.columns) - 1
