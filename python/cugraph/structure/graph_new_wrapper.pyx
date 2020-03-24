@@ -16,52 +16,92 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.structure.graph_new as c_graph
+from cugraph.structure.graph_new cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 
+import cudf
 import rmm
 import numpy as np
 
+def datatype_cast(cols, dtypes):
+    cols_out = []
+    for col in cols:
+        if col is None or col.dtype.type in dtypes:
+            cols_out.append(col)
+        else:
+            cols_out.append(col.astype(dtypes[0]))
+    return cols_out
 
-"""
-cdef cppclass GraphBase[WT]:
-    cdef GraphBase[WT] c_base
+def _degree_coo(src, dst, x=0):
+    #
+    #  Computing the degree of the input graph from COO
+    #
+    [src, dst] = datatype_cast([src, dst], [np.int32])
 
-    def __cinit__(self, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphBase(edge_data, number_of_vertices, number_of_edges)
+    num_verts = 1 + max(src.max(), dst.max())
+    num_edges = len(src)
 
-cdef cppclass GraphCOO[VT,WT]:
-    cdef GraphCOO c_base
+    vertex_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    degree_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
-    def __cinit__(self):
-        self.c_base = GraphCOO()
-        
-    def __cinit__(self, VT const *src_indices, VT const *dst_indices, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphCOO(src_indices, dst_indices, edge_data, number_of_vertices, number_of_edges)
+    cdef GraphCOO[int,int,float] graph
 
-cdef cppclass GraphCSRBase[VT,WT]:
-    cdef GraphCSRBase c_base
+    cdef uintptr_t c_vertex = vertex_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_degree = degree_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_src = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst = dst.__cuda_array_interface__['data'][0]
 
-    def __cinit__(self, VT const *src_indices, VT const *dst_indices, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphCSRBase(src_indices, dst_indices, edge_data, number_of_vertices, number_of_edges)
+    graph = GraphCOO[int,int,float](<int*>c_src, <int*>c_dst, <float*>NULL, num_verts, num_edges)
+    graph.degree(<int*> c_degree, <int>x)
+    graph.get_vertex_identifiers(<int*>c_vertex)
 
-cdef cppclass GraphCSR[VT,WT]:
-    cdef GraphCSR c_base
+    return vertex_col, degree_col
 
-    def __cinit__(self):
-        self.c_base = GraphCSR()
-        
-    def __cinit__(self, VT const *src_indices, VT const *dst_indices, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphCSR(src_indices, dst_indices, edge_data, number_of_vertices, number_of_edges)
 
-cdef cppclass GraphCSC[VT,WT]:
-    cdef GraphCSC c_base
+def _degree_csr(offsets, indices, x=0):
+    [offsets, indices] = datatype_cast([offsets, indices], [np.int32])
 
-    def __cinit__(self):
-        self.c_base = GraphCSC()
-        
-    def __cinit__(self, VT const *src_indices, VT const *dst_indices, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphCSC(src_indices, dst_indices, edge_data, number_of_vertices, number_of_edges)
-"""
+    num_verts = len(offsets)-1
+    num_edges = len(indices)
+
+    vertex_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    degree_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+
+    cdef GraphCSR[int,int,float] graph
+
+    cdef uintptr_t c_vertex = vertex_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_degree = degree_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+
+    graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    graph.degree(<int*> c_degree, <int>x)
+    graph.get_vertex_identifiers(<int*>c_vertex)
+
+    return vertex_col, degree_col
+
+
+def _degree(input_graph, x=0):
+    transpose_x = { 0: 0, 1: 2, 2:1 }
+    
+    if input_graph.adjlist is not None:
+        return _degree_csr(input_graph.adjlist.offsets, input_graph.adjlist.indices, x)
+
+    if input_graph.transposedadjlist is not None:
+        return _degree_csr(input_graph.transposedadjlist.offsets,
+                           input_graph.transposedadjlist.indices,
+                           transpose_x(x))
+
+    if input_graph.edgelist is not None:
+        return _degree_coo(input_graph.edgelist.edgelist_df['src'],
+                           input_graph.edgelist.edgelist_df['dst'],
+                           x)
+                           
+    raise Exception("input_graph not COO, CSR or CSC")
+    
+def _degrees(input_graph):
+    verts, indegrees = _degree(input_graph, 1)
+    verts, outdegrees = _degree(input_graph, 2)
+    
+    return verts, indegrees, outdegrees

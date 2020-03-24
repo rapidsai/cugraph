@@ -3,10 +3,12 @@
 #include "gmock/gmock-generated-matchers.h"
 #include "high_res_clock.h"
 #include "cuda_profiler_api.h"
-#include <cugraph.h>
+#include <graph.hpp>
 #include "test_utils.h"
 #include <thrust/device_ptr.h>
 #include <fstream>
+#include <converters/COOtoCSR.cuh>
+#include <algorithms.hpp>
 
 std::vector<int>
 getGoldenTopKIds(std::ifstream& fs_result, int k = 10) {
@@ -21,30 +23,33 @@ getGoldenTopKIds(std::ifstream& fs_result, int k = 10) {
 }
 
 std::vector<int>
-getTopKIds(gdf_column_ptr katz, int k = 10) {
-  int count = katz.get()->size;
+getTopKIds(double * p_katz, int count, int k = 10) {
   cudaStream_t stream = nullptr;
   rmm::device_vector<int> id(count);
   thrust::sequence(rmm::exec_policy(stream)->on(stream), id.begin(), id.end());
-  auto colptr = thrust::device_pointer_cast(static_cast<double*>(katz.get()->data));
   thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
-      colptr, colptr + count, id.begin(), thrust::greater<double>());
+                      p_katz,
+                      p_katz + count,
+                      id.begin(),
+                      thrust::greater<double>());
   std::vector<int> topK(k);
   thrust::copy(id.begin(), id.begin() + k, topK.begin());
   return topK;
 }
 
-int
-getMaxDegree(cugraph::Graph * G) {
-      cugraph::add_adj_list(G);
-      std::vector<int> out_degree(G->numberOfVertices);
-      gdf_column_ptr col_out_degree = create_gdf_column(out_degree);
-      cugraph::degree(G, col_out_degree.get(), 2);
-      auto degreePtr = thrust::device_pointer_cast(static_cast<int*>(col_out_degree.get()->data));
-      cudaStream_t stream = nullptr;
-      int max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
-          degreePtr, degreePtr + col_out_degree.get()->size, static_cast<int>(-1), thrust::maximum<int>());
-      return max_out_degree;
+template <typename VT, typename ET, typename WT>
+int getMaxDegree(cugraph::experimental::GraphCSR<VT,ET,WT> const &g) {
+  cudaStream_t stream{nullptr};
+
+  rmm::device_vector<ET> degree_vector(g.number_of_vertices);
+  ET *p_degree = degree_vector.data().get();
+  g.degree(p_degree, 2);
+  ET max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
+                                     p_degree,
+                                     p_degree + g.number_of_vertices,
+                                     static_cast<ET>(-1),
+                                     thrust::maximum<ET>());
+  return max_out_degree;
 }
 
 typedef struct Katz_Usecase_t {
@@ -72,7 +77,7 @@ typedef struct Katz_Usecase_t {
 } Katz_Usecase;
 
 class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
- public:
+public:
   Tests_Katz() {}
   static void SetupTestCase() {}
   static void TearDownTestCase() {}
@@ -80,48 +85,47 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   virtual void TearDown() {}
 
   void run_current_test(const Katz_Usecase& param) {
-       Graph_ptr G{new cugraph::Graph, Graph_deleter};
-       gdf_column_ptr col_src, col_dest, col_katz_centrality;
+    FILE* fpin = fopen(param.matrix_file.c_str(),"r");
+    ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
 
-       FILE* fpin = fopen(param.matrix_file.c_str(),"r");
-       ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
+    std::ifstream fs_result(param.result_file);
+    ASSERT_EQ(fs_result.is_open(), true) << "file open (" << param.result_file << ") failure.";
 
-       std::ifstream fs_result(param.result_file);
-       ASSERT_EQ(fs_result.is_open(), true) << "file open (" << param.result_file << ") failure.";
+    int m, k;
+    int nnz;
+    MM_typecode mc;
+    ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
+    ASSERT_TRUE(mm_is_matrix(mc));
+    ASSERT_TRUE(mm_is_coordinate(mc));
+    ASSERT_FALSE(mm_is_complex(mc));
+    ASSERT_FALSE(mm_is_skew(mc));
 
-       int m, k;
-       int nnz;
-       MM_typecode mc;
-       ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
-       ASSERT_TRUE(mm_is_matrix(mc));
-       ASSERT_TRUE(mm_is_coordinate(mc));
-       ASSERT_FALSE(mm_is_complex(mc));
-       ASSERT_FALSE(mm_is_skew(mc));
+    // Allocate memory on host
+    std::vector<int> cooRowInd(nnz), cooColInd(nnz);
+    std::vector<int> cooVal(nnz);
+    std::vector<double> katz_centrality(m);
 
-       // Allocate memory on host
-       std::vector<int> cooRowInd(nnz), cooColInd(nnz);
-       std::vector<int> cooVal(nnz);
-       std::vector<double> katz_centrality(m);
+    // Read
+    ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
+    ASSERT_EQ(fclose(fpin),0);
 
-       // Read
-       ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
-       ASSERT_EQ(fclose(fpin),0);
+    CSR_Result<int>   result;
+    ConvertCOOtoCSR(&cooColInd[0], &cooRowInd[0], nnz, result);
 
-      // gdf columns
-      col_src = create_gdf_column(cooRowInd);
-      col_dest = create_gdf_column(cooColInd);
-      col_katz_centrality = create_gdf_column(katz_centrality);
+    cugraph::experimental::GraphCSR<int,int,float> G(result.rowOffsets, result.colIndices, nullptr, m, nnz);
 
-      cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
-      int max_out_degree = getMaxDegree(G.get());
-      double alpha = 1/(static_cast<double>(max_out_degree) + 1);
+    rmm::device_vector<double> katz_vector(m);
+    double* d_katz = thrust::raw_pointer_cast(katz_vector.data());
+       
+    int max_out_degree = getMaxDegree(G);
+    double alpha = 1/(static_cast<double>(max_out_degree) + 1);
 
-      cugraph::katz_centrality(G.get(), col_katz_centrality.get(), alpha, 100, 1e-6, false, true);
+    cugraph::katz_centrality(G, d_katz, alpha, 100, 1e-6, false, true);
 
-      std::vector<int> top10CUGraph = getTopKIds(std::move(col_katz_centrality));
-      std::vector<int> top10Golden  = getGoldenTopKIds(fs_result);
+    std::vector<int> top10CUGraph = getTopKIds(d_katz, m);
+    std::vector<int> top10Golden  = getGoldenTopKIds(fs_result);
 
-      EXPECT_THAT(top10CUGraph, ::testing::ContainerEq(top10Golden));
+    EXPECT_THAT(top10CUGraph, ::testing::ContainerEq(top10Golden));
   }
 
 };

@@ -220,4 +220,78 @@ void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
                       int k,
                       experimental::GraphCOO<VT, ET, WT> &output_graph);
 
+/**                                                                             
+ * @brief        Compute the Katz centrality for the nodes of the graph G
+ *                                                                              
+ * @throws                           cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ * @tparam result_t                  Type of computed result.  Supported values :  float
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ * @param[out] result                Device array of centrality scores
+ * @param[in] alpha                  Attenuation factor with a default value of 0.1. Alpha is set to
+ *                                   1/(lambda_max) if it is greater where lambda_max is the maximum degree
+ *                                   of the graph.
+ * @param[in] max_iter               The maximum number of iterations before an answer is returned. This can
+ *                                   be used to limit the execution time and do an early exit before the
+ *                                   solver reaches the convergence tolerance.
+ *                                   If this value is lower or equal to 0 cuGraph will use the default
+ *                                   value, which is 100.
+ * @param[in] tol                    Set the tolerance the approximation, this parameter should be a small
+ *                                   magnitude value.
+ *                                   The lower the tolerance the better the approximation. If this value is
+ *                                   0.0f, cuGraph will use the default value which is 1.0E-5.
+ *                                   Setting too small a tolerance can lead to non-convergence due to
+ *                                   numerical roundoff. Usually values between 0.01 and 0.00001 are
+ *                                   acceptable.
+ * @param[in] has_guess              Flag to determine whether \p katz_centrality contains an initial guess for katz centrality values
+ * @param[in] normalized             If True normalize the resulting katz centrality values
+ */                                                                             
+template <typename VT, typename ET, typename WT, typename result_t>
+void katz_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+                     result_t *result,
+                     double alpha,
+                     int max_iter,
+                     double tol,
+                     bool has_guess,
+                     bool normalized);
+
+/**                                                                             
+ * @brief         Compute the Core Number for the nodes of the graph G
+ *                                                                              
+ * @param[in]  graph                cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @param[out] core_number          Populated by the core number of every vertex in the graph
+ *                                                                              
+ * @throws     cugraph::logic_error when an error occurs.
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+template <typename VT, typename ET, typename WT>
+void core_number(experimental::GraphCSR<VT, ET, WT> const &graph, VT *core_number);
+
+/**                                                                             
+ * @Synopsis   Compute K Core of the graph G
+ *                                                                              
+ * @Param[in] *in_graph              cuGRAPH graph descriptor with a valid edgeList or adjList
+ *                                                                              
+ * @Param[in] k                      Order of the core. This value must not be negative.
+ *                                                                              
+ * @Param[in] *vertex_id             User specified vertex identifiers for which core number values are supplied
+ *                                                                              
+ * @Param[in] *core_number           User supplied core number values corresponding to vertex_id
+ *                                                                              
+ * @Param[out] *out_graph            K Core subgraph
+ *                                                                              
+ * @throws     cugraph::logic_error when an error occurs.
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+template <typename VT, typename ET, typename WT>
+void k_core(experimental::GraphCSR<VT, ET, WT> const &graph,
+            int k,
+            VT *vertex_id,
+            VT *core_number,
+            experimental::GraphCOO<VT,ET,WT> &out_graph);
+
 } //namespace cugraph

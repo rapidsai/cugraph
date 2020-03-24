@@ -219,22 +219,6 @@ void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
 /* ----------------------------------------------------------------------------*/
 void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
 
-/**
- * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a Graph
- *
- * @Param[in]* graph                 in  : graph descriptor with graph->transposedAdjList or graph->adjList present
- * @Param[in] x                      in  : integer value indicating type of degree calculation
- *                                         0 : in+out degree
- *                                         1 : in-degree
- *                                         2 : out-degree
- *
- * @Param[out] *degree               out : gdf_column of size V (V is number of vertices) initialized to zeros.
- *                                         Contains the computed degree of every vertex.
- *
- * @throws     cugraph::logic_error when an error occurs.
- */
-/* ----------------------------------------------------------------------------*/
-void degree(Graph* graph, gdf_column *degree, int x);
 int get_device(const void *ptr);
 
 /**

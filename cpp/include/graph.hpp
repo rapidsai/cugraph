@@ -47,6 +47,13 @@ public:
   VT                       number_of_vertices;
   ET                       number_of_edges;
 
+  /**
+   * @brief      Fill the identifiers array with the vertex identifiers.
+   *
+   * @param[out]    identifier      Pointer to device memory to store the vertex identifiers
+   */
+  void get_vertex_identifiers(VT *identifiers) const;
+
   GraphBase(WT const *edge_data_, VT number_of_vertices_, ET number_of_edges_):
     edge_data(edge_data_),
     prop(),
@@ -68,6 +75,20 @@ public:
   VT const *src_indices{nullptr};   ///< rowInd
   VT const *dst_indices{nullptr};   ///< colInd
 
+  /**
+   * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
+   *
+   * @throws     cugraph::logic_error when an error occurs.
+   *
+   * @param[out] degree                Device array of size V (V is number of vertices) initialized to zeros.
+   *                                   Will contain the computed degree of every vertex.
+   * @param[in]  x                     Integer value indicating type of degree calculation
+   *                                      0 : in+out degree
+   *                                      1 : in-degree
+   *                                      2 : out-degree
+   */
+  void degree(ET *degree, int x) const;
+  
   /**
    * @brief      Default constructor
    */
@@ -109,19 +130,26 @@ public:
   VT const *indices{nullptr};       ///< CSR indices
 
   /**
-   * @brief      Fill the identifiers array with the vertex identifiers.
-   *
-   * @param[out]    identifier      Pointer to device memory to store the vertex identifiers
-   */
-  void get_vertex_identifiers(VT *identifiers) const;
-  
-  /**
    * @brief      Fill the identifiers in the array with the source vertex identifiers
    *
    * @param[out]    src_indices      Pointer to device memory to store the source vertex identifiers
    */
   void get_source_indices(VT *src_indices) const;
 
+  /**
+   * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
+   *
+   * @throws     cugraph::logic_error when an error occurs.
+   *
+   * @param[out] degree                Device array of size V (V is number of vertices) initialized to zeros.
+   *                                   Will contain the computed degree of every vertex.
+   * @param[in]  x                     Integer value indicating type of degree calculation
+   *                                      0 : in+out degree
+   *                                      1 : in-degree
+   *                                      2 : out-degree
+   */
+  void degree(ET *degree, int x) const;
+  
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
    *             GraphCSR does not own the memory used to represent this graph. This

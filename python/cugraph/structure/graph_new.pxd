@@ -38,6 +38,11 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         GraphProperties prop
         VT number_of_vertices
         ET number_of_edges
+
+        void get_vertex_identifiers(VT *) const
+
+        void degree(ET *,int)
+
         GraphBase(WT*,VT,ET)
 
     cdef cppclass GraphCOO[VT,ET,WT](GraphBase[VT,ET,WT]):
@@ -50,7 +55,6 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         const VT *offsets
         const VT *indices
 
-        void get_vertex_identifiers(VT *) const
         void get_source_indices(VT *) const
         
         GraphCompressedSparseBase(const VT *, const ET *, const WT *, size_t, size_t)

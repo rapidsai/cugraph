@@ -385,6 +385,7 @@ def number_of_edges(graph_ptr):
         return 0
 
 
+"""
 def _degree(input_graph, x=0):
     cdef uintptr_t graph = allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
@@ -454,3 +455,4 @@ def _degrees(input_graph):
     c_graph.degree(g, &c_out_degree_col, <int>2)
 
     return vertex_col, in_degree_col, out_degree_col
+"""
