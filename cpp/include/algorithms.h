@@ -171,34 +171,6 @@ void snmg_coo2csr(size_t* part_offsets,
                   gdf_column* csrInd,
                   gdf_column* csrVal);
 
-typedef enum {CUGRAPH_WEAK = 0, CUGRAPH_STRONG, NUM_CONNECTIVITY_TYPES} cugraph_cc_t;
-
-/**
- * @brief Compute connected components. 
- * The weak version (for undirected graphs, only) was imported from cuML.
- * This implementation comes from [1] and solves component labeling problem in
- * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
- *
- * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
- * 
- * The strong version (for directed or undirected graphs) is based on: 
- * [2] Gilbert, J. et al, 2011. "Graph Algorithms in the Language of Linear Algebra"
- *
- * C = I | A | A^2 |...| A^k
- * where matrix multiplication is via semi-ring: 
- * (combine, reduce) == (&, |) (bitwise ops)
- * Then: X = C & transpose(C); and finally, apply get_labels(X);
- *
- *
- * @param graph input graph; assumed undirected for weakly CC [in]
- * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
- * @param table of 2 gdf_columns: output labels and vertex indices [out]
- * @throws     cugraph::logic_error when an error occurs.
- */
- void connected_components(Graph* graph,
-                           cugraph_cc_t connectivity_type,
-                           cudf::table *table);
-
  /**
 Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
  * @param[in] src_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column src_col_ptrs[i] contains the index of the source for each edge on GPU i. Indices must be in the range [0, V-1], where V is the global number of vertices.

@@ -1,5 +1,3 @@
-// -*-c++-*-
-
 /*
  * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
  *
@@ -14,19 +12,20 @@
 // strongly connected components tests
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
-//#define _DEBUG_CC
-
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 #include "cuda_profiler_api.h"
 
 #include <thrust/sequence.h>
 #include <thrust/unique.h>
-//
-#include <cugraph.h>
+
 #include "test_utils.h"
 #include <algorithm>
 #include <iterator>
+
+#include <graph.hpp>
+#include <algorithms.hpp>
+#include <converters/COOtoCSR.cuh>
 
 #include "components/scc_matrix.cuh"
 #include "topology/topology.cuh"
@@ -141,14 +140,6 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     ASSERT_EQ(mm_properties<IndexT>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
     ASSERT_TRUE(mm_is_coordinate(mc));
-    //ASSERT_TRUE(mm_is_symmetric(mc));//strongly cc works with both DG and UDG;
-
-    //rmmInitialize(nullptr);
-
-#ifdef _DEBUG_CC 
-    std::cout<<"matrix nrows: "<<m<<"\n";
-    std::cout<<"matrix nnz: "<<nnz<<"\n";
-#endif
 
     cudaDeviceProp prop;
     int device = 0;
@@ -157,137 +148,44 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase>
     size_t nrows = static_cast<size_t>(m);
     size_t n2 = 2*nrows * nrows;
 
-    //bail out if not enough memory:
-    //
     ASSERT_TRUE( n2 < prop.totalGlobalMem );
-   
-    
+
     // Allocate memory on host
     std::vector<IndexT> cooRowInd(nnz);
     std::vector<IndexT> cooColInd(nnz);
-    std::vector<IndexT> cooVal(nnz);
     std::vector<IndexT> labels(m);//for G(V, E), m := |V|
     std::vector<IndexT> verts(m);
 
     // Read: COO Format
     //
-    ASSERT_EQ( (mm_to_coo<IndexT,IndexT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
+    ASSERT_EQ( (mm_to_coo<IndexT,IndexT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin),0);
 
-    Graph_ptr G{new cugraph::Graph, Graph_deleter};
-    gdf_column_ptr col_src;
-    gdf_column_ptr col_dest;
-    gdf_column_ptr col_labels;
-    gdf_column_ptr col_verts;// = thrust::sequence(0..m-1);
+    CSR_Result<int>   result;
+    ConvertCOOtoCSR(&cooColInd[0], &cooRowInd[0], nnz, result);
 
-    col_src = create_gdf_column(cooRowInd);
-    col_dest = create_gdf_column(cooColInd);
-    col_labels = create_gdf_column(labels);
-    col_verts = create_gdf_column(verts);
+    cugraph::experimental::GraphCSR<int,int,float> G(result.rowOffsets, result.colIndices, nullptr, m, nnz);
 
-    IndexT* begin = static_cast<IndexT*>(col_verts->data);
-    thrust::sequence(thrust::device, begin, begin + m);
-    
-    std::vector<gdf_column*> vcols{col_labels.get(), col_verts.get()};
-    cudf::table table(vcols);//to be passed to the API to be filled
+    rmm::device_vector<int>  d_labels(m);
 
-    //Get the COO format 1st:
-    //
-    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
-
-    //Then convert to CSR:
-    //
-    cugraph::add_adj_list(G.get());
-
-    static auto row_offsets_ = [](const cugraph::Graph* G){
-      return static_cast<const IndexT*>(G->adjList->offsets->data);
-    };
-
-    static auto col_indices_ = [](const cugraph::Graph* G){
-      return static_cast<const IndexT*>(G->adjList->indices->data);
-    };
-
-    static auto nrows_ = [](const cugraph::Graph* G){
-      return G->adjList->offsets->size - 1;
-    };
-
-    SCC_Data<ByteT> sccd(nrows_(G.get()), row_offsets_(G.get()), col_indices_(G.get()));
-    IndexT* p_d_labels = static_cast<IndexT*>(col_labels->data);
     size_t count = 0;
 
-    if (PERF)
-      {
-        hr_clock.start();
-        //call strongly connected components
-        //
-        ///count = sccd.run_scc(p_d_labels);
-        cugraph::connected_components(G.get(),
-                                          cugraph::CUGRAPH_STRONG,
-                                          &table);
-        
-        cudaDeviceSynchronize();
-        hr_clock.stop(&time_tmp);
-        strongly_cc_time.push_back(time_tmp);    
-      }
-    else
-      {
-        cudaProfilerStart();
-        //call strongly connected components
-        //
-        ///count = sccd.run_scc(p_d_labels);
-        cugraph::connected_components(G.get(),
-                                          cugraph::CUGRAPH_STRONG,
-                                          &table);
-        
-        cudaProfilerStop();
-        cudaDeviceSynchronize();
-      }
+    if (PERF) {
+      hr_clock.start();
+      cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
+      cudaDeviceSynchronize();
+      hr_clock.stop(&time_tmp);
+      strongly_cc_time.push_back(time_tmp);    
+    } else {
+      cudaProfilerStart();
+      cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
+      cudaProfilerStop();
+      cudaDeviceSynchronize();
+    }
     strongly_cc_counts.push_back(count);
 
     DVector<size_t> d_counts;
-    auto count_labels = get_component_sizes(p_d_labels, nrows, d_counts);
-
-    std::cout<<"label count: " << count_labels << "\n";
-    
-    
-
-#ifdef DEBUG_SCC
-    std::cout << "#iterations: " << count << "\n";
-    std::cout <<"labels:\n";
-    cudaMemcpy(&labels[0], p_d_labels, m*sizeof(IndexT), cudaMemcpyDeviceToHost);
-    print_v(labels, std::cout);
-
-    DVector<IndexT> d_cct(nrows*nrows);//{sccd.get_C()};//copy to int array for printing:
-    thrust::transform(sccd.get_C().begin(), sccd.get_C().end(),
-                      d_cct.begin(),
-                      [] __device__ (ByteT b){
-                        return (b == ByteT{1}? 1:0);
-                      });
-    
-    std::cout<<"C & Ct:\n";
-    print_v(d_cct, std::cout);
-#endif
-    
-    //if graph is undirected, check against
-    //WeaklyCC:
-    //
-    if( mm_is_symmetric(mc) )
-      {
-        std::vector<IndexT> l_check(m);//for G(V, E), m := |V|
-        gdf_column_ptr check_labels = create_gdf_column(l_check);
-        
-        cugraph::connected_components(G.get(),
-                                          cugraph::CUGRAPH_WEAK,
-                                          &table);
-
-        
-
-        IndexT* p_d_l_check = static_cast<IndexT*>(check_labels->data);
-        std::cout <<"check labels:\n";
-        cudaMemcpy(&l_check[0], p_d_l_check, m*sizeof(IndexT), cudaMemcpyDeviceToHost);
-        print_v(l_check, std::cout);
-      }
-    //rmmFinalize();
+    auto count_labels = get_component_sizes(d_labels.data().get(), nrows, d_counts);
   }
 };
  

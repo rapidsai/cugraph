@@ -196,6 +196,43 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
                             VT k = 0,
                             VT const *vertices = nullptr);
 
+enum class cugraph_cc_t {
+  CUGRAPH_WEAK = 0,       ///> Weakly Connected Components
+  CUGRAPH_STRONG,         ///> Strongly Connected Components
+  NUM_CONNECTIVITY_TYPES
+};
+
+/**
+ * @brief      Compute connected components. 
+ *
+ * The weak version (for undirected graphs, only) was imported from cuML.
+ * This implementation comes from [1] and solves component labeling problem in
+ * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
+ *
+ * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ * 
+ * The strong version (for directed or undirected graphs) is based on: 
+ * [2] Gilbert, J. et al, 2011. "Graph Algorithms in the Language of Linear Algebra"
+ *
+ * C = I | A | A^2 |...| A^k
+ * where matrix multiplication is via semi-ring: 
+ * (combine, reduce) == (&, |) (bitwise ops)
+ * Then: X = C & transpose(C); and finally, apply get_labels(X);
+ *
+ * @throws                cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT             Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET             Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT             Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in] graph       cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ * @param[out] labels     Device array of component labels (labels[i] indicates the label associated with
+ *                        vertex id i.
+ */
+template <typename VT, typename ET, typename WT>
+void connected_components(experimental::GraphCSR<VT,ET,WT> const &graph,
+                          cugraph_cc_t connectivity_type,
+                          VT *labels);
 /**
  * @brief     Compute k truss for a graph
  *

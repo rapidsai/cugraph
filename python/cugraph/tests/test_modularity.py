@@ -65,7 +65,7 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
 
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
-    G = cugraph.DiGraph()
+    G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1',
                          edge_attr='2')
 
@@ -76,3 +76,33 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score > rand_score
+
+
+# Test to ensure DiGraph objs are not accepted
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+def test_digraph_rejected(managed, pool):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    df = cudf.DataFrame()
+    df['src'] = cudf.Series(range(10))
+    df['dst'] = cudf.Series(range(10))
+    df['val'] = cudf.Series(range(10))
+
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(df, source="src",
+                         destination="dst",
+                         edge_attr="val",
+                         renumber=False)
+
+    with pytest.raises(Exception):
+        cugraph_call(G, 2)
