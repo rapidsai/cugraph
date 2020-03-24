@@ -39,16 +39,17 @@
 #include "exact_fa2.h"
 
 namespace cugraph {
-namespace detail {
+
 template <typename VT, typename ET, typename WT>
 void force_atlas2(experimental::GraphCSR<VT, ET, WT> const &graph,
-                  float *x_pos, float *y_pos, int max_iter, float *x_start,
+                  float *x_pos, float *y_pos, const int max_iter,
+                  float *x_start,
                   float *y_start, bool outbound_attraction_distribution,
                   bool lin_log_mode, bool prevent_overlapping,
-                  float edge_weight_influence,
-                  float jitter_tolerance, bool barnes_hut_optimize,
-                  float barnes_hut_theta, float scaling_ratio,
-                  bool strong_gravity_mode, float gravity) {
+                  const float edge_weight_influence,
+                  const float jitter_tolerance, bool barnes_hut_optimize,
+                  const float barnes_hut_theta, const float scaling_ratio,
+                  bool strong_gravity_mode, const float gravity) {
 
     CUGRAPH_EXPECTS( x_pos != nullptr,
             "Invid API parameter: X_pos array should be of size V" );
@@ -76,17 +77,17 @@ void force_atlas2(experimental::GraphCSR<VT, ET, WT> const &graph,
                 strong_gravity_mode, gravity);
     }
 }
-} // namespace detail
 
-template void cugraph::detail::force_atlas2<int, int, float>(
+template void force_atlas2<int, int, float>(
         experimental::GraphCSR<int, int, float> const &graph,
-        float *x_pos, float *y_pos, int max_iter,
+        float *x_pos, float *y_pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,
         bool lin_log_mode, bool prevent_overlapping,
-        float edge_weight_influence, float jitter_tolerance,
-        bool barnes_hut_optimize, float barnes_hut_theta, float scaling_ratio,
-        bool strong_gravity_mode, float gravity);
+        const float edge_weight_influence, const float jitter_tolerance,
+        bool barnes_hut_optimize, const float barnes_hut_theta,
+        const float scaling_ratio, bool strong_gravity_mode,
+        const float gravity);
 
 template void cugraph::detail::barnes_hut<int, int, float>(
         const int *csrPtr, const int *csrInd, const float *v, const int n,
@@ -94,47 +95,19 @@ template void cugraph::detail::barnes_hut<int, int, float>(
         float *x_start, float * y_start,
         bool outbount_attraction_distribution,
         bool lin_log_mode, bool prevent_overlapping,
-        float edge_weight_influence, float jitter_tolerance,
-        float barnes_hut_theta, float scaling_ratio, bool strong_gravity_mode,
-		float gravity);
+        const float edge_weight_influence, const float jitter_tolerance,
+        const float barnes_hut_theta, const float scaling_ratio,
+        bool strong_gravity_mode,
+		const float gravity);
 
 template void cugraph::detail::exact_fa2<int, int, float>(
         const int *csrPtr, const int *csrInd, const float *v, const int n,
-        float *x_pos, float *y_pos, int max_iter,
+        float *x_pos, float *y_pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,
         bool lin_log_mode, bool prevent_overlapping,
-        float edge_weight_influence, float jitter_tolerance,
-        float scaling_ratio, bool strong_gravity_mode,
-        float gravity);
+        const float edge_weight_influence, const float jitter_tolerance,
+        const float scaling_ratio, bool strong_gravity_mode,
+        const float gravity);
 
-template void cugraph::detail::compute_attraction<int, int, float>(
-        const int *csrPtr, const int *csrInd, const float *v, const int n,
-        float *x_pos, float *y_pos,
-        float *x_start, float *y_start,
-        bool outbound_attraction_distribution,
-        bool lin_log_mode, bool prevent_overlapping,
-        float edge_weight_influence, float jitter_tolerance,
-        float scaling_ratio, bool strong_gravity_mode,
-        float gravity, float *d_attraction);
-
-template void cugraph::detail::compute_repulsion<int, int, float>(
-        const int *csrPtr, const int *csrInd, const float *v, const int n,
-        float *x_pos, float *y_pos,
-        float *x_start, float *y_start,
-        bool outbound_attraction_distribution,
-        bool lin_log_mode, bool prevent_overlapping,
-        float edge_weight_influence, float jitter_tolerance,
-        float scaling_ratio, bool strong_gravity_mode,
-        float gravity, float *d_attraction);
-
-template void cugraph::detail::apply_forces<int, int, float>(
-        const int *csrPtr, const int *csrInd, const float *v, const int n,
-        float *x_pos, float *y_pos,
-        float *x_start, float *y_start,
-        bool outbound_attraction_distribution,
-        bool lin_log_mode, bool prevent_overlapping,
-        float edge_weight_influence, float jitter_tolerance,
-        float scaling_ratio, bool strong_gravity_mode,
-        float gravity, float *d_attraction, float *d_repulsion);
 } // namespace cugraph

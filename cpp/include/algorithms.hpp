@@ -187,6 +187,27 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
                   WT *result);
 
 /**
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void force_atlas2(experimental::GraphCSR<VT, ET, WT> const &graph,
+        float *x_pos,
+        float *y_pos,
+        const int max_iter=1000,
+        float *x_start=nullptr,
+        float *y_start=nullptr,
+        bool outbound_attraction_distribution=true,
+        bool lin_log_mode=false,
+        bool prevent_overlapping=false,
+        const float edge_weight_influence=1.0,
+        const float jitter_tolerance=1.0,
+        bool barnes_hut_optimize=true,
+        const float barnes_hut_theta=0.5,
+        const float scaling_ratio=2.0,
+        bool strong_gravity_mode=false,
+        const float gravity=1.0);
+
+/**
  * @brief     Compute betweenness centrality for a graph
  *
  * Betweenness centrality for a vertex is the sum of the fraction of

@@ -45,43 +45,32 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t>
 void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
                const weight_t *v, const vertex_t n,
-               float *x_pos, float *y_pos, int max_iter=1000,
+               float *x_pos, float *y_pos, const int max_iter=1000,
                float *x_start=nullptr, float *y_start=nullptr,
                bool outbound_attraction_distribution=false,
                bool lin_log_mode=false, bool prevent_overlapping=false,
-               float edge_weight_influence=1.0, float jitter_tolerance=1.0,
-               float scaling_ratio=2.0, bool strong_gravity_mode=false,
-               float gravity=1.0) { 
+               const float edge_weight_influence=1.0,
+               const float jitter_tolerance=1.0,
+               const float scaling_ratio=2.0, bool strong_gravity_mode=false,
+               const float gravity=1.0) { 
     
-    float *d_attraction{nullptr};
-    float *d_repulsion{nullptr};
     float *d_dx{nullptr};
     float *d_dy{nullptr};
     float *d_old_dx{nullptr};
     float *d_old_dy{nullptr};
     int *d_mass{nullptr};
 
-    rmm::device_vector<float> attraction(n, 0);
-    rmm::device_vector<float> repulsion(n, 0);
     rmm::device_vector<float> dx(n, 0);
     rmm::device_vector<float> dy(n, 0);
     rmm::device_vector<float> old_dx(n, 0);
     rmm::device_vector<float> old_dy(n, 0);
     rmm::device_vector<int> mass(n, 0);
 
-    d_attraction = attraction.data().get();
-    d_repulsion = repulsion.data().get();
     d_dx = dx.data().get();
     d_dy = dy.data().get();
     d_old_dx = dx.data().get();
     d_old_dy = dy.data().get();
     d_mass = mass.data().get();
-
-    d_dx = d_dx;
-    d_dy = d_dy;
-    d_old_dx = d_old_dx;
-    d_old_dy = d_old_dy;
-    d_mass = d_mass;
 
     if (x_start == nullptr || y_start == nullptr) {
         // TODO: generate random numbers
@@ -91,49 +80,30 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
         copy(n, y_start, y_pos);
     }
 
+    float speed = 1.0;
+    float speed_efficiency = 1.0;
+    float outbound_at_compensation = 1.0; // FIXME: Compute mean
+    init_mass<vertex_t, edge_t><<<1, 1>>>(csrPtr, csrInd, d_mass, n);
+
     for (int iter=0; iter < max_iter; ++iter) {
-        compute_attraction<vertex_t, edge_t, weight_t>(
-                csrPtr, csrInd, v, n,
-                x_pos, y_pos, x_start, y_start,
-                outbound_attraction_distribution,
-                lin_log_mode,
-                prevent_overlapping,
-                edge_weight_influence,
-                jitter_tolerance,
-                scaling_ratio,
-                strong_gravity_mode,
-                gravity,
-                d_attraction);
+        apply_repulsion<vertex_t>(x_pos,
+                y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
 
-        compute_repulsion<vertex_t, edge_t, weight_t>(
-                csrPtr, csrInd, v, n,
-                x_pos, y_pos, x_start, y_start,
+        apply_gravity<vertex_t>(x_pos, y_pos, d_mass, gravity,
+                strong_gravity_mode, scaling_ratio, n);
+        
+        apply_attraction<vertex_t, edge_t, weight_t>(csrPtr,
+                csrInd, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
-                lin_log_mode,
-                prevent_overlapping,
-                edge_weight_influence,
-                jitter_tolerance,
-                scaling_ratio,
-                strong_gravity_mode,
-                gravity,
-                d_repulsion);
-
-        apply_forces<vertex_t, edge_t, weight_t>(
-                csrPtr, csrInd, v, n,
-                x_pos, y_pos, x_start, y_start,
-                outbound_attraction_distribution,
-                lin_log_mode,
-                prevent_overlapping,
-                edge_weight_influence,
-                jitter_tolerance,
-                scaling_ratio,
-                strong_gravity_mode,
-                gravity,
-                d_attraction, d_repulsion);
+                edge_weight_influence, outbound_at_compensation);
+        
+        speed = apply_forces<vertex_t>(x_pos,
+                y_pos, d_dx, d_dy, d_old_dx, d_old_dy, d_mass,
+                jitter_tolerance, speed, speed_efficiency, n);
+        
+        printf("speed at iteration %i: %f\n", iter, speed);
     }
-
 }
 
 } // namespace detail
 }  // namespace cugraph
-
