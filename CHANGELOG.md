@@ -4,6 +4,7 @@
 
 ## Improvements
 - PR #765 Remove gdf_column from connected components
+- PR #781 Fix compiler argument syntax for ccache
 
 ## Bug Fixes
 
