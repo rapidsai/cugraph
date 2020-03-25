@@ -14,6 +14,7 @@
 from cugraph.cores import core_number_wrapper
 from cugraph.utilities.unrenumber import unrenumber
 
+
 def core_number(G):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph

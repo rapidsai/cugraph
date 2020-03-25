@@ -12,8 +12,10 @@
 # limitations under the License.
 
 from cugraph.cores import k_core_wrapper, core_number_wrapper
-#from cugraph.structure.graph import DiGraph
 from cugraph.utilities.unrenumber import unrenumber
+
+import cudf
+import numpy as np
 
 
 def k_core(G,
@@ -70,7 +72,10 @@ def k_core(G,
             renumber_df = cudf.DataFrame()
             renumber_df['map'] = G.edgelist.renumber_map
             renumber_df['id'] = G.edgelist.renumber_map.index.astype(np.int32)
-            core_number = core_number.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
+            core_number = core_number.merge(renumber_df,
+                                            left_on='vertex',
+                                            right_on='map',
+                                            how='left').drop('map')
     else:
         core_number = core_number_wrapper.core_number(G)
         core_number = core_number.rename(columns={"core_number": "values"})
