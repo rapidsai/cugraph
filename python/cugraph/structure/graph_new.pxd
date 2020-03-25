@@ -46,14 +46,14 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         GraphBase(WT*,VT,ET)
 
     cdef cppclass GraphCOO[VT,ET,WT](GraphBase[VT,ET,WT]):
-        const VT *src_indices
-        const VT *dst_indices
+        VT *src_indices
+        VT *dst_indices
         GraphCOO()
         GraphCOO(const VT *, const ET *, const WT *, size_t, size_t)
 
     cdef cppclass GraphCompressedSparseBase[VT,ET,WT](GraphBase[VT,ET,WT]):
-        const VT *offsets
-        const VT *indices
+        VT *offsets
+        VT *indices
 
         void get_source_indices(VT *) const
         
