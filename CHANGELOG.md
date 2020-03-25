@@ -4,6 +4,7 @@
 
 ## Improvements
 - PR #765 Remove gdf_column from connected components
+- PR #782 Use Cython's `new_build_ext` (if available)
 
 ## Bug Fixes
 
