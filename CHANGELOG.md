@@ -6,6 +6,7 @@
 - PR #765 Remove gdf_column from connected components
 
 ## Bug Fixes
+- PR #763 Update RAPIDS conda dependencies to v0.14
 
 
 # cuGraph 0.13.0 (Date TBD)
