@@ -92,7 +92,7 @@ def _degree(input_graph, x=0):
     if input_graph.transposedadjlist is not None:
         return _degree_csr(input_graph.transposedadjlist.offsets,
                            input_graph.transposedadjlist.indices,
-                           transpose_x(x))
+                           transpose_x[x])
 
     if input_graph.edgelist is not None:
         return _degree_coo(input_graph.edgelist.edgelist_df['src'],
