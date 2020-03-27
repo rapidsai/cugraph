@@ -18,17 +18,18 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcugraph cugraph -v -g -n -h --help"
+VALIDARGS="clean libcugraph cugraph -v -g -n --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
-   clean      - remove all existing build artifacts and configuration (start over)
-   libcugraph - build the cugraph C++ code
-   cugraph    - build the cugraph Python package
+   clean            - remove all existing build artifacts and configuration (start over)
+   libcugraph       - build the cugraph C++ code
+   cugraph          - build the cugraph Python package
  and <flag> is:
-   -v         - verbose build mode
-   -g         - build for debug
-   -n         - no install step
-   -h         - print this text
+   -v               - verbose build mode
+   -g               - build for debug
+   -n               - no install step
+   --show_depr_warn - show cmake deprecation warnings
+   -h               - print this text
 
  default action (no args) is to build and install 'libcugraph' then 'cugraph' targets
 "
@@ -40,6 +41,7 @@ BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${CUGRAPH_BUILD_DIR}"
 VERBOSE=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
+BUILD_DISABLE_DEPRECATION_WARNING=ON
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -77,6 +79,9 @@ fi
 if hasArg -n; then
     INSTALL_TARGET=""
 fi
+if hasArg --show_depr_warn; then
+    BUILD_DISABLE_DEPRECATION_WARNING=OFF
+fi
 
 # If clean given, run it prior to any other steps
 if hasArg clean; then
@@ -100,6 +105,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcugraph; then
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
           -DCMAKE_CXX11_ABI=${BUILD_ABI} \
+	  -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ..
     make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} ${INSTALL_TARGET}
 fi
