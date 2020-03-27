@@ -4,6 +4,7 @@
 
 ## Improvements
 - PR #765 Remove gdf_column from connected components
+- PR #788 Added options and config file to enable codecov
 
 ## Bug Fixes
 
