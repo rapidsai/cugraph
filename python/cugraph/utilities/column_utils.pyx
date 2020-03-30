@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 #from cugraph.structure.graph cimport *
-from cudf._lib.cudf cimport get_column_data_ptr, get_column_valid_ptr
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
@@ -25,6 +24,11 @@ import cudf
 import cudf._lib as libcudf
 import numpy as np
 
+cdef uintptr_t get_column_data_ptr(col):
+    """
+    Get the data pointer from a cudf.Series object
+    """
+    return col.__cuda_array_interface__['data'][0]
 
 cdef gdf_column get_gdf_column_view(col):
     """
@@ -47,7 +51,8 @@ cdef gdf_column get_gdf_column_view(col):
     if col._column._mask is None:
         valid_ptr = 0
     else:
-        valid_ptr = get_column_valid_ptr(col._column)
+        #valid_ptr = get_column_valid_ptr(col._column)
+        valid_ptr = 0
     cdef uintptr_t category = 0
     cdef gdf_dtype_extra_info c_extra_dtype_info = gdf_dtype_extra_info(
         time_unit=TIME_UNIT_NONE,

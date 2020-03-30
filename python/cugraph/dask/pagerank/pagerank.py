@@ -41,6 +41,11 @@ def get_ipc_handle(data):
     start/stop indices from the original cudf.
     """
     dev, gpu_array, idx = data
+    from numba.cuda.cudadrv.drvapi import cu_device_ptr
+    gpu_array[0].gpu_data.owner.handle = cu_device_ptr(gpu_array[0].
+                                                       gpu_data.owner.ptr)
+    gpu_array[1].gpu_data.owner.handle = cu_device_ptr(gpu_array[1].
+                                                       gpu_data.owner.ptr)
 
     in_handle_src = gpu_array[0].get_ipc_handle()
     in_handle_dest = gpu_array[1].get_ipc_handle()

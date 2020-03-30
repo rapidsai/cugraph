@@ -70,9 +70,9 @@ def test_edge_cut_clustering(managed, pool, graph_file, partitions):
     '''row_offsets = cudf.Series(M.indptr)
     col_indices = cudf.Series(M.indices)
 
-    G_adj = cugraph.DiGraph()
+    G_adj = cugraph.Graph()
     G_adj.from_cudf_adjlist(row_offsets, col_indices)'''
-    G_edge = cugraph.DiGraph()
+    G_edge = cugraph.Graph()
     G_edge.from_cudf_edgelist(cu_M, source='0', destination='1')
 
     # Get the edge_cut score for partitioning versus random assignment
@@ -91,6 +91,7 @@ def test_edge_cut_clustering(managed, pool, graph_file, partitions):
     # assignment
     print(cu_score, rand_score)
     assert cu_score < rand_score
+
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -117,10 +118,10 @@ def test_edge_cut_clustering_with_edgevals(managed, pool,
     col_indices = cudf.Series(M.indices)
     val = cudf.Series(M.data)
 
-    G_adj = cugraph.DiGraph()
+    G_adj = cugraph.Graph()
     G_adj.from_cudf_adjlist(row_offsets, col_indices, val)
     '''
-    G_edge = cugraph.DiGraph()
+    G_edge = cugraph.Graph()
     G_edge.from_cudf_edgelist(cu_M, source='0', destination='1',
                               edge_attr='2')
 
@@ -140,3 +141,33 @@ def test_edge_cut_clustering_with_edgevals(managed, pool,
     # assignment
     print(cu_score, rand_score)
     assert cu_score < rand_score
+
+
+# Test to ensure DiGraph objs are not accepted
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+def test_digraph_rejected(managed, pool):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    df = cudf.DataFrame()
+    df['src'] = cudf.Series(range(10))
+    df['dst'] = cudf.Series(range(10))
+    df['val'] = cudf.Series(range(10))
+
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(df, source="src",
+                         destination="dst",
+                         edge_attr="val",
+                         renumber=False)
+
+    with pytest.raises(Exception):
+        cugraph_call(G, 2)

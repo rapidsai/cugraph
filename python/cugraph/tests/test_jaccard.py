@@ -36,7 +36,7 @@ print('Networkx version : {} '.format(nx.__version__))
 
 
 def cugraph_call(cu_M, edgevals=False):
-    G = cugraph.DiGraph()
+    G = cugraph.Graph()
     if edgevals is True:
         G.from_cudf_edgelist(cu_M, source='0', destination='1',
                              edge_attr='2')
@@ -106,6 +106,7 @@ def test_jaccard(managed, pool, graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
+
     cu_src, cu_dst, cu_coeff = cugraph_call(cu_M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 

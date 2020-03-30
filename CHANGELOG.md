@@ -1,3 +1,45 @@
+
+# cuGraph 0.13.0 (31 Mar 2020)
+
+## New Features
+- PR #736 cuHornet KTruss integration
+- PR #735 Integration gunrock's betweenness centrality
+- PR #760 cuHornet Weighted KTruss
+
+## Improvements
+- PR #688 Cleanup datasets after testing on gpuCI
+- PR #694 Replace the expensive cudaGetDeviceProperties call in triangle counting with cheaper cudaDeviceGetAttribute calls
+- PR #701 Add option to filter datasets and tests when run from CI
+- PR #715 Added new YML file for CUDA 10.2
+- PR #719 Updated docs to remove CUDA 9.2 and add CUDA 10.2
+- PR #720 Updated error messages
+- PR #722 Refactor graph to remove gdf_column
+- PR #723 Added notebook testing to gpuCI gpu build
+- PR #734 Updated view_edge_list for Graph, added unrenumbering test, fixed column access issues
+- PR #738 Move tests directory up a level
+- PR #739 Updated Notebooks
+- PR #740 added utility to extract paths from SSSP/BFS results
+- PR #742 Rremove gdf column from jaccard
+- PR #741 Added documentation for running and adding new benchmarks and shell script to automate
+- PR #747 updated viewing of graph, datatypecasting and two hop neighbor unrenumbering for multi column
+- PR #766 benchmark script improvements/refactorings: separate ETL steps, averaging, cleanup
+- PR #770 Updated README-benchmark.md with up-to-date info on scripts and code
+
+## Bug Fixes
+- PR #697 Updated versions in conda environments.
+- PR #692 Add check after opening golden result files in C++ Katz Centrality tests.
+- PR #702 Add libcypher include path to target_include_directories
+- PR #716 Fixed bug due to disappearing get_column_data_ptr function in cudf
+- PR #726 Fixed SSSP notebook issues in last cell
+- PR #728 Temporary fix for dask attribute error issue
+- PR #733 Fixed multi-column renumbering issues with indexes
+- PR #746 Dask + Distributed 2.12.0+
+- PR #753 ECG Error
+- PR #758 Fix for graph comparison failure
+- PR #761 Added flag to not treat deprecation warnings as errors, for now
+- PR #771 Added unrenumbering in wcc and scc. Updated tests to compare vertices of largest component
+- PR #774 Raise TypeError if a DiGraph is used with spectral*Clustering()
+
 # cuGraph 0.12.0 (04 Feb 2020)
 
 ## New Features
@@ -6,8 +48,8 @@
 - PR #636 Added Multi-column renumbering support
 
 ## Improvements
-- PR #640 remove gdf_column in sssp 
-- PR #629 get rid of gdf_column in pagerank 
+- PR #640 remove gdf_column in sssp
+- PR #629 get rid of gdf_column in pagerank
 - PR #641 Add codeowners
 - PR #646 Skipping all tests in test_bfs_bsp.py since SG BFS is not formally supported
 - PR #652 Remove gdf_column in BFS
@@ -27,6 +69,7 @@
 - PR #681 fix column length mismatch cudf issue
 - PR #684 Deprecated cudf calls
 - PR #686 Balanced cut fix
+- PR #689 Check graph input type, disable Multi(Di)Graph, add cugraph.from_cudf_edgelist
 
 
 # cuGraph 0.11.0 (11 Dec 2019)

@@ -105,8 +105,8 @@ def compare_graphs(nx_graph, cu_graph):
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        df0 = df0.sort_values(by=['source', 'target'])
-        df1 = df.sort_values(by=['source', 'target'])
+        df0 = df0.sort_values(by=['source', 'target']).reset_index(drop=True)
+        df1 = df.sort_values(by=['source', 'target']).reset_index(drop=True)
         if not df0['weight'].equals(df1['weight']):
             return False
 
@@ -410,6 +410,105 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     G.delete_adj_list()
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_view_edge_list_for_Graph(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file)
+
+    # Create nx Graph
+    pdf = cu_M.to_pandas()[['0', '1']]
+    nx_graph = nx.from_pandas_edgelist(pdf, source='0',
+                                       target='1',
+                                       create_using=nx.Graph)
+    nx_edges = nx_graph.edges()
+
+    # Create Cugraph Graph from DataFrame
+    G = cugraph.from_cudf_edgelist(cu_M, source='0',
+                                   destination='1',
+                                   create_using=cugraph.Graph)
+    cu_edge_list = G.view_edge_list()
+
+    # Check if number of Edges is same
+    assert len(nx_edges) == len(cu_edge_list)
+    assert nx_graph.number_of_edges() == G.number_of_edges()
+
+    # Get edges as upper triangle of matrix
+    edges = []
+    for edge in nx_edges:
+        if edge[0] > edge[1]:
+            edges.append([edge[1], edge[0]])
+        else:
+            edges.append([edge[0], edge[1]])
+    edges = list(edges)
+    edges.sort()
+    nx_edge_list = cudf.DataFrame(edges, columns=['src', 'dst'])
+
+    # Compare nx and cugraph edges when viewing edgelist
+    assert cu_edge_list.equals(nx_edge_list)
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_networkx_compatibility(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    # test from_cudf_edgelist()
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    df = pd.DataFrame()
+    df['source'] = pd.Series(M['0'])
+    df['target'] = pd.Series(M['1'])
+    df['weight'] = pd.Series(M.weight)
+    gdf = cudf.from_pandas(df)
+
+    Gnx = nx.from_pandas_edgelist(df,
+                                  source='source',
+                                  target='target',
+                                  edge_attr='weight',
+                                  create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(gdf,
+                                   source='source',
+                                   destination='target',
+                                   edge_attr='weight',
+                                   create_using=cugraph.DiGraph)
+    assert compare_graphs(Gnx, G)
+
+    Gnx.clear()
+    G.clear()
+    Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
+                                  create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(gdf, source='source', destination='target',
+                                   create_using=cugraph.DiGraph)
+
+    assert compare_graphs(Gnx, G)
+
+    Gnx.clear()
+    G.clear()
+
+
 DATASETS2 = ['../datasets/karate.csv',
              '../datasets/dolphins.csv']
 
@@ -564,7 +663,7 @@ def test_number_of_vertices(managed, pool, graph_file):
     assert(G.number_of_vertices() == Gnx.number_of_nodes())
 
 
-@pytest.mark.parametrize('managed, pool',
+'''@pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_Graph_from_MultiGraph(managed, pool, graph_file):
@@ -597,3 +696,4 @@ def test_Graph_from_MultiGraph(managed, pool, graph_file):
     G_from_multi = cugraph.Graph(G_multi, edge_attr='2')
 
     assert G.edgelist.edgelist_df == G_from_multi.edgelist.edgelist_df
+'''

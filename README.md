@@ -1,5 +1,7 @@
 # <div align="left"><img src="img/rapids_logo.png" width="90px"/>&nbsp;cuGraph - GPU Graph Analytics</div>
 
+[![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
+
 The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process data found in GPU Dataframes - see [cuDF](https://github.com/rapidsai/cudf).  cuGraph aims to provide a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
 
  For more project details, see [rapids.ai](https://rapids.ai/).
@@ -47,6 +49,7 @@ for i in range(len(gdf_page)):
 | Spectral Clustering - Balanced-Cut            | Single-GPU |                              |
 | Spectral Clustering - Modularity Maximization | Single-GPU |                              |
 | Louvain                                       | Single-GPU |                              |
+| Ensemble Clustering for Graphs (ECG)          | Single-GPU |                              |
 | Renumbering                                   | Single-GPU |                              |
 | Basic Graph Statistics                        | Single-GPU |                              |
 | Weakly Connected Components                   | Single-GPU |                              |
@@ -65,7 +68,7 @@ The current version of cuGraph has some limitations:
 
 cuGraph provides the renumber function to mitigate this problem. Input vertex IDs for the renumber function can be either 32-bit or 64-bit integers, can be non-contiguous, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
-Release 0.11 includes a new 'Graph' class that could cause errors to existing code.  Please see the [Trainsition Guide](TRANSITIONGUIDE.md)
+Release 0.11 includes a new 'Graph' class that could cause errors to existing code.  Please see the [Transition Guide](TRANSITIONGUIDE.md)
 
 
 
@@ -95,14 +98,15 @@ It is easy to install cuGraph using conda. You can get a minimal conda installat
 Install and update cuGraph using the conda command:
 
 ```bash
-# CUDA 9.2
-conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=9.2
 
 # CUDA 10.0
 conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.0
 
 # CUDA 10.1
 conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.1
+
+# CUDA 10.2
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.2
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.

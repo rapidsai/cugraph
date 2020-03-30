@@ -43,6 +43,7 @@ MIN_WEIGHTS = [.05, .10, .15]
 
 ENSEMBLE_SIZES = [16, 32]
 
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
