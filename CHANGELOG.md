@@ -4,6 +4,7 @@
 
 ## Improvements
 - PR #765 Remove gdf_column from connected components
+- PR #793 Fix legacy cudf imports/cimports
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
