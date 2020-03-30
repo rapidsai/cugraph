@@ -28,37 +28,24 @@ This directory contains utilities for writing and running benchmarks for cuGraph
 
 ## Overview
 
-Two scripts are included for running benchmarks:
-
-* `<cugraph src dir>/python/utils/run_benchmarks.sh` - Shell script that automates
-the individual runs of `run_benchmarks.py` (see below) on a specific set of
-datasets with specific algos and options. For example, only specific algos are
-run on directed graph datasets, and for those the option to use a DiGraph is
-passed. This script is run by CI automation and represents the "standard" set of
-benchmark results reported. This script takes no arguments (but will look for a
-`ASV_OUTPUT_OPTION` env var if set and ASV output is desired) and is intended
-for use by both developers and CI automation.
-
-This script assumes the datasets downloaded and installed by the `<cugraph src
-dir>/datasets/get_test_data.sh` script are in place.
-
-* `<cugraph src dir>/python/utils/run_benchmarks.py` - Python script that sets up
-the individual benchmark runs (using a `Benchmark` object) for various cugraph
-algos and processes args to run those benchmarks using specific options. This
-script can be run directly by users if algos and/or options not covered or
-covered differently by `run_benchmarks.sh` are done. For example, if a user
-wants to see results only for Pagerank using a directed graph on their own
-dataset, they can run `run_benchmarks.py` and specify `--algo=cugraph.pagerank
---digraph` with their dataset file.
-
-Currently, `run_benchmarks.py`, by default, assumes all benchmarks will be run
-on the dataset name passed in.  To run against multiple datasets, multiple
+The current benchmark running script, by default, assumes all benchmarks will be
+run on the dataset name passed in.  To run against multiple datasets, multiple
 invocations of the script are required.  The current implementation of the
 script creates a single graph object from the dataset passed in and runs one or
 more benchmarks on that - different datasets require new graphs to be created,
 and the script currently only creates a single graph upfront.  The script also
 treates the dataset read and graph creation as individual benchmarks and reports
 results for those steps too.
+
+There are two scripts to be aware of when running benchmarks; a python script
+named `<cugraph src dir>/python/utils/run_benchmarks.py`, and a shell script
+named `<cugraph src dir>/python/utils/run_benchmarks.sh`, both described more
+below.  The python script is more general purpose in that it allows a user to
+pass in a variety of different options and does not assume a particular set of
+datasets exist, while the shell script is intended for easier use for common
+invocations in that it assumes a specific set of options and datasets.  The
+shell script assumes the datasets downloaded and installed by the
+`<cugraph src dir>/datasets/get_test_data.sh` script are in place.
 
 
 ## Running benchmarks
@@ -155,10 +142,18 @@ to customize the setup needed for different benchmarks, but idally only the
 
 ### The cuGraph Benchmark class
 
-The `Benchmark` class is defined in `benchmark.py`, and it simply wraps the call
-of the callable with timers and other measurement calls.  The most interesting
-method here is `run()`.
+The `Benchmark` class is defined in `benchmark.py`, and it simply uses a series
+of decorators to wrap the algo function call in timers and other calls to take
+measurements to be included in the benchmark output.
 
 The current metrics included are execution time (using the system monotonic
-timer), GPU memory, and GPU utilization.  Each metric is setup and taken in
-`benchmark.py:Benchmark.run()`, where new metrics can be added and applied.
+timer), GPU memory, and GPU utilization.  Each metric is defined in
+`benchmark.py`, where new metrics can be added and applied.  The `Benchmark`
+class simply defines the standard set of metrics that will be applied to each
+algo, like so:
+```
+class Benchmark(WrappedFunc):
+    wrappers = [logExeTime, logGpuMetrics, printLastResult]
+```
+
+See `benchmark.py` for more details about the `WrappedFunc` base class.
