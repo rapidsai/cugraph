@@ -24,7 +24,6 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
 import cudf
-import cudf._lib as libcudf
 import numpy as np
 
 
