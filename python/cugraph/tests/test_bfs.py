@@ -103,7 +103,8 @@ def test_bfs(managed, pool, graph_file):
     distance_error_counter = 0
     while cugraph_idx < len(cugraph_dist):
         if base_vid[base_idx] == cugraph_vid[cugraph_idx]:
-            # An error is detected when for the same vertex, the distances are different
+            # An error is detected when for the same vertex
+            # the distances are different
             if base_dist[base_idx] != cugraph_dist[cugraph_idx]:
                 distance_error_counter += 1
             cugraph_idx += 1
