@@ -298,9 +298,16 @@ void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
   if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double))
     CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
 
-  WT* edge_weights_ptr = nullptr;
-  bool should_free_weights = false;
+  int num_vertices = graph.number_of_vertices;
+  int num_edges = graph.number_of_edges;
 
+
+  const ET* offsets_ptr = graph.offsets;
+  const VT* indices_ptr = graph.indices;
+  const WT* edge_weights_ptr = nullptr;
+
+  // Both if / else branch operate own calls due to
+  // thrust::device_vector lifetime
   if (!graph.edge_data) {
     // Generate unit weights
 
@@ -310,37 +317,23 @@ void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
     // BFS also does only integer distances right now whereas we need float or
     // double
 
-    cudaStream_t stream{nullptr};
-    std::vector<WT> h_edge_data(graph.number_of_edges, static_cast<WT>(1));
-    size_t edge_data_size = sizeof(WT) * h_edge_data.size();
-    ALLOC_TRY((WT**)&edge_weights_ptr, edge_data_size, stream);
-    CUDA_TRY(cudaMemcpy(edge_weights_ptr,
-                        &h_edge_data[0],
-                        edge_data_size,
-                        cudaMemcpyHostToDevice));
-    should_free_weights = true;
+    thrust::device_vector<WT> d_edge_weights(num_edges, static_cast<WT>(1));
+    edge_weights_ptr = thrust::raw_pointer_cast(&d_edge_weights.front());
+    cugraph::detail::SSSP<VT, WT> sssp(num_vertices, num_edges, offsets_ptr,
+                                       indices_ptr, edge_weights_ptr);
+    sssp.configure(distances, predecessors, nullptr);
+    sssp.traverse(source_vertex);
   } else {
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
     if (graph.prop.has_negative_edges == experimental::PropType::PROP_TRUE)
       std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
                    "converge if the graph has negative weight cycles\n";
-    edge_weights_ptr = (WT*)graph.edge_data;
-  }
-
-  int n = graph.number_of_vertices;
-  int e = graph.number_of_edges;
-
-  VT* offsets_ptr = (VT*)graph.offsets;
-  VT* indices_ptr = (VT*)graph.indices;
-
-  // We already enforced WT to be either float or double
-  cugraph::detail::SSSP<VT, WT> sssp(n, e, offsets_ptr, indices_ptr,
-                                     edge_weights_ptr);
-  sssp.configure(distances, predecessors, nullptr);
-  sssp.traverse(source_vertex);
-  if (should_free_weights) {
-    ALLOC_FREE_TRY(edge_weights_ptr, nullptr);
+    edge_weights_ptr = graph.edge_data;
+    cugraph::detail::SSSP<VT, WT> sssp(num_vertices, num_edges, offsets_ptr,
+                                       indices_ptr, edge_weights_ptr);
+    sssp.configure(distances, predecessors, nullptr);
+    sssp.traverse(source_vertex);
   }
 }
 

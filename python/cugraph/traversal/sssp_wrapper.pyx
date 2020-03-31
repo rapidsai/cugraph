@@ -136,9 +136,18 @@ def sssp(input_graph, source):
                                    <int*> c_predecessor_ptr,
                                    <int> source)
 
-    # Step 9: Renumber before return
+    #FIXME: Update with multiple column renumbering
+    # Step 9: Unrenumber before return
     #         It is only required to renumber vertex and predecessors
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-        df['predecessor'][df['predecessor'] >- 1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor'] >- 1]]
+        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame): # Multicolumns renumbering
+            n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
+            unrenumbered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
+            unrenumbered_df = unrenumbered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
+            unrenumbered_df.columns = ['distance'] + ['vertex_' + str(i) for i in range(n_cols)] + ['predecessor_' + str(i) for i in range(n_cols)]
+            cols = unrenumbered_df.columns.to_list()
+            df = unrenumbered_df[cols[1:n_cols + 1] + [cols[0]] + cols[n_cols:]]
+        else: # Simple renumbering
+            df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+            df['predecessor'][df['predecessor'] >- 1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor'] >- 1]]
     return df

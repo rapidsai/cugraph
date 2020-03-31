@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -165,10 +165,18 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
   static std::vector<double> SSSP_time;
 
+  // MaxVType:        Data type of vertices id (signed int-32)
+  // MaxEType:        Data type of edges id (signed int-32)
+  // DistType:        Data type of weights (float / double)
+  // DoRandomWeights: SSSP Implementation requires weights to operate,
+  //                    if true: generate random weights before calling
+  //                    else:    relies on self inner code using fake 1.0 weights
+  // DoDist:          User can provide weights or not, simulate this behavior
+  // DoPreds:         User can provide predecessors or not, simulate this behavior
   template <typename MaxVType,
             typename MaxEType,
             typename DistType,
-            bool doRandomWeights,
+            bool DoRandomWeights,
             bool DoDist,
             bool DoPreds>
   void run_current_test(const SSSP_Usecase& param) {
@@ -268,7 +276,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                               (DistType*)nullptr,
                               result.size,
                               result.nnz);
-    if (doRandomWeights) {
+    if (DoRandomWeights) {
       G.edge_data = result.edgeWeights;
     }
     cudaDeviceSynchronize();

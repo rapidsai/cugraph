@@ -233,6 +233,7 @@ template <typename VT, typename ET, typename WT>
 void connected_components(experimental::GraphCSR<VT,ET,WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels);
+
 /**
  * @brief     Compute k truss for a graph
  *
@@ -275,12 +276,13 @@ void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
  * @param[in] start_vertex           The starting vertex for SSSP
  *
  */
-/* ----------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
 void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
           WT *distances,
           VT *predecessors,
           const VT source_vertex);
+
+// TODO: Either distances is in VT or in WT, even if there should be no weights
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
  *
@@ -302,8 +304,6 @@ void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
  *
  * @throws     cugraph::logic_error when an error occurs.
  */
-/* ----------------------------------------------------------------------------*/
-// TODO: Either distances is in VT or in WT, even if there should be no weights
 template <typename VT, typename ET, typename WT>
 void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
          VT *distances,
