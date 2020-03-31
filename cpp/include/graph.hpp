@@ -30,6 +30,13 @@ struct GraphProperties {
   GraphProperties() = default;
 };
 
+enum class DegreeDirection {
+  IN_PLUS_OUT = 0,       ///> Compute sum of in and out degree
+  IN,                    ///> Compute in degree
+  OUT,                   ///> Compute out degree
+  DEGREE_DIRECTION_COUNT 
+};
+
 /**
  * @brief       Base class graphs, all but vertices and edges
  *
@@ -82,12 +89,9 @@ public:
    *
    * @param[out] degree                Device array of size V (V is number of vertices) initialized to zeros.
    *                                   Will contain the computed degree of every vertex.
-   * @param[in]  x                     Integer value indicating type of degree calculation
-   *                                      0 : in+out degree
-   *                                      1 : in-degree
-   *                                      2 : out-degree
+   * @param[in]  direction             IN_PLUS_OUT, IN or OUT
    */
-  void degree(ET *degree, int x) const;
+  void degree(ET *degree, DegreeDirection direction) const;
   
   /**
    * @brief      Default constructor
@@ -148,7 +152,7 @@ public:
    *                                      1 : in-degree
    *                                      2 : out-degree
    */
-  void degree(ET *degree, int x) const;
+  void degree(ET *degree, DegreeDirection direction) const;
   
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.

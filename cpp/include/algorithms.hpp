@@ -221,13 +221,14 @@ enum class cugraph_cc_t {
  *
  * @throws                cugraph::logic_error when an error occurs.
  *
- * @tparam VT             Type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam ET             Type of edge identifiers.  Supported value : int (signed, 32-bit)
- * @tparam WT             Type of edge weights. Supported values : float or double.   
+ * @tparam VT                     Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                     Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                     Type of edge weights. Supported values : float or double.   
  *
- * @param[in] graph       cuGRAPH graph descriptor, should contain the connectivity information as a CSR
- * @param[out] labels     Device array of component labels (labels[i] indicates the label associated with
- *                        vertex id i.
+ * @param[in] graph               cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ * @param[in] connectivity_type   STRONG or WEAK
+ * @param[out] labels             Device array of component labels (labels[i] indicates the label associated with
+ *                                vertex id i.
  */
 template <typename VT, typename ET, typename WT>
 void connected_components(experimental::GraphCSR<VT,ET,WT> const &graph,

@@ -107,7 +107,7 @@ ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph,
                                                             tuple_start,
                                                             tuple_end,
                                                             tuple_start,
-                                                            self_loop_flagger<ET>());
+                                                            self_loop_flagger<VT>());
     tuple_end = thrust::unique(rmm::exec_policy(stream)->on(stream), tuple_start, tuple_end);
 
     // Get things ready to return
@@ -122,5 +122,7 @@ ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph,
 }
 
 template int get_two_hop_neighbors(experimental::GraphCSR<int,int,float> const &, int **, int **);
+
+template int64_t get_two_hop_neighbors(experimental::GraphCSR<int32_t,int64_t,float> const &, int32_t **, int32_t **);
 
 } //namespace cugraph

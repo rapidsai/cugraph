@@ -38,6 +38,17 @@ def _degree_coo(src, dst, x=0):
     #
     #  Computing the degree of the input graph from COO
     #
+    cdef DegreeDirection dir
+
+    if x == 0:
+        dir = DIRECTION_IN_PLUS_OUT
+    elif x == 1:
+        dir = DIRECTION_IN
+    elif x == 2:
+        dir = DIRECTION_OUT
+    else:
+        raise Exception("x should be 0, 1 or 2")
+
     [src, dst] = datatype_cast([src, dst], [np.int32])
 
     num_verts = 1 + max(src.max(), dst.max())
@@ -54,13 +65,25 @@ def _degree_coo(src, dst, x=0):
     cdef uintptr_t c_dst = dst.__cuda_array_interface__['data'][0]
 
     graph = GraphCOO[int,int,float](<int*>c_src, <int*>c_dst, <float*>NULL, num_verts, num_edges)
-    graph.degree(<int*> c_degree, <int>x)
+
+    graph.degree(<int*> c_degree, dir)
     graph.get_vertex_identifiers(<int*>c_vertex)
 
     return vertex_col, degree_col
 
 
 def _degree_csr(offsets, indices, x=0):
+    cdef DegreeDirection dir
+
+    if x == 0:
+        dir = DIRECTION_IN_PLUS_OUT
+    elif x == 1:
+        dir = DIRECTION_IN
+    elif x == 2:
+        dir = DIRECTION_OUT
+    else:
+        raise Exception("x should be 0, 1 or 2")
+
     [offsets, indices] = datatype_cast([offsets, indices], [np.int32])
 
     num_verts = len(offsets)-1
@@ -77,17 +100,22 @@ def _degree_csr(offsets, indices, x=0):
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
 
     graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
-    graph.degree(<int*> c_degree, <int>x)
+        
+    graph.degree(<int*> c_degree, dir)
     graph.get_vertex_identifiers(<int*>c_vertex)
 
     return vertex_col, degree_col
 
 
 def _degree(input_graph, x=0):
-    transpose_x = { 0: 0, 1: 2, 2:1 }
+    transpose_x = { 0: 0,
+                    2: 1,
+                    1: 2 }
     
     if input_graph.adjlist is not None:
-        return _degree_csr(input_graph.adjlist.offsets, input_graph.adjlist.indices, x)
+        return _degree_csr(input_graph.adjlist.offsets,
+                           input_graph.adjlist.indices,
+                           x)
 
     if input_graph.transposedadjlist is not None:
         return _degree_csr(input_graph.transposedadjlist.offsets,
@@ -102,7 +130,7 @@ def _degree(input_graph, x=0):
     raise Exception("input_graph not COO, CSR or CSC")
     
 def _degrees(input_graph):
-    verts, indegrees = _degree(input_graph, 1)
+    verts, indegrees = _degree(input_graph,1)
     verts, outdegrees = _degree(input_graph, 2)
     
     return verts, indegrees, outdegrees

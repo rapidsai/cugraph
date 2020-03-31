@@ -25,6 +25,11 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         PROP_FALSE "cugraph::experimental::PROP_FALSE"
         PROP_TRUE "cugraph::experimental::PROP_TRUE"
 
+    ctypedef enum DegreeDirection:
+        DIRECTION_IN_PLUS_OUT "cugraph::experimental::DegreeDirection::IN_PLUS_OUT"
+        DIRECTION_IN "cugraph::experimental::DegreeDirection::IN"
+        DIRECTION_OUT "cugraph::experimental::DegreeDirection::OUT"
+
     struct GraphProperties:
         bool directed
         bool weighted
@@ -41,13 +46,14 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
 
         void get_vertex_identifiers(VT *) const
 
-        void degree(ET *,int)
-
         GraphBase(WT*,VT,ET)
 
     cdef cppclass GraphCOO[VT,ET,WT](GraphBase[VT,ET,WT]):
         VT *src_indices
         VT *dst_indices
+
+        void degree(ET *,DegreeDirection) const
+
         GraphCOO()
         GraphCOO(const VT *, const ET *, const WT *, size_t, size_t)
 
@@ -56,6 +62,7 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         VT *indices
 
         void get_source_indices(VT *) const
+        void degree(ET *,DegreeDirection) const
         
         GraphCompressedSparseBase(const VT *, const ET *, const WT *, size_t, size_t)
 

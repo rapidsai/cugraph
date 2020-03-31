@@ -43,7 +43,7 @@ int getMaxDegree(cugraph::experimental::GraphCSR<VT,ET,WT> const &g) {
 
   rmm::device_vector<ET> degree_vector(g.number_of_vertices);
   ET *p_degree = degree_vector.data().get();
-  g.degree(p_degree, 2);
+  g.degree(p_degree, cugraph::experimental::DegreeDirection::OUT);
   ET max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
                                      p_degree,
                                      p_degree + g.number_of_vertices,

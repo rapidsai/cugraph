@@ -62,51 +62,39 @@ void GraphCompressedSparseBase<VT,ET,WT>::get_source_indices(VT *src_indices) co
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCOO<VT,ET,WT>::degree(ET *degree, int x) const {
+void GraphCOO<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
   //        in then x should be modified to reflect the expected direction.
   //        (e.g. if you have a CSC and you want in-degree (x=1) then pass
   //        the offsets/indices and request an out-degree (x=2))
   //
-
-  // Calculates the degree of all vertices of the graph
-  // x = 0: in+out degree
-  // x = 1: in-degree
-  // x = 2: out-degree
-
   cudaStream_t stream{nullptr};
 
-  if (x != 1) {
+  if (direction != DegreeDirection::IN) {
     degree_from_vertex_ids(GraphBase<VT,ET,WT>::number_of_edges, src_indices, degree, stream);
   }
 
-  if (x != 2) {
+  if (direction != DegreeDirection::OUT) {
     degree_from_vertex_ids(GraphBase<VT,ET,WT>::number_of_edges, dst_indices, degree, stream);
   }
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBase<VT,ET,WT>::degree(ET *degree, int x) const {
+void GraphCompressedSparseBase<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
   //        in then x should be modified to reflect the expected direction.
   //        (e.g. if you have a CSC and you want in-degree (x=1) then pass
   //        the offsets/indices and request an out-degree (x=2))
   //
-
-  // Calculates the degree of all vertices of the graph
-  // x = 0: in+out degree
-  // x = 1: in-degree
-  // x = 2: out-degree
-
   cudaStream_t stream{nullptr};
 
-  if (x != 1) {
+  if (direction != DegreeDirection::IN) {
     degree_from_offsets(GraphBase<VT,ET,WT>::number_of_vertices, offsets, degree, stream);
   }
 
-  if (x != 2) {
+  if (direction != DegreeDirection::OUT) {
     degree_from_vertex_ids(GraphBase<VT,ET,WT>::number_of_edges, indices, degree, stream);
   }
 }
