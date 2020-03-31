@@ -1,5 +1,3 @@
-// -*-c++-*-
-
 /*
  * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
  *
@@ -14,15 +12,13 @@
 // connected components tests
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
-//#define DEBUG
-
-#define _DEBUG_C2C
-
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 #include "cuda_profiler_api.h"
 
-#include <cugraph.h>
+#include <graph.hpp>
+#include <algorithms.hpp>
+#include <converters/COOtoCSR.cuh>
 #include "test_utils.h"
 #include <algorithm>
 #include <iterator>
@@ -100,61 +96,33 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     // Allocate memory on host
     std::vector<int> cooRowInd(nnz);
     std::vector<int> cooColInd(nnz);
-    std::vector<int> cooVal(nnz);
     std::vector<int> labels(m);//for G(V, E), m := |V|
     std::vector<int> verts(m);
 
     // Read: COO Format
     //
-    ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
+    ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin),0);
 
-    Graph_ptr G{new cugraph::Graph, Graph_deleter};
-    gdf_column_ptr col_src;
-    gdf_column_ptr col_dest;
-    gdf_column_ptr col_labels;
-    gdf_column_ptr col_verts;
+    CSR_Result<int>   result;
+    ConvertCOOtoCSR(&cooColInd[0], &cooRowInd[0], nnz, result);
 
-    col_src = create_gdf_column(cooRowInd);
-    col_dest = create_gdf_column(cooColInd);
-    col_labels = create_gdf_column(labels);
-    col_verts = create_gdf_column(verts);
+    cugraph::experimental::GraphCSR<int,int,float> G(result.rowOffsets, result.colIndices, nullptr, m, nnz);
 
-    std::vector<gdf_column*> vcols{col_labels.get(), col_verts.get()};
-    cudf::table table(vcols);
+    rmm::device_vector<int>  d_labels(m);
 
-    //Get the COO format 1st:
-    //
-    cugraph::edge_list_view(G.get(), col_src.get(), col_dest.get(), nullptr);
-
-    //Then convert to CSR:
-    //
-    cugraph::add_adj_list(G.get());
-
-
-    if (PERF)
-      {
-        hr_clock.start();
-        cugraph::connected_components(G.get(),
-                                          cugraph::CUGRAPH_WEAK,
-                                          &table);
-
-        cudaDeviceSynchronize();
-        hr_clock.stop(&time_tmp);
-        weakly_cc_time.push_back(time_tmp);
-      }
-    else
-      {
-        cudaProfilerStart();
-        cugraph::connected_components(G.get(),
-                                          cugraph::CUGRAPH_WEAK,
-                                          &table);
-        cudaProfilerStop();
-        cudaDeviceSynchronize();
-      }
-
-
-    //rmmFinalize();
+    if (PERF) {
+      hr_clock.start();
+      cugraph::connected_components<int,int,float>(G, cugraph::cugraph_cc_t::CUGRAPH_WEAK, d_labels.data().get());
+      cudaDeviceSynchronize();
+      hr_clock.stop(&time_tmp);
+      weakly_cc_time.push_back(time_tmp);
+    } else {
+      cudaProfilerStart();
+      cugraph::connected_components<int,int,float>(G, cugraph::cugraph_cc_t::CUGRAPH_WEAK, d_labels.data().get());
+      cudaProfilerStop();
+      cudaDeviceSynchronize();
+    }
   }
 };
 

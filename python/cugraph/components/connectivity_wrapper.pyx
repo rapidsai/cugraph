@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.components.connectivity cimport *
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
+from cugraph.structure import utils_wrapper
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
 from cudf._lib.utils cimport table_from_dataframe
@@ -34,44 +35,47 @@ def weakly_connected_components(input_graph):
     """
     Call connected_components
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
-
-    if type(input_graph) is type_Graph and input_graph.adjlist:
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
-        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    offsets = None
+    indices = None
+    
+    if type(input_graph) is not type_Graph:
+        #
+        # Need to create a symmetrized CSR for this local
+        # computation, don't want to keep it.
+        #
+        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'],
+                                                  input_graph.edgelist.edgelist_df['dst']],
+                                                 [np.int32])
+        src, dst = symmetrize(src, dst)
+        [offsets, indices] = utils_wrapper.coo2csr(src, dst)[0:2]
     else:
-        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
-        if input_graph.edgelist.weights:
-            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-            if type(input_graph) is not type_Graph:
-                src, dst, weights = symmetrize(src, dst, weights)
-            graph_wrapper.add_edge_list(graph, src, dst, weights)
-        else:
-            if type(input_graph) is not type_Graph:
-                src, dst = symmetrize(src, dst)
-            graph_wrapper.add_edge_list(graph, src, dst)
-        add_adj_list(g)
-        if type(input_graph) is type_Graph:
-            offsets, indices, values = graph_wrapper.get_adj_list(graph)
-            input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+        if not input_graph.adjlist:
+            input_graph.view_adj_list()
 
-    # we should add get_number_of_vertices() to Graph (and this should be
-    # used instead of g.adjList.offsets.size - 1)
-    num_verts = g.adjList.offsets.size - 1
+        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets,
+                                                          input_graph.adjlist.indices],
+                                                         [np.int32])
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
 
     df = cudf.DataFrame()
-    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     
-    cdef cudf_table* tbl = table_from_dataframe(df)
+    cdef uintptr_t c_offsets    = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices    = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_identifier = df['vertices'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0];
+
+    cdef GraphCSR[int,int,float] g
+
+    g = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     cdef cugraph_cc_t connect_type=CUGRAPH_WEAK
-    connected_components(g, <cugraph_cc_t>connect_type, tbl)
-    
+    connected_components(g, <cugraph_cc_t>connect_type, <int *>c_labels_val)
 
-    del tbl
+    g.get_vertex_identifiers(<int*>c_identifier)
 
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
@@ -83,35 +87,31 @@ def strongly_connected_components(input_graph):
     """
     Call connected_components
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
 
-    if input_graph.adjlist:
-        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
-    else:
-        if input_graph.edgelist.weights:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
-        else:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
-    # we should add get_number_of_vertices() to Graph (and this should be
-    # used instead of g.adjList.offsets.size - 1)
-    num_verts = g.adjList.offsets.size - 1
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
 
     df = cudf.DataFrame()
-    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     
-    cdef cudf_table* tbl = table_from_dataframe(df)
+    cdef uintptr_t c_offsets    = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices    = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_identifier = df['vertices'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0];
+
+    cdef GraphCSR[int,int,float] g
+
+    g = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     cdef cugraph_cc_t connect_type=CUGRAPH_STRONG
-    connected_components(g, <cugraph_cc_t>connect_type, tbl)
-    
+    connected_components(g, <cugraph_cc_t>connect_type, <int *>c_labels_val)
 
-    del tbl
+    g.get_vertex_identifiers(<int*>c_identifier)
 
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
