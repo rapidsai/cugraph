@@ -56,6 +56,7 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
     
     float *d_repel_x{nullptr};
     float *d_repel_y{nullptr};
+    float *d_gravity{nullptr};
     float *d_attract_x{nullptr};
     float *d_attract_y{nullptr};
     float *d_dx{nullptr};
@@ -95,17 +96,18 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
     float speed = 1.0;
     float speed_efficiency = 1.0;
     float outbound_at_compensation = 1.0; // FIXME: Compute mean
-    init_mass<vertex_t, edge_t><<<1, n>>>(csrPtr, csrInd, d_mass, n);
+    init_mass<vertex_t, edge_t><<<ceil(NTHREADS / n), NTHREADS>>>(csrPtr,
+            csrInd, d_mass, n);
 
     for (int iter=0; iter < max_iter; ++iter) {
         apply_repulsion<vertex_t>(x_pos,
                 y_pos, d_dx, d_dy, d_mass,
                 d_repel_x, d_repel_y, scaling_ratio, n);
 
-        /*
-        apply_gravity<vertex_t>(x_pos, y_pos, d_mass, gravity,
+        apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
                 strong_gravity_mode, scaling_ratio, n);
         
+        /*
         apply_attraction<vertex_t, edge_t, weight_t>(csrPtr,
                 csrInd, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,

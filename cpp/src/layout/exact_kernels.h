@@ -16,6 +16,10 @@
 
 #pragma once
 
+#ifndef NTHREADS
+# define NTHREADS 1024
+#endif
+
 namespace cugraph {
 namespace detail {
 
@@ -86,7 +90,7 @@ void apply_attraction(const edge_t *csrPtr, const vertex_t *csrInd,
         float *y_pos, float *d_dx, float *d_dy, int *d_mass,
         bool outbound_attraction_distribution,
         const float edge_weight_influence, const float coef) {
-    attraction_kernel<vertex_t, edge_t, weight_t><<<ceil(1024 / n), 1024>>>(
+    attraction_kernel<vertex_t, edge_t, weight_t><<<ceil(NTHREADS / n), NTHREADS>>>(
             csrPtr,
             csrInd, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
             outbound_attraction_distribution,
@@ -95,47 +99,50 @@ void apply_attraction(const edge_t *csrPtr, const vertex_t *csrInd,
 
 template <typename vertex_t>
 __global__ void
-linear_gravity_kernel(float *x_pos, float *y_pos, int *d_mass,
-        const float gravity, const vertex_t n) {
+linear_gravity_kernel(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
+        float *d_dy, const float gravity, const vertex_t n) {
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
-            i += blockIdx.x * blockDim.x) {
+            i += gridDim.x * blockDim.x) {
         float x_dist = x_pos[i];
         float y_dist = y_pos[i];
-        float distance = std::sqrt(x_dist * x_dist + y_dist * y_dist);
-        distance += FLT_EPSILON;
+        float distance = sqrt(x_dist * x_dist + y_dist * y_dist);
+        distance = FLT_EPSILON;
         float factor = (d_mass[i] * gravity) / distance;
-        x_pos[i] += -(x_dist * factor);
-        y_pos[i] += -(y_dist * factor);
+        d_dx[i] -= x_dist * factor;
+        d_dy[i] -= y_dist * factor;
     }
 }
 
 template <typename vertex_t>
 __global__ void
-strong_gravity_kernel(float *x_pos, float *y_pos, int *d_mass,
-        const float gravity, const float scaling_ratio, const vertex_t n) {
+strong_gravity_kernel(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
+        float *d_dy, const float gravity, const float scaling_ratio,
+        const vertex_t n) {
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
-            i += blockIdx.x * blockDim.x) {
+            i += gridDim.x * blockDim.x) {
         float x_dist = x_pos[i];
         float y_dist = y_pos[i];
 
         float factor = scaling_ratio * d_mass[i] * gravity;
-        x_pos[i] += -(x_dist * factor);
-        y_pos[i] += -(y_dist * factor);
+        d_dx[i] += -(x_dist * factor);
+        d_dy[i] += -(y_dist * factor);
     }
 }
 
 template <typename vertex_t>
-void apply_gravity(float *x_pos, float *y_pos, int *d_mass,
-        const float gravity, bool strong_gravity_mode,
+void apply_gravity(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
+        float *d_dy, const float gravity, bool strong_gravity_mode,
         const float scaling_ratio, const vertex_t n) {
     if (strong_gravity_mode)
-        strong_gravity_kernel<vertex_t><<<32, 32>>>(x_pos, y_pos, d_mass,
-                gravity, scaling_ratio, n);
+        strong_gravity_kernel<vertex_t><<<ceil(NTHREADS / n), NTHREADS>>>(
+                x_pos, y_pos, d_mass,
+                d_dx, d_dy, gravity, scaling_ratio, n);
     else
-        linear_gravity_kernel<vertex_t><<<32, 32>>>(x_pos, y_pos, d_mass,
-                gravity, n);
+        linear_gravity_kernel<vertex_t><<<ceil(NTHREADS / n), NTHREADS>>>(
+                x_pos, y_pos, d_mass,
+                d_dx, d_dy, gravity, n);
 }
 
 template <typename vertex_t>
@@ -173,7 +180,7 @@ void apply_repulsion(float *x_pos, float *y_pos,
         float *d_dx, float *d_dy, int *d_mass, float *d_repel_x,
         float *d_repel_y, const float scaling_ratio,
         const vertex_t n) {
-    repulsion_kernel<vertex_t><<<1, n>>>(x_pos, y_pos,
+    repulsion_kernel<vertex_t><<<ceil(1024 / n), 1024>>>(x_pos, y_pos,
             d_dx, d_dy, d_mass, d_repel_x, d_repel_y, scaling_ratio, n);
 } 
 
@@ -185,7 +192,7 @@ local_speed_kernel(float *d_dx, float *d_dy, float *d_old_dx, float *d_old_dy,
     // TODO: Use shared memory /  parallel sum
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
-            i += blockIdx.x * blockDim.x) {
+            i += gridDim.x * blockDim.x) {
         float tmp_x = d_old_dx[i] - d_dx[i];
         float tmp_y = d_old_dy[i] - d_dy[i];
         float node_swinging = std::sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
@@ -245,7 +252,7 @@ update_positions_kernel(float *x_pos, float *y_pos,
 
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
-            i += blockIdx.x * blockDim.x) {
+            i += gridDim.x * blockDim.x) {
         float tmp_x = d_old_dx[i] - d_dx[i];
         float tmp_y = d_old_dy[i] - d_dy[i];
         float local_swinging = std::sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
