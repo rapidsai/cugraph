@@ -35,7 +35,6 @@ __global__ void init_mass(const edge_t *csrPtr, const vertex_t *csrInd,
         end = csrPtr[row + 1];
         degree = end - start;
         // FA2's model is based on mass being deg(n) + 1.
-        //printf("row: %i, mass: %i\n", row, degree + 1);
         d_mass[row] = degree + 1;
     } 
 }
@@ -59,9 +58,10 @@ __global__ void attraction_kernel(const edge_t *csrPtr, const vertex_t *csrInd,
                 j < end;
                 ++j) {
             col = csrInd[j];
-            weight = v[j];
+            if (v != nullptr)
+                weight = v[j];
 
-            if (edge_weight_influence == 0)
+            if (v == nullptr || edge_weight_influence == 0)
                 weight = 1;
             else
                 weight = pow(weight, edge_weight_influence);
@@ -77,8 +77,8 @@ __global__ void attraction_kernel(const edge_t *csrPtr, const vertex_t *csrInd,
 
             d_dx[row] += x_dist * factor;
             d_dy[row] += y_dist * factor;
-            d_dx[col] += -(x_dist * factor);
-            d_dy[col] += -(y_dist * factor);
+            //d_dx[col] += -(x_dist * factor);
+            //d_dy[col] += -(y_dist * factor);
         }
     }
 }
@@ -148,8 +148,7 @@ void apply_gravity(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
 template <typename vertex_t>
 __global__ void
 repulsion_kernel(float *x_pos, float *y_pos,
-        float *d_dx, float *d_dy, int *d_mass, float *d_repel_x,
-        float *d_repel_y, const float scaling_ratio,
+        float *d_dx, float *d_dy, int *d_mass, const float scaling_ratio,
         const vertex_t n) {
 
     int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -164,56 +163,50 @@ repulsion_kernel(float *x_pos, float *y_pos,
         float distance = x_dist * x_dist + y_dist * y_dist;
         distance += FLT_EPSILON;
         float factor = (scaling_ratio * d_mass[i] * d_mass[j]) / distance;
-        //printf("factor: %f, d_mass[i]: %i, d_mass[j]: %i, x_dist: %f, y_dist: %f, distance: %f\n",
-        //        factor, d_mass[i], d_mass[j], x_dist, y_dist, distance);
         fx += x_dist * factor;
         fy += y_dist * factor;
     }
-    //printf("fx: %f, ", fx);
-    //printf("fy: %f\n", fy);
-    d_repel_x[i] += fx;
-    d_repel_y[i] += fy;
+    d_dx[i] += fx;
+    d_dy[i] += fy;
 }
 
 template <typename vertex_t>
 void apply_repulsion(float *x_pos, float *y_pos,
-        float *d_dx, float *d_dy, int *d_mass, float *d_repel_x,
-        float *d_repel_y, const float scaling_ratio,
+        float *d_dx, float *d_dy, int *d_mass, const float scaling_ratio,
         const vertex_t n) {
-    repulsion_kernel<vertex_t><<<ceil(1024 / n), 1024>>>(x_pos, y_pos,
-            d_dx, d_dy, d_mass, d_repel_x, d_repel_y, scaling_ratio, n);
+    repulsion_kernel<vertex_t><<<ceil(NTHREADS / n), NTHREADS>>>(x_pos, y_pos,
+            d_dx, d_dy, d_mass, scaling_ratio, n);
 } 
 
 template <typename vertex_t>
 __global__ void
 local_speed_kernel(float *d_dx, float *d_dy, float *d_old_dx, float *d_old_dy,
-        int *d_mass, float *total_swinging, float *traction, vertex_t n) {
-    // For every node
-    // TODO: Use shared memory /  parallel sum
+        int *d_mass, float *d_swinging, float *d_traction, vertex_t n) {
+    // TODO: Use shared memory reduction
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
             i += gridDim.x * blockDim.x) {
         float tmp_x = d_old_dx[i] - d_dx[i];
         float tmp_y = d_old_dy[i] - d_dy[i];
-        float node_swinging = std::sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
-        atomicAdd(total_swinging, d_mass[i] * node_swinging);
-        atomicAdd(traction, 0.5 * d_mass[i] * \
-        std::sqrt((d_old_dx[i] + d_dx[i]) * (d_old_dx[i] + d_dx[i]) + \
+        float node_swinging = sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
+        atomicAdd(d_swinging, d_mass[i] * node_swinging);
+        atomicAdd(d_traction, 0.5 * d_mass[i] * \
+        sqrt((d_old_dx[i] + d_dx[i]) * (d_old_dx[i] + d_dx[i]) + \
             (d_old_dy[i] + d_dy[i]) * (d_old_dy[i] + d_dy[i])));
     }
 }
 
 template <typename vertex_t>
 int compute_jitter_tolerance(const float jitter_tolerance,
-        float speed_efficiency, float swinging, float traction,
+        float speed_efficiency, float *d_swinging, float *d_traction,
         const vertex_t n) {
-    float estimated_jt = 0.05 * std::sqrt(n);
-    float min_jt = std::sqrt(estimated_jt);
+    float estimated_jt = 0.05 * sqrt(n);
+    float min_jt = sqrt(estimated_jt);
     float max_jt = 10;
     float jt = jitter_tolerance * \
-        max(min_jt, min(max_jt, estimated_jt * traction / (n * n)));
+        max(min_jt, min(max_jt, estimated_jt * *d_traction / (n * n)));
     float min_speed_efficiency = 0.05;
-    if (swinging / traction > 2.0) {
+    if (*d_swinging / *d_traction > 2.0) {
         if (speed_efficiency > min_speed_efficiency) {
             speed_efficiency *= 0.5;
         }
@@ -223,24 +216,24 @@ int compute_jitter_tolerance(const float jitter_tolerance,
 }
 
 float compute_global_speed(float speed, float speed_efficiency,
-        const float jt, const float swinging, const float traction) {
+        const float jt, float *d_swinging, float *d_traction) {
 
     float target_speed;
     float min_speed_efficiency = 0.05;
 
-    if (swinging == 0)
+    if (*d_swinging == 0)
         target_speed = FLT_MAX;
     else
-        target_speed = (jt * speed_efficiency * traction) / swinging;
+        target_speed = (jt * speed_efficiency * *d_traction) / *d_swinging;
 
-    if (swinging > jt * traction) {
+    if (*d_swinging > jt * *d_traction) {
         if (speed_efficiency > min_speed_efficiency)
             speed_efficiency *= .7;
         else if (speed < 1000)
             speed_efficiency *= 1.3;
     }
     const float max_rise = 0.5;
-    speed = speed + std::min(target_speed - speed, max_rise * speed);
+    speed = speed + min(target_speed - speed, max_rise * speed);
     return speed;
 }
 
@@ -255,30 +248,13 @@ update_positions_kernel(float *x_pos, float *y_pos,
             i += gridDim.x * blockDim.x) {
         float tmp_x = d_old_dx[i] - d_dx[i];
         float tmp_y = d_old_dy[i] - d_dy[i];
-        float local_swinging = std::sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
-        float factor = speed / (1.0 + std::sqrt(speed * local_swinging));
+        float local_swinging = sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
+        float factor = speed / (1.0 + sqrt(speed * local_swinging));
         x_pos[i] += d_dx[i] * factor;
         y_pos[i] += d_dy[i] * factor;
     }
 }
 
-template <typename vertex_t>
-float apply_forces(float *x_pos, float *y_pos, float *d_dx, float *d_dy, 
-        float *d_old_dx, float *d_old_dy, int *d_mass,
-        const float jitter_tolerance,
-        float speed, float speed_efficiency, const vertex_t n){
-    float swinging = 0;
-    float traction = 0;
-    local_speed_kernel<<<ceil(1024 / n), 1024>>>(d_dx, d_dy, d_old_dx, d_old_dy, d_mass,
-            &swinging, &traction, n);
-    float jt = compute_jitter_tolerance<vertex_t>(jitter_tolerance,
-            speed_efficiency, swinging, traction, n);
-   speed = compute_global_speed(speed, speed_efficiency, jt, swinging,
-           traction); 
-   update_positions_kernel<vertex_t><<<ceil(1024 / n), 1024>>>(x_pos, y_pos, d_dx, d_dy,
-           d_old_dx, d_old_dy, speed, n);
-   return speed;
-}
 
 } // namespace detail
 } // namespace cugraph

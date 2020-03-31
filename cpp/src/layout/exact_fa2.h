@@ -54,36 +54,32 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
                const float scaling_ratio=2.0, bool strong_gravity_mode=false,
                const float gravity=1.0) { 
     
-    float *d_repel_x{nullptr};
-    float *d_repel_y{nullptr};
-    float *d_gravity{nullptr};
-    float *d_attract_x{nullptr};
-    float *d_attract_y{nullptr};
     float *d_dx{nullptr};
     float *d_dy{nullptr};
     float *d_old_dx{nullptr};
     float *d_old_dy{nullptr};
     int *d_mass{nullptr};
+    float *d_swinging{nullptr};
+    float *d_traction{nullptr};
 
-    rmm::device_vector<float> repel_x(n, 0);
-    rmm::device_vector<float> repel_y(n, 0);
-    rmm::device_vector<float> attract_x(n, 0);
-    rmm::device_vector<float> attract_y(n, 0);
     rmm::device_vector<float> dx(n, 0);
     rmm::device_vector<float> dy(n, 0);
     rmm::device_vector<float> old_dx(n, 0);
     rmm::device_vector<float> old_dy(n, 0);
     rmm::device_vector<int> mass(n, 0);
+    rmm::device_vector<float> swinging(1, 0);
+    rmm::device_vector<float> traction(1, 0);
 
-    d_repel_x = repel_x.data().get();
-    d_repel_y = repel_y.data().get();
-    d_attract_x = attract_x.data().get();
-    d_attract_y = attract_y.data().get();
     d_dx = dx.data().get();
     d_dy = dy.data().get();
     d_old_dx = dx.data().get();
     d_old_dy = dy.data().get();
     d_mass = mass.data().get();
+    d_swinging = swinging.data().get();
+    d_traction = traction.data().get();
+
+    thrust::host_vector<float> h_swinging(1);
+    thrust::host_vector<float> h_traction(1);
 
     if (x_start == nullptr || y_start == nullptr) {
         // TODO: generate random numbers
@@ -95,29 +91,44 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
 
     float speed = 1.0;
     float speed_efficiency = 1.0;
-    float outbound_at_compensation = 1.0; // FIXME: Compute mean
     init_mass<vertex_t, edge_t><<<ceil(NTHREADS / n), NTHREADS>>>(csrPtr,
             csrInd, d_mass, n);
+    float outbound_at_compensation = 1.0; // FIXME: Compute mean
 
     for (int iter=0; iter < max_iter; ++iter) {
+        copy(n, d_dx, d_old_dx);
+        copy(n, d_dy, d_old_dy);
+        fill(n, d_dx, 0.f);
+        fill(n, d_dy, 0.f);
+        
         apply_repulsion<vertex_t>(x_pos,
-                y_pos, d_dx, d_dy, d_mass,
-                d_repel_x, d_repel_y, scaling_ratio, n);
+                y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
 
         apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
                 strong_gravity_mode, scaling_ratio, n);
         
-        /*
         apply_attraction<vertex_t, edge_t, weight_t>(csrPtr,
                 csrInd, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_at_compensation);
-        
-        speed = apply_forces<vertex_t>(x_pos,
-                y_pos, d_dx, d_dy, d_old_dx, d_old_dy, d_mass,
-                jitter_tolerance, speed, speed_efficiency, n);
-        */
-        printf("speed at iteration %i: %f\n", iter, speed);
+
+        local_speed_kernel<<<ceil(NTHREADS / n), NTHREADS>>>(d_dx, d_dy,
+                d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
+
+        thrust::copy(swinging.begin(), swinging.end(), h_swinging.begin());
+        thrust::copy(traction.begin(), traction.end(), h_traction.begin());
+        float *s = thrust::raw_pointer_cast(h_swinging.data());
+        float *t = thrust::raw_pointer_cast(h_traction.data());
+
+        float jt = compute_jitter_tolerance<vertex_t>(jitter_tolerance,
+                speed_efficiency, s, t, n);
+
+        speed = compute_global_speed(speed, speed_efficiency, jt, s, t); 
+
+        update_positions_kernel<vertex_t><<<ceil(NTHREADS / n), NTHREADS>>>(
+                x_pos, y_pos, d_dx, d_dy,
+                d_old_dx, d_old_dy, speed, n);
+       printf("speed at iteration %i: %f\n", iter, speed);
     }
 }
 
