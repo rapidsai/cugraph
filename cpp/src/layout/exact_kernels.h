@@ -29,8 +29,9 @@ __global__ void init_mass(const edge_t *csrPtr, const vertex_t *csrInd,
             row += gridDim.x * blockDim.x) {
         start = csrPtr[row];
         end = csrPtr[row + 1];
-        degree = start - end;
+        degree = end - start;
         // FA2's model is based on mass being deg(n) + 1.
+        //printf("row: %i, mass: %i\n", row, degree + 1);
         d_mass[row] = degree + 1;
     } 
 }
@@ -102,9 +103,7 @@ linear_gravity_kernel(float *x_pos, float *y_pos, int *d_mass,
         float x_dist = x_pos[i];
         float y_dist = y_pos[i];
         float distance = std::sqrt(x_dist * x_dist + y_dist * y_dist);
-
-        if (distance == 0)
-            return;
+        distance += FLT_EPSILON;
         float factor = (d_mass[i] * gravity) / distance;
         x_pos[i] += -(x_dist * factor);
         y_pos[i] += -(y_dist * factor);
@@ -132,17 +131,18 @@ void apply_gravity(float *x_pos, float *y_pos, int *d_mass,
         const float gravity, bool strong_gravity_mode,
         const float scaling_ratio, const vertex_t n) {
     if (strong_gravity_mode)
-        strong_gravity_kernel<vertex_t><<<ceil(1024 / n), 1024>>>(x_pos, y_pos, d_mass,
+        strong_gravity_kernel<vertex_t><<<32, 32>>>(x_pos, y_pos, d_mass,
                 gravity, scaling_ratio, n);
     else
-        linear_gravity_kernel<vertex_t><<<ceil(1024 / n), 1024>>>(x_pos, y_pos, d_mass,
+        linear_gravity_kernel<vertex_t><<<32, 32>>>(x_pos, y_pos, d_mass,
                 gravity, n);
 }
 
 template <typename vertex_t>
 __global__ void
 repulsion_kernel(float *x_pos, float *y_pos,
-        float *d_dx, float *d_dy, int *d_mass, const float scaling_ratio,
+        float *d_dx, float *d_dy, int *d_mass, float *d_repel_x,
+        float *d_repel_y, const float scaling_ratio,
         const vertex_t n) {
 
     int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -155,20 +155,26 @@ repulsion_kernel(float *x_pos, float *y_pos,
         float x_dist = x_pos[j] - x_pos[i];
         float y_dist = y_pos[j] - y_pos[i];
         float distance = x_dist * x_dist + y_dist * y_dist;
-        float factor = scaling_ratio * d_mass[i] * d_mass[j] / distance;
+        distance += FLT_EPSILON;
+        float factor = (scaling_ratio * d_mass[i] * d_mass[j]) / distance;
+        //printf("factor: %f, d_mass[i]: %i, d_mass[j]: %i, x_dist: %f, y_dist: %f, distance: %f\n",
+        //        factor, d_mass[i], d_mass[j], x_dist, y_dist, distance);
         fx += x_dist * factor;
         fy += y_dist * factor;
     }
-    x_pos[i] += fx;
-    y_pos[i] += fy;
+    //printf("fx: %f, ", fx);
+    //printf("fy: %f\n", fy);
+    d_repel_x[i] += fx;
+    d_repel_y[i] += fy;
 }
 
 template <typename vertex_t>
 void apply_repulsion(float *x_pos, float *y_pos,
-        float *d_dx, float *d_dy, int *d_mass, const float scaling_ratio,
+        float *d_dx, float *d_dy, int *d_mass, float *d_repel_x,
+        float *d_repel_y, const float scaling_ratio,
         const vertex_t n) {
-    repulsion_kernel<vertex_t><<<1, 1>>>(x_pos, y_pos,
-            d_dx, d_dy, d_mass, scaling_ratio, n);
+    repulsion_kernel<vertex_t><<<1, n>>>(x_pos, y_pos,
+            d_dx, d_dy, d_mass, d_repel_x, d_repel_y, scaling_ratio, n);
 } 
 
 template <typename vertex_t>
