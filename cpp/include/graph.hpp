@@ -214,5 +214,182 @@ public:
   {}
 };
 
+/**
+ * @brief       Base class for graphs constructed in the C++ API
+ *
+ * This class will own edge data, until the data is moved.
+ *
+ * @tparam VT   Type of vertex id
+ * @tparam ET   Type of edge id
+ * @tparam WT   Type of weight
+ */
+template <typename VT, typename ET, typename WT>
+class ConstructedGraphBase {
+public:
+  std::unique_ptr<WT>  edge_data{};     ///< edge weight
+  VT                   number_of_vertices{0};
+  ET                   number_of_edges{0};
+
+  ConstructedGraphBase() {}
+
+  ConstructedGraphBase(std::unique_ptr<WT> &&edge_data_, VT number_of_vertices_, ET number_of_edges_):
+    edge_data(edge_data_),
+    number_of_vertices(number_of_vertices_),
+    number_of_edges(number_of_edges_)
+  {}
+};
+
+/**
+ * @brief       A constructed graph stored in COO (COOrdinate) format.
+ *
+ * This class will src_indices and dst_indicies (until moved)
+ *
+ * @tparam VT   Type of vertex id
+ * @tparam ET   Type of edge id
+ * @tparam WT   Type of weight
+ */
+template <typename VT, typename ET, typename WT>
+class ConstructedGraphCOO: public ConstructedGraphBase<VT, ET, WT> {
+public:
+  std::unique_ptr<VT> src_indices{};   ///< rowInd
+  std::unique_ptr<VT> dst_indices{};   ///< colInd
+
+  /**
+   * @brief      Default constructor
+   */
+  ConstructedGraphCOO(): ConstructedGraphBase<VT,ET,WT>() {}
+  
+  /**
+   * @brief      Take ownership of the provided graph arrays in COO format
+   *
+   * @param  source_indices        This array of size E (number of edges) contains the index of the source for each edge.
+   *                               Indices must be in the range [0, V-1].
+   * @param  destination_indices   This array of size E (number of edges) contains the index of the destination for each edge.
+   *                               Indices must be in the range [0, V-1].
+   * @param  edge_data             This array size E (number of edges) contains the weight for each edge.  This array can be null
+   *                               in which case the graph is considered unweighted.
+   * @param  number_of_vertices    The number of vertices in the graph
+   * @param  number_of_edges       The number of edges in the graph
+   */
+  ConstructedGraphCOO(std::unique_ptr<VT> &&src_indices_,
+                      std::unique_ptr<VT> &&dst_indices_,
+                      std::unique_ptr<VT> &&edge_data_,
+                      VT number_of_vertices_,
+                      ET number_of_edges_):
+    ConstructedGraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
+    src_indices(src_indices_), dst_indices(dst_indices_)
+  {}
+};
+
+/**
+ * @brief       Base class for constructted graphs stored in CSR (Compressed Sparse Row) format or CSC (Compressed Sparse Column) format
+ *
+ * @tparam VT   Type of vertex id
+ * @tparam ET   Type of edge id
+ * @tparam WT   Type of weight
+ */
+template <typename VT, typename ET, typename WT>
+class ConstructedGraphCompressedSparseBase: public ConstructedGraphBase<VT,ET,WT> {
+public:
+  std::unique_ptr<VT> offsets{};   ///< CSR offsets
+  std::unique_ptr<VT> indices{};   ///< CSR indices
+
+  /**
+   * @brief      Take ownership of the provided graph arrays in CSR/CSC format
+   *
+   * @param  offsets               This array of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
+   *                               Offsets must be in the range [0, E] (number of edges).
+   * @param  indices               This array of size E contains the index of the destination for each edge.
+   *                               Indices must be in the range [0, V-1].
+   * @param  edge_data             This array of size E (number of edges) contains the weight for each edge.  This
+   *                               array can be null in which case the graph is considered unweighted.
+   * @param  number_of_vertices    The number of vertices in the graph
+   * @param  number_of_edges       The number of edges in the graph
+   */
+  ConstructedGraphCompressedSparseBase(std::unique_ptr<ET> &&offsets_,
+                                       std::unique_ptr<VT> &&indices_,
+                                       std::unique_ptr<WT> &&edge_data_,
+                                       VT number_of_vertices_,
+                                       ET number_of_edges_):
+    ConstructedGraphBase<VT,ET,WT>{edge_data_, number_of_vertices_, number_of_edges_},
+    offsets{offsets_},
+    indices{indices_}
+  {}
+};
+
+/**
+ * @brief       A constructed graph stored in CSR (Compressed Sparse Row) format.
+ *
+ * @tparam VT   Type of vertex id
+ * @tparam ET   Type of edge id
+ * @tparam WT   Type of weight
+ */
+template <typename VT, typename ET, typename WT>
+class ConstructedGraphCSR: public ConstructedGraphCompressedSparseBase<VT,ET,WT> {
+public:
+  /**
+   * @brief      Default constructor
+   */
+  ConstructedGraphCSR(): ConstructedGraphCompressedSparseBase<VT,ET,WT>() {}
+  
+  /**
+   * @brief      Take ownership of the provided graph arrays in CSR format
+   *
+   * @param  offsets               This array of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
+   *                               Offsets must be in the range [0, E] (number of edges).
+   * @param  indices               This array of size E contains the index of the destination for each edge.
+   *                               Indices must be in the range [0, V-1].
+   * @param  edge_data             This array of size E (number of edges) contains the weight for each edge.  This
+   *                               array can be null in which case the graph is considered unweighted.
+   * @param  number_of_vertices    The number of vertices in the graph
+   * @param  number_of_edges       The number of edges in the graph
+   */
+  ConstructedGraphCSR(std::unique_ptr<ET> &&offsets_,
+                      std::unique_ptr<VT> &&indices_,
+                      std::unique_ptr<WT> &&edge_data_,
+                      VT number_of_vertices_,
+                      ET number_of_edges_):
+    ConstructedGraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+  {}
+};
+
+/**
+ * @brief       A constructed graph stored in CSC (Compressed Sparse Column) format.
+ *
+ * @tparam VT   Type of vertex id
+ * @tparam ET   Type of edge id
+ * @tparam WT   Type of weight
+ */
+template <typename VT, typename ET, typename WT>
+class ConstructedGraphCSC: public ConstructedGraphCompressedSparseBase<VT,ET,WT> {
+public:
+  /**
+   * @brief      Default constructor
+   */
+  ConstructedGraphCSC(): ConstructedGraphCompressedSparseBase<VT,ET,WT>() {}
+  
+  /**
+   * @brief      Take ownership of the provided graph arrays in CSR format
+   *
+   * @param  offsets               This array of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
+   *                               Offsets must be in the range [0, E] (number of edges).
+   * @param  indices               This array of size E contains the index of the destination for each edge.
+   *                               Indices must be in the range [0, V-1].
+   * @param  edge_data             This array of size E (number of edges) contains the weight for each edge.  This array
+   *                               can be null in which case the graph is considered unweighted.
+   * @param  number_of_vertices    The number of vertices in the graph
+   * @param  number_of_edges       The number of edges in the graph
+   */
+  ConstructedGraphCSC(std::unique_ptr<ET> &&offsets_,
+                      std::unique_ptr<VT> &&indices_,
+                      std::unique_ptr<WT> &&edge_data_,
+                      VT number_of_vertices_,
+                      ET number_of_edges_):
+    ConstructedGraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+  {}
+};
+
+} //namespace experimental
+} //namespace cugraph
 } //namespace experimental
 } //namespace cugraph
