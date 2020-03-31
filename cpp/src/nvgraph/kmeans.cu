@@ -124,7 +124,7 @@ namespace {
           // Perform reduction on warp
           for(i=WARP_SIZE/2; i>0; i/=2)
             dist_private += utils::shfl_down(dist_private, i, 2*i);
-        
+
           // Write result to global memory
           if(threadIdx.x == 0)
             atomicFPAdd(dists+IDX(gidz,gidy,n), dist_private);
@@ -136,11 +136,11 @@ namespace {
         // Move to another centroid
         gidy += blockDim.y*gridDim.y;
       }
-      
+
       // Move to another vector entry
       bidx += gridDim.x;
     }
-  
+
   }
 
   /// Find closest centroid to observation vectors
@@ -198,7 +198,7 @@ namespace {
 
       // Increment cluster sizes
       atomicAdd(clusterSizes+code_min, 1);
-    
+
       // Move to another row
       i += blockDim.x*gridDim.x;
 
@@ -251,7 +251,7 @@ namespace {
         dists_old[i] = dist_new_private;
         codes_old[i] = code_new;
       }
-    
+
       // Move to another row
       i += blockDim.x*gridDim.x;
     }
@@ -314,7 +314,7 @@ namespace {
     // Observation vector is determined by global y-index
     gidy = threadIdx.y + blockIdx.y*blockDim.y;
     while(gidy < k) {
-    
+
       // Get cluster size from global memory
       clusterSize_private = clusterSizes[gidy];
 
@@ -359,7 +359,7 @@ namespace {
       const ValueType_ * __restrict__ obs,
       ValueType_ * __restrict__ dists,
       ValueType_ * __restrict__ centroid) {
-  
+
     using namespace thrust;
 
     // Cumulative sum of distances
@@ -377,7 +377,7 @@ namespace {
     CHECK_CUDA(cudaMemcpy(&distsSum, distsCumSum+n-1,
         sizeof(ValueType_),
         cudaMemcpyDeviceToHost));
-  
+
     // Randomly choose observation vector
     //   Probabilities are proportional to square of distance to closest
     //   centroid (see k-means++ algorithm)
@@ -440,7 +440,7 @@ namespace {
     // Random number generator
     thrust::default_random_engine rng(123456);
     thrust::uniform_real_distribution<ValueType_> uniformDist(0,1);
-  
+
     // -------------------------------------------------------
     // Implementation
     // -------------------------------------------------------
@@ -451,7 +451,7 @@ namespace {
     blockDim_warp.z = BSIZE_DIV_WSIZE;
     gridDim_warp.x = min((d+WARP_SIZE-1)/WARP_SIZE, 65535);
     gridDim_warp.y = 1;
-    gridDim_warp.z 
+    gridDim_warp.z
       = min((n+BSIZE_DIV_WSIZE-1)/BSIZE_DIV_WSIZE, 65535);
     gridDim_block.x = min((n+BLOCK_SIZE-1)/BLOCK_SIZE, 65535);
     gridDim_block.y = 1;
@@ -475,9 +475,9 @@ namespace {
 
     // Choose remaining centroids
     for(i=1; i<k; ++i) {
-    
+
       // Choose ith centroid
-      if(chooseNewCentroid(n, d, k, uniformDist(rng),obs, dists, centroids+IDX(0,i,d))) 
+      if(chooseNewCentroid(n, d, k, uniformDist(rng),obs, dists, centroids+IDX(0,i,d)))
         WARNING("error in k-means++ (could not pick centroid)");
 
       // Compute distances from ith centroid
@@ -716,7 +716,7 @@ namespace nvgraph {
         IndexType_ * __restrict__ work_int,
         ValueType_ * residual_host,
         IndexType_ * iters_host) {
-  
+
     // -------------------------------------------------------
     // Variable declarations
     // -------------------------------------------------------
@@ -764,7 +764,7 @@ namespace nvgraph {
          cudaMemcpyHostToDevice));
       if(updateCentroids(n, d, k, obs, codes,
            clusterSizes, centroids,
-           work, work_int)) 
+           work, work_int))
         WARNING("could not compute k-means centroids");
       dim3 blockDim, gridDim;
       blockDim.x = WARP_SIZE;
@@ -779,7 +779,7 @@ namespace nvgraph {
               centroids,
               work);
       cudaCheckError();
-      *residual_host = thrust::reduce(thrust::device_pointer_cast(work), 
+      *residual_host = thrust::reduce(thrust::device_pointer_cast(work),
         thrust::device_pointer_cast(work+n));
       cudaCheckError();
       return NVGRAPH_OK;
@@ -808,14 +808,14 @@ namespace nvgraph {
 
     // Choose initial cluster centroids
     if(initializeCentroids(n, d, k, obs, centroids, codes,
-             clusterSizes, work)) 
+             clusterSizes, work))
       WARNING("could not initialize k-means centroids");
 
     // Apply k-means iteration until convergence
     for(iter=0; iter<maxiter; ++iter) {
 
       // Update cluster centroids
-      if(updateCentroids(n, d, k, obs, codes, 
+      if(updateCentroids(n, d, k, obs, codes,
            clusterSizes, centroids,
            work, work_int)) WARNING("could not update k-means centroids");
 
@@ -826,14 +826,18 @@ namespace nvgraph {
        WARNING("could not assign observation vectors to k-means clusters");
 
       // Reinitialize empty clusters with new centroids
-      IndexType_ emptyCentroid = (thrust::find(thrust::device_pointer_cast(clusterSizes), 
+      IndexType_ emptyCentroid = (thrust::find(thrust::device_pointer_cast(clusterSizes),
         thrust::device_pointer_cast(clusterSizes+k), 0) - thrust::device_pointer_cast(clusterSizes));
+
+      // FIXME: emptyCentroid never reaches k (infinite loop) under certain
+      // conditions, such as if obs is corrupt (as seen as a result of a
+      // DataFrame column of NULL edge vals used to create the Graph)
       while(emptyCentroid < k) {
         if(chooseNewCentroid(n, d, k, uniformDist(rng), obs, work, centroids+IDX(0,emptyCentroid,d)))
           WARNING("could not replace empty centroid");
         if(assignCentroids(n, d, k, obs, centroids, work, codes, clusterSizes, residual_host))
           WARNING("could not assign observation vectors to k-means clusters");
-        emptyCentroid = (thrust::find(thrust::device_pointer_cast(clusterSizes), 
+        emptyCentroid = (thrust::find(thrust::device_pointer_cast(clusterSizes),
             thrust::device_pointer_cast(clusterSizes+k), 0) - thrust::device_pointer_cast(clusterSizes));
         cudaCheckError();
       }
@@ -915,15 +919,15 @@ namespace nvgraph {
     Vector<ValueType_> centroids(d*k, stream);
     Vector<ValueType_> work(n*max(k,d), stream);
     Vector<IndexType_> work_int(2*d*n, stream);
-    
+
     // Perform k-means
     return kmeans<IndexType_,ValueType_>(n, d, k, tol, maxiter,
-           obs, codes, 
+           obs, codes,
            clusterSizes.raw(),
            centroids.raw(),
            work.raw(), work_int.raw(),
            &residual, &iters);
-    
+
   }
 
 
@@ -948,4 +952,3 @@ namespace nvgraph {
 }
 //#endif //NVGRAPH_PARTITION
 //#endif //debug
-

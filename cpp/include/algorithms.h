@@ -104,66 +104,6 @@ void sssp(Graph* graph,
           VT *predecessors,                                               
           const VT source_vertex);                      
 
-/**
- * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
- * which are connected by an edge.
- * @param graph The input graph object
- * @param weights The input vertex weights for weighted Jaccard, may be NULL for
- * unweighted Jaccard.
- * @param result The result values are stored here, memory needs to be pre-allocated
- * @throws     cugraph::logic_error when an error occurs.
- */
-void jaccard(Graph* graph,
-             gdf_column *weights,
-             gdf_column *result);
-
-/**
- * Computes the Jaccard similarity coefficient for each pair of specified vertices.
- * Vertices are specified as pairs where pair[n] = (first[n], second[n])
- * @param graph The input graph object
- * @param weights The input vertex weights for weighted Jaccard, may be NULL for
- * unweighted Jaccard.
- * @param first A column containing the first vertex ID of each pair.
- * @param second A column containing the second vertex ID of each pair.
- * @param result The result values are stored here, memory needs to be pre-allocated.
- * @throws     cugraph::logic_error when an error occurs.
- */
-void jaccard_list(Graph* graph,
-                  gdf_column *weights,
-                  gdf_column *first,
-                  gdf_column *second,
-                  gdf_column *result);
-
-/**
- * Computes the Overlap Coefficient for every pair of vertices in the graph which are
- * connected by an edge.
- * @param graph The input graph object
- * @param weights The input vertex weights for weighted overlap, may be NULL for
- * unweighted.
- * @param result The result values are stored here, memory needs to be pre-allocated.
- * @throws     cugraph::logic_error when an error occurs.
- */
-void overlap(Graph* graph,
-             gdf_column *weights,
-             gdf_column *result);
-
-/**
- * Computes the overlap coefficient for each pair of specified vertices.
- * Vertices are specified as pairs where pair[n] = (first[n], second[n])
- * @param graph The input graph object.
- * @param weights The input vertex weights for weighted overlap, may be NULL for
- * unweighted.
- * @param first A column containing the first vertex Ids of each pair
- * @param second A column containing the second vertex Ids of each pair
- * @param result The result values are stored here, memory needs to be pre-allocated
- * @throws     cugraph::logic_error when an error occurs.
- */
-void overlap_list(Graph* graph,
-                  gdf_column *weights,
-                  gdf_column *first,
-                  gdf_column *second,
-                  gdf_column *result);
-
 void louvain(Graph* graph,
              void *final_modularity,
              void *num_level,
@@ -352,4 +292,5 @@ void k_core(Graph* in_graph,
             gdf_column *vertex_id,
             gdf_column *core_number,
             Graph* out_graph);
+
 } //namespace cugraph

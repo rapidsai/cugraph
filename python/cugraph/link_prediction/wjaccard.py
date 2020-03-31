@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.structure.graph import Graph
-from cugraph.link_prediction import wjaccard_wrapper
+from cugraph.link_prediction import jaccard_wrapper
 from cugraph.structure.graph import null_check
 import cudf
 
@@ -83,7 +83,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     else:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = wjaccard_wrapper.jaccard_w(input_graph,
-                                    weights, vertex_pair)
+    df = jaccard_wrapper.jaccard(input_graph,
+                                 weights, vertex_pair)
 
     return df

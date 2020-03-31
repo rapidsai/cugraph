@@ -105,8 +105,8 @@ def compare_graphs(nx_graph, cu_graph):
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        df0 = df0.sort_values(by=['source', 'target'])
-        df1 = df.sort_values(by=['source', 'target'])
+        df0 = df0.sort_values(by=['source', 'target']).reset_index(drop=True)
+        df1 = df.sort_values(by=['source', 'target']).reset_index(drop=True)
         if not df0['weight'].equals(df1['weight']):
             return False
 
@@ -482,7 +482,6 @@ def test_networkx_compatibility(managed, pool, graph_file):
     df['source'] = pd.Series(M['0'])
     df['target'] = pd.Series(M['1'])
     df['weight'] = pd.Series(M.weight)
-
     gdf = cudf.from_pandas(df)
 
     Gnx = nx.from_pandas_edgelist(df,
@@ -495,7 +494,6 @@ def test_networkx_compatibility(managed, pool, graph_file):
                                    destination='target',
                                    edge_attr='weight',
                                    create_using=cugraph.DiGraph)
-
     assert compare_graphs(Gnx, G)
 
     Gnx.clear()

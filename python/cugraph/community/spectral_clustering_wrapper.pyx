@@ -26,6 +26,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
+import cugraph
 import cudf
 import cudf._lib as libcudf
 import rmm
@@ -44,6 +45,9 @@ def spectralBalancedCutClustering(input_graph,
     """
     cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
+
+    if isinstance(input_graph, cugraph.DiGraph):
+        raise TypeError("DiGraph objects are not supported")
 
     if input_graph.adjlist:
         [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
@@ -73,7 +77,6 @@ def spectralBalancedCutClustering(input_graph,
 
     # Set the vertex identifiers
     g.adjList.get_vertex_identifiers(&c_identifier_col)
-    
 
     balancedCutClustering_nvgraph(g,
                                             num_clusters,
@@ -83,7 +86,6 @@ def spectralBalancedCutClustering(input_graph,
                                             kmean_tolerance,
                                             kmean_max_iter,
                                             &c_cluster_col)
-    
 
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
@@ -102,6 +104,9 @@ def spectralModularityMaximizationClustering(input_graph,
     """
     cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
+
+    if isinstance(input_graph, cugraph.DiGraph):
+        raise TypeError("DiGraph objects are not supported")
 
     if input_graph.adjlist:
         graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
@@ -127,7 +132,7 @@ def spectralModularityMaximizationClustering(input_graph,
 
     # Set the vertex identifiers
     g.adjList.get_vertex_identifiers(&c_identifier_col)
-    
+
 
     spectralModularityMaximization_nvgraph(g,
                                                      num_clusters,
@@ -137,7 +142,7 @@ def spectralModularityMaximizationClustering(input_graph,
                                                      kmean_tolerance,
                                                      kmean_max_iter,
                                                      &c_cluster_col)
-    
+
 
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
@@ -165,7 +170,7 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     analyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
-    
+
     return score
 
 def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
@@ -189,7 +194,7 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     analyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
-    
+
     return score
 
 def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
@@ -213,5 +218,5 @@ def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
     cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
     cdef float score
     analyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
-    
+
     return score

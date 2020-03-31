@@ -139,14 +139,12 @@ def get_edge_list(graph_ptr):
                          nelem=col_size,
                          dtype=np_dtype_from_gdf_column(g.edgeList.edge_data))
         value_col = cudf.Series(value_data)
-
     return source_col, dest_col, value_col
     
 
 def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
     cdef Graph * g = <Graph*> graph
-
     cdef gdf_column c_offset_col = get_gdf_column_view(offset_col)
     cdef gdf_column c_index_col = get_gdf_column_view(index_col)
     cdef gdf_column c_value_col
@@ -156,7 +154,6 @@ def add_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     else:
         c_value_col = get_gdf_column_view(value_col)
         c_value_col_ptr = &c_value_col
-
     c_graph.adj_list_view(g,
                           &c_offset_col,
                           &c_index_col,
@@ -169,7 +166,6 @@ def get_adj_list(graph_ptr):
 
     offset_col_size = g.adjList.offsets.size
     index_col_size = g.adjList.indices.size
-
     cdef uintptr_t offset_col_data = <uintptr_t> g.adjList.offsets.data
     cdef uintptr_t index_col_data = <uintptr_t> g.adjList.indices.data
     cdef uintptr_t value_col_data = <uintptr_t> NULL
@@ -212,7 +208,9 @@ def view_edge_list(input_graph):
         if input_graph.adjlist is None:
             raise Exception('Graph is Empty')
         else:
-            add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+            [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+            [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+            add_adj_list(graph, offsets, indices, weights)
             c_graph.add_edge_list(g)
             source, dest, value = get_edge_list(graph)
             input_graph.edgelist = input_graph.EdgeList(source, dest, value)
@@ -224,10 +222,12 @@ def view_adj_list(input_graph):
         if input_graph.edgelist is None:
             raise Exception('Graph is Empty')
         else:
-            if len(input_graph.edgelist.edgelist_df.columns)>2:
-                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+            [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+            if input_graph.edgelist.weights:
+                [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+                add_edge_list(graph, src, dst, weights)
             else:
-                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
+                add_edge_list(graph, src, dst)
             c_graph.add_adj_list(g)
             offsets, indices, values = get_adj_list(graph)
             input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
@@ -237,15 +237,19 @@ def view_transposed_adj_list(input_graph):
     cdef Graph * g = <Graph*> graph
     if input_graph.transposedadjlist is None:
         if input_graph.edgelist is None:
-            raise Exception('Graph is Empty')
-        else:
-            if len(input_graph.edgelist.edgelist_df.columns)>2:
-                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
+            if input_graph.adjlist is None:
+                raise Exception('Graph is Empty')
             else:
-                add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-            c_graph.add_transposed_adj_list(g)
-            offsets, indices, values = get_transposed_adj_list(graph)
-            input_graph.transposedadjlist = input_graph.transposedAdjList(offsets, indices, values)
+                view_edge_list(input_graph)
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+            add_edge_list(graph, src, dst, weights)
+        else:
+            add_edge_list(graph, src, dst)
+        c_graph.add_transposed_adj_list(g)
+        offsets, indices, values = get_transposed_adj_list(graph)
+        input_graph.transposedadjlist = input_graph.transposedAdjList(offsets, indices, values)
 
 def add_transposed_adj_list(graph_ptr, offset_col, index_col, value_col=None):
     cdef uintptr_t graph = graph_ptr
@@ -357,15 +361,13 @@ def get_two_hop_neighbors(input_graph):
 def number_of_vertices(input_graph):
     cdef uintptr_t graph = allocate_cpp_graph()
     cdef Graph * g = <Graph*> graph
-
-    if input_graph.adjlist:
-        add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+    if input_graph.edgelist.weights:
+        [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+        add_edge_list(graph, src, dst, weights)
     else:
-        if input_graph.edgelist.weights:
-            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
-        else:
-            add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        c_graph.number_of_vertices(g)
+        add_edge_list(graph, src, dst)
+    c_graph.number_of_vertices(g)
     return g.numberOfVertices
 
 
