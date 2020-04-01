@@ -93,7 +93,11 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
     float speed_efficiency = 1.0;
     init_mass<vertex_t, edge_t><<<ceil(NTHREADS / n), NTHREADS>>>(csrPtr,
             csrInd, d_mass, n);
-    float outbound_at_compensation = 1.0; // FIXME: Compute mean
+    float outbound_att_compensation = 1.0;
+    if (outbound_attraction_distribution) {
+        int sum = thrust::reduce(mass.begin(), mass.end());
+        outbound_att_compensation = sum / (float)n;
+    }
 
     for (int iter=0; iter < max_iter; ++iter) {
         copy(n, d_dx, d_old_dx);
@@ -110,7 +114,7 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
         apply_attraction<vertex_t, edge_t, weight_t>(csrPtr,
                 csrInd, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
-                edge_weight_influence, outbound_at_compensation);
+                edge_weight_influence, outbound_att_compensation);
 
         local_speed_kernel<<<ceil(NTHREADS / n), NTHREADS>>>(d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
