@@ -31,6 +31,5 @@ void GraphCompressedSparseBase<VT,ET,WT>::get_source_indices(VT *src_indices) co
 // explicit instantiation
 template class GraphCompressedSparseBase<int32_t,int32_t,float>;
 template class GraphCompressedSparseBase<int32_t,int32_t,double>;
-
 }
 }

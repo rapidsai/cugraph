@@ -97,13 +97,16 @@ def test_bfs(managed, pool, graph_file):
     cugraph_vid, cugraph_dist = cugraph_call(cu_M, 0)
 
     # Calculating mismatch
-
-    # assert len(base_dist) == len(cugraph_dist)
-    i = 0
-    j = 0
-    while i < len(cugraph_dist):
-        if base_vid[i] == cugraph_vid[i]:
-            assert base_dist[i] == cugraph_dist[i]
-        else:
-            j = j+1
-        i = i+1
+    # Currently, vertex order mismatch is not considered as an error
+    cugraph_idx = 0
+    base_idx = 0
+    distance_error_counter = 0
+    while cugraph_idx < len(cugraph_dist):
+        if base_vid[base_idx] == cugraph_vid[cugraph_idx]:
+            # An error is detected when for the same vertex
+            # the distances are different
+            if base_dist[base_idx] != cugraph_dist[cugraph_idx]:
+                distance_error_counter += 1
+            cugraph_idx += 1
+        base_idx += 1
+    assert distance_error_counter == 0
