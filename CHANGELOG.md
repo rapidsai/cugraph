@@ -3,11 +3,13 @@
 ## New Features
 
 ## Improvements
+- PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #781 Fix compiler argument syntax for ccache
+- PR #793 Fix legacy cudf imports/cimports
 
 ## Bug Fixes
-
+- PR #763 Update RAPIDS conda dependencies to v0.14
 
 # cuGraph 0.13.0 (Date TBD)
 
@@ -33,7 +35,6 @@
 - PR #741 Added documentation for running and adding new benchmarks and shell script to automate
 - PR #747 updated viewing of graph, datatypecasting and two hop neighbor unrenumbering for multi column
 - PR #766 benchmark script improvements/refactorings: separate ETL steps, averaging, cleanup
-- PR #770 Updated README-benchmark.md with up-to-date info on scripts and code
 
 ## Bug Fixes
 - PR #697 Updated versions in conda environments.

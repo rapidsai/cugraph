@@ -58,52 +58,6 @@ void grmat_gen(const char* argv,
                gdf_column* dest,
                gdf_column* val);
 
-/**
- * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
- *
- * @tparam VT the type of vertex identifiers. Supported value : int (signed, 32-bit)
- *
- * @Param[in] *graph                 cuGRAPH graph descriptor with a valid adjList
- *
- * @Param[out] *distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
- *
- * @Param[out] *predecessors         If set to a valid column, this is populated by bfs traversal predecessor of every vertex
- *
- * @Param[in] start_vertex           The starting vertex for breadth first search traversal
- *
- * @Param[in] directed               Treat the input graph as directed
- *
- * @throws     cugraph::logic_error when an error occurs.
- */
-/* ----------------------------------------------------------------------------*/
-template <typename VT>
-void bfs(Graph* graph,
-         VT *distances,
-         VT *predecessors,
-         const VT start_vertex,
-         bool directed = true);
-/**                                                                             
- * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
- *     
- * @tparam VT the type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam WT the type of edge weights. Supported value : float or double.                                                       
- * @Param[in] *graph                 cuGRAPH graph descriptor with a valid adjList
- *                                                                              
- * @Param[out] *distances            If set to a valid pointer, array of size V populated by distance of every vertex in the graph from the starting vertex. Memory is provided and owned by the caller.
- *                                                                              
- * @Param[out] *predecessors         If set to a valid pointer, array of size V populated by the SSSP predecessor of every vertex. Memory is provided and owned by the caller.
- *                                                                              
- * @Param[in] start_vertex           The starting vertex for SSSP               
- *                                                                              
- * @throws     cugraph::logic_error with a custom message when an error occurs.
- */                                                                             
-/* ----------------------------------------------------------------------------*/
-template <typename VT, typename WT>
-void sssp(Graph* graph,                                            
-          WT *distances,                                                  
-          VT *predecessors,                                               
-          const VT source_vertex);                      
-
 void louvain(Graph* graph,
              void *final_modularity,
              void *num_level,

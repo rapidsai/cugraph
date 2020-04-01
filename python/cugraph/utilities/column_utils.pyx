@@ -21,7 +21,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
-import cudf._lib as libcudf
+import cudf._lib.legacy as libcudf_legacy
 import numpy as np
 
 cdef uintptr_t get_column_data_ptr(col):
@@ -66,7 +66,7 @@ cdef gdf_column get_gdf_column_view(col):
                                     gdf_dtype_from_dtype(col.dtype),
                                     <size_type> col.null_count,
                                     c_extra_dtype_info)
-    libcudf.cudf.check_gdf_error(err)
+    libcudf_legacy.cudf.check_gdf_error(err)
 
     return c_col
 
@@ -89,7 +89,7 @@ cdef gdf_column* get_gdf_column_ptr(ipc_data_ptr, col_len):
                                     <size_type> 0,
                                     c_extra_dtype_info)
     
-    libcudf.cudf.check_gdf_error(err)
+    libcudf_legacy.cudf.check_gdf_error(err)
     return c_col
 
 #
