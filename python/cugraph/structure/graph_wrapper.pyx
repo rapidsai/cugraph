@@ -18,13 +18,12 @@
 
 cimport cugraph.structure.graph as c_graph
 from cugraph.utilities.column_utils cimport *
-from cudf._lib.cudf cimport np_dtype_from_gdf_column
+from cudf._lib.legacy.cudf cimport np_dtype_from_gdf_column
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
-import cudf._lib as libcudf
 import rmm
 import numpy as np
 
