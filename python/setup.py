@@ -19,6 +19,11 @@ from setuptools import setup, find_packages
 from setuptools.extension import Extension
 from Cython.Build import cythonize
 
+try:
+    from Cython.Distutils.build_ext import new_build_ext as build_ext
+except ImportError:
+    from setuptools.command.build_ext import build_ext
+
 import versioneer
 from distutils.sysconfig import get_python_lib
 
@@ -54,6 +59,10 @@ if (os.environ.get('CONDA_PREFIX', None)):
     conda_include_dir = conda_prefix + '/include'
     conda_lib_dir = conda_prefix + '/lib'
 
+cmdclass = dict()
+cmdclass.update(versioneer.get_cmdclass())
+cmdclass["build_ext"] = build_ext
+
 EXTENSIONS = [
     Extension("*",
               sources=CYTHON_FILES,
@@ -88,5 +97,5 @@ setup(name='cugraph',
       packages=find_packages(include=['cugraph', 'cugraph.*']),
       install_requires=INSTALL_REQUIRES,
       license="Apache",
-      cmdclass=versioneer.get_cmdclass(),
+      cmdclass=cmdclass,
       zip_safe=False)

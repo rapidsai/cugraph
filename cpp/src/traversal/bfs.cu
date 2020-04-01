@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -16,18 +16,20 @@
 #include <limits>
 #include "rmm_utils.h"
 
+#include "graph.hpp"
+
 #include "utilities/graph_utils.cuh"
 #include "traversal_common.cuh"
 #include "bfs_kernels.cuh"
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
   enum BFS_ALGO_STATE {
     TOPDOWN, BOTTOMUP
   };
 
   template<typename IndexType>
-  void Bfs<IndexType>::setup() {
+  void BFS<IndexType>::setup() {
 
     // Determinism flag, false by default
     deterministic = false;
@@ -104,7 +106,7 @@ namespace detail {
   }
 
   template<typename IndexType>
-  void Bfs<IndexType>::configure(IndexType *_distances,
+  void BFS<IndexType>::configure(IndexType *_distances,
                                  IndexType *_predecessors,
                                  int *_edge_mask)
   {
@@ -122,7 +124,7 @@ namespace detail {
   }
 
   template<typename IndexType>
-  void Bfs<IndexType>::traverse(IndexType source_vertex) {
+  void BFS<IndexType>::traverse(IndexType source_vertex) {
 
     //Init visited_bmap
     //If the graph is undirected, we not that
@@ -446,12 +448,12 @@ namespace detail {
   }
 
   template<typename IndexType>
-  void Bfs<IndexType>::resetDevicePointers() {
+  void BFS<IndexType>::resetDevicePointers() {
     cudaMemsetAsync(d_counters_pad, 0, 4 * sizeof(IndexType), stream);
   }
 
   template<typename IndexType>
-  void Bfs<IndexType>::clean() {
+  void BFS<IndexType>::clean() {
     //the vectors have a destructor that takes care of cleaning
     ALLOC_FREE_TRY(original_frontier, nullptr);
     ALLOC_FREE_TRY(visited_bmap, nullptr);
@@ -468,30 +470,34 @@ namespace detail {
       ALLOC_FREE_TRY(distances, nullptr);
   }
 
-  template class Bfs<int> ;
-} //namespace 
+  template class BFS<int> ;
+} // !namespace cugraph::detail
 
-template <typename VT>
-void bfs(Graph *graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
-  // TODO improve error msg
-  // TODO fix me after gdf_column is removed from Graph
-  CUGRAPH_EXPECTS(graph->adjList != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type");
-  CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported data type");
+template <typename VT, typename ET, typename WT>
+void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
+  CUGRAPH_EXPECTS(typeid(VT) == typeid(int),
+                  "Unsupported vertex id data type, please use int");
+  CUGRAPH_EXPECTS(typeid(ET) == typeid(int),
+                  "Unsupported edge id data type, please use int");
+  CUGRAPH_EXPECTS((typeid(WT) == typeid(float)) || (typeid(WT) == typeid(double)),
+                  "Unsupported weight data type, please use float or double");
 
-  int n = graph->adjList->offsets->size - 1;
-  int e = graph->adjList->indices->size;
-  int* offsets_ptr = (int*)graph->adjList->offsets->data;
-  int* indices_ptr = (int*)graph->adjList->indices->data;
+  VT number_of_vertices = graph.number_of_vertices;
+  ET number_of_edges = graph.number_of_edges;
+
+  const VT* indices_ptr = graph.indices;
+  const ET* offsets_ptr = graph.offsets;
+
   int alpha = 15;
   int beta = 18;
-
-  cugraph::detail::Bfs<int> bfs(n, e, offsets_ptr, indices_ptr, directed, alpha, beta);
+  //FIXME: Use VT and ET in the BFS detail
+  cugraph::detail::BFS<VT> bfs(number_of_vertices, number_of_edges,
+                               offsets_ptr, indices_ptr, directed, alpha,
+                               beta);
   bfs.configure(distances, predecessors, nullptr);
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int>(Graph* graph, int *distances, int *predecessors, const int source_vertex, bool directed);
+template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
 
-} //namespace 
+} // !namespace cugraph
