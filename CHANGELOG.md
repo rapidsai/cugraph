@@ -6,6 +6,7 @@
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #781 Fix compiler argument syntax for ccache
+- PR #782 Use Cython's `new_build_ext` (if available)
 - PR #793 Fix legacy cudf imports/cimports
 
 ## Bug Fixes
