@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -11,20 +11,21 @@
 
 #pragma once
 
-#include <climits> 
+#include <climits>
 
 #define TRAVERSAL_DEFAULT_ALPHA 15
 
 #define TRAVERSAL_DEFAULT_BETA 18
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
+	//FIXME: Differentiate IndexType for vertices and edges
 	template<typename IndexType>
-	class Bfs {
+	class BFS {
 	private:
 		IndexType n, nnz;
-		IndexType* row_offsets;
-		IndexType* col_indices;
+		const IndexType* row_offsets;
+		const IndexType* col_indices;
 
 		bool directed;
 		bool deterministic;
@@ -69,14 +70,14 @@ namespace detail {
 		void clean();
 
 	public:
-		virtual ~Bfs(void) {
+		virtual ~BFS(void) {
 			clean();
 		}
 
-		Bfs(	IndexType _n,
+		BFS(IndexType _n,
 				IndexType _nnz,
-				IndexType *_row_offsets,
-				IndexType *_col_indices,
+				const IndexType *_row_offsets,
+				const IndexType *_col_indices,
 				bool _directed,
 				IndexType _alpha,
 				IndexType _beta,
@@ -97,4 +98,3 @@ namespace detail {
 		void traverse(IndexType source_vertex);
 	};
 } } //namespace
-
