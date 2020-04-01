@@ -234,6 +234,7 @@ template <typename VT, typename ET, typename WT>
 void connected_components(experimental::GraphCSR<VT,ET,WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels);
+
 /**
  * @brief     Compute k truss for a graph
  *
@@ -357,4 +358,56 @@ ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph,
                          VT **first,
                          VT **second);
 
+/**
+ * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
+ *
+ * @throws     cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ *
+ * @param[out] distances            If set to a valid pointer, array of size V populated by distance of every vertex in the graph from the starting vertex. Memory is provided and owned by the caller.
+ *
+ * @param[out] predecessors         If set to a valid pointer, array of size V populated by the SSSP predecessor of every vertex. Memory is provided and owned by the caller.
+ *
+ * @param[in] start_vertex           The starting vertex for SSSP
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
+          WT *distances,
+          VT *predecessors,
+          const VT source_vertex);
+
+// TODO: Either distances is in VT or in WT, even if there should be no weights
+/**
+ * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
+ *
+ * @throws     cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : int (signed, 32-bit)
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ *
+ * @param[out] distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
+ *
+ * @param[out] predecessors         If set to a valid column, this is populated by bfs traversal predecessor of every vertex
+ *
+ * @param[in] start_vertex           The starting vertex for breadth first search traversal
+ *
+ * @param[in] directed               Treat the input graph as directed
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ */
+template <typename VT, typename ET, typename WT>
+void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
+         VT *distances,
+         VT *predecessors,
+         const VT start_vertex,
+         bool directed = true);
 } //namespace cugraph

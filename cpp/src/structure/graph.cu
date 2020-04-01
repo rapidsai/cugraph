@@ -106,6 +106,5 @@ template class GraphCOO<int32_t,int32_t,float>;
 template class GraphCOO<int32_t,int32_t,double>;
 template class GraphCompressedSparseBase<int32_t,int32_t,float>;
 template class GraphCompressedSparseBase<int32_t,int32_t,double>;
-
 }
 }

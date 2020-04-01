@@ -25,7 +25,6 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from cugraph.structure import graph_wrapper
 import cudf
-import cudf._lib as libcudf
 import rmm
 import numpy as np
 import numpy.ctypeslib as ctypeslib

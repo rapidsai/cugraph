@@ -18,15 +18,15 @@
 
 #pragma once
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
 template <typename IndexType, typename DistType>
 class SSSP {
  private:
   IndexType n, nnz;
-  IndexType* row_offsets;
-  IndexType* col_indices;
-  DistType* edge_weights;
+  const IndexType* row_offsets;
+  const IndexType* col_indices;
+  const DistType* edge_weights;
 
   // edgemask, distances, predecessors are set/read by users - using Vectors
   bool useEdgeMask;
@@ -62,9 +62,9 @@ class SSSP {
 
   SSSP(IndexType _n,
        IndexType _nnz,
-       IndexType* _row_offsets,
-       IndexType* _col_indices,
-       DistType* _edge_weights,
+       const IndexType* _row_offsets,
+       const IndexType* _col_indices,
+       const DistType* _edge_weights,
        cudaStream_t _stream = 0)
       : n(_n),
         nnz(_nnz),

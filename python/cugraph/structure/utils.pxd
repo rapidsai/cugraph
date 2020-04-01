@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cudf._lib.cudf cimport *
+from cudf._lib.legacy.cudf cimport *
 
 
 cdef extern from "functions.hpp" namespace "cugraph":
