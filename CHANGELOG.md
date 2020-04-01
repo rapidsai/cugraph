@@ -3,12 +3,12 @@
 ## New Features
 
 ## Improvements
+- PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #793 Fix legacy cudf imports/cimports
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
-
 
 # cuGraph 0.13.0 (Date TBD)
 
