@@ -21,14 +21,13 @@ cimport cugraph.traversal.bfs as c_bfs
 from cugraph.structure.graph cimport *
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
-from cudf._lib.cudf cimport np_dtype_from_gdf_column
+from cudf._lib.legacy.cudf cimport np_dtype_from_gdf_column
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
-import cudf._lib as libcudf
 import rmm
 import numpy as np
 

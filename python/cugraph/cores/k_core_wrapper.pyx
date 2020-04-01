@@ -26,7 +26,6 @@ from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
-import cudf._lib as libcudf
 import rmm
 import numpy as np
 
