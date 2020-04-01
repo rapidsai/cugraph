@@ -7,6 +7,7 @@
 - PR #765 Remove gdf_column from connected components
 - PR #781 Fix compiler argument syntax for ccache
 - PR #782 Use Cython's `new_build_ext` (if available)
+- PR #788 Added options and config file to enable codecov
 - PR #793 Fix legacy cudf imports/cimports
 
 ## Bug Fixes
