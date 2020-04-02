@@ -26,7 +26,166 @@
 
 #include <gunrock/gunrock.h>
 
+#include "betweenness_centrality.cuh"
+
 namespace cugraph {
+
+namespace detail {
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::setup() {
+    // --- Set up parameters from graph adjList ---
+    number_vertices  = graph.number_of_vertices;
+    number_edges = graph.number_of_edges;
+    offsets_ptr = graph.offsets;
+    indices_ptr = graph.indices;
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness, bool _normalize,
+                                         VT const *_sample_seeds,
+                                         VT _number_of_sample_seeds) {
+    // --- Bind betweenness output vector to internal ---
+    betweenness = _betweenness;
+    apply_normalization = _normalize;
+    sample_seeds = _sample_seeds;
+    number_of_sample_seeds =  _number_of_sample_seeds;
+
+    // --- Working data allocation ---
+    ALLOC_TRY(&distances, number_vertices * sizeof(WT), nullptr);
+    ALLOC_TRY(&predecessors, number_vertices * sizeof(VT), nullptr);
+    ALLOC_TRY(&nodes, number_vertices * sizeof(VT), nullptr);
+    ALLOC_TRY(&sp_counters, number_vertices * sizeof(int), nullptr);
+    ALLOC_TRY(&deltas, number_vertices * sizeof(result_t), nullptr);
+    // --- Confirm that configuration went through ---
+    configured = true;
+}
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::clean() {
+    ALLOC_FREE_TRY(distances, nullptr);
+    ALLOC_FREE_TRY(predecessors, nullptr);
+    ALLOC_FREE_TRY(nodes, nullptr);
+    ALLOC_FREE_TRY(sp_counters, nullptr);
+    ALLOC_FREE_TRY(deltas, nullptr);
+    // ---  Betweenness is not ours ---
+}
+
+template <typename WT, typename VT>
+struct ifNegativeReplace {
+  __host__ __device__
+  VT operator()(const WT& dist, const VT& node) const
+  {
+    return (dist == static_cast<WT>(-1)) ? static_cast<VT>(-1) : node;
+  }
+};
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::normalize() {
+    thrust::device_vector<result_t> normalizer(number_vertices);
+    thrust::fill(normalizer.begin(), normalizer.end(), ((number_vertices - 1) * (number_vertices - 2)));
+
+    if (typeid(result_t) == typeid(float)) {
+        thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness, betweenness + number_vertices, normalizer.begin(), betweenness, thrust::divides<float>());
+    } else if (typeid(result_t) == typeid(double)) {
+        thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness, betweenness + number_vertices, normalizer.begin(), betweenness, thrust::divides<double>());
+    }
+}
+
+/* TODO(xcadet) Use an iteration based node system, to process nodes of the same level at the same time
+** For now all the work is done on the first thread */
+template <typename VT, typename ET, typename WT, typename result_t>
+__global__ void accumulate_kernel(result_t *betweenness, VT number_vertices,
+                                 VT *nodes, VT *predecessors, int *sp_counters,
+                                 result_t *deltas, VT source) {
+    int global_id = (blockIdx.x * blockDim.x)  + threadIdx.x;
+    if (global_id == 0) { // global_id < number_vertices
+        for (int idx = 0; idx < number_vertices; ++idx) {
+            VT w = nodes[idx];
+            if (w == -1) { // This node and the following have not been visited in the sssp
+                break;
+            }
+            result_t factor = (static_cast<result_t>(1.0) + deltas[w]) / static_cast<result_t>(sp_counters[w]);
+            VT v = predecessors[w]; // Multiples nodes could have the same predecessor
+            if (v != -1) {
+                atomicAdd(&deltas[v], static_cast<result_t>(sp_counters[v]) * factor);
+            }
+            if (w != source) {
+                atomicAdd(&betweenness[w], deltas[w]);
+            }
+        }
+    }
+}
+
+// TODO(xcadet) We might be able to handle different nodes with a kernel
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* nodes,
+                                          VT *predecessors, int *sp_counters,
+                                          result_t *deltas, VT source) {
+    // Step 1) Dependencies (deltas) are initialized to 0 before starting
+    thrust::fill(rmm::exec_policy(stream)->on(stream), deltas,
+                 deltas + number_vertices, static_cast<result_t>(0));
+
+    // Step 2) Process each node, -1 is used to notify unreached nodes in the sssp
+    accumulate_kernel<VT, ET, WT, result_t>
+                     <<<1, 1, 0, stream>>>(betweenness, number_vertices,
+                                           nodes, predecessors, sp_counters,
+                                           deltas, source);
+    cudaDeviceSynchronize();
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::check_input() {
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::compute() {
+    CUGRAPH_EXPECTS(configured, "BC must be configured before computation");
+
+    for (int source_vertex = 0; source_vertex < number_vertices;
+         ++source_vertex) {
+        // Step 1) Singe-source shortest-path problem
+        cugraph::sssp(graph, distances, predecessors, source_vertex);
+
+        // Step 2) Accumulation
+        accumulate(betweenness, nodes, predecessors, sp_counters, deltas, source_vertex);
+    }
+    cudaDeviceSynchronize();
+    if (apply_normalization) {
+        normalize();
+    }
+}
+  /**
+  * ---------------------------------------------------------------------------*
+  * @brief Native betweenness centrality
+  *
+  * @file betweenness_centrality.cu
+  * --------------------------------------------------------------------------*/
+  template <typename VT, typename ET, typename WT, typename result_t>
+  void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
+                            result_t *result,
+                            bool normalize,
+                            VT const *sample_seeds = nullptr,
+                            VT number_of_sample_seeds = 0) {
+
+    CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: output betwenness is nullptr");
+    if (typeid(VT) != typeid(int)) {
+      CUGRAPH_FAIL("Unsupported vertex id data type, please use int");
+    }
+    if (typeid(ET) != typeid(int)) {
+      CUGRAPH_FAIL("Unsupported edge id data type, please use int");
+    }
+    if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double)) {
+      CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
+    }
+
+    CUGRAPH_EXPECTS(sample_seeds == nullptr, "Sampling seeds is currently not supported");
+    // Current Implementation relies on BFS
+    // FIXME: For SSSP version
+    // Brandes Algorithm excpets non negative weights for the accumulation
+    cugraph::detail::BC<VT, ET, WT, result_t> bc(graph);
+    bc.configure(result, normalize, sample_seeds, number_of_sample_seeds);
+    bc.compute();
+  }
+} // !cugraph::detail
 
 namespace gunrock {
 
@@ -120,7 +279,8 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
   //
   // These parameters are present in the API to support future features.
   //
-  gunrock::betweenness_centrality(graph, result, normalize);
+  //gunrock::betweenness_centrality(graph, result, normalize);
+  detail::betweenness_centrality(graph, result, normalize);
 }
 
 template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int,int,float> const &, float*, bool, bool, float const *, int, int const *);
