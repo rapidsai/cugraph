@@ -14,9 +14,36 @@
  * limitations under the License.
  */
 #pragma once
+#include <rmm/device_buffer.hpp>
 
 namespace cugraph {
 namespace experimental {
+
+template <typename T>
+class cugraph_vector {
+  rmm::device_buffer data_;
+  size_t sz_;
+
+  public:
+  cugraph_vector& operator=(cugraph_vector const& other) = delete;
+  cugraph_vector& operator=(cugraph_vector&& other) = delete;
+
+  cugraph_vector(size_t sz) : data_(sz*sizeof(T)), sz_(sz) {}
+
+  template <typename B = rmm::device_buffer>
+  cugraph_vector(B&& data) :
+    data_(std::forward<B>(data)),
+    sz_(data_.size()/sizeof(T)) {}
+
+  template <typename B = rmm::device_buffer>
+  cugraph_vector(cugraph_vector&& other) :
+    data_(std::forward<B>(other.data_)),
+    sz_(other.data_.size()/sizeof(T)) {}
+
+  T* data(void) { return static_cast<T*>(data_.data()); }
+
+  size_t size(void) { return sz_; }
+};
 
 enum class PropType{PROP_UNDEF, PROP_FALSE, PROP_TRUE};
 
@@ -38,7 +65,7 @@ struct GraphProperties {
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class GraphBase {
+class GraphViewBase {
 public:
   WT const *edge_data;     ///< edge weight
 
@@ -47,7 +74,7 @@ public:
   VT                       number_of_vertices;
   ET                       number_of_edges;
 
-  GraphBase(WT const *edge_data_, VT number_of_vertices_, ET number_of_edges_):
+  GraphViewBase(WT const *edge_data_, VT number_of_vertices_, ET number_of_edges_):
     edge_data(edge_data_),
     prop(),
     number_of_vertices(number_of_vertices_),
@@ -63,7 +90,7 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class GraphCOO: public GraphBase<VT, ET, WT> {
+class GraphCOOView: public GraphViewBase<VT, ET, WT> {
 public:
   VT const *src_indices{nullptr};   ///< rowInd
   VT const *dst_indices{nullptr};   ///< colInd
@@ -71,12 +98,12 @@ public:
   /**
    * @brief      Default constructor
    */
-  GraphCOO(): GraphBase<VT,ET,WT>(nullptr, 0, 0) {}
+  GraphCOOView(): GraphViewBase<VT,ET,WT>(nullptr, 0, 0) {}
   
   /**
    * @brief      Wrap existing arrays representing an edge list in a Graph.
    *
-   *             GraphCOO does not own the memory used to represent this graph. This
+   *             GraphCOOView does not own the memory used to represent this graph. This
    *             function does not allocate memory.
    *
    * @param  source_indices        This array of size E (number of edges) contains the index of the source for each edge.
@@ -88,9 +115,9 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCOO(VT const *src_indices_, VT const *dst_indices_, WT const *edge_data_,
+  GraphCOOView(VT const *src_indices_, VT const *dst_indices_, WT const *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
-    GraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
+    GraphViewBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
     src_indices(src_indices_), dst_indices(dst_indices_)
   {}
 };
@@ -103,7 +130,7 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class GraphCompressedSparseBase: public GraphBase<VT,ET,WT> {
+class GraphCompressedSparseViewBase: public GraphViewBase<VT,ET,WT> {
 public:
   ET const *offsets{nullptr};       ///< CSR offsets
   VT const *indices{nullptr};       ///< CSR indices
@@ -136,9 +163,9 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCompressedSparseBase(ET const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCompressedSparseViewBase(ET const *offsets_, VT const *indices_, WT const *edge_data_,
                             VT number_of_vertices_, ET number_of_edges_):
-    GraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
+    GraphViewBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
     offsets{offsets_},
     indices{indices_}
   {}
@@ -152,16 +179,16 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class GraphCSR: public GraphCompressedSparseBase<VT,ET,WT> {
+class GraphCSRView: public GraphCompressedSparseViewBase<VT,ET,WT> {
 public:
   /**
    * @brief      Default constructor
    */
-  GraphCSR(): GraphCompressedSparseBase<VT,ET,WT>(nullptr, nullptr, nullptr, 0, 0) {}
+  GraphCSRView(): GraphCompressedSparseViewBase<VT,ET,WT>(nullptr, nullptr, nullptr, 0, 0) {}
   
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
-   *             GraphCSR does not own the memory used to represent this graph. This
+   *             GraphCSRView does not own the memory used to represent this graph. This
    *             function does not allocate memory.
    *
    * @param  offsets               This array of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
@@ -173,9 +200,9 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSR(ET const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCSRView(ET const *offsets_, VT const *indices_, WT const *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
-    GraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+    GraphCompressedSparseViewBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
 };
 
@@ -187,16 +214,16 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class GraphCSC: public GraphCompressedSparseBase<VT,ET,WT> {
+class GraphCSCView: public GraphCompressedSparseViewBase<VT,ET,WT> {
 public:
   /**
    * @brief      Default constructor
    */
-  GraphCSC(): GraphCompressedSparseBase<VT,ET,WT>(nullptr, nullptr, nullptr, 0, 0) {}
+  GraphCSCView(): GraphCompressedSparseViewBase<VT,ET,WT>(nullptr, nullptr, nullptr, 0, 0) {}
   
   /**
    * @brief      Wrap existing arrays representing transposed adjacency lists in a Graph.
-   *             GraphCSC does not own the memory used to represent this graph. This
+   *             GraphCSCView does not own the memory used to represent this graph. This
    *             function does not allocate memory.
    *
    * @param  offsets               This array of size V+1 (V is number of vertices) contains the offset of adjacency lists of every vertex.
@@ -208,9 +235,9 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSC(ET const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCSCView(ET const *offsets_, VT const *indices_, WT const *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
-    GraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+    GraphCompressedSparseViewBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
 };
 
@@ -224,19 +251,22 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class ConstructedGraphBase {
+class GraphBase {
+  cugraph_vector<WT>   edge_data_;     ///< edge weight
+  VT                   number_of_vertices_{0};
+  ET                   number_of_edges_{0};
+
 public:
-  std::unique_ptr<WT>  edge_data{};     ///< edge weight
-  VT                   number_of_vertices{0};
-  ET                   number_of_edges{0};
 
-  ConstructedGraphBase() {}
+  GraphBase() {}
 
-  ConstructedGraphBase(std::unique_ptr<WT> &&edge_data_, VT number_of_vertices_, ET number_of_edges_):
-    edge_data(edge_data_),
-    number_of_vertices(number_of_vertices_),
-    number_of_edges(number_of_edges_)
+  GraphBase(cugraph_vector<WT> &&edge_data, VT number_of_vertices, ET number_of_edges):
+    edge_data_(edge_data),
+    number_of_vertices_(number_of_vertices),
+    number_of_edges_(number_of_edges)
   {}
+
+  WT* edge_data(void) { return edge_data_.data(); }
 };
 
 /**
@@ -249,15 +279,16 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class ConstructedGraphCOO: public ConstructedGraphBase<VT, ET, WT> {
+class GraphCOO: public GraphBase<VT, ET, WT> {
+  cugraph_vector<VT> src_indices_{};   ///< rowInd
+  cugraph_vector<VT> dst_indices_{};   ///< colInd
+
 public:
-  std::unique_ptr<VT> src_indices{};   ///< rowInd
-  std::unique_ptr<VT> dst_indices{};   ///< colInd
 
   /**
    * @brief      Default constructor
    */
-  ConstructedGraphCOO(): ConstructedGraphBase<VT,ET,WT>() {}
+  GraphCOO(): GraphBase<VT,ET,WT>() {}
   
   /**
    * @brief      Take ownership of the provided graph arrays in COO format
@@ -271,14 +302,17 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  ConstructedGraphCOO(std::unique_ptr<VT> &&src_indices_,
-                      std::unique_ptr<VT> &&dst_indices_,
-                      std::unique_ptr<VT> &&edge_data_,
-                      VT number_of_vertices_,
-                      ET number_of_edges_):
-    ConstructedGraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
-    src_indices(src_indices_), dst_indices(dst_indices_)
+  GraphCOO(cugraph_vector<VT> &&src_indices,
+           cugraph_vector<VT> &&dst_indices,
+           cugraph_vector<WT> &&edge_data,
+           VT number_of_vertices,
+           ET number_of_edges):
+    GraphBase<VT,ET,WT>(edge_data, number_of_vertices, number_of_edges),
+    src_indices_(src_indices), dst_indices_(dst_indices)
   {}
+
+  VT* src_indices(void) { return src_indices_.data(); }
+  VT* dst_indices(void) { return dst_indices_.data(); }
 };
 
 /**
@@ -289,10 +323,10 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class ConstructedGraphCompressedSparseBase: public ConstructedGraphBase<VT,ET,WT> {
+class GraphCompressedSparseBase: public GraphBase<VT,ET,WT> {
 public:
-  std::unique_ptr<VT> offsets{};   ///< CSR offsets
-  std::unique_ptr<VT> indices{};   ///< CSR indices
+  cugraph_vector<VT> offsets_{};   ///< CSR offsets
+  cugraph_vector<VT> indices_{};   ///< CSR indices
 
   /**
    * @brief      Take ownership of the provided graph arrays in CSR/CSC format
@@ -306,15 +340,18 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  ConstructedGraphCompressedSparseBase(std::unique_ptr<ET> &&offsets_,
-                                       std::unique_ptr<VT> &&indices_,
-                                       std::unique_ptr<WT> &&edge_data_,
-                                       VT number_of_vertices_,
-                                       ET number_of_edges_):
-    ConstructedGraphBase<VT,ET,WT>{edge_data_, number_of_vertices_, number_of_edges_},
-    offsets{offsets_},
-    indices{indices_}
+  GraphCompressedSparseBase(cugraph_vector<ET> &&offsets,
+                            cugraph_vector<VT> &&indices,
+                            cugraph_vector<WT> &&edge_data,
+                            VT number_of_vertices,
+                            ET number_of_edges):
+    GraphBase<VT,ET,WT>{edge_data, number_of_vertices, number_of_edges},
+    offsets_{offsets},
+    indices_{indices}
   {}
+
+  ET* offsets(void) { return offsets_.data(); }
+  VT* indices(void) { return indices_.data(); }
 };
 
 /**
@@ -325,12 +362,12 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class ConstructedGraphCSR: public ConstructedGraphCompressedSparseBase<VT,ET,WT> {
+class GraphCSR: public GraphCompressedSparseBase<VT,ET,WT> {
 public:
   /**
    * @brief      Default constructor
    */
-  ConstructedGraphCSR(): ConstructedGraphCompressedSparseBase<VT,ET,WT>() {}
+  GraphCSR(): GraphCompressedSparseBase<VT,ET,WT>() {}
   
   /**
    * @brief      Take ownership of the provided graph arrays in CSR format
@@ -344,12 +381,12 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  ConstructedGraphCSR(std::unique_ptr<ET> &&offsets_,
-                      std::unique_ptr<VT> &&indices_,
-                      std::unique_ptr<WT> &&edge_data_,
-                      VT number_of_vertices_,
-                      ET number_of_edges_):
-    ConstructedGraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+  GraphCSR(cugraph_vector<ET> &&offsets_,
+           cugraph_vector<VT> &&indices_,
+           cugraph_vector<WT> &&edge_data_,
+           VT number_of_vertices_,
+           ET number_of_edges_):
+    GraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
 };
 
@@ -361,12 +398,12 @@ public:
  * @tparam WT   Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class ConstructedGraphCSC: public ConstructedGraphCompressedSparseBase<VT,ET,WT> {
+class GraphCSC: public GraphCompressedSparseBase<VT,ET,WT> {
 public:
   /**
    * @brief      Default constructor
    */
-  ConstructedGraphCSC(): ConstructedGraphCompressedSparseBase<VT,ET,WT>() {}
+  GraphCSC(): GraphCompressedSparseBase<VT,ET,WT>() {}
   
   /**
    * @brief      Take ownership of the provided graph arrays in CSR format
@@ -380,12 +417,12 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  ConstructedGraphCSC(std::unique_ptr<ET> &&offsets_,
-                      std::unique_ptr<VT> &&indices_,
-                      std::unique_ptr<WT> &&edge_data_,
-                      VT number_of_vertices_,
-                      ET number_of_edges_):
-    ConstructedGraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+  GraphCSC(cugraph_vector<ET> &&offsets_,
+           cugraph_vector<VT> &&indices_,
+           cugraph_vector<WT> &&edge_data_,
+           VT number_of_vertices_,
+           ET number_of_edges_):
+    GraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
 };
 
