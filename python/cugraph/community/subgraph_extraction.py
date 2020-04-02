@@ -12,8 +12,7 @@
 # limitations under the License.
 
 from cugraph.community import subgraph_extraction_wrapper
-from cugraph.structure.graph import null_check, DiGraph
-
+from cugraph.structure.graph import null_check
 
 def subgraph(G, vertices):
     """

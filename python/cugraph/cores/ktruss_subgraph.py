@@ -15,7 +15,7 @@ from cugraph.cores import ktruss_subgraph_wrapper
 from cugraph.structure.graph import DiGraph
 
 
-def ktruss_subgraph(G, k):
+def ktruss_subgraph(G, k, use_weights=True):
     """
     Returns the subgraph of the k-truss of a graph for a specific k.
 
@@ -71,12 +71,12 @@ def ktruss_subgraph(G, k):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edge_list(M, source='0', destination='1')
-    >>> k_subgraph = cugraph.ktruss_subgraph(G)
+    >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
     """
 
     KTrussSubgraph = type(G)()
 
-    ktruss_subgraph_wrapper.ktruss_subgraph(G, k,
+    ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights,
                                             KTrussSubgraph)
 
     return KTrussSubgraph

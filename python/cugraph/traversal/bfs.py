@@ -12,7 +12,8 @@
 # limitations under the License.
 
 from cugraph.traversal import bfs_wrapper
-from cugraph.structure.graph import *
+from cugraph.structure.graph import Graph
+
 
 def bfs(G, start):
     """

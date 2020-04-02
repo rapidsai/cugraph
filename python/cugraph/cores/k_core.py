@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.cores import k_core_wrapper, core_number_wrapper
-from cugraph.structure.graph import DiGraph
 
 
 def k_core(G,
