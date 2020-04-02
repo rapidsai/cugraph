@@ -42,6 +42,8 @@ class cugraph_vector {
 
   T* data(void) { return static_cast<T*>(data_.data()); }
 
+  const T* data(void) const { return static_cast<const T*>(data_.data()); }
+
   size_t size(void) { return sz_; }
 };
 
