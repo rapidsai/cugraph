@@ -67,7 +67,7 @@ def compare_k_truss(graph_file, k, ground_truth_file, directed=True):
     dst = edgelist_df['dst']
     wgt = edgelist_df['weights']
     if not directed:
-        assert len(edgelist_df) == k_truss_nx.size()
+        assert len(edgelist_df) == len(k_truss_nx)
     for i in range(len(src)):
         has_edge = ((k_truss_nx['source'] == src[i]) &
                     (k_truss_nx['target'] == dst[i]) &
