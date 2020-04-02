@@ -515,8 +515,13 @@ namespace bfs_kernels {
     dim3 grid, block;
     block.x = MAIN_BOTTOMUP_DIMX;
 
-    grid.x = min((IndexType) MAXBLOCKS, ((unvisited_size + block.x - 1)) / block.x);
-
+    grid.x = min((IndexType) MAXBLOCKS,
+                 ((unvisited_size + block.x - 1)) / block.x);
+    //FIXME: If unvisited_size == 0, then this can ben equal to 0 and raises a
+    // cudaErrorInvalidConfiguration, the following is a quick workaround
+    if (grid.x == 0)  {
+      grid.x = 1;
+    }
     main_bottomup_kernel<<<grid, block, 0, m_stream>>>(unvisited,
                                                        unvisited_size,
                                                        left_unvisited,

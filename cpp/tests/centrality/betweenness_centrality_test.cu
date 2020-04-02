@@ -18,6 +18,8 @@
 #include "gmock/gmock.h"
 
 #include <thrust/device_vector.h>
+#include "test_utils.h"
+#include <utility>
 
 #include <graph.hpp>
 #include <algorithms.hpp>
@@ -54,4 +56,13 @@ TEST_F(BetweennessCentralityTest, SimpleGraph)
 
   for (int i = 0 ; i < num_verts ; ++i)
     EXPECT_FLOAT_EQ(result[i], expected[i]);
+}
+
+int main( int argc, char** argv )
+{
+    rmmInitialize(nullptr);
+    testing::InitGoogleTest(&argc,argv);
+    int rc = RUN_ALL_TESTS();
+    rmmFinalize();
+    return rc;
 }

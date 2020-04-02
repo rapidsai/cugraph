@@ -51,7 +51,7 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness, bool _normalize
     number_of_sample_seeds =  _number_of_sample_seeds;
 
     // --- Working data allocation ---
-    ALLOC_TRY(&distances, number_vertices * sizeof(WT), nullptr);
+    ALLOC_TRY(&distances, number_vertices * sizeof(VT), nullptr);
     ALLOC_TRY(&predecessors, number_vertices * sizeof(VT), nullptr);
     ALLOC_TRY(&nodes, number_vertices * sizeof(VT), nullptr);
     ALLOC_TRY(&sp_counters, number_vertices * sizeof(int), nullptr);
@@ -142,8 +142,16 @@ void BC<VT, ET, WT, result_t>::compute() {
 
     for (int source_vertex = 0; source_vertex < number_vertices;
          ++source_vertex) {
+        // Step 0) Reseat distancses and predecessor?
+        thrust::fill(rmm::exec_policy(stream)->on(stream), distances,
+                     distances + number_vertices, static_cast<VT>(0));
+        thrust::fill(rmm::exec_policy(stream)->on(stream), predecessors,
+                     predecessors + number_vertices, static_cast<VT>(-1));
         // Step 1) Singe-source shortest-path problem
-        cugraph::sssp(graph, distances, predecessors, source_vertex);
+        cugraph::bfs(graph, distances, predecessors, source_vertex,
+                     graph.prop.directed);
+        //cugraph::sssp(graph, distances, predecessors, source_vertex);
+
 
         // Step 2) Accumulation
         accumulate(betweenness, nodes, predecessors, sp_counters, deltas, source_vertex);

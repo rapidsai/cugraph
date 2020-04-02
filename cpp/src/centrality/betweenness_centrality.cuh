@@ -44,7 +44,7 @@ class BC {
       result_t *betweenness = nullptr;
 
       // --- Data required to perform computation ----
-      WT *distances = nullptr;      // array<WT>(|V|) stores the distances gathered by the latest SSSP
+      VT *distances = nullptr;      // array<VT>(|V|) stores the distances gathered by the latest SSSP
       VT *predecessors = nullptr;   // array<WT>(|V|) stores the predecessors of the latest SSSP
       VT *nodes = nullptr;          // array<WT>(|V|) stores the nodes based on their distances in the latest SSSP
       VT *sp_counters = nullptr;    // array<VT>(|V|) stores the shortest path counter for the latest SSSP
