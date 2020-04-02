@@ -34,14 +34,19 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def calc_k_cores(graph_file):
+def calc_k_cores(graph_file, directed=True):
     cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph()
+    NM = utils.read_csv_for_nx(graph_file)
+    if directed:
+        G = cugraph.DiGraph()
+        Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
+                                      create_using=nx.DiGraph())
+    else:
+        G = cugraph.Graph()
+        Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
+                                      create_using=nx.Graph())
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
     ck = cugraph.k_core(G)
-    NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
-                                  create_using=nx.DiGraph())
     nk = nx.k_core(Gnx)
     return ck, nk
 
@@ -63,7 +68,7 @@ DATASETS = ['../datasets/dolphins.csv',
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_core_number(managed, pool, graph_file):
+def test_core_number_DiGraph(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
@@ -74,5 +79,23 @@ def test_core_number(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     cu_kcore, nx_kcore = calc_k_cores(graph_file)
+
+    assert compare_edges(cu_kcore, nx_kcore)
+
+
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_core_number_Graph(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 
     assert compare_edges(cu_kcore, nx_kcore)
