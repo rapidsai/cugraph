@@ -267,6 +267,9 @@ public:
   {}
 
   WT* edge_data(void) { return edge_data_.data(); }
+
+  VT number_of_vertices(void) { return number_of_vertices_; }
+  ET number_of_edges(void) { return number_of_edges_; }
 };
 
 /**
