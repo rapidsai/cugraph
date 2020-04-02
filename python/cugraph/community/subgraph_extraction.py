@@ -52,7 +52,7 @@ def subgraph(G, vertices):
 
     null_check(vertices)
 
-    result_graph = DiGraph()
+    result_graph = type(G)()
 
     subgraph_extraction_wrapper.subgraph(
         G,

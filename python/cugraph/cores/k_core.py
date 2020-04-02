@@ -61,7 +61,7 @@ def k_core(G,
     >>> KCoreGraph = cugraph.k_core(G)
     """
 
-    KCoreGraph = DiGraph()
+    KCoreGraph = type(G)()
     if core_number is None:
         core_number = core_number_wrapper.core_number(G)
         core_number = core_number.rename(columns={"core_number": "values"})
