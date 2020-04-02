@@ -155,8 +155,14 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
 
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  edge_attr='weight', create_using=nx.Graph())
+    #Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+    #                              edge_attr='weight', create_using=nx.Graph())
+
+    Gnx = nx.OrderedGraph()
+    for i in range(len(M)):
+            Gnx.add_node(M['0'][i])
+    for i in range(len(M)):
+        Gnx.add_edge(M['0'][i], M['1'][i], weight=M['weight'][i])
 
     print(Gnx.nodes())
     # Init nodes at same positions

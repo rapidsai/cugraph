@@ -43,8 +43,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
-               const weight_t *v, const vertex_t n,
+void exact_fa2(const edge_t *row, const vertex_t *col,
+               const weight_t *v, const edge_t e, const vertex_t n,
                float *x_pos, float *y_pos, const int max_iter=1000,
                float *x_start=nullptr, float *y_start=nullptr,
                bool outbound_attraction_distribution=false,
@@ -91,31 +91,35 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
 
     float speed = 1.0;
     float speed_efficiency = 1.0;
-    init_mass<vertex_t, edge_t><<<ceil(NTHREADS / n), NTHREADS>>>(csrPtr,
-            csrInd, d_mass, n);
+    init_mass<vertex_t, edge_t><<<ceil(NTHREADS / n), NTHREADS>>>(row,
+            col, d_mass, e);
     float outbound_att_compensation = 1.0;
     if (outbound_attraction_distribution) {
         int sum = thrust::reduce(mass.begin(), mass.end());
         outbound_att_compensation = sum / (float)n;
     }
+    //printf("coef: %f\n", outbound_att_compensation);
 
     for (int iter=0; iter < max_iter; ++iter) {
         copy(n, d_dx, d_old_dx);
         copy(n, d_dy, d_old_dy);
         fill(n, d_dx, 0.f);
         fill(n, d_dy, 0.f);
-        
+
+        /*
         apply_repulsion<vertex_t>(x_pos,
                 y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
 
         apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
                 strong_gravity_mode, scaling_ratio, n);
-        
-        apply_attraction<vertex_t, edge_t, weight_t>(csrPtr,
-                csrInd, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
+        */
+
+        apply_attraction<vertex_t, edge_t, weight_t>(row,
+                col, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_att_compensation);
 
+        /*
         local_speed_kernel<<<ceil(NTHREADS / n), NTHREADS>>>(d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
 
@@ -133,6 +137,7 @@ void exact_fa2(const edge_t *csrPtr, const vertex_t *csrInd,
                 x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, speed, n);
        printf("speed at iteration %i: %f\n", iter, speed);
+       */
     }
 }
 

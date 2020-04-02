@@ -41,7 +41,7 @@
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-void force_atlas2(experimental::GraphCSR<VT, ET, WT> const &graph,
+void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
                   float *x_pos, float *y_pos, const int max_iter,
                   float *x_start,
                   float *y_start, bool outbound_attraction_distribution,
@@ -56,20 +56,21 @@ void force_atlas2(experimental::GraphCSR<VT, ET, WT> const &graph,
     CUGRAPH_EXPECTS( y_pos != nullptr ,
             "Invid API parameter: Y_pos array should be of size V" );
 
-    const VT *csrPtr = graph.offsets;
-    const ET *csrInd = graph.indices;
+    const VT *row = graph.src_indices;
+    const VT *col = graph.dst_indices;
     const WT *v = graph.edge_data;
+    const ET e = graph.number_of_edges;
     const VT n = graph.number_of_vertices;
 
     if (barnes_hut_optimize) {
-        cugraph::detail::barnes_hut<VT, ET, WT>(csrPtr, csrInd, v, n,
+        cugraph::detail::barnes_hut<VT, ET, WT>(row, col, v, e, n,
                 x_pos, y_pos, max_iter, x_start,
                 y_start, outbound_attraction_distribution,
                 lin_log_mode, prevent_overlapping, edge_weight_influence,
                 jitter_tolerance,barnes_hut_theta, scaling_ratio,
                 strong_gravity_mode, gravity);
     } else {
-        cugraph::detail::exact_fa2<VT, ET, WT>(csrPtr, csrInd, v, n,
+        cugraph::detail::exact_fa2<VT, ET, WT>(row, col, v, e, n,
                 x_pos, y_pos, max_iter, x_start,
                 y_start, outbound_attraction_distribution,
                 lin_log_mode, prevent_overlapping, edge_weight_influence,
@@ -79,7 +80,7 @@ void force_atlas2(experimental::GraphCSR<VT, ET, WT> const &graph,
 }
 
 template void force_atlas2<int, int, float>(
-        experimental::GraphCSR<int, int, float> const &graph,
+        experimental::GraphCOO<int, int, float> const &graph,
         float *x_pos, float *y_pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,
@@ -90,7 +91,7 @@ template void force_atlas2<int, int, float>(
         const float gravity);
 
 template void cugraph::detail::barnes_hut<int, int, float>(
-        const int *csrPtr, const int *csrInd, const float *v, const int n,
+        const int *row, const int *col, const float *v, const int e, const int n,
         float *x_pos, float *y_pos, int max_iter,
         float *x_start, float * y_start,
         bool outbount_attraction_distribution,
@@ -101,7 +102,7 @@ template void cugraph::detail::barnes_hut<int, int, float>(
 		const float gravity);
 
 template void cugraph::detail::exact_fa2<int, int, float>(
-        const int *csrPtr, const int *csrInd, const float *v, const int n,
+        const int *row, const int *col, const float *v, const int e, const int n,
         float *x_pos, float *y_pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,

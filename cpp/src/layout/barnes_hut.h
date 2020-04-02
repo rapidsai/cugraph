@@ -22,8 +22,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void barnes_hut(const edge_t *csrPtr, const vertex_t *csrInd,
-        const weight_t *v, const vertex_t n, float *x_pos,
+void barnes_hut(const vertex_t *row, const vertex_t *col,
+        const weight_t *v, const edge_t e, const vertex_t n, float *x_pos,
         float *y_pos, const int max_iter, float *x_start,
         float *y_start,
         bool outbount_attraction_distribution, bool lin_log_mode,

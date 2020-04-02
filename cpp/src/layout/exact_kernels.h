@@ -24,40 +24,38 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t>
-__global__ void init_mass(const edge_t *csrPtr, const vertex_t *csrInd,
-        int *d_mass, const vertex_t n) {
-    vertex_t row;
-    edge_t start, end, degree;
-    for (row = threadIdx.x + blockIdx.x * blockDim.x;
-            row < n;
-            row += gridDim.x * blockDim.x) {
-        start = csrPtr[row];
-        end = csrPtr[row + 1];
-        degree = end - start;
-        // FA2's model is based on mass being deg(n) + 1.
-        d_mass[row] = degree + 1;
-    } 
+__global__ void init_mass(const vertex_t *row, const vertex_t *col,
+        int *d_mass, const edge_t e) {
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-__global__ void attraction_kernel(const edge_t *csrPtr, const vertex_t *csrInd,
+__global__ void attraction_kernel(const edge_t *row, const vertex_t *col,
         const weight_t *v, const vertex_t n, float *x_pos,
         float *y_pos, float *d_dx, float *d_dy, int *d_mass,
         bool outbound_attraction_distribution,
         const float edge_weight_influence, const float coef) {
 
-    vertex_t row, col, j;
+    /*
+    vertex_t i, col, j;
     edge_t start, end;
     weight_t weight;
-    for (row = threadIdx.x + blockIdx.x * blockDim.x;
-            row < n;
-            row += gridDim.x * blockDim.x) {
-        start = csrPtr[row];
-        end = csrPtr[row + 1];
+    for (i = threadIdx.x + blockIdx.x * blockDim.x;
+            i < n;
+            i += gridDim.x * blockDim.x) {
+        start = i[i];
+        end = i[i + 1];
         for (j = start;
                 j < end;
                 ++j) {
-            col = csrInd[j];
+
+            col = col[j];
+
+
+            if (col > i) {
+                return;
+            }
+            //printf("i: %i, j: %i, mass: %i\n", i, col, d_mass[i]);
+
             if (v != nullptr)
                 weight = v[j];
 
@@ -66,33 +64,38 @@ __global__ void attraction_kernel(const edge_t *csrPtr, const vertex_t *csrInd,
             else
                 weight = pow(weight, edge_weight_influence);
 
-            float x_dist = x_pos[row] - x_pos[col];
-            float y_dist = y_pos[row] - y_pos[col];
+            float x_dist = x_pos[i] - x_pos[col];
+            float y_dist = y_pos[i] - y_pos[col];
             float factor = 0;
 
             if (outbound_attraction_distribution)
-                factor = -(coef * weight);
+                factor = -coef * weight / d_mass[col]; 
             else
-                factor = -(coef * weight) / d_mass[row]; 
+                factor = -coef * weight;
 
-            d_dx[row] += x_dist * factor;
-            d_dy[row] += y_dist * factor;
-            //d_dx[col] += -(x_dist * factor);
-            //d_dy[col] += -(y_dist * factor);
+           printf("(%f, %f), (%f, %f), mass1: %i, factor: %f\n",
+                    x_pos[i], y_pos[i], x_pos[col], y_pos[col], d_mass[i], factor);
+           atomicAdd(&d_dx[i], x_dist * factor);
+            atomicAdd(&d_dy[i], y_dist * factor);
+            atomicAdd(&d_dx[col], -x_dist * factor);
+            atomicAdd(&d_dy[col], -y_dist * factor);
         }
+           //printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
+           //         i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
     }
+    */
 }
 
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void apply_attraction(const edge_t *csrPtr, const vertex_t *csrInd,
+void apply_attraction(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const vertex_t n, float *x_pos,
         float *y_pos, float *d_dx, float *d_dy, int *d_mass,
         bool outbound_attraction_distribution,
         const float edge_weight_influence, const float coef) {
     attraction_kernel<vertex_t, edge_t, weight_t><<<ceil(NTHREADS / n), NTHREADS>>>(
-            csrPtr,
-            csrInd, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
+            row,
+            col, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
             outbound_attraction_distribution,
             edge_weight_influence, coef);
 }
@@ -107,11 +110,15 @@ linear_gravity_kernel(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
         float x_dist = x_pos[i];
         float y_dist = y_pos[i];
         float distance = sqrt(x_dist * x_dist + y_dist * y_dist);
-        distance = FLT_EPSILON;
-        float factor = (d_mass[i] * gravity) / distance;
+        distance += FLT_EPSILON;
+        float factor = d_mass[i] * gravity / distance;
         d_dx[i] -= x_dist * factor;
         d_dy[i] -= y_dist * factor;
+
+    //    printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
+    //        i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
     }
+
 }
 
 template <typename vertex_t>
@@ -126,8 +133,8 @@ strong_gravity_kernel(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
         float y_dist = y_pos[i];
 
         float factor = scaling_ratio * d_mass[i] * gravity;
-        d_dx[i] += -(x_dist * factor);
-        d_dy[i] += -(y_dist * factor);
+        d_dx[i] -= x_dist * factor;
+        d_dy[i] -= y_dist * factor;
     }
 }
 
@@ -158,16 +165,18 @@ repulsion_kernel(float *x_pos, float *y_pos,
     float fx = 0.0f; float fy = 0.0f;
 
     for (int j = 0; j < n; ++j) {
-        float x_dist = x_pos[j] - x_pos[i];
-        float y_dist = y_pos[j] - y_pos[i];
+        float x_dist = x_pos[i] - x_pos[j];
+        float y_dist = y_pos[i] - y_pos[j];
         float distance = x_dist * x_dist + y_dist * y_dist;
         distance += FLT_EPSILON;
-        float factor = (scaling_ratio * d_mass[i] * d_mass[j]) / distance;
+        float factor = scaling_ratio * d_mass[i] * d_mass[j] / distance;
         fx += x_dist * factor;
         fy += y_dist * factor;
     }
     d_dx[i] += fx;
     d_dy[i] += fy;
+    //printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
+    //        i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
 }
 
 template <typename vertex_t>

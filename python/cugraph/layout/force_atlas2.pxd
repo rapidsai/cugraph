@@ -22,7 +22,7 @@ from libcpp cimport bool
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void force_atlas2[VT, ET, WT](
-        const GraphCSR[VT, ET, WT] &graph,
+        const GraphCOO[VT, ET, WT] &graph,
         float *x_pos,
         float *y_pos,
         const int max_iter,
