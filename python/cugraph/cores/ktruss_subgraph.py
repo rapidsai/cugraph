@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.cores import ktruss_subgraph_wrapper
-from cugraph.structure.graph import DiGraph
 
 
 def ktruss_subgraph(G, k, use_weights=True):
