@@ -215,7 +215,7 @@ namespace cugraph {
         }
         else {
           // Making a sequence of values from zero to n where n is the highest ID present in the index.
-          idx_t highestId = theIndex.getOffsets()->size - 2;
+          idx_t highestId = theIndex.getOffsetsSize() - 2;
           ALLOC_TRY(&frontier_ptr, sizeof(idx_t) * (highestId + 1), nullptr);
           thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr),
                            frontier_ptr,
@@ -225,11 +225,11 @@ namespace cugraph {
       }
 
       // Collect all the pointers needed to run the main kernel
-      idx_t* columnA = (idx_t*)table.getColumn(0)->data;
-      idx_t* columnB = (idx_t*)table.getColumn(1)->data;
-      idx_t* columnC = (idx_t*)table.getColumn(2)->data;
-      idx_t* offsets = (idx_t*)theIndex.getOffsets()->data;
-      idx_t* indirection = (idx_t*)theIndex.getIndirection()->data;
+      idx_t* columnA = table.getColumn(0);
+      idx_t* columnB = table.getColumn(1);
+      idx_t* columnC = table.getColumn(2);
+      idx_t* offsets = theIndex.getOffsets();
+      idx_t* indirection = theIndex.getIndirection();
 
       // Load balance the input
       idx_t *exsum_degree = nullptr;

@@ -53,10 +53,10 @@ public:
 };
 
 TEST_F(Test_FindMatches, verifyIndices) {
-  int32_t* offsets_d = reinterpret_cast<int32_t*>(table.getIndex(0).getOffsets()->data);
-  int32_t offsetsSize = table.getIndex(0).getOffsets()->size;
-  int32_t* indirection_d = reinterpret_cast<int32_t*>(table.getIndex(0).getIndirection()->data);
-  int32_t indirectionSize = table.getIndex(0).getIndirection()->size;
+  int32_t* offsets_d = reinterpret_cast<int32_t*>(table.getIndex(0).getOffsets());
+  int32_t offsetsSize = table.getIndex(0).getOffsetsSize();
+  int32_t* indirection_d = reinterpret_cast<int32_t*>(table.getIndex(0).getIndirection());
+  int32_t indirectionSize = table.getIndex(0).getIndirectionSize();
   int32_t* offsets_h = new int32_t[offsetsSize];
   int32_t* indirection_h = new int32_t[indirectionSize];
   cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
@@ -72,10 +72,10 @@ TEST_F(Test_FindMatches, verifyIndices) {
   delete[] offsets_h;
   delete[] indirection_h;
 
-  offsets_d = reinterpret_cast<int32_t*>(table.getIndex(1).getOffsets()->data);
-  offsetsSize = table.getIndex(1).getOffsets()->size;
-  indirection_d = reinterpret_cast<int32_t*>(table.getIndex(1).getIndirection()->data);
-  indirectionSize = table.getIndex(1).getIndirection()->size;
+  offsets_d = reinterpret_cast<int32_t*>(table.getIndex(1).getOffsets());
+  offsetsSize = table.getIndex(1).getOffsetsSize();
+  indirection_d = reinterpret_cast<int32_t*>(table.getIndex(1).getIndirection());
+  indirectionSize = table.getIndex(1).getIndirectionSize();
   offsets_h = new int32_t[offsetsSize];
   indirection_h = new int32_t[indirectionSize];
   cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
@@ -91,10 +91,10 @@ TEST_F(Test_FindMatches, verifyIndices) {
   delete[] offsets_h;
   delete[] indirection_h;
 
-  offsets_d = reinterpret_cast<int32_t*>(table.getIndex(2).getOffsets()->data);
-  offsetsSize = table.getIndex(2).getOffsets()->size;
-  indirection_d = reinterpret_cast<int32_t*>(table.getIndex(2).getIndirection()->data);
-  indirectionSize = table.getIndex(2).getIndirection()->size;
+  offsets_d = reinterpret_cast<int32_t*>(table.getIndex(2).getOffsets());
+  offsetsSize = table.getIndex(2).getOffsetsSize();
+  indirection_d = reinterpret_cast<int32_t*>(table.getIndex(2).getIndirection());
+  indirectionSize = table.getIndex(2).getIndirectionSize();
   offsets_h = new int32_t[offsetsSize];
   indirection_h = new int32_t[indirectionSize];
   cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
@@ -132,7 +132,7 @@ TEST_F(Test_FindMatches, firstTest){
   delete[] resultB;
 }
 
-/*
+
 TEST_F(Test_FindMatches, secondTest) {
   insertConstantEntry(0, 1, 1);
   insertConstantEntry(2, 0, 1);
@@ -164,7 +164,7 @@ TEST_F(Test_FindMatches, secondTest) {
   delete[] resultA;
   delete[] resultB;
 }
-*/
+
 TEST_F(Test_FindMatches, thirdTest) {
   insertConstantEntry(1, 1, 2);
   insertConstantEntry(2, 1, 2);
@@ -229,7 +229,7 @@ TEST_F(Test_FindMatches, fourthTest) {
   delete[] resultA;
   delete[] resultR;
 }
-/*
+
 TEST_F(Test_FindMatches, fifthTest) {
   insertConstantEntry(0, 1, 3);
   insertConstantEntry(0, 2, 1);
@@ -261,7 +261,7 @@ TEST_F(Test_FindMatches, fifthTest) {
   delete[] resultA;
   delete[] resultB;
 }
-*/
+
 int main( int argc, char** argv )
 {
     rmmInitialize(nullptr);

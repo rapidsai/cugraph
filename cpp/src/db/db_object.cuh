@@ -68,20 +68,25 @@ namespace db {
    */
   template <typename idx_t>
   class db_column_index {
-    gdf_column* offsets;
-    gdf_column* indirection;
+    idx_t* offsets;
+    idx_t* indirection;
+    idx_t offsets_size;
+    idx_t indirection_size;
+
     void deleteData();
   public:
     db_column_index();
-    db_column_index(gdf_column* offsets, gdf_column* indirection);
+    db_column_index(idx_t* offsets, idx_t offsets_size, idx_t* indirection, idx_t indirection_size);
     db_column_index(const db_column_index& other) = delete;
     db_column_index(db_column_index&& other);
     ~db_column_index();
     db_column_index& operator=(const db_column_index& other) = delete;
     db_column_index& operator=(db_column_index&& other);
-    void resetData(gdf_column* offsets, gdf_column* indirection);
-    gdf_column* getOffsets();
-    gdf_column* getIndirection();
+    void resetData(idx_t* offsets, idx_t offsets_size, idx_t* indirection, idx_t indirection_size);
+    idx_t* getOffsets();
+    idx_t getOffsetsSize();
+    idx_t* getIndirection();
+    idx_t getIndirectionSize();
   };
 
   /**
@@ -119,7 +124,8 @@ namespace db {
    */
   template <typename idx_t>
   class db_table {
-    std::vector<gdf_column*> columns;
+    std::vector<idx_t*> columns;
+    idx_t column_size;
     std::vector<std::string> names;
     std::vector<db_pattern<idx_t>> inputBuffer;
     std::vector<db_column_index<idx_t>> indices;
@@ -151,7 +157,8 @@ namespace db {
      */
     std::string toString();
     db_column_index<idx_t>& getIndex(int idx);
-    gdf_column* getColumn(int idx);
+    idx_t* getColumn(int idx);
+    idx_t getColumnSize();
   };
 
   /**
