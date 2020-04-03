@@ -21,61 +21,46 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-attraction_kernel(const edge_t *row, const vertex_t *col,
+attraction_kernel(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const vertex_t n, float *x_pos,
         float *y_pos, float *d_dx, float *d_dy, int *d_mass,
         bool outbound_attraction_distribution,
         const float edge_weight_influence, const float coef) {
-
-    /*
-    vertex_t i, col, j;
-    edge_t start, end;
+    vertex_t i, src, dst;
     weight_t weight;
     for (i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
             i += gridDim.x * blockDim.x) {
-        start = i[i];
-        end = i[i + 1];
-        for (j = start;
-                j < end;
-                ++j) {
+        src = row[i];
+        dst = col[i];
 
-            col = col[j];
+        if (src > dst)
+            return;
 
+        if (v != nullptr)
+            weight = v[i];
 
-            if (col > i) {
-                return;
-            }
-            //printf("i: %i, j: %i, mass: %i\n", i, col, d_mass[i]);
+        if (v == nullptr || edge_weight_influence == 0)
+            weight = 1;
+        else
+            weight = pow(weight, edge_weight_influence);
 
-            if (v != nullptr)
-                weight = v[j];
+        float x_dist = x_pos[src] - x_pos[dst];
+        float y_dist = y_pos[src] - y_pos[dst];
+        float factor = 0;
 
-            if (v == nullptr || edge_weight_influence == 0)
-                weight = 1;
-            else
-                weight = pow(weight, edge_weight_influence);
+        if (outbound_attraction_distribution)
+            factor = -coef * weight / d_mass[src]; 
+        else
+            factor = -coef * weight;
 
-            float x_dist = x_pos[i] - x_pos[col];
-            float y_dist = y_pos[i] - y_pos[col];
-            float factor = 0;
-
-            if (outbound_attraction_distribution)
-                factor = -coef * weight / d_mass[col]; 
-            else
-                factor = -coef * weight;
-
-           printf("(%f, %f), (%f, %f), mass1: %i, factor: %f\n",
-                    x_pos[i], y_pos[i], x_pos[col], y_pos[col], d_mass[i], factor);
-           atomicAdd(&d_dx[i], x_dist * factor);
-            atomicAdd(&d_dy[i], y_dist * factor);
-            atomicAdd(&d_dx[col], -x_dist * factor);
-            atomicAdd(&d_dy[col], -y_dist * factor);
-        }
-           //printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
-           //         i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
+        atomicAdd(&d_dx[src], x_dist * factor);
+        atomicAdd(&d_dy[src], y_dist * factor);
+        atomicAdd(&d_dx[dst], -x_dist * factor);
+        atomicAdd(&d_dy[dst], -y_dist * factor);
+        printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
+                i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
     }
-    */
 }
 
 

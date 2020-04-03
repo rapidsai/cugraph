@@ -98,6 +98,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
 
+    //TODO: add weights
     ALLOC_TRY((void**)&srcs, sizeof(vertex_t) * tmp_e, stream);
     ALLOC_TRY((void**)&dests, sizeof(vertex_t) * tmp_e, stream);
     CUDA_TRY(cudaMemcpy(srcs, row, sizeof(vertex_t) * tmp_e, cudaMemcpyDefault));
@@ -146,20 +147,20 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         fill(n, d_dx, 0.f);
         fill(n, d_dy, 0.f);
 
+        /*
         apply_repulsion<vertex_t>(x_pos,
                 y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
 
-        /*
         apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
                 strong_gravity_mode, scaling_ratio, n);
 
         */
-        /*
-        apply_attraction<vertex_t, edge_t, weight_t>(row,
-                col, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
+        apply_attraction<vertex_t, edge_t, weight_t>(srcs,
+                dests, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_att_compensation);
 
+        /*
         nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
         nthreads.y = 1;
         nthreads.z = 1;
