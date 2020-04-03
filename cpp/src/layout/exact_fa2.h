@@ -132,9 +132,10 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         printf("degree %i: %i\n", i, m[i]);
     */
 
-    float speed = 1.0;
-    float speed_efficiency = 1.0;
-    float outbound_att_compensation = 1.0;
+    float speed = 1.f;
+    float speed_efficiency = 1.f;
+    float outbound_att_compensation = 1.f;
+    float jt = 0.f;
     if (outbound_attraction_distribution) {
         int sum = thrust::reduce(mass.begin(), mass.end());
         printf("sum: %i\n", sum);
@@ -147,6 +148,8 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         copy(n, d_dy, d_old_dy);
         fill(n, d_dx, 0.f);
         fill(n, d_dy, 0.f);
+        fill(1, d_swinging, 0.f);
+        fill(1, d_traction, 0.f);
 
         apply_repulsion<vertex_t>(x_pos,
                 y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
@@ -173,16 +176,14 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         thrust::copy(traction.begin(), traction.end(), h_traction.begin());
         float *s = thrust::raw_pointer_cast(h_swinging.data());
         float *t = thrust::raw_pointer_cast(h_traction.data());
-   //     printf("swinging: %f, traction: %f\n", *s, *t);
+       // printf("swinging: %f, traction: %f\n", *s, *t);
 
-        float jt = compute_jitter_tolerance<vertex_t>(jitter_tolerance,
-                speed_efficiency, s, t, n);
+       adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
+               s, t, n);
 
- //       printf("jt: %f\n", jt);
-
-        speed = compute_global_speed(speed, speed_efficiency, jt, s, t); 
-
-//        printf("speed at iteration %i: %f\n", iter, speed);
+       // printf("jt: %f\n", jt);
+       // printf("speed at iteration %i: %f, speed_efficiency: %f\n",
+       //         iter, speed, speed_efficiency);
         update_positions_kernel<vertex_t><<<nthreads, nblocks>>>(
                 x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, speed, n);

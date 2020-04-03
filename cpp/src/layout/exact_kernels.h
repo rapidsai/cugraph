@@ -220,44 +220,40 @@ local_speed_kernel(float *x_pos, float *y_pos, float *d_dx, float *d_dy, float *
 }
 
 template <typename vertex_t>
-int compute_jitter_tolerance(const float jitter_tolerance,
-        float speed_efficiency, float *d_swinging, float *d_traction,
+void adapt_speed(const float jitter_tolerance, float *jt,
+        float *speed,
+        float *speed_efficiency, float *d_swinging, float *d_traction,
         const vertex_t n) {
+
     float estimated_jt = 0.05 * sqrt(n);
     float min_jt = sqrt(estimated_jt);
     float max_jt = 10;
-    float jt = jitter_tolerance * \
-        max(min_jt, min(max_jt, estimated_jt * *d_traction / (n * n)));
-    float min_speed_efficiency = 0.05;
-    if (*d_swinging / *d_traction > 2.0) {
-        if (speed_efficiency > min_speed_efficiency) {
-            speed_efficiency *= 0.5;
-        }
-        jt = max(jt, jitter_tolerance);
-    }
-    return jt;
-}
-
-float compute_global_speed(float speed, float speed_efficiency,
-        const float jt, float *d_swinging, float *d_traction) {
-
     float target_speed;
     float min_speed_efficiency = 0.05;
+    const float max_rise = 0.5;
+
+    *jt = jitter_tolerance * \
+        max(min_jt, min(max_jt, estimated_jt * *d_traction / (n * n)));
+    if (*d_swinging / *d_traction > 2.0) {
+        if (*speed_efficiency > min_speed_efficiency) {
+            *speed_efficiency *= 0.5;
+        }
+        *jt = max(*jt, jitter_tolerance);
+    }
 
     if (*d_swinging == 0)
         target_speed = FLT_MAX;
     else
-        target_speed = (jt * speed_efficiency * *d_traction) / *d_swinging;
+        target_speed = (*jt * *speed_efficiency * *d_traction) / *d_swinging;
 
-    if (*d_swinging > jt * *d_traction) {
-        if (speed_efficiency > min_speed_efficiency)
-            speed_efficiency *= .7;
-        else if (speed < 1000)
-            speed_efficiency *= 1.3;
+    if (*d_swinging > *jt * *d_traction) {
+        if (*speed_efficiency > min_speed_efficiency)
+            *speed_efficiency *= .7;
     }
-    const float max_rise = 0.5;
-    speed = speed + min(target_speed - speed, max_rise * speed);
-    return speed;
+    else if (*speed < 1000)
+        *speed_efficiency *= 1.3;
+
+    *speed = *speed + min(target_speed - *speed, max_rise * *speed);
 }
 
 template <typename vertex_t>
