@@ -94,29 +94,10 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         copy(n, y_start, y_pos);
     }
 
-    cudaStream_t stream {nullptr};
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
-
-    //TODO: add weights
-    //TODO: sort position list according to source
-    ALLOC_TRY((void**)&srcs, sizeof(vertex_t) * tmp_e, stream);
-    ALLOC_TRY((void**)&dests, sizeof(vertex_t) * tmp_e, stream);
-    CUDA_TRY(cudaMemcpy(srcs, row, sizeof(vertex_t) * tmp_e, cudaMemcpyDefault));
-    CUDA_TRY(cudaMemcpy(dests, col, sizeof(vertex_t) * tmp_e, cudaMemcpyDefault));
-
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), dests, dests + tmp_e, srcs);
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), srcs, srcs + tmp_e, dests);
-
-    dim3 nthreads, nblocks;
-    nthreads.x = min(tmp_e, CUDA_MAX_KERNEL_THREADS);
-    nthreads.y = 1;
-    nthreads.z = 1;
-    nblocks.x = min((tmp_e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-    nblocks.y = 1;
-    nblocks.z = 1;
-
-    degree_coo<vertex_t, int><<<nthreads, nblocks>>>(n, tmp_e, dests, d_mass);
+    sort_coo<vertex_t, edge_t, weight_t>(row, col, &srcs, &dests, tmp_e);
+    init_mass<vertex_t, edge_t>(&dests, d_mass, tmp_e, n);
 
     /*
     printv(tmp_e, srcs, 0);
@@ -138,10 +119,18 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     float jt = 0.f;
     if (outbound_attraction_distribution) {
         int sum = thrust::reduce(mass.begin(), mass.end());
-        printf("sum: %i\n", sum);
         outbound_att_compensation = sum / (float)n;
     }
-    printf("coef: %f\n", outbound_att_compensation);
+    //printf("coef: %f\n", outbound_att_compensation);
+
+    dim3 nthreads, nblocks;
+    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+    nthreads.y = 1;
+    nthreads.z = 1;
+    nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+    nblocks.y = 1;
+    nblocks.z = 1;
+
 
     for (int iter=0; iter < max_iter; ++iter) {
         copy(n, d_dx, d_old_dx);
@@ -161,13 +150,6 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
                 dests, v, tmp_e, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_att_compensation);
-
-        nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
-        nthreads.y = 1;
-        nthreads.z = 1;
-        nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-        nblocks.y = 1;
-        nblocks.z = 1;
 
         local_speed_kernel<<<nthreads, nblocks>>>(x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
