@@ -173,19 +173,19 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         thrust::copy(traction.begin(), traction.end(), h_traction.begin());
         float *s = thrust::raw_pointer_cast(h_swinging.data());
         float *t = thrust::raw_pointer_cast(h_traction.data());
-        printf("swinging: %f, traction: %f\n", *s, *t);
+   //     printf("swinging: %f, traction: %f\n", *s, *t);
 
         float jt = compute_jitter_tolerance<vertex_t>(jitter_tolerance,
                 speed_efficiency, s, t, n);
 
-        printf("jt: %f\n", jt);
+ //       printf("jt: %f\n", jt);
 
         speed = compute_global_speed(speed, speed_efficiency, jt, s, t); 
 
-        printf("speed at iteration %i: %f\n", iter, speed);
+//        printf("speed at iteration %i: %f\n", iter, speed);
         update_positions_kernel<vertex_t><<<nthreads, nblocks>>>(
                 x_pos, y_pos, d_dx, d_dy,
-                d_old_dx, d_old_dy, speed, n);
+                d_old_dx, d_old_dy, d_mass, speed, n);
     }
 }
 

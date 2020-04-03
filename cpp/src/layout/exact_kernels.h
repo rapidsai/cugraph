@@ -264,14 +264,18 @@ template <typename vertex_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 update_positions_kernel(float *x_pos, float *y_pos,
         float *d_dx, float *d_dy, float * d_old_dx, float *d_old_dy,
-        const float speed, vertex_t n) {
+        int * d_mass, const float speed, vertex_t n) {
 
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
             i += gridDim.x * blockDim.x) {
         float tmp_x = d_old_dx[i] - d_dx[i];
         float tmp_y = d_old_dy[i] - d_dy[i];
-        float local_swinging = sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
+        float local_swinging = d_mass[i] * sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
+       //printf("tid: %i, node_swinging: (%f, %f) (%f, %f) %f\n",i,
+       //       x_pos[i], y_pos[i],  d_dx[i], d_dy[i], local_swinging);
+
+
         float factor = speed / (1.0 + sqrt(speed * local_swinging));
         x_pos[i] += d_dx[i] * factor;
         y_pos[i] += d_dy[i] * factor;
