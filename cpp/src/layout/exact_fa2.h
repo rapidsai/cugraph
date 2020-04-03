@@ -77,8 +77,8 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
 
     d_dx = dx.data().get();
     d_dy = dy.data().get();
-    d_old_dx = dx.data().get();
-    d_old_dy = dy.data().get();
+    d_old_dx = old_dx.data().get();
+    d_old_dy = old_dy.data().get();
     d_mass = mass.data().get();
     d_swinging = swinging.data().get();
     d_traction = traction.data().get();
@@ -99,6 +99,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     vertex_t* dests{nullptr};
 
     //TODO: add weights
+    //TODO: sort position list according to source
     ALLOC_TRY((void**)&srcs, sizeof(vertex_t) * tmp_e, stream);
     ALLOC_TRY((void**)&dests, sizeof(vertex_t) * tmp_e, stream);
     CUDA_TRY(cudaMemcpy(srcs, row, sizeof(vertex_t) * tmp_e, cudaMemcpyDefault));
@@ -147,20 +148,17 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         fill(n, d_dx, 0.f);
         fill(n, d_dy, 0.f);
 
-        /*
         apply_repulsion<vertex_t>(x_pos,
                 y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
 
         apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
                 strong_gravity_mode, scaling_ratio, n);
 
-        */
         apply_attraction<vertex_t, edge_t, weight_t>(srcs,
-                dests, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
+                dests, v, tmp_e, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_att_compensation);
 
-        /*
         nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
         nthreads.y = 1;
         nthreads.z = 1;
@@ -168,24 +166,26 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         nblocks.y = 1;
         nblocks.z = 1;
 
-        local_speed_kernel<<<nthreads, nblocks>>>(d_dx, d_dy,
+        local_speed_kernel<<<nthreads, nblocks>>>(x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
 
         thrust::copy(swinging.begin(), swinging.end(), h_swinging.begin());
         thrust::copy(traction.begin(), traction.end(), h_traction.begin());
         float *s = thrust::raw_pointer_cast(h_swinging.data());
         float *t = thrust::raw_pointer_cast(h_traction.data());
+        printf("swinging: %f, traction: %f\n", *s, *t);
 
         float jt = compute_jitter_tolerance<vertex_t>(jitter_tolerance,
                 speed_efficiency, s, t, n);
 
+        printf("jt: %f\n", jt);
+
         speed = compute_global_speed(speed, speed_efficiency, jt, s, t); 
 
+        printf("speed at iteration %i: %f\n", iter, speed);
         update_positions_kernel<vertex_t><<<nthreads, nblocks>>>(
                 x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, speed, n);
-       printf("speed at iteration %i: %f\n", iter, speed);
-       */
     }
 }
 

@@ -22,19 +22,19 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 attraction_kernel(const vertex_t *row, const vertex_t *col,
-        const weight_t *v, const vertex_t n, float *x_pos,
+        const weight_t *v, const edge_t e, float *x_pos,
         float *y_pos, float *d_dx, float *d_dy, int *d_mass,
         bool outbound_attraction_distribution,
         const float edge_weight_influence, const float coef) {
     vertex_t i, src, dst;
     weight_t weight;
     for (i = threadIdx.x + blockIdx.x * blockDim.x;
-            i < n;
+            i < e;
             i += gridDim.x * blockDim.x) {
         src = row[i];
         dst = col[i];
 
-        if (src > dst)
+        if (dst <= src)
             return;
 
         if (v != nullptr)
@@ -58,29 +58,31 @@ attraction_kernel(const vertex_t *row, const vertex_t *col,
         atomicAdd(&d_dy[src], y_dist * factor);
         atomicAdd(&d_dx[dst], -x_dist * factor);
         atomicAdd(&d_dy[dst], -y_dist * factor);
-        printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
-                i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
+
+       // printf("(%f, %f), (%f, %f)\n", x_pos[src], y_pos[src], x_pos[dst], y_pos[dst]);
+       // printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
+       //         i, x_pos[src], y_pos[src], d_dx[src], d_dy[src]);
     }
 }
 
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void apply_attraction(const vertex_t *row, const vertex_t *col,
-        const weight_t *v, const vertex_t n, float *x_pos,
+        const weight_t *v, const edge_t e, float *x_pos,
         float *y_pos, float *d_dx, float *d_dy, int *d_mass,
         bool outbound_attraction_distribution,
         const float edge_weight_influence, const float coef) {
     dim3 nthreads, nblocks;
-    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+    nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
     nthreads.y = 1;
     nthreads.z = 1;
-    nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+    nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
     nblocks.y = 1;
     nblocks.z = 1;
 
     attraction_kernel<vertex_t, edge_t, weight_t><<<nthreads, nblocks>>>(
             row,
-            col, v, n, x_pos, y_pos, d_dx, d_dy, d_mass,
+            col, v, e, x_pos, y_pos, d_dx, d_dy, d_mass,
             outbound_attraction_distribution,
             edge_weight_influence, coef);
 }
@@ -98,8 +100,8 @@ linear_gravity_kernel(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
         float distance = sqrt(x_dist * x_dist + y_dist * y_dist);
         distance += FLT_EPSILON;
         float factor = d_mass[i] * gravity / distance;
-        d_dx[i] -= x_dist * factor;
-        d_dy[i] -= y_dist * factor;
+        atomicAdd(&d_dx[i], -x_dist * factor);
+        atomicAdd(&d_dy[i], -y_dist * factor);
 
         //printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
         //    i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
@@ -169,8 +171,11 @@ repulsion_kernel(float *x_pos, float *y_pos,
         fx += x_dist * factor;
         fy += y_dist * factor;
     }
-    d_dx[i] += fx;
-    d_dy[i] += fy;
+    atomicAdd(&d_dx[i], fx);
+    atomicAdd(&d_dy[i], fy);
+
+    //d_dx[i] += fx;
+    //d_dy[i] += fy;
     //printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
     //        i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
 }
@@ -194,19 +199,23 @@ void apply_repulsion(float *x_pos, float *y_pos,
 
 template <typename vertex_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-local_speed_kernel(float *d_dx, float *d_dy, float *d_old_dx, float *d_old_dy,
+local_speed_kernel(float *x_pos, float *y_pos, float *d_dx, float *d_dy, float *d_old_dx, float *d_old_dy,
         int *d_mass, float *d_swinging, float *d_traction, vertex_t n) {
     // TODO: Use shared memory reduction
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
             i += gridDim.x * blockDim.x) {
-        float tmp_x = d_old_dx[i] - d_dx[i];
-        float tmp_y = d_old_dy[i] - d_dy[i];
-        float node_swinging = sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
+        //printf("a: %f, b: %f\n", d_dx[i], d_old_dx[i]);
+        float node_swinging = sqrt(pow(d_old_dx[i] - d_dx[i], 2) + pow(d_old_dy[i] - d_dy[i], 2));
+       //printf("tid: %i, node_swinging: (%f, %f) (%f, %f) %f\n",i,
+       //       x_pos[i], y_pos[i],  d_dx[i], d_dy[i], node_swinging);
+
         atomicAdd(d_swinging, d_mass[i] * node_swinging);
         atomicAdd(d_traction, 0.5 * d_mass[i] * \
         sqrt((d_old_dx[i] + d_dx[i]) * (d_old_dx[i] + d_dx[i]) + \
             (d_old_dy[i] + d_dy[i]) * (d_old_dy[i] + d_dy[i])));
+
+     //   printf("d_swinging: %f, d_traction: %f\n", *d_swinging, *d_traction);
     }
 }
 
