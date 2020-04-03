@@ -37,24 +37,27 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_buffer.hpp>
 
-#include "exact_kernels.h"
+#include "barnes_hut.h"
+#include "fa2_kernels.h"
+#include "exact_repulsion.h"
 
 namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void exact_fa2(const vertex_t *row, const vertex_t *col,
-               const weight_t *v, const edge_t e, const vertex_t n,
-               float *x_pos, float *y_pos, const int max_iter=1000,
-               float *x_start=nullptr, float *y_start=nullptr,
-               bool outbound_attraction_distribution=false,
-               bool lin_log_mode=false, bool prevent_overlapping=false,
-               const float edge_weight_influence=1.0,
-               const float jitter_tolerance=1.0,
-               const float scaling_ratio=2.0, bool strong_gravity_mode=false,
-               const float gravity=1.0) { 
+void fa2(const vertex_t *row, const vertex_t *col,
+        const weight_t *v, const edge_t e, const vertex_t n,
+        float *x_pos, float *y_pos, const int max_iter=1000,
+        float *x_start=nullptr, float *y_start=nullptr,
+        bool outbound_attraction_distribution=false,
+        bool lin_log_mode=false, bool prevent_overlapping=false,
+        const float edge_weight_influence=1.0,
+        const float jitter_tolerance=1.0, bool barnes_hut_optimize=0.5,
+        const float barnes_hut_theta=1.2,
+        const float scaling_ratio=2.0, bool strong_gravity_mode=false,
+        const float gravity=1.0) { 
     
-    // Temprary fix
+    // Temporary fix
     // For weighted graph number_of_edges returns half the vertices
     // but does not adapt the datastructure accordingly.
     const edge_t tmp_e = e * 2;
@@ -140,8 +143,12 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         fill(1, d_swinging, 0.f);
         fill(1, d_traction, 0.f);
 
-        apply_repulsion<vertex_t>(x_pos,
-                y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
+        if (barnes_hut_optimize) {
+           return;
+        } else {
+            apply_repulsion<vertex_t>(x_pos,
+                    y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
+        }
 
         apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
                 strong_gravity_mode, scaling_ratio, n);
