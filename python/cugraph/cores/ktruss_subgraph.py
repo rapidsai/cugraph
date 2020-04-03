@@ -58,6 +58,8 @@ def ktruss_subgraph(G, k, use_weights=True):
     k : int
         The desired k to be used for extracting the k-truss subgraph.
 
+    use_weights : Bool
+        whether the output should contain the edge weights if G has them
 
     Returns
     -------
