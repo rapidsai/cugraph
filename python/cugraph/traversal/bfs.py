@@ -27,10 +27,6 @@ def bfs(G, start):
         as an adjacency list.
     start : Integer
         The index of the graph vertex from which the traversal begins
-    directed : bool
-        Indicates whether the graph in question is a directed graph, or whether
-        each edge has a corresponding reverse edge. (Allows optimizations if
-        the graph is undirected)
 
     Returns
     -------
