@@ -44,6 +44,8 @@ def compare_edges(cg, nxg, verts):
 
 
 def cugraph_call(M, verts, directed=True):
+    # directed is used to create either a Graph or DiGraph so the returned
+    # cugraph can be compared to nx graph of same type.
     if directed:
         G = cugraph.DiGraph()
     else:

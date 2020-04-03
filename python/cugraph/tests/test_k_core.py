@@ -35,6 +35,8 @@ print('Networkx version : {} '.format(nx.__version__))
 
 
 def calc_k_cores(graph_file, directed=True):
+    # directed is used to create either a Graph or DiGraph so the returned
+    # cugraph can be compared to nx graph of same type.
     cu_M = utils.read_csv_file(graph_file)
     NM = utils.read_csv_for_nx(graph_file)
     if directed:

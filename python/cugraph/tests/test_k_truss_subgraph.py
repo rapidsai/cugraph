@@ -48,6 +48,8 @@ def ktruss_ground_truth(graph_file):
 
 
 def cugraph_k_truss_subgraph(graph_file, k, directed):
+    # directed is used to create either a Graph or DiGraph so the returned
+    # cugraph can be compared to nx graph of same type.
     cu_M = utils.read_csv_file(graph_file)
     if directed:
         G = cugraph.DiGraph()
