@@ -79,6 +79,11 @@ EXTENSIONS = [
               extra_compile_args=['-std=c++14'])
 ]
 
+for e in EXTENSIONS:
+    e.cython_directives = dict(
+        profile=False, language_level=3, embedsignature=True
+    )
+
 setup(name='cugraph',
       description="cuGraph - GPU Graph Analytics",
       version=versioneer.get_version(),
@@ -93,7 +98,7 @@ setup(name='cugraph',
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
       setup_requires=['cython'],
-      ext_modules=cythonize(EXTENSIONS),
+      ext_modules=EXTENSIONS,
       packages=find_packages(include=['cugraph', 'cugraph.*']),
       install_requires=INSTALL_REQUIRES,
       license="Apache",
