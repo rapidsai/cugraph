@@ -45,12 +45,21 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
                  scaling_ratio, strong_gravity_mode, gravity):
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+
+    k = np.fromiter(pos_list.keys(), dtype='int32')
+    x = np.fromiter([x for x, _ in pos_list.values()], dtype='float32')
+    y = np.fromiter([y for _, y in pos_list.values()], dtype='float32')
+
+    cu_pos_list = cudf.DataFrame({'vertex': k,
+                                  'x': x,
+                                  'y' : y}) 
+ 
     # cugraph Force Atlas 2 Call
     t1 = time.time()
     pos = cugraph.force_atlas2(G,
                                max_iter=max_iter,
-                               pos_list=pos_list,
+                               pos_list=cu_pos_list,
                                outbound_attraction_distribution=outbound_attraction_distribution,
                                lin_log_mode=lin_log_mode,
                                prevent_overlapping=prevent_overlapping,
@@ -80,8 +89,13 @@ def networkx_call(M, max_iter,
                 strong_gravity_mode,
                 multithread,
                 gravity):
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  edge_attr='weight', create_using=nx.Graph())
+
+    Gnx = nx.OrderedGraph()
+    for i in range(len(M)):
+        Gnx.add_node(M['0'][i])
+    for i in range(len(M)):
+        Gnx.add_edge(M['0'][i], M['1'][i], attr=M['2'][i])
+
     # Networkx Force Atlas 2 Call
     print('Solving... ')
     t1 = time.time()
@@ -94,13 +108,13 @@ def networkx_call(M, max_iter,
 
             # Performance
             jitterTolerance=jitter_tolerance,  # Tolerance
-            barnesHutOptimize=barnes_hut_theta,
-            barnesHutTheta=barnes_hut_optimize,
+            barnesHutOptimize=barnes_hut_optimize,
+            barnesHutTheta=barnes_hut_theta,
             multiThreaded=False,  # NOT IMPLEMENTED
 
             # Tuning
             scalingRatio=scaling_ratio,
-            strongGravityMode=scaling_ratio,
+            strongGravityMode=strong_gravity_mode,
             gravity=gravity,
 
             # Log
@@ -114,11 +128,11 @@ def networkx_call(M, max_iter,
     return pos
 
 
-DATASETS = ['../datasets/karate.csv']
-            #'../datasets/dolphins.csv']
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv']
 
-MAX_ITERATIONS = [0]
-OUTBOUND_ATTRACTION_DISTRIBUTION = [True]
+MAX_ITERATIONS = [10]
+OUTBOUND_ATTRACTION_DISTRIBUTION = [False, True]
 EDGE_WEIGHT_INFLUENCE = [1.0]
 JITTER_TOLERANCE = [1.0]
 BARNES_HUT_THETA = [0.5]
@@ -152,37 +166,18 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
 
     assert(rmm.is_initialized())
 
-    M = utils.read_csv_for_nx(graph_file)
+    print(outbound_attraction_distribution)
+    print(strong_gravity_mode)
     cu_M = utils.read_csv_file(graph_file)
+    cu_M = cu_M.sort_values(by=['0', '1'])
 
-    #Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-    #                              edge_attr='weight', create_using=nx.Graph())
+    pos_list = dict()
+    for node in cu_M['0'].unique():
+        pos_list[node] = randint(-100, 100), randint(-100, 100)
 
-    Gnx = nx.OrderedGraph()
-    for i in range(len(M)):
-            Gnx.add_node(M['0'][i])
-    for i in range(len(M)):
-        Gnx.add_edge(M['0'][i], M['1'][i], weight=M['weight'][i])
-
-    print(Gnx.nodes())
-    # Init nodes at same positions
-
-    nx_pos_list = dict()
-    for node in Gnx:
-        nx_pos_list[node] = randint(-100, 100), randint(-100, 100)
-
-    print(nx_pos_list)
-    k = np.fromiter(nx_pos_list.keys(), dtype='int32')
-    x = np.fromiter([x for x, _ in nx_pos_list.values()], dtype='float32')
-    y = np.fromiter([y for _, y in nx_pos_list.values()], dtype='float32')
-
-    cu_pos_list = cudf.DataFrame({'vertex': k,
-                                  'x': x,
-                                  'y' : y}) 
- 
     cu_pos = cugraph_call(cu_M,
                           max_iter=max_iter,
-                          pos_list=cu_pos_list,
+                          pos_list=pos_list,
                           outbound_attraction_distribution=outbound_attraction_distribution,
                           lin_log_mode=False,
                           prevent_overlapping=False,
@@ -194,9 +189,9 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
                           strong_gravity_mode=strong_gravity_mode,
                           gravity=gravity)
 
-    nx_pos = networkx_call(M,
+    nx_pos = networkx_call(cu_M,
                            max_iter=max_iter,
-                           pos_list=nx_pos_list,
+                           pos_list=pos_list,
                            node_masses=None,
                            outbound_attraction_distribution=outbound_attraction_distribution,
                            lin_log_mode=False,
@@ -210,18 +205,18 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
                            multithread=False,
                            gravity=gravity)
    
-    print("Cu pos")
+    print("Cu pos:")
     print(cu_pos)
-    print()
-    print("Nx pos")
+    print("nx pos:")
     print(nx_pos)
+    displacement = 1
     # Check positions are the same
     assert len(cu_pos) == len(nx_pos)
     err = 0
-    for i in range(len(cu_pos_list)):
-        node = cu_pos_list['vertex'][i]
-        if abs(cu_pos['x'][i] - nx_pos[node][0]) > 0.01 \
-        and abs(cu_pos['y'][i] - nx_pos[node][1]) > 0.01:
+    for i in range(len(cu_pos)):
+        if abs(cu_pos['x'][i] - nx_pos[i][0]) > displacement \
+        and abs(cu_pos['y'][i] - nx_pos[i][1]) > displacement:
+            print("err on node: ", i)
             err += 1
     print("Mismatched points:", err)
     assert err < 0.01 * len(cu_pos)
