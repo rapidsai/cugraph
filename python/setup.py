@@ -17,7 +17,6 @@ import shutil
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
-from Cython.Build import cythonize
 
 try:
     from Cython.Distutils.build_ext import new_build_ext as build_ext
