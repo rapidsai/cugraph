@@ -31,25 +31,38 @@ void init_mass(vertex_t **dests, int *d_mass, const edge_t e, const vertex_t n) 
     degree_coo<vertex_t, int><<<nthreads, nblocks>>>(n, e, *dests, d_mass);
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-void sort_coo(const vertex_t *row, const vertex_t *col,
-        vertex_t **srcs, vertex_t **dests, const edge_t e) {
-    //TODO: add weights
-    //TODO: sort position list according to source
-    cudaStream_t stream {nullptr};
+template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
+cudaStream_t sort_coo(const vertex_t *row, const vertex_t *col,
+        const weight_t *v, vertex_t **srcs, vertex_t **dests,
+        weight_t **weights, const edge_t e) {
 
+    cudaStream_t stream {nullptr};
     ALLOC_TRY((void**)srcs, sizeof(vertex_t) * e, stream);
     ALLOC_TRY((void**)dests, sizeof(vertex_t) * e, stream);
+
     CUDA_TRY(cudaMemcpy(*srcs, row, sizeof(vertex_t) * e, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(*dests, col, sizeof(vertex_t) * e, cudaMemcpyDefault));
 
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-			*dests, *dests + e, *srcs);
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-			*srcs, *srcs + e, *dests);
+    if (!weighted) {
+        thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
+                *dests, *dests + e, *srcs);
+        thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
+                *srcs, *srcs + e, *dests);
+    } else {
+        ALLOC_TRY((void**)weights, sizeof(weight_t) * e, stream);
+        CUDA_TRY(cudaMemcpy(*weights, v, sizeof(weight_t) * e, cudaMemcpyDefault));
+
+        thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
+                *dests, *dests + e,
+                thrust::make_zip_iterator(thrust::make_tuple(*srcs, *weights)));
+        thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
+                *srcs, *srcs + e,
+                thrust::make_zip_iterator(thrust::make_tuple(*dests, *weights)));
+    }
+    return stream;
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t>
+template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 attraction_kernel(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const edge_t e, float *x_pos,
@@ -67,13 +80,11 @@ attraction_kernel(const vertex_t *row, const vertex_t *col,
         if (dst <= src)
             return;
 
-        if (v != nullptr)
+        if (weighted)
             weight = v[i];
-
-        if (v == nullptr || edge_weight_influence == 0)
-            weight = 1;
         else
-            weight = pow(weight, edge_weight_influence);
+            weight = 1;
+        weight = pow(weight, edge_weight_influence);
 
         float x_dist = x_pos[src] - x_pos[dst];
         float y_dist = y_pos[src] - y_pos[dst];
@@ -96,7 +107,7 @@ attraction_kernel(const vertex_t *row, const vertex_t *col,
 }
 
 
-template <typename vertex_t, typename edge_t, typename weight_t>
+template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 void apply_attraction(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const edge_t e, float *x_pos,
         float *y_pos, float *d_dx, float *d_dy, int *d_mass,
@@ -110,7 +121,7 @@ void apply_attraction(const vertex_t *row, const vertex_t *col,
     nblocks.y = 1;
     nblocks.z = 1;
 
-    attraction_kernel<vertex_t, edge_t, weight_t><<<nthreads, nblocks>>>(
+    attraction_kernel<weighted, vertex_t, edge_t, weight_t><<<nthreads, nblocks>>>(
             row,
             col, v, e, x_pos, y_pos, d_dx, d_dy, d_mass,
             outbound_attraction_distribution,
@@ -180,30 +191,27 @@ void apply_gravity(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
 
 template <typename vertex_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-local_speed_kernel(float *x_pos, float *y_pos, float *d_dx, float *d_dy, float *d_old_dx, float *d_old_dy,
-        int *d_mass, float *d_swinging, float *d_traction, vertex_t n) {
-    // TODO: Use shared memory reduction
+local_speed_kernel(float *x_pos, float *y_pos, float *d_dx, float *d_dy,
+        float *d_old_dx, float *d_old_dy, int *d_mass, float *d_swinging,
+        float *d_traction, vertex_t n) {
+
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
             i += gridDim.x * blockDim.x) {
         //printf("a: %f, b: %f\n", d_dx[i], d_old_dx[i]);
-        float node_swinging = sqrt(pow(d_old_dx[i] - d_dx[i], 2) + pow(d_old_dy[i] - d_dy[i], 2));
-       //printf("tid: %i, node_swinging: (%f, %f) (%f, %f) %f\n",i,
-       //       x_pos[i], y_pos[i],  d_dx[i], d_dy[i], node_swinging);
-
-        atomicAdd(d_swinging, d_mass[i] * node_swinging);
-        atomicAdd(d_traction, 0.5 * d_mass[i] * \
+        float node_swinging = d_mass[i] * sqrt(pow(d_old_dx[i] - d_dx[i], 2) + pow(d_old_dy[i] - d_dy[i], 2));
+        float node_traction = 0.5 * d_mass[i] * \
         sqrt((d_old_dx[i] + d_dx[i]) * (d_old_dx[i] + d_dx[i]) + \
-            (d_old_dy[i] + d_dy[i]) * (d_old_dy[i] + d_dy[i])));
-
-     //   printf("d_swinging: %f, d_traction: %f\n", *d_swinging, *d_traction);
+            (d_old_dy[i] + d_dy[i]) * (d_old_dy[i] + d_dy[i]));
+        d_swinging[i] = node_swinging;
+        d_traction[i] = node_traction;
     }
 }
 
 template <typename vertex_t>
 void adapt_speed(const float jitter_tolerance, float *jt,
         float *speed,
-        float *speed_efficiency, float *d_swinging, float *d_traction,
+        float *speed_efficiency, float s, float t,
         const vertex_t n) {
 
     float estimated_jt = 0.05 * sqrt(n);
@@ -214,20 +222,22 @@ void adapt_speed(const float jitter_tolerance, float *jt,
     const float max_rise = 0.5;
 
     *jt = jitter_tolerance * \
-        max(min_jt, min(max_jt, estimated_jt * *d_traction / (n * n)));
-    if (*d_swinging / *d_traction > 2.0) {
+        max(min_jt, min(max_jt, estimated_jt * t / (n * n)));
+    //printf("s: %f, t: %f, res: %f\n", *s, *t,
+    //        *s / *t);
+    if (s / t > 2.0) {
         if (*speed_efficiency > min_speed_efficiency) {
             *speed_efficiency *= 0.5;
         }
         *jt = max(*jt, jitter_tolerance);
     }
 
-    if (*d_swinging == 0)
+    if (s == 0)
         target_speed = FLT_MAX;
     else
-        target_speed = (*jt * *speed_efficiency * *d_traction) / *d_swinging;
+        target_speed = (*jt * *speed_efficiency * t) / s;
 
-    if (*d_swinging > *jt * *d_traction) {
+    if (s > *jt * t) {
         if (*speed_efficiency > min_speed_efficiency)
             *speed_efficiency *= .7;
     }
@@ -241,7 +251,7 @@ template <typename vertex_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 update_positions_kernel(float *x_pos, float *y_pos,
         float *d_dx, float *d_dy, float * d_old_dx, float *d_old_dy,
-        int * d_mass, const float speed, vertex_t n) {
+        int *d_mass, const float speed, vertex_t n) {
 
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
@@ -249,8 +259,8 @@ update_positions_kernel(float *x_pos, float *y_pos,
         float tmp_x = d_old_dx[i] - d_dx[i];
         float tmp_y = d_old_dy[i] - d_dy[i];
         float local_swinging = d_mass[i] * sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
-       //printf("tid: %i, node_swinging: (%f, %f) (%f, %f) %f\n",i,
-       //       x_pos[i], y_pos[i],  d_dx[i], d_dy[i], local_swinging);
+      // printf("tid: %i, node_swinging: (%f, %f) (%f, %f) %f\n",i,
+      //        x_pos[i], y_pos[i],  d_dx[i], d_dy[i], local_swinging);
 
 
         float factor = speed / (1.0 + sqrt(speed * local_swinging));

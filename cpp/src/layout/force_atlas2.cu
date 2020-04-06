@@ -61,27 +61,25 @@ void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
     const ET e = graph.number_of_edges;
     const VT n = graph.number_of_vertices;
 
-    cugraph::detail::fa2<VT, ET, WT>(row, col, v, e, n,
+    if (v) {
+    cugraph::detail::fa2<true, VT, ET, WT>(row, col, v, e, n,
             x_pos, y_pos, max_iter, x_start,
             y_start, outbound_attraction_distribution,
             lin_log_mode, prevent_overlapping, edge_weight_influence,
             jitter_tolerance, barnes_hut_optimize, barnes_hut_theta,
             scaling_ratio, strong_gravity_mode, gravity);
+    } else {
+    cugraph::detail::fa2<false, VT, ET, WT>(row, col, v, e, n,
+            x_pos, y_pos, max_iter, x_start,
+            y_start, outbound_attraction_distribution,
+            lin_log_mode, prevent_overlapping, edge_weight_influence,
+            jitter_tolerance, barnes_hut_optimize, barnes_hut_theta,
+            scaling_ratio, strong_gravity_mode, gravity);
+    }
 }
 
 template void force_atlas2<int, int, float>(
         experimental::GraphCOO<int, int, float> const &graph,
-        float *x_pos, float *y_pos, const int max_iter,
-        float *x_start, float *y_start,
-        bool outbound_attraction_distribution,
-        bool lin_log_mode, bool prevent_overlapping,
-        const float edge_weight_influence, const float jitter_tolerance,
-        bool barnes_hut_optimize, const float barnes_hut_theta,
-        const float scaling_ratio, bool strong_gravity_mode,
-        const float gravity);
-
-template void cugraph::detail::fa2<int, int, float>(
-        const int *row, const int *col, const float *v, const int e, const int n,
         float *x_pos, float *y_pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,

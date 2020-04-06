@@ -44,7 +44,7 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t>
+template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 void fa2(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const edge_t e, const vertex_t n,
         float *x_pos, float *y_pos, const int max_iter=1000,
@@ -75,8 +75,8 @@ void fa2(const vertex_t *row, const vertex_t *col,
     rmm::device_vector<float> old_dx(n, 0);
     rmm::device_vector<float> old_dy(n, 0);
     rmm::device_vector<int> mass(n, 1);
-    rmm::device_vector<float> swinging(1, 0);
-    rmm::device_vector<float> traction(1, 0);
+    rmm::device_vector<float> swinging(n, 0);
+    rmm::device_vector<float> traction(n, 0);
 
     d_dx = dx.data().get();
     d_dy = dy.data().get();
@@ -99,22 +99,10 @@ void fa2(const vertex_t *row, const vertex_t *col,
 
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
-    sort_coo<vertex_t, edge_t, weight_t>(row, col, &srcs, &dests, tmp_e);
+    weight_t* weights{nullptr};
+    cudaStream_t stream = sort_coo<weighted, vertex_t, edge_t, weight_t>(row,
+            col, v, &srcs, &dests, &weights, tmp_e);
     init_mass<vertex_t, edge_t>(&dests, d_mass, tmp_e, n);
-
-    /*
-    printv(tmp_e, srcs, 0);
-    printv(tmp_e, dests, 0);
- 
-    printf("e: %i, n: %i\n", tmp_e, n);
-
-    thrust::host_vector<int> h_mass(n);
-    thrust::copy(mass.begin(), mass.end(), h_mass.begin());
-    int *m = thrust::raw_pointer_cast(h_mass.data());
-
-    for (int i = 0; i < n; ++i)
-        printf("degree %i: %i\n", i, m[i]);
-    */
 
     float speed = 1.f;
     float speed_efficiency = 1.f;
@@ -140,8 +128,8 @@ void fa2(const vertex_t *row, const vertex_t *col,
         copy(n, d_dy, d_old_dy);
         fill(n, d_dx, 0.f);
         fill(n, d_dy, 0.f);
-        fill(1, d_swinging, 0.f);
-        fill(1, d_traction, 0.f);
+        fill(n, d_swinging, 0.f);
+        fill(n, d_traction, 0.f);
 
         if (barnes_hut_optimize) {
            return;
@@ -153,7 +141,7 @@ void fa2(const vertex_t *row, const vertex_t *col,
         apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
                 strong_gravity_mode, scaling_ratio, n);
 
-        apply_attraction<vertex_t, edge_t, weight_t>(srcs,
+        apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
                 dests, v, tmp_e, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_att_compensation);
@@ -161,22 +149,27 @@ void fa2(const vertex_t *row, const vertex_t *col,
         local_speed_kernel<<<nthreads, nblocks>>>(x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
 
-        thrust::copy(swinging.begin(), swinging.end(), h_swinging.begin());
-        thrust::copy(traction.begin(), traction.end(), h_traction.begin());
-        float *s = thrust::raw_pointer_cast(h_swinging.data());
-        float *t = thrust::raw_pointer_cast(h_traction.data());
-       // printf("swinging: %f, traction: %f\n", *s, *t);
-
+        float s = thrust::reduce(swinging.begin(), swinging.end());
+        float t = thrust::reduce(traction.begin(), traction.end());
+        
        adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                s, t, n);
 
-       // printf("jt: %f\n", jt);
-       // printf("speed at iteration %i: %f, speed_efficiency: %f\n",
-       //         iter, speed, speed_efficiency);
-        update_positions_kernel<vertex_t><<<nthreads, nblocks>>>(
+       update_positions_kernel<vertex_t><<<nthreads, nblocks>>>(
                 x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, speed, n);
+       
+       // printf("swinging: %f, traction: %f\n", s, t);
+       // printf("jt: %f\n", jt);
+       //printf("speed at iteration %i: %f, speed_efficiency: %f\n",
+       //        iter, speed, speed_efficiency);
+ 
     }
+    ALLOC_FREE_TRY(srcs, stream);
+    ALLOC_FREE_TRY(dests, stream);
+    if (weighted)
+        ALLOC_FREE_TRY(weights, stream);
+
 }
 
 } // namespace detail
