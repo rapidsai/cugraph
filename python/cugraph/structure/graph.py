@@ -67,6 +67,7 @@ class Graph:
         --------
         >>> import cuGraph
         >>> G = cuGraph.Graph()
+
         """
         self.symmetrized = symmetrized
         self.renumbered = False
@@ -146,6 +147,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2',
                                  renumber=False)
+
         """
 
         if self.edgelist is not None or self.adjlist is not None:
@@ -288,6 +290,7 @@ class Graph:
         stores references to the deep-copies of the passed objects pointed by
         offset_col and index_col.
         Undirected edges must be stored as directed edges in both directions.
+
         Parameters
         ----------
         offset_col : cudf.Series
@@ -319,6 +322,7 @@ class Graph:
         >>> indices = cudf.Series(M.indices)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_adjlist(offsets, indices, None)
+
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
@@ -380,6 +384,7 @@ class Graph:
             The gdf column contains the weight value for each edge.
             The expected type of the gdf_column element is floating point
             number.
+
         """
         if self.transposedadjlist is None:
             graph_wrapper.view_transposed_adj_list(self)
@@ -398,6 +403,7 @@ class Graph:
         """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -405,6 +411,7 @@ class Graph:
                 the first vertex id of a pair.
             df['second'] : cudf.Series
                 the second vertex id of a pair.
+
         """
         df = graph_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
@@ -445,12 +452,14 @@ class Graph:
         """
         An alias of number_of_vertices(). This function is added for NetworkX
         compatibility.
+
         """
         return self.number_of_vertices()
 
     def number_of_edges(self):
         """
         Get the number of edges in the graph.
+
         """
         if self.edge_count is None:
             if self.edgelist is not None:
@@ -476,11 +485,13 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -493,6 +504,7 @@ class Graph:
                 specified).
             df['degree'] : cudf.Series
                 The computed in-degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -502,6 +514,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.in_degree([0,9,12])
+
         """
         return self._degree(vertex_subset, x=1)
 
@@ -512,11 +525,13 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding out-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -529,6 +544,7 @@ class Graph:
                 specified).
             df['degree'] : cudf.Series
                 The computed out-degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -538,6 +554,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.out_degree([0,9,12])
+
         """
         return self._degree(vertex_subset, x=2)
 
@@ -547,11 +564,13 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -564,6 +583,7 @@ class Graph:
                 specified).
             df['degree'] : cudf.Series
                 The computed degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -573,6 +593,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.degree([0,9,12])
+
         """
         return self._degree(vertex_subset)
 
@@ -582,11 +603,13 @@ class Graph:
         computes vertex degrees for the entire set of vertices. If
         vertex_subset is provided, this method optionally filters out all but
         those listed in vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -597,6 +620,7 @@ class Graph:
                 The in-degree of the vertex.
             df['out_degree'] : cudf.Series
                 The out-degree of the vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -606,6 +630,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.degrees([0,9,12])
+
         """
         vertex_col, in_degree_col, out_degree_col = graph_wrapper._degrees(
                                                         self)
