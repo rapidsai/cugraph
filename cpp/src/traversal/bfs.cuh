@@ -34,8 +34,10 @@ namespace detail {
 		bool useEdgeMask;
 		bool computeDistances;
 		bool computePredecessors;
+		bool computeSPCounters;
 		IndexType *distances;
 		IndexType *predecessors;
+		IndexType *sp_counters;
 		int *edge_mask;
 
 		//Working data
@@ -93,7 +95,7 @@ namespace detail {
 			setup();
 		}
 
-		void configure(IndexType *distances, IndexType *predecessors, int *edge_mask);
+		void configure(IndexType *distances, IndexType *predecessors, IndexType *sp_counters, int *edge_mask);
 
 		void traverse(IndexType source_vertex);
 	};

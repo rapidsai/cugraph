@@ -51,9 +51,9 @@ def calc_betweenness_centrality(graph_file, normalized=True):
     return df
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv']#,
+            #'../datasets/netscience.csv']
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
@@ -81,7 +81,6 @@ def test_betweenness_centrality(managed, pool, graph_file):
                                                    scores['nx'][i]))
 
     assert err == 0
-
 
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))

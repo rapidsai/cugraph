@@ -308,6 +308,7 @@ template <typename VT, typename ET, typename WT>
 void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
+         VT *sp_counters,
          const VT start_vertex,
          bool directed = true);
 } //namespace cugraph

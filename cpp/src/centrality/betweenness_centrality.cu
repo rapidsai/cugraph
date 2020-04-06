@@ -80,6 +80,7 @@ struct ifNegativeReplace {
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::normalize() {
+    printf("[DBG] Being normalized\n");
     thrust::device_vector<result_t> normalizer(number_vertices);
     thrust::fill(normalizer.begin(), normalizer.end(), ((number_vertices - 1) * (number_vertices - 2)));
 
@@ -93,43 +94,56 @@ void BC<VT, ET, WT, result_t>::normalize() {
 /* TODO(xcadet) Use an iteration based node system, to process nodes of the same level at the same time
 ** For now all the work is done on the first thread */
 template <typename VT, typename ET, typename WT, typename result_t>
-__global__ void accumulate_kernel(result_t *betweenness, VT number_vertices,
-                                 VT *nodes, VT *predecessors, int *sp_counters,
-                                 result_t *deltas, VT source) {
-    int global_id = (blockIdx.x * blockDim.x)  + threadIdx.x;
-    if (global_id == 0) { // global_id < number_vertices
-        for (int idx = 0; idx < number_vertices; ++idx) {
-            VT w = nodes[idx];
-            if (w == -1) { // This node and the following have not been visited in the sssp
-                break;
-            }
-            result_t factor = (static_cast<result_t>(1.0) + deltas[w]) / static_cast<result_t>(sp_counters[w]);
-            VT v = predecessors[w]; // Multiples nodes could have the same predecessor
-            if (v != -1) {
-                atomicAdd(&deltas[v], static_cast<result_t>(sp_counters[v]) * factor);
-            }
-            if (w != source) {
-                atomicAdd(&betweenness[w], deltas[w]);
-            }
+__global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
+                                  VT const *indices, ET const *offsets,
+                                  VT *distances,
+                                  int *sp_counters,
+                                  result_t *deltas, VT source, VT depth) {
+ //int gid = blockIdx.x * blockDim.x + threadIdx.x;
+  for (int gid = blockIdx.x * blockDim.x + threadIdx.x; gid < number_vertices;
+       gid += gridDim.x * blockDim.x) {
+  //for (int gid = blockIdx.x * blockDim.x + threadIdx.x;
+       //gid < number_vertices; gid += blockDim.x * gridDim.x) {
+    VT v = gid;
+    // TODO(xcadet) Use a for loop using strides
+    if (distances[v] == depth) { // Process nodes at this depth
+      ET edge_start = offsets[v];
+      ET edge_end = offsets[v + 1];
+      ET edge_count = edge_end - edge_start;
+      for (ET edge_idx = 0; edge_idx < edge_count; ++edge_idx) { // Visit neighbors
+        VT w =  indices[edge_start + edge_idx];
+        if (distances[w] == depth + 1) { // Current node is a predecessor
+          result_t factor = (static_cast<result_t>(1.0) + deltas[w]) / static_cast<result_t>(sp_counters[w]);
+          deltas[v] += static_cast<result_t>(sp_counters[v]) * factor;
         }
+      }
+      betweenness[v] += deltas[v];
     }
+  }
 }
 
 // TODO(xcadet) We might be able to handle different nodes with a kernel
+// With BFS distances can be used to handle accumulation,
 template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* nodes,
-                                          VT *predecessors, int *sp_counters,
-                                          result_t *deltas, VT source) {
-    // Step 1) Dependencies (deltas) are initialized to 0 before starting
-    thrust::fill(rmm::exec_policy(stream)->on(stream), deltas,
-                 deltas + number_vertices, static_cast<result_t>(0));
-
-    // Step 2) Process each node, -1 is used to notify unreached nodes in the sssp
-    accumulate_kernel<VT, ET, WT, result_t>
-                     <<<1, 1, 0, stream>>>(betweenness, number_vertices,
-                                           nodes, predecessors, sp_counters,
-                                           deltas, source);
+void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* distances,
+                                          VT *sp_counters,
+                                          result_t *deltas, VT source, VT max_depth) {
+    dim3 grid, block;
+    block.x = 512;
+    grid.x = 1;
+  // Step 1) Dependencies (deltas) are initialized to 0 before starting
+  thrust::fill(rmm::exec_policy(stream)->on(stream), deltas,
+               deltas + number_vertices, static_cast<result_t>(0));
+  // Step 2) Process each node, -1 is used to notify unreached nodes in the sssp
+  for (VT depth = max_depth; depth > 0; --depth) {
+    //std::cout << "\t[ACC] Processing depth: " << depth << std::endl;
+    accumulation_kernel<VT, ET, WT, result_t>
+                     <<<grid, block, 0, stream>>>(betweenness, number_vertices,
+                                             graph.indices, graph.offsets,
+                                             distances, sp_counters,
+                                             deltas, source, depth);
     cudaDeviceSynchronize();
+  }
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -142,19 +156,27 @@ void BC<VT, ET, WT, result_t>::compute() {
 
     for (int source_vertex = 0; source_vertex < number_vertices;
          ++source_vertex) {
-        // Step 0) Reseat distancses and predecessor?
-        thrust::fill(rmm::exec_policy(stream)->on(stream), distances,
-                     distances + number_vertices, static_cast<VT>(0));
-        thrust::fill(rmm::exec_policy(stream)->on(stream), predecessors,
-                     predecessors + number_vertices, static_cast<VT>(-1));
+        std::cout << "Processing source: " << source_vertex << std::endl;
+        thrust::device_vector<VT> d_sp_counters(number_vertices, 0);
+        thrust::device_vector<VT> d_distances(number_vertices, 0);
+        thrust::device_vector<result_t> d_deltas(number_vertices, 0);
         // Step 1) Singe-source shortest-path problem
-        cugraph::bfs(graph, distances, predecessors, source_vertex,
+        cugraph::bfs(graph, thrust::raw_pointer_cast(d_distances.data()), predecessors, thrust::raw_pointer_cast(d_sp_counters.data()), source_vertex,
                      graph.prop.directed);
+        cudaDeviceSynchronize();
         //cugraph::sssp(graph, distances, predecessors, source_vertex);
+        std::cout << "SP Counters" << std::endl;
+        thrust::copy(d_sp_counters.begin(), d_sp_counters.end(), std::ostream_iterator<VT>(std::cout, ", "));
+        std::cout << std::endl;
+        // Step 2) Accumulation,
+        auto value = thrust::max_element(d_distances.begin(), d_distances.end());
 
+        accumulate(betweenness, thrust::raw_pointer_cast(d_distances.data()), thrust::raw_pointer_cast(d_sp_counters.data()), thrust::raw_pointer_cast(d_deltas.data()), source_vertex, *value);
 
-        // Step 2) Accumulation
-        accumulate(betweenness, nodes, predecessors, sp_counters, deltas, source_vertex);
+        std::cout << "Deltas" << std::endl;
+        thrust::copy(d_deltas.begin(), d_deltas.end(), std::ostream_iterator<result_t>(std::cout, ", "));
+        std::cout << std::endl;
+
     }
     cudaDeviceSynchronize();
     if (apply_normalization) {
@@ -173,7 +195,7 @@ void BC<VT, ET, WT, result_t>::compute() {
                             bool normalize,
                             VT const *sample_seeds = nullptr,
                             VT number_of_sample_seeds = 0) {
-
+    printf("[DBG][BC] BETWEENNESS CENTRALITY NATIVE_CUGPRAPH\n");
     CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: output betwenness is nullptr");
     if (typeid(VT) != typeid(int)) {
       CUGRAPH_FAIL("Unsupported vertex id data type, please use int");

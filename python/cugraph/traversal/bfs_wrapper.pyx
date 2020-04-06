@@ -30,6 +30,7 @@ import cudf
 import rmm
 import numpy as np
 
+# TODO(xcadet): Add a parameter for BC specific path
 def bfs(input_graph, start, directed=True):
     """
     Call bfs
@@ -46,6 +47,7 @@ def bfs(input_graph, start, directed=True):
     cdef uintptr_t c_identifier_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
     cdef uintptr_t c_distance_ptr       = <uintptr_t> NULL # Pointer to the DataFrame 'distance' Series
     cdef uintptr_t c_predecessor_ptr    = <uintptr_t> NULL # Pointer to the DataFrame 'predecessor' Series
+    cdef uintptr_t c_sp_counter_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'sp_counter' Series
 
     # Step 2: Verifiy input_graph has the expected format
     if input_graph.adjlist is None:
@@ -75,11 +77,13 @@ def bfs(input_graph, start, directed=True):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['sp_counter'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
     # Step 7: Associate <uintptr_t> to cudf Series
     c_identifier_ptr = df['vertex'].__cuda_array_interface__['data'][0]
     c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
     c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
+    c_sp_counter_ptr = df['sp_counter'].__cuda_array_interface__['data'][0]
 
     # Step 8: Proceed to BFS
     # TODO: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
@@ -92,6 +96,7 @@ def bfs(input_graph, start, directed=True):
     c_bfs.bfs[int, int, float](graph_float,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
+                               <int*> c_sp_counter_ptr,
                                <int> start,
                                directed)
     #FIXME: Update with multicolumn renumbering

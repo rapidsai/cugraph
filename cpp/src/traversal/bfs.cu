@@ -108,15 +108,19 @@ namespace detail {
   template<typename IndexType>
   void BFS<IndexType>::configure(IndexType *_distances,
                                  IndexType *_predecessors,
+                                 IndexType *_sp_counters,
                                  int *_edge_mask)
   {
     distances = _distances;
     predecessors = _predecessors;
+    sp_counters = _sp_counters;
     edge_mask = _edge_mask;
 
     useEdgeMask = (edge_mask != NULL);
     computeDistances = (distances != NULL);
     computePredecessors = (predecessors != NULL);
+    computeSPCounters = (sp_counters != NULL);
+    //TODO(xcadet) Remove me
 
     //We need distances to use bottom up
     if (directed && !computeDistances)
@@ -154,6 +158,13 @@ namespace detail {
     //If needed, setting all predecessors to non-existent (-1)
     if (computePredecessors) {
       cudaMemsetAsync(predecessors, -1, n * sizeof(IndexType), stream);
+    }
+
+    // We need to reset the counters
+    if (sp_counters) {
+      cudaMemsetAsync(sp_counters, 0, n * sizeof(IndexType), stream);
+      IndexType value = 1;
+      cudaMemcpy(sp_counters + source_vertex, &value, sizeof(IndexType), cudaMemcpyHostToDevice);
     }
 
     //
@@ -251,6 +262,8 @@ namespace detail {
     //useDistances : we check if a vertex is a parent using distances in bottom up - distances become working data
     //undirected g : need parents to be in children's neighbors
     bool can_use_bottom_up = !directed && distances;
+    // TODO(xcadet): BC needs approach currently top_down, add a flag to separate workflows
+    can_use_bottom_up = false;
 
     while (nf > 0) {
       //Each vertices can appear only once in the frontierer array - we know it will fit
@@ -330,6 +343,7 @@ namespace detail {
                           visited_bmap,
                           distances,
                           predecessors,
+                          sp_counters,
                           edge_mask,
                           isolated_bmap,
                           directed,
@@ -395,6 +409,7 @@ namespace detail {
                          d_new_frontier_cnt,
                          distances,
                          predecessors,
+                         sp_counters,
                          edge_mask,
                          stream,
                          deterministic);
@@ -420,6 +435,7 @@ namespace detail {
                             d_new_frontier_cnt,
                             distances,
                             predecessors,
+                            sp_counters,
                             edge_mask,
                             stream,
                             deterministic);
@@ -474,7 +490,7 @@ namespace detail {
 } // !namespace cugraph::detail
 
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
+void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *predecessors, VT *sp_counters, const VT start_vertex, bool directed) {
   CUGRAPH_EXPECTS(typeid(VT) == typeid(int),
                   "Unsupported vertex id data type, please use int");
   CUGRAPH_EXPECTS(typeid(ET) == typeid(int),
@@ -494,10 +510,10 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *pre
   cugraph::detail::BFS<VT> bfs(number_of_vertices, number_of_edges,
                                offsets_ptr, indices_ptr, directed, alpha,
                                beta);
-  bfs.configure(distances, predecessors, nullptr);
+  bfs.configure(distances, predecessors, sp_counters, nullptr);
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
+template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph, int *distances, int *predecessors, int *sp_counters, const int source_vertex, bool directed);
 
 } // !namespace cugraph

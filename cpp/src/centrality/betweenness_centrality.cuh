@@ -54,8 +54,8 @@ class BC {
       void setup();
       void clean();
 
-      void accumulate(result_t *betweenness, VT *nodes, VT *predecessors,
-                      int *sp_counters, result_t *deltas, VT source);
+      void accumulate(result_t *betweenness, VT *distances,
+                      VT *sp_counters, result_t *deltas, VT source, VT max_depth);
       void normalize();
       void check_input();
 

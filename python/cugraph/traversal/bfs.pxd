@@ -26,5 +26,6 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         const GraphCSR[VT,ET,WT] &graph,
         VT *distances,
         VT *predecessors,
+        VT *sp_counters,
         const VT start_vertex,
         bool directed) except +
