@@ -16,31 +16,19 @@
 
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <iomanip>
-#include "cub/cub.cuh"
-#include <algorithm>
-#include <iomanip>
-#include <thrust/random.h>
-
-#include <rmm_utils.h>
-
-#include "utilities/graph_utils.cuh"
-#include "utilities/error_utils.h"
 #include <cugraph.h>
 #include <graph.hpp>
-
-#include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_buffer.hpp>
+#include <rmm/thrust_rmm_allocator.h>
+#include <rmm_utils.h>
+#include <stdio.h>
+
+#include "utilities/error_utils.h"
+#include "utilities/graph_utils.cuh"
 
 #include "barnes_hut.h"
-#include "fa2_kernels.h"
 #include "exact_repulsion.h"
+#include "fa2_kernels.h"
 #include "utils.h"
 
 namespace cugraph {
@@ -158,10 +146,10 @@ void fa2(const vertex_t *row, const vertex_t *col,
        apply_forces<vertex_t>(x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_swinging, d_mass, speed, n);
        
-        printf("speed at iteration %i: %f, speed_efficiency: %f, ",
-               iter, speed, speed_efficiency);
-        printf("jt: %f, ", jt);
-        printf("swinging: %f, traction: %f\n", s, t);
+       // printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+       //        iter, speed, speed_efficiency);
+       // printf("jt: %f, ", jt);
+       // printf("swinging: %f, traction: %f\n", s, t);
  
     }
     ALLOC_FREE_TRY(srcs, stream);
