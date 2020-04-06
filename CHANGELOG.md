@@ -12,8 +12,10 @@
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
+- PR #795 Fix some documentation
 - PR #800 Fix bfs error in optimization path
  
+
 # cuGraph 0.13.0 (Date TBD)
 
 ## New Features

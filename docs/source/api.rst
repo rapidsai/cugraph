@@ -46,6 +46,13 @@ Katz Centrality
     :members:
     :undoc-members:
 
+Betweenness Centrality
+----------------------
+
+.. automodule:: cugraph.centrality.betweenness_centrality
+    :members:
+    :undoc-members:
+
 Community
 =========
 

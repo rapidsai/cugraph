@@ -45,7 +45,7 @@ def renumber(source_col, dest_col):
         Destination indices must be an integer type.
     numbering_map : cudf.Series
         This cudf.Series wraps a gdf column of size V (V: number of vertices).
-        The gdf column contains a numbering map that mpas the new ids to the
+        The gdf column contains a numbering map that maps the new ids to the
         original ids.
 
     Examples
