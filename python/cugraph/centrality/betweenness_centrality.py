@@ -25,16 +25,16 @@ def betweenness_centrality(G, k=None, normalized=True,
     ----------
     G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        be either directed (DiGraph) or undirected (Graph) 
+        be either directed (DiGraph) or undirected (Graph)
     k : int, optional
-        Default is None. 
+        Default is None.
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation
     normalized : bool, optional
-        Default is True.  
-        If true, the betweenness values are normalized by 
+        Default is True.
+        If true, the betweenness values are normalized by
         2/((n-1)(n-2)) for Graphs (undirected), and
-        1 / ((n-1)(n-2)) for DiGraphs (directed graphs) 
+        1 / ((n-1)(n-2)) for DiGraphs (directed graphs)
         where n is the number of nodes in G.
     weight : cudf.Series
         Specifies the weights to be used for each vertex.

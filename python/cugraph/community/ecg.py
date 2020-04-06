@@ -50,7 +50,7 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
          df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['partition'] : cudf.Series
-            Contains the partition assigned to the vertices       
+            Contains the partition assigned to the vertices
 
     Examples
     --------

@@ -23,8 +23,8 @@ def louvain(input_graph, max_iter=100):
     Parameters
     ----------
     input_graph : cugraph.Graph
-        cuGraph graph descriptor of type Graph 
-        
+        cuGraph graph descriptor of type Graph
+
         The adjacency list will be computed if not already present. The graph
         should be undirected where an undirected edge is represented by a
         directed edge in both direction.
@@ -44,7 +44,7 @@ def louvain(input_graph, max_iter=100):
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['partition'] : cudf.Series
-            Contains the partition assigned to the vertices  
+            Contains the partition assigned to the vertices
 
     modularity_score : float
         a floating point number containing the global modularity score of the
