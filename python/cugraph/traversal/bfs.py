@@ -12,9 +12,10 @@
 # limitations under the License.
 
 from cugraph.traversal import bfs_wrapper
+from cugraph.structure.graph import Graph
 
 
-def bfs(G, start, directed=True):
+def bfs(G, start):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -26,10 +27,6 @@ def bfs(G, start, directed=True):
         as an adjacency list.
     start : Integer
         The index of the graph vertex from which the traversal begins
-    directed : bool
-        Indicates whether the graph in question is a directed graph, or whether
-        each edge has a corresponding reverse edge. (Allows optimizations if
-        the graph is undirected)
 
     Returns
     -------
@@ -52,6 +49,11 @@ def bfs(G, start, directed=True):
     >>> G.add_edge_list(sources, destinations, None)
     >>> df = cugraph.bfs(G, 0)
     """
+
+    if type(G) is Graph:
+        directed = False
+    else:
+        directed = True
 
     df = bfs_wrapper.bfs(G, start, directed)
 

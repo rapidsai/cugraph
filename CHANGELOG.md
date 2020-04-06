@@ -9,10 +9,14 @@
 - PR #782 Use Cython's `new_build_ext` (if available)
 - PR #788 Added options and config file to enable codecov
 - PR #793 Fix legacy cudf imports/cimports
+- PR #803 Enable Ninja build
 - PR #804 Cythonize in parallel
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
+- PR #795 Fix some documentation
+- PR #800 Fix bfs error in optimization path
+ 
 
 # cuGraph 0.13.0 (Date TBD)
 
