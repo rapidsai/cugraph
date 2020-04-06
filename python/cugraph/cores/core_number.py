@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,12 +43,10 @@ def core_number(G):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> cn = cugraph.core_number(G)
     """
 
