@@ -10,6 +10,7 @@
 - PR #788 Added options and config file to enable codecov
 - PR #793 Fix legacy cudf imports/cimports
 - PR #803 Enable Ninja build
+- PR #807 Updating the Python docs
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
