@@ -293,6 +293,7 @@ ExternalProject_Add(cugunrock
                     -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
+  BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
 add_library(gunrock STATIC IMPORTED)
