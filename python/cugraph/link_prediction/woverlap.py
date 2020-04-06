@@ -68,7 +68,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     >>> weights = cudf.Series(numpy.ones(
     >>>     max(sources.max(),destinations.max())+1, dtype=numpy.float32))
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.overlap_w(G, weights)
     """
 
