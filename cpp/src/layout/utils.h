@@ -1,0 +1,44 @@
+/*
+ * Copyright (c) 2020, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#pragma once
+
+#include <thrust/random.h>
+
+namespace cugraph {
+namespace detail {
+
+struct prg {
+    __host__ __device__
+        float operator()(int n){
+            thrust::default_random_engine rng;
+            thrust::uniform_real_distribution<float> dist(-100., 100.);
+            rng.discard(n);
+            return dist(rng);
+        }
+};
+
+float *random_vector(int n, int seed) {
+    float *vec = nullptr;
+    ALLOC_TRY(&vec, sizeof(float) * n, nullptr);
+    thrust::counting_iterator<uint32_t> index(seed);
+    thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index,
+            index + n, vec, prg());
+    return vec;
+}
+
+} // namespace detail
+} // namespace cugraph

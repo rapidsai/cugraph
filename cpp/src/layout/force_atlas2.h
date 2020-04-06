@@ -26,6 +26,7 @@
 #include "cub/cub.cuh"
 #include <algorithm>
 #include <iomanip>
+#include <thrust/random.h>
 
 #include <rmm_utils.h>
 
@@ -40,6 +41,7 @@
 #include "barnes_hut.h"
 #include "fa2_kernels.h"
 #include "exact_repulsion.h"
+#include "utils.h"
 
 namespace cugraph {
 namespace detail {
@@ -61,6 +63,7 @@ void fa2(const vertex_t *row, const vertex_t *col,
     // For weighted graph number_of_edges returns half the vertices
     // but does not adapt the datastructure accordingly.
     const edge_t tmp_e = e * 2;
+    bool random_start = false;
 
     float *d_dx{nullptr};
     float *d_dy{nullptr};
@@ -86,16 +89,14 @@ void fa2(const vertex_t *row, const vertex_t *col,
     d_swinging = swinging.data().get();
     d_traction = traction.data().get();
 
-    thrust::host_vector<float> h_swinging(1);
-    thrust::host_vector<float> h_traction(1);
-
     if (x_start == nullptr || y_start == nullptr) {
-        // TODO: generate random numbers
-        return;
-    } else {
-        copy(n, x_start, x_pos);
-        copy(n, y_start, y_pos);
+        random_start = true;
+        x_start = random_vector(n, 0);
+        y_start = random_vector(n, 1);
     }
+
+    copy(n, x_start, x_pos);
+    copy(n, y_start, y_pos);
 
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
@@ -112,7 +113,6 @@ void fa2(const vertex_t *row, const vertex_t *col,
         int sum = thrust::reduce(mass.begin(), mass.end());
         outbound_att_compensation = sum / (float)n;
     }
-    //printf("coef: %f\n", outbound_att_compensation);
 
     dim3 nthreads, nblocks;
     nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
@@ -146,30 +146,32 @@ void fa2(const vertex_t *row, const vertex_t *col,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_att_compensation);
 
-        local_speed_kernel<<<nthreads, nblocks>>>(x_pos, y_pos, d_dx, d_dy,
+        compute_local_speed(x_pos, y_pos, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
 
-        float s = thrust::reduce(swinging.begin(), swinging.end());
-        float t = thrust::reduce(traction.begin(), traction.end());
-        
+       float s = thrust::reduce(swinging.begin(), swinging.end());
+       float t = thrust::reduce(traction.begin(), traction.end());
+
        adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                s, t, n);
 
-       update_positions_kernel<vertex_t><<<nthreads, nblocks>>>(
-                x_pos, y_pos, d_dx, d_dy,
-                d_old_dx, d_old_dy, d_mass, speed, n);
+       apply_forces<vertex_t>(x_pos, y_pos, d_dx, d_dy,
+                d_old_dx, d_old_dy, d_swinging, d_mass, speed, n);
        
-       // printf("swinging: %f, traction: %f\n", s, t);
-       // printf("jt: %f\n", jt);
-       //printf("speed at iteration %i: %f, speed_efficiency: %f\n",
-       //        iter, speed, speed_efficiency);
+        printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+               iter, speed, speed_efficiency);
+        printf("jt: %f, ", jt);
+        printf("swinging: %f, traction: %f\n", s, t);
  
     }
     ALLOC_FREE_TRY(srcs, stream);
     ALLOC_FREE_TRY(dests, stream);
     if (weighted)
         ALLOC_FREE_TRY(weights, stream);
-
+    if (random_start) {
+        ALLOC_FREE_TRY(x_start, nullptr);
+        ALLOC_FREE_TRY(y_start, nullptr);
+    }
 }
 
 } // namespace detail

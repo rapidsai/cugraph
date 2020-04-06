@@ -99,10 +99,6 @@ attraction_kernel(const vertex_t *row, const vertex_t *col,
         atomicAdd(&d_dy[src], y_dist * factor);
         atomicAdd(&d_dx[dst], -x_dist * factor);
         atomicAdd(&d_dy[dst], -y_dist * factor);
-
-       // printf("(%f, %f), (%f, %f)\n", x_pos[src], y_pos[src], x_pos[dst], y_pos[dst]);
-       // printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
-       //         i, x_pos[src], y_pos[src], d_dx[src], d_dy[src]);
     }
 }
 
@@ -143,9 +139,6 @@ linear_gravity_kernel(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
         float factor = d_mass[i] * gravity / distance;
         atomicAdd(&d_dx[i], -x_dist * factor);
         atomicAdd(&d_dy[i], -y_dist * factor);
-
-        //printf("tid: %i, pos_x: %f, pos_y: %f, dx: %f, dy: %f\n",
-        //    i, x_pos[i], y_pos[i], d_dx[i], d_dy[i]);
     }
 
 }
@@ -198,7 +191,7 @@ local_speed_kernel(float *x_pos, float *y_pos, float *d_dx, float *d_dy,
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
             i += gridDim.x * blockDim.x) {
-        //printf("a: %f, b: %f\n", d_dx[i], d_old_dx[i]);
+
         float node_swinging = d_mass[i] * sqrt(pow(d_old_dx[i] - d_dx[i], 2) + pow(d_old_dy[i] - d_dy[i], 2));
         float node_traction = 0.5 * d_mass[i] * \
         sqrt((d_old_dx[i] + d_dx[i]) * (d_old_dx[i] + d_dx[i]) + \
@@ -206,6 +199,22 @@ local_speed_kernel(float *x_pos, float *y_pos, float *d_dx, float *d_dy,
         d_swinging[i] = node_swinging;
         d_traction[i] = node_traction;
     }
+}
+
+template <typename vertex_t>
+void compute_local_speed(float *x_pos, float *y_pos, float *d_dx, float *d_dy,
+        float *d_old_dx, float *d_old_dy, int *d_mass, float *d_swinging,
+        float *d_traction, vertex_t n) {
+    dim3 nthreads, nblocks;
+    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+    nthreads.y = 1;
+    nthreads.z = 1;
+    nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+    nblocks.y = 1;
+    nblocks.z = 1;
+
+    local_speed_kernel<<<nthreads, nblocks>>>(x_pos, y_pos, d_dx, d_dy,
+            d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
 }
 
 template <typename vertex_t>
@@ -223,9 +232,8 @@ void adapt_speed(const float jitter_tolerance, float *jt,
 
     *jt = jitter_tolerance * \
         max(min_jt, min(max_jt, estimated_jt * t / (n * n)));
-    //printf("s: %f, t: %f, res: %f\n", *s, *t,
-    //        *s / *t);
-    if (s / t > 2.0) {
+
+   if (s / t > 2.0) {
         if (*speed_efficiency > min_speed_efficiency) {
             *speed_efficiency *= 0.5;
         }
@@ -251,22 +259,32 @@ template <typename vertex_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 update_positions_kernel(float *x_pos, float *y_pos,
         float *d_dx, float *d_dy, float * d_old_dx, float *d_old_dy,
-        int *d_mass, const float speed, vertex_t n) {
+        float *d_swinging, int *d_mass, const float speed, vertex_t n) {
 
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
             i += gridDim.x * blockDim.x) {
-        float tmp_x = d_old_dx[i] - d_dx[i];
-        float tmp_y = d_old_dy[i] - d_dy[i];
-        float local_swinging = d_mass[i] * sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
-      // printf("tid: %i, node_swinging: (%f, %f) (%f, %f) %f\n",i,
-      //        x_pos[i], y_pos[i],  d_dx[i], d_dy[i], local_swinging);
-
-
-        float factor = speed / (1.0 + sqrt(speed * local_swinging));
+        float factor = speed / (1.0 + sqrt(speed * d_swinging[i]));
         x_pos[i] += d_dx[i] * factor;
         y_pos[i] += d_dy[i] * factor;
     }
+}
+
+template <typename vertex_t>
+void apply_forces(float *x_pos, float *y_pos,
+        float *d_dx, float *d_dy, float * d_old_dx, float *d_old_dy,
+        float *d_swinging, int *d_mass, const float speed, vertex_t n) {
+    dim3 nthreads, nblocks;
+    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+    nthreads.y = 1;
+    nthreads.z = 1;
+    nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+    nblocks.y = 1;
+    nblocks.z = 1;
+
+	update_positions_kernel<vertex_t><<<nthreads, nblocks>>>(
+			x_pos, y_pos, d_dx, d_dy,
+			d_old_dx, d_old_dy, d_swinging, d_mass, speed, n);
 }
 
 } // namespace detail
