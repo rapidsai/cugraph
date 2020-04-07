@@ -69,15 +69,6 @@ void BC<VT, ET, WT, result_t>::clean() {
     // ---  Betweenness is not ours ---
 }
 
-template <typename WT, typename VT>
-struct ifNegativeReplace {
-  __host__ __device__
-  VT operator()(const WT& dist, const VT& node) const
-  {
-    return (dist == static_cast<WT>(-1)) ? static_cast<VT>(-1) : node;
-  }
-};
-
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::normalize() {
     printf("[DBG] Being normalized\n");
@@ -94,7 +85,7 @@ void BC<VT, ET, WT, result_t>::normalize() {
 /* TODO(xcadet) Use an iteration based node system, to process nodes of the same level at the same time
 ** For now all the work is done on the first thread */
 template <typename VT, typename ET, typename WT, typename result_t>
-__global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
+__global__ void accumulation_kernel_old(result_t *betweenness, VT number_vertices,
                                   VT const *indices, ET const *offsets,
                                   VT *distances,
                                   int *sp_counters,
@@ -114,10 +105,37 @@ __global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
         VT w =  indices[edge_start + edge_idx];
         if (distances[w] == depth + 1) { // Current node is a predecessor
           result_t factor = (static_cast<result_t>(1.0) + deltas[w]) / static_cast<result_t>(sp_counters[w]);
-          deltas[v] += static_cast<result_t>(sp_counters[v]) * factor;
+          atomicAdd(&deltas[v], static_cast<result_t>(sp_counters[v]) * factor);
         }
       }
-      betweenness[v] += deltas[v];
+        atomicAdd(&betweenness[v], deltas[v]);
+    }
+  }
+}
+// Dependecy Accumulation: McLaughlin and Bader, 2018
+template <typename VT, typename ET, typename WT, typename result_t>
+__global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
+                                  VT const *indices, ET const *offsets,
+                                  VT *distances,
+                                  int *sp_counters,
+                                  result_t *deltas, VT source, VT depth) {
+  for (int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < number_vertices;
+       tid += gridDim.x * blockDim.x) {
+    VT w = tid;
+    result_t dsw = 0;
+    result_t sw = static_cast<result_t>(sp_counters[w]);
+    if (distances[w] == depth) { // Process nodes at this depth
+      ET edge_start = offsets[w];
+      ET edge_end = offsets[w + 1];
+      ET edge_count = edge_end - edge_start;
+      for (ET edge_idx = 0; edge_idx < edge_count; ++edge_idx) { // Visit neighbors
+        VT v = indices[edge_start + edge_idx];
+        if (distances[v] == distances[w] + 1) {
+          result_t factor = (static_cast<result_t>(1) + deltas[v]) / static_cast<result_t>(sp_counters[v]);
+          dsw += sw * factor;
+        }
+      }
+      deltas[w] = dsw;
     }
   }
 }
@@ -129,7 +147,7 @@ void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* distances,
                                           VT *sp_counters,
                                           result_t *deltas, VT source, VT max_depth) {
     dim3 grid, block;
-    block.x = 512;
+    block.x = 1; // TODO(xcadet) Replace these values, only for debugging
     grid.x = 1;
   // Step 1) Dependencies (deltas) are initialized to 0 before starting
   thrust::fill(rmm::exec_policy(stream)->on(stream), deltas,
@@ -144,6 +162,9 @@ void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* distances,
                                              deltas, source, depth);
     cudaDeviceSynchronize();
   }
+
+  thrust::transform(rmm::exec_policy(stream)->on(stream),
+    deltas, deltas + number_vertices, betweenness, betweenness, thrust::plus<result_t>());
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -153,30 +174,32 @@ void BC<VT, ET, WT, result_t>::check_input() {
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute() {
     CUGRAPH_EXPECTS(configured, "BC must be configured before computation");
-
+    thrust::device_vector<VT> d_sp_counters(number_vertices, 0);
+    thrust::device_vector<VT> d_distances(number_vertices, 0);
+    thrust::device_vector<result_t> d_deltas(number_vertices, 0);
     for (int source_vertex = 0; source_vertex < number_vertices;
          ++source_vertex) {
-        std::cout << "Processing source: " << source_vertex << std::endl;
-        thrust::device_vector<VT> d_sp_counters(number_vertices, 0);
-        thrust::device_vector<VT> d_distances(number_vertices, 0);
-        thrust::device_vector<result_t> d_deltas(number_vertices, 0);
         // Step 1) Singe-source shortest-path problem
         cugraph::bfs(graph, thrust::raw_pointer_cast(d_distances.data()), predecessors, thrust::raw_pointer_cast(d_sp_counters.data()), source_vertex,
                      graph.prop.directed);
         cudaDeviceSynchronize();
-        //cugraph::sssp(graph, distances, predecessors, source_vertex);
-        std::cout << "SP Counters" << std::endl;
-        thrust::copy(d_sp_counters.begin(), d_sp_counters.end(), std::ostream_iterator<VT>(std::cout, ", "));
-        std::cout << std::endl;
-        // Step 2) Accumulation,
+
+        //TODO(xcadet) Remove that with a BC specific class to gather
+        //             information during traversal
+        // NOTE: REPLACE INFINITY BY -1 otherwise the max depth will be maximal
+        //       value!
+        thrust::replace(rmm::exec_policy(stream)->on(stream), d_distances.begin(),
+                        d_distances.end(),
+                        std::numeric_limits<VT>::max(),
+                        static_cast<VT>(-1));
         auto value = thrust::max_element(d_distances.begin(), d_distances.end());
 
         accumulate(betweenness, thrust::raw_pointer_cast(d_distances.data()), thrust::raw_pointer_cast(d_sp_counters.data()), thrust::raw_pointer_cast(d_deltas.data()), source_vertex, *value);
-
+        /*
         std::cout << "Deltas" << std::endl;
         thrust::copy(d_deltas.begin(), d_deltas.end(), std::ostream_iterator<result_t>(std::cout, ", "));
         std::cout << std::endl;
-
+        */
     }
     cudaDeviceSynchronize();
     if (apply_normalization) {

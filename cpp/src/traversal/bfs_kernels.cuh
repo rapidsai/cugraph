@@ -965,12 +965,13 @@ namespace bfs_kernels {
                 if (distances)
                   distances[v] = lvl;
 
-                if (predecessors)
-                  predecessors[v] = vec_u[iv];
-
-                if (sp_counters) {
-                  printf("[KER][BFS][FE-Isol] Node %d sigmas (%d) is added (%d) by %d\n", v, sp_counters[v], sp_counters[vec_u[iv]], iv);
-                  atomicAdd(&sp_counters[v], sp_counters[vec_u[iv]]);
+                if (predecessors) {
+                  IndexType pred = vec_u[iv];
+                  predecessors[v] = pred;
+                  if (sp_counters) {
+                    //printf("[KER][BFS][FE-Isol] Node %d sigmas (%d) is added (%d) by %d\n", v, sp_counters[v], sp_counters[vec_u[iv]], iv);
+                    atomicAdd(&sp_counters[v], sp_counters[vec_u[iv]]);
+                  }
                 }
 
 
@@ -1051,7 +1052,7 @@ namespace bfs_kernels {
               }
               if (sp_counters) {
                 IndexType pred = shared_local_new_frontier_predecessors[idx_shared];
-                printf("[KER][BFS][FE] Node %d sigmas (%d) is added (%d) by %d\n", v, sp_counters[v], sp_counters[pred], pred);
+                //printf("[KER][BFS][FE] Node %d sigmas (%d) is added (%d) by %d\n", v, sp_counters[v], sp_counters[pred], pred);
                 atomicAdd(&sp_counters[v], sp_counters[pred]);
               }
             }

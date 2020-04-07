@@ -165,6 +165,7 @@ namespace detail {
       cudaMemsetAsync(sp_counters, 0, n * sizeof(IndexType), stream);
       IndexType value = 1;
       cudaMemcpy(sp_counters + source_vertex, &value, sizeof(IndexType), cudaMemcpyHostToDevice);
+      cudaDeviceSynchronize();
     }
 
     //
