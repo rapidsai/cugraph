@@ -35,24 +35,17 @@ namespace cugraph {
 namespace detail {
 
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
-void fa2(const vertex_t *row, const vertex_t *col,
+void exact_fa2(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const edge_t e, const vertex_t n,
         float *x_pos, float *y_pos, const int max_iter=1000,
         float *x_start=nullptr, float *y_start=nullptr,
         bool outbound_attraction_distribution=false,
         bool lin_log_mode=false, bool prevent_overlapping=false,
         const float edge_weight_influence=1.0,
-        const float jitter_tolerance=1.0, bool barnes_hut_optimize=0.5,
-        const float barnes_hut_theta=0.5,
-        const float scaling_ratio=2.0, bool strong_gravity_mode=false,
+        const float jitter_tolerance=1.0,
+		const float scaling_ratio=2.0, bool strong_gravity_mode=false,
         const float gravity=1.0) { 
     
-    // Temporary fix
-    // For weighted graph number_of_edges returns half the vertices
-    // but does not adapt the datastructure accordingly.
-    const edge_t tmp_e = e * 2;
-    bool random_start = false;
-
     float *d_dx{nullptr};
     float *d_dy{nullptr};
     float *d_old_dx{nullptr};
@@ -77,21 +70,20 @@ void fa2(const vertex_t *row, const vertex_t *col,
     d_swinging = swinging.data().get();
     d_traction = traction.data().get();
 
-    if (x_start == nullptr || y_start == nullptr) {
-        random_start = true;
-        x_start = random_vector(n, 0);
-        y_start = random_vector(n, 1);
-    }
+    int random_state = 0;
+    float *YY = random_vector(n * 2, random_state);
 
-    copy(n, x_start, x_pos);
-    copy(n, y_start, y_pos);
+    if (x_start && y_start) {
+        copy(n, x_start, YY);
+        copy(n, y_start, YY + n);
+    }
 
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
     weight_t* weights{nullptr};
     cudaStream_t stream = sort_coo<weighted, vertex_t, edge_t, weight_t>(row,
-            col, v, &srcs, &dests, &weights, tmp_e);
-    init_mass<vertex_t, edge_t>(&dests, d_mass, tmp_e, n);
+            col, v, &srcs, &dests, &weights, e);
+    init_mass<vertex_t, edge_t>(&dests, d_mass, e, n);
 
     float speed = 1.f;
     float speed_efficiency = 1.f;
@@ -102,15 +94,6 @@ void fa2(const vertex_t *row, const vertex_t *col,
         outbound_att_compensation = sum / (float)n;
     }
 
-    dim3 nthreads, nblocks;
-    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
-    nthreads.y = 1;
-    nthreads.z = 1;
-    nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-    nblocks.y = 1;
-    nblocks.z = 1;
-
-
     for (int iter=0; iter < max_iter; ++iter) {
         copy(n, d_dx, d_old_dx);
         copy(n, d_dy, d_old_dy);
@@ -119,24 +102,18 @@ void fa2(const vertex_t *row, const vertex_t *col,
         fill(n, d_swinging, 0.f);
         fill(n, d_traction, 0.f);
 
-        if (barnes_hut_optimize) {
-            barnes_hut<vertex_t, edge_t, weight_t>(srcs,
-                    dests, weights, tmp_e, n, x_pos, y_pos,
-                    barnes_hut_theta, scaling_ratio);
-            return;
-        } else {
-            apply_repulsion<vertex_t>(x_pos,
-                    y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
-        }
-        apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
-                strong_gravity_mode, scaling_ratio, n);
+		apply_repulsion<vertex_t>(YY,
+					YY + n, d_dx, d_dy, d_mass, scaling_ratio, n);
 
-        apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
-                dests, weights, tmp_e, x_pos, y_pos, d_dx, d_dy, d_mass,
-                outbound_attraction_distribution,
-                edge_weight_influence, outbound_att_compensation);
+		apply_gravity<vertex_t>(YY, YY + n, d_mass, d_dx, d_dy, gravity,
+				strong_gravity_mode, scaling_ratio, n);
 
-        compute_local_speed(x_pos, y_pos, d_dx, d_dy,
+		apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
+				dests, weights, e, YY, YY + n, d_dx, d_dy, d_mass,
+				outbound_attraction_distribution,
+				edge_weight_influence, outbound_att_compensation);
+
+       compute_local_speed(YY, YY + n, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
 
        float s = thrust::reduce(swinging.begin(), swinging.end());
@@ -145,22 +122,21 @@ void fa2(const vertex_t *row, const vertex_t *col,
        adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                s, t, n);
 
-       apply_forces<vertex_t>(x_pos, y_pos, d_dx, d_dy,
+       apply_forces<vertex_t>(YY, YY + n, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_swinging, d_mass, speed, n);
-       
-       // printf("speed at iteration %i: %f, speed_efficiency: %f, ",
-       //        iter, speed, speed_efficiency);
-       // printf("jt: %f, ", jt);
-       // printf("swinging: %f, traction: %f\n", s, t);
+        //printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+        //       iter, speed, speed_efficiency);
+        //printf("jt: %f, ", jt);
+        //printf("swinging: %f, traction: %f\n", s, t);
     }
+    copy(n, YY, x_pos);
+    copy(n, YY + n, y_pos);
+
     ALLOC_FREE_TRY(srcs, stream);
     ALLOC_FREE_TRY(dests, stream);
     if (weighted)
         ALLOC_FREE_TRY(weights, stream);
-    if (random_start) {
-        ALLOC_FREE_TRY(x_start, nullptr);
-        ALLOC_FREE_TRY(y_start, nullptr);
-    }
+    ALLOC_FREE_TRY(YY, nullptr);
 }
 
 } // namespace detail
