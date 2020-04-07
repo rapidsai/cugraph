@@ -41,7 +41,7 @@ def subgraph(G, vertices):
                           dtype=['int32', 'int32', 'float32'],
                           header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> verts = numpy.zeros(3, dtype=numpy.int32)
     >>> verts[0] = 0
     >>> verts[1] = 1
