@@ -63,13 +63,9 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     --------
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
-    >>> weights = cudf.Series(numpy.ones(
-    >>>     max(sources.max(),destinations.max())+1, dtype=numpy.float32))
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> df = cugraph.overlap_w(G, weights)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> df = cugraph.overlap_w(G, M[2])
     """
 
     if (type(vertex_pair) == cudf.DataFrame):
