@@ -25,7 +25,7 @@ struct prg {
     __host__ __device__
         float operator()(int n){
             thrust::default_random_engine rng;
-            thrust::uniform_real_distribution<float> dist(-100., 100.);
+            thrust::uniform_real_distribution<float> dist(-0.0001f, 0.0001f);
             rng.discard(n);
             return dist(rng);
         }
@@ -38,6 +38,16 @@ float *random_vector(int n, int seed) {
     thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index,
             index + n, vec, prg());
     return vec;
+}
+
+/** helper method to get multi-processor count parameter */
+inline int getMultiProcessorCount() {
+    int devId;
+    CUDA_TRY(cudaGetDevice(&devId));
+    int mpCount;
+    CUDA_TRY(
+            cudaDeviceGetAttribute(&mpCount, cudaDevAttrMultiProcessorCount, devId));
+    return mpCount;
 }
 
 } // namespace detail

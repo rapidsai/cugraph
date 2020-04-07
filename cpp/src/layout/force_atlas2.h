@@ -43,7 +43,7 @@ void fa2(const vertex_t *row, const vertex_t *col,
         bool lin_log_mode=false, bool prevent_overlapping=false,
         const float edge_weight_influence=1.0,
         const float jitter_tolerance=1.0, bool barnes_hut_optimize=0.5,
-        const float barnes_hut_theta=1.2,
+        const float barnes_hut_theta=0.5,
         const float scaling_ratio=2.0, bool strong_gravity_mode=false,
         const float gravity=1.0) { 
     
@@ -120,17 +120,19 @@ void fa2(const vertex_t *row, const vertex_t *col,
         fill(n, d_traction, 0.f);
 
         if (barnes_hut_optimize) {
-           return;
+            barnes_hut<vertex_t, edge_t, weight_t>(srcs,
+                    dests, weights, tmp_e, n, x_pos, y_pos,
+                    barnes_hut_theta, scaling_ratio);
+            return;
         } else {
             apply_repulsion<vertex_t>(x_pos,
                     y_pos, d_dx, d_dy, d_mass, scaling_ratio, n);
         }
-
         apply_gravity<vertex_t>(x_pos, y_pos, d_mass, d_dx, d_dy, gravity,
                 strong_gravity_mode, scaling_ratio, n);
 
         apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
-                dests, v, tmp_e, x_pos, y_pos, d_dx, d_dy, d_mass,
+                dests, weights, tmp_e, x_pos, y_pos, d_dx, d_dy, d_mass,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_att_compensation);
 
@@ -150,7 +152,6 @@ void fa2(const vertex_t *row, const vertex_t *col,
        //        iter, speed, speed_efficiency);
        // printf("jt: %f, ", jt);
        // printf("swinging: %f, traction: %f\n", s, t);
- 
     }
     ALLOC_FREE_TRY(srcs, stream);
     ALLOC_FREE_TRY(dests, stream);
