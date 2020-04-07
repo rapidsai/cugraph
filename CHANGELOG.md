@@ -5,11 +5,13 @@
 ## Improvements
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
+- PR #780 Remove gdf_column from cuhornet features
 - PR #781 Fix compiler argument syntax for ccache
 - PR #782 Use Cython's `new_build_ext` (if available)
 - PR #788 Added options and config file to enable codecov
 - PR #793 Fix legacy cudf imports/cimports
 - PR #803 Enable Ninja build
+- PR #804 Cythonize in parallel
 - PR #807 Updating the Python docs
 
 ## Bug Fixes

@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.structure import graph_wrapper
+from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
@@ -413,7 +414,7 @@ class Graph:
                 the second vertex id of a pair.
 
         """
-        df = graph_wrapper.get_two_hop_neighbors(self)
+        df = graph_new_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 n_cols = len(self.edgelist.renumber_map.columns) - 1
@@ -632,7 +633,7 @@ class Graph:
         >>> df = G.degrees([0,9,12])
 
         """
-        vertex_col, in_degree_col, out_degree_col = graph_wrapper._degrees(
+        vertex_col, in_degree_col, out_degree_col = graph_new_wrapper._degrees(
                                                         self)
 
         df = cudf.DataFrame()
@@ -665,15 +666,10 @@ class Graph:
                     np.asarray([out_degree_col[i] for i in vertex_subset],
                                dtype=np.int32))
 
-            # is this necessary???
-            del vertex_col
-            del in_degree_col
-            del out_degree_col
-
         return df
 
     def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = graph_wrapper._degree(self, x)
+        vertex_col, degree_col = graph_new_wrapper._degree(self, x)
 
         df = cudf.DataFrame()
         if vertex_subset is None:
@@ -698,9 +694,6 @@ class Graph:
                 df['degree'] = cudf.Series(np.asarray(
                     [degree_col[i] for i in vertex_subset], dtype=np.int32
                 ))
-            # is this necessary???
-            del vertex_col
-            del degree_col
 
         return df
 
