@@ -72,13 +72,15 @@ def force_atlas2(input_graph,
         pos : cudf.DataFrame
             GPU data frame of size V containing two columns the x and y positions
             indexed by vertex id
-
         """
 
         if pos_list is not None:
             null_check(pos_list['vertex'])
             null_check(pos_list['x'])
             null_check(pos_list['y'])
+
+        if lin_log_mode or prevent_overlapping:
+            raise Exception("Feature not supported")
 
         pos = force_atlas2_wrapper.force_atlas2(input_graph,
                 max_iter=max_iter,
