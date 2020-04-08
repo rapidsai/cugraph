@@ -219,8 +219,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
                 outbound_attraction_distribution,
                 edge_weight_influence, outbound_att_compensation);
 
-        compute_local_speed(YY, YY + nnodes + 1, rep_forces,
-                rep_forces + nnodes + 1,
+        compute_local_speed(rep_forces, rep_forces + nnodes + 1,
                 d_attract, d_attract + n,
                 d_old_forces, d_old_forces + n,
                 d_mass, d_swinging, d_traction, n);

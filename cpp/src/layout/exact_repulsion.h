@@ -15,16 +15,18 @@
  */
 
 #pragma once
+#define restrict __restrict__ 
 
 namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
 __global__ void
-repulsion_kernel(float *x_pos, float *y_pos,
-        float *d_dx, float *d_dy, int *d_mass, const float scaling_ratio,
+repulsion_kernel(const float *restrict x_pos, const float *restrict y_pos,
+        float *restrict repel_x, float *restrict repel_y,
+        const int *restrict mass, const float scaling_ratio,
         const vertex_t n) {
-	const int j =
+    const int j =
 		(blockIdx.x * blockDim.x) + threadIdx.x;  // for every item in row
 	const int i = (blockIdx.y * blockDim.y) + threadIdx.y;  // for every row
 	if (j >= i || i >= n || j >= n) return;
@@ -33,17 +35,18 @@ repulsion_kernel(float *x_pos, float *y_pos,
 	float y_dist = y_pos[i] - y_pos[j];
 	float distance = x_dist * x_dist + y_dist * y_dist;
 	distance += FLT_EPSILON;
-	float factor = scaling_ratio * d_mass[i] * d_mass[j] / distance;
+	float factor = scaling_ratio * mass[i] * mass[j] / distance;
 	// Add forces
-	atomicAdd(&d_dx[i], x_dist * factor);
-	atomicAdd(&d_dx[j], -x_dist * factor);
-	atomicAdd(&d_dy[i], y_dist * factor);
-	atomicAdd(&d_dy[j], -y_dist * factor);
+	atomicAdd(&repel_x[i], x_dist * factor);
+	atomicAdd(&repel_x[j], -x_dist * factor);
+	atomicAdd(&repel_y[i], y_dist * factor);
+	atomicAdd(&repel_y[j], -y_dist * factor);
 }
 
 template <typename vertex_t, int TPB_X = 32, int TPB_Y = 32>
-void apply_repulsion(float *x_pos, float *y_pos,
-        float *d_dx, float *d_dy, int *d_mass, const float scaling_ratio,
+void apply_repulsion(const float *restrict x_pos, const float *restrict y_pos,
+        float *restrict repel_x, float *restrict repel_y,
+        const int *restrict mass, const float scaling_ratio,
         const vertex_t n) {
 
     dim3 nthreads(TPB_X, TPB_Y);
@@ -51,7 +54,7 @@ void apply_repulsion(float *x_pos, float *y_pos,
     min((n + nthreads.y - 1) / nthreads.y, CUDA_MAX_BLOCKS));
 
     repulsion_kernel<vertex_t><<<nblocks, nthreads>>>(x_pos, y_pos,
-            d_dx, d_dy, d_mass, scaling_ratio, n);
+            repel_x, repel_y, mass, scaling_ratio, n);
     CUDA_CHECK_LAST();
 } 
 
