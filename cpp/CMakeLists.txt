@@ -399,7 +399,6 @@ add_dependencies(cugraph cugunrock)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
-
 target_include_directories(cugraph
     PRIVATE
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
