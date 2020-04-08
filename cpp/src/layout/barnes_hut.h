@@ -147,7 +147,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     weight_t* weights{nullptr};
     cudaStream_t stream = sort_coo<weighted, vertex_t, edge_t, weight_t>(row,
             col, v, &srcs, &dests, &weights, e);
-    init_mass<vertex_t, edge_t>(&dests, d_mass, e, n);
+    init_mass<vertex_t, edge_t, int>(&dests, d_mass, e, n);
 
     float speed = 1.f;
     float speed_efficiency = 1.f;
@@ -166,17 +166,17 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     cudaFuncSetCacheConfig(SummarizationKernel, cudaFuncCachePreferShared);
     cudaFuncSetCacheConfig(SortKernel, cudaFuncCachePreferL1);
     cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
-//    cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
+    
+    init_mass<vertex_t, edge_t, float>(&dests, massl, e, n);
 
   for (int iter=0; iter < max_iter; ++iter) {
-      /*
       copy(n, d_dx, d_old_dx);
       copy(n, d_dy, d_old_dy);
       fill(n, d_dx, 0.f);
       fill(n, d_dy, 0.f);
       fill(n, d_swinging, 0.f);
       fill(n, d_traction, 0.f);
-      */
 
       fill((nnodes + 1) * 2, rep_forces, 0.f);
       Reset_Normalization<<<1, 1, 0>>>(radiusd_squared,
@@ -203,7 +203,6 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
       SummarizationKernel<<<blocks * FACTOR3, THREADS3, 0>>>(
               countl, childl, massl, YY, YY + nnodes + 1, NNODES, n, bottomd);
       CUDA_CHECK_LAST();
-      printv(n, massl, 0);
 
       SortKernel<<<blocks * FACTOR4, THREADS4, 0>>>(
               sortl, countl, startl, childl, NNODES, n, bottomd);
@@ -216,9 +215,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
               FOUR_NNODES, n, radiusd_squared, maxdepthd);
       CUDA_CHECK_LAST();
 
-      printv(n, rep_forces, 0);
-      printv(n, rep_forces + nnodes + 1, 0);
-      /*
+//      printv(n, rep_forces, 0);
+//      printv(n, rep_forces + nnodes + 1, 0);
 
       apply_gravity<vertex_t>(YY, YY + nnodes + 1, d_mass, d_dx, d_dy, gravity,
               strong_gravity_mode, scaling_ratio, n);
@@ -242,7 +240,6 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
               rep_forces, rep_forces + nnodes + 1, d_dx, d_dy,
               d_swinging, speed, n);
       CUDA_CHECK_LAST();
-      */
   }
 
   copy(n, YY, x_pos);

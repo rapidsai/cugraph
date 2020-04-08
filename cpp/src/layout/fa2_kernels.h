@@ -19,8 +19,8 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename edge_t>
-void init_mass(vertex_t **dests, int *d_mass, const edge_t e, const vertex_t n) {
+template <typename vertex_t, typename edge_t, typename value_t>
+void init_mass(vertex_t **dests, value_t *d_mass, const edge_t e, const vertex_t n) {
     dim3 nthreads, nblocks;
     nthreads.x = 1024;
     nthreads.y = 1;
@@ -28,7 +28,7 @@ void init_mass(vertex_t **dests, int *d_mass, const edge_t e, const vertex_t n) 
     nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
     nblocks.y = 1;
     nblocks.z = 1;
-    degree_coo<vertex_t, int><<<nthreads, nblocks>>>(n, e, *dests, d_mass);
+    degree_coo<vertex_t, value_t><<<nthreads, nblocks>>>(n, e, *dests, d_mass);
 }
 
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>

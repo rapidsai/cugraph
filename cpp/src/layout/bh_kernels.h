@@ -555,7 +555,7 @@ __global__ __launch_bounds__(
 
     const float px = posxd[i];
     const float py = posyd[i];
-    //const int node_mass = d_mass[i];
+    const int node_mass = d_mass[i];
 
     float vx = 0.0f;
     float vy = 0.0f;
@@ -587,9 +587,10 @@ __global__ __launch_bounds__(
         const float dxy1 = dx * dx + dy * dy + EPS_PLUS_1;
 
         if ((n < N) or __all_sync(__activemask(), dxy1 >= dq[depth])) {
-          const float tdist_2 = __fdividef(massd[n], dxy1 * dxy1);
-          printf("massd[n]: %f, dxy1: %f", massd[n], dxy1);
-          //const float tdist_2 = scaling_ratio * d_mass[n] * massd[n] / dxy1;
+         // const float tdist_2 = __fdividef(massd[n], dxy1 * dxy1);
+          const float tdist_2 = scaling_ratio * node_mass * massd[n] / dxy1;
+       //   printf("id: %i, (%f, %f), (%f, %f) node_mass: %i, massd[n]: %f, dxy1: %f\n",
+       //           i, px, py, posxd[n], posyd[n],node_mass, massd[n], dxy1);
           vx += dx * tdist_2;
           vy += dy * tdist_2;
         } else {
