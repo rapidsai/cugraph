@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.cores import ktruss_subgraph_wrapper
-from cugraph.structure.graph import DiGraph
 
 
 def ktruss_subgraph(G, k, use_weights=True):
@@ -62,7 +61,6 @@ def ktruss_subgraph(G, k, use_weights=True):
     use_weights : Bool
         whether the output should contain the edge weights if G has them
 
-
     Returns
     -------
     G_truss : cuGraph.Graph
@@ -77,7 +75,7 @@ def ktruss_subgraph(G, k, use_weights=True):
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
     """
 
-    KTrussSubgraph = DiGraph()
+    KTrussSubgraph = type(G)()
 
     ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights,
                                             KTrussSubgraph)
