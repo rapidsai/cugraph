@@ -51,6 +51,8 @@ from cugraph.bsp.traversal import bfs_df_pregel
 from cugraph.proto.components import strong_connected_component
 from cugraph.proto.structure import find_bicliques
 
+from cugraph.matching import hungarian
+
 # Versioneer
 from ._version import get_versions
 __version__ = get_versions()['version']

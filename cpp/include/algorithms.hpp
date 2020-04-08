@@ -410,4 +410,34 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
          VT *predecessors,
          const VT start_vertex,
          bool directed = true);
+
+/**                                                                             
+ * @brief      Compute Hungarian algorithm on a weighted bipartite graph
+ *
+ * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
+ * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
+ * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
+ *
+ * NOTE: This algorithm relies upon a symmetric graph as input.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *                                                                              
+ * @param[in]  graph                 cuGRAPH CSR graph, must be symmetric
+ * @param[in]  num_workers           number of vertices in the worker set
+ * @param[in]  workers               device pointer to an array of worker vertex ids
+ * @param[out] assignment            device pointer to an array to which the assignment will be written.
+ *                                   The array should be num_workers long, and will identify which
+ *                                   vertex id (job) is assigned to that worker
+ */                                                                             
+template <typename VT, typename ET, typename WT>
+WT hungarian(experimental::GraphCSR<VT, ET, WT> const &graph,
+             VT num_workers,
+             VT const *workers,
+             VT *assignment);
+
 } //namespace cugraph
