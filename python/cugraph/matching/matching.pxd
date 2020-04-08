@@ -21,7 +21,7 @@ from cugraph.structure.graph_new cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void hungarian[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCOO[VT,ET,WT] &graph,
         VT num_workers,
         const VT *workers,
         VT *assignment) except +

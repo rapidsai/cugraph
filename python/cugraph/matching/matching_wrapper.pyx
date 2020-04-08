@@ -30,38 +30,24 @@ def hungarian(input_graph, workers):
     """
     Call the hungarian algorithm
     """
-    offsets = None
-    indices = None
+    src = None
+    dst = None
     weights = None
     local_workers = None
 
     """
-    We need a CSR of a symmetric graph.  Since we know it's symmetric
-    either CSR or CSC will work the same.
+    We need a COO of the graph.
     """
-    if input_graph.adjlist is not None:
-        if input_graph.adjlist.weights is None:
-            raise Exception("hungarian algorithm requires weighted graph")
+    if not input_graph.edgelist:
+        input_graph.view_edge_list()
 
-        offsets = input_graph.adjlist.offsets
-        indices = input_graph.adjlist.indices
-    elif input_graph.transposedadjlist is not None:
-        if input_graph.tranposedadjlist.weights is None:
-            raise Exception("hungarian algorithm requires weighted graph")
+    if input_graph.edgelist.weights is None:
+        raise Exception("hungarian algorithm requires weighted graph")
 
-        offsets = input_graph.transposedadjlist.offsets
-        indices = input_graph.transposedadjlist.indices
-    else:
-        if input_graph.edgelist.weights is None:
-            raise Exception("hungarian algorithm requires weighted graph")
+    src = input_graph.edgelist.edgelist_df['src']
+    dst = input_graph.edgelist.edgelist_df['dst']
 
-        input_graph.view_adj_list()
-        offsets = input_graph.adjlist.offsets
-        indices = input_graph.adjlist.indices
-
-    [offsets, indices] = graph_new_wrapper.datatype_cast([offsets, indices],
-                                                         [np.int32])
-
+    [src, dst] = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
     [weights] = graph_new_wrapper.datatype_cast([weights], [np.float32, np.float64])
 
     """
@@ -75,33 +61,32 @@ def hungarian(input_graph, workers):
         workers_df['vertex'] = workers
         local_workers = workers_df.merge(renumber_df, left_on='vertex', right_on='map', how='left')['id']
     else:
-        [local_workers] = graph_new_wrapper.datatype_cast([offsets, indices],
-                                                          [np.int32])
+        [local_workers] = graph_new_wrapper.datatype_cast([workers], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = len(src)
 
     df = cudf.DataFrame()
     df['vertices'] = workers
     df['assignment'] = cudf.Series(np.zeros(len(workers), dtype=np.int32))
     
-    cdef uintptr_t c_offsets        = offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices        = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights        = weights.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_workers        = local_workers.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_src        = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst        = dst.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights    = weights.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_workers    = local_workers.__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t c_identifier     = df['vertices'].__cuda_array_interface__['data'][0];
-    cdef uintptr_t c_assignment     = df['assignment'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_identifier = df['vertices'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_assignment = df['assignment'].__cuda_array_interface__['data'][0];
 
-    cdef GraphCSR[int,int,float] g_float
-    cdef GraphCSR[int,int,double] g_double
+    cdef GraphCOO[int,int,float] g_float
+    cdef GraphCOO[int,int,double] g_double
 
     if weights.dtype == np.float32:
-        g_float = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
+        g_float = GraphCOO[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
 
         c_hungarian[int,int,float](g_float, len(workers), <int*>c_workers, <int*>c_assignment)
     else:
-        g_double = GraphCSR[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
+        g_double = GraphCOO[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
 
         c_hungarian[int,int,double](g_double, len(workers), <int*>c_workers, <int*>c_assignment)
 
