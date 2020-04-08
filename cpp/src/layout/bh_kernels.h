@@ -54,6 +54,19 @@ __global__ void InitializationKernel(/*int *restrict errd, */
 }
 
 /**
+ * Reset normalization back to 0.
+ */
+__global__ void Reset_Normalization(float *restrict radiusd_squared,
+                                    int *restrict bottomd, const int NNODES,
+                                    const float *restrict radiusd) {
+  radiusd_squared[0] = radiusd[0] * radiusd[0];
+  // create root node
+  bottomd[0] = NNODES;
+}
+
+
+
+/**
  * Figures the bounding boxes for every point in the embedding.
  */
 __global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(
@@ -474,16 +487,17 @@ __global__ __launch_bounds__(THREADS4, FACTOR4) void SortKernel(
 __global__ __launch_bounds__(
   THREADS5,
   FACTOR5) void RepulsionKernel(/* int *restrict errd, */
+                                const float scaling_ratio,
                                 const float theta,
                                 const float
                                   epssqd,  // correction for zero distance
                                 const int *restrict sortd,
                                 const int *restrict childd,
                                 const float *restrict massd,
+                                const int *restrict d_mass,
                                 const float *restrict posxd,
                                 const float *restrict posyd,
                                 float *restrict velxd, float *restrict velyd,
-                                float *restrict Z_norm,
                                 const float theta_squared, const int NNODES,
                                 const int FOUR_NNODES, const int N,
                                 const float *restrict radiusd_squared,
@@ -541,10 +555,10 @@ __global__ __launch_bounds__(
 
     const float px = posxd[i];
     const float py = posyd[i];
+    //const int node_mass = d_mass[i];
 
     float vx = 0.0f;
     float vy = 0.0f;
-    float normsum = 0.0f;
 
     // initialize iteration stack, i.e., push root node onto stack
     int depth = sbase;
@@ -574,7 +588,8 @@ __global__ __launch_bounds__(
 
         if ((n < N) or __all_sync(__activemask(), dxy1 >= dq[depth])) {
           const float tdist_2 = __fdividef(massd[n], dxy1 * dxy1);
-          normsum += tdist_2 * dxy1;
+          printf("massd[n]: %f, dxy1: %f", massd[n], dxy1);
+          //const float tdist_2 = scaling_ratio * d_mass[n] * massd[n] / dxy1;
           vx += dx * tdist_2;
           vy += dy * tdist_2;
         } else {
@@ -594,9 +609,24 @@ __global__ __launch_bounds__(
     // update velocity
     velxd[i] += vx;
     velyd[i] += vy;
-    atomicAdd(Z_norm, normsum);
   }
 }
+
+__global__ __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
+  	float *restrict x_pos, float *restrict y_pos, const float *restrict repel_x,
+  	const float *restrict repel_y, float *restrict d_dx, float *restrict d_dy,
+	const float *d_swinging, const float speed, const int n) {
+
+	// iterate over all bodies assigned to thread
+	for (int i = threadIdx.x + blockIdx.x * blockDim.x;
+			i < n;
+			i += gridDim.x * blockDim.x) {
+		float factor = speed / (1.0 + sqrt(speed * d_swinging[i]));
+		x_pos[i] += (d_dx[i] + repel_x[i]) * factor;
+		y_pos[i] += (d_dy[i] + repel_y[i]) * factor;
+	}
+}
+  
 
 }  // namespace detail
 }  // namespace cugraph
