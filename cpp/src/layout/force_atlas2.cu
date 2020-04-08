@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "force_atlas2.h"
+#include "exact_fa2.h"
 
 namespace cugraph {
 

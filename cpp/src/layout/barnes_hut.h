@@ -51,7 +51,6 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
     while ((nnodes & (32 - 1)) != 0) nnodes++;
     nnodes--;
-    printf("N_nodes = %d blocks = %d\n", nnodes, blocks);
 
     // Allocate more space
     //---------------------------------------------------
@@ -117,30 +116,24 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         copy(n, x_start, YY);
         copy(n, y_start, YY + nnodes + 1);
     }
-    float *d_dx{nullptr};
-    float *d_dy{nullptr};
-    float *d_old_dx{nullptr};
-    float *d_old_dy{nullptr};
+
+    float *d_attract{nullptr};
+    float *d_old_forces{nullptr};
     int *d_mass{nullptr};
     float *d_swinging{nullptr};
     float *d_traction{nullptr};
 
-    rmm::device_vector<float> dx(n, 0);
-    rmm::device_vector<float> dy(n, 0);
-    rmm::device_vector<float> old_dx(n, 0);
-    rmm::device_vector<float> old_dy(n, 0);
+    rmm::device_vector<float> attract(n * 2, 0);
+    rmm::device_vector<float> old_forces(n * 2, 0);
     rmm::device_vector<int> mass(n, 1);
     rmm::device_vector<float> swinging(n, 0);
     rmm::device_vector<float> traction(n, 0);
 
-    d_dx = dx.data().get();
-    d_dy = dy.data().get();
-    d_old_dx = old_dx.data().get();
-    d_old_dy = old_dy.data().get();
+    d_attract = attract.data().get();
+    d_old_forces = old_forces.data().get();
     d_mass = mass.data().get();
     d_swinging = swinging.data().get();
     d_traction = traction.data().get();
-
 
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
@@ -153,6 +146,9 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     float speed_efficiency = 1.f;
     float outbound_att_compensation = 1.f;
     float jt = 0.f;
+    float s = 0.f;
+    float t = 0.f;
+ 
     if (outbound_attraction_distribution) {
         int sum = thrust::reduce(mass.begin(), mass.end());
         outbound_att_compensation = sum / (float)n;
@@ -170,101 +166,94 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     
     init_mass<vertex_t, edge_t, float>(&dests, massl, e, n);
 
-  for (int iter=0; iter < max_iter; ++iter) {
-      copy(n, d_dx, d_old_dx);
-      copy(n, d_dy, d_old_dy);
-      fill(n, d_dx, 0.f);
-      fill(n, d_dy, 0.f);
-      fill(n, d_swinging, 0.f);
-      fill(n, d_traction, 0.f);
+    int iter = 0;
+    for (; iter < max_iter; ++iter) {
+        fill((nnodes + 1) * 2, rep_forces, 0.f);
+        fill(n * 2, d_attract, 0.f);
+        fill(n * 2, d_swinging, 0.f);
+        fill(n * 2, d_traction, 0.f);
 
-      fill((nnodes + 1) * 2, rep_forces, 0.f);
-      Reset_Normalization<<<1, 1, 0>>>(radiusd_squared,
-              bottomd, NNODES, radiusd);
+        Reset_Normalization<<<1, 1, 0>>>(radiusd_squared,
+                bottomd, NNODES, radiusd);
+        CUDA_CHECK_LAST();
 
-      BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0>>>(
-              startl, childl, massl, YY, YY + nnodes + 1, maxxl, maxyl, minxl, minyl,
-              FOUR_NNODES, NNODES, n, limiter, radiusd);
-      CUDA_CHECK_LAST();
+        BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0>>>(
+                startl, childl, massl, YY, YY + nnodes + 1, maxxl, maxyl, minxl, minyl,
+                FOUR_NNODES, NNODES, n, limiter, radiusd);
+        CUDA_CHECK_LAST();
 
-      ClearKernel1<<<blocks, 1024, 0>>>(childl, FOUR_NNODES,
-              FOUR_N);
-      CUDA_CHECK_LAST();
+        ClearKernel1<<<blocks, 1024, 0>>>(childl, FOUR_NNODES,
+                FOUR_N);
+        CUDA_CHECK_LAST();
 
-      TreeBuildingKernel<<<blocks * FACTOR2, THREADS2, 0>>>(
-              childl, YY, YY + nnodes + 1, NNODES, n, maxdepthd, bottomd,
-              radiusd);
-      CUDA_CHECK_LAST();
+        TreeBuildingKernel<<<blocks * FACTOR2, THREADS2, 0>>>(
+                childl, YY, YY + nnodes + 1, NNODES, n, maxdepthd, bottomd,
+                radiusd);
+        CUDA_CHECK_LAST();
 
-      ClearKernel2<<<blocks * 1, 1024, 0>>>(startl, massl, NNODES,
-              bottomd);
-      CUDA_CHECK_LAST();
+        ClearKernel2<<<blocks * 1, 1024, 0>>>(startl, massl, NNODES,
+                bottomd);
+        CUDA_CHECK_LAST();
 
-      SummarizationKernel<<<blocks * FACTOR3, THREADS3, 0>>>(
-              countl, childl, massl, YY, YY + nnodes + 1, NNODES, n, bottomd);
-      CUDA_CHECK_LAST();
+        SummarizationKernel<<<blocks * FACTOR3, THREADS3, 0>>>(
+                countl, childl, massl, YY, YY + nnodes + 1, NNODES, n, bottomd);
+        CUDA_CHECK_LAST();
 
-      SortKernel<<<blocks * FACTOR4, THREADS4, 0>>>(
-              sortl, countl, startl, childl, NNODES, n, bottomd);
-      CUDA_CHECK_LAST();
+        SortKernel<<<blocks * FACTOR4, THREADS4, 0>>>(
+                sortl, countl, startl, childl, NNODES, n, bottomd);
+        CUDA_CHECK_LAST();
 
-      RepulsionKernel<<<blocks * FACTOR5, THREADS5, 0>>>(
-              scaling_ratio,
-              theta, epssq, sortl, childl, massl, d_mass, YY, YY + nnodes + 1,
-              rep_forces, rep_forces + nnodes + 1, theta_squared, NNODES,
-              FOUR_NNODES, n, radiusd_squared, maxdepthd);
-      CUDA_CHECK_LAST();
+        RepulsionKernel<<<blocks * FACTOR5, THREADS5, 0>>>(
+                scaling_ratio,
+                theta, epssq, sortl, childl, massl, d_mass, YY, YY + nnodes + 1,
+                rep_forces, rep_forces + nnodes + 1, theta_squared, NNODES,
+                FOUR_NNODES, n, radiusd_squared, maxdepthd);
+        CUDA_CHECK_LAST();
 
-      //printv(n, rep_forces, 0);
-      //printv(n, rep_forces + nnodes + 1, 0);
+        apply_gravity<vertex_t>(YY, YY + nnodes + 1, d_attract, d_attract + n,
+                d_mass, gravity, strong_gravity_mode, scaling_ratio, n);
 
-      apply_gravity<vertex_t>(YY, YY + nnodes + 1, d_mass, d_dx, d_dy, gravity,
-              strong_gravity_mode, scaling_ratio, n);
+        apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
+                dests, weights, e, YY, YY + nnodes + 1,
+                d_attract, d_attract + n, d_mass,
+                outbound_attraction_distribution,
+                edge_weight_influence, outbound_att_compensation);
 
-      apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
-              dests, weights, e, YY, YY + nnodes + 1, d_dx, d_dy, d_mass,
-              outbound_attraction_distribution,
-              edge_weight_influence, outbound_att_compensation);
+        compute_local_speed(YY, YY + nnodes + 1, rep_forces,
+                rep_forces + nnodes + 1,
+                d_attract, d_attract + n,
+                d_old_forces, d_old_forces + n,
+                d_mass, d_swinging, d_traction, n);
 
-      dim3 nthreads, nblocks;
-      nthreads.x = 1024;
-      nthreads.y = 1;
-      nthreads.z = 1;
-      nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-      nblocks.y = 1;
-      nblocks.z = 1;
+        s = thrust::reduce(swinging.begin(), swinging.end());
+        t = thrust::reduce(traction.begin(), traction.end());
 
-      local_speed_bh<<<nblocks, nthreads>>>(YY, YY + nnodes + 1, rep_forces,
-              rep_forces + nnodes + 1, d_dx, d_dy,
-              d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
+        adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
+                s, t, n);
 
-      float s = thrust::reduce(swinging.begin(), swinging.end());
-      float t = thrust::reduce(traction.begin(), traction.end());
+        apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0>>>(
+                YY, YY + nnodes + 1, d_attract, d_attract + n,
+                rep_forces, rep_forces + nnodes + 1,
+                d_old_forces, d_old_forces + n,
+                d_swinging, speed, n);
+        CUDA_CHECK_LAST();
 
-      adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
-              s, t, n);
-
-      apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0>>>(
-              YY, YY + nnodes + 1, d_dx, d_dy,
-              d_swinging, speed, n);
-      CUDA_CHECK_LAST();
+    }
 
 	  printf("speed at iteration %i: %f, speed_efficiency: %f, ",
 	         iter, speed, speed_efficiency);
 	  printf("jt: %f, ", jt);
 	  printf("swinging: %f, traction: %f\n", s, t);
 
-  }
 
-  copy(n, YY, x_pos);
-  copy(n, YY + nnodes + 1, y_pos);
+      copy(n, YY, x_pos);
+      copy(n, YY + nnodes + 1, y_pos);
 
-  ALLOC_FREE_TRY(srcs, stream);
-  ALLOC_FREE_TRY(dests, stream);
-  if (weighted)
-      ALLOC_FREE_TRY(weights, stream);
-
-    ALLOC_FREE_TRY(YY, nullptr);
+      ALLOC_FREE_TRY(srcs, stream);
+      ALLOC_FREE_TRY(dests, stream);
+      if (weighted)
+          ALLOC_FREE_TRY(weights, stream);
+      ALLOC_FREE_TRY(YY, nullptr);
 }
 
 } // namespace detail
