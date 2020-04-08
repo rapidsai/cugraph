@@ -22,13 +22,13 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename value_t>
 void init_mass(vertex_t **dests, value_t *d_mass, const edge_t e, const vertex_t n) {
     dim3 nthreads, nblocks;
-    nthreads.x = 1024;
+    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
     nthreads.y = 1;
     nthreads.z = 1;
     nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
     nblocks.y = 1;
     nblocks.z = 1;
-    degree_coo<vertex_t, value_t><<<nthreads, nblocks>>>(n, e, *dests, d_mass);
+    degree_coo<vertex_t, value_t><<<nblocks, nthreads>>>(n, e, *dests, d_mass);
 }
 
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
@@ -110,14 +110,14 @@ void apply_attraction(const vertex_t *row, const vertex_t *col,
         bool outbound_attraction_distribution,
         const float edge_weight_influence, const float coef) {
     dim3 nthreads, nblocks;
-    nthreads.x = 1024;
+    nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
     nthreads.y = 1;
     nthreads.z = 1;
     nblocks.x = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
     nblocks.y = 1;
     nblocks.z = 1;
 
-    attraction_kernel<weighted, vertex_t, edge_t, weight_t><<<nthreads, nblocks>>>(
+    attraction_kernel<weighted, vertex_t, edge_t, weight_t><<<nblocks, nthreads>>>(
             row,
             col, v, e, x_pos, y_pos, d_dx, d_dy, d_mass,
             outbound_attraction_distribution,
@@ -165,7 +165,7 @@ void apply_gravity(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
         float *d_dy, const float gravity, bool strong_gravity_mode,
         const float scaling_ratio, const vertex_t n) {
     dim3 nthreads, nblocks;
-    nthreads.x = 1024;
+    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
     nthreads.y = 1;
     nthreads.z = 1;
     nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
@@ -173,11 +173,11 @@ void apply_gravity(float *x_pos, float *y_pos, int *d_mass, float *d_dx,
     nblocks.z = 1;
 
     if (strong_gravity_mode)
-        strong_gravity_kernel<vertex_t><<<nthreads, nblocks>>>(
+        strong_gravity_kernel<vertex_t><<<nblocks, nthreads>>>(
                 x_pos, y_pos, d_mass,
                 d_dx, d_dy, gravity, scaling_ratio, n);
     else
-        linear_gravity_kernel<vertex_t><<<nthreads, nblocks>>>(
+        linear_gravity_kernel<vertex_t><<<nblocks, nthreads>>>(
                 x_pos, y_pos, d_mass,
                 d_dx, d_dy, gravity, n);
 }
@@ -206,7 +206,7 @@ void compute_local_speed(float *x_pos, float *y_pos, float *d_dx, float *d_dy,
         float *d_old_dx, float *d_old_dy, int *d_mass, float *d_swinging,
         float *d_traction, vertex_t n) {
     dim3 nthreads, nblocks;
-    nthreads.x = 1024;
+    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
     nthreads.y = 1;
     nthreads.z = 1;
     nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
@@ -275,14 +275,14 @@ void apply_forces(float *x_pos, float *y_pos,
         float *d_dx, float *d_dy, float * d_old_dx, float *d_old_dy,
         float *d_swinging, int *d_mass, const float speed, vertex_t n) {
     dim3 nthreads, nblocks;
-    nthreads.x = 1024;
+    nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
     nthreads.y = 1;
     nthreads.z = 1;
     nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
     nblocks.y = 1;
     nblocks.z = 1;
 
-	update_positions_kernel<vertex_t><<<nthreads, nblocks>>>(
+	update_positions_kernel<vertex_t><<<nblocks, nthreads>>>(
 			x_pos, y_pos, d_dx, d_dy,
 			d_old_dx, d_old_dy, d_swinging, d_mass, speed, n);
 }

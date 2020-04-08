@@ -215,8 +215,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
               FOUR_NNODES, n, radiusd_squared, maxdepthd);
       CUDA_CHECK_LAST();
 
-//      printv(n, rep_forces, 0);
-//      printv(n, rep_forces + nnodes + 1, 0);
+      //printv(n, rep_forces, 0);
+      //printv(n, rep_forces + nnodes + 1, 0);
 
       apply_gravity<vertex_t>(YY, YY + nnodes + 1, d_mass, d_dx, d_dy, gravity,
               strong_gravity_mode, scaling_ratio, n);
@@ -226,7 +226,16 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
               outbound_attraction_distribution,
               edge_weight_influence, outbound_att_compensation);
 
-      compute_local_speed(YY, YY + nnodes + 1, d_dx, d_dy,
+      dim3 nthreads, nblocks;
+      nthreads.x = 1024;
+      nthreads.y = 1;
+      nthreads.z = 1;
+      nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+      nblocks.y = 1;
+      nblocks.z = 1;
+
+      local_speed_bh<<<nblocks, nthreads>>>(YY, YY + nnodes + 1, rep_forces,
+              rep_forces + nnodes + 1, d_dx, d_dy,
               d_old_dx, d_old_dy, d_mass, d_swinging, d_traction, n);
 
       float s = thrust::reduce(swinging.begin(), swinging.end());
@@ -236,10 +245,15 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
               s, t, n);
 
       apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0>>>(
-              YY, YY + nnodes + 1,
-              rep_forces, rep_forces + nnodes + 1, d_dx, d_dy,
+              YY, YY + nnodes + 1, d_dx, d_dy,
               d_swinging, speed, n);
       CUDA_CHECK_LAST();
+
+	  printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+	         iter, speed, speed_efficiency);
+	  printf("jt: %f, ", jt);
+	  printf("swinging: %f, traction: %f\n", s, t);
+
   }
 
   copy(n, YY, x_pos);

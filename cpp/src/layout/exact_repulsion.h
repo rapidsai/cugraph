@@ -20,7 +20,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+__global__ void
 repulsion_kernel(float *x_pos, float *y_pos,
         float *d_dx, float *d_dy, int *d_mass, const float scaling_ratio,
         const vertex_t n) {
@@ -46,15 +46,11 @@ void apply_repulsion(float *x_pos, float *y_pos,
         float *d_dx, float *d_dy, int *d_mass, const float scaling_ratio,
         const vertex_t n) {
 
-    dim3 nthreads, nblocks;
-    nthreads.x = min(TPB_X, CUDA_MAX_KERNEL_THREADS);
-    nthreads.y = min(TPB_Y, CUDA_MAX_KERNEL_THREADS);
-    nthreads.z = 1;
-    nblocks.x = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-    nblocks.y = min((n + nthreads.y - 1) / nthreads.y, CUDA_MAX_BLOCKS);
-    nblocks.z = 1;
+    dim3 nthreads(TPB_X, TPB_Y);
+    dim3 nblocks(min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS),
+    min((n + nthreads.y - 1) / nthreads.y, CUDA_MAX_BLOCKS));
 
-    repulsion_kernel<vertex_t><<<nthreads, nblocks>>>(x_pos, y_pos,
+    repulsion_kernel<vertex_t><<<nblocks, nthreads>>>(x_pos, y_pos,
             d_dx, d_dy, d_mass, scaling_ratio, n);
     CUDA_CHECK_LAST();
 } 

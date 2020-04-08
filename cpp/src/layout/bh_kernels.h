@@ -509,7 +509,7 @@ __global__ __launch_bounds__(
   //   atomicExch(errd, max_depth);
   //   return;
   // }
-  const float EPS_PLUS_1 = epssqd + 1.0f;
+  //const float EPS_PLUS_1 = epssqd + 1.0f;
 
   __shared__ int pos[THREADS5], node[THREADS5];
   __shared__ float dq[THREADS5];
@@ -584,13 +584,13 @@ __global__ __launch_bounds__(
 
         const float dx = px - posxd[n];
         const float dy = py - posyd[n];
-        const float dxy1 = dx * dx + dy * dy + EPS_PLUS_1;
+        const float dxy1 = dx * dx + dy * dy + FLT_EPSILON;
 
         if ((n < N) or __all_sync(__activemask(), dxy1 >= dq[depth])) {
          // const float tdist_2 = __fdividef(massd[n], dxy1 * dxy1);
           const float tdist_2 = scaling_ratio * node_mass * massd[n] / dxy1;
-       //   printf("id: %i, (%f, %f), (%f, %f) node_mass: %i, massd[n]: %f, dxy1: %f\n",
-       //           i, px, py, posxd[n], posyd[n],node_mass, massd[n], dxy1);
+          //printf("id: %i, (%f, %f), (%f, %f) node_mass: %i, massd[n]: %f, dxy1: %f\n",
+          //        i, px, py, posxd[n], posyd[n],node_mass, massd[n], dxy1);
           vx += dx * tdist_2;
           vy += dy * tdist_2;
         } else {
@@ -613,18 +613,42 @@ __global__ __launch_bounds__(
   }
 }
 
+__global__ void
+local_speed_bh(const float *restrict x_pos, const float *restrict y_pos,
+        const float *restrict repel_x, const float *restrict repel_y,
+        float *d_dx, float *d_dy,
+        const float *restrict d_old_dx, const float *restrict d_old_dy,
+        const int *restrict d_mass, float *restrict d_swinging,
+        float *restrict d_traction, const int n) {
+
+    for (int i = threadIdx.x + blockIdx.x * blockDim.x;
+            i < n;
+            i += gridDim.x * blockDim.x) {
+
+        atomicAdd(&d_dx[i], repel_x[i]);
+        atomicAdd(&d_dy[i], repel_y[i]);
+
+        float node_swinging = d_mass[i] * sqrt(pow(d_old_dx[i] - d_dx[i], 2) + pow(d_old_dy[i] - d_dy[i], 2));
+        float node_traction = 0.5 * d_mass[i] * \
+        sqrt((d_old_dx[i] + d_dx[i]) * (d_old_dx[i] + d_dx[i]) + \
+            (d_old_dy[i] + d_dy[i]) * (d_old_dy[i] + d_dy[i]));
+        d_swinging[i] = node_swinging;
+        d_traction[i] = node_traction;
+    }
+}
+
 __global__ __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
-  	float *restrict x_pos, float *restrict y_pos, const float *restrict repel_x,
-  	const float *restrict repel_y, float *restrict d_dx, float *restrict d_dy,
-	const float *d_swinging, const float speed, const int n) {
+  	float *restrict x_pos, float *restrict y_pos,
+    float *restrict d_dx, float *restrict d_dy,
+	const float *restrict d_swinging, const float speed, const int n) {
 
 	// iterate over all bodies assigned to thread
 	for (int i = threadIdx.x + blockIdx.x * blockDim.x;
 			i < n;
 			i += gridDim.x * blockDim.x) {
 		float factor = speed / (1.0 + sqrt(speed * d_swinging[i]));
-		x_pos[i] += (d_dx[i] + repel_x[i]) * factor;
-		y_pos[i] += (d_dy[i] + repel_y[i]) * factor;
+		x_pos[i] += d_dx[i] * factor;
+		y_pos[i] += d_dy[i] * factor;
 	}
 }
   

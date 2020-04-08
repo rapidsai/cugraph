@@ -124,10 +124,12 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
 
        apply_forces<vertex_t>(YY, YY + n, d_dx, d_dy,
                 d_old_dx, d_old_dy, d_swinging, d_mass, speed, n);
-        //printf("speed at iteration %i: %f, speed_efficiency: %f, ",
-        //       iter, speed, speed_efficiency);
-        //printf("jt: %f, ", jt);
-        //printf("swinging: %f, traction: %f\n", s, t);
+        /*
+        printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+               iter, speed, speed_efficiency);
+        printf("jt: %f, ", jt);
+        printf("swinging: %f, traction: %f\n", s, t);
+        */
     }
     copy(n, YY, x_pos);
     copy(n, YY + n, y_pos);
