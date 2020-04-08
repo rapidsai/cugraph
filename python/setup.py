@@ -65,7 +65,7 @@ EXTENSIONS = [
                             cuda_include_dir],
               library_dirs=[get_python_lib()],
               runtime_library_dirs=[conda_lib_dir],
-              libraries=['cugraph', 'cudf'],
+              libraries=['cugraph', 'cudf', 'nccl'],
               language='c++',
               extra_compile_args=['-std=c++14'])
 ]
