@@ -20,4 +20,6 @@
 namespace cugraph { 
 namespace db {
   std::string getParserVersion();
-} } //namespace
+  void printOutAst(std::string input);
+} // namespace db
+} // namespace cugraph
