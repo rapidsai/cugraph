@@ -104,6 +104,13 @@ set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
 
+option(BUILD_MPI "Build with MPI" OFF)
+if (BUILD_MPI)
+    find_package(MPI REQUIRED)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
+endif(BUILD_MPI)
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
@@ -399,6 +406,7 @@ target_include_directories(cugraph
     "${CUHORNET_INCLUDE_DIR}/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUGUNROCK_DIR}/include"
+    "${MPI_CXX_INCLUDE_PATH}"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -407,7 +415,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
