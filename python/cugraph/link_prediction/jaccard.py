@@ -51,13 +51,11 @@ def jaccard(input_graph, vertex_pair=None):
     you can get the interesting (non-zero) values that are part of the networkx
     solution by doing the following:
 
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
-    >>> pairs = G.get_two_hop_neighbors()
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> pairs = cugraph.get_two_hop_neighbors(G)
     >>> df = cugraph.jaccard(G, pairs)
 
     But please remember that cugraph will fill the dataframe with the entire
@@ -99,12 +97,10 @@ def jaccard(input_graph, vertex_pair=None):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.jaccard(G)
     """
     if type(input_graph) is not Graph:

@@ -293,6 +293,7 @@ ExternalProject_Add(cugunrock
                     -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
+  BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
 add_library(gunrock STATIC IMPORTED)
@@ -317,7 +318,6 @@ add_library(cugraph SHARED
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
-    src/utilities/degree.cu
     src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
     src/structure/graph.cu
