@@ -188,6 +188,28 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
 
 /**
  *
+ * @throws                                      cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                                   Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                                   Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                                   Type of edge weights. Supported values : float or double.   
+ * 
+ * @param[in] graph                             cuGRAPH graph descriptor, should contain the connectivity information as a COO
+ * @param[out] x_pos                            Device array containing x-axis positions;
+ * @param[out] y_pos                            Device array containing y-axis positions;
+ * @param[in] max_iter                          The maximum number of iterations Force Atlas 2 should run for.
+ * @param[in] x_start                           Device array containing starting x-axis positions;
+ * @param[in] y_start                           Device array containing starting y-axis positions;
+ * @param[in] outbound_attraction_distribution  Distributes attraction along outbound edges. Hubs attract less and thus are pushed to the borders.
+ * @param[in] lin_log_mode                      Switch ForceAtlas’ model from lin-lin to lin-log (tribute to Andreas Noack). Makes clusters more tight.
+ * @param[in] prevent_overlapping               Prevent nodes from overlapping.
+ * @param[in] edge_weight_influence             How much influence you give to the edges weight. 0 is “no influence” and 1 is “normal”.
+ * @param[in] jitter_tolerance                  How much swinging you allow. Above 1 discouraged. Lower gives less speed and more precision.
+ * @param[in] barnes_hut_optimize:              Whether to use the fast Barnes Hut or use the slower exact version.
+ * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs accuracy (0) for Barnes Hut only.
+ * @params[in] scaling_ratio                    How much repulsion you want. More makes a more sparse graph.
+ * @params[in] gravity                          Attracts nodes to the center. Prevents islands from drifting away.
+ *
  */
 template <typename VT, typename ET, typename WT>
 void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,

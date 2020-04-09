@@ -69,7 +69,6 @@ def force_atlas2(input_graph,
     if input_graph.edgelist.weights:
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 
-    graph_float = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
 
     cdef uintptr_t x_pos = df['x'].__cuda_array_interface__['data'][0]
     cdef uintptr_t y_pos = df['y'].__cuda_array_interface__['data'][0]
@@ -82,8 +81,28 @@ def force_atlas2(input_graph,
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
+    if input_graph.edgelist.edgelist_df['weights'].dtype == np.float32:
 
-    c_force_atlas2[int, int, float](graph_float,
+        graph_float = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
+        c_force_atlas2[int, int, float](graph_float,
+                    <float*>x_pos,
+                    <float*>y_pos,
+                    <int>max_iter,
+                    <float*>x_start,
+                    <float*>y_start,
+                    <bool>outbound_attraction_distribution,
+                    <bool>lin_log_mode,
+                    <bool>prevent_overlapping,
+                    <float>edge_weight_influence,
+                    <float>jitter_tolerance,
+                    <bool>barnes_hut_optimize,
+                    <float>barnes_hut_theta,
+                    <float>scaling_ratio,
+                    <bool> strong_gravity_mode,
+                    <float>gravity)
+    else:
+        graph_double = GraphCOO[int,int,double](<int*>c_src_indices, <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
+        c_force_atlas2[int, int, float](graph_double,
                     <float*>x_pos,
                     <float*>y_pos,
                     <int>max_iter,

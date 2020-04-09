@@ -35,22 +35,24 @@ def force_atlas2(input_graph,
         Parameters
         ----------
         input_graph : cugraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information
-        as an edge list.
-        The adjacency list will be computed if not already present. The graph
-        should be undirected where an undirected edge is represented by a
-        directed edge in both direction.
+            cuGraph graph descriptor, should contain the connectivity information
+            as an edge list.
+            The adjacency list will be computed if not already present. The graph
+            should be undirected where an undirected edge is represented by a
+            directed edge in both direction.
 
         max_iter : integer
             This controls the maximum number of levels/iterations of the Force Atlas
             algorithm. When specified the algorithm will terminate after no more
             than the specified number of iterations. No error occurs when the
             algorithm terminates early in this manner.
-        pos_list: cudf.Series
-            Dictionary of initial positions indexed by vertex id.
+        pos_list: cudf.DataFrame
+            Data frame with initial positions containing three columns:
+            'vertex' for the vertex id, 'x' for x positions and 'y' for
+            y positions.
         outbound_attraction_distribution: bool
-          Distributes attraction along outbound edges.
-          Hubs attract less and thus are pushed to the borders. 
+            Distributes attraction along outbound edges.
+            Hubs attract less and thus are pushed to the borders. 
         lin_log_mode: bool
             Switch ForceAtlas model from lin-lin to lin-log. Makes clusters more tight.
         prevent_overlapping: bool
@@ -61,7 +63,7 @@ def force_atlas2(input_graph,
             How much swinging you allow. Above 1 discouraged.
             Lower gives less speed and more precision
         barnes_hut_theta: float
-        scaling_ratio: : float
+        scaling_ratio: float
             How much repulsion you want. More makes a more sparse graph.
         gravity : float
             Attracts nodes to the center. Prevents islands from drifting away.
@@ -70,8 +72,8 @@ def force_atlas2(input_graph,
         Returns
         -------
         pos : cudf.DataFrame
-            GPU data frame of size V containing two columns the x and y positions
-            indexed by vertex id
+            GPU data frame of size V containing three columns:
+            the vertex identifiers and the x and y positions.
         """
 
         if pos_list is not None:
