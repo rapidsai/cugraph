@@ -82,4 +82,15 @@ template void force_atlas2<int, int, float>(
         const float scaling_ratio, bool strong_gravity_mode,
         const float gravity);
 
+template void force_atlas2<int, int, double>(
+        experimental::GraphCOO<int, int, double> const &graph,
+        float *x_pos, float *y_pos, const int max_iter,
+        float *x_start, float *y_start,
+        bool outbound_attraction_distribution,
+        bool lin_log_mode, bool prevent_overlapping,
+        const float edge_weight_influence, const float jitter_tolerance,
+        bool barnes_hut_optimize, const float barnes_hut_theta,
+        const float scaling_ratio, bool strong_gravity_mode,
+        const float gravity);
+
 } // namespace cugraph

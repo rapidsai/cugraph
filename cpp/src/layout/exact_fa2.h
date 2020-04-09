@@ -109,7 +109,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
 
         apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
                 dests, weights, e, YY, YY + n, d_attract, d_attract + n, d_mass,
-                outbound_attraction_distribution,
+                outbound_attraction_distribution, lin_log_mode,
                 edge_weight_influence, outbound_att_compensation);
 
         compute_local_speed(d_repel, d_repel + n,

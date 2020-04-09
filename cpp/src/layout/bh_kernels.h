@@ -70,7 +70,7 @@ __global__ void Reset_Normalization(float *restrict radiusd_squared,
  * Figures the bounding boxes for every point in the embedding.
  */
 __global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(
-  int *restrict startd, int *restrict childd, float *restrict massd,
+  int *restrict startd, int *restrict childd, int *restrict massd,
   float *restrict posxd, float *restrict posyd, float *restrict maxxd,
   float *restrict maxyd, float *restrict minxd, float *restrict minyd,
   const int FOUR_NNODES, const int NNODES, const int N,
@@ -138,7 +138,7 @@ __global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(
     // compute 'radius'
     atomicExch(radiusd, fmaxf(maxx - minx, maxy - miny) * 0.5f + 1e-5f);
 
-    massd[NNODES] = -1.0f;
+    massd[NNODES] = -1;
     startd[NNODES] = 0;
     posxd[NNODES] = (minx + maxx) * 0.5f;
     posyd[NNODES] = (miny + maxy) * 0.5f;
@@ -287,7 +287,7 @@ __global__ __launch_bounds__(
  */
 __global__ __launch_bounds__(1024,
                              1) void ClearKernel2(int *restrict startd,
-                                                  float *restrict massd,
+                                                  int *restrict massd,
                                                   const int NNODES,
                                                   const int *restrict bottomd) {
   const int bottom = bottomd[0];
@@ -298,7 +298,7 @@ __global__ __launch_bounds__(1024,
 // iterate over all cells assigned to thread
 #pragma unroll
   for (; k < NNODES; k += inc) {
-    massd[k] = -1.0f;
+    massd[k] = -1;
     startd[k] = -1;
   }
 }
@@ -308,12 +308,12 @@ __global__ __launch_bounds__(1024,
  */
 __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
   int *restrict countd, const int *restrict childd,
-  volatile float *restrict massd, float *restrict posxd, float *restrict posyd,
+  volatile int *restrict massd, float *restrict posxd, float *restrict posyd,
   const int NNODES, const int N, const int *restrict bottomd) {
   bool flag = 0;
   float cm, px, py;
   __shared__ int child[THREADS3 * 4];
-  __shared__ float mass[THREADS3 * 4];
+  __shared__ int mass[THREADS3 * 4];
 
   const int bottom = bottomd[0];
   const int inc = blockDim.x * gridDim.x;
@@ -326,7 +326,7 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
   {
     // iterate over all cells assigned to thread
     while (k <= NNODES) {
-      if (massd[k] < 0.0f) {
+      if (massd[k] < 0) {
         for (int i = 0; i < 4; i++) {
           const int ch = childd[k * 4 + i];
           child[i * THREADS3 + threadIdx.x] = ch;
@@ -493,7 +493,7 @@ __global__ __launch_bounds__(
                                   epssqd,  // correction for zero distance
                                 const int *restrict sortd,
                                 const int *restrict childd,
-                                const float *restrict massd,
+                                const int *restrict massd,
                                 const int *restrict d_mass,
                                 const float *restrict posxd,
                                 const float *restrict posyd,

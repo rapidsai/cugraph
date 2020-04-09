@@ -81,7 +81,7 @@ def force_atlas2(input_graph,
             null_check(pos_list['x'])
             null_check(pos_list['y'])
 
-        if lin_log_mode or prevent_overlapping:
+        if prevent_overlapping:
             raise Exception("Feature not supported")
 
         pos = force_atlas2_wrapper.force_atlas2(input_graph,

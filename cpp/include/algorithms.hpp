@@ -208,6 +208,7 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] barnes_hut_optimize:              Whether to use the fast Barnes Hut or use the slower exact version.
  * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs accuracy (0) for Barnes Hut only.
  * @params[in] scaling_ratio                    How much repulsion you want. More makes a more sparse graph.
+ * @params[in] strong_gravity_mode                      The “Strong gravity” option sets a force that attracts the nodes that are distant from the center more ( is this distance). This force has the drawback of being so strong that it is sometimes stronger than the other forces. It may result in a biased placement of the nodes. However, its advantage is to force a very compact layout, which may be useful for certain purposes.
  * @params[in] gravity                          Attracts nodes to the center. Prevents islands from drifting away.
  *
  */

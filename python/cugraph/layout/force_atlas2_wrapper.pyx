@@ -56,6 +56,7 @@ def force_atlas2(input_graph,
     num_edges = input_graph.number_of_edges()
 
     cdef GraphCOO[int,int,float] graph_float
+    cdef GraphCOO[int,int,double] graph_double
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
@@ -81,10 +82,12 @@ def force_atlas2(input_graph,
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
-    if input_graph.edgelist.edgelist_df['weights'].dtype == np.float32:
+    if input_graph.edgelist.weights \
+        and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
+        graph_double = GraphCOO[int,int, double](<int*>c_src_indices,
+                <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
 
-        graph_float = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
-        c_force_atlas2[int, int, float](graph_float,
+        c_force_atlas2[int, int, double](graph_double,
                     <float*>x_pos,
                     <float*>y_pos,
                     <int>max_iter,
@@ -101,8 +104,8 @@ def force_atlas2(input_graph,
                     <bool> strong_gravity_mode,
                     <float>gravity)
     else:
-        graph_double = GraphCOO[int,int,double](<int*>c_src_indices, <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
-        c_force_atlas2[int, int, float](graph_double,
+        graph_float = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
+        c_force_atlas2[int, int, float](graph_float,
                     <float*>x_pos,
                     <float*>y_pos,
                     <int>max_iter,

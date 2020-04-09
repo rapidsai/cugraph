@@ -72,9 +72,11 @@ attraction_kernel(const vertex_t *restrict row, const vertex_t *restrict col,
         const float *restrict x_pos, const float *restrict y_pos,
         float *restrict attract_x, float *restrict attract_y,
         const int *restrict mass, bool outbound_attraction_distribution,
-        const float edge_weight_influence, const float coef) {
+        bool lin_log_mode, const float edge_weight_influence,
+        const float coef) {
+
     vertex_t i, src, dst;
-    weight_t weight;
+    weight_t weight = 1;
     for (i = threadIdx.x + blockIdx.x * blockDim.x;
             i < e;
             i += gridDim.x * blockDim.x) {
@@ -86,18 +88,18 @@ attraction_kernel(const vertex_t *restrict row, const vertex_t *restrict col,
 
         if (weighted)
             weight = v[i];
-        else
-            weight = 1;
         weight = pow(weight, edge_weight_influence);
 
         float x_dist = x_pos[src] - x_pos[dst];
         float y_dist = y_pos[src] - y_pos[dst];
-        float factor = 0;
+        float distance = pow(x_dist, 2) * pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        float factor = -coef * weight;
 
+        if (lin_log_mode)
+            factor *= log(1 + distance) / distance; 
         if (outbound_attraction_distribution)
-            factor = -coef * weight / mass[src]; 
-        else
-            factor = -coef * weight;
+            factor /= mass[src];
 
         atomicAdd(&attract_x[src], x_dist * factor);
         atomicAdd(&attract_y[src], y_dist * factor);
@@ -113,7 +115,7 @@ void apply_attraction(const vertex_t *restrict row,
         const edge_t e, const float *restrict x_pos,
         const float *restrict y_pos, float *restrict attract_x,
         float *restrict attract_y, const int *restrict mass,
-        bool outbound_attraction_distribution,
+        bool outbound_attraction_distribution, bool lin_log_mode,
         const float edge_weight_influence, const float coef) {
     dim3 nthreads, nblocks;
     nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
@@ -125,8 +127,9 @@ void apply_attraction(const vertex_t *restrict row,
 
     attraction_kernel<weighted, vertex_t, edge_t, weight_t><<<nblocks, nthreads>>>(
             row, col, v, e, x_pos, y_pos, attract_x, attract_y, mass,
-            outbound_attraction_distribution,
+            outbound_attraction_distribution, lin_log_mode,
             edge_weight_influence, coef);
+
     CUDA_CHECK_LAST();
 }
 

@@ -75,7 +75,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
     rmm::device_vector<int>d_startl(nnodes + 1, 0);
     rmm::device_vector<int>d_childl((nnodes + 1) * 4, 0);
-    rmm::device_vector<float>d_massl(nnodes + 1, 0);
+    rmm::device_vector<int>d_massl(nnodes + 1, 1);
 
     rmm::device_vector<float>d_maxxl(blocks * FACTOR1, 0);
     rmm::device_vector<float>d_maxyl(blocks * FACTOR1, 0);
@@ -86,8 +86,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     // Actual mallocs
     int *startl = d_startl.data().get();
     int *childl = d_childl.data().get();
-    float *massl = d_massl.data().get();
-    fill(nnodes + 1, massl, 1.0f);
+    int *massl = d_massl.data().get();
 
     float *maxxl = d_maxxl.data().get();
     float *maxyl = d_maxyl.data().get();
@@ -141,6 +140,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     cudaStream_t stream = sort_coo<weighted, vertex_t, edge_t, weight_t>(row,
             col, v, &srcs, &dests, &weights, e);
     init_mass<vertex_t, edge_t, int>(&dests, d_mass, e, n);
+    copy(n, d_mass, massl);
 
     float speed = 1.f;
     float speed_efficiency = 1.f;
@@ -164,8 +164,6 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
     cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
     
-    init_mass<vertex_t, edge_t, float>(&dests, massl, e, n);
-
     int iter = 0;
     for (; iter < max_iter; ++iter) {
         fill((nnodes + 1) * 2, rep_forces, 0.f);
@@ -216,7 +214,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
                 dests, weights, e, YY, YY + nnodes + 1,
                 d_attract, d_attract + n, d_mass,
-                outbound_attraction_distribution,
+                outbound_attraction_distribution, lin_log_mode,
                 edge_weight_influence, outbound_att_compensation);
 
         compute_local_speed(rep_forces, rep_forces + nnodes + 1,
