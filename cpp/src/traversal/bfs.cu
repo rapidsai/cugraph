@@ -410,7 +410,6 @@ namespace detail {
                          d_new_frontier_cnt,
                          distances,
                          predecessors,
-                         sp_counters,
                          edge_mask,
                          stream,
                          deterministic);
@@ -436,7 +435,6 @@ namespace detail {
                             d_new_frontier_cnt,
                             distances,
                             predecessors,
-                            sp_counters,
                             edge_mask,
                             stream,
                             deterministic);

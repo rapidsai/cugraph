@@ -85,6 +85,10 @@ void ref_bfs(VT *indices, ET *offsets, VT const number_of_vertices,
       if (dist[w] == dist[v] + 1) {
         sigmas[w] +=  sigmas[v];
         pred[w].push_back(v);
+        // TODO(xcadet) This is for debugging purpose (78 is a problem in email-EU-core)
+        if (w == 718) {
+          printf("[DBG][REF][BFS] %d(%d)[%d] -> %d(%d)[%d]\n", v, dist[v], (int)sigmas[v], w, dist[w], (int)sigmas[w]);
+        }
       }
     }
   }
@@ -236,7 +240,9 @@ struct BetweennessCentralityBFSTest : public ::testing::Test
 // -----------------------------------------------------------------------------
 // TODO(xcadet) Parametrize this part for VT, ET, WT, result_t
 TEST_F(BetweennessCentralityBFSTest, CheckReference) {
-  std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "netscience.mtx");
+  // TODO(xcadet) This dataset was manually generated and is not provided
+  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "email-Eu-core-gen.mtx");
+  std::string matrix_file("../../datasets/email-Eu-core-gen.mtx");
   int m, nnz;
   CSR_Result_Weighted<int, float> csr_result;
   generate_graph_csr<int, int, float>(csr_result, m, nnz, matrix_file);
@@ -244,10 +250,11 @@ TEST_F(BetweennessCentralityBFSTest, CheckReference) {
                                                      csr_result.colIndices,
                                                      csr_result.edgeWeights,
                                                      m, nnz);
+  // FIXME: THIS IS CRITICAL:
+  graph.prop.directed = true;
   std::vector<float> result(graph.number_of_vertices);
 
-
-  int source = 0;
+  int source = 2;
   // Ref BC_BFS requires many working values
   int number_of_vertices = graph.number_of_vertices;
   int number_of_edges = graph.number_of_edges;
@@ -281,6 +288,7 @@ TEST_F(BetweennessCentralityBFSTest, CheckReference) {
   // This test only checks for sigmas equality
   std::vector<int> cugraph_sigmas(number_of_vertices);
 
+  printf("Is graph directed ? %d\n", graph.prop.directed);
   cugraph::bfs<int, int, float>(graph, d_cugraph_dist.data().get(),
                                 d_cugraph_pred.data().get(),
                                 d_cugraph_sigmas.data().get(),
@@ -295,12 +303,16 @@ TEST_F(BetweennessCentralityBFSTest, CheckReference) {
                 cugraph_sigmas[i] << " c++ ref = " << ref_bfs_sigmas[i];
     //std::cout << "Sigmas[" << i << "] = " << cugraph_sigmas[i] << std::endl;
   }
+  std::cout << "Graph number_of_vertices " << number_of_vertices << ", number_of_edges " << number_of_edges << std::endl;
+  int sum_sigmas_cugraph = thrust::reduce(thrust::host, cugraph_sigmas.begin(), cugraph_sigmas.end(), 0);
+  int sum_sigmas_ref = thrust::reduce(thrust::host, ref_bfs_sigmas.begin(), ref_bfs_sigmas.end(), 0);
+  std::cout << "Source " << source << ", cugraph: " << sum_sigmas_cugraph << ", ref " << sum_sigmas_ref << std::endl;;
 }
 
 
 // BC
 // -----------------------------------------------------------------------------
-
+/*
 TEST_F(BetweennessCentralityTest, CheckReference)
 {
   // FIXME: This could be standardized for tests?
@@ -370,6 +382,7 @@ TEST_F(BetweennessCentralityTest, SimpleGraph)
   for (int i = 0 ; i < num_verts ; ++i)
     EXPECT_FLOAT_EQ(ref_result[i], expected[i]);
 }
+*/
 
 int main( int argc, char** argv )
 {

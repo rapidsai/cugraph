@@ -259,7 +259,6 @@ namespace bfs_kernels {
                                        IndexType *new_frontier_cnt,
                                        IndexType *distances,
                                        IndexType *predecessors,
-                                       IndexType *sp_counters,
                                        int *edge_mask) {
     typedef cub::BlockDiscontinuity<IndexType, MAIN_BOTTOMUP_DIMX> BlockDiscontinuity;
     typedef cub::WarpReduce<int> WarpReduce;
@@ -360,10 +359,6 @@ namespace bfs_kernels {
             distances[unvisited_vertex] = lvl;
           if (predecessors)
             predecessors[unvisited_vertex] = valid_parent;
-          if (sp_counters) {
-            //printf("[BFS] Main Bottom Up: %d shortest_path counter (%d) is being added (%d) by %d\n", unvisited_vertex, sp_counters[unvisited_vertex], sp_counters[valid_parent], valid_parent);
-            atomicAdd(&sp_counters[unvisited_vertex], sp_counters[valid_parent]);
-          }
         }
 
         //If we haven't found a parent and there's more edge to check
@@ -514,7 +509,6 @@ namespace bfs_kernels {
                       IndexType *new_frontier_idx,
                       IndexType *distances,
                       IndexType *predecessors,
-                      IndexType *sp_counters,
                       int *edge_mask,
                       cudaStream_t m_stream,
                       bool deterministic) {
@@ -540,7 +534,6 @@ namespace bfs_kernels {
                                                        new_frontier_idx,
                                                        distances,
                                                        predecessors,
-                                                       sp_counters,
                                                        edge_mask);
     CUDA_CHECK_LAST();
   }
@@ -560,7 +553,6 @@ namespace bfs_kernels {
                                                 IndexType *new_frontier_cnt,
                                                 IndexType *distances,
                                                 IndexType *predecessors,
-                                                IndexType *sp_counters,
                                                 int *edge_mask) {
 
     int logical_lane_id = threadIdx.x % BOTTOM_UP_LOGICAL_WARP_SIZE;
@@ -618,9 +610,6 @@ namespace bfs_kernels {
 
           if (predecessors)
             predecessors[v] = valid_parent;
-          if (sp_counters) {
-            atomicAdd(&sp_counters[v], sp_counters[valid_parent]);
-          }
 
           new_frontier[off] = v;
         }
@@ -644,7 +633,6 @@ namespace bfs_kernels {
                        IndexType *new_frontier_idx,
                        IndexType *distances,
                        IndexType *predecessors,
-                       IndexType *sp_counters,
                        int *edge_mask,
                        cudaStream_t m_stream,
                        bool deterministic) {
@@ -663,7 +651,6 @@ namespace bfs_kernels {
                                                                 new_frontier_idx,
                                                                 distances,
                                                                 predecessors,
-                                                                sp_counters,
                                                                 edge_mask);
     CUDA_CHECK_LAST();
   }
@@ -929,8 +916,9 @@ namespace bfs_kernels {
 
             int is_visited = vec_v_visited_bmap[iv] & m;
 
-            if (is_visited)
+            if (is_visited) {
               vec_frontier_candidate[iv] = -1;
+            }
           }
 
           if (directed) {
@@ -958,7 +946,6 @@ namespace bfs_kernels {
               // 2nd reason : it will make top down algo fail
               // we need each node in frontier to have a degree > 0
               // If it is isolated, we just need to mark it as visited, and save distance and predecessor here. Not need to check return value of atomicOr
-
               if (is_isolated && v != -1) {
                 int m = 1 << (v % INT_SIZE);
                 atomicOr(&bmap[v / INT_SIZE], m);
@@ -968,12 +955,15 @@ namespace bfs_kernels {
                 if (predecessors) {
                   IndexType pred = vec_u[iv];
                   predecessors[v] = pred;
-                  if (sp_counters) {
-                    //printf("[KER][BFS][FE-Isol] Node %d sigmas (%d) is added (%d) by %d\n", v, sp_counters[v], sp_counters[vec_u[iv]], iv);
-                    atomicAdd(&sp_counters[v], sp_counters[vec_u[iv]]);
-                  }
                 }
-
+                if (sp_counters) {
+                  IndexType src = vec_u[iv];
+                  IndexType dst = v;
+                  if (v == 718) {
+                    printf("[DBG][CUG][ISO] %d[%d] -> %d[%d]\n", src, sp_counters[src], dst, sp_counters[dst]);
+                  }
+                  atomicAdd(&sp_counters[v], sp_counters[vec_u[iv]]);
+                }
 
                 //This is no longer a candidate, neutralize it
                 vec_frontier_candidate[iv] = -1;
@@ -1007,6 +997,23 @@ namespace bfs_kernels {
             IndexType frontier_candidate = vec_frontier_candidate[iv];
 
             if (frontier_candidate != -1) {
+              IndexType src = vec_u[iv];
+              IndexType dst =  frontier_candidate;
+              if (distances) {
+                // TODO(xcadet) BC May need to include max value as std::numeric_limits<IndexType>::
+                if (dst == 718) {
+                  printf("%d -> %d\n", src, dst);
+                  /*
+                  if (distances[dst] == 2147483647 || distances[dst] == distances[src] + 1) {
+                    if (dst == 718) {
+                    }
+                    if (sp_counters) {
+                      atomicAdd(&sp_counters[dst], sp_counters[src]);
+                    }
+                  }
+                  */
+                }
+              }
               shared_local_new_frontier_candidates[thread_frontier_candidate_offset] =
                   frontier_candidate;
               shared_local_new_frontier_predecessors[thread_frontier_candidate_offset] =
@@ -1050,13 +1057,16 @@ namespace bfs_kernels {
                 vec_frontier_accepted_vertex[iv] = v;
                 ++naccepted_vertices;
               }
+
               if (sp_counters) {
-                IndexType pred = shared_local_new_frontier_predecessors[idx_shared];
-                //printf("[KER][BFS][FE] Node %d sigmas (%d) is added (%d) by %d\n", v, sp_counters[v], sp_counters[pred], pred);
-                atomicAdd(&sp_counters[v], sp_counters[pred]);
+                IndexType src = shared_local_new_frontier_predecessors[idx_shared];
+                IndexType dst = v;
+                if (dst == 718) {
+                  printf("[DBG][CUG][BFS] Update by frontier: %d -> %d\n", src, dst);
+                }
+                atomicAdd(&sp_counters[dst], sp_counters[src]);
               }
             }
-
           }
 
           //We need naccepted_vertices to be ready
