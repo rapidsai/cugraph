@@ -16,15 +16,15 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-cdef extern from "cugraph.h" namespace "cugraph":
-
-    cdef void k_core(
-        Graph *in_graph,
+    cdef void k_core[VT,ET,WT](
+        const GraphCOO[VT,ET,WT] &in_graph,
         int k,
-        gdf_column *vertex_id,
-        gdf_column *core_number,
-        Graph *out_graph) except +
+        const VT *vertex_id,
+        const VT *core_number,
+        VT num_vertex_ids,
+        GraphCOO[VT,ET,WT] &out_graph) except +
 

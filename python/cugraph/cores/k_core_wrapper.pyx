@@ -16,9 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.cores.k_core as c_k_core
-from cugraph.structure.graph cimport *
-from cugraph.structure import graph_wrapper
+from cugraph.cores.k_core cimport k_core as c_k_core
+from cugraph.structure.graph_new cimport *
+from cugraph.structure import graph_new_wrapper
 from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -26,66 +26,85 @@ from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
-import cudf._lib as libcudf
 import rmm
 import numpy as np
 
 
-def k_core(input_graph, k_core_graph, k, core_number):
+#### FIXME:  Should return data frame instead of passing in k_core_graph...
+####         Ripple down through implementation (algorithms.hpp, core_number.cu)
+
+def k_core(input_graph, k, core_number):
     """
     Call k_core
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    if not input_graph.edgelist:
+        input_graph.view_edge_list()
 
-    if input_graph.adjlist:
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
-        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    [src, dst] = graph_new_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+    weights = None
+    weights_type = np.float32
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(src)
+
+    [core_number['vertex'], core_number['values']] = graph_new_wrapper.datatype_cast([core_number['vertex'], core_number['values']], [np.int32])
+
+    cdef uintptr_t c_src = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst = dst.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_vertex = core_number['vertex'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_values = core_number['values'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = <uintptr_t>NULL
+
+    if input_graph.edgelist.weights:
+        [weights] = graph_new_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+        weight_type = weights.dtype
+        c_weights = weights.__cuda_array_interface__['data'][0]
+
+    cdef GraphCOO[int,int,float] in_graph_float
+    cdef GraphCOO[int,int,float] out_graph_float
+    cdef GraphCOO[int,int,double] in_graph_double
+    cdef GraphCOO[int,int,double] out_graph_double
+
+    df = cudf.DataFrame()
+    
+    if weights_type == np.float32:
+        in_graph_float = GraphCOO[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
+        c_k_core[int,int,float](in_graph_float, k, <int*> c_vertex, <int*> c_values, len(core_number), out_graph_float)
+
+        tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_float.src_indices,
+                                        nelem=out_graph_float.number_of_edges,
+                                        dtype=np.int32)
+        df['src'] = cudf.Series(tmp)
+
+        tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_float.dst_indices,
+                                        nelem=out_graph_float.number_of_edges,
+                                        dtype=np.int32)
+        df['dst'] = cudf.Series(tmp)
+
+        if weights is not None:
+            tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_float.edge_data,
+                                            nelem=out_graph_float.number_of_edges,
+                                            dtype=np.int32)
+            df['weight'] = tmp
     else:
-        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
-        if input_graph.edgelist.weights:
-            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-            graph_wrapper.add_edge_list(graph, src, dst, weights)
-        else:
-            graph_wrapper.add_edge_list(graph, src, dst)
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+        in_graph_double = GraphCOO[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
+        c_k_core[int,int,double](in_graph_double, k, <int*> &c_vertex, <int*> &c_values, len(core_number), out_graph_double)
 
-    cdef uintptr_t rGraph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph* rg = <Graph*>rGraph
+        tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_double.src_indices,
+                                        nelem=out_graph_double.number_of_edges,
+                                        dtype=np.int32)
+        df['src'] = cudf.Series(tmp)
 
-    cdef gdf_column c_vertex
-    cdef gdf_column c_values
-    [core_number['vertex'], core_number['values']] = graph_wrapper.datatype_cast([core_number['vertex'], core_number['values']], [np.int32])
-    if input_graph.renumbered is True:
-          renumber_df = cudf.DataFrame()
-          renumber_df['map'] = input_graph.edgelist.renumber_map
-          renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
-          cn = core_number.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
-          c_vertex = get_gdf_column_view(cn['id'])
-          c_values = get_gdf_column_view(cn['values'])
-    else:
-          c_vertex = get_gdf_column_view(core_number['vertex'])
-          c_values = get_gdf_column_view(core_number['values'])
-    c_k_core.k_core(g, k, &c_vertex, &c_values, rg)
+        tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_double.dst_indices,
+                                        nelem=out_graph_double.number_of_edges,
+                                        dtype=np.int32)
+        df['dst'] = cudf.Series(tmp)
 
-    if rg.edgeList is not NULL:
-        df = cudf.DataFrame()
-        df['src'], df['dst'], vals = graph_wrapper.get_edge_list(rGraph)
-        if vals is not None:
-            df['val'] = vals
-            k_core_graph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='val', renumber=False)
-        else:
-            k_core_graph.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
-        if input_graph.edgelist is not None:
-            k_core_graph.renumbered = input_graph.renumbered
-            k_core_graph.edgelist.renumber_map = input_graph.edgelist.renumber_map
-            
-    if rg.adjList is not NULL:
-        off, ind, vals = graph_wrapper.get_adj_list(rGraph)
-        k_core_graph.from_cudf_adjlist(off, ind, vals)
-    if rg.transposedAdjList is not NULL:
-        off, ind, vals = graph_wrapper.get_transposed_adj_list(rGraph)
-        k_core_graph.transposedadjlist = k_core_graph.transposedAdjList(off, ind, vals)
+        if weights is not None:
+            tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_double.edge_data,
+                                            nelem=out_graph_double.number_of_edges,
+                                            dtype=np.int32)
+            df['weight'] = tmp
+        
+
+    return df

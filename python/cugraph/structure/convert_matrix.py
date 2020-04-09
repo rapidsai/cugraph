@@ -24,6 +24,7 @@ def from_cudf_edgelist(df, source='source', destination='destination',
     Return a new graph created from the edge list representaion. This function
     is added for NetworkX compatibility (this function is a RAPIDS version of
     NetworkX's from_pandas_edge_list()).
+
     Parameters
     ----------
     df : cudf.DataFrame
@@ -38,12 +39,14 @@ def from_cudf_edgelist(df, source='source', destination='destination',
     weight : string or integer, optional
         This pointer can be ``None``. If not, this is used to index the weight
         column.
+
     Examples
     --------
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G = cugraph.from_cudf_edgelist(M, source='0', target='1', weight='2')
+
     """
     if create_using is Graph:
         G = Graph()
