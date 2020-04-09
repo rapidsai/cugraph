@@ -3,11 +3,23 @@
 ## New Features
 
 ## Improvements
+- PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
+- PR #780 Remove gdf_column from cuhornet features
+- PR #781 Fix compiler argument syntax for ccache
+- PR #782 Use Cython's `new_build_ext` (if available)
+- PR #788 Added options and config file to enable codecov
+- PR #793 Fix legacy cudf imports/cimports
+- PR #798 Edit return graph type in algorithms return graphs
+- PR #803 Enable Ninja build
+- PR #804 Cythonize in parallel
+- PR #807 Updating the Python docs
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
-
+- PR #795 Fix some documentation
+- PR #800 Fix bfs error in optimization path
+ 
 
 # cuGraph 0.13.0 (Date TBD)
 

@@ -21,14 +21,12 @@ from cugraph.structure.graph_new cimport *
 from cugraph.structure import utils_wrapper
 from cugraph.structure import graph_wrapper
 from cugraph.utilities.column_utils cimport *
-from cudf._lib.utils cimport table_from_dataframe
 from libc.stdint cimport uintptr_t
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.graph import Graph as type_Graph
 from cugraph.utilities.unrenumber import unrenumber
 
 import cudf
-import cudf._lib as libcudf
 import numpy as np
 
 def weakly_connected_components(input_graph):

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ from cugraph.components import connectivity_wrapper
 
 def weakly_connected_components(G):
     """
-    Generate the weakly connected components and attach a component label to
+    Generate the Weakly Connected Components and attach a component label to
     each vertex.
 
     Parameters
@@ -37,12 +37,12 @@ def weakly_connected_components(G):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
+                          header=None)
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.weakly_connected_components(G)
     """
 
@@ -53,7 +53,7 @@ def weakly_connected_components(G):
 
 def strongly_connected_components(G):
     """
-    Generate the stronlgly connected components and attach a component label to
+    Generate the Stronlgly Connected Components and attach a component label to
     each vertex.
 
     Parameters
@@ -74,12 +74,12 @@ def strongly_connected_components(G):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
+                          header=None)
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources,destinations,None)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.strongly_connected_components(G)
     """
 

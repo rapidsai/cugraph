@@ -24,7 +24,6 @@ from libc.stdint cimport uintptr_t
 import numpy as np
 
 import cudf
-import cudf._lib as libcudf
 import rmm
 
 
