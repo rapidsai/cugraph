@@ -15,24 +15,25 @@
  */
 
 #include "exact_fa2.h"
+#include "barnes_hut.h"
 
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
 void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
-                  float *x_pos, float *y_pos, const int max_iter,
+                  float *pos, const int max_iter,
                   float *x_start,
                   float *y_start, bool outbound_attraction_distribution,
                   bool lin_log_mode, bool prevent_overlapping,
                   const float edge_weight_influence,
                   const float jitter_tolerance, bool barnes_hut_optimize,
                   const float barnes_hut_theta, const float scaling_ratio,
-                  bool strong_gravity_mode, const float gravity) {
+                  bool strong_gravity_mode, const float gravity,
+                  bool verbose,
+                  internals::GraphBasedDimRedCallback* callback) {
 
-    CUGRAPH_EXPECTS( x_pos != nullptr,
-            "Invid API parameter: X_pos array should be of size V" );
-    CUGRAPH_EXPECTS( y_pos != nullptr ,
-            "Invid API parameter: Y_pos array should be of size V" );
+    CUGRAPH_EXPECTS( pos != nullptr,
+            "Invid API parameter: pos array should be of size 2 * V" );
 
     const VT *row = graph.src_indices;
     const VT *col = graph.dst_indices;
@@ -42,55 +43,61 @@ void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
 
     if (v && !barnes_hut_optimize) {
         cugraph::detail::exact_fa2<true, VT, ET, WT>(row, col, v, e, n,
-                x_pos, y_pos, max_iter, x_start,
+                pos, max_iter, x_start,
                 y_start, outbound_attraction_distribution,
                 lin_log_mode, prevent_overlapping, edge_weight_influence,
                 jitter_tolerance,
-                scaling_ratio, strong_gravity_mode, gravity);
+                scaling_ratio, strong_gravity_mode, gravity,
+                verbose, callback);
     } else if(!v && !barnes_hut_optimize) {
         cugraph::detail::exact_fa2<false, VT, ET, WT>(row, col, v, e, n,
-                x_pos, y_pos, max_iter, x_start,
+                pos, max_iter, x_start,
                 y_start, outbound_attraction_distribution,
                 lin_log_mode, prevent_overlapping, edge_weight_influence,
                 jitter_tolerance,
-                scaling_ratio, strong_gravity_mode, gravity);
+                scaling_ratio, strong_gravity_mode, gravity,
+                verbose, callback);
     } else if(v && barnes_hut_optimize) {
         cugraph::detail::barnes_hut<true, VT, ET, WT>(row, col, v, e, n,
-                x_pos, y_pos, max_iter, x_start,
+                pos, max_iter, x_start,
                 y_start, outbound_attraction_distribution,
                 lin_log_mode, prevent_overlapping, edge_weight_influence,
                 jitter_tolerance, barnes_hut_theta,
-                scaling_ratio, strong_gravity_mode, gravity);
+                scaling_ratio, strong_gravity_mode, gravity,
+                verbose, callback);
     } else {
         cugraph::detail::barnes_hut<false, VT, ET, WT>(row, col, v, e, n,
-                x_pos, y_pos, max_iter, x_start,
+                pos, max_iter, x_start,
                 y_start, outbound_attraction_distribution,
                 lin_log_mode, prevent_overlapping, edge_weight_influence,
                 jitter_tolerance, barnes_hut_theta,
-                scaling_ratio, strong_gravity_mode, gravity);
+                scaling_ratio, strong_gravity_mode, gravity,
+                verbose, callback);
     }
 }
 
 template void force_atlas2<int, int, float>(
         experimental::GraphCOO<int, int, float> const &graph,
-        float *x_pos, float *y_pos, const int max_iter,
+        float *pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,
         bool lin_log_mode, bool prevent_overlapping,
         const float edge_weight_influence, const float jitter_tolerance,
         bool barnes_hut_optimize, const float barnes_hut_theta,
         const float scaling_ratio, bool strong_gravity_mode,
-        const float gravity);
+        const float gravity, bool verbose,
+        internals::GraphBasedDimRedCallback* callback);
 
 template void force_atlas2<int, int, double>(
         experimental::GraphCOO<int, int, double> const &graph,
-        float *x_pos, float *y_pos, const int max_iter,
+        float *pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,
         bool lin_log_mode, bool prevent_overlapping,
         const float edge_weight_influence, const float jitter_tolerance,
         bool barnes_hut_optimize, const float barnes_hut_theta,
         const float scaling_ratio, bool strong_gravity_mode,
-        const float gravity);
+        const float gravity, bool verbose,
+        internals::GraphBasedDimRedCallback* callback);
 
 } // namespace cugraph

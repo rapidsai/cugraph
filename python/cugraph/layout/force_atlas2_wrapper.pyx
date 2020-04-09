@@ -30,6 +30,8 @@ import rmm
 import numpy as np
 import numpy.ctypeslib as ctypeslib
 
+cdef extern from "internals.h" namespace "cugraph::internals":
+            cdef cppclass GraphBasedDimRedCallback
 
 def force_atlas2(input_graph,
                  max_iter=1000,
@@ -43,7 +45,9 @@ def force_atlas2(input_graph,
                  barnes_hut_theta=0.5,
                  scaling_ratio=1.0,
                  strong_gravity_mode = False,
-                 gravity=1.0):
+                 gravity=1.0,
+                 verbose=False,
+                 callback=None):
 
     """
     Call force_atlas2
@@ -60,8 +64,6 @@ def force_atlas2(input_graph,
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
-    df['x'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
-    df['y'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
 
     cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
@@ -70,26 +72,33 @@ def force_atlas2(input_graph,
     if input_graph.edgelist.weights:
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 
-
-    cdef uintptr_t x_pos = df['x'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t y_pos = df['y'].__cuda_array_interface__['data'][0]
-
     cdef uintptr_t x_start = <uintptr_t>NULL 
     cdef uintptr_t y_start = <uintptr_t>NULL 
+    cdef uintptr_t pos_ptr = <uintptr_t>NULL 
 
     if pos_list is not None:
         df['vertex'] = pos_list['vertex']
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
+    cdef uintptr_t callback_ptr = 0
+    if callback:
+        callback_ptr = callback.get_native_callback()
+
     if input_graph.edgelist.weights \
         and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
+        pos = rmm.device_array(                                                   
+            (num_verts, 2),                                             
+            order="F",                                                          
+            dtype=np.float64)  
+
+        pos_ptr = pos.device_ctypes_pointer.value 
+ 
         graph_double = GraphCOO[int,int, double](<int*>c_src_indices,
                 <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
 
         c_force_atlas2[int, int, double](graph_double,
-                    <float*>x_pos,
-                    <float*>y_pos,
+                    <float*>pos_ptr,
                     <int>max_iter,
                     <float*>x_start,
                     <float*>y_start,
@@ -102,25 +111,48 @@ def force_atlas2(input_graph,
                     <float>barnes_hut_theta,
                     <float>scaling_ratio,
                     <bool> strong_gravity_mode,
-                    <float>gravity)
-    else:
-        graph_float = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
-        c_force_atlas2[int, int, float](graph_float,
-                    <float*>x_pos,
-                    <float*>y_pos,
-                    <int>max_iter,
-                    <float*>x_start,
-                    <float*>y_start,
-                    <bool>outbound_attraction_distribution,
-                    <bool>lin_log_mode,
-                    <bool>prevent_overlapping,
-                    <float>edge_weight_influence,
-                    <float>jitter_tolerance,
-                    <bool>barnes_hut_optimize,
-                    <float>barnes_hut_theta,
-                    <float>scaling_ratio,
-                    <bool> strong_gravity_mode,
-                    <float>gravity)
+                    <float>gravity,
+                    <bool> verbose,
+                    <GraphBasedDimRedCallback*>callback_ptr)
 
+        x_pos = rmm.device_array_from_ptr(<uintptr_t> pos_ptr,   
+                              nelem=num_verts,                                   
+                              dtype=np.float64)
+        df['x'] = cudf.Series(x_pos) 
+        y_pos = rmm.device_array_from_ptr(<uintptr_t> pos_ptr + num_verts,   
+                              nelem=num_verts,                                   
+                              dtype=np.float64)
+        df['y'] = cudf.Series(y_pos) 
+    else:
+        pos = rmm.device_array(                                                   
+            (num_verts, 2),                                             
+            order="F",                                                          
+            dtype=np.float32)  
+
+        pos_ptr = pos.device_ctypes_pointer.value 
+ 
+        graph_float = GraphCOO[int,int,float](<int*>c_src_indices,
+                <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
+        c_force_atlas2[int, int, float](graph_float,
+                    <float*>pos_ptr,
+                    <int>max_iter,
+                    <float*>x_start,
+                    <float*>y_start,
+                    <bool>outbound_attraction_distribution,
+                    <bool>lin_log_mode,
+                    <bool>prevent_overlapping,
+                    <float>edge_weight_influence,
+                    <float>jitter_tolerance,
+                    <bool>barnes_hut_optimize,
+                    <float>barnes_hut_theta,
+                    <float>scaling_ratio,
+                    <bool> strong_gravity_mode,
+                    <float>gravity,
+                    <bool> verbose,
+                    <GraphBasedDimRedCallback*>callback_ptr)
+
+        pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
+        df['x'] = pos_df['x']
+        df['y'] = pos_df['y']
     return df
 

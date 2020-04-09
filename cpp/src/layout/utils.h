@@ -31,13 +31,10 @@ struct prg {
         }
 };
 
-float *random_vector(int n, int seed) {
-    float *vec = nullptr;
-    ALLOC_TRY(&vec, sizeof(float) * n, nullptr);
+void random_vector(float *vec, int n, int seed) {
     thrust::counting_iterator<uint32_t> index(seed);
     thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index,
             index + n, vec, prg());
-    return vec;
 }
 
 /** helper method to get multi-processor count parameter */

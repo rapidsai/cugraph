@@ -16,6 +16,7 @@
 #pragma once
 
 #include <graph.hpp>
+#include <internals.h>
 
 namespace cugraph {
 
@@ -210,12 +211,12 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @params[in] scaling_ratio                    How much repulsion you want. More makes a more sparse graph.
  * @params[in] strong_gravity_mode                      The “Strong gravity” option sets a force that attracts the nodes that are distant from the center more ( is this distance). This force has the drawback of being so strong that it is sometimes stronger than the other forces. It may result in a biased placement of the nodes. However, its advantage is to force a very compact layout, which may be useful for certain purposes.
  * @params[in] gravity                          Attracts nodes to the center. Prevents islands from drifting away.
+ * @params[in] callback                         An instance of GraphBasedDimRedCallback class to intercept the internal state of positions while they are being trained. 
  *
  */
 template <typename VT, typename ET, typename WT>
 void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
-        float *x_pos,
-        float *y_pos,
+        float *pos,
         const int max_iter=1000,
         float *x_start=nullptr,
         float *y_start=nullptr,
@@ -228,7 +229,9 @@ void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
         const float barnes_hut_theta=0.5,
         const float scaling_ratio=2.0,
         bool strong_gravity_mode=false,
-        const float gravity=1.0);
+        const float gravity=1.0,
+        bool verbose=false,
+        internals::GraphBasedDimRedCallback *callback=nullptr);
 
 /**
  * @brief     Compute betweenness centrality for a graph

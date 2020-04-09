@@ -21,6 +21,7 @@
 #include <rmm/device_buffer.hpp>                                                
 #include <rmm/thrust_rmm_allocator.h>                                           
 #include <rmm_utils.h>                                                          
+#include <internals.h>
 #include <stdio.h>                                                              
                                                                                 
 #include "utilities/error_utils.h"                                              
@@ -36,14 +37,16 @@ namespace detail {
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 void barnes_hut(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const edge_t e, const vertex_t n,
-        float *x_pos, float *y_pos, const int max_iter=1000,
+        float *pos, const int max_iter=1000,
         float *x_start=nullptr, float *y_start=nullptr,
         bool outbound_attraction_distribution=false,
         bool lin_log_mode=false, bool prevent_overlapping=false,
         const float edge_weight_influence=1.0,
         const float jitter_tolerance=1.0, const float theta=0.5,
         const float scaling_ratio=2.0, bool strong_gravity_mode=false,
-        const float gravity=1.0) {
+        const float gravity=1.0,
+        bool verbose=false,
+        internals::GraphBasedDimRedCallback* callback=nullptr) {
 
     const int blocks = getMultiProcessorCount();
     const int epssq = 0.0025;
@@ -108,8 +111,11 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     rmm::device_vector<float>d_radius_squared(1, 0);
     float *radiusd_squared = d_radius_squared.data().get();
 
+    rmm::device_vector<float>d_YY((nnodes + 1) * 2, 0);
+    float *YY = d_YY.data().get();
+
     int random_state = 0;
-    float *YY = random_vector((nnodes + 1) * 2, random_state);
+    random_vector(YY, (nnodes + 1) * 2, random_state);
 
     if (x_start && y_start) {
         copy(n, x_start, YY);
@@ -146,8 +152,6 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     float speed_efficiency = 1.f;
     float outbound_att_compensation = 1.f;
     float jt = 0.f;
-    float s = 0.f;
-    float t = 0.f;
  
     if (outbound_attraction_distribution) {
         int sum = thrust::reduce(mass.begin(), mass.end());
@@ -163,9 +167,13 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     cudaFuncSetCacheConfig(SortKernel, cudaFuncCachePreferL1);
     cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
     cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
+
+    if(callback) {
+        callback->setup<float>(n, 2);
+        callback->on_preprocess_end(pos);
+    }
     
-    int iter = 0;
-    for (; iter < max_iter; ++iter) {
+    for (int iter = 0; iter < max_iter; ++iter) {
         fill((nnodes + 1) * 2, rep_forces, 0.f);
         fill(n * 2, d_attract, 0.f);
         fill(n * 2, d_swinging, 0.f);
@@ -222,35 +230,37 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
                 d_old_forces, d_old_forces + n,
                 d_mass, d_swinging, d_traction, n);
 
-        s = thrust::reduce(swinging.begin(), swinging.end());
-        t = thrust::reduce(traction.begin(), traction.end());
+        const float s = thrust::reduce(swinging.begin(), swinging.end());
+        const float t = thrust::reduce(traction.begin(), traction.end());
 
         adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                 s, t, n);
 
-        apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0>>>(
+        apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0>>>(pos, pos + n,
                 YY, YY + nnodes + 1, d_attract, d_attract + n,
                 rep_forces, rep_forces + nnodes + 1,
                 d_old_forces, d_old_forces + n,
                 d_swinging, speed, n);
         CUDA_CHECK_LAST();
 
+        if (callback)
+            callback->on_epoch_end(pos);
+
+        if (verbose) {
+            printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+                    iter, speed, speed_efficiency);
+            printf("jt: %f, ", jt);
+            printf("swinging: %f, traction: %f\n", s, t);
+        }
     }
 
-	  printf("speed at iteration %i: %f, speed_efficiency: %f, ",
-	         iter, speed, speed_efficiency);
-	  printf("jt: %f, ", jt);
-	  printf("swinging: %f, traction: %f\n", s, t);
-
-
-      copy(n, YY, x_pos);
-      copy(n, YY + nnodes + 1, y_pos);
+      if (callback)
+          callback->on_epoch_end(pos);
 
       ALLOC_FREE_TRY(srcs, stream);
       ALLOC_FREE_TRY(dests, stream);
       if (weighted)
           ALLOC_FREE_TRY(weights, stream);
-      ALLOC_FREE_TRY(YY, nullptr);
 }
 
 } // namespace detail

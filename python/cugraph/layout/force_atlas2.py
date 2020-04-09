@@ -26,7 +26,8 @@ def force_atlas2(input_graph,
         barnes_hut_theta=0.5,
         scaling_ratio=2.0,
         strong_gravity_mode=False,
-        gravity=1.0):
+        gravity=1.0,
+	callback=None):
 
         """
         ForceAtlas2 is a continuous graph layout algorithm for handy network
@@ -67,7 +68,17 @@ def force_atlas2(input_graph,
             How much repulsion you want. More makes a more sparse graph.
         gravity : float
             Attracts nodes to the center. Prevents islands from drifting away.
-
+    	callback: An instance of GraphBasedDimRedCallback class to intercept
+	      the internal state of positions while they are being trained.
+	      Example of callback usage:
+		  from cugraph.layout import GraphBasedDimRedCallback
+		  class CustomCallback(GraphBasedDimRedCallback):
+		    def on_epoch_end(self, x_pos, y_pos):
+			print(x_pos.copy_to_host())
+			print(y_pos.copy_to_host())
+		    def on_train_end(self, x_pos, y_pos):
+			print(x_pos.copy_to_host())
+			print(y_pos.copy_to_host())
 
         Returns
         -------
@@ -96,5 +107,6 @@ def force_atlas2(input_graph,
                 barnes_hut_theta=barnes_hut_theta,
                 scaling_ratio=scaling_ratio,
                 strong_gravity_mode=strong_gravity_mode,
-                gravity=gravity)
+                gravity=gravity,
+		callback=callback)
         return pos

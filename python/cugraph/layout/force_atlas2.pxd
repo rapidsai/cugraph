@@ -19,12 +19,14 @@
 from cugraph.structure.graph_new cimport *
 from libcpp cimport bool
 
+cdef extern from "internals.h" namespace "cugraph::internals":
+    cdef cppclass GraphBasedDimRedCallback
+
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void force_atlas2[VT, ET, WT](
         const GraphCOO[VT, ET, WT] &graph,
-        float *x_pos,
-        float *y_pos,
+        float *pos,
         const int max_iter,
         float *x_start,
         float *y_start,
@@ -37,4 +39,6 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         const float barnes_hut_theta,
         const float scaling_ratio,
         bool strong_gravity_mode,
-        const float gravity) except +
+        const float gravity,
+        bool verbose,
+        GraphBasedDimRedCallback *callback) except +

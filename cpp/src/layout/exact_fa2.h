@@ -21,12 +21,12 @@
 #include <rmm/device_buffer.hpp>
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm_utils.h>
+#include <internals.h>
 #include <stdio.h>
 
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
 
-#include "barnes_hut.h"
 #include "exact_repulsion.h"
 #include "fa2_kernels.h"
 #include "utils.h"
@@ -37,14 +37,15 @@ namespace detail {
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 void exact_fa2(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const edge_t e, const vertex_t n,
-        float *x_pos, float *y_pos, const int max_iter=1000,
+        float *pos, const int max_iter=1000,
         float *x_start=nullptr, float *y_start=nullptr,
         bool outbound_attraction_distribution=false,
         bool lin_log_mode=false, bool prevent_overlapping=false,
         const float edge_weight_influence=1.0,
         const float jitter_tolerance=1.0,
         const float scaling_ratio=2.0, bool strong_gravity_mode=false,
-        const float gravity=1.0) { 
+        const float gravity=1.0, bool verbose=false,
+        internals::GraphBasedDimRedCallback* callback=nullptr) { 
 
     float *d_repel{nullptr};
     float *d_attract{nullptr};
@@ -68,11 +69,11 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     d_traction = traction.data().get();
 
     int random_state = 0;
-    float *YY = random_vector(n * 2, random_state);
+    random_vector(pos, n * 2, random_state);
 
     if (x_start && y_start) {
-        copy(n, x_start, YY);
-        copy(n, y_start, YY + n);
+        copy(n, x_start, pos);
+        copy(n, y_start, pos + n);
     }
 
     vertex_t* srcs{nullptr};
@@ -86,29 +87,31 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     float speed_efficiency = 1.f;
     float outbound_att_compensation = 1.f;
     float jt = 0.f;
-    float s = 0.f;
-    float t = 0.f;
 
     if (outbound_attraction_distribution) {
         int sum = thrust::reduce(mass.begin(), mass.end());
         outbound_att_compensation = sum / (float)n;
     }
 
-    int iter = 0;
-    for (; iter < max_iter; ++iter) {
+    if (callback) {
+        callback->setup<float>(n, 2);
+        callback->on_preprocess_end(pos);
+    }
+
+    for (int iter = 0; iter < max_iter; ++iter) {
         fill(n * 2, d_repel, 0.f);
         fill(n * 2, d_attract, 0.f);
         fill(n * 2, d_swinging, 0.f);
         fill(n * 2, d_traction, 0.f);
 
-        apply_repulsion<vertex_t>(YY,
-                YY + n, d_repel, d_repel + n, d_mass, scaling_ratio, n);
+        apply_repulsion<vertex_t>(pos,
+                pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n);
 
-        apply_gravity<vertex_t>(YY, YY + n, d_attract, d_attract + n, d_mass,
+        apply_gravity<vertex_t>(pos, pos + n, d_attract, d_attract + n, d_mass,
                 gravity, strong_gravity_mode, scaling_ratio, n);
 
         apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
-                dests, weights, e, YY, YY + n, d_attract, d_attract + n, d_mass,
+                dests, weights, e, pos, pos + n, d_attract, d_attract + n, d_mass,
                 outbound_attraction_distribution, lin_log_mode,
                 edge_weight_influence, outbound_att_compensation);
 
@@ -117,32 +120,35 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
                 d_old_forces, d_old_forces + n,
                 d_mass, d_swinging, d_traction, n);
 
-        s = thrust::reduce(swinging.begin(), swinging.end());
-        t = thrust::reduce(traction.begin(), traction.end());
+        const float s = thrust::reduce(swinging.begin(), swinging.end());
+        const float t = thrust::reduce(traction.begin(), traction.end());
 
         adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                 s, t, n);
 
-        apply_forces<vertex_t>(YY, YY + n,  d_repel, d_repel + n,
+        apply_forces<vertex_t>(pos, pos + n,  d_repel, d_repel + n,
                 d_attract, d_attract + n,
                 d_old_forces, d_old_forces + n,
                 d_swinging, speed, n);
 
+        if (callback)
+            callback->on_epoch_end(pos);
+
+        if (verbose) {
+            printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+                    iter, speed, speed_efficiency);
+            printf("jt: %f, ", jt);
+            printf("swinging: %f, traction: %f\n", s, t);
+        }
     }
 
-    printf("speed at iteration %i: %f, speed_efficiency: %f, ",
-            iter, speed, speed_efficiency);
-    printf("jt: %f, ", jt);
-    printf("swinging: %f, traction: %f\n", s, t);
-
-    copy(n, YY, x_pos);
-    copy(n, YY + n, y_pos);
+    if (callback)
+        callback->on_train_end(pos);
 
     ALLOC_FREE_TRY(srcs, stream);
     ALLOC_FREE_TRY(dests, stream);
     if (weighted)
         ALLOC_FREE_TRY(weights, stream);
-    ALLOC_FREE_TRY(YY, nullptr);
 }
 
 } // namespace detail

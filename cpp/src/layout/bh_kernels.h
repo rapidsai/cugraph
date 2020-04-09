@@ -609,7 +609,8 @@ __global__ __launch_bounds__(
 }
 
 __global__ __launch_bounds__(THREADS6, FACTOR6)
-void apply_forces_bh( float *restrict x_pos, float *restrict y_pos,
+void apply_forces_bh(float *restrict x_pos, float *restrict y_pos,
+        float *restrict Y_x, float *restrict Y_y,
         const float *restrict repel_x, const float *restrict repel_y,
         const float *restrict attract_x, const float *restrict attract_y,
         float *restrict old_dx, float *restrict old_dy,
@@ -624,8 +625,10 @@ void apply_forces_bh( float *restrict x_pos, float *restrict y_pos,
         old_dy[i] = dy;
 
         float factor = speed / (1.0 + sqrt(speed * swinging[i]));
-        x_pos[i] += dx * factor;
-        y_pos[i] += dy * factor;
+        Y_x[i] += dx * factor;
+        Y_y[i] += dy * factor;
+        x_pos[i] = Y_x[i];
+        y_pos[i] = Y_y[i];
     }
 }
   
