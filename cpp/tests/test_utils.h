@@ -62,22 +62,23 @@ extern "C" {
 }
 #endif
 
-#define NCCLCHECK(cmd) do {                                   \
+#define NCCLCHECK(cmd) {                                      \
     ncclResult_t nccl_status = cmd;                           \
     if (nccl_status!= ncclSuccess) {                          \
       printf("NCCL failure %s:%d '%s'\n",                     \
           __FILE__,__LINE__,ncclGetErrorString(nccl_status)); \
-    }                                                 \
-  } while(0)
+      FAIL();                                                 \
+    }                                                         \
+  } 
 
-#define MPICHECK(cmd) do {                          \
-  int e = cmd;                                      \
-  if( e != MPI_SUCCESS ) {                          \
-    printf("Failed: MPI error %s:%d '%d'\n",        \
-        __FILE__,__LINE__, e);   \
-    exit(EXIT_FAILURE);                             \
-  }                                                 \
-} while(0)
+#define MPICHECK(cmd) {                          \
+  int e = cmd;                                   \
+  if ( e != MPI_SUCCESS ) {                      \
+    printf("Failed: MPI error %s:%d '%d'\n",     \
+        __FILE__,__LINE__, e);                   \
+    FAIL();                                      \
+  }                                              \
+}
 
 std::function<void(gdf_column*)> gdf_col_deleter = [](gdf_column* col){
   if (col) {
