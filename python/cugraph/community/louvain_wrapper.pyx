@@ -26,7 +26,6 @@ from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 
 import cudf
-import cudf._lib as libcudf
 import rmm
 import numpy as np
 

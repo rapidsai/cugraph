@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,12 +36,16 @@ def spectralBalancedCutClustering(G,
          num_clusters.
     evs_tolerance: float
          Specifies the tolerance to use in the eigensolver
+         Default is 0.00001
     evs_max_iter: integer
          Specifies the maximum number of iterations for the eigensolver
+         Default is 100
     kmean_tolerance: float
          Specifies the tolerance to use in the k-means solver
+         Default is 0.00001
     kmean_max_iter: integer
          Specifies the maximum number of iterations for the k-means solver
+         Default is 100
 
     Returns
     -------
@@ -56,12 +60,12 @@ def spectralBalancedCutClustering(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
+                          header=None)
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     """
 
@@ -99,12 +103,16 @@ def spectralModularityMaximizationClustering(G,
          num_clusters
     evs_tolerance: float
          Specifies the tolerance to use in the eigensolver
+         Default is 0.00001
     evs_max_iter: integer
          Specifies the maximum number of iterations for the eigensolver
+         Default is 100
     kmean_tolerance: float
          Specifies the tolerance to use in the k-means solver
+         Default is 0.00001
     kmean_max_iter: integer
          Specifies the maximum number of iterations for the k-means solver
+         Default is 100
 
     Returns
     -------
@@ -116,13 +124,12 @@ def spectralModularityMaximizationClustering(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
-    >>> values = cudf.Series(M['2'])
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
+                          header=None)
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, values)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     """
 
@@ -158,13 +165,12 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
-    >>> values = cudf.Series(M['2'])
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
+                          header=None)
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, values)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df['cluster'])
     """
@@ -197,12 +203,12 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
+                          header=None)
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df['cluster'])
     """
@@ -235,13 +241,12 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
-    >>> values = cudf.Series(M['2'])
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
+                          header=None)
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, values)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df['cluster'])
     """
