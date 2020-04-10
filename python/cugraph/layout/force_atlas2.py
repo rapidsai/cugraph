@@ -73,12 +73,12 @@ def force_atlas2(input_graph,
 	      Example of callback usage:
 		  from cugraph.layout import GraphBasedDimRedCallback
 		  class CustomCallback(GraphBasedDimRedCallback):
-		    def on_epoch_end(self, x_pos, y_pos):
-			print(x_pos.copy_to_host())
-			print(y_pos.copy_to_host())
-		    def on_train_end(self, x_pos, y_pos):
-			print(x_pos.copy_to_host())
-			print(y_pos.copy_to_host())
+		    def on_preprocess_end(self, positions):
+			print(positions.copy_to_host())
+		    def on_train_end(self, positions):
+			print(positions.copy_to_host())
+		    def on_train_end(self, positions):
+			print(positions.copy_to_host())
 
         Returns
         -------
