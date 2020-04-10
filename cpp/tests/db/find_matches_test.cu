@@ -53,62 +53,14 @@ public:
 };
 
 TEST_F(Test_FindMatches, verifyIndices) {
-  int32_t* offsets_d = reinterpret_cast<int32_t*>(table.getIndex(0).getOffsets());
-  int32_t offsetsSize = table.getIndex(0).getOffsetsSize();
-  int32_t* indirection_d = reinterpret_cast<int32_t*>(table.getIndex(0).getIndirection());
-  int32_t indirectionSize = table.getIndex(0).getIndirectionSize();
-  int32_t* offsets_h = new int32_t[offsetsSize];
-  int32_t* indirection_h = new int32_t[indirectionSize];
-  cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
-  cudaMemcpy(indirection_h, indirection_d, sizeof(int32_t) * indirectionSize, cudaMemcpyDefault);
-  std::cout << "Offsets[0]: ";
-  for (int i = 0; i < offsetsSize; i++)
-    std::cout << offsets_h[i] << " ";
-  std::cout << "\n";
-  std::cout << "Indirection[0]: ";
-  for (int i = 0; i < indirectionSize; i++)
-    std::cout << indirection_h[i] << " ";
-  std::cout << "\n";
-  delete[] offsets_h;
-  delete[] indirection_h;
+  insertConstantEntry(0, 1, 1);
+  insertConstantEntry(2, 0, 1);
+  table.flush_input();
 
-  offsets_d = reinterpret_cast<int32_t*>(table.getIndex(1).getOffsets());
-  offsetsSize = table.getIndex(1).getOffsetsSize();
-  indirection_d = reinterpret_cast<int32_t*>(table.getIndex(1).getIndirection());
-  indirectionSize = table.getIndex(1).getIndirectionSize();
-  offsets_h = new int32_t[offsetsSize];
-  indirection_h = new int32_t[indirectionSize];
-  cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
-  cudaMemcpy(indirection_h, indirection_d, sizeof(int32_t) * indirectionSize, cudaMemcpyDefault);
-  std::cout << "Offsets[1]: ";
-  for (int i = 0; i < offsetsSize; i++)
-    std::cout << offsets_h[i] << " ";
-  std::cout << "\n";
-  std::cout << "Indirection[1]: ";
-  for (int i = 0; i < indirectionSize; i++)
-    std::cout << indirection_h[i] << " ";
-  std::cout << "\n";
-  delete[] offsets_h;
-  delete[] indirection_h;
-
-  offsets_d = reinterpret_cast<int32_t*>(table.getIndex(2).getOffsets());
-  offsetsSize = table.getIndex(2).getOffsetsSize();
-  indirection_d = reinterpret_cast<int32_t*>(table.getIndex(2).getIndirection());
-  indirectionSize = table.getIndex(2).getIndirectionSize();
-  offsets_h = new int32_t[offsetsSize];
-  indirection_h = new int32_t[indirectionSize];
-  cudaMemcpy(offsets_h, offsets_d, sizeof(int32_t) * offsetsSize, cudaMemcpyDefault);
-  cudaMemcpy(indirection_h, indirection_d, sizeof(int32_t) * indirectionSize, cudaMemcpyDefault);
-  std::cout << "Offsets[2]: ";
-  for (int i = 0; i < offsetsSize; i++)
-    std::cout << offsets_h[i] << " ";
-  std::cout << "\n";
-  std::cout << "Indirection[2]: ";
-  for (int i = 0; i < indirectionSize; i++)
-    std::cout << indirection_h[i] << " ";
-  std::cout << "\n";
-  delete[] offsets_h;
-  delete[] indirection_h;
+  std::cout << table.toString();
+  std::cout << "Index[0]: " << table.getIndex(0).toString();
+  std::cout << "Index[1]: " << table.getIndex(1).toString();
+  std::cout << "Index[2]: " << table.getIndex(2).toString();
 }
 
 TEST_F(Test_FindMatches, firstTest){
@@ -138,6 +90,10 @@ TEST_F(Test_FindMatches, secondTest) {
   insertConstantEntry(2, 0, 1);
   table.flush_input();
 
+  std::cout << table.toString() << "\n\n";
+
+  std::cout << table.getIndex(2).toString() << "\n";
+
   cugraph::db::db_pattern<int32_t> q;
   cugraph::db::db_pattern_entry<int32_t> q1(0);
   cugraph::db::db_pattern_entry<int32_t> q2("a");
@@ -148,13 +104,13 @@ TEST_F(Test_FindMatches, secondTest) {
 
   cugraph::db::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 2);
 
+  std::cout << result.toString();
+
   ASSERT_EQ(result.getSize(), 2);
   int32_t* resultA = new int32_t[result.getSize()];
   int32_t* resultB = new int32_t[result.getSize()];
   cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
   cudaMemcpy(resultB, result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
-
-  std::cout << result.toString();
 
   ASSERT_EQ(resultA[0], 1);
   ASSERT_EQ(resultB[0], 1);
