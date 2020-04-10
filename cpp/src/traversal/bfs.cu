@@ -44,6 +44,9 @@ namespace detail {
     //size of bitmaps for vertices
     vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
     //ith bit of visited_bmap is set <=> ith vertex is visited
+    // TODO(xcadet) This is only usefull for BC
+    ALLOC_TRY(&previous_visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
+
     ALLOC_TRY(&visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
     //ith bit of isolated_bmap is set <=> degree of ith vertex = 0
@@ -113,14 +116,12 @@ namespace detail {
   {
     distances = _distances;
     predecessors = _predecessors;
-    sp_counters = _sp_counters;
     edge_mask = _edge_mask;
+    sp_counters = _sp_counters;
 
     useEdgeMask = (edge_mask != NULL);
     computeDistances = (distances != NULL);
     computePredecessors = (predecessors != NULL);
-    computeSPCounters = (sp_counters != NULL);
-    //TODO(xcadet) Remove me
 
     //We need distances to use bottom up
     if (directed && !computeDistances)
@@ -160,13 +161,12 @@ namespace detail {
       cudaMemsetAsync(predecessors, -1, n * sizeof(IndexType), stream);
     }
 
-    // We need to reset the counters
     if (sp_counters) {
       cudaMemsetAsync(sp_counters, 0, n * sizeof(IndexType), stream);
       IndexType value = 1;
-      cudaMemcpy(sp_counters + source_vertex, &value, sizeof(IndexType), cudaMemcpyHostToDevice);
-      cudaDeviceSynchronize();
+      cudaMemcpyAsync(sp_counters + source_vertex, &value, sizeof(IndexType), cudaMemcpyHostToDevice);
     }
+
 
     //
     //Initial frontier
@@ -263,7 +263,7 @@ namespace detail {
     //useDistances : we check if a vertex is a parent using distances in bottom up - distances become working data
     //undirected g : need parents to be in children's neighbors
     bool can_use_bottom_up = !directed && distances;
-    // TODO(xcadet): BC needs approach currently top_down, add a flag to separate workflows
+    // TODO(xcadet): BC cannot use bottomup
     can_use_bottom_up = false;
 
     while (nf > 0) {
@@ -326,30 +326,38 @@ namespace detail {
 
       switch (algo_state) {
         case TOPDOWN:
+          cudaMemcpyAsync(previous_visited_bmap,
+                          visited_bmap,
+                          vertices_bmap_size * sizeof(int),
+                          cudaMemcpyDeviceToDevice,
+                          stream);
+          // We need to copy the visited_bmap before doing the traversal
+          cudaStreamSynchronize(stream);
           traversal::compute_bucket_offsets(exclusive_sum_frontier_vertex_degree,
                                  exclusive_sum_frontier_vertex_buckets_offsets,
                                  nf,
                                  mf,
                                  stream);
-	  bfs_kernels::frontier_expand(row_offsets,
-                          col_indices,
-                          frontier,
-                          nf,
-                          mf,
-                          lvl,
-                          new_frontier,
-                          d_new_frontier_cnt,
-                          exclusive_sum_frontier_vertex_degree,
-                          exclusive_sum_frontier_vertex_buckets_offsets,
-                          visited_bmap,
-                          distances,
-                          predecessors,
-                          sp_counters,
-                          edge_mask,
-                          isolated_bmap,
-                          directed,
-                          stream,
-                          deterministic);
+          bfs_kernels::frontier_expand(row_offsets,
+                                col_indices,
+                                frontier,
+                                nf,
+                                mf,
+                                lvl,
+                                new_frontier,
+                                d_new_frontier_cnt,
+                                exclusive_sum_frontier_vertex_degree,
+                                exclusive_sum_frontier_vertex_buckets_offsets,
+                                previous_visited_bmap,
+                                visited_bmap,
+                                distances,
+                                predecessors,
+                                sp_counters,
+                                edge_mask,
+                                isolated_bmap,
+                                directed,
+                                stream,
+                                deterministic);
 
           mu -= mf;
 
@@ -366,16 +374,16 @@ namespace detail {
           if (nf) {
             //Typical pre-top down workflow. set_frontier_degree + exclusive-scan
             traversal::set_frontier_degree(frontier_vertex_degree,
-                                new_frontier,
-                                vertex_degree,
-                                nf,
-                                stream);
+                                           new_frontier,
+                                           vertex_degree,
+                                           nf,
+                                           stream);
             traversal::exclusive_sum(d_cub_exclusive_sum_storage,
-                           cub_exclusive_sum_storage_bytes,
-                           frontier_vertex_degree,
-                           exclusive_sum_frontier_vertex_degree,
-                           nf + 1,
-                           stream);
+                                     cub_exclusive_sum_storage_bytes,
+                                     frontier_vertex_degree,
+                                     exclusive_sum_frontier_vertex_degree,
+                                     nf + 1,
+                                     stream);
             cudaMemcpyAsync(&mf,
                             &exclusive_sum_frontier_vertex_degree[nf],
                             sizeof(IndexType),
@@ -489,7 +497,9 @@ namespace detail {
 } // !namespace cugraph::detail
 
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *predecessors, VT *sp_counters, const VT start_vertex, bool directed) {
+void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances,
+         VT *predecessors, VT *sp_counters, const VT start_vertex,
+         bool directed) {
   CUGRAPH_EXPECTS(typeid(VT) == typeid(int),
                   "Unsupported vertex id data type, please use int");
   CUGRAPH_EXPECTS(typeid(ET) == typeid(int),
@@ -513,6 +523,7 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *pre
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph, int *distances, int *predecessors, int *sp_counters, const int source_vertex, bool directed);
+template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph, int *distances, int *predecessors,
+                                   int *sp_counters, const int source_vertex, bool directed);
 
 } // !namespace cugraph

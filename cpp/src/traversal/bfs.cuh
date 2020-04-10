@@ -34,10 +34,9 @@ namespace detail {
 		bool useEdgeMask;
 		bool computeDistances;
 		bool computePredecessors;
-		bool computeSPCounters;
 		IndexType *distances;
 		IndexType *predecessors;
-		IndexType *sp_counters;
+		IndexType *sp_counters = nullptr;
 		int *edge_mask;
 
 		//Working data
@@ -46,7 +45,7 @@ namespace detail {
 		IndexType *frontier, *new_frontier;
 		IndexType * original_frontier;
 		IndexType vertices_bmap_size;
-		int *visited_bmap, *isolated_bmap;
+		int *visited_bmap, *isolated_bmap, *previous_visited_bmap;
 		IndexType *vertex_degree;
 		IndexType *buffer_np1_1, *buffer_np1_2;
 		IndexType *frontier_vertex_degree;
@@ -95,7 +94,8 @@ namespace detail {
 			setup();
 		}
 
-		void configure(IndexType *distances, IndexType *predecessors, IndexType *sp_counters, int *edge_mask);
+		void configure(IndexType *distances, IndexType *predecessors,
+									 IndexType *sp_counters, int *edge_mask);
 
 		void traverse(IndexType source_vertex);
 	};

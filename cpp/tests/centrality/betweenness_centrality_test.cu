@@ -85,10 +85,6 @@ void ref_bfs(VT *indices, ET *offsets, VT const number_of_vertices,
       if (dist[w] == dist[v] + 1) {
         sigmas[w] +=  sigmas[v];
         pred[w].push_back(v);
-        // TODO(xcadet) This is for debugging purpose (78 is a problem in email-EU-core)
-        if (w == 718) {
-          printf("[DBG][REF][BFS] %d(%d)[%d] -> %d(%d)[%d]\n", v, dist[v], (int)sigmas[v], w, dist[w], (int)sigmas[w]);
-        }
       }
     }
   }
@@ -243,6 +239,7 @@ TEST_F(BetweennessCentralityBFSTest, CheckReference) {
   // TODO(xcadet) This dataset was manually generated and is not provided
   //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "email-Eu-core-gen.mtx");
   std::string matrix_file("../../datasets/email-Eu-core-gen.mtx");
+  //std::string matrix_file("../../datasets/karate-directed.mtx");
   int m, nnz;
   CSR_Result_Weighted<int, float> csr_result;
   generate_graph_csr<int, int, float>(csr_result, m, nnz, matrix_file);
@@ -254,7 +251,8 @@ TEST_F(BetweennessCentralityBFSTest, CheckReference) {
   graph.prop.directed = true;
   std::vector<float> result(graph.number_of_vertices);
 
-  int source = 2;
+  //int source = 2;
+  int source = 12;
   // Ref BC_BFS requires many working values
   int number_of_vertices = graph.number_of_vertices;
   int number_of_edges = graph.number_of_edges;
@@ -273,6 +271,7 @@ TEST_F(BetweennessCentralityBFSTest, CheckReference) {
   std::vector<int> ref_bfs_dist(number_of_vertices);
   std::vector<std::vector<int>> ref_bfs_pred(number_of_vertices);
   std::vector<float> ref_bfs_sigmas(number_of_vertices);
+
   ref_bfs<int, int, float, float>(indices.data(), offsets.data(),
                                   number_of_vertices, Q, S,
                                   ref_bfs_dist, ref_bfs_pred,
