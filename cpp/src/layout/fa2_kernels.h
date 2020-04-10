@@ -34,7 +34,7 @@ void init_mass(vertex_t **dests, value_t *mass, const edge_t e,
     CUDA_CHECK_LAST();
 }
 
-template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 cudaStream_t sort_coo(const vertex_t *row, const vertex_t *col,
         const weight_t *v, vertex_t **srcs, vertex_t **dests,
         weight_t **weights, const edge_t e) {
@@ -46,7 +46,7 @@ cudaStream_t sort_coo(const vertex_t *row, const vertex_t *col,
     CUDA_TRY(cudaMemcpy(*srcs, row, sizeof(vertex_t) * e, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(*dests, col, sizeof(vertex_t) * e, cudaMemcpyDefault));
 
-    if (!weighted) {
+    if (!v) {
         thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
                 *dests, *dests + e, *srcs);
         thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
@@ -65,7 +65,7 @@ cudaStream_t sort_coo(const vertex_t *row, const vertex_t *col,
     return stream;
 }
 
-template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 attraction_kernel(const vertex_t *restrict row, const vertex_t *restrict col,
         const weight_t *restrict v, const edge_t e,
@@ -86,7 +86,7 @@ attraction_kernel(const vertex_t *restrict row, const vertex_t *restrict col,
         if (dst <= src)
             return;
 
-        if (weighted)
+        if (v)
             weight = v[i];
         weight = pow(weight, edge_weight_influence);
 
@@ -109,7 +109,7 @@ attraction_kernel(const vertex_t *restrict row, const vertex_t *restrict col,
 }
 
 
-template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 void apply_attraction(const vertex_t *restrict row,
         const vertex_t *restrict col, const weight_t *restrict v,
         const edge_t e, const float *restrict x_pos,
@@ -125,7 +125,7 @@ void apply_attraction(const vertex_t *restrict row,
     nblocks.y = 1;
     nblocks.z = 1;
 
-    attraction_kernel<weighted, vertex_t, edge_t, weight_t><<<nblocks, nthreads>>>(
+    attraction_kernel<vertex_t, edge_t, weight_t><<<nblocks, nthreads>>>(
             row, col, v, e, x_pos, y_pos, attract_x, attract_y, mass,
             outbound_attraction_distribution, lin_log_mode,
             edge_weight_influence, coef);

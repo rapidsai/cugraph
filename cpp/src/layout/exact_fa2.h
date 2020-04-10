@@ -34,7 +34,7 @@
 namespace cugraph {
 namespace detail {
 
-template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 void exact_fa2(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const edge_t e, const vertex_t n,
         float *pos, const int max_iter=1000,
@@ -79,7 +79,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
     weight_t* weights{nullptr};
-    cudaStream_t stream = sort_coo<weighted, vertex_t, edge_t, weight_t>(row,
+    cudaStream_t stream = sort_coo<vertex_t, edge_t, weight_t>(row,
             col, v, &srcs, &dests, &weights, e);
     init_mass<vertex_t, edge_t>(&dests, d_mass, e, n);
 
@@ -110,7 +110,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         apply_gravity<vertex_t>(pos, pos + n, d_attract, d_attract + n, d_mass,
                 gravity, strong_gravity_mode, scaling_ratio, n);
 
-        apply_attraction<weighted, vertex_t, edge_t, weight_t>(srcs,
+        apply_attraction<vertex_t, edge_t, weight_t>(srcs,
                 dests, weights, e, pos, pos + n, d_attract, d_attract + n, d_mass,
                 outbound_attraction_distribution, lin_log_mode,
                 edge_weight_influence, outbound_att_compensation);
@@ -147,7 +147,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
 
     ALLOC_FREE_TRY(srcs, stream);
     ALLOC_FREE_TRY(dests, stream);
-    if (weighted)
+    if (v)
         ALLOC_FREE_TRY(weights, stream);
 }
 

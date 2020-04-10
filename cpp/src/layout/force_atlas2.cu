@@ -41,39 +41,24 @@ void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
     const ET e = graph.number_of_edges * 2;
     const VT n = graph.number_of_vertices;
 
-    if (v && !barnes_hut_optimize) {
-        cugraph::detail::exact_fa2<true, VT, ET, WT>(row, col, v, e, n,
+    if (!barnes_hut_optimize) {
+        cugraph::detail::exact_fa2<VT, ET, WT>(row, col, v, e, n,
                 pos, max_iter, x_start,
                 y_start, outbound_attraction_distribution,
                 lin_log_mode, prevent_overlapping, edge_weight_influence,
                 jitter_tolerance,
                 scaling_ratio, strong_gravity_mode, gravity,
                 verbose, callback);
-    } else if(!v && !barnes_hut_optimize) {
-        cugraph::detail::exact_fa2<false, VT, ET, WT>(row, col, v, e, n,
-                pos, max_iter, x_start,
-                y_start, outbound_attraction_distribution,
-                lin_log_mode, prevent_overlapping, edge_weight_influence,
-                jitter_tolerance,
-                scaling_ratio, strong_gravity_mode, gravity,
-                verbose, callback);
-    } else if(v && barnes_hut_optimize) {
-        cugraph::detail::barnes_hut<true, VT, ET, WT>(row, col, v, e, n,
+   } else {
+        cugraph::detail::barnes_hut<VT, ET, WT>(row, col, v, e, n,
                 pos, max_iter, x_start,
                 y_start, outbound_attraction_distribution,
                 lin_log_mode, prevent_overlapping, edge_weight_influence,
                 jitter_tolerance, barnes_hut_theta,
                 scaling_ratio, strong_gravity_mode, gravity,
                 verbose, callback);
-    } else {
-        cugraph::detail::barnes_hut<false, VT, ET, WT>(row, col, v, e, n,
-                pos, max_iter, x_start,
-                y_start, outbound_attraction_distribution,
-                lin_log_mode, prevent_overlapping, edge_weight_influence,
-                jitter_tolerance, barnes_hut_theta,
-                scaling_ratio, strong_gravity_mode, gravity,
-                verbose, callback);
-    }
+   }
+
 }
 
 template void force_atlas2<int, int, float>(
