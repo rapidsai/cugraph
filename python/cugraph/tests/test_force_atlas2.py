@@ -23,21 +23,14 @@ import cugraph
 from cugraph.tests import utils
 import rmm
 from random import randint
+from sklearn.manifold import trustworthiness
+import scipy.io
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
 # python 3.7.  Also, these import fa2 and import networkx need to be
 # relocated in the third-party group once this gets fixed.
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import fa2
-    import networkx as nx
-
-
-print('Networkx version : {} '.format(nx.__version__))
-
 
 def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
                  lin_log_mode, prevent_overlapping, edge_weight_influence,
@@ -47,19 +40,11 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
 
-    k = np.fromiter(pos_list.keys(), dtype='int32')
-    x = np.fromiter([x for x, _ in pos_list.values()], dtype='float32')
-    y = np.fromiter([y for _, y in pos_list.values()], dtype='float32')
-
-    cu_pos_list = cudf.DataFrame({'vertex': k,
-                                  'x': x,
-                                  'y' : y}) 
- 
     # cugraph Force Atlas 2 Call
     t1 = time.time()
     pos = cugraph.force_atlas2(G,
                                max_iter=max_iter,
-                               pos_list=cu_pos_list,
+                               pos_list=pos_list,
                                outbound_attraction_distribution=outbound_attraction_distribution,
                                lin_log_mode=lin_log_mode,
                                prevent_overlapping=prevent_overlapping,
@@ -74,88 +59,20 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
     print('Cugraph Time : ' + str(t2))
     return pos
 
-
-def networkx_call(M, max_iter,
-                pos_list,
-                node_masses,
-                outbound_attraction_distribution,
-                lin_log_mode,
-                prevent_overlapping,
-                edge_weight_influence,
-                jitter_tolerance,
-                barnes_hut_optimize,
-                barnes_hut_theta,
-                scaling_ratio,
-                strong_gravity_mode,
-                multithread,
-                gravity):
-
-    Gnx = nx.OrderedGraph()
-    for i in range(len(M)):
-        Gnx.add_node(M['0'][i])
-    for i in range(len(M)):
-        Gnx.add_edge(M['0'][i], M['1'][i], attr=M['2'][i])
-
-    # Networkx Force Atlas 2 Call
-    print('Solving... ')
-    t1 = time.time()
-    forceatlas2 = fa2.ForceAtlas2(
-            # Behavior alternatives
-            outboundAttractionDistribution=outbound_attraction_distribution,# Dissuade hubs
-            linLogMode=False,  # NOT IMPLEMENTED
-            adjustSizes=False,  # Prevent overlap (NOT IMPLEMENTED)
-            edgeWeightInfluence=edge_weight_influence,
-
-            # Performance
-            jitterTolerance=jitter_tolerance,  # Tolerance
-            barnesHutOptimize=barnes_hut_optimize,
-            barnesHutTheta=barnes_hut_theta,
-            multiThreaded=False,  # NOT IMPLEMENTED
-
-            # Tuning
-            scalingRatio=scaling_ratio,
-            strongGravityMode=strong_gravity_mode,
-            gravity=gravity,
-
-            # Log
-            verbose=False)
-
-    pos = forceatlas2.forceatlas2_networkx_layout(Gnx, pos=pos_list, iterations=max_iter)
-    
-    t2 = time.time() - t1
-
-    print('Networkx Time : ' + str(t2))
-    return pos
-
-
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv']
-
-MAX_ITERATIONS = [10]
-OUTBOUND_ATTRACTION_DISTRIBUTION = [False, True]
-EDGE_WEIGHT_INFLUENCE = [1.0]
-JITTER_TOLERANCE = [1.0]
+DATASETS = ['../datasets/karate.csv', '../datasets/dolphins.csv']
+MAX_ITERATIONS = [1000]
+BARNES_HUT_OPTIMIZE= [False, True]
 BARNES_HUT_THETA = [0.5]
-SCALING_RATIO = [2.0]
-STRONG_GRAVITY_MODE = [False]
-GRAVITY = [1.0]
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
-@pytest.mark.parametrize('outbound_attraction_distribution', OUTBOUND_ATTRACTION_DISTRIBUTION)
-@pytest.mark.parametrize('edge_weight_influence', EDGE_WEIGHT_INFLUENCE)
-@pytest.mark.parametrize('jitter_tolerance', JITTER_TOLERANCE)
+@pytest.mark.parametrize('barnes_hut_optimize', BARNES_HUT_OPTIMIZE)
 @pytest.mark.parametrize('barnes_hut_theta', BARNES_HUT_THETA)
-@pytest.mark.parametrize('scaling_ratio', SCALING_RATIO)
-@pytest.mark.parametrize('strong_gravity_mode', STRONG_GRAVITY_MODE)
-@pytest.mark.parametrize('gravity', GRAVITY)
 def test_force_atlas2(managed, pool, graph_file, max_iter,
-                      outbound_attraction_distribution, edge_weight_influence,
-                      jitter_tolerance, barnes_hut_theta, scaling_ratio,
-                      strong_gravity_mode, gravity):
+        barnes_hut_optimize, barnes_hut_theta):
     gc.collect()
 
     rmm.reinitialize(
@@ -166,57 +83,23 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
 
     assert(rmm.is_initialized())
 
-    print(outbound_attraction_distribution)
-    print(strong_gravity_mode)
     cu_M = utils.read_csv_file(graph_file)
-    cu_M = cu_M.sort_values(by=['0', '1'])
-
-    pos_list = dict()
-    for node in cu_M['0'].unique():
-        pos_list[node] = randint(-100, 100), randint(-100, 100)
-
     cu_pos = cugraph_call(cu_M,
                           max_iter=max_iter,
-                          pos_list=pos_list,
-                          outbound_attraction_distribution=outbound_attraction_distribution,
+                          pos_list=None,
+                          outbound_attraction_distribution=True,
                           lin_log_mode=False,
                           prevent_overlapping=False,
-                          edge_weight_influence=edge_weight_influence,
-                          jitter_tolerance=jitter_tolerance,
+                          edge_weight_influence=1.0,
+                          jitter_tolerance=1.0,
                           barnes_hut_optimize=False,
-                          barnes_hut_theta=barnes_hut_theta,
-                          scaling_ratio=scaling_ratio,
-                          strong_gravity_mode=strong_gravity_mode,
-                          gravity=gravity)
+                          barnes_hut_theta=0.5,
+                          scaling_ratio=2.0,
+                          strong_gravity_mode=False,
+                          gravity=1.0)
 
-    nx_pos = networkx_call(cu_M,
-                           max_iter=max_iter,
-                           pos_list=pos_list,
-                           node_masses=None,
-                           outbound_attraction_distribution=outbound_attraction_distribution,
-                           lin_log_mode=False,
-                           prevent_overlapping=False,
-                           edge_weight_influence=edge_weight_influence,
-                           jitter_tolerance=jitter_tolerance,
-                           barnes_hut_optimize=False,
-                           barnes_hut_theta=barnes_hut_theta,
-                           scaling_ratio=scaling_ratio,
-                           strong_gravity_mode=strong_gravity_mode,
-                           multithread=False,
-                           gravity=gravity)
-   
-    print("Cu pos:")
-    print(cu_pos)
-    print("nx pos:")
-    print(nx_pos)
-    displacement = 1
-    # Check positions are the same
-    assert len(cu_pos) == len(nx_pos)
-    err = 0
-    for i in range(len(cu_pos)):
-        if abs(cu_pos['x'][i] - nx_pos[i][0]) > displacement \
-        and abs(cu_pos['y'][i] - nx_pos[i][1]) > displacement:
-            print("err on node: ", i)
-            err += 1
-    print("Mismatched points:", err)
-    assert err < 0.01 * len(cu_pos)
+    matrix_file = graph_file[:-4] + '.mtx'
+    M = scipy.io.mmread(matrix_file)
+    M = M.todense()
+    cu_trust = trustworthiness(M, cu_pos[['x', 'y']].to_pandas()) 
+    assert cu_trust > 0.69
