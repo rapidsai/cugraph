@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,15 +12,14 @@
 # limitations under the License.
 
 from cugraph.cores import ktruss_subgraph_wrapper
-from cugraph.structure.graph import DiGraph
 
 
 def ktruss_subgraph(G, k, use_weights=True):
     """
-    Returns the subgraph of the k-truss of a graph for a specific k.
+    Returns the K-Truss subgraph of a graph for a specific k.
 
-    The k-truss of a graph is subgraph where each edge is part of at least
-    (k−2) triangles. k-trusses are used for finding tighlty knit groups of
+    The k-truss of a graph is a subgraph where each edge is part of at least
+    (k−2) triangles. K-trusses are used for finding tighlty knit groups of
     vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
     and was define in [1]. Finding cliques is computationally demanding and
     finding the maximal k-clique is known to be NP-Hard.
@@ -62,7 +61,6 @@ def ktruss_subgraph(G, k, use_weights=True):
     use_weights : Bool
         whether the output should contain the edge weights if G has them
 
-
     Returns
     -------
     G_truss : cuGraph.Graph
@@ -73,11 +71,11 @@ def ktruss_subgraph(G, k, use_weights=True):
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edge_list(M, source='0', destination='1')
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
     """
 
-    KTrussSubgraph = DiGraph()
+    KTrussSubgraph = type(G)()
 
     ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights,
                                             KTrussSubgraph)

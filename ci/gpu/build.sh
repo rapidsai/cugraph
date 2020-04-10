@@ -66,6 +66,7 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       distributed>=2.12.0 \
       dask-cudf=${MINOR_VERSION} \
       dask-cuda=${MINOR_VERSION} \
+      nccl>=2.5 \
       libcypher-parser \
       ipython=7.3* \
       jupyterlab
