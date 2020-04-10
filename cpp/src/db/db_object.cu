@@ -19,6 +19,7 @@
 #include <db/db_object.cuh>
 #include <cub/device/device_run_length_encode.cuh>
 #include <sstream>
+#include <thrust/binary_search.h>
 
 namespace cugraph {
 namespace db {
@@ -214,6 +215,28 @@ idx_t db_column_index<idx_t>::getIndirectionSize() {
   return indirection_size;
 }
 
+template<typename idx_t>
+std::string db_column_index<idx_t>::toString(){
+  std::stringstream ss;
+  ss << "db_column_index:\n";
+  ss << "Offsets: ";
+  idx_t* hostOffsets = (idx_t*)malloc(sizeof(idx_t) * offsets_size);
+  cudaMemcpy(hostOffsets, offsets, sizeof(idx_t) * offsets_size, cudaMemcpyDefault);
+  for (idx_t i = 0; i < offsets_size; i++) {
+    ss << hostOffsets[i] << " ";
+  }
+  free(hostOffsets);
+  ss << "\nIndirection: ";
+  idx_t* hostIndirection = (idx_t*)malloc(sizeof(idx_t)  * indirection_size);
+  cudaMemcpy(hostIndirection, indirection, sizeof(idx_t) * indirection_size, cudaMemcpyDefault);
+  for (idx_t i = 0; i < indirection_size; i++) {
+    ss << hostIndirection[i] << " ";
+  }
+  free(hostIndirection);
+  ss << "\n";
+  return ss.str();
+}
+
 template class db_column_index<int32_t>;
 template class db_column_index<int64_t>;
 
@@ -373,50 +396,17 @@ void db_table<idx_t>::rebuildIndices() {
     // Compute offsets array based on sorted column
     idx_t maxId;
     cudaMemcpy(&maxId, tempColumn + size - 1, sizeof(idx_t), cudaMemcpyDefault);
-    idx_t *unique, *counts, *runCount;
-    ALLOC_TRY(&unique, (maxId + 1) * sizeof(idx_t), nullptr);
-    ALLOC_TRY(&counts, (maxId + 1) * sizeof(idx_t), nullptr);
-    ALLOC_TRY(&runCount, sizeof(idx_t), nullptr);
-    void* tmpStorage = nullptr;
-    size_t tmpBytes = 0;
-    cub::DeviceRunLengthEncode::Encode(tmpStorage,
-                                       tmpBytes,
-                                       tempColumn,
-                                       unique,
-                                       counts,
-                                       runCount,
-                                       size);
-    ALLOC_TRY(&tmpStorage, tmpBytes, nullptr);
-    cub::DeviceRunLengthEncode::Encode(tmpStorage,
-                                       tmpBytes,
-                                       tempColumn,
-                                       unique,
-                                       counts,
-                                       runCount,
-                                       size);
-    ALLOC_FREE_TRY(tmpStorage, nullptr);
-    idx_t runCount_h;
-    cudaMemcpy(&runCount_h, runCount, sizeof(idx_t), cudaMemcpyDefault);
     idx_t* offsets;
-
-    // Allocating the new offsets array
     ALLOC_TRY(&offsets, (maxId + 2) * sizeof(idx_t), nullptr);
+    thrust::lower_bound(rmm::exec_policy(nullptr)->on(nullptr),
+                        tempColumn,
+                        tempColumn + size,
+                        thrust::counting_iterator<idx_t>(0),
+                        thrust::counting_iterator<idx_t>(maxId + 2),
+                        offsets);
 
-    // Filling values in offsets array from the encoded run lengths
-    int threadsPerBlock = 1024;
-    int numBlocks = (runCount_h + threadsPerBlock - 1) / threadsPerBlock;
-    offsetsKernel<<<numBlocks, threadsPerBlock>>>(runCount_h, unique, counts, offsets);
-    CUDA_CHECK_LAST();
-
-    // Taking the exclusive scan of the run lengths to get the final offsets.
-    thrust::exclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
-                           offsets,
-                           offsets + maxId + 2,
-                           offsets);
+    // Clean up temporary allocations
     ALLOC_FREE_TRY(tempColumn, nullptr);
-    ALLOC_FREE_TRY(unique, nullptr);
-    ALLOC_FREE_TRY(counts, nullptr);
-    ALLOC_FREE_TRY(runCount, nullptr);
 
     // Assign new offsets array and indirection vector to index
     indices[i].resetData(offsets, maxId + 2, indirection, size);

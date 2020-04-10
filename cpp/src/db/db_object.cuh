@@ -87,6 +87,12 @@ namespace db {
     idx_t getOffsetsSize();
     idx_t* getIndirection();
     idx_t getIndirectionSize();
+
+    /**
+     * For debugging purposes only.
+     * @return Human readable representation
+     */
+    std::string toString();
   };
 
   /**

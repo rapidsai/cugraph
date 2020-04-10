@@ -82,9 +82,8 @@ void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
 
   kt.copyGraph(out_src, out_dst);
 
-  experimental::GraphCOO<VT, ET, WT> subgraph(
-      const_cast<const VT*>(out_src), const_cast<const VT*>(out_dst),
-      nullptr, graph.number_of_vertices, subgraph_edge_count);
+  experimental::GraphCOO<VT, ET, WT> subgraph(out_src, out_dst, nullptr,
+                                              graph.number_of_vertices, subgraph_edge_count);
 
   output_graph = subgraph;
   output_graph.prop.directed = true;
@@ -140,9 +139,8 @@ void weighted_ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &gra
 
   kt.copyGraph(out_src, out_dst, out_wgt);
 
-  experimental::GraphCOO<VT, ET, WT> subgraph(
-      const_cast<const VT*>(out_src), const_cast<const VT*>(out_dst),
-      const_cast<const WT*>(out_wgt), graph.number_of_vertices, subgraph_edge_count);
+  experimental::GraphCOO<VT, ET, WT> subgraph(out_src, out_dst, out_wgt,
+                                              graph.number_of_vertices, subgraph_edge_count);
 
   output_graph = subgraph;
   output_graph.prop.directed = true;

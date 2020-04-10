@@ -252,7 +252,7 @@ namespace detail {
     //undirected g : need parents to be in children's neighbors
     bool can_use_bottom_up = !directed && distances;
 
-    while (nf > 0) {
+    while (nf > 0 && nu > 0) {
       //Each vertices can appear only once in the frontierer array - we know it will fit
       new_frontier = frontier + nf;
       IndexType old_nf = nf;
