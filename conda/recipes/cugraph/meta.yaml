@@ -32,6 +32,7 @@ requirements:
     - python x.x
     - libcugraph={{ version }}
     - cudf={{ minor_version }}
+    - nccl>=2.5
 
 #test:
 #  commands:
