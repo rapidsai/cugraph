@@ -95,7 +95,7 @@ def force_atlas2(input_graph,
         pos_ptr = pos.device_ctypes_pointer.value 
  
         graph_double = GraphCOO[int,int, double](<int*>c_src_indices,
-                <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
+                <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges * 2)
 
         c_force_atlas2[int, int, double](graph_double,
                     <float*>pos_ptr,
@@ -132,7 +132,8 @@ def force_atlas2(input_graph,
         pos_ptr = pos.device_ctypes_pointer.value 
  
         graph_float = GraphCOO[int,int,float](<int*>c_src_indices,
-                <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
+                <int*>c_dst_indices, <float*>c_weights, num_verts,
+                num_edges * 2)
         c_force_atlas2[int, int, float](graph_float,
                     <float*>pos_ptr,
                     <int>max_iter,

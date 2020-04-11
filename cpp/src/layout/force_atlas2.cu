@@ -38,7 +38,7 @@ void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
     const VT *row = graph.src_indices;
     const VT *col = graph.dst_indices;
     const WT *v = graph.edge_data;
-    const ET e = graph.number_of_edges * 2;
+    const ET e = graph.number_of_edges;
     const VT n = graph.number_of_vertices;
 
     if (!barnes_hut_optimize) {

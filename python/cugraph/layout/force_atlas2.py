@@ -27,6 +27,7 @@ def force_atlas2(input_graph,
         scaling_ratio=2.0,
         strong_gravity_mode=False,
         gravity=1.0,
+        verbose=False,
 	callback=None):
 
         """
@@ -108,5 +109,6 @@ def force_atlas2(input_graph,
                 scaling_ratio=scaling_ratio,
                 strong_gravity_mode=strong_gravity_mode,
                 gravity=gravity,
+                verbose=verbose,
 		callback=callback)
         return pos
