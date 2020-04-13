@@ -770,7 +770,7 @@ def test_has_edge(managed, pool, graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+                         list(product([False], [False])))
 @pytest.mark.parametrize('graph_file', DATASETS2)
 def test_has_node(managed, pool, graph_file):
     gc.collect()
@@ -784,7 +784,7 @@ def test_has_node(managed, pool, graph_file):
     assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
-    nodes = cudf.concat([cu_M['0'] + cu_M['1']]).unique()
+    nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
 
     # cugraph add_edge_list
     G = cugraph.Graph()
