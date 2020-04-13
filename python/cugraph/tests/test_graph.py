@@ -770,7 +770,7 @@ def test_has_edge(managed, pool, graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
-                         list(product([False], [False])))
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS2)
 def test_has_node(managed, pool, graph_file):
     gc.collect()
