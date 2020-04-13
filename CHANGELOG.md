@@ -10,6 +10,7 @@
 - PR #782 Use Cython's `new_build_ext` (if available)
 - PR #788 Added options and config file to enable codecov
 - PR #793 Fix legacy cudf imports/cimports
+- PR #802 Removed use of gdf_column from db code
 - PR #798 Edit return graph type in algorithms return graphs
 - PR #803 Enable Ninja build
 - PR #804 Cythonize in parallel
