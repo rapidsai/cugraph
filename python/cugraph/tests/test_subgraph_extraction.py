@@ -43,8 +43,13 @@ def compare_edges(cg, nxg, verts):
     return True
 
 
-def cugraph_call(M, verts):
-    G = cugraph.DiGraph()
+def cugraph_call(M, verts, directed=True):
+    # directed is used to create either a Graph or DiGraph so the returned
+    # cugraph can be compared to nx graph of same type.
+    if directed:
+        G = cugraph.DiGraph()
+    else:
+        G = cugraph.Graph()
     cu_M = cudf.DataFrame()
     cu_M['src'] = cudf.Series(M['0'])
     cu_M['dst'] = cudf.Series(M['1'])
@@ -53,9 +58,13 @@ def cugraph_call(M, verts):
     return cugraph.subgraph(G, cu_verts)
 
 
-def nx_call(M, verts):
-    G = nx.from_pandas_edgelist(M, source='0', target='1',
-                                create_using=nx.DiGraph())
+def nx_call(M, verts, directed=True):
+    if directed:
+        G = nx.from_pandas_edgelist(M, source='0', target='1',
+                                    create_using=nx.DiGraph())
+    else:
+        G = nx.from_pandas_edgelist(M, source='0', target='1',
+                                    create_using=nx.Graph())
     return nx.subgraph(G, verts)
 
 
@@ -69,7 +78,7 @@ DATASETS = ['../datasets/karate.csv',
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_subgraph_extraction(managed, pool, graph_file):
+def test_subgraph_extraction_DiGraph(managed, pool, graph_file):
     gc.collect()
 
     rmm.reinitialize(
@@ -87,4 +96,29 @@ def test_subgraph_extraction(managed, pool, graph_file):
     verts[2] = 17
     cu_sg = cugraph_call(M, verts)
     nx_sg = nx_call(M, verts)
+    assert compare_edges(cu_sg, nx_sg, verts)
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_subgraph_extraction_Graph(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    M = utils.read_csv_for_nx(graph_file)
+    verts = np.zeros(3, dtype=np.int32)
+    verts[0] = 0
+    verts[1] = 1
+    verts[2] = 17
+    cu_sg = cugraph_call(M, verts, False)
+    nx_sg = nx_call(M, verts, False)
     assert compare_edges(cu_sg, nx_sg, verts)

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,10 @@
 # limitations under the License.
 
 from cugraph.cores import k_core_wrapper, core_number_wrapper
-from cugraph.structure.graph import DiGraph
+from cugraph.utilities.unrenumber import unrenumber
+
+import cudf
+import numpy as np
 
 
 def k_core(G,
@@ -52,26 +55,46 @@ def k_core(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> KCoreGraph = cugraph.k_core(G)
     """
 
-    KCoreGraph = DiGraph()
-    if core_number is None:
+    mytype = type(G)
+    KCoreGraph = mytype()
+
+    if core_number is not None:
+        if G.renumbered is True:
+            renumber_df = cudf.DataFrame()
+            renumber_df['map'] = G.edgelist.renumber_map
+            renumber_df['id'] = G.edgelist.renumber_map.index.astype(np.int32)
+            core_number = core_number.merge(renumber_df,
+                                            left_on='vertex',
+                                            right_on='map',
+                                            how='left').drop('map')
+    else:
         core_number = core_number_wrapper.core_number(G)
         core_number = core_number.rename(columns={"core_number": "values"})
 
     if k is None:
         k = core_number['values'].max()
 
-    k_core_wrapper.k_core(G,
-                          KCoreGraph,
-                          k,
-                          core_number)
+    k_core_df = k_core_wrapper.k_core(G, k, core_number)
+
+    if G.renumbered:
+        k_core_df = unrenumber(G.edgelist.renumber_map, k_core_df, 'src')
+        k_core_df = unrenumber(G.edgelist.renumber_map, k_core_df, 'dst')
+
+    if G.edgelist.weights:
+        KCoreGraph.from_cudf_edgelist(k_core_df,
+                                      source='src',
+                                      destination='dst',
+                                      edge_attr='weight')
+    else:
+        KCoreGraph.from_cudf_edgelist(k_core_df,
+                                      source='src',
+                                      destination='dst')
 
     return KCoreGraph

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,7 @@ def pagerank(G,
              tol=1.0e-5,
              nstart=None):
     """
-    Find the PageRank vertex values for a graph. cuGraph computes an
+    Find the PageRank score for every vertex in a graph. cuGraph computes an
     approximation of the Pagerank eigenvector using the power method. The
     number of iterations depends on the properties of the network itself; it
     increases when the tolerance descreases and/or alpha increases toward the
@@ -47,6 +47,7 @@ def pagerank(G,
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
+
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
@@ -75,14 +76,18 @@ def pagerank(G,
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding PageRank values.
 
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df['pagerank'] : cudf.Series
+            Contains the PageRank score
+
+
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
 

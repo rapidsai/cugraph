@@ -16,12 +16,12 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void sssp[int, WT](
-        Graph *graph,
+    cdef void sssp[VT, ET, WT](
+        const GraphCSR[VT, ET, WT] &graph,
         WT *distances,
-        int *predecessors,
-        int start_vertex) except +
+        VT *predecessors,
+        VT start_vertex) except +

@@ -30,6 +30,13 @@ struct GraphProperties {
   GraphProperties() = default;
 };
 
+enum class DegreeDirection {
+  IN_PLUS_OUT = 0,       ///> Compute sum of in and out degree
+  IN,                    ///> Compute in degree
+  OUT,                   ///> Compute out degree
+  DEGREE_DIRECTION_COUNT 
+};
+
 /**
  * @brief       Base class graphs, all but vertices and edges
  *
@@ -40,14 +47,21 @@ struct GraphProperties {
 template <typename VT, typename ET, typename WT>
 class GraphBase {
 public:
-  WT const *edge_data;     ///< edge weight
+  WT *edge_data;     ///< edge weight
 
   GraphProperties          prop;
 
   VT                       number_of_vertices;
   ET                       number_of_edges;
 
-  GraphBase(WT const *edge_data_, VT number_of_vertices_, ET number_of_edges_):
+  /**
+   * @brief      Fill the identifiers array with the vertex identifiers.
+   *
+   * @param[out]    identifier      Pointer to device memory to store the vertex identifiers
+   */
+  void get_vertex_identifiers(VT *identifiers) const;
+
+  GraphBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_):
     edge_data(edge_data_),
     prop(),
     number_of_vertices(number_of_vertices_),
@@ -65,9 +79,20 @@ public:
 template <typename VT, typename ET, typename WT>
 class GraphCOO: public GraphBase<VT, ET, WT> {
 public:
-  VT const *src_indices{nullptr};   ///< rowInd
-  VT const *dst_indices{nullptr};   ///< colInd
+  VT *src_indices{nullptr};   ///< rowInd
+  VT *dst_indices{nullptr};   ///< colInd
 
+  /**
+   * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
+   *
+   * @throws     cugraph::logic_error when an error occurs.
+   *
+   * @param[out] degree                Device array of size V (V is number of vertices) initialized to zeros.
+   *                                   Will contain the computed degree of every vertex.
+   * @param[in]  direction             IN_PLUS_OUT, IN or OUT
+   */
+  void degree(ET *degree, DegreeDirection direction) const;
+  
   /**
    * @brief      Default constructor
    */
@@ -88,7 +113,7 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCOO(VT const *src_indices_, VT const *dst_indices_, WT const *edge_data_,
+  GraphCOO(VT *src_indices_, VT *dst_indices_, WT *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
     GraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
     src_indices(src_indices_), dst_indices(dst_indices_)
@@ -105,16 +130,9 @@ public:
 template <typename VT, typename ET, typename WT>
 class GraphCompressedSparseBase: public GraphBase<VT,ET,WT> {
 public:
-  ET const *offsets{nullptr};       ///< CSR offsets
-  VT const *indices{nullptr};       ///< CSR indices
+  ET *offsets{nullptr};       ///< CSR offsets
+  VT *indices{nullptr};       ///< CSR indices
 
-  /**
-   * @brief      Fill the identifiers array with the vertex identifiers.
-   *
-   * @param[out]    identifier      Pointer to device memory to store the vertex identifiers
-   */
-  void get_vertex_identifiers(VT *identifiers) const;
-  
   /**
    * @brief      Fill the identifiers in the array with the source vertex identifiers
    *
@@ -122,6 +140,20 @@ public:
    */
   void get_source_indices(VT *src_indices) const;
 
+  /**
+   * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
+   *
+   * @throws     cugraph::logic_error when an error occurs.
+   *
+   * @param[out] degree                Device array of size V (V is number of vertices) initialized to zeros.
+   *                                   Will contain the computed degree of every vertex.
+   * @param[in]  x                     Integer value indicating type of degree calculation
+   *                                      0 : in+out degree
+   *                                      1 : in-degree
+   *                                      2 : out-degree
+   */
+  void degree(ET *degree, DegreeDirection direction) const;
+  
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
    *             GraphCSR does not own the memory used to represent this graph. This
@@ -136,7 +168,7 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCompressedSparseBase(ET const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCompressedSparseBase(ET *offsets_, VT *indices_, WT *edge_data_,
                             VT number_of_vertices_, ET number_of_edges_):
     GraphBase<VT,ET,WT>(edge_data_, number_of_vertices_, number_of_edges_),
     offsets{offsets_},
@@ -173,7 +205,7 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSR(ET const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCSR(ET *offsets_, VT *indices_, WT *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
     GraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}
@@ -208,7 +240,7 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSC(ET const *offsets_, VT const *indices_, WT const *edge_data_,
+  GraphCSC(ET *offsets_, VT *indices_, WT *edge_data_,
            VT number_of_vertices_, ET number_of_edges_):
     GraphCompressedSparseBase<VT,ET,WT>(offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {}

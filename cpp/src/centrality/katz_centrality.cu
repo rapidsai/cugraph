@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,34 +21,31 @@
  * @file katz_centrality.cu
  * --------------------------------------------------------------------------*/
 
-#include <cugraph.h>
+#include <graph.hpp>
 #include "utilities/error_utils.h"
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
 
 namespace cugraph {
-void katz_centrality(Graph *graph,
-                              gdf_column *katz_centrality,
-                              double alpha,
-                              int max_iter,
-                              double tol,
-                              bool has_guess,
-                              bool normalized) {
-  CHECK_GRAPH(graph);
-  CUGRAPH_EXPECTS(graph->adjList->offsets->dtype == GDF_INT32, "Unsupported data type: offsets need to be int32");
-  CUGRAPH_EXPECTS(graph->adjList->indices->dtype == GDF_INT32, "Unsupported data type: indices need to be int32");
-  CUGRAPH_EXPECTS(katz_centrality->dtype == GDF_FLOAT64, "Unsupported data type: centrality needs to be float64");
-  CUGRAPH_EXPECTS(katz_centrality->size == graph->numberOfVertices, "Column size mismatch");
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void katz_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+                     result_t *result,
+                     double alpha,
+                     int max_iter,
+                     double tol,
+                     bool has_guess,
+                     bool normalized) {
 
   const bool isStatic = true;
-  using HornetGraph = hornet::gpu::HornetStatic<int>;
-  using HornetInit  = hornet::HornetInit<int>;
+  using HornetGraph = hornet::gpu::HornetStatic<VT>;
+  using HornetInit  = hornet::HornetInit<VT>;
   using Katz = hornets_nest::KatzCentralityStatic;
-  HornetInit init(graph->numberOfVertices, graph->adjList->indices->size,
-      reinterpret_cast<int*>(graph->adjList->offsets->data),
-      reinterpret_cast<int*>(graph->adjList->indices->data));
+
+  HornetInit init(graph.number_of_vertices, graph.number_of_edges,
+                  graph.offsets, graph.indices);
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
-  Katz katz(hnt, alpha, max_iter, tol, normalized, isStatic, reinterpret_cast<double*>(katz_centrality->data));
+  Katz katz(hnt, alpha, max_iter, tol, normalized, isStatic, result);
   if (katz.getAlpha() < alpha) {
     CUGRAPH_FAIL("Error : alpha is not small enough for convergence");
   }
@@ -56,6 +53,8 @@ void katz_centrality(Graph *graph,
   if (!katz.hasConverged()) {
     CUGRAPH_FAIL("Error : Convergence not reached");
   }
-  
 }
+
+template void katz_centrality<int,int,float,double>(experimental::GraphCSR<int,int,float> const &, double *, double, int, double, bool, bool);
+
 }

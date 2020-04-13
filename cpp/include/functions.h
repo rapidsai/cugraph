@@ -183,22 +183,6 @@ void delete_edge_list(Graph* graph);
 void delete_transposed_adj_list(Graph* graph);
 
 /**
- * @Synopsis   Find pairs of vertices in the input graph such that each pair is connected by
- *             a path that is two hops in length.
- *
- * @param[in]* graph                 in  : graph descriptor with graph->adjList pointing to a gdf_adj_list structure
- *
- * @param[out] first                 out : An uninitialized gdf_column which will be initialized to contain the
- *                                         first entry of each result pair.
- * @param[out] second                out : An uninitialized gdf_column which will be initialized to contain the
- *                                         second entry of each result pair.
- *
- * @throws     cugraph::logic_error when an error occurs.
- */
-/* ----------------------------------------------------------------------------*/
-void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
-
-/**
  * @Synopsis   Single node Multi GPU CSR sparse matrix multiply, x=Ax. 
  *             Should be called in an omp parallel section with one thread per device.
  *             Each device is expected to have a part of the matrix and a copy of the vector
@@ -219,22 +203,6 @@ void get_two_hop_neighbors(Graph* graph, gdf_column* first, gdf_column* second);
 /* ----------------------------------------------------------------------------*/
 void snmg_csrmv (size_t * part_offsets, gdf_column * off, gdf_column * ind, gdf_column * val, gdf_column ** x_col);
 
-/**
- * @Synopsis   Computes degree(in, out, in+out) of all the nodes of a Graph
- *
- * @Param[in]* graph                 in  : graph descriptor with graph->transposedAdjList or graph->adjList present
- * @Param[in] x                      in  : integer value indicating type of degree calculation
- *                                         0 : in+out degree
- *                                         1 : in-degree
- *                                         2 : out-degree
- *
- * @Param[out] *degree               out : gdf_column of size V (V is number of vertices) initialized to zeros.
- *                                         Contains the computed degree of every vertex.
- *
- * @throws     cugraph::logic_error when an error occurs.
- */
-/* ----------------------------------------------------------------------------*/
-void degree(Graph* graph, gdf_column *degree, int x);
 int get_device(const void *ptr);
 
 /**

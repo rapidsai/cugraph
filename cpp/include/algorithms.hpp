@@ -34,7 +34,7 @@ namespace cugraph {
  * @tparam ET                        Type of edge identifiers. Supported value : int (signed, 32-bit)
  * @tparam WT                        Type of edge weights. Supported value : float or double.   
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSR). Edge weights are not used for this algorithm.
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a transposed adjacency list (CSC). Edge weights are not used for this algorithm.
  * @param[in] alpha                  The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
                                      Thus, 1.0-alpha is the probability to “teleport” to a random vertex. Alpha should be greater than 0.0 and strictly lower than 1.0.
  *                                   The initial guess must not be the vector of 0s. Any value other than 1 or 0 is treated as an invalid value.
@@ -221,18 +221,20 @@ enum class cugraph_cc_t {
  *
  * @throws                cugraph::logic_error when an error occurs.
  *
- * @tparam VT             Type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam ET             Type of edge identifiers.  Supported value : int (signed, 32-bit)
- * @tparam WT             Type of edge weights. Supported values : float or double.   
+ * @tparam VT                     Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                     Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                     Type of edge weights. Supported values : float or double.   
  *
- * @param[in] graph       cuGRAPH graph descriptor, should contain the connectivity information as a CSR
- * @param[out] labels     Device array of component labels (labels[i] indicates the label associated with
- *                        vertex id i.
+ * @param[in] graph               cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ * @param[in] connectivity_type   STRONG or WEAK
+ * @param[out] labels             Device array of component labels (labels[i] indicates the label associated with
+ *                                vertex id i.
  */
 template <typename VT, typename ET, typename WT>
 void connected_components(experimental::GraphCSR<VT,ET,WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels);
+
 /**
  * @brief     Compute k truss for a graph
  *
@@ -257,4 +259,155 @@ void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
                       int k,
                       experimental::GraphCOO<VT, ET, WT> &output_graph);
 
+/**                                                                             
+ * @brief        Compute the Katz centrality for the nodes of the graph G
+ *                                                                              
+ * @throws                           cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ * @tparam result_t                  Type of computed result.  Supported values :  float
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ * @param[out] result                Device array of centrality scores
+ * @param[in] alpha                  Attenuation factor with a default value of 0.1. Alpha is set to
+ *                                   1/(lambda_max) if it is greater where lambda_max is the maximum degree
+ *                                   of the graph.
+ * @param[in] max_iter               The maximum number of iterations before an answer is returned. This can
+ *                                   be used to limit the execution time and do an early exit before the
+ *                                   solver reaches the convergence tolerance.
+ *                                   If this value is lower or equal to 0 cuGraph will use the default
+ *                                   value, which is 100.
+ * @param[in] tol                    Set the tolerance the approximation, this parameter should be a small
+ *                                   magnitude value.
+ *                                   The lower the tolerance the better the approximation. If this value is
+ *                                   0.0f, cuGraph will use the default value which is 1.0E-5.
+ *                                   Setting too small a tolerance can lead to non-convergence due to
+ *                                   numerical roundoff. Usually values between 0.01 and 0.00001 are
+ *                                   acceptable.
+ * @param[in] has_guess              Flag to determine whether \p katz_centrality contains an initial guess for katz centrality values
+ * @param[in] normalized             If True normalize the resulting katz centrality values
+ */                                                                             
+template <typename VT, typename ET, typename WT, typename result_t>
+void katz_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+                     result_t *result,
+                     double alpha,
+                     int max_iter,
+                     double tol,
+                     bool has_guess,
+                     bool normalized);
+
+/**                                                                             
+ * @brief         Compute the Core Number for the nodes of the graph G
+ *                                                                              
+ * @param[in]  graph                cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @param[out] core_number          Populated by the core number of every vertex in the graph
+ *                                                                              
+ * @throws     cugraph::logic_error when an error occurs.
+ */                                                                             
+/* ----------------------------------------------------------------------------*/
+template <typename VT, typename ET, typename WT>
+void core_number(experimental::GraphCSR<VT, ET, WT> const &graph, VT *core_number);
+
+/**                                                                             
+ * @brief   Compute K Core of the graph G
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *                                                                              
+ * @param[in]  graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @param[in]  k                     Order of the core. This value must not be negative.
+ * @param[in]  vertex_id             User specified vertex identifiers for which core number values are supplied
+ * @param[in]  core_number           User supplied core number values corresponding to vertex_id
+ * @param[in]  num_vertex_ids        Number of elements in vertex_id/core_number arrays
+ * @param[out] out_graph             K Core subgraph
+ */                                                                             
+template <typename VT, typename ET, typename WT>
+void k_core(experimental::GraphCOO<VT, ET, WT> const &graph,
+            int k,
+            VT const *vertex_id,
+            VT const *core_number,
+            VT num_vertex_ids,
+            experimental::GraphCOO<VT,ET,WT> &out_graph);
+
+/**
+ * @brief      Find all 2-hop neighbors in the graph
+ *
+ * Find pairs of vertices in the input graph such that each pair is connected by
+ * a path that is two hops in length.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph        The input graph object
+ * @param[out] first        Upon return will be a device pointer pointing to an array containing
+ *                          the first entry of each result pair.
+ * @param[out] second       Upon return will be a device pointer pointing to an array containing
+ *                          the second entry of each result pair.
+ * @return    The number of pairs
+ */
+template <typename VT, typename ET, typename WT>
+ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph,
+                         VT **first,
+                         VT **second);
+
+/**
+ * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
+ *
+ * @throws     cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ *
+ * @param[out] distances            If set to a valid pointer, array of size V populated by distance of every vertex in the graph from the starting vertex. Memory is provided and owned by the caller.
+ *
+ * @param[out] predecessors         If set to a valid pointer, array of size V populated by the SSSP predecessor of every vertex. Memory is provided and owned by the caller.
+ *
+ * @param[in] start_vertex           The starting vertex for SSSP
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
+          WT *distances,
+          VT *predecessors,
+          const VT source_vertex);
+
+// TODO: Either distances is in VT or in WT, even if there should be no weights
+/**
+ * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
+ *
+ * @throws     cugraph::logic_error with a custom message when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : int (signed, 32-bit)
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
+ *
+ * @param[out] distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
+ *
+ * @param[out] predecessors         If set to a valid column, this is populated by bfs traversal predecessor of every vertex
+ *
+ * @param[in] start_vertex           The starting vertex for breadth first search traversal
+ *
+ * @param[in] directed               Treat the input graph as directed
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ */
+template <typename VT, typename ET, typename WT>
+void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
+         VT *distances,
+         VT *predecessors,
+         const VT start_vertex,
+         bool directed = true);
 } //namespace cugraph
