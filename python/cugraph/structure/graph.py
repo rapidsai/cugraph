@@ -16,6 +16,7 @@ from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
+from cugraph.utilities.unrenumber import unrenumber
 import cudf
 import numpy as np
 import warnings
@@ -696,6 +697,76 @@ class Graph:
                 ))
 
         return df
+
+    def to_directed(self):
+        if type(self) is DiGraph:
+            return self
+        if type(self) is Graph:
+            DiG = DiGraph()
+            DiG.renumbered = self.renumbered
+            DiG.edgelist = self.edgelist
+            DiG.adjlist = self.adjlist
+            DiG.transposedadjlist = self.transposedadjlist
+            return DiG
+
+    def to_undirected(self):
+        if type(self) is Graph:
+            return self
+        if type(self) is DiGraph:
+            G = Graph()
+            df = self.edgelist.edgelist_df
+            G.renumbered = self.renumbered
+            if self.edgelist.weights:
+                source_col, dest_col, value_col = symmetrize(df['src'],
+                                                             df['dst'],
+                                                             df['weights'])
+            else:
+                source_col, dest_col = symmetrize(df['src'],
+                                                  df['dst'])
+                value_col = None
+            G.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
+                                        self.edgelist.renumber_map)
+
+            return G
+
+    def is_directed(self):
+        if type(self) is DiGraph:
+            return True
+        else:
+            return False
+
+    def has_node(self, n):
+        if self.renumbered:
+            return (self.edgelist.renumber_map == n).any()
+        else:
+            df = self.edgelist.edgelist_df[['src', 'dst']]
+            return (df==n).any().any()
+
+    def has_edge(self, u, v):
+        if self.renumbered:
+            src = self.edgelist.renumber_map.index[self.edgelist.
+                                                   renumber_map==u]
+            dst = self.edgelist.renumber_map.index[self.edgelist.
+                                                   renumber_map==v]
+            if (len(src) and len(dst)) is 0:
+                return False
+            else:
+                u = src[0]
+                v = dst[0]
+        df = self.edgelist.edgelist_df
+        return ((df['src']==u) & (df['dst']==v)).any()
+
+
+    def edges(self):
+        return self.view_edge_list()[['src', 'dst']]
+
+    def nodes(self):
+        df = self.edgelist.edgelist_df
+        n = cudf.concat([df['src'], df['dst']]).unique()
+        if self.renumbered:
+            return self.edgelist.renumber_map[n]
+        else:
+            return n
 
 
 class DiGraph(Graph):
