@@ -35,7 +35,7 @@ void init_mass(vertex_t **dests, value_t *mass, const edge_t e,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-cudaStream_t sort_coo(const vertex_t *row, const vertex_t *col,
+void sort_coo(const vertex_t *row, const vertex_t *col,
         const weight_t *v, vertex_t **srcs, vertex_t **dests,
         weight_t **weights, const edge_t e) {
 
@@ -62,7 +62,6 @@ cudaStream_t sort_coo(const vertex_t *row, const vertex_t *col,
                 *srcs, *srcs + e,
                 thrust::make_zip_iterator(thrust::make_tuple(*dests, *weights)));
     }
-    return stream;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -233,7 +232,7 @@ void compute_local_speed(const float *restrict repel_x, const float *restrict re
     nblocks.y = 1;
     nblocks.z = 1;
 
-    local_speed_kernel<<<nthreads, nblocks>>>(repel_x,
+    local_speed_kernel<<<nblocks, nthreads>>>(repel_x,
             repel_y, attract_x, attract_y, old_dx, old_dy,
             mass, swinging, traction, n);
     CUDA_CHECK_LAST();

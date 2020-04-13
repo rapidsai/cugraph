@@ -143,7 +143,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
     weight_t* weights{nullptr};
-    cudaStream_t stream = sort_coo<vertex_t, edge_t, weight_t>(row,
+    sort_coo<vertex_t, edge_t, weight_t>(row,
             col, v, &srcs, &dests, &weights, e);
     init_mass<vertex_t, edge_t, int>(&dests, d_mass, e, n);
     copy(n, d_mass, massl);
@@ -176,8 +176,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     for (int iter = 0; iter < max_iter; ++iter) {
         fill((nnodes + 1) * 2, rep_forces, 0.f);
         fill(n * 2, d_attract, 0.f);
-        fill(n * 2, d_swinging, 0.f);
-        fill(n * 2, d_traction, 0.f);
+        fill(n, d_swinging, 0.f);
+        fill(n, d_traction, 0.f);
 
         Reset_Normalization<<<1, 1, 0>>>(radiusd_squared,
                 bottomd, NNODES, radiusd);
@@ -257,10 +257,10 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
       if (callback)
           callback->on_epoch_end(pos);
 
-      ALLOC_FREE_TRY(srcs, stream);
-      ALLOC_FREE_TRY(dests, stream);
+      ALLOC_FREE_TRY(srcs, nullptr);
+      ALLOC_FREE_TRY(dests, nullptr);
       if (v)
-          ALLOC_FREE_TRY(weights, stream);
+          ALLOC_FREE_TRY(weights, nullptr);
 }
 
 } // namespace detail

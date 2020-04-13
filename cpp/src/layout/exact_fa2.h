@@ -75,11 +75,10 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         copy(n, x_start, pos);
         copy(n, y_start, pos + n);
     }
-
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
     weight_t* weights{nullptr};
-    cudaStream_t stream = sort_coo<vertex_t, edge_t, weight_t>(row,
+    sort_coo<vertex_t, edge_t, weight_t>(row,
             col, v, &srcs, &dests, &weights, e);
     init_mass<vertex_t, edge_t>(&dests, d_mass, e, n);
 
@@ -101,8 +100,8 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     for (int iter = 0; iter < max_iter; ++iter) {
         fill(n * 2, d_repel, 0.f);
         fill(n * 2, d_attract, 0.f);
-        fill(n * 2, d_swinging, 0.f);
-        fill(n * 2, d_traction, 0.f);
+        fill(n, d_swinging, 0.f);
+        fill(n, d_traction, 0.f);
 
         apply_repulsion<vertex_t>(pos,
                 pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n);
@@ -145,10 +144,10 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     if (callback)
         callback->on_train_end(pos);
 
-    ALLOC_FREE_TRY(srcs, stream);
-    ALLOC_FREE_TRY(dests, stream);
+    ALLOC_FREE_TRY(srcs, nullptr);
+    ALLOC_FREE_TRY(dests, nullptr);
     if (v)
-        ALLOC_FREE_TRY(weights, stream);
+        ALLOC_FREE_TRY(weights, nullptr);
 }
 
 } // namespace detail
