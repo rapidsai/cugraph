@@ -410,4 +410,24 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
          VT *predecessors,
          const VT start_vertex,
          bool directed = true);
+
+namespace nvgraph {
+
+/**
+ * @brief             Count the number of triangles in the graph
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ *
+ * @return                           The number of triangles
+ */
+template <typename VT, typename ET, typename WT>
+uint64_t triangle_count(experimental::GraphCSR<VT, ET, WT> const &graph);
+
+} //namespace nvgraph
 } //namespace cugraph

@@ -331,6 +331,7 @@ add_library(cugraph SHARED
     src/converters/COOtoCSR.cu
     src/community/nvgraph_gdf.cu
     src/community/ECG.cu
+    src/community/triangles_counting.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
@@ -369,8 +370,6 @@ add_library(cugraph SHARED
     src/nvgraph/partition.cu
     src/nvgraph/size2_selector.cu
     src/nvgraph/sssp.cu
-    src/nvgraph/triangles_counting.cpp
-    src/nvgraph/triangles_counting_kernels.cu
     src/nvgraph/valued_csr_graph.cpp
     src/nvgraph/widest_path.cu
 )

@@ -16,12 +16,11 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 from libc.stdint cimport uint64_t
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
-    cdef void triangle_count_nvgraph(
-        Graph* G,
-        uint64_t* result) except +
+    cdef uint64_t triangle_count[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph) except +

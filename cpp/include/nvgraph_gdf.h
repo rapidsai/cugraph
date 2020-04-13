@@ -142,13 +142,4 @@ void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
 void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
                                      gdf_column* vertices,
                                      Graph* result);
-/**
- * Wrapper function for Nvgraph triangle counting
- * @param G Pointer to GDF graph object
- * @param result Pointer to a uint64_t in which the result will be written
- * @throws     cugraph::logic_error when an error occurs.
- */
-void triangle_count_nvgraph(Graph* G, uint64_t* result);
-
-
 } //namespace cugraph

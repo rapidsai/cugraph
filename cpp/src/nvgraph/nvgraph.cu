@@ -43,7 +43,6 @@
 #include "include/size2_selector.hxx"
 #include "include/modularity_maximization.hxx"
 #include "include/bfs.hxx"
-#include "include/triangles_counting.hxx"
 #include "include/csrmv_cub.h"
 #include "include/nvgraphP.h"  // private header, contains structures, and potentially other things, used in the public C API that should never be exposed.
 #include "include/nvgraph_experimental.h"  // experimental header, contains hidden API entries, can be shared only under special circumstances without reveling internal things
@@ -2873,37 +2872,6 @@ namespace nvgraph
         else
             return NVGRAPH_STATUS_INVALID_VALUE;
     }
-
-    nvgraphStatus_t NVGRAPH_API nvgraphTriangleCount_impl(nvgraphHandle_t handle,
-                                                          const nvgraphGraphDescr_t descrG,
-                                                          uint64_t* result) {
-        NVGRAPH_ERROR rc = NVGRAPH_OK;
-        try
-        {
-            if (check_context(handle) || check_graph(descrG) || check_ptr(result))
-                FatalError("Incorrect parameters.", NVGRAPH_ERR_BAD_PARAMETERS);
-
-            if (descrG->TT != NVGRAPH_CSR_32 && descrG->TT != NVGRAPH_CSC_32) // supported topologies
-                return NVGRAPH_STATUS_INVALID_VALUE;
-
-            if (descrG->graphStatus != HAS_TOPOLOGY && descrG->graphStatus != HAS_VALUES)
-            {
-                return NVGRAPH_STATUS_INVALID_VALUE; // should have topology
-            }
-
-            nvgraph::CsrGraph<int> *CSRG = static_cast<nvgraph::CsrGraph<int>*>(descrG->graph_handle);
-            if (CSRG == NULL)
-                return NVGRAPH_STATUS_MAPPING_ERROR;
-            nvgraph::triangles_counting::TrianglesCount<int> counter(*CSRG); /* stream, device */
-            rc = counter.count();
-            uint64_t s_res = counter.get_triangles_count();
-            *result = static_cast<uint64_t>(s_res);
-
-        }
-        NVGRAPH_CATCHES(rc)
-        return getCAPIStatusForError(rc);
-    }
-
 } /*namespace nvgraph*/
 
 /*************************
@@ -3423,14 +3391,6 @@ nvgraphStatus_t NVGRAPH_API nvgraphAnalyzeClustering(nvgraphHandle_t handle, // 
                                                   metric,
                                                   score);
 }
-
-nvgraphStatus_t NVGRAPH_API nvgraphTriangleCount(nvgraphHandle_t handle,
-                                                 const nvgraphGraphDescr_t descrG,
-                                                 uint64_t* result)
-{
-    return nvgraph::nvgraphTriangleCount_impl(handle, descrG, result);
-}
-
 
 nvgraphStatus_t NVGRAPH_API nvgraphLouvain (cudaDataType_t index_type, cudaDataType_t val_type, const size_t num_vertex, const size_t num_edges,
                             void* csr_ptr, void* csr_ind, void* csr_val, int weighted, int has_init_cluster, void* init_cluster,

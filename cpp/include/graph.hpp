@@ -15,6 +15,9 @@
  */
 #pragma once
 
+#include <cstdint>
+#include <cstddef>
+
 namespace cugraph {
 namespace experimental {
 

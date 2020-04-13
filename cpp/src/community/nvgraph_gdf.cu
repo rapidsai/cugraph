@@ -347,22 +347,6 @@ void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
   
 }
 
-void triangle_count_nvgraph(Graph* G, uint64_t* result) {
-  
-  CHECK_GRAPH(G);
-
-  // Initialize Nvgraph and wrap the graph
-  nvgraphHandle_t nvg_handle = nullptr;
-  nvgraphGraphDescr_t nvg_G = nullptr;
-  NVG_TRY(nvgraphCreate(&nvg_handle));
-  createGraph_nvgraph(nvg_handle, G, &nvg_G, false);
-
-  // Make Nvgraph call
-  NVG_TRY(nvgraphTriangleCount(nvg_handle, nvg_G, result));
-  
-}
-
-
 void louvain(Graph *graph, void *final_modularity, void *num_level, void *louvain_parts_ptr, int max_iter) {
 
   CHECK_GRAPH(graph);
