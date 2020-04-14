@@ -44,7 +44,7 @@ def force_atlas2(input_graph,
                  barnes_hut_optimize=True,
                  barnes_hut_theta=0.5,
                  scaling_ratio=1.0,
-                 strong_gravity_mode = False,
+                 strong_gravity_mode=False,
                  gravity=1.0,
                  verbose=False,
                  callback=None):

@@ -31,7 +31,7 @@ struct prg {
     __host__ __device__
         float operator()(int n){
             thrust::default_random_engine rng;
-            thrust::uniform_real_distribution<float> dist(-0.0001f, 0.0001f);
+            thrust::uniform_real_distribution<float> dist(-100.f, 100.f);
             rng.discard(n);
             return dist(rng);
         }
