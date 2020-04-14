@@ -740,7 +740,6 @@ def test_to_undirected(managed, pool, graph_file):
         assert Gnx.has_edge(edgelist_df.loc[i][0], edgelist_df.loc[i][1])
 
 
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))

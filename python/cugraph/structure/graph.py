@@ -16,7 +16,6 @@ from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
-from cugraph.utilities.unrenumber import unrenumber
 import cudf
 import numpy as np
 import warnings
@@ -699,6 +698,27 @@ class Graph:
         return df
 
     def to_directed(self):
+        """
+        Return a directed representation of the graph.
+        This function sets the type of graph as DiGraph() and returns the
+        directed view.
+
+        Returns
+        -------
+        G : DiGraph
+            A directed graph with the same nodes, and each edge (u,v,weights)
+            replaced by two directed edges (u,v,weights) and (v,u,weights).
+
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> DiG = G.to_directed()
+
+        """
+
         if type(self) is DiGraph:
             return self
         if type(self) is Graph:
@@ -710,6 +730,25 @@ class Graph:
             return DiG
 
     def to_undirected(self):
+        """
+        Return an undirected copy of the graph.
+
+        Returns
+        -------
+        G : Graph
+            A undirected graph with the same nodes, and each directed edge
+            (u,v,weights) replaced by an undirected edge (u,v,weights).
+
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> DiG = cugraph.DiGraph()
+        >>> DiG.from_cudf_edgelist(M, '0', '1')
+        >>> G = DiG.to_undirected()
+
+        """
+
         if type(self) is Graph:
             return self
         if type(self) is DiGraph:
@@ -736,31 +775,46 @@ class Graph:
             return False
 
     def has_node(self, n):
+        """
+        Returns True if the graph contains the node n.
+        """
+
         if self.renumbered:
             return (self.edgelist.renumber_map == n).any()
         else:
             df = self.edgelist.edgelist_df[['src', 'dst']]
-            return (df==n).any().any()
+            return (df == n).any().any()
 
     def has_edge(self, u, v):
+        """
+        Returns True if the graph contains the edge (u,v).
+        """
+
         if self.renumbered:
             src = self.edgelist.renumber_map.index[self.edgelist.
-                                                   renumber_map==u]
+                                                   renumber_map == u]
             dst = self.edgelist.renumber_map.index[self.edgelist.
-                                                   renumber_map==v]
+                                                   renumber_map == v]
             if (len(src) and len(dst)) is 0:
                 return False
             else:
                 u = src[0]
                 v = dst[0]
         df = self.edgelist.edgelist_df
-        return ((df['src']==u) & (df['dst']==v)).any()
-
+        return ((df['src'] == u) & (df['dst'] == v)).any()
 
     def edges(self):
+        """
+        Returns all the edges in the graph as a cudf.DataFrame containing
+        sources and destinations. It does not return the edge weights.
+        For viewing edges with weights use view_edge_list()
+        """
         return self.view_edge_list()[['src', 'dst']]
 
     def nodes(self):
+        """
+        Returns all the nodes in the graph as a cudf.Series
+        """
         df = self.edgelist.edgelist_df
         n = cudf.concat([df['src'], df['dst']]).unique()
         if self.renumbered:
