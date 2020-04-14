@@ -50,11 +50,11 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
     const int blocks = getMultiProcessorCount();
     const int epssq = 0.0025;
-    int nnodes = n;
+    int nnodes = n * 2;
     if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
     while ((nnodes & (32 - 1)) != 0) nnodes++;
     nnodes--;
-
+    if (verbose) printf("N_nodes = %d blocks = %d\n", nnodes, blocks);
     // Allocate more space
     //---------------------------------------------------
     rmm::device_vector<unsigned>d_limiter(1);
@@ -67,7 +67,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     int *bottomd = d_bottomd.data().get();
     float *radiusd = d_radiusd.data().get();
 
-    InitializationKernel<<<1, 1, 0>>>(/*errl,*/ limiter, maxdepthd,
+    InitializationKernel<<<1, 1>>>(/*errl,*/ limiter, maxdepthd,
           radiusd);
     CUDA_CHECK_LAST();
 
@@ -179,25 +179,25 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         fill(n, d_swinging, 0.f);
         fill(n, d_traction, 0.f);
 
-        Reset_Normalization<<<1, 1, 0>>>(radiusd_squared,
+        Reset_Normalization<<<1, 1>>>(radiusd_squared,
                 bottomd, NNODES, radiusd);
         CUDA_CHECK_LAST();
 
-        BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0>>>(
+        BoundingBoxKernel<<<blocks * FACTOR1, THREADS1>>>(
                 startl, childl, massl, YY, YY + nnodes + 1, maxxl, maxyl, minxl, minyl,
                 FOUR_NNODES, NNODES, n, limiter, radiusd);
         CUDA_CHECK_LAST();
 
-        ClearKernel1<<<blocks, 1024, 0>>>(childl, FOUR_NNODES,
+        ClearKernel1<<<blocks, 1024>>>(childl, FOUR_NNODES,
                 FOUR_N);
         CUDA_CHECK_LAST();
 
-        TreeBuildingKernel<<<blocks * FACTOR2, THREADS2, 0>>>(
+        TreeBuildingKernel<<<blocks, THREADS2>>>(
                 childl, YY, YY + nnodes + 1, NNODES, n, maxdepthd, bottomd,
                 radiusd);
         CUDA_CHECK_LAST();
 
-        ClearKernel2<<<blocks * 1, 1024, 0>>>(startl, massl, NNODES,
+        ClearKernel2<<<blocks, 1024>>>(startl, massl, NNODES,
                 bottomd);
         CUDA_CHECK_LAST();
 
@@ -232,9 +232,11 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
         const float s = thrust::reduce(swinging.begin(), swinging.end());
         const float t = thrust::reduce(traction.begin(), traction.end());
+        END_TIMER(Reduction_time);
 
         adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                 s, t, n);
+        END_TIMER(AdaptSpeed_time);
 
         apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0>>>(pos, pos + n,
                 YY, YY + nnodes + 1, d_attract, d_attract + n,
