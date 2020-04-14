@@ -795,7 +795,7 @@ class Graph:
                                                    renumber_map == u]
             dst = self.edgelist.renumber_map.index[self.edgelist.
                                                    renumber_map == v]
-            if (len(src) and len(dst)) is 0:
+            if (len(src) and len(dst)) == 0:
                 return False
             else:
                 u = src[0]
