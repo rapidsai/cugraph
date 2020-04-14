@@ -48,8 +48,8 @@ void populate_neighbors(VT *indices, ET *offsets,
   }
 }
 
-// TODO: This should be moved to BFS testing on the c++ side
-// This implements the BFS from (Brandes, 2001)
+// TODO: This colud be moved to BFS testing on the c++ side
+// This implements the BFS from (Brandes, 2001) with shortest path counting
 template<typename VT, typename ET, typename WT, typename result_t>
 void ref_bfs(VT *indices, ET *offsets, VT const number_of_vertices,
              std::queue<VT> &Q,
@@ -57,16 +57,16 @@ void ref_bfs(VT *indices, ET *offsets, VT const number_of_vertices,
              std::vector<VT> &dist,
              std::vector<std::vector<VT>> &pred,
              std::vector<result_t> &sigmas,
-             VT s) { // TODO(xcadet) Should rename to source
+             VT source) {
   std::vector<VT> neighbors;
   for (VT w = 0 ; w < number_of_vertices; ++w) {
     pred[w].clear();
     dist[w] = std::numeric_limits<VT>::max();
     sigmas[w] = 0;
   }
-  dist[s] = 0;
-  sigmas[s] = 1;
-  Q.push(s);
+  dist[source] = 0;
+  sigmas[source] = 1;
+  Q.push(source);
   //   b. Traversal
   while (!Q.empty()) {
     VT v = Q.front();
@@ -223,6 +223,31 @@ bool compare_close(const T &a, const T&b, const double epsilon) {
 // =============================================================================
 // Test Suite
 // =============================================================================
+
+// Defines Betweenness Centrality UseCase
+// SSSP codes uses type of Graph parameter that could be used
+/*
+typedef struct BC_Usecase_t {
+  std::string config_;
+  std::string file_path_;
+  int *sourcer = nullptr; // t
+  SSSP_Usecase_t(const std::string& config,
+                 const int *sources)
+      : type_(type), config_(config), src_(src) {
+    // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
+    // FIXME: Use platform independent stuff from c++14/17 on compiler update
+    if (type_ == MTX) {
+      const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+      if ((config_ != "") && (config_[0] != '/')) {
+        file_path_ = rapidsDatasetRootDir + "/" + config_;
+      } else {
+        file_path_ = config_;
+      }
+    }
+  };
+} BC_Usecase;
+*/
+
 struct BetweennessCentralityTest : public ::testing::Test
 {
 };
@@ -232,9 +257,11 @@ struct BetweennessCentralityBFSTest : public ::testing::Test
 };
 
 
+/*
 // BFS: Checking for shortest_path counting correctness
 // -----------------------------------------------------------------------------
 // TODO(xcadet) Parametrize this part for VT, ET, WT, result_t
+
 TEST_F(BetweennessCentralityBFSTest, CheckReference) {
   // TODO(xcadet) This dataset was manually generated and is not provided
   //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "email-Eu-core-gen.mtx");
@@ -307,6 +334,7 @@ TEST_F(BetweennessCentralityBFSTest, CheckReference) {
   int sum_sigmas_ref = thrust::reduce(thrust::host, ref_bfs_sigmas.begin(), ref_bfs_sigmas.end(), 0);
   std::cout << "Source " << source << ", cugraph: " << sum_sigmas_cugraph << ", ref " << sum_sigmas_ref << std::endl;;
 }
+*/
 
 
 // BC
@@ -345,6 +373,47 @@ TEST_F(BetweennessCentralityTest, CheckReference)
                 "[MISMATCH] vaid = " << i << ", c++ implem = " <<
                 ref_result[i] << " expected = " << expected[i];
 }
+*/
+
+TEST_F(BetweennessCentralityTest, EmailCoreEu)
+{
+  // FIXME: This could be standardized for tests?
+  //        Could simplify usage of external storage
+  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "netscience.mtx");
+  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "karate.mtx");
+  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "polbooks.mtx");
+  std::string matrix_file("../../datasets/email-Eu-core-gen.mtx");
+  int m, nnz;
+  CSR_Result_Weighted<int, float> csr_result;
+  generate_graph_csr<int, int, float>(csr_result, m, nnz, matrix_file);
+  cugraph::experimental::GraphCSR<int, int, float> G(csr_result.rowOffsets,
+                                                     csr_result.colIndices,
+                                                     csr_result.edgeWeights,
+                                                     m, nnz);
+  G.prop.directed = true;
+
+  std::vector<float> result(G.number_of_vertices);
+  std::vector<float> expected(G. number_of_vertices);
+
+  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_netscience.txt"));
+  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_karate.txt"));
+  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_dolphins.txt"));
+  reference_betweenness_centrality(G, expected.data(), false);
+
+  //cugraph::betweenness_centrality(G, d_result.data().get());
+  //cudaMemcpy(result.data(), d_result.data().get(), sizeof(float) * num_verts, cudaMemcpyDeviceToHost);
+
+  thrust::device_vector<float>  d_result(G.number_of_vertices);
+  cudaProfilerStart();
+  cugraph::betweenness_centrality(G, d_result.data().get(), false);
+  cudaProfilerStop();
+  cudaMemcpy(result.data(), d_result.data().get(), sizeof(float) * G.number_of_vertices, cudaMemcpyDeviceToHost);
+  for (int i = 0 ; i < G.number_of_vertices ; ++i)
+    EXPECT_TRUE(compare_close(result[i], expected[i], 0.0001)) <<
+                "[MISMATCH] vaid = " << i << ", c++ implem = " <<
+                result[i] << " expected = " << expected[i];
+  std::cout << "Perfect match over " << G.number_of_vertices << " values" << std::endl;
+}
 
 TEST_F(BetweennessCentralityTest, SimpleGraph)
 {
@@ -381,7 +450,17 @@ TEST_F(BetweennessCentralityTest, SimpleGraph)
   for (int i = 0 ; i < num_verts ; ++i)
     EXPECT_FLOAT_EQ(ref_result[i], expected[i]);
 }
-*/
+
+/*
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_SSSP,
+  ::testing::Values(
+      SSSP_Usecase(MTX, "test/datasets/dblp.mtx", 100),
+      SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
+      SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));
+      */
+
 
 int main( int argc, char** argv )
 {

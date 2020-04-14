@@ -147,8 +147,9 @@ void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* distances,
                                           VT *sp_counters,
                                           result_t *deltas, VT source, VT max_depth) {
     dim3 grid, block;
-    block.x = 1; // TODO(xcadet) Replace these values, only for debugging
-    grid.x = 1;
+    //block.x = 256; // TODO(xcadet) Replace these values, only for debugging
+    block.x = 512;
+    grid.x = min(65535, (number_edges / block.x + 1));
   // Step 1) Dependencies (deltas) are initialized to 0 before starting
   thrust::fill(rmm::exec_policy(stream)->on(stream), deltas,
                deltas + number_vertices, static_cast<result_t>(0));
@@ -180,7 +181,7 @@ void BC<VT, ET, WT, result_t>::compute() {
     for (int source_vertex = 0; source_vertex < number_vertices;
          ++source_vertex) {
         // Step 1) Singe-source shortest-path problem
-        cugraph::bfs(graph, thrust::raw_pointer_cast(d_distances.data()), predecessors, thrust::raw_pointer_cast(d_sp_counters.data()), source_vertex,
+        cugraph::bfs(graph, thrust::raw_pointer_cast(d_distances.data()), predecessors, d_sp_counters.data().get(), source_vertex,
                      graph.prop.directed);
         cudaDeviceSynchronize();
 
@@ -205,6 +206,7 @@ void BC<VT, ET, WT, result_t>::compute() {
     if (apply_normalization) {
         normalize();
     }
+    cudaDeviceSynchronize();
 }
   /**
   * ---------------------------------------------------------------------------*
@@ -266,7 +268,7 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
   std::vector<result_t>  v_result(graph.number_of_vertices);
   std::vector<float>     v_sigmas(graph.number_of_vertices);
   std::vector<int>       v_labels(graph.number_of_vertices);
-  
+
   // fill them
   CUDA_TRY(cudaMemcpy(v_offsets.data(), graph.offsets, sizeof(ET) * (graph.number_of_vertices + 1), cudaMemcpyDeviceToHost));
   CUDA_TRY(cudaMemcpy(v_indices.data(), graph.indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDeviceToHost));
@@ -314,11 +316,26 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
 
 } // namespace detail
 
+//TODO(xcadet) We could use an enum to determine which implementetation to call
+// i.e: GUNROCK: Would call gunrock::betweenness_centrality
+// i.e: DEFAULT: Would call cugraph::betweenness_centrality
+
+// TODO(xcadet) k parameter could be used to store the sice of 'vertices' data?
+/**
+ * @param[out]  result          array<result_t>(number_of_vertices)
+ * @param[in]   normalize       bool True -> Apply normalization
+ * @param[in]   endpoints (NIY) bool Include endpoints
+ * @param[in]   vertices  (NIY) array<WT>(number_of_edges) Weights to use
+ * @param[in]   k         (NIY) array<WT>(number_of_edges) Number of sources
+ * @param[in]   vertices  (NIY) array<VT>(number_of_edges) Sources for Traversal
+ */
 template <typename VT, typename ET, typename WT, typename result_t>
+
 void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
+                            cugraph_bc_implem_t implem,
                             WT const *weight,
                             VT k,
                             VT const *vertices) {
@@ -332,11 +349,16 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
   //
   // These parameters are present in the API to support future features.
   //
-  //gunrock::betweenness_centrality(graph, result, normalize);
-  detail::betweenness_centrality(graph, result, normalize);
+  if (implem == cugraph_bc_implem_t::CUGRAPH_DEFAULT) {
+    detail::betweenness_centrality(graph, result, normalize);
+  } else if (implem == cugraph_bc_implem_t::CUGRAPH_GUNROCK) {
+    gunrock::betweenness_centrality(graph, result, normalize);
+  } else {
+    CUGRAPH_FAIL("Invalid Betweenness Centrality implementation, please refer to cugraph_bc_implem_t for valid implementations");
+  }
 }
 
-template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int,int,float> const &, float*, bool, bool, float const *, int, int const *);
+template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int,int,float> const &, float*, bool, bool, cugraph_bc_implem_t, float const *, int, int const *);
 
 } //namespace cugraph
 

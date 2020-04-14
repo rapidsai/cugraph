@@ -15,7 +15,8 @@ from cugraph.centrality import betweenness_centrality_wrapper
 
 
 def betweenness_centrality(G, k=None, normalized=True,
-                           weight=None, endpoints=False, seed=None):
+                           weight=None, endpoints=False, implementation=None,
+                           seed=None):
     """
     Compute betweenness centrality for the nodes of the graph G. cuGraph
     does not currently support the 'endpoints' and 'weight' parameters
@@ -38,6 +39,8 @@ def betweenness_centrality(G, k=None, normalized=True,
         Specifies the weights to be used for each vertex.
     endpoints : bool, optional
         If true, include the endpoints in the shortest path counts
+    implementation : string, optional
+        if implementation is None or "default", uses native cugraph, if "gunrock" uses gunrock based bc
     seed : optional
         k is specified and seed is not None, use seed to initialize the random
         number generator
@@ -83,8 +86,14 @@ def betweenness_centrality(G, k=None, normalized=True,
         raise Exception("weighted implementation of betweenness "
                         "centrality not currently supported")
 
+    if implementation is None:
+        implementation = "default"
+    if not implementation in ["default", "gunrock"]:
+        raise Exception("Only two implementations are supported: 'default' and 'gunrock'")
+
     df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
                                                                endpoints,
+                                                               implementation,
                                                                weight,
                                                                k, vertices)
     return df

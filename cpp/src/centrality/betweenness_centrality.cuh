@@ -64,7 +64,7 @@ class BC {
       BC(experimental::GraphCSR<VT, ET, WT> const &_graph, cudaStream_t _stream = 0) :graph(_graph), stream(_stream) { setup(); }
       void configure(result_t *betweenness, bool normalize,
                      VT const *sample_seeds,
-                     VT number_of_sample_seeds);
+                     VT const number_of_sample_seeds);
       void compute();
 };
 } // namespace cugraph::detail
