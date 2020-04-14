@@ -132,14 +132,4 @@ void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
                                          gdf_column* clustering,
                                          float* score);
 
-/**
- * Wrapper function for Nvgraph extract subgraph by vertices
- * @param gdf_G Pointer to GDF graph object, this is the input graph
- * @param vertices Pointer to GDF column object which contains the list of vertices to extract
- * @param result Pointer to GDF graph object, this is the output must be a valid pointer
- * @throws     cugraph::logic_error when an error occurs.
- */
-void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
-                                     gdf_column* vertices,
-                                     Graph* result);
 } //namespace cugraph

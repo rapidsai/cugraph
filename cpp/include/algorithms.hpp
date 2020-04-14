@@ -422,12 +422,38 @@ namespace nvgraph {
  * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.   
  *
- * @param[in]  graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @param[in]  graph                 input graph object (CSR)
  *
  * @return                           The number of triangles
  */
 template <typename VT, typename ET, typename WT>
 uint64_t triangle_count(experimental::GraphCSR<VT, ET, WT> const &graph);
+
+/**
+ * @brief             Extract subgraph by vertices
+ *
+ * This function will identify all edges that connect pairs of vertices
+ * that are both contained in the vertices list and return a COO containing
+ * these edges.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph                 input graph object (COO)
+ * @param[in]  vertices              device pointer to an array of vertex ids
+ * @param[in]  num_vertices          number of vertices in the array vertices
+ * @param[out] result                a graph in COO format containing the edges in the subgraph
+ */
+
+//  FIXME:  After PR 799 is resolved, need to use the new return graph type
+template <typename VT, typename ET, typename WT>
+void extract_subgraph_vertex(experimental::GraphCOO<VT, ET, WT> const &graph,
+                             VT const *vertices,
+                             VT num_vertices,
+                             experimental::GraphCOO<VT, ET, WT> &result);
 
 } //namespace nvgraph
 } //namespace cugraph

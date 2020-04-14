@@ -332,6 +332,7 @@ add_library(cugraph SHARED
     src/community/nvgraph_gdf.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
+    src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/snmg/blas/spmv.cu
@@ -352,7 +353,6 @@ add_library(cugraph SHARED
     src/nvgraph/csrmv.cu
     src/nvgraph/csrmv_cub.cu
     src/nvgraph/csr_graph.cpp
-    src/nvgraph/graph_extractor.cu
     src/nvgraph/jaccard_gpu.cu
     src/nvgraph/kmeans.cu
     src/nvgraph/lanczos.cu
