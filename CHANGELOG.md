@@ -1,6 +1,7 @@
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
+- PR #822 Added new functions in python graph class, similar to networkx
 
 ## Improvements
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
