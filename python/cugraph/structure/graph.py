@@ -58,7 +58,7 @@ class Graph:
     operations.
     """
     def __init__(self, m_graph=None, edge_attr=None, symmetrized=False,
-                 bipartite=False, multi=False, dynamic=False):
+                 multi=False, dynamic=False):
         """
         Returns
         -------
@@ -72,7 +72,8 @@ class Graph:
         """
         self.symmetrized = symmetrized
         self.renumbered = False
-        self.bipartite = bipartite
+        self.bipartite = None
+        self._nodes = {}
         self.multi = multi
         self.dynamic = dynamic
         self.edgelist = None
@@ -102,6 +103,36 @@ class Graph:
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
+
+    def add_nodes_from(self, nodes, bipartite = 'nodes'):
+        set_names = [i for i in self._nodes.keys() if i != 'nodes']
+        if len(set_names) < 2:
+            self._nodes[bipartite] = cudf.Series(nodes)
+        else:
+            raise ValueError("Already contains two sets of nodes")
+
+    def is_bipartite(self):
+        ## TO DO: Call coloring algorithm
+        if self.bipartite is None:
+            set_names = [i for i in self._nodes.keys() if i != 'nodes']
+            if len(set_names) == 0:
+                return False
+            else:
+                return True
+        else:
+            return self.bipartite
+
+    def sets(self):
+        ## TO DO: Call coloring algorithm
+        if not self.is_bipartite():
+            raise Exception("Graph is not bipartite")
+        set_names = [i for i in self._nodes.keys() if i != 'nodes']
+        top = self._nodes[set_names[0]]
+        if len(set_names) == 2:
+            bottom = self._nodes[set_names[1]]
+        else:
+            bottom = cudf.Series(set(self.nodes()) - set(top))
+        return top, bottom
 
     def from_cudf_edgelist(self, input_df, source='source',
                            destination='destination',
@@ -815,11 +846,24 @@ class Graph:
         """
         Returns all the nodes in the graph as a cudf.Series
         """
-        df = self.edgelist.edgelist_df
-        n = cudf.concat([df['src'], df['dst']]).unique()
-        if self.renumbered:
-            return self.edgelist.renumber_map[n]
+        if self.edgelist is not None:
+            df = self.edgelist.edgelist_df
+            n = cudf.concat([df['src'], df['dst']]).unique()
+            if self.renumbered:
+                return self.edgelist.renumber_map[n]
+            else:
+                return n
+        if 'nodes' in self._nodes.keys():
+            return self._nodes['nodes']
         else:
+            n = cudf.Series(dtype='int')
+            set_names = [i for i in self._nodes.keys() if i != 'nodes']
+            if len(set_names) > 0:
+                n = self._nodes[set_names[0]]
+                print(n)
+            if len(set_names) == 2:
+                n = n.append(self._nodes[set_names[1]])
+                print(n)
             return n
 
 
