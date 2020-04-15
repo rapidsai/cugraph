@@ -44,8 +44,6 @@ namespace detail {
     //size of bitmaps for vertices
     vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
     //ith bit of visited_bmap is set <=> ith vertex is visited
-    // TODO(xcadet) This is only usefull for BC
-    ALLOC_TRY(&previous_visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
     ALLOC_TRY(&visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
@@ -126,6 +124,11 @@ namespace detail {
     //We need distances to use bottom up
     if (directed && !computeDistances)
       ALLOC_TRY(&distances, n * sizeof(IndexType), nullptr);
+
+    // In case the shortest path counters is required, previous_bmap has to be allocated
+    if (sp_counters) {
+      ALLOC_TRY(&previous_visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
+    }
   }
 
   template<typename IndexType>
@@ -262,9 +265,9 @@ namespace detail {
 
     //useDistances : we check if a vertex is a parent using distances in bottom up - distances become working data
     //undirected g : need parents to be in children's neighbors
-    bool can_use_bottom_up = !directed && distances;
-    // TODO(xcadet): BC cannot use bottomup
-    can_use_bottom_up = false;
+
+    // In case the shortest path counters need to be computeed, the bottom_up approach cannot be used
+    bool can_use_bottom_up = (!sp_counters && !directed && distances);
 
     while (nf > 0) {
       //Each vertices can appear only once in the frontierer array - we know it will fit
@@ -286,12 +289,12 @@ namespace detail {
 
               //We need to prepare the switch back to top down
               //We couldnt keep track of mu during bottom up - because we dont know what mf is. Computing mu here
-	      bfs_kernels::count_unvisited_edges(unvisited_queue,
-                                    size_last_unvisited_queue,
-                                    visited_bmap,
-                                    vertex_degree,
-                                    d_mu,
-                                    stream);
+              bfs_kernels::count_unvisited_edges(unvisited_queue,
+                                                size_last_unvisited_queue,
+                                                visited_bmap,
+                                                vertex_degree,
+                                                d_mu,
+                                                stream);
 
               //Typical pre-top down workflow. set_frontier_degree + exclusive-scan
               traversal::set_frontier_degree(frontier_vertex_degree,
@@ -326,13 +329,16 @@ namespace detail {
 
       switch (algo_state) {
         case TOPDOWN:
-          cudaMemcpyAsync(previous_visited_bmap,
-                          visited_bmap,
-                          vertices_bmap_size * sizeof(int),
-                          cudaMemcpyDeviceToDevice,
-                          stream);
-          // We need to copy the visited_bmap before doing the traversal
-          cudaStreamSynchronize(stream);
+          // This step is only required if sp_counters is not nullptr
+          if (sp_counters) {
+            cudaMemcpyAsync(previous_visited_bmap,
+                            visited_bmap,
+                            vertices_bmap_size * sizeof(int),
+                            cudaMemcpyDeviceToDevice,
+                            stream);
+            // We need to copy the visited_bmap before doing the traversal
+            cudaStreamSynchronize(stream);
+          }
           traversal::compute_bucket_offsets(exclusive_sum_frontier_vertex_degree,
                                  exclusive_sum_frontier_vertex_buckets_offsets,
                                  nf,
@@ -491,6 +497,11 @@ namespace detail {
     //In that case, distances is a working data
     if (directed && !computeDistances)
       ALLOC_FREE_TRY(distances, nullptr);
+
+    // In that  case, previous_visited_bmap has been allocated
+    if (sp_counters) {
+      ALLOC_FREE_TRY(previous_visited_bmap, nullptr);
+    }
   }
 
   template class BFS<int> ;

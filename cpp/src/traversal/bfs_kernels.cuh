@@ -686,417 +686,14 @@ namespace bfs_kernels {
                                         IndexType *new_frontier_cnt,
                                         const IndexType *frontier_degrees_exclusive_sum,
                                         const IndexType *frontier_degrees_exclusive_sum_buckets_offsets,
+                                        int *previous_bmap,
                                         int *bmap,
                                         IndexType *distances,
                                         IndexType *predecessors,
+                                        IndexType *sp_counters,
                                         const int *edge_mask,
                                         const int *isolated_bmap,
                                         bool directed) {
-    //BlockScan
-    typedef cub::BlockScan<IndexType, TOP_DOWN_EXPAND_DIMX> BlockScan;
-    __shared__ typename BlockScan::TempStorage scan_storage;
-
-    // We will do a scan to know where to write in frontier
-    // This will contain the common offset of the block
-    __shared__ IndexType frontier_common_block_offset;
-
-    __shared__ IndexType shared_buckets_offsets[TOP_DOWN_EXPAND_DIMX - NBUCKETS_PER_BLOCK + 1];
-    __shared__ IndexType shared_frontier_degrees_exclusive_sum[TOP_DOWN_EXPAND_DIMX + 1];
-
-    //
-    // Frontier candidates local queue
-    // We process TOP_DOWN_BATCH_SIZE vertices in parallel, so we need to be able to store everything
-    // We also save the predecessors here, because we will not be able to retrieve it after
-    //
-    __shared__ IndexType shared_local_new_frontier_candidates[TOP_DOWN_BATCH_SIZE
-        * TOP_DOWN_EXPAND_DIMX];
-    __shared__ IndexType shared_local_new_frontier_predecessors[TOP_DOWN_BATCH_SIZE
-        * TOP_DOWN_EXPAND_DIMX];
-    __shared__ IndexType block_n_frontier_candidates;
-
-    IndexType block_offset = (blockDim.x * blockIdx.x) * max_items_per_thread;
-    IndexType n_items_per_thread_left = (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1)
-        / TOP_DOWN_EXPAND_DIMX;
-
-    n_items_per_thread_left = min(max_items_per_thread, n_items_per_thread_left);
-
-    for (;
-        (n_items_per_thread_left > 0) && (block_offset < totaldegree);
-
-        block_offset += MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD * blockDim.x,
-            n_items_per_thread_left -= MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD) {
-
-      // In this loop, we will process batch_set_size batches
-      IndexType nitems_per_thread = min(  n_items_per_thread_left,
-                              (IndexType) MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD);
-
-      // Loading buckets offset (see compute_bucket_offsets_kernel)
-
-      if (threadIdx.x < (nitems_per_thread * NBUCKETS_PER_BLOCK + 1))
-        shared_buckets_offsets[threadIdx.x] =
-            frontier_degrees_exclusive_sum_buckets_offsets[block_offset / TOP_DOWN_BUCKET_SIZE
-                + threadIdx.x];
-
-      // We will use shared_buckets_offsets
-      __syncthreads();
-
-      //
-      // shared_buckets_offsets gives us a range of the possible indexes
-      // for edge of linear_threadx, we are looking for the value k such as
-      // k is the max value such as frontier_degrees_exclusive_sum[k] <= linear_threadx
-      //
-      // we have 0 <= k < frontier_size
-      // but we also have :
-      //
-      // frontier_degrees_exclusive_sum_buckets_offsets[linear_threadx/TOP_DOWN_BUCKET_SIZE]
-      // <= k
-      // <= frontier_degrees_exclusive_sum_buckets_offsets[linear_threadx/TOP_DOWN_BUCKET_SIZE + 1]
-      //
-      // To find the exact value in that range, we need a few values from frontier_degrees_exclusive_sum (see below)
-      // We will load them here
-      // We will load as much as we can - if it doesn't fit we will make multiple iteration of the next loop
-      // Because all vertices in frontier have degree > 0, we know it will fits if left + 1 = right (see below)
-
-      //We're going to load values in frontier_degrees_exclusive_sum for batch [left; right[
-      //If it doesn't fit, --right until it does, then loop
-      //It is excepted to fit on the first try, that's why we start right = nitems_per_thread
-
-      IndexType left = 0;
-      IndexType right = nitems_per_thread;
-
-      while (left < nitems_per_thread) {
-        //
-        // Values that are necessary to compute the local binary searches
-        // We only need those with indexes between extremes indexes of buckets_offsets
-        // We need the next val for the binary search, hence the +1
-        //
-
-        IndexType nvalues_to_load = shared_buckets_offsets[right * NBUCKETS_PER_BLOCK]
-            - shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
-
-        //If left = right + 1 we are sure to have nvalues_to_load < TOP_DOWN_EXPAND_DIMX+1
-        while (nvalues_to_load > (TOP_DOWN_EXPAND_DIMX + 1)) {
-          --right;
-
-          nvalues_to_load = shared_buckets_offsets[right * NBUCKETS_PER_BLOCK]
-              - shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
-        }
-
-        IndexType nitems_per_thread_for_this_load = right - left;
-
-        IndexType frontier_degrees_exclusive_sum_block_offset = shared_buckets_offsets[left
-            * NBUCKETS_PER_BLOCK];
-
-        if (threadIdx.x < nvalues_to_load) {
-          shared_frontier_degrees_exclusive_sum[threadIdx.x] =
-              frontier_degrees_exclusive_sum[frontier_degrees_exclusive_sum_block_offset
-                  + threadIdx.x];
-        }
-
-        if (nvalues_to_load == (TOP_DOWN_EXPAND_DIMX + 1) && threadIdx.x == 0) {
-          shared_frontier_degrees_exclusive_sum[TOP_DOWN_EXPAND_DIMX] =
-              frontier_degrees_exclusive_sum[frontier_degrees_exclusive_sum_block_offset
-                  + TOP_DOWN_EXPAND_DIMX];
-        }
-
-        //shared_frontier_degrees_exclusive_sum is in shared mem, we will use it, sync
-        __syncthreads();
-
-        // Now we will process the edges
-        // Here each thread will process nitems_per_thread_for_this_load
-        for (IndexType item_index = 0;
-            item_index < nitems_per_thread_for_this_load;
-            item_index += TOP_DOWN_BATCH_SIZE) {
-
-          // We process TOP_DOWN_BATCH_SIZE edge in parallel (instruction parallism)
-          // Reduces latency
-
-          IndexType current_max_edge_index = min(block_offset
-                                                 + (left
-                                                 + nitems_per_thread_for_this_load)
-                                                 * blockDim.x,
-                                                 totaldegree);
-
-          //We will need vec_u (source of the edge) until the end if we need to save the predecessors
-          //For others informations, we will reuse pointers on the go (nvcc does not color well the registers in that case)
-
-          IndexType vec_u[TOP_DOWN_BATCH_SIZE];
-          IndexType local_buf1[TOP_DOWN_BATCH_SIZE];
-          IndexType local_buf2[TOP_DOWN_BATCH_SIZE];
-
-          IndexType *vec_frontier_degrees_exclusive_sum_index = &local_buf2[0];
-
-#pragma unroll
-          for (IndexType iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-
-            IndexType ibatch = left + item_index + iv;
-            IndexType gid = block_offset + ibatch * blockDim.x + threadIdx.x;
-
-            if (gid < current_max_edge_index) {
-              IndexType start_off_idx = (ibatch * blockDim.x + threadIdx.x)
-                  / TOP_DOWN_BUCKET_SIZE;
-              IndexType bucket_start = shared_buckets_offsets[start_off_idx]
-                  - frontier_degrees_exclusive_sum_block_offset;
-              IndexType bucket_end = shared_buckets_offsets[start_off_idx + 1]
-                  - frontier_degrees_exclusive_sum_block_offset;
-
-              IndexType k = traversal::binsearch_maxle(shared_frontier_degrees_exclusive_sum,
-                                            gid,
-                                            bucket_start,
-                                            bucket_end)
-                  + frontier_degrees_exclusive_sum_block_offset;
-              vec_u[iv] = frontier[k]; // origin of this edge
-              vec_frontier_degrees_exclusive_sum_index[iv] =
-                  frontier_degrees_exclusive_sum[k];
-            } else {
-              vec_u[iv] = -1;
-              vec_frontier_degrees_exclusive_sum_index[iv] = -1;
-            }
-
-          }
-
-          IndexType *vec_row_ptr_u = &local_buf1[0];
-#pragma unroll
-          for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-            IndexType u = vec_u[iv];
-            //row_ptr for this vertex origin u
-            vec_row_ptr_u[iv] = (u != -1)
-                          ? row_ptr[u]
-                            :
-                            -1;
-          }
-
-          //We won't need row_ptr after that, reusing pointer
-          IndexType *vec_dest_v = vec_row_ptr_u;
-
-#pragma unroll
-          for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-            IndexType thread_item_index = left + item_index + iv;
-            IndexType gid = block_offset + thread_item_index * blockDim.x + threadIdx.x;
-
-            IndexType row_ptr_u = vec_row_ptr_u[iv];
-            IndexType edge = row_ptr_u + gid - vec_frontier_degrees_exclusive_sum_index[iv];
-
-            if (edge_mask && !edge_mask[edge])
-              row_ptr_u = -1; //disabling edge
-
-            //Destination of this edge
-            vec_dest_v[iv] = (row_ptr_u != -1)
-                        ? col_ind[edge]
-                          :
-                          -1;
-          }
-
-          //We don't need vec_frontier_degrees_exclusive_sum_index anymore
-          IndexType *vec_v_visited_bmap = vec_frontier_degrees_exclusive_sum_index;
-#pragma unroll
-          for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-            IndexType v = vec_dest_v[iv];
-            vec_v_visited_bmap[iv] = (v != -1)
-                              ? bmap[v / INT_SIZE]
-                                :
-                                (~0); //will look visited
-          }
-
-          // From now on we will consider v as a frontier candidate
-          // If for some reason vec_candidate[iv] should be put in the new_frontier
-          // Then set vec_candidate[iv] = -1
-          IndexType *vec_frontier_candidate = vec_dest_v;
-
-#pragma unroll
-          for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-            IndexType v = vec_frontier_candidate[iv];
-            int m = 1 << (v % INT_SIZE);
-
-            int is_visited = vec_v_visited_bmap[iv] & m;
-
-            if (is_visited)
-              vec_frontier_candidate[iv] = -1;
-          }
-
-          if (directed) {
-            //vec_v_visited_bmap is available
-
-            IndexType *vec_is_isolated_bmap = vec_v_visited_bmap;
-
-#pragma unroll
-            for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-              IndexType v = vec_frontier_candidate[iv];
-              vec_is_isolated_bmap[iv] = (v != -1)
-                                ? isolated_bmap[v / INT_SIZE]
-                                  :
-                                  -1;
-            }
-
-#pragma unroll
-            for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-              IndexType v = vec_frontier_candidate[iv];
-              int m = 1 << (v % INT_SIZE);
-              int is_isolated = vec_is_isolated_bmap[iv] & m;
-
-              //If v is isolated, we will not add it to the frontier (it's not a frontier candidate)
-              // 1st reason : it's useless
-              // 2nd reason : it will make top down algo fail
-              // we need each node in frontier to have a degree > 0
-              // If it is isolated, we just need to mark it as visited, and save distance and predecessor here. Not need to check return value of atomicOr
-
-              if (is_isolated && v != -1) {
-                int m = 1 << (v % INT_SIZE);
-                atomicOr(&bmap[v / INT_SIZE], m);
-                if (distances)
-                  distances[v] = lvl;
-
-                if (predecessors)
-                  predecessors[v] = vec_u[iv];
-
-                //This is no longer a candidate, neutralize it
-                vec_frontier_candidate[iv] = -1;
-              }
-
-            }
-          }
-
-          //Number of successor candidate hold by this thread
-          IndexType thread_n_frontier_candidates = 0;
-
-#pragma unroll
-          for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-            IndexType v = vec_frontier_candidate[iv];
-            if (v != -1)
-              ++thread_n_frontier_candidates;
-          }
-
-          // We need to have all nfrontier_candidates to be ready before doing the scan
-          __syncthreads();
-
-          // We will put the frontier candidates in a local queue
-          // Computing offsets
-          IndexType thread_frontier_candidate_offset = 0; //offset inside block
-          BlockScan(scan_storage).ExclusiveSum(thread_n_frontier_candidates,
-                                               thread_frontier_candidate_offset);
-
-#pragma unroll
-          for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-            //May have bank conflicts
-            IndexType frontier_candidate = vec_frontier_candidate[iv];
-
-            if (frontier_candidate != -1) {
-              shared_local_new_frontier_candidates[thread_frontier_candidate_offset] =
-                  frontier_candidate;
-              shared_local_new_frontier_predecessors[thread_frontier_candidate_offset] =
-                  vec_u[iv];
-              ++thread_frontier_candidate_offset;
-            }
-          }
-
-          if (threadIdx.x == (TOP_DOWN_EXPAND_DIMX - 1)) {
-            //No need to add nsuccessor_candidate, even if its an
-            //exclusive sum
-            //We incremented the thread_frontier_candidate_offset
-            block_n_frontier_candidates = thread_frontier_candidate_offset;
-          }
-
-          //broadcast block_n_frontier_candidates
-          __syncthreads();
-
-          IndexType naccepted_vertices = 0;
-          //We won't need vec_frontier_candidate after that
-          IndexType *vec_frontier_accepted_vertex = vec_frontier_candidate;
-
-#pragma unroll
-          for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-            const int idx_shared = iv * blockDim.x + threadIdx.x;
-            vec_frontier_accepted_vertex[iv] = -1;
-
-            if (idx_shared < block_n_frontier_candidates) {
-              IndexType v = shared_local_new_frontier_candidates[idx_shared]; //popping queue
-              int m = 1 << (v % INT_SIZE);
-              int q = atomicOr(&bmap[v / INT_SIZE], m); //atomicOr returns old
-
-              if (!(m & q)) { //if this thread was the first to discover this node
-                if (distances)
-                  distances[v] = lvl;
-
-                if (predecessors) {
-                  IndexType pred = shared_local_new_frontier_predecessors[idx_shared];
-                  predecessors[v] = pred;
-                }
-
-                vec_frontier_accepted_vertex[iv] = v;
-                ++naccepted_vertices;
-              }
-            }
-
-          }
-
-          //We need naccepted_vertices to be ready
-          __syncthreads();
-
-          IndexType thread_new_frontier_offset;
-
-          BlockScan(scan_storage).ExclusiveSum(naccepted_vertices, thread_new_frontier_offset);
-
-          if (threadIdx.x == (TOP_DOWN_EXPAND_DIMX - 1)) {
-
-            IndexType inclusive_sum = thread_new_frontier_offset + naccepted_vertices;
-            //for this thread, thread_new_frontier_offset + has_successor (exclusive sum)
-            if (inclusive_sum)
-              frontier_common_block_offset = atomicAdd(new_frontier_cnt, inclusive_sum);
-          }
-
-          //Broadcasting frontier_common_block_offset
-          __syncthreads();
-
-#pragma unroll
-          for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-            const int idx_shared = iv * blockDim.x + threadIdx.x;
-            if (idx_shared < block_n_frontier_candidates) {
-
-              IndexType new_frontier_vertex = vec_frontier_accepted_vertex[iv];
-
-              if (new_frontier_vertex != -1) {
-                IndexType off = frontier_common_block_offset + thread_new_frontier_offset++;
-                new_frontier[off] = new_frontier_vertex;
-              }
-            }
-          }
-
-        }
-
-        //We need to keep shared_frontier_degrees_exclusive_sum coherent
-        __syncthreads();
-
-        //Preparing for next load
-        left = right;
-        right = nitems_per_thread;
-      }
-
-      //we need to keep shared_buckets_offsets coherent
-      __syncthreads();
-    }
-
-  }
-
-  template<typename IndexType>
-  __global__ void topdown_expand_kernel_bc(const IndexType *row_ptr,
-                                           const IndexType *col_ind,
-                                           const IndexType *frontier,
-                                           const IndexType frontier_size,
-                                           const IndexType totaldegree,
-                                           const IndexType max_items_per_thread,
-                                           const IndexType lvl,
-                                           IndexType *new_frontier,
-                                           IndexType *new_frontier_cnt,
-                                           const IndexType *frontier_degrees_exclusive_sum,
-                                           const IndexType *frontier_degrees_exclusive_sum_buckets_offsets,
-                                           int *previous_bmap,
-                                           int *bmap,
-                                           IndexType *distances,
-                                           IndexType *predecessors,
-                                           IndexType *sp_counters,
-                                           const int *edge_mask,
-                                           const int *isolated_bmap,
-                                           bool directed) {
       //BlockScan
     typedef cub::BlockScan<IndexType, TOP_DOWN_EXPAND_DIMX> BlockScan;
     __shared__ typename BlockScan::TempStorage scan_storage;
@@ -1257,7 +854,6 @@ namespace bfs_kernels {
               vec_u[iv] = -1;
               vec_frontier_degrees_exclusive_sum_index[iv] = -1;
             }
-
           }
 
           IndexType *vec_row_ptr_u = &local_buf1[0];
@@ -1294,6 +890,10 @@ namespace bfs_kernels {
 
           //We don't need vec_frontier_degrees_exclusive_sum_index anymore
           IndexType *vec_v_visited_bmap = vec_frontier_degrees_exclusive_sum_index;
+
+          // Visited bmap need to contain information about the previous
+          // frontier if we actually process every edge (shortest path counting)
+          // otherwise we can read and update from the same bmap
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType v = vec_dest_v[iv];
@@ -1319,32 +919,8 @@ namespace bfs_kernels {
               vec_frontier_candidate[iv] = -1;
           }
 
-          //
-          // Lets consider:
-          // vec_u[TOP_DOWN_BATCH_SIZE]                  (vec_u)
-          // vec_frontier_candidate[TOP_DOWN_BATCH_SIZE] (local_buf1)
-          // v = vec_fontier_candidate[iv] contains the destination
-          // if v == -1: There are 2 possibilities
-          //             1. The current 'index' is bigger than the number of
-          //                edges to process
-          //             2. The destination of the edge was already visited
-          // Otherwise v == is the destination of the edge
-          //
-          // src = vec_u[iv]
-          // src can only have 2 values:
-          //             1. -1: The edge 'index' is bigger than the nubmer of
-          //                    edges to process
-          //             2. The source of the edge
-          // The number of shortest path going through dst should increase
-          // based on the nubmer of shortest path going through src
-          //
-          // At this point, knowing if the dst is isolated does not matter
           // Each source should update the destination shortest path counter
-          // if the destination has not been visited yet.
-          // THE VISITED BMAP CAN BE UPDATED while we needed it
-          // -> This is why we need an copy of the visited_bmap
-          //
-          // This operation is only interesting for the Betweennes Centality
+          // if the destination has not been visited in the *previous* frontier
           if (sp_counters) {
 #pragma unroll
             for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
@@ -1358,7 +934,6 @@ namespace bfs_kernels {
 
           if (directed) {
             //vec_v_visited_bmap is available
-
             IndexType *vec_is_isolated_bmap = vec_v_visited_bmap;
 
 #pragma unroll
@@ -1553,47 +1128,34 @@ namespace bfs_kernels {
     grid.x = min(  (totaldegree + max_items_per_thread * block.x - 1)
                   / (max_items_per_thread * block.x),
               (IndexType) MAXBLOCKS);
-    // Betweenness Centrality
-    if (sp_counters) {
-      // We need to keep track of the previously visited bmap
-      topdown_expand_kernel_bc<<<grid, block, 0, m_stream>>>(row_ptr,
-                                                          col_ind,
-                                                          frontier,
-                                                          frontier_size,
-                                                          totaldegree,
-                                                          max_items_per_thread,
-                                                          lvl,
-                                                          new_frontier,
-                                                          new_frontier_cnt,
-                                                          frontier_degrees_exclusive_sum,
-                                                          frontier_degrees_exclusive_sum_buckets_offsets,
-                                                          previous_visited_bmap,
-                                                          visited_bmap,
-                                                          distances,
-                                                          predecessors,
-                                                          sp_counters,
-                                                          edge_mask,
-                                                          isolated_bmap,
-                                                          directed);
-    } else {
-      topdown_expand_kernel<<<grid, block, 0, m_stream>>>(row_ptr,
-                                                          col_ind,
-                                                          frontier,
-                                                          frontier_size,
-                                                          totaldegree,
-                                                          max_items_per_thread,
-                                                          lvl,
-                                                          new_frontier,
-                                                          new_frontier_cnt,
-                                                          frontier_degrees_exclusive_sum,
-                                                          frontier_degrees_exclusive_sum_buckets_offsets,
-                                                          visited_bmap,
-                                                          distances,
-                                                          predecessors,
-                                                          edge_mask,
-                                                          isolated_bmap,
-                                                          directed);
-      }
+    // Shortest Path counting (Betweenness Centrality)
+    // We need to keep track of the previously visited bmap
+
+    // If the coutner of shortest path is nullptr
+    // The previous_visited_bmap is no longer needed (and should be nullptr on
+    // the first access), so it can be the same as the current visitedbmap
+    if (!sp_counters) {
+      previous_visited_bmap = visited_bmap;
+    }
+    topdown_expand_kernel<<<grid, block, 0, m_stream>>>(row_ptr,
+                                                        col_ind,
+                                                        frontier,
+                                                        frontier_size,
+                                                        totaldegree,
+                                                        max_items_per_thread,
+                                                        lvl,
+                                                        new_frontier,
+                                                        new_frontier_cnt,
+                                                        frontier_degrees_exclusive_sum,
+                                                        frontier_degrees_exclusive_sum_buckets_offsets,
+                                                        previous_visited_bmap,
+                                                        visited_bmap,
+                                                        distances,
+                                                        predecessors,
+                                                        sp_counters,
+                                                        edge_mask,
+                                                        isolated_bmap,
+                                                        directed);
     CUDA_CHECK_LAST();
   }
 
