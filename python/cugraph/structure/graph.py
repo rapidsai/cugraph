@@ -72,7 +72,7 @@ class Graph:
         """
         self.symmetrized = symmetrized
         self.renumbered = False
-        self.bipartite = None
+        self.bipartite = False
         self._nodes = {}
         self.multi = multi
         self.dynamic = dynamic
@@ -107,20 +107,15 @@ class Graph:
     def add_nodes_from(self, nodes, bipartite = 'nodes'):
         set_names = [i for i in self._nodes.keys() if i != 'nodes']
         if len(set_names) < 2:
+            if bipartite != 'nodes':
+                self.bipartite = True
             self._nodes[bipartite] = cudf.Series(nodes)
         else:
             raise ValueError("Already contains two sets of nodes")
 
     def is_bipartite(self):
         ## TO DO: Call coloring algorithm
-        if self.bipartite is None:
-            set_names = [i for i in self._nodes.keys() if i != 'nodes']
-            if len(set_names) == 0:
-                return False
-            else:
-                return True
-        else:
-            return self.bipartite
+        return self.bipartite
 
     def sets(self):
         ## TO DO: Call coloring algorithm
@@ -860,10 +855,8 @@ class Graph:
             set_names = [i for i in self._nodes.keys() if i != 'nodes']
             if len(set_names) > 0:
                 n = self._nodes[set_names[0]]
-                print(n)
             if len(set_names) == 2:
                 n = n.append(self._nodes[set_names[1]])
-                print(n)
             return n
 
 
