@@ -38,7 +38,7 @@ for i in range(len(gdf_page)):
 
 | Type            | Algorithm                              | Sacle        |  Description                                                  |
 | --------------- | -------------------------------------- | ------------ | ------------------------------------------------------------- |
-| Centrality      |                                        |              |                                                               |
+| Centrality                                               |              |                                                               |
 |                 | Katz                                   | Single-GPU   | Compute the Katz centrality for every vertex                  |
 |                 | Betweenness Centrality                 | Single-GPU   | Compute the Betweenness Centrality of every vertex            |
 | Community       |                                        |              |                                                               |
