@@ -80,7 +80,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     weight_t* weights{nullptr};
     sort_coo<vertex_t, edge_t, weight_t>(row,
             col, v, &srcs, &dests, &weights, e);
-    init_mass<vertex_t, edge_t>(&dests, d_mass, e, n);
+    init_mass<vertex_t, edge_t>(dests, d_mass, e, n);
 
     float speed = 1.f;
     float speed_efficiency = 1.f;
@@ -134,7 +134,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
             callback->on_epoch_end(pos);
 
         if (verbose) {
-            printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+            printf("iteration %i: speed: %f, speed_efficiency: %f, ",
                     iter, speed, speed_efficiency);
             printf("jt: %f, ", jt);
             printf("swinging: %f, traction: %f\n", s, t);

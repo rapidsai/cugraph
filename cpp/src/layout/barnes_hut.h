@@ -148,9 +148,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     weight_t* weights{nullptr};
 
     sort_coo<vertex_t, edge_t, weight_t>(row,
-            col, v, &srcs, &dests, &weights, e);
-
-    init_mass<vertex_t, edge_t, int>(&dests, d_mass, e, n);
+                        col, v, &srcs, &dests, &weights, e);
+    init_mass<vertex_t, edge_t, int>(dests, d_mass, e, n);
 
     float speed = 1.f;
     float speed_efficiency = 1.f;
@@ -161,6 +160,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         int sum = thrust::reduce(mass.begin(), mass.end());
         outbound_att_compensation = sum / (float)n;
     }
+    //
     // Set cache levels for faster algorithm execution
     //---------------------------------------------------
     cudaFuncSetCacheConfig(BoundingBoxKernel, cudaFuncCachePreferShared);
@@ -177,36 +177,24 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         callback->on_preprocess_end(pos);
     }
 
-        thrust::device_vector<float>::iterator norm_max = thrust::max_element(d_YY.begin(), d_YY.end());
-        thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(*norm_max),
-                d_YY.begin(),
-                thrust::divides<float>());
-
     for (int iter = 0; iter < max_iter; ++iter) {
-        /*float mean = thrust::reduce(d_YY.begin(), d_YY.end()) / ((nnodes + 1) * 2); 
-        
-        */
-        //float l2 = sqrt(thrust::transform_reduce(d_YY.begin(), d_YY.end(), square<float>(), 0.0f, thrust::plus<float>()));
         /*
+        float mean = thrust::reduce(d_YY.begin(), d_YY.end()) / ((nnodes + 1) * 2); 
         thrust::device_vector<float>::iterator norm_min = thrust::min_element(d_YY.begin(), d_YY.end());
         thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(*norm_min),
+                thrust::make_constant_iterator(mean),
                 d_YY.begin(),
                 thrust::minus<float>());
-        thrust::device_vector<float>::iterator norm_max = thrust::max_element(d_YY.begin(), d_YY.end());
-        thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(*norm_max - *norm_min),
+        */
+        /*
+        if (iter == 100) {
+            float l2 = sqrt(thrust::transform_reduce(d_YY.begin(), d_YY.end(), square<float>(), 0.0f, thrust::plus<float>()));
+            thrust::device_vector<float>::iterator norm_max = thrust::max_element(d_YY.begin(), d_YY.end());
+            thrust::transform(d_YY.begin(), d_YY.end(),
+                thrust::make_constant_iterator(l2),
                 d_YY.begin(),
                 thrust::divides<float>());
-        thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(200),
-                d_YY.begin(),
-                thrust::multiplies<float>());
-        thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(100),
-                d_YY.begin(),
-                thrust::minus<float>());
+        }
         */
         fill((nnodes + 1) * 2, rep_forces, 0.f);
         fill(n * 2, d_attract, 0.f);
@@ -264,10 +252,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
                 d_old_forces, d_old_forces + n,
                 d_mass, d_swinging, d_traction, n);
 
-        //printf("start reduce\n");
         const float s = thrust::reduce(swinging.begin(), swinging.end());
         const float t = thrust::reduce(traction.begin(), traction.end());
-        //printf("stop reduce\n");
 
         adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                 s, t, n);
@@ -283,7 +269,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
             callback->on_epoch_end(pos);
 
         if (verbose) {
-            printf("speed at iteration %i: %f, speed_efficiency: %f, ",
+            printf("iteration %i: speed: %f, speed_efficiency: %f, ",
                     iter, speed, speed_efficiency);
             printf("jt: %f, ", jt);
             printf("swinging: %f, traction: %f\n", s, t);
@@ -294,6 +280,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
                 thrust::make_constant_iterator(*norm_max),
                 d_YY.begin(),
                 thrust::multiplies<float>());
+                */
+        /*
         thrust::transform(d_YY.begin(), d_YY.end(),
                 thrust::make_constant_iterator(mean),
                 d_YY.begin(),

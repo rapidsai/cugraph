@@ -57,7 +57,7 @@ def force_atlas2(input_graph,
         input_graph.view_edge_list()
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges()
+    num_edges = len(input_graph.edgelist.edgelist_df['src'])
 
     cdef GraphCOO[int,int,float] graph_float
     cdef GraphCOO[int,int,double] graph_double
@@ -95,7 +95,7 @@ def force_atlas2(input_graph,
         pos_ptr = pos.device_ctypes_pointer.value 
  
         graph_double = GraphCOO[int,int, double](<int*>c_src_indices,
-                <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges * 2)
+                <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
 
         c_force_atlas2[int, int, double](graph_double,
                     <float*>pos_ptr,
@@ -133,7 +133,7 @@ def force_atlas2(input_graph,
  
         graph_float = GraphCOO[int,int,float](<int*>c_src_indices,
                 <int*>c_dst_indices, <float*>c_weights, num_verts,
-                num_edges * 2)
+                num_edges)
         c_force_atlas2[int, int, float](graph_float,
                     <float*>pos_ptr,
                     <int>max_iter,
