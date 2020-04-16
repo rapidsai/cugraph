@@ -4,6 +4,8 @@
 
 The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in GPU DataFrames - see [cuDF](https://github.com/rapidsai/cudf).  The vision of RAPIDS cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in cuDF and machine learning tasks in cuML.  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  For user familiar with NetworkX, cuGraph provides a NetworkX-like API.  The goal being to allow existing code to be ported with minimal effort into RAPIDS.  
 
+For users familar with C/CUDA and graph structures, we also provide a C++ API.  There is less type and structure checking at the C layer.  
+
  For more project details, see [rapids.ai](https://rapids.ai/).
 
 **NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/master/README.md) ensure you are on the latest branch.
@@ -13,16 +15,18 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerat
 ```markdown
 import cugraph
 
-# assuming that data has been loaded into a cuDF (using read_csv) Dataframe
+# read data into a cuDF DataFrame using read_csv
 gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int32"] )
 
+# We now have data in a COO format (edge pairs)
 # create a Graph using the source (src) and destination (dst) vertex pairs the GDF  
 G = cugraph.Graph()
 G.add_edge_list(gdf, source='src', destination='dst')
 
-# Call cugraph.pagerank to get the pagerank scores
+# Let's now get the PageRank score of each vertex by calling cugraph.pagerank
 gdf_page = cugraph.pagerank(G)
 
+# Let's look at the PageRank Score (only do this on small graphs)
 for i in range(len(gdf_page)):
 	print("vertex " + str(gdf_page['vertex'][i]) + 
 		" PageRank is " + str(gdf_page['pagerank'][i]))  
@@ -32,30 +36,38 @@ for i in range(len(gdf_page)):
 
 ## Supported Algorithms:
 
-| Algorithm                                     | Scale      | Notes                        |
-| :-------------------------------------------- | ---------- | ---------------------------- |
-| PageRank                                      | Multi-GPU  |                              |
-| Personal PageRank                             | Single-GPU |                              |
-| Katz Centrality                               | Single-GPU |                              |
-| Jaccard Similarity                            | Single-GPU |                              |
-| Weighted Jaccard                              | Single-GPU |                              |
-| Overlap Similarity                            | Single-GPU |                              |
-| SSSP                                          | Single-GPU | Updated to provide path info |
-| BFS                                           | Single-GPU | Also BSP version             |
-| Triangle Counting                             | Single-GPU |                              |
-| K-Core                                        | Single-GPU |                              |
-| Core Number                                   | Single-GPU |                              |
-| Subgraph Extraction                           | Single-GPU |                              |
-| Spectral Clustering - Balanced-Cut            | Single-GPU |                              |
-| Spectral Clustering - Modularity Maximization | Single-GPU |                              |
-| Louvain                                       | Single-GPU |                              |
-| Ensemble Clustering for Graphs (ECG)          | Single-GPU |                              |
-| Renumbering                                   | Single-GPU |                              |
-| Basic Graph Statistics                        | Single-GPU |                              |
-| Weakly Connected Components                   | Single-GPU |                              |
-| Strongly Connected Components                 | Single-GPU |                              |
-
-
+| Type            | Algorithm                              | Sacle        |  Description                                                  |
+| --------------- | -------------------------------------- | ------------ | ------------------------------------------------------------- |
+| Centrality      |                                        |              |                                                               |
+|                 | Katz                                   | Single-GPU   | Compute the Katz centrality for every vertex                  |
+|                 | Betweenness Centrality                 | Single-GPU   | Compute the Betweenness Centrality of every vertex            |
+| Community       |                                        |              |                                                               |
+|                 | Louvain                                | Single-GPU   | Identify clusters in a graph using the Louvain algorithm      |
+|                 | Ensemble Clustering for Graphs         | Single-GPU   | An Ensemble variation of Louvain                              |
+|                 | Spectral-Clustering - Balanced Cut     | Single-GPU   | Identify clusters using Spectral Clustering Balanced Cut      |
+|                 | Spectral-Clustering                    | Single-GPU   | Identify clusters using Spectral Clustering Modularity Modularity |
+|                 | Subgraph Extraction                    | Single-GPU   | Induce a subgraph that includes only the specified vertices   |
+|                 | Triangle Counting                      | Single-GPU   | Count the number of Triangle in a graph                       |
+| Components      |                                        |              |                                                               |
+|                 | Weakly Connected Components            | Single-GPU   | Find weakly connected components in a graph                   |
+|                 | Strongly Connected Components          | Single-GPU   | Find strongly connected components in a graph                 |
+| Core            |                                        |              |                                                               |
+|                 | K-Core                                 | Single-GPU   | Identify the K-Core clusters in a graph                       |
+|                 | Core Number                            | Single-GPU   | Compute the max K core number                                 |
+|                 | K-Truss                                | Single-GPU   | Identify clusters in a graph using the K-Truss algorithm      |
+| Link Analysis   |                                        |              |                                                               |
+|                 | Pagerank                               | Single-GPU   | Compute the PageRank score of every vertex in a graph         |
+|                 | Personal Pagerank                      | Single-GPU   | Compute the Personal PageRank of every vertex in a graph      |
+| Link Prediction |                                        |              |                                                               |
+|                 | Jacard Similarity                      | Single-GPU   | Compute vertex similarity score using Jaccard Similarity      |
+|                 | Weighted Jacard Similarity             | Single-GPU   | Compute vertex similarity score using Weighted Jaccard Similarity |
+|                 | Overlap Similarity                     | Single-GPU   | Compute vertex similarity score using the Overlap Coefficient |
+| Traversal       |                                        |              |                                                               |
+|                 | Breadth First Search (BFS)             | Single-GPU   | Compute the BFS path from a starting vertex to every other vertex in a graph |
+|                 | Single Source Shortest Path (SSSP)     | Single-GPU   | Compute the shortest path from a starting vertex to every other vertex |
+| Structure       |                                        |              |                                                               |
+|                 | Renumbering                            | Single-GPU   | Renumber the vertex IDs, a vertex can be one or more columns  |
+|                 | Symmetrize                             | Single-GPU   | Symmetrize the edges in a graph                               |
 
 
 
