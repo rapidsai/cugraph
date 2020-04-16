@@ -34,53 +34,60 @@ for i in range(len(gdf_page)):
 
 
 
-## Supported Algorithms:
+## Supported Algorithms
 
-| Type            | Algorithm                              | Sacle        |  Description                                                  |
-| --------------- | -------------------------------------- | ------------ | ------------------------------------------------------------- |
-| Centrality                                               |              |                                                               |
-|                 | Katz                                   | Single-GPU   | Compute the Katz centrality for every vertex                  |
-|                 | Betweenness Centrality                 | Single-GPU   | Compute the Betweenness Centrality of every vertex            |
-| Community       |                                        |              |                                                               |
-|                 | Louvain                                | Single-GPU   | Identify clusters in a graph using the Louvain algorithm      |
-|                 | Ensemble Clustering for Graphs         | Single-GPU   | An Ensemble variation of Louvain                              |
-|                 | Spectral-Clustering - Balanced Cut     | Single-GPU   | Identify clusters using Spectral Clustering Balanced Cut      |
-|                 | Spectral-Clustering                    | Single-GPU   | Identify clusters using Spectral Clustering Modularity Modularity |
-|                 | Subgraph Extraction                    | Single-GPU   | Induce a subgraph that includes only the specified vertices   |
-|                 | Triangle Counting                      | Single-GPU   | Count the number of Triangle in a graph                       |
-| Components      |                                        |              |                                                               |
-|                 | Weakly Connected Components            | Single-GPU   | Find weakly connected components in a graph                   |
-|                 | Strongly Connected Components          | Single-GPU   | Find strongly connected components in a graph                 |
-| Core            |                                        |              |                                                               |
-|                 | K-Core                                 | Single-GPU   | Identify the K-Core clusters in a graph                       |
-|                 | Core Number                            | Single-GPU   | Compute the max K core number                                 |
-|                 | K-Truss                                | Single-GPU   | Identify clusters in a graph using the K-Truss algorithm      |
-| Link Analysis   |                                        |              |                                                               |
-|                 | Pagerank                               | Single-GPU   | Compute the PageRank score of every vertex in a graph         |
-|                 | Personal Pagerank                      | Single-GPU   | Compute the Personal PageRank of every vertex in a graph      |
-| Link Prediction |                                        |              |                                                               |
-|                 | Jacard Similarity                      | Single-GPU   | Compute vertex similarity score using Jaccard Similarity      |
-|                 | Weighted Jacard Similarity             | Single-GPU   | Compute vertex similarity score using Weighted Jaccard Similarity |
-|                 | Overlap Similarity                     | Single-GPU   | Compute vertex similarity score using the Overlap Coefficient |
-| Traversal       |                                        |              |                                                               |
-|                 | Breadth First Search (BFS)             | Single-GPU   | Compute the BFS path from a starting vertex to every other vertex in a graph |
-|                 | Single Source Shortest Path (SSSP)     | Single-GPU   | Compute the shortest path from a starting vertex to every other vertex |
-| Structure       |                                        |              |                                                               |
-|                 | Renumbering                            | Single-GPU   | Renumber the vertex IDs, a vertex can be one or more columns  |
-|                 | Symmetrize                             | Single-GPU   | Symmetrize the edges in a graph                               |
+| Type         | Algorithm                              | Sacle        |  Description                                                  |
+| ------------ | -------------------------------------- | ------------ | ------------------------------------------------------------- |
+| Centrality   |                                        |              |                                                               |
+|              | Katz                                   | Single-GPU   | Compute the Katz centrality for every vertex                  |
+|              | Betweenness Centrality                 | Single-GPU   | Compute the Betweenness Centrality of every vertex            |
+| Community    |                                        |              |                                                               |
+|              | Louvain                                | Single-GPU   | Identify clusters in a graph using the Louvain algorithm      |
+|              | Ensemble Clustering for Graphs         | Single-GPU   | An Ensemble variation of Louvain                              |
+|              | Spectral-Clustering - Balanced Cut     | Single-GPU   | Identify clusters using Spectral Clustering Balanced Cut      |
+|              | Spectral-Clustering                    | Single-GPU   | Identify clusters using Spectral Clustering Modularity Modularity |
+|              | Subgraph Extraction                    | Single-GPU   | Induce a subgraph that includes only the specified vertices   |
+|              | Triangle Counting                      | Single-GPU   | Count the number of Triangle in a graph                       |
+| Components   |                                        |              |                                                               |
+|              | Weakly Connected Components            | Single-GPU   | Find weakly connected components in a graph                   |
+|              | Strongly Connected Components          | Single-GPU   | Find strongly connected components in a graph                 |
+| Core         |                                        |              |                                                               |
+|              | K-Core                                 | Single-GPU   | Identify the K-Core clusters in a graph                       |
+|              | Core Number                            | Single-GPU   | Compute the max K core number                                 |
+|              | K-Truss                                | Single-GPU   | Identify clusters in a graph using the K-Truss algorithm      |
+| Link Analysis|                                        |              |                                                               |
+|              | Pagerank                               | Single-GPU   | Compute the PageRank score of every vertex in a graph         |
+|              | Personal Pagerank                      | Single-GPU   | Compute the Personal PageRank of every vertex in a graph      |
+| Link Prediction |                                     |              |                                                               |
+|              | Jacard Similarity                      | Single-GPU   | Compute vertex similarity score using Jaccard Similarity      |
+|              | Weighted Jacard Similarity             | Single-GPU   | Compute vertex similarity score using Weighted Jaccard Similarity |
+|              | Overlap Similarity                     | Single-GPU   | Compute vertex similarity score using the Overlap Coefficient |
+| Traversal    |                                        |              |                                                               |
+|              | Breadth First Search (BFS)             | Single-GPU   | Compute the BFS path from a starting vertex to every other vertex in a graph |
+|              | Single Source Shortest Path (SSSP)     | Single-GPU   | Compute the shortest path from a starting vertex to every other vertex |
+| Structure    |                                        |              |                                                               |
+|              | Renumbering                            | Single-GPU   | Renumber the vertex IDs, a vertex can be one or more columns  |
+|              | Symmetrize                             | Single-GPU   | Symmetrize the edges in a graph                               |
 
+## Supported Graph
+| Type            |  Description                                        |
+| --------------- | --------------------------------------------------- |
+| Graph           | An undirected Graph                                 |
+| DiGraph         | A Directed Graph                                    |
 
 
 ## cuGraph Notice
-
 The current version of cuGraph has some limitations:
 
 - Vertex IDs need to be 32-bit integers.
 - Vertex IDs are expected to be contiguous integers starting from 0.
+--  If the starting index is not zero, cuGraph will add disconnected vertices to fill in the missing range
 
-cuGraph provides the renumber function to mitigate this problem. Input vertex IDs for the renumber function can be either 32-bit or 64-bit integers, can be non-contiguous, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
+cuGraph provides the renumber function to mitigate this problem. Input vertex IDs for the renumber function can be any type, can be non-contiguous, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
-Release 0.11 includes a new 'Graph' class that could cause errors to existing code.  Please see the [Transition Guide](TRANSITIONGUIDE.md)
+cuGraph prvides an auto-renumbering feature, enabled by default, during Graph creating.  Renumbered vertices are automaticaly un-renumbered.
+
+cuGraph is constantly being updatred and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) is errors are encountered with newer versions
 
 
 
@@ -92,19 +99,14 @@ There are 3 ways to get cuGraph :
 1. [Build from Source](#source)
 
 
-
 <a name="quick"></a>
 
 ## Quick Start
-
 Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
 
-
 <a name="conda"></a>
-
 ### Conda
-
 It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
 
 Install and update cuGraph using the conda command:
@@ -124,9 +126,7 @@ conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph 
 Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 
 
-
 <a name="source"></a>
-
 ### Build from Source and Contributing
 
 Please see our [guide for building and contributing to cuGraph](CONTRIBUTING.md).
@@ -134,18 +134,11 @@ Please see our [guide for building and contributing to cuGraph](CONTRIBUTING.md)
 
 
 ## Documentation
-
 Python API documentation can be generated from [docs](docs) directory.
 
 
 
-
-
-
-
 ------
-
-
 
 ## <div align="left"><img src="img/rapids_logo.png" width="265px"/></div> Open GPU Data Science
 
