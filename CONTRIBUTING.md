@@ -75,29 +75,11 @@ CUDA requirement:
 
 You can obtain CUDA from [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
 
-Since `cmake` will download and build Apache Arrow you may need to install Boost C++ (version 1.58+) before running
-`cmake`:
-
-```bash
-# Install Boost C++ for Ubuntu 16.04/18.04
-$ sudo apt-get install libboost-all-dev
-```
-
-or
-
-```bash
-# Install Boost C++ for Conda
-$ conda install -c conda-forge boost
-```
-
-Ensure that cuDF is installed.  See https://github.com/rapidsai/cuml
-
-
 #### Build and Install the C/C++ CUDA components
 
 To install cuGraph from source, ensure the dependencies are met and follow the steps below:
 
-1) Clone the repository and submodules
+1) Clone the repository
 
   ```bash
   # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME
@@ -106,9 +88,7 @@ To install cuGraph from source, ensure the dependencies are met and follow the s
   # Download the cuGraph repo
   git clone https://github.com/rapidsai/cugraph.git $CUGRAPH_HOME
 
-  # Next load all the submodules
   cd $CUGRAPH_HOME
-  git submodule update --init --recursive --remote
   ```
 
 2) Create the conda development environment
