@@ -2,7 +2,7 @@
 
 [![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of graph analytics that process data found in GPU Dataframes - see [cuDF](https://github.com/rapidsai/cudf).  cuGraph aims to provide a NetworkX-like API that will be familiar to data scientists, so they can now build GPU-accelerated workflows more easily.
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in GPU DataFrames - see [cuDF](https://github.com/rapidsai/cudf).  The vision of RAPIDS cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in cuDF and machine learning tasks in cuML.  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  For user familiar with NetworkX, cuGraph provides a NetworkX-like API.  The goal being to allow existing code to be ported with minimal effort into RAPIDS.  
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
