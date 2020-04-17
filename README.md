@@ -128,7 +128,8 @@ Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 <a name="source"></a>
 ### Build from Source and Contributing
 
-Please see our [guide for building and contributing to cuGraph](CONTRIBUTING.md).
+Please see our [guide for building cuGraph from source](SOURCEBUILD.md).
+Please see our [guide for contributing to cuGraph](CONTRIBUTING.md).
 
 
 
