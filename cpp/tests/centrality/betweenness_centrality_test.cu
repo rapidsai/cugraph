@@ -30,6 +30,10 @@
 #include <converters/COOtoCSR.cuh> // Loads GraphCSR from .mtx
 #include <fstream>
 
+#ifndef TEST_EPSILON
+ #define TEST_EPSILON 0.0001
+#endif
+
 
 // =============================================================================
 // C++ Reference Implementation
@@ -90,11 +94,36 @@ void ref_bfs(VT *indices, ET *offsets, VT const number_of_vertices,
   }
 }
 
+template<typename VT, typename ET, typename WT, typename result_t>
+void ref_accumulation(result_t *result,
+                      VT const number_of_vertices,
+                      std::stack<VT> &S,
+                      std::vector<std::vector<VT>> &pred,
+                      std::vector<result_t> &sigmas,
+                      std::vector<result_t> &deltas,
+                      VT source) {
+  for (VT v = 0; v < number_of_vertices; ++v) {
+    deltas[v] = 0;
+  }
+  while (!S.empty()) {
+    VT w = S.top();
+    S.pop();
+    for (VT v : pred[w]) {
+      deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
+    }
+    if (w != source) {
+      result[w] += deltas[w];
+    }
+  }
+}
+
 // Algorithm 1: Shortest-path vertex betweenness, (Brandes, 2001)
 template <typename VT, typename ET, typename WT, typename result_t>
 void reference_betweenness_centrality_impl(VT *indices, ET *offsets,
                                            VT const number_of_vertices,
-                                           result_t *result) {
+                                           result_t *result,
+                                           VT const *sources,
+                                           VT const number_of_sources) {
   std::queue<VT> Q;
   std::stack<VT> S;
   // NOTE: dist is of type VT not WT
@@ -105,46 +134,77 @@ void reference_betweenness_centrality_impl(VT *indices, ET *offsets,
 
   std::vector<VT> neighbors;
 
-  for (VT s = 0; s < number_of_vertices; ++s) { 
-    // Step 1: Single-source shortest-paths problem
-    //   a. Initialization
-    ref_bfs<VT, ET, WT, result_t>(indices, offsets, number_of_vertices,
-                                  Q, S,
-                                  dist, pred, sigmas, s);
-    //  Step 2: Accumulation
-    //          Back propagation of dependencies
-    for (VT v = 0; v < number_of_vertices; ++v) {
-      deltas[v] = 0;
+  if (sources) {
+    for (VT source_idx = 0; source_idx < number_of_sources; ++source_idx) {
+      VT s = sources[source_idx];
+      // Step 1: Single-source shortest-paths problem
+      //   a. Initialization
+      ref_bfs<VT, ET, WT, result_t>(indices, offsets, number_of_vertices,
+                                    Q, S,
+                                    dist, pred, sigmas, s);
+      //  Step 2: Accumulation
+      //          Back propagation of dependencies
+      ref_accumulation<VT, ET, WT, result_t>(result,
+                                             number_of_vertices,
+                                             S,
+                                             pred,
+                                             sigmas,
+                                             deltas,
+                                             s);
     }
-    while (!S.empty()) {
-      VT w = S.top();
-      S.pop();
-      for (VT v : pred[w]) {
-        deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
-      }
-      if (w != s) {
-        result[w] += deltas[w];
-      }
+  } else {
+    for (VT s = 0; s < number_of_vertices; ++s) {
+      // Step 1: Single-source shortest-paths problem
+      //   a. Initialization
+      ref_bfs<VT, ET, WT, result_t>(indices, offsets, number_of_vertices,
+                                    Q, S,
+                                    dist, pred, sigmas, s);
+      //  Step 2: Accumulation
+      //          Back propagation of dependencies
+      ref_accumulation<VT, ET, WT, result_t>(result,
+                                             number_of_vertices,
+                                             S,
+                                             pred,
+                                             sigmas,
+                                             deltas,
+                                             s);
     }
   }
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT> &graph,
-                                      result_t *result, bool normalize) {
+void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT> const &graph,
+                                      result_t *result,
+                                      bool normalize,
+                                      bool endpoints, // This is not yet implemented
+                                      VT const number_of_sources,
+                                      VT const *sources) {
 
   VT number_of_vertices = graph.number_of_vertices;
   ET number_of_edges = graph.number_of_edges;
-  std::vector<VT> indices(number_of_edges);
-  std::vector<ET> offsets(number_of_vertices + 1);
+  thrust::host_vector<VT> h_indices(number_of_edges);
+  thrust::host_vector<ET> h_offsets(number_of_vertices + 1);
 
-  cudaMemcpy(indices.data(), graph.indices,
-             sizeof(VT) * indices.size(), cudaMemcpyDeviceToHost);
-  cudaMemcpy(offsets.data(), graph.offsets,
-             sizeof(ET) * offsets.size(), cudaMemcpyDeviceToHost);
+  thrust::device_ptr<VT>  d_indices((VT *)&graph.indices[0]);
+  thrust::device_ptr<ET>  d_offsets((ET *)&graph.offsets[0]);
+
+  thrust::copy(d_indices, d_indices + number_of_edges, h_indices.begin());
+  thrust::copy(d_offsets, d_offsets + (number_of_vertices + 1), h_offsets.begin());
+
+
+  /*
+  cudaMemcpyAsync(&h_indices[0], &graph.indices[0],
+             sizeof(VT) * h_indices.size(), cudaMemcpyDeviceToHost, nullptr);
+  cudaMemcpyAsync(&h_offsets[0], &graph.offsets[0],
+             h_offsets.size() * sizeof(ET), cudaMemcpyDeviceToHost, nullptr);
+  CUDA_CHECK_LAST();
+  */
   cudaDeviceSynchronize();
-  reference_betweenness_centrality_impl<VT, ET, WT, result_t>(indices.data(), offsets.data(),
-                                        number_of_vertices, result);
+  reference_betweenness_centrality_impl<VT, ET, WT, result_t>(&h_indices[0],
+                                                              &h_offsets[0],
+                                                              number_of_vertices,
+                                                              result, sources,
+                                                              number_of_sources);
   if (normalize && number_of_vertices > 2) {
     result_t factor = static_cast<result_t>(number_of_vertices - 1) * static_cast<result_t>(number_of_vertices - 2);
     for (VT v = 0; v < number_of_vertices; ++v) {
@@ -153,8 +213,8 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT
   }
 }
 // Explicit declaration
-template void reference_betweenness_centrality<int, int, float, float>(cugraph::experimental::GraphCSR<int, int, float> &,
-                                                                  float *, bool);
+template void reference_betweenness_centrality<int, int, float, float>(cugraph::experimental::GraphCSR<int, int, float> const&,
+                                                                  float *, bool, bool, const int, int const *);
 // =============================================================================
 // Utility functions
 // =============================================================================
@@ -190,7 +250,7 @@ void extract_bc(std::vector<result_t> &result, std::string bc_file) {
 
 // TODO(xcadet): This could be useful in other testsuite (SSSP, BFS, ...)
 template<typename VT, typename ET, typename WT>
-void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz, std::string matrix_file) {
+void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz, bool &is_directed, std::string matrix_file) {
   FILE* fpin = fopen(matrix_file.c_str(),"r");
   ASSERT_NE(fpin, nullptr) << "fopen (" << matrix_file << ") failure.";
 
@@ -201,6 +261,7 @@ void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz,
   ASSERT_TRUE(mm_is_coordinate(mc));
   ASSERT_FALSE(mm_is_complex(mc));
   ASSERT_FALSE(mm_is_skew(mc));
+  is_directed = !mm_is_symmetric(mc);
 
   // Allocate memory on host
   std::vector<int> cooRowInd(nnz), cooColInd(nnz);
@@ -211,6 +272,7 @@ void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz,
   ASSERT_EQ(fclose(fpin),0);
 
   ConvertCOOtoCSR_weighted(&cooRowInd[0], &cooColInd[0], &cooVal[0], nnz, csr_result);
+  CUDA_CHECK_LAST();
 }
 
 // TODO(xcadet): This may actually operate an exact comparison when b == 0
@@ -226,30 +288,109 @@ bool compare_close(const T &a, const T&b, const double epsilon) {
 
 // Defines Betweenness Centrality UseCase
 // SSSP codes uses type of Graph parameter that could be used
-/*
+//TODO(xcadet) Use VT for srcs
 typedef struct BC_Usecase_t {
   std::string config_;
   std::string file_path_;
-  int *sourcer = nullptr; // t
-  SSSP_Usecase_t(const std::string& config,
-                 const int *sources)
-      : type_(type), config_(config), src_(src) {
+  int number_of_sources_;
+  BC_Usecase_t(const std::string& config, int number_of_sources)
+               : config_(config), number_of_sources_(number_of_sources) {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // FIXME: Use platform independent stuff from c++14/17 on compiler update
-    if (type_ == MTX) {
-      const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
-      if ((config_ != "") && (config_[0] != '/')) {
-        file_path_ = rapidsDatasetRootDir + "/" + config_;
-      } else {
-        file_path_ = config_;
-      }
+    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    if ((config_ != "") && (config_[0] != '/')) {
+      file_path_ = rapidsDatasetRootDir + "/" + config_;
+    } else {
+      file_path_ = config_;
     }
   };
 } BC_Usecase;
-*/
 
+/*
 struct BetweennessCentralityTest : public ::testing::Test
 {
+};
+*/
+class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
+  public:
+  Tests_BC() {}
+  static void SetupTestCase() {}
+  static void TearDownTestCase() {}
+
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+  // TODO(xcadet) Should normalize be part of the configuration?
+  template <typename VT, typename ET, typename WT, typename result_t,
+            bool normalize, bool endpoints>
+  void run_current_test(const BC_Usecase &configuration) {
+    // Step 1: Construction of the graph based on configuration
+    VT m;
+    ET nnz;
+    CSR_Result_Weighted<VT, WT> csr_result;
+    bool is_directed = false;
+    generate_graph_csr<VT, ET, WT>(csr_result, m, nnz, is_directed,
+                                   configuration.file_path_);
+    cudaDeviceSynchronize();
+    cugraph::experimental::GraphCSR<VT, ET, WT> G(csr_result.rowOffsets,
+                                                  csr_result.colIndices,
+                                                  csr_result.edgeWeights,
+                                                  m, nnz);
+    G.prop.directed = is_directed;
+
+    CUDA_CHECK_LAST();
+    std::vector<result_t> result(G.number_of_vertices, 0);
+    std::vector<result_t> expected(G. number_of_vertices, 0);
+
+    // Step 2: Generation of sources based on configuration
+    //         if number_of_sources_ is 0 then sources must be nullptr
+    //         Otherwise we only  use the first k values
+    ASSERT_TRUE(configuration.number_of_sources_ >= 0
+           && configuration.number_of_sources_ <= G.number_of_vertices)
+           << "Number number of sources should be >= 0 and"
+           << " less than the number of vertices in the graph";
+    std::vector<VT> sources(configuration.number_of_sources_);
+    std::iota(sources.begin(), sources.end(), 0);
+
+    VT *sources_ptr = nullptr;
+    if (configuration.number_of_sources_ > 0) {
+      sources_ptr = sources.data();
+    }
+
+    // TODO(xcadet) reference should also include normalize, endpooint, number_of_sources and sources
+    reference_betweenness_centrality(G, expected.data(),
+                                     normalize, endpoints,
+                                     //weights
+                                     configuration.number_of_sources_,
+                                     sources_ptr);
+
+    sources_ptr = nullptr;
+    if (configuration.number_of_sources_ > 0) {
+      sources_ptr = sources.data();
+    }
+
+    printf("[DBG] Number of vertices %d\n", G.number_of_vertices);
+    thrust::device_vector<result_t>  d_result(G.number_of_vertices);
+    cugraph::betweenness_centrality(G, d_result.data().get(),
+                                    normalize, endpoints,
+                                    static_cast<WT*>(nullptr),
+                                    configuration.number_of_sources_,
+                                    sources_ptr,
+                                    cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT);
+    cudaDeviceSynchronize();
+    std::cout << "[DBG][BC] CUGRAPH IS DONE COMPUTING" << std::endl;
+    cudaMemcpy(result.data(), d_result.data().get(),
+               sizeof(result_t) * G.number_of_vertices,
+               cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    for (int i = 0 ; i < G.number_of_vertices ; ++i)
+      EXPECT_NEAR(result[i], expected[i], TEST_EPSILON) <<
+                  "[MISMATCH] vaid = " << i << ", cugraph = " <<
+                  result[i] << " expected = " << expected[i];
+    std::cout << "[DBG][BC] Perfect math over " << G.number_of_vertices << std::endl;
+  }
+
+
+
 };
 
 struct BetweennessCentralityBFSTest : public ::testing::Test
@@ -340,81 +481,6 @@ TEST_F(BetweennessCentralityBFSTest, CheckReference) {
 // BC
 // -----------------------------------------------------------------------------
 /*
-TEST_F(BetweennessCentralityTest, CheckReference)
-{
-  // FIXME: This could be standardized for tests?
-  //        Could simplify usage of external storage
-  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "netscience.mtx");
-  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "karate.mtx");
-  std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "polbooks.mtx");
-  int m, nnz;
-  CSR_Result_Weighted<int, float> csr_result;
-  generate_graph_csr<int, int, float>(csr_result, m, nnz, matrix_file);
-  cugraph::experimental::GraphCSR<int, int, float> G(csr_result.rowOffsets,
-                                                     csr_result.colIndices,
-                                                     csr_result.edgeWeights,
-                                                     m, nnz);
-
-  std::vector<float>            result(G.number_of_vertices);
-  std::vector<float> expected;
-
-  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_netscience.txt"));
-  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_karate.txt"));
-  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_dolphins.txt"));
-  extract_bc<int, float>(expected, std::string("../../nxcheck/nx_polbooks_unormalized.txt"));
-
-  //cugraph::betweenness_centrality(G, d_result.data().get());
-  //cudaMemcpy(result.data(), d_result.data().get(), sizeof(float) * num_verts, cudaMemcpyDeviceToHost);
-
-  std::vector<float> ref_result(G.number_of_vertices);
-  reference_betweenness_centrality(G, ref_result.data(), false);
-  for (int i = 0 ; i < G.number_of_vertices ; ++i)
-    EXPECT_TRUE(compare_close(ref_result[i], expected[i], 0.0001)) <<
-                "[MISMATCH] vaid = " << i << ", c++ implem = " <<
-                ref_result[i] << " expected = " << expected[i];
-}
-*/
-
-TEST_F(BetweennessCentralityTest, EmailCoreEu)
-{
-  // FIXME: This could be standardized for tests?
-  //        Could simplify usage of external storage
-  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "netscience.mtx");
-  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "karate.mtx");
-  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "polbooks.mtx");
-  std::string matrix_file("../../datasets/email-Eu-core-gen.mtx");
-  int m, nnz;
-  CSR_Result_Weighted<int, float> csr_result;
-  generate_graph_csr<int, int, float>(csr_result, m, nnz, matrix_file);
-  cugraph::experimental::GraphCSR<int, int, float> G(csr_result.rowOffsets,
-                                                     csr_result.colIndices,
-                                                     csr_result.edgeWeights,
-                                                     m, nnz);
-  G.prop.directed = true;
-
-  std::vector<float> result(G.number_of_vertices);
-  std::vector<float> expected(G. number_of_vertices);
-
-  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_netscience.txt"));
-  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_karate.txt"));
-  //extract_bc<int, float>(expected, std::string("../../nxcheck/nx_dolphins.txt"));
-  reference_betweenness_centrality(G, expected.data(), false);
-
-  //cugraph::betweenness_centrality(G, d_result.data().get());
-  //cudaMemcpy(result.data(), d_result.data().get(), sizeof(float) * num_verts, cudaMemcpyDeviceToHost);
-
-  thrust::device_vector<float>  d_result(G.number_of_vertices);
-  cudaProfilerStart();
-  cugraph::betweenness_centrality(G, d_result.data().get(), false);
-  cudaProfilerStop();
-  cudaMemcpy(result.data(), d_result.data().get(), sizeof(float) * G.number_of_vertices, cudaMemcpyDeviceToHost);
-  for (int i = 0 ; i < G.number_of_vertices ; ++i)
-    EXPECT_TRUE(compare_close(result[i], expected[i], 0.0001)) <<
-                "[MISMATCH] vaid = " << i << ", c++ implem = " <<
-                result[i] << " expected = " << expected[i];
-  std::cout << "Perfect match over " << G.number_of_vertices << " values" << std::endl;
-}
-
 TEST_F(BetweennessCentralityTest, SimpleGraph)
 {
   std::vector<int>  graph_offsets{ { 0, 1, 2, 5, 7, 10, 12, 14 } };
@@ -450,23 +516,50 @@ TEST_F(BetweennessCentralityTest, SimpleGraph)
   for (int i = 0 ; i < num_verts ; ++i)
     EXPECT_FLOAT_EQ(ref_result[i], expected[i]);
 }
+*/
+// Verifiy Un-Normalized results
+TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS) {
+  run_current_test<int, int, float, float, false, false>(GetParam());
+}
 
-/*
+TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS) {
+  run_current_test<int, int, float, float, false, false>(GetParam());
+}
+
+// Verifiy Normalized results
+TEST_P(Tests_BC, CheckFP32_NORMALIZE_NO_ENPOINTS) {
+  run_current_test<int, int, float, float, true, false>(GetParam());
+}
+
+TEST_P(Tests_BC, CheckFP64_NORMALIZE_NO_ENPOINTS) {
+  run_current_test<int, int, float, float, true, false>(GetParam());
+}
+
+// FIXME: There is an InvalidValue on a Memcopy only on tests/datasets/dblp.mtx
 INSTANTIATE_TEST_CASE_P(
   simple_test,
-  Tests_SSSP,
+  Tests_BC,
   ::testing::Values(
-      SSSP_Usecase(MTX, "test/datasets/dblp.mtx", 100),
-      SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
-      SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));
-      */
+      BC_Usecase("test/datasets/karate.mtx", 0),
+      BC_Usecase("test/datasets/karate.mtx", 4),
+      BC_Usecase("test/datasets/karate.mtx", 10),
+      BC_Usecase("test/datasets/polbooks.mtx", 0),
+      BC_Usecase("test/datasets/polbooks.mtx", 4),
+      BC_Usecase("test/datasets/polbooks.mtx", 10),
+      BC_Usecase("test/datasets/netscience.mtx", 0),
+      BC_Usecase("test/datasets/netscience.mtx", 4),
+      BC_Usecase("test/datasets/netscience.mtx", 100),
+      BC_Usecase("test/datasets/wiki2003.mtx", 100),
+      BC_Usecase("test/datasets/wiki2003.mtx", 1000)
+    )
+);
 
 
 int main( int argc, char** argv )
 {
-    rmmInitialize(nullptr);
-    testing::InitGoogleTest(&argc,argv);
-    int rc = RUN_ALL_TESTS();
-    rmmFinalize();
-    return rc;
+  rmmInitialize(nullptr);
+  testing::InitGoogleTest(&argc,argv);
+  int rc = RUN_ALL_TESTS();
+  rmmFinalize();
+  return rc;
 }

@@ -31,7 +31,7 @@ import numpy as np
 import numpy.ctypeslib as ctypeslib
 
 
-def betweenness_centrality(input_graph, normalized, endpoints, implementation, weight, k, vertices):
+def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertices, implementation):
     """
     Call betweenness centrality
     """
@@ -83,8 +83,9 @@ def betweenness_centrality(input_graph, normalized, endpoints, implementation, w
 
     c_betweenness_centrality[int,int,float,float](graph, <float*> c_betweenness,
                                                   normalized, endpoints,
-                                                  <cugraph_bc_implem_t> bc_implementation,
-                                                  <float*> c_weight, c_k, <int*>c_vertices)
+                                                  <float*> c_weight, c_k,
+                                                  <int*>c_vertices,
+                                                  <cugraph_bc_implem_t> bc_implementation)
 
     graph.get_vertex_identifiers(<int*>c_identifier)
 

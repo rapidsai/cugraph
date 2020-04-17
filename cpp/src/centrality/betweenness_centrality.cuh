@@ -25,19 +25,19 @@ class BC {
       // --- Information concerning the graph ---
       const experimental::GraphCSR<VT, ET, WT> &graph;
       // --- These information are extracted on setup ---
-      VT number_vertices;        // Number of vertices in the graph
-      VT number_edges;           // Number of edges in the graph
-      ET const* offsets_ptr;     // Pointer of the offsets
-      VT const* indices_ptr;     // Pointers to the indices
+      VT number_of_vertices;  // Number of vertices in the graph
+      VT number_of_edges;     // Number of edges in the graph
+      ET const *offsets_ptr;  // Pointer to the offsets
+      VT const *indices_ptr;  // Pointers to the indices
 
       // TODO: For weighted version
       //WT *edge_weights_ptr;    // Pointer to the weights
 
       // --- Information from configuration --- //
-      bool configured = false;   // Flag to ensure configuration was called
-      bool apply_normalization;  // If True normalize the betweenness
-      VT const *sample_seeds;    //
-      VT number_of_sample_seeds; //
+      bool configured = false;      // Flag to ensure configuration was called
+      bool apply_normalization;     // If True normalize the betweenness
+      VT const *sources = nullptr;  // Subset of vertices to gather information from
+      VT number_of_sources;         // Number of vertices in sources
 
       // --- Output ----
       // betweenness is set/read by users - using Vectors
@@ -46,16 +46,18 @@ class BC {
       // --- Data required to perform computation ----
       VT *distances = nullptr;      // array<VT>(|V|) stores the distances gathered by the latest SSSP
       VT *predecessors = nullptr;   // array<WT>(|V|) stores the predecessors of the latest SSSP
-      VT *nodes = nullptr;          // array<WT>(|V|) stores the nodes based on their distances in the latest SSSP
       VT *sp_counters = nullptr;    // array<VT>(|V|) stores the shortest path counter for the latest SSSP
       result_t *deltas = nullptr;   // array<result_t>(|V|) stores the dependencies for the latest SSSP
 
       cudaStream_t stream;
+
+      // -----------------------------------------------------------------------
       void setup();
       void clean();
 
       void accumulate(result_t *betweenness, VT *distances,
                       VT *sp_counters, result_t *deltas, VT source, VT max_depth);
+      void compute_single_source(VT source_vertex);
       void normalize();
       void check_input();
 
@@ -63,8 +65,8 @@ class BC {
       virtual ~BC(void) { clean(); }
       BC(experimental::GraphCSR<VT, ET, WT> const &_graph, cudaStream_t _stream = 0) :graph(_graph), stream(_stream) { setup(); }
       void configure(result_t *betweenness, bool normalize,
-                     VT const *sample_seeds,
-                     VT const number_of_sample_seeds);
+                     VT const *sources,
+                     VT const number_of_sources);
       void compute();
 };
 } // namespace cugraph::detail

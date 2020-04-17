@@ -93,7 +93,7 @@ def betweenness_centrality(G, k=None, normalized=True,
 
     df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
                                                                endpoints,
-                                                               implementation,
                                                                weight,
-                                                               k, vertices)
+                                                               k, vertices,
+                                                               implementation)
     return df

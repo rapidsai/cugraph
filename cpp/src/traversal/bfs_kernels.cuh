@@ -19,7 +19,7 @@
 #include <utilities/sm_utils.h>
 #include "traversal_common.cuh"
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
 namespace bfs_kernels {
   //

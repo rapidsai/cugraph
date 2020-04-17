@@ -197,10 +197,10 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
                             result_t *result,
                             bool normalized = true,
                             bool endpoints = false,
-                            cugraph_bc_implem_t implem = cugraph_bc_implem_t::CUGRAPH_DEFAULT, // TODO(xcadet) That could be somewhere else (After result, or last parameter)
                             WT const *weight = nullptr,
                             VT k = 0,
-                            VT const *vertices = nullptr);
+                            VT const *vertices = nullptr,
+                            cugraph_bc_implem_t implem = cugraph_bc_implem_t::CUGRAPH_DEFAULT);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,       ///> Weakly Connected Components

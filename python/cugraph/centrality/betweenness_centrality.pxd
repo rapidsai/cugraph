@@ -31,8 +31,8 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         result_t *result,
         bool normalized,
         bool endpoints,
-        cugraph_bc_implem_t implem,
         const WT *weight,
         VT k,
-        const VT *vertices) except +
+        const VT *vertices,
+        cugraph_bc_implem_t implem) except +
 
