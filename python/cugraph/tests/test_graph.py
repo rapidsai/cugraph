@@ -812,7 +812,7 @@ def test_bipartite_api(managed, pool, graph_file):
     nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
 
     # Create set of nodes for partition
-    set1_exp = cudf.Series(nodes[0:len(nodes)/2])
+    set1_exp = cudf.Series(nodes[0:int(len(nodes)/2)])
     set2_exp = cudf.Series(set(nodes) - set(set1_exp))
 
     G = cugraph.Graph()
@@ -830,9 +830,9 @@ def test_bipartite_api(managed, pool, graph_file):
     set1, set2 = G.sets()
 
     # assert if the input set1_exp is same as returned bipartite set1
-    assert set1 == set1_exp
+    assert set1.equals(set1_exp)
     # assert if set2 is the remaining set of nodes not in set1_exp
-    assert set2 == set2_exp
+    assert set2.equals(set2_exp)
 
 
 '''@pytest.mark.parametrize('managed, pool',
