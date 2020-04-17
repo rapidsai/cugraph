@@ -1,53 +1,58 @@
 # Contributing to cuGraph
-cuGraph, and all of RAPIDS in general, is an open-source project where we encourage community involvement.  There are multiple ways to be involved and contribute to the cuGraph community, the top three paths are listed below:
+cuGraph, and all of RAPIDS in general, is an open-source project where we encourage community involvement.  There are multiple ways to be involved and contribute to the cuGraph community, the top paths are listed below:
 
-#### 1) Filing in Issue for the RAPIDS cuGraph team to work
+* [File an Issue](#issue)
+* [Implement a New Feature](#implement)
+* [Wok on an Existing Issue](#bugfix)
 
-***Bug Report***
+
+[Contribute Code](#code)
+
+
+
+<a name="issue"></a>
+## 1) File an Issue for the RAPIDS cuGraph team to work
+To file an issue, go to the RAPIDS cuGraph [issue](https://github.com/rapidsai/cugraph/issues/new/choose) page an select the appropiate issue type.  Once an issue is filed the RAPIDS cuGraph team will evaluate and triage the issue.  If you believe the issue needs priority attention, please include that in the issue to notify the team.
+
+***Bug Report***</pr>
 If you notice something not working please file an issue
-
--	File an [issue](https://github.com/rapidsai/cugraph/issues/new/choose)
 -	Select **Bug** Report
--	describing what you encountered and the severity of the issue:  Does code crash or just not return the correct results
+-	Describing what you encountered and the severity of the issue:  Does code crash or just not return the correct results
 -	Include a sequence of step to reproduce the error
--	The RAPIDS team will evaluate and triage the issue
--	If you believe the issue needs priority attention, please include that in 
-    the issue to notify the team.
 
 ***Propose a new Feature or Enhancement***
 If there is a feature or enhancement to an existing feature, please file an issue
 
--	File an [issue](https://github.com/rapidsai/cugraph/issues/new/choose)
 -	Select either **Enhancement Request** or **Feature Report**
 -	describing what you want to see added or changed.  For new features, if there is a white paper on the analytic, please include a reference to it
--	The RAPIDS team will evaluate and triage the issue, and then schedule it in a future release.
--	If you believe the issue needs priority attention, please include that in 
-    the issue to notify the team.
 
 ***Ask a Question***
 There are several ways to ask questions, including [Stack Overflow]( https://stackoverflow.com/)  or the RAPIDS [Google forum]( https://groups.google.com/forum/#!forum/rapidsai), but an GitHub issue can be filled.  
 
--	File an [issue](https://github.com/rapidsai/cugraph/issues/new/choose)
 -	Select Question
 -	describing your question
--	The RAPIDS team will attempt to answer your question as quick as possible
 
 
-#### 2) Propose a New Feature and Implement It
+<a name="implement"></a>
+## 2) Propose a New Feature and Implement It
 
 We love when people want to get involved, and if you have a suggestion for a new feature or enhancement and want to be the one doing the development work, we fully encourage that.  
 
--  Submit a New Feature Issue (see above) and state that you are working on it.
+- Submit a New Feature Issue (see above) and state that you are working on it.
 - The team will give feedback on the issue and happy to make suggestions
-- Once we agree that the plan looks good, go ahead and implement it, using
-    the [code contributions](#code-contributions) guide below.
+- Once we agree that the plan looks good, go ahead and implement it
+- Follow the [code contributions](#code-contributions) guide below.
 
-
-#### 3) You want to implement a feature or bug-fix for an outstanding issue
+<a name="bugfix"></a>
+## 3) You want to implement a feature or bug-fix for an outstanding issue
+- Find an open Issue, and post that you would like to work that issues
+- Once we agree that the plan looks good, go ahead and implement it
 - Follow the [code contributions](#code-contributions) guide below.
 
 If you need more context on a particular issue, please ask.
 
+
+<a name="code"></a>
 
 # So You Want to Contribute Code
 
@@ -58,7 +63,9 @@ If you need more context on a particular issue, please ask.
 3. Comment on the issue saying you are going to work on it
 4. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
 5. When done, and code passes local CI, create your pull request (PR)
-6. Verify that CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
+   1. Update the CHANGELOG.md with PR number
+   2. Ensure that the PR has the proper [tags](PRTAGS.md)
+6. Verify that cuGraph CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
 7. Wait for other developers to review your code and update code as needed
 8. Once reviewed and approved, a RAPIDS developer will merge your pull request
 
