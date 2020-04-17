@@ -5,9 +5,7 @@ cuGraph, and all of RAPIDS in general, is an open-source project where we encour
 * [Implement a New Feature](#implement)
 * [Wok on an Existing Issue](#bugfix)
 
-
-[Contribute Code](#code)
-
+If you are ready to contribute, jump right to the [Contribute Code](#code) section.
 
 
 <a name="issue"></a>
@@ -56,13 +54,11 @@ If you need more context on a particular issue, please ask.
 
 # So You Want to Contribute Code
 
-### TL;DR General Development Process
-
+**TL;DR General Development Process**
 1. Read the documentation on [building from source](SOURCEBUILD.md) to learn how to setup, and validate, the development environment
-2. Find an issue, or submit an issue, to work on. 
-3. Comment on the issue saying you are going to work on it
-4. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
-5. When done, and code passes local CI, create your pull request (PR)
+2. Find or submit an issue to work on. (include a comment that you are workign issue)
+3. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
+4. When done, and code passes local CI, create your pull request (PR)
    1. Update the CHANGELOG.md with PR number
    2. Ensure that the PR has the proper [tags](PRTAGS.md)
 6. Verify that cuGraph CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
@@ -74,13 +70,31 @@ and ask for clarifications!
 
 
 
-### Fork a private copy of cuGraph that can we modified
+## Fork a private copy of cuGraph 
 <a name="fork"></a>
 
 The RAPIDS cuGraph repo cannot directly be modified.  Contributions must come in the form of a *Pull Request* from a folked version of cugraph.    GitHub as a nice write up ion the process:  https://help.github.com/en/github/getting-started-with-github/fork-a-repo
 
+1. Fork the cugraph repo to your GitHub account
+2. clone your version 
+```git clone https://github.com/<YOUR GITHUB NAME>/cugraph.git```
+
+
 Read the section on [building cuGraph from source](SOURCEBUILD.md) to validate that the environment is correct.  
 
+**Pro Tip** add an upstream remote repository so that you can keep your forked repo in sync
+```git remote add upstream https://github.com/rapidsai/cugraph.git```
+
+3. Checkout the latest branch
+cuGraph only allows contribution to the current branch and not master or a future branch.  PLease check the [cuGraph](https://github.com/rapidsai/cugraph) page for the name of the current branch.  
+```git checkout branch-x.x```
+
+4. Code .....
+5. Once your code works and passes tests
+   1. commit your code
+    ```git push```
+6. From the GitHub web page, open a Pull Request
+   1. follow the Pull Request [tagging policy](PRTAGS.md) 
 
 ### Development Environment
 
@@ -126,6 +140,13 @@ contributing to. Start with _Step 3_ from above, commenting on the issue to let
 others know you are working on it. If you have any questions related to the
 implementation of the issue, ask them in the issue instead of the PR.
 
+
+### Style Guild
+All Python code most pass flake8 style checking
+All C++ code must pass clank style checking
+
+### Tests
+All code must have assocsiate test cases.  Code without test will not be accepted
 
 
 
