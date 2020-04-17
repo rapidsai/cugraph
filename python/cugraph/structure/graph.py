@@ -104,7 +104,15 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
 
-    def add_nodes_from(self, nodes, bipartite = 'nodes'):
+    def add_nodes_from(self, nodes, bipartite='nodes'):
+        """
+        Add nodes information to the Graph.
+        If bipartite argument is passed by the user, the graph is considered
+        bipartite and the entered nodes are saved as the set of nodes in one
+        partition.
+        If bipartite argument is not passed, the nodes are saved as information
+        and Graph is not considered to be bipartite.
+        """
         set_names = [i for i in self._nodes.keys() if i != 'nodes']
         if len(set_names) < 2:
             if bipartite != 'nodes':
@@ -114,11 +122,23 @@ class Graph:
             raise ValueError("Already contains two sets of nodes")
 
     def is_bipartite(self):
-        ## TO DO: Call coloring algorithm
+        """
+        Checks if Graph is bipartite. This solely relies on the user call of
+        add_nodes_from with the bipartite parameter. This does not parse the
+        graph to check if it is bipartite.
+        """
+        # TO DO: Call coloring algorithm
         return self.bipartite
 
     def sets(self):
-        ## TO DO: Call coloring algorithm
+        """
+        Returns the bipartite set of nodes. This solely relies on the user's
+        call of add_nodes_from with the bipartite parameter. This does not
+        parse the graph to compute bipartite sets. If bipartite argument was
+        not provided during add_nodes_from(), it raise an exception that the
+        graph is not bipartite.
+        """
+        # TO DO: Call coloring algorithm
         if not self.is_bipartite():
             raise Exception("Graph is not bipartite")
         set_names = [i for i in self._nodes.keys() if i != 'nodes']
