@@ -19,34 +19,6 @@
 namespace cugraph {
 namespace experimental {
 
-template <typename T>
-class cugraph_vector {
-  rmm::device_buffer data_;
-  size_t sz_;
-
-  public:
-  cugraph_vector& operator=(cugraph_vector const& other) = delete;
-  cugraph_vector& operator=(cugraph_vector&& other) = delete;
-
-  cugraph_vector(size_t sz) : data_(sz*sizeof(T)), sz_(sz) {}
-
-  template <typename B = rmm::device_buffer>
-  cugraph_vector(B&& data) :
-    data_(std::forward<B>(data)),
-    sz_(data_.size()/sizeof(T)) {}
-
-  template <typename B = rmm::device_buffer>
-  cugraph_vector(cugraph_vector&& other) :
-    data_(std::forward<B>(other.data_)),
-    sz_(other.data_.size()/sizeof(T)) {}
-
-  T* data(void) { return static_cast<T*>(data_.data()); }
-
-  const T* data(void) const { return static_cast<const T*>(data_.data()); }
-
-  size_t size(void) { return sz_; }
-};
-
 enum class PropType{PROP_UNDEF, PROP_FALSE, PROP_TRUE};
 
 struct GraphProperties {
