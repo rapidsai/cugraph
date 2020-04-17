@@ -627,8 +627,8 @@ void apply_forces_bh(float *restrict x_pos, float *restrict y_pos,
         Y_y[i] += dy * factor;
         x_pos[i] = Y_x[i];
         y_pos[i] = Y_y[i];
-        old_dx[i] = dx * factor; 
-        old_dy[i] = dy * factor;
+        old_dx[i] = dx; 
+        old_dy[i] = dy;
     }
 }
   

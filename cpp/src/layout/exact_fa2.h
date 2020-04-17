@@ -75,6 +75,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         copy(n, x_start, pos);
         copy(n, y_start, pos + n);
     }
+
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
     weight_t* weights{nullptr};

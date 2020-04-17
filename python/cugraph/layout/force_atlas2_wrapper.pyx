@@ -19,6 +19,7 @@
 from cugraph.layout.force_atlas2 cimport force_atlas2 as c_force_atlas2
 from cugraph.structure import graph_wrapper
 from cugraph.structure.graph_new cimport *
+from cugraph.structure import utils_wrapper
 from cugraph.utilities.column_utils cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
@@ -60,12 +61,12 @@ def force_atlas2(input_graph,
     num_verts = input_graph.number_of_vertices()
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
 
+    print(input_graph.edgelist.edgelist_df)
     cdef GraphCOO[int,int,float] graph_float
     cdef GraphCOO[int,int,double] graph_double
 
     df = cudf.DataFrame()
-    #df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
-
+    df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
     cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t> NULL
@@ -78,7 +79,7 @@ def force_atlas2(input_graph,
     cdef uintptr_t pos_ptr = <uintptr_t>NULL 
 
     if pos_list is not None:
-        #df['vertex'] = pos_list['vertex']
+        df['vertex'] = pos_list['vertex']
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
@@ -156,9 +157,9 @@ def force_atlas2(input_graph,
         pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
-
-    #if input_graph.renumbered:
-    #    df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        
+    if input_graph.renumbered and pos_list is None:
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df
 
