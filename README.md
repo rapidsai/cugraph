@@ -35,38 +35,38 @@ for i in range(len(gdf_page)):
 
 ## Supported Algorithms
 
-| Category     | Algorithm                              | Sacle        |  Description                                                  |
-| ------------ | -------------------------------------- | ------------ | ------------------------------------------------------------- |
-| Centrality                                                                                                                        ||||
-|              | Katz                                   | Single-GPU   | Compute the Katz centrality for every vertex                  |
-|              | Betweenness Centrality                 | Single-GPU   | Compute the Betweenness Centrality of every vertex            |
-| Community    |                                        |              |                                                               |
-|              | Louvain                                | Single-GPU   | Identify clusters in a graph using the Louvain algorithm      |
-|              | Ensemble Clustering for Graphs         | Single-GPU   | An Ensemble variation of Louvain                              |
-|              | Spectral-Clustering - Balanced Cut     | Single-GPU   | Identify clusters using Spectral Clustering Balanced Cut      |
-|              | Spectral-Clustering                    | Single-GPU   | Identify clusters using Spectral Clustering Modularity Modularity |
-|              | Subgraph Extraction                    | Single-GPU   | Induce a subgraph that includes only the specified vertices   |
-|              | Triangle Counting                      | Single-GPU   | Count the number of Triangle in a graph                       |
-| Components   |                                        |              |                                                               |
-|              | Weakly Connected Components            | Single-GPU   | Find weakly connected components in a graph                   |
-|              | Strongly Connected Components          | Single-GPU   | Find strongly connected components in a graph                 |
-| Core         |                                        |              |                                                               |
-|              | K-Core                                 | Single-GPU   | Identify the K-Core clusters in a graph                       |
-|              | Core Number                            | Single-GPU   | Compute the max K core number                                 |
-|              | K-Truss                                | Single-GPU   | Identify clusters in a graph using the K-Truss algorithm      |
-| Link Analysis|                                        |              |                                                               |
-|              | Pagerank                               | Single-GPU   | Compute the PageRank score of every vertex in a graph         |
-|              | Personal Pagerank                      | Single-GPU   | Compute the Personal PageRank of every vertex in a graph      |
-| Link Prediction |                                     |              |                                                               |
-|              | Jacard Similarity                      | Single-GPU   | Compute vertex similarity score using Jaccard Similarity      |
-|              | Weighted Jacard Similarity             | Single-GPU   | Compute vertex similarity score using Weighted Jaccard Similarity |
-|              | Overlap Similarity                     | Single-GPU   | Compute vertex similarity score using the Overlap Coefficient |
-| Traversal    |                                        |              |                                                               |
-|              | Breadth First Search (BFS)             | Single-GPU   | Compute the BFS path from a starting vertex to every other vertex in a graph |
-|              | Single Source Shortest Path (SSSP)     | Single-GPU   | Compute the shortest path from a starting vertex to every other vertex |
-| Structure    |                                        |              |                                                               |
-|              | Renumbering                            | Single-GPU   | Renumber the vertex IDs, a vertex can be one or more columns  |
-|              | Symmetrize                             | Single-GPU   | Symmetrize the edges in a graph                               |
+| Category     | Algorithm                              | Sacle        |  Notes
+| ------------ | -------------------------------------- | ------------ | ------------------- |
+| Centrality   |                                        |              |                     |
+|              | Katz                                   | Single-GPU   |                     |
+|              | Betweenness Centrality                 | Single-GPU   |                     |
+| Community    |                                        |              |                     |
+|              | Louvain                                | Single-GPU   |                     |
+|              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
+|              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |
+|              | Spectral-Clustering                    | Single-GPU   |                     |
+|              | Subgraph Extraction                    | Single-GPU   |                     |
+|              | Triangle Counting                      | Single-GPU   |                     |
+| Components   |                                        |              |                     |
+|              | Weakly Connected Components            | Single-GPU   |                     |
+|              | Strongly Connected Components          | Single-GPU   |                     |
+| Core         |                                        |              |                     |
+|              | K-Core                                 | Single-GPU   |                     |
+|              | Core Number                            | Single-GPU   |                     |
+|              | K-Truss                                | Single-GPU   |                     |
+| Link Analysis|                                        |              |                     |
+|              | Pagerank                               | Single-GPU   |  Multi-GPU on DGX avaible  |
+|              | Personal Pagerank                      | Single-GPU   |                     |
+| Link Prediction |                                     |              |                     |
+|              | Jacard Similarity                      | Single-GPU   |                     |
+|              | Weighted Jacard Similarity             | Single-GPU   |                     |
+|              | Overlap Similarity                     | Single-GPU   |                     |
+| Traversal    |                                        |              |                     |
+|              | Breadth First Search (BFS)             | Single-GPU   |                     |
+|              | Single Source Shortest Path (SSSP)     | Single-GPU   |                     |
+| Structure    |                                        |              |                     |
+|              | Renumbering                            | Single-GPU   | Also for multiple columns  |
+|              | Symmetrize                             | Single-GPU   |                     |
 
 ## Supported Graph
 | Type            |  Description                                        |
