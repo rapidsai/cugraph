@@ -39,6 +39,8 @@ repulsion_kernel(const float *restrict x_pos, const float *restrict y_pos,
             float distance = x_dist * x_dist + y_dist * y_dist;
             distance += FLT_EPSILON;
             float factor = scaling_ratio * mass[i] * mass[j] / distance;
+//            printf("tid: %i, (%f, %f), (%f, %f), mass1: %i, mass2: %i\n",
+//                    j, x_pos[i], y_pos[i], x_pos[j], y_pos[j], mass[i], mass[j]);
             // Add forces
             atomicAdd(&repel_x[i], x_dist * factor);
             atomicAdd(&repel_x[j], -x_dist * factor);

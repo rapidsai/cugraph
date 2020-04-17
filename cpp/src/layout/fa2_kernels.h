@@ -83,8 +83,9 @@ attraction_kernel(const vertex_t *restrict row, const vertex_t *restrict col,
         if (dst <= src)
             return;
 
-        if (v)
+        if (v) {
             weight = v[i];
+        }
         weight = pow(weight, edge_weight_influence);
 
         float x_dist = x_pos[src] - x_pos[dst];
@@ -285,12 +286,14 @@ update_positions_kernel(float *restrict x_pos, float *restrict y_pos,
     for (int i = threadIdx.x + blockIdx.x * blockDim.x;
             i < n;
             i += gridDim.x * blockDim.x) {
-        old_dx[i] = (repel_x[i] + attract_x[i]); 
-        old_dy[i] = (repel_y[i] + attract_y[i]); 
+        const float factor = speed / (1.0 + sqrt(speed * swinging[i]));
+        const float dx = (repel_x[i] + attract_x[i]);
+        const float dy = (repel_y[i] + attract_y[i]);
 
-        float factor = speed / (1.0 + sqrt(speed * swinging[i]));
-        x_pos[i] += (repel_x[i] + attract_x[i]) * factor;
-        y_pos[i] += (repel_y[i] + attract_y[i]) * factor;
+        x_pos[i] += dx * factor;
+        y_pos[i] += dy * factor;  
+        old_dx[i] = dx; 
+        old_dy[i] = dy; 
     }
 }
 

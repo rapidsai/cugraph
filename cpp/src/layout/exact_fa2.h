@@ -68,7 +68,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
     d_swinging = swinging.data().get();
     d_traction = traction.data().get();
 
-    int random_state = 0;
+    int random_state = -1;
     random_vector(pos, n * 2, random_state);
 
     if (x_start && y_start) {

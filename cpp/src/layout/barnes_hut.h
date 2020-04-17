@@ -81,7 +81,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
     rmm::device_vector<int>d_startl(nnodes + 1, 0);
     rmm::device_vector<int>d_childl((nnodes + 1) * 4, 0);
-    rmm::device_vector<int>d_massl(nnodes + 1, 1);
+    rmm::device_vector<float>d_massl(nnodes + 1, 1);
 
     rmm::device_vector<float>d_maxxl(blocks * FACTOR1, 0);
     rmm::device_vector<float>d_maxyl(blocks * FACTOR1, 0);
@@ -92,7 +92,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     // Actual mallocs
     int *startl = d_startl.data().get();
     int *childl = d_childl.data().get();
-    int *massl = d_massl.data().get();
+    float *massl = d_massl.data().get();
 
     float *maxxl = d_maxxl.data().get();
     float *maxyl = d_maxyl.data().get();
@@ -117,7 +117,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     rmm::device_vector<float>d_YY((nnodes + 1) * 2, 0);
     float *YY = d_YY.data().get();
 
-    int random_state = 0;
+    int random_state = -1;
     random_vector(YY, (nnodes + 1) * 2, random_state);
 
     if (x_start && y_start) {
@@ -150,6 +150,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     sort_coo<vertex_t, edge_t, weight_t>(row,
                         col, v, &srcs, &dests, &weights, e);
     init_mass<vertex_t, edge_t, int>(dests, d_mass, e, n);
+    init_mass<vertex_t, edge_t, float>(dests, massl, e, n);
 
     float speed = 1.f;
     float speed_efficiency = 1.f;

@@ -70,7 +70,7 @@ __global__ void Reset_Normalization(float *restrict radiusd_squared,
  * Figures the bounding boxes for every point in the embedding.
  */
 __global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(
-  int *restrict startd, int *restrict childd, int *restrict massd,
+  int *restrict startd, int *restrict childd, float *restrict massd,
   float *restrict posxd, float *restrict posyd, float *restrict maxxd,
   float *restrict maxyd, float *restrict minxd, float *restrict minyd,
   const int FOUR_NNODES, const int NNODES, const int N,
@@ -287,7 +287,7 @@ __global__ __launch_bounds__(
  */
 __global__ __launch_bounds__(1024,
                              1) void ClearKernel2(int *restrict startd,
-                                                  int *restrict massd,
+                                                  float *restrict massd,
                                                   const int NNODES,
                                                   const int *restrict bottomd) {
   const int bottom = bottomd[0];
@@ -308,7 +308,7 @@ __global__ __launch_bounds__(1024,
  */
 __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
   int *restrict countd, const int *restrict childd,
-  volatile int *restrict massd, float *restrict posxd, float *restrict posyd,
+  volatile float *restrict massd, float *restrict posxd, float *restrict posyd,
   const int NNODES, const int N, const int *restrict bottomd) {
   bool flag = 0;
   float cm, px, py;
@@ -493,7 +493,7 @@ __global__ __launch_bounds__(
                                   epssqd,  // correction for zero distance
                                 const int *restrict sortd,
                                 const int *restrict childd,
-                                const int *restrict massd,
+                                const float *restrict massd,
                                 const int *restrict d_mass,
                                 const float *restrict posxd,
                                 const float *restrict posyd,
@@ -621,14 +621,14 @@ void apply_forces_bh(float *restrict x_pos, float *restrict y_pos,
             i += gridDim.x * blockDim.x) {
         const float dx = (repel_x[i] + attract_x[i]); 
         const float dy = (repel_y[i] + attract_y[i]); 
-        old_dx[i] = dx; 
-        old_dy[i] = dy;
 
         float factor = speed / (1.0 + sqrt(speed * swinging[i]));
         Y_x[i] += dx * factor;
         Y_y[i] += dy * factor;
         x_pos[i] = Y_x[i];
         y_pos[i] = Y_y[i];
+        old_dx[i] = dx * factor; 
+        old_dy[i] = dy * factor;
     }
 }
   
