@@ -94,8 +94,8 @@ cuGraph is constantly being updatred and improved. Please see the [Transition Gu
 ### Intro
 There are 3 ways to get cuGraph :
 1. [Quick start with Docker Demo Repo](#quick)
-1. [Conda Installation](#conda)
-1. [Build from Source](#source)
+2. [Conda Installation](#conda)
+3. [Build from Source](#source)
 
 
 <a name="quick"></a>
@@ -128,7 +128,7 @@ Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
 <a name="source"></a>
 ### Build from Source and Contributing
 
-Please see our [guide for building cuGraph from source](SOURCEBUILD.md).
+Please see our [guide for building cuGraph from source](SOURCEBUILD.md)</pr>
 Please see our [guide for contributing to cuGraph](CONTRIBUTING.md).
 
 
