@@ -16,9 +16,9 @@ DartConfiguration.tcl
 ## Python build directories & artifacts
 htmlcov
 dist/
-cudf.egg-info/
+cugraph.egg-info/
 python/build
-python/cudf/bindings/*.cpp
+python/cugraph/bindings/*.cpp
 	
 ## Patching
 *.diff
@@ -37,3 +37,6 @@ build/
 
 datasets/*
 .pydevproject
+
+# Jupyter Notebooks
+.ipynb_checkpoints
