@@ -23,7 +23,7 @@
 - PR #795 Fix some documentation
 - PR #800 Fix bfs error in optimization path
 - PR #825 Fix outdated CONTRIBUTING.md
- 
+- PR #827 Fix indexing CI errors due to cudf updates 
 
 # cuGraph 0.13.0 (Date TBD)
 

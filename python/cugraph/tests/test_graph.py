@@ -698,7 +698,8 @@ def test_to_directed(managed, pool, graph_file):
 
     edgelist_df = G.edgelist.edgelist_df
     for i in range(len(edgelist_df)):
-        assert DiGnx.has_edge(edgelist_df.iloc[i][0], edgelist_df.iloc[i][1])
+        assert DiGnx.has_edge(edgelist_df.iloc[i]['src'],
+                              edgelist_df.iloc[i]['dst'])
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -737,7 +738,8 @@ def test_to_undirected(managed, pool, graph_file):
     edgelist_df = G.edgelist.edgelist_df
 
     for i in range(len(edgelist_df)):
-        assert Gnx.has_edge(edgelist_df.iloc[i][0], edgelist_df.iloc[i][1])
+        assert Gnx.has_edge(edgelist_df.iloc[i]['src'],
+                            edgelist_df.iloc[i]['dst'])
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation

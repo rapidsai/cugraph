@@ -179,6 +179,7 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
     pairs = G.get_two_hop_neighbors()
+    print(pairs)
     nx_pairs = []
     for i in range(len(pairs)):
         nx_pairs.append((pairs['first'].iloc[i], pairs['second'].iloc[i]))
@@ -190,7 +191,7 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     df = df.sort_values(by=['source', 'destination'])
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
-        diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
+        diff = abs(nx_coeff[i] - df['jaccard_coeff'].iloc[i])
         assert diff < 1.0e-6
 
 
@@ -228,5 +229,6 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     df = df.sort_values(by=['source', 'destination'])
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
-        diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
+        diff = abs(nx_coeff[i] - df['jaccard_coeff'].iloc[i])
         assert diff < 1.0e-6
+
