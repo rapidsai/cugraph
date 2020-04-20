@@ -231,4 +231,3 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'].iloc[i])
         assert diff < 1.0e-6
-
