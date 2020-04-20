@@ -22,6 +22,9 @@
 #include <utilities/error_utils.h>
 #include <utilities/cuda_utils.cuh>
 
+// FIXME: Update with new graph return object
+#include <rmm_utils.h>
+
 namespace {
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>
@@ -31,12 +34,13 @@ namespace {
                                     cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t> &result,
                                     cudaStream_t stream) {
 
+    edge_t    graph_num_verts = graph.number_of_vertices;
+
     rmm::device_vector<int64_t> error_count_v{1, 0};
-    rmm::device_vector<vertex_t> vertex_used_v{num_vertices, num_vertices};
+    rmm::device_vector<vertex_t> vertex_used_v{graph_num_verts, num_vertices};
 
     vertex_t *d_vertex_used = vertex_used_v.data().get();
     int64_t  *d_error_count = error_count_v.data().get();
-    edge_t    graph_num_verts = graph.number_of_vertices;
 
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
                      thrust::make_counting_iterator<vertex_t>(0),
@@ -44,13 +48,14 @@ namespace {
                      [vertices, d_vertex_used, d_error_count, graph_num_verts]
                      __device__ (vertex_t idx) {
                        vertex_t v = vertices[idx];
-                       if ((v >= 0) && (v < graph_num_verts))
+                       if ((v >= 0) && (v < graph_num_verts)) {
                          d_vertex_used[v] = idx;
-                       else
+                       } else {
                          cugraph::atomicAdd(d_error_count, int64_t{1});
+                       }
                      });
 
-    CUGRAPH_EXPECTS(error_count_v[0] > 0, "Input error... vertices specifies vertex id out of range");
+    CUGRAPH_EXPECTS(error_count_v[0] == 0, "Input error... vertices specifies vertex id out of range");
 
     vertex_t *graph_src = graph.src_indices;
     vertex_t *graph_dst = graph.dst_indices;
@@ -68,17 +73,29 @@ namespace {
                                      });
 
     if (count > 0) {
+#if 0
       rmm::device_vector<vertex_t> new_src_v(count);
       rmm::device_vector<vertex_t> new_dst_v(count);
       rmm::device_vector<weight_t> new_weight_v;
 
       vertex_t *d_new_src = new_src_v.data().get();
       vertex_t *d_new_dst = new_dst_v.data().get();
-      weight_t *d_new_weight = nullptr;
+      weight_t *d_new_weight{nullptr};
 
       if (has_weight) {
         new_weight_v.resize(count);
         d_new_weight = new_weight_v.data().get();
+      }
+#endif
+      vertex_t *d_new_src{nullptr};
+      vertex_t *d_new_dst{nullptr};
+      weight_t *d_new_weight{nullptr};
+
+      ALLOC_TRY(&d_new_src, count * sizeof(vertex_t), nullptr);
+      ALLOC_TRY(&d_new_dst, count * sizeof(vertex_t), nullptr);
+
+      if (has_weight) {
+        ALLOC_TRY(&d_new_weight, count * sizeof(weight_t), nullptr);
       }
 
       //  reusing error_count as a vertex counter...
@@ -96,16 +113,24 @@ namespace {
                            //     we make 2 implementations and pick one based on the number of vertices
                            //     in the subgraph set.
                            auto pos = cugraph::atomicAdd(d_error_count, 1);
-                           d_new_src[pos] = s;
-                           d_new_dst[pos] = d;
+                           d_new_src[pos] = d_vertex_used[s];
+                           d_new_dst[pos] = d_vertex_used[d];
                            if (has_weight)
                              d_new_weight[pos] = graph_weight[e];
                          }
                        });
       
+#if 0
       //
       //  Need to return rmm::device_vectors
       //
+#else
+      result.number_of_edges = count;
+      result.number_of_vertices = num_vertices;
+      result.src_indices = d_new_src;
+      result.dst_indices = d_new_dst;
+      result.edge_data = d_new_weight;
+#endif
 
     } else {
       // return an empty graph

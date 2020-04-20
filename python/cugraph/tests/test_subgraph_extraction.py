@@ -59,10 +59,12 @@ def nx_call(M, verts):
     return nx.subgraph(G, verts)
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
+DATASETS = ['../datasets/karate.csv']
+
+#DATASETS = ['../datasets/karate.csv',
+#            '../datasets/dolphins.csv',
+#            '../datasets/netscience.csv',
+#            '../datasets/email-Eu-core.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -87,4 +89,5 @@ def test_subgraph_extraction(managed, pool, graph_file):
     verts[2] = 17
     cu_sg = cugraph_call(M, verts)
     nx_sg = nx_call(M, verts)
+
     assert compare_edges(cu_sg, nx_sg, verts)
