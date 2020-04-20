@@ -253,8 +253,8 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_adjlist(offsets, indices, None)
     edgelist = G.view_edge_list()
-    sources_cu = np.array(edgelist['src'])
-    destinations_cu = np.array(edgelist['dst'])
+    sources_cu = edgelist['src']
+    destinations_cu = edgelist['dst']
     assert compare_series(sources_cu, sources_exp)
     assert compare_series(destinations_cu, destinations_exp)
 
