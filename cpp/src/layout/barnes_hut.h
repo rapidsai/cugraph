@@ -52,7 +52,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         internals::GraphBasedDimRedCallback* callback=nullptr) {
 
     const int blocks = getMultiProcessorCount();
-    const int epssq = 0.0025;
+    const float epssq = 0.0025;
     int nnodes = n * 2;
     if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
     while ((nnodes & (32 - 1)) != 0) nnodes++;
@@ -81,7 +81,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
     rmm::device_vector<int>d_startl(nnodes + 1, 0);
     rmm::device_vector<int>d_childl((nnodes + 1) * 4, 0);
-    rmm::device_vector<float>d_massl(nnodes + 1, 1);
+    rmm::device_vector<int>d_massl(nnodes + 1, 1.f);
 
     rmm::device_vector<float>d_maxxl(blocks * FACTOR1, 0);
     rmm::device_vector<float>d_maxyl(blocks * FACTOR1, 0);
@@ -92,7 +92,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     // Actual mallocs
     int *startl = d_startl.data().get();
     int *childl = d_childl.data().get();
-    float *massl = d_massl.data().get();
+    int *massl = d_massl.data().get();
 
     float *maxxl = d_maxxl.data().get();
     float *maxyl = d_maxyl.data().get();
@@ -117,7 +117,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     rmm::device_vector<float>d_YY((nnodes + 1) * 2, 0);
     float *YY = d_YY.data().get();
 
-    int random_state = -1;
+    int random_state = 0;
     random_vector(YY, (nnodes + 1) * 2, random_state);
 
     if (x_start && y_start) {
@@ -150,7 +150,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     sort_coo<vertex_t, edge_t, weight_t>(row,
                         col, v, &srcs, &dests, &weights, e);
     init_mass<vertex_t, edge_t, int>(dests, d_mass, e, n);
-    init_mass<vertex_t, edge_t, float>(dests, massl, e, n);
+    copy(n, d_mass, massl);
+    //init_mass<vertex_t, edge_t, float>(dests, massl, e, n);
 
     float speed = 1.f;
     float speed_efficiency = 1.f;
@@ -171,36 +172,33 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     cudaFuncSetCacheConfig(SummarizationKernel, cudaFuncCachePreferShared);
     cudaFuncSetCacheConfig(SortKernel, cudaFuncCachePreferL1);
     cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
-    cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
 
     if(callback) {
         callback->setup<float>(n, 2);
         callback->on_preprocess_end(pos);
     }
 
+    float mean = 0.f;
+    // Normalize
+    float norm_max = *thrust::max_element(d_YY.begin(), d_YY.end());
+    norm_max = 1.0 / norm_max;
+    thrust::transform(d_YY.begin(), d_YY.end(),
+            thrust::make_constant_iterator(norm_max),
+            d_YY.begin(),
+            thrust::multiplies<float>());
+
     for (int iter = 0; iter < max_iter; ++iter) {
-        /*
-        float mean = thrust::reduce(d_YY.begin(), d_YY.end()) / ((nnodes + 1) * 2); 
-        thrust::device_vector<float>::iterator norm_min = thrust::min_element(d_YY.begin(), d_YY.end());
-        thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(mean),
-                d_YY.begin(),
-                thrust::minus<float>());
-        */
-        /*
-        if (iter == 100) {
-            float l2 = sqrt(thrust::transform_reduce(d_YY.begin(), d_YY.end(), square<float>(), 0.0f, thrust::plus<float>()));
-            thrust::device_vector<float>::iterator norm_max = thrust::max_element(d_YY.begin(), d_YY.end());
-            thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(l2),
-                d_YY.begin(),
-                thrust::divides<float>());
-        }
-        */
         fill((nnodes + 1) * 2, rep_forces, 0.f);
         fill(n * 2, d_attract, 0.f);
         fill(n, d_swinging, 0.f);
         fill(n, d_traction, 0.f);
+
+        // Zero mean
+        mean = thrust::reduce(d_YY.begin(), d_YY.end()) / ((nnodes + 1) * 2); 
+        thrust::transform(d_YY.begin(), d_YY.end(),
+            thrust::make_constant_iterator(mean),
+            d_YY.begin(),
+            thrust::minus<float>());
 
         Reset_Normalization<<<1, 1>>>(radiusd_squared,
                 bottomd, NNODES, radiusd);
@@ -215,7 +213,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
                 FOUR_N);
         CUDA_CHECK_LAST();
 
-        TreeBuildingKernel<<<blocks, THREADS2>>>(
+        TreeBuildingKernel<<<blocks * FACTOR2, THREADS2>>>(
                 childl, YY, YY + nnodes + 1, NNODES, n, maxdepthd, bottomd,
                 radiusd);
         CUDA_CHECK_LAST();
@@ -253,18 +251,21 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
                 d_old_forces, d_old_forces + n,
                 d_mass, d_swinging, d_traction, n);
 
-        const float s = thrust::reduce(swinging.begin(), swinging.end());
-        const float t = thrust::reduce(traction.begin(), traction.end());
+        cudaStream_t stream {nullptr};
+        const float s = thrust::reduce(rmm::exec_policy(stream)->on(stream),
+                swinging.begin(), swinging.end());
+
+        const float t = thrust::reduce(rmm::exec_policy(stream)->on(stream),
+                traction.begin(), traction.end());
 
         adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                 s, t, n);
 
-        apply_forces_bh<<<blocks * FACTOR6, THREADS6>>>(pos, pos + n,
+        apply_forces<vertex_t>(
                 YY, YY + nnodes + 1, d_attract, d_attract + n,
                 rep_forces, rep_forces + nnodes + 1,
                 d_old_forces, d_old_forces + n,
                 d_swinging, speed, n);
-        CUDA_CHECK_LAST();
 
         if (callback)
             callback->on_epoch_end(pos);
@@ -276,27 +277,23 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
             printf("swinging: %f, traction: %f\n", s, t);
         }
 
-        /*
-        thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(*norm_max),
-                d_YY.begin(),
-                thrust::multiplies<float>());
-                */
-        /*
-        thrust::transform(d_YY.begin(), d_YY.end(),
-                thrust::make_constant_iterator(mean),
-                d_YY.begin(),
-                thrust::plus<float>());
-                */
     }
 
-      if (callback)
-          callback->on_epoch_end(pos);
+    thrust::transform(d_YY.begin(), d_YY.end(),
+            thrust::make_constant_iterator(mean),
+            d_YY.begin(),
+            thrust::plus<float>());
 
-      ALLOC_FREE_TRY(srcs, nullptr);
-      ALLOC_FREE_TRY(dests, nullptr);
-      if (v)
-          ALLOC_FREE_TRY(weights, nullptr);
+    copy(n, YY, pos);
+    copy(n, YY + nnodes + 1, pos + n);
+
+    if (callback)
+        callback->on_epoch_end(pos);
+
+    ALLOC_FREE_TRY(srcs, nullptr);
+    ALLOC_FREE_TRY(dests, nullptr);
+    if (v)
+        ALLOC_FREE_TRY(weights, nullptr);
 }
 
 } // namespace detail

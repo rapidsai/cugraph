@@ -214,6 +214,15 @@ set(RENUMBERING_TEST_SRC
 ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "${NVSTRINGS_LIBRARY}")
 
 ###################################################################################################
+#-FORCE ATLAS 2  tests ------------------------------------------------------------------------------
+
+set(FA2_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/layout/force_atlas2_test.cu")
+
+ConfigureTest(FA2_TEST "${FA2_TEST_SRC}" "")
+
+###################################################################################################
 #-CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
 
 set(CONNECT_TEST_SRC

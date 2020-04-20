@@ -92,6 +92,7 @@ attraction_kernel(const vertex_t *restrict row, const vertex_t *restrict col,
         float y_dist = y_pos[src] - y_pos[dst];
         float distance = pow(x_dist, 2) * pow(y_dist, 2);
         distance += FLT_EPSILON;
+        distance = sqrt(distance);
         float factor = -coef * weight;
 
         if (lin_log_mode)
@@ -210,8 +211,9 @@ local_speed_kernel(const float *restrict repel_x, const float *restrict repel_y,
         const float dy = repel_y[i] + attract_y[i];
         float node_swinging = mass[i] * sqrt(pow(old_dx[i] - dx, 2) + pow(old_dy[i] - dy, 2));
         float node_traction = 0.5 * mass[i] * \
-        sqrt((old_dx[i] + dx) * (old_dx[i] + dx) + \
-            (old_dy[i] + dy) * (old_dy[i] + dy));
+        sqrt(pow(old_dx[i] + dx, 2) + pow(old_dy[i] + dy, 2));
+        //if (isnan(node_swinging) || isnan(node_traction))
+        //    printf("repel_x: %f, repel_y: %f\n", repel_x[i], repel_y[i]);
         swinging[i] = node_swinging;
         traction[i] = node_traction;
     }
