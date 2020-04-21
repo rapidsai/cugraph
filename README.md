@@ -2,9 +2,7 @@
 
 [![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in GPU DataFrames - see [cuDF](https://github.com/rapidsai/cudf).  The vision of RAPIDS cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in cuDF and machine learning tasks in cuML.  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  For user familiar with NetworkX, cuGraph provides a NetworkX-like API.  The goal being to allow existing code to be ported with minimal effort into RAPIDS.  
-
-For users familar with C/CUDA and graph structures, we also provide a C++ API.  There is less type and structure checking at the C layer.  
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, user familiar with NetworkX will quickly reconnize the NetworkX-like API provided in cuGraph, with the goal being to allow existing code to be ported with minimal effort into RAPIDS.  For users familar with C/CUDA and graph structures, a C++ API is also provided.  However, there is less type and structure checking at the C layer.  
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
@@ -21,7 +19,7 @@ gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int
 # We now have data in a COO format (edge pairs)
 # create a Graph using the source (src) and destination (dst) vertex pairs the GDF  
 G = cugraph.Graph()
-G.add_edge_list(gdf, source='src', destination='dst')
+G.from_cudf_edgelist(gdf, source='src', destination='dst')
 
 # Let's now get the PageRank score of each vertex by calling cugraph.pagerank
 gdf_page = cugraph.pagerank(G)
@@ -86,7 +84,7 @@ cuGraph provides the renumber function to mitigate this problem. Input vertex ID
 
 cuGraph prvides an auto-renumbering feature, enabled by default, during Graph creating.  Renumbered vertices are automaticaly un-renumbered.
 
-cuGraph is constantly being updatred and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) is errors are encountered with newer versions
+cuGraph is constantly being updatred and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) if errors are encountered with newer versions
 
 
 

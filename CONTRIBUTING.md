@@ -3,7 +3,7 @@ cuGraph, and all of RAPIDS in general, is an open-source project where we encour
 
 * [File an Issue](#issue)
 * [Implement a New Feature](#implement)
-* [Wok on an Existing Issue](#bugfix)
+* [Work on an Existing Issue](#bugfix)
 
 If you are ready to contribute, jump right to the [Contribute Code](#code) section.
 
@@ -73,7 +73,7 @@ and ask for clarifications!
 ## Fork a private copy of cuGraph 
 <a name="fork"></a>
 
-The RAPIDS cuGraph repo cannot directly be modified.  Contributions must come in the form of a *Pull Request* from a folked version of cugraph.    GitHub as a nice write up ion the process:  https://help.github.com/en/github/getting-started-with-github/fork-a-repo
+The RAPIDS cuGraph repo cannot directly be modified.  Contributions must come in the form of a *Pull Request* from a forked version of cugraph.    GitHub as a nice write up ion the process:  https://help.github.com/en/github/getting-started-with-github/fork-a-repo
 
 1. Fork the cugraph repo to your GitHub account
 2. clone your version 
@@ -102,7 +102,7 @@ There is no recommended or preferred development environment.  There are a few *
 
 **Hardware**
 
-* You need to have accesses to an NVIDAI GPU that is Pascal or later.
+* You need to have accesses to an NVIDIA GPU that is Pascal or later.
 
 
 **IDEs**
