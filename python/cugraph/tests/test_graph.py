@@ -14,7 +14,6 @@
 import gc
 from itertools import product
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -253,8 +252,8 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_adjlist(offsets, indices, None)
     edgelist = G.view_edge_list()
-    sources_cu = np.array(edgelist['src'])
-    destinations_cu = np.array(edgelist['dst'])
+    sources_cu = edgelist['src']
+    destinations_cu = edgelist['dst']
     assert compare_series(sources_cu, sources_exp)
     assert compare_series(destinations_cu, destinations_exp)
 
@@ -698,7 +697,8 @@ def test_to_directed(managed, pool, graph_file):
 
     edgelist_df = G.edgelist.edgelist_df
     for i in range(len(edgelist_df)):
-        assert DiGnx.has_edge(edgelist_df.loc[i][0], edgelist_df.loc[i][1])
+        assert DiGnx.has_edge(edgelist_df.iloc[i]['src'],
+                              edgelist_df.iloc[i]['dst'])
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -737,7 +737,8 @@ def test_to_undirected(managed, pool, graph_file):
     edgelist_df = G.edgelist.edgelist_df
 
     for i in range(len(edgelist_df)):
-        assert Gnx.has_edge(edgelist_df.loc[i][0], edgelist_df.loc[i][1])
+        assert Gnx.has_edge(edgelist_df.iloc[i]['src'],
+                            edgelist_df.iloc[i]['dst'])
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
