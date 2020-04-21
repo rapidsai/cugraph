@@ -33,7 +33,6 @@
 #include "include/lanczos.hxx"
 #include "include/kmeans.hxx"
 #include "include/debug_macros.h"
-#include "include/lobpcg.hxx"
 #include "include/sm_utils.h"
 
 //#define COLLECT_TIME_STATISTICS 1

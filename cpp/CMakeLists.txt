@@ -345,18 +345,11 @@ add_library(cugraph SHARED
     src/centrality/betweenness_centrality.cu
     src/snmg/degree/degree.cu
     src/snmg/COO2CSR/COO2CSR.cu
-    src/nvgraph/arnoldi.cu
-    src/nvgraph/bfs.cu
-    src/nvgraph/bfs2d.cu
-    src/nvgraph/bfs_kernels.cu
-    src/nvgraph/convert.cu
     src/nvgraph/csrmv.cu
     src/nvgraph/csrmv_cub.cu
     src/nvgraph/csr_graph.cpp
-    src/nvgraph/jaccard_gpu.cu
     src/nvgraph/kmeans.cu
     src/nvgraph/lanczos.cu
-    src/nvgraph/lobpcg.cu
     src/nvgraph/matrix.cu
     src/nvgraph/modularity_maximization.cu
     src/nvgraph/nvgraph.cu
@@ -365,13 +358,9 @@ add_library(cugraph SHARED
     src/nvgraph/nvgraph_error.cu
     src/nvgraph/nvgraph_lapack.cu
     src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/pagerank.cu
-    src/nvgraph/pagerank_kernels.cu
     src/nvgraph/partition.cu
     src/nvgraph/size2_selector.cu
-    src/nvgraph/sssp.cu
     src/nvgraph/valued_csr_graph.cpp
-    src/nvgraph/widest_path.cu
 )
 
 #
