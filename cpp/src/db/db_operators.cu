@@ -149,10 +149,6 @@ namespace cugraph {
           idx_t valB = columnB[row_id];
           idx_t valC = columnC[row_id];
 
-          // Debugging output
-//          printf("RowId: %d, valA: %d, valB: %d, valC: %d\n", row_id, valA, valB, valC);
-//          printf("PatternA: %d, PatternB: %d, PatternC: %d\n", patternA, patternB, patternC);
-
           // Compare the row values with constants in the pattern
           bool matchA = outputA != nullptr ? true : patternA == valA;
           bool matchB = outputB != nullptr ? true : patternB == valB;
@@ -215,7 +211,7 @@ namespace cugraph {
         }
         else {
           // Making a sequence of values from zero to n where n is the highest ID present in the index.
-          idx_t highestId = theIndex.getOffsets()->size - 2;
+          idx_t highestId = theIndex.getOffsetsSize() - 2;
           ALLOC_TRY(&frontier_ptr, sizeof(idx_t) * (highestId + 1), nullptr);
           thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr),
                            frontier_ptr,
@@ -225,11 +221,11 @@ namespace cugraph {
       }
 
       // Collect all the pointers needed to run the main kernel
-      idx_t* columnA = (idx_t*)table.getColumn(0)->data;
-      idx_t* columnB = (idx_t*)table.getColumn(1)->data;
-      idx_t* columnC = (idx_t*)table.getColumn(2)->data;
-      idx_t* offsets = (idx_t*)theIndex.getOffsets()->data;
-      idx_t* indirection = (idx_t*)theIndex.getIndirection()->data;
+      idx_t* columnA = table.getColumn(0);
+      idx_t* columnB = table.getColumn(1);
+      idx_t* columnC = table.getColumn(2);
+      idx_t* offsets = theIndex.getOffsets();
+      idx_t* indirection = theIndex.getIndirection();
 
       // Load balance the input
       idx_t *exsum_degree = nullptr;
@@ -248,9 +244,6 @@ namespace cugraph {
                              exsum_degree + 1);
       idx_t output_size;
       cudaMemcpy(&output_size, &exsum_degree[frontierSize], sizeof(idx_t), cudaMemcpyDefault);
-
-      // Debugging output
-//      std::cout << "OutputSize = " << output_size << "\n";
 
       idx_t num_blocks = (output_size + FIND_MATCHES_BLOCK_SIZE - 1) / FIND_MATCHES_BLOCK_SIZE;
       idx_t *block_bucket_offsets = nullptr;
@@ -320,44 +313,6 @@ namespace cugraph {
                                                      patternB,
                                                      patternC);
 
-      // Debugging output
-//      if (outputA != nullptr) {
-//        idx_t* outputA_h = (idx_t*)malloc(sizeof(idx_t) * output_size);
-//        cudaMemcpy(outputA_h, outputA, sizeof(idx_t)*output_size, cudaMemcpyDefault);
-//        std::cout << "OutputA: ";
-//        for (int i = 0; i < output_size; i++)
-//          std::cout << outputA_h[i] << " ";
-//        std::cout << "\n";
-//        free(outputA_h);
-//      }
-//      if (outputB != nullptr) {
-//        idx_t* outputB_h = (idx_t*) malloc(sizeof(idx_t) * output_size);
-//        cudaMemcpy(outputB_h, outputB, sizeof(idx_t) * output_size, cudaMemcpyDefault);
-//        std::cout << "OutputB: ";
-//        for (int i = 0; i < output_size; i++)
-//          std::cout << outputB_h[i] << " ";
-//        std::cout << "\n";
-//        free(outputB_h);
-//      }
-//      if (outputC != nullptr) {
-//        idx_t* outputC_h = (idx_t*) malloc(sizeof(idx_t) * output_size);
-//        cudaMemcpy(outputC_h, outputC, sizeof(idx_t) * output_size, cudaMemcpyDefault);
-//        std::cout << "OutputC: ";
-//        for (int i = 0; i < output_size; i++)
-//          std::cout << outputC_h[i] << " ";
-//        std::cout << "\n";
-//        free(outputC_h);
-//      }
-//      if (outputD != nullptr) {
-//        idx_t* outputD_h = (idx_t*) malloc(sizeof(idx_t) * output_size);
-//        cudaMemcpy(outputD_h, outputD, sizeof(idx_t) * output_size, cudaMemcpyDefault);
-//        std::cout << "OutputD: ";
-//        for (int i = 0; i < output_size; i++)
-//          std::cout << outputD_h[i] << " ";
-//        std::cout << "\n";
-//        free(outputD_h);
-//      }
-
       // Get the non-null output columns
       std::vector<idx_t*> columns;
       std::vector<std::string> names;
@@ -409,6 +364,7 @@ namespace cugraph {
                                  output_size);
       idx_t compactSize_h;
       cudaMemcpy(&compactSize_h, compactSize_d, sizeof(idx_t), cudaMemcpyDefault);
+
       for (size_t i = 1; i < columns.size(); i++) {
         col_ptr = columns[i];
         cub::DeviceSelect::Flagged(tempSpace,
