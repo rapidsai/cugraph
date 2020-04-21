@@ -12,7 +12,20 @@ __pycache__
 *.pytest_cache
 DartConfiguration.tcl
 .DS_Store
-	
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+junit-cugraph.xml
+*.cover
+.hypothesis/
+test-results
+
 ## Python build directories & artifacts
 htmlcov
 dist/
@@ -29,14 +42,27 @@ python/cugraph/bindings/*.cpp
 CMakeFiles/
 Debug
 build/
+cpp/build/
+cpp/include/cugraph/ipc_generated/*.h
+cpp/thirdparty/googletest/
 	
 ## Eclipse IDE
 .project
 .cproject
 .settings
 
+## IntelliJ IDE
+.idea/
+.idea_modules/
+*.iml
+*.ipr
+*.iws
+
 datasets/*
 .pydevproject
 
 # Jupyter Notebooks
 .ipynb_checkpoints
+
+## Doxygen
+cpp/doxygen/html
