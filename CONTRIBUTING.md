@@ -56,11 +56,13 @@ If you need more context on a particular issue, please ask.
 
 **TL;DR General Development Process**
 1. Read the documentation on [building from source](SOURCEBUILD.md) to learn how to setup, and validate, the development environment
-2. Find or submit an issue to work on. (include a comment that you are workign issue)
-3. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
-4. When done, and code passes local CI, create your pull request (PR)
-   1. Update the CHANGELOG.md with PR number
+2. Read the RAPIDS [Code of Conduct](https://docs.rapids.ai/resources/conduct/)
+3. Find or submit an issue to work on (include a comment that you are workign issue)
+4. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
+5. When done, and code passes local CI, create your pull request (PR)
+   1. Update the CHANGELOG.md with PR number - see [Changelog formatting](https://docs.rapids.ai/resources/changelog/)
    2. Ensure that the PR has the proper [tags](PRTAGS.md)
+   3. Ensure the code matches out [style guilde](https://docs.rapids.ai/resources/style/) 
 6. Verify that cuGraph CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
 7. Wait for other developers to review your code and update code as needed
 8. Once reviewed and approved, a RAPIDS developer will merge your pull request
