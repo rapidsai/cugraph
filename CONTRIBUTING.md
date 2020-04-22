@@ -124,6 +124,7 @@ Using VSCode, you can develop remotely from the hardware if you so wish.  Alex F
 **Debug**
 
 * cuda-memcheck
+* cuda-gdb
 
 
 A debug launch can also be enabled in VSCode with something like:  https://github.com/harrism/cudf-vscode/blob/master/.vscode/launch.json
@@ -145,10 +146,10 @@ implementation of the issue, ask them in the issue instead of the PR.
 
 ### Style Guild
 All Python code most pass flake8 style checking
-All C++ code must pass clank style checking
+All C++ code must pass clang style checking
 
 ### Tests
-All code must have assocsiate test cases.  Code without test will not be accepted
+All code must have associate test cases.  Code without test will not be accepted
 
 
 

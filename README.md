@@ -16,7 +16,7 @@ import cugraph
 # read data into a cuDF DataFrame using read_csv
 gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int32"] )
 
-# We now have data in a COO format (edge pairs)
+# We now have data as edge pairs
 # create a Graph using the source (src) and destination (dst) vertex pairs the GDF  
 G = cugraph.Graph()
 G.from_cudf_edgelist(gdf, source='src', destination='dst')
@@ -78,11 +78,11 @@ The current version of cuGraph has some limitations:
 
 - Vertex IDs need to be 32-bit integers.
 - Vertex IDs are expected to be contiguous integers starting from 0.
---  If the starting index is not zero, cuGraph will add disconnected vertices to fill in the missing range
+--  If the starting index is not zero, cuGraph will add disconnected vertices to fill in the missing range.  (Auto-) Renumbering fixes this issue
 
 cuGraph provides the renumber function to mitigate this problem. Input vertex IDs for the renumber function can be any type, can be non-contiguous, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
-cuGraph prvides an auto-renumbering feature, enabled by default, during Graph creating.  Renumbered vertices are automaticaly un-renumbered.
+cuGraph provides an auto-renumbering feature, enabled by default, during Graph creating.  Renumbered vertices are automaticaly un-renumbered.
 
 cuGraph is constantly being updatred and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) if errors are encountered with newer versions
 
