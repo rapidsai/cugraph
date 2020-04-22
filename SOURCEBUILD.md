@@ -76,7 +76,7 @@ conda activate cugraph_dev
 
 3) Build and install `libcugraph`. CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
 
-  This project uses cmake for building the C/C++ library. CMake will also automatically build and install nvGraph library (`$CUGRAPH_HOME/cpp/nvgraph`) which may take a few minutes. To configure cmake, run:
+  This project uses cmake for building the C/C++ library. To configure cmake, run:
 
   ```bash
   # Set the localtion to cuGraph in an environment variable CUGRAPH_HOME
