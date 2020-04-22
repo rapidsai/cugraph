@@ -25,7 +25,7 @@ If there is a feature or enhancement to an existing feature, please file an issu
 -	describing what you want to see added or changed.  For new features, if there is a white paper on the analytic, please include a reference to it
 
 ***Ask a Question***
-There are several ways to ask questions, including [Stack Overflow]( https://stackoverflow.com/)  or the RAPIDS [Google forum]( https://groups.google.com/forum/#!forum/rapidsai), but an GitHub issue can be filled.  
+There are several ways to ask questions, including [Stack Overflow]( https://stackoverflow.com/)  or the RAPIDS [Google forum]( https://groups.google.com/forum/#!forum/rapidsai), but a GitHub issue can be filled.  
 
 -	Select Question
 -	describing your question
