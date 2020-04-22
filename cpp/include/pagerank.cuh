@@ -31,7 +31,7 @@ namespace cugraph {
 namespace experimental {
 
 template <typename GraphType, typename VertexIterator, typename ResultIterator>
-void pagerank(
+void pagerank_this_graph_partition(
     raft::Handle handle, GraphType const& graph,
     VertexIterator src_out_degree_first,
     VertexIterator dst_personalization_vertex_first, VertexIterator dst_personalization_vertex_last,
@@ -48,9 +48,12 @@ void pagerank(
     std::is_floating_point<result_t>::value,
     "ResultIterator should point to a floating-point value.");
   static_assert(
-    is_csc<GraphType>::value, "cugraph::experimental::pagerank expects a CSC graph.");
+    is_csc<GraphType>::value,
+    "cugraph::experimental::pagerank_this_graph_partition expects a CSC graph.");
 
-  CUGRAPH_EXPECTS(graph.is_directed(), "cugraph::experimental::pagerank expects a directed graph.");
+  CUGRAPH_EXPECTS(
+    graph.is_directed(),
+    "cugraph::experimental::pagerank_this_graph_partition expects a directed graph.");
 
   auto const num_vertices = graph.get_number_of_vertices();
   vertex_t src_vertex_first{};
@@ -185,7 +188,7 @@ void pagerank(
     if (diff_sum < static_cast<result_t>(num_verticse) * static_cast<result_t>(epsilon)) {
       break;
     }
-    else if(iter > max_iters) {
+    else if(iter >= max_iters) {
       CUGRAPH_FAIL("PageRank failed to converge.");
     }
   }

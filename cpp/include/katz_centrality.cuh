@@ -30,7 +30,7 @@ namespace cugraph {
 namespace experimental {
 
 template <typename GraphType, typename VertexIterator, typename ResultIterator>
-void katz_centrality(
+void katz_centrality_this_graph_partition(
     raft::Handle handle, GraphType const& graph,
     ResultIteraotr dst_beta_first, ResultIteraotr dst_katz_centrality_first,
     double alpha = 0.1, double epsilon = 1e-5, size_t max_iterations = 500,
@@ -45,10 +45,11 @@ void katz_centrality(
     "ResultIterator should point to a floating-point value.");
   static_assert(
     is_csc<GraphType>::value,
-    "cugraph::experimental::katz_centrality expects a CSC graph.");
+    "cugraph::experimental::katz_centrality_this_graph_partition expects a CSC graph.");
 
   CUGRAPH_EXPECTS(
-    graph.is_directed(), "cugraph::experimental::katz_centrality expects a directed graph.");
+    graph.is_directed(),
+    "cugraph::experimental::katz_centrality_this_graph_partition expects a directed graph.");
 
   auto const num_vertices = graph.get_number_of_vertices();
   vertex_t src_vertex_first{};
@@ -79,7 +80,7 @@ void katz_centrality(
         src_katz_centrality_first, thrust::make_constant_iterator(0)/* dummy */,
         dst_katz_centrality_first,
         [alpha] __device__ (auto src_val, auto dst_val, weight_t w) {
-          return alpha * src_val * w;
+          return static_cast<result_t>(alpha * src_val * w);
         },
         static_cast<result_t>(0.0));
     }
@@ -89,9 +90,9 @@ void katz_centrality(
         src_katz_centrality_first, thrust::make_constant_iterator(0)/* dummy */,
         dst_katz_centrality_first,
         [alpha] __device__ (auto src_val, auto dst_val) {
-          return alpha * src_val * static_cast<result_t>(1.0);
+          return static_cast<result_t>(alpha * src_val);
         },
-        unvarying_part);
+        static_cast<result_t>(0.0));
     }
     auto dst_val_first =
       thrust::make_zip_iterator(thrust::make_tuple(dst_katz_centrality_first, dst_beta_first));
@@ -116,7 +117,7 @@ void katz_centrality(
     if (diff_sum < static_cast<result_t>(num_verticse) * static_cast<result_t>(epsilon)) {
       break;
     }
-    else if(iter > max_iters) {
+    else if(iter >= max_iters) {
       CUGRAPH_FAIL("Katz Centrality failed to converge.");
     }
   }
