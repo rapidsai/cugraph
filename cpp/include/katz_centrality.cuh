@@ -31,7 +31,7 @@ namespace experimental {
 
 template <typename GraphType, typename VertexIterator, typename ResultIterator>
 void katz_centrality(
-    GraphType const& graph,
+    raft::Handle handle, GraphType const& graph,
     ResultIteraotr dst_beta_first, ResultIteraotr dst_katz_centrality_first,
     double alpha = 0.1, double epsilon = 1e-5, size_t max_iterations = 500,
     bool has_initial_guess = false, normalize = true) {
@@ -71,11 +71,11 @@ void katz_centrality(
   size_t iter = 0;
   while (true) {
     copy_dst_values_to_src(
-      graph, dst_katz_centrality_first, src_katz_centralities.begin());
+      handle, graph, dst_katz_centrality_first, src_katz_centralities.begin());
 
     if (graph.is_weighted()) {
       transform_dst_v_transform_reduce_e(
-        graph,
+        handle, graph,
         src_katz_centrality_first, thrust::make_constant_iterator(0)/* dummy */,
         dst_katz_centrality_first,
         [alpha] __device__ (auto src_val, auto dst_val, weight_t w) {
@@ -85,7 +85,7 @@ void katz_centrality(
     }
     else {
       transform_dst_v_transform_reduce_e(
-        graph,
+        handle, graph,
         src_katz_centrality_first, thrust::make_constant_iterator(0)/* dummy */,
         dst_katz_centrality_first,
         [alpha] __device__ (auto src_val, auto dst_val) {
@@ -105,7 +105,7 @@ void katz_centrality(
 
     auto diff_sum =
       transform_reduce_src_dst_v(
-        graph, src_katz_centralities.begin(), dst_katz_centrality_first,
+        handle, graph, src_katz_centralities.begin(), dst_katz_centrality_first,
         [] __device__ (auto src_val, auto dst_val) {
           return std::abs(dst_val - src_val);
         },
@@ -124,7 +124,7 @@ void katz_centrality(
   if (normalize) {
     auto l2_norm =
       transform_reduce_dst_v(
-        graph, dst_katz_centrality_first,
+        handle, graph, dst_katz_centrality_first,
         [] __device__ (auto val) {
           return val * val;
         });

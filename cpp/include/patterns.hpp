@@ -23,63 +23,58 @@ namespace experimental {
 
 // 1-level
 
-template <typename GraphType, typename DstInputIterator, typename SrcOutputIterator>
+template <typename HandleType, typename GraphType,
+          typename DstInputIterator, typename SrcOutputIterator>
 copy_dst_values_to_src(
-    GraphType graph, DstInputIterator dst_input_first, SrcOutputIterator src_output_first,
+    HandleType handle, GraphType graph,
+    DstInputIterator dst_input_first, SrcOutputIterator src_output_first);
 
-template <typename GraphType, typename SrcInputIterator, typename T>
-reduce_src_v(GraphType graph, SrcInputIterator src_input_first, T init);
+template <typename HandleType, typename GraphType, typename SrcInputIterator, typename T>
+reduce_src_v(HandelType handle, GraphType graph, SrcInputIterator src_input_first, T init);
 
-template <typename GraphType, typename DstInputIterator, typename T>
-reduce_dst_v(GraphType graph, DstInputIterator dst_input_first, T init);
+template <typename HandleType, typename GraphType, typename DstInputIterator, typename T>
+reduce_dst_v(HandelType handle, GraphType graph, DstInputIterator dst_input_first, T init);
 
-template <typename GraphType,
-          typename SrcInputIterator,
-          typename UnaryOp, typename T>
+template <typename HandleType, typename GraphType,
+          typename SrcInputIterator, typename UnaryOp, typename T>
 transform_reduce_src_v(
-    GraphType graph,
+    HandelType handle, GraphType graph,
     SrcInputIterator src_input_first, UnaryOp v_op, T init);
 
-template <typename GraphType,
-          typename DstInputIterator,
-          typename UnaryOp, typename T>
+template <typename HandleType, typename GraphType,
+          typename DstInputIterator, typename UnaryOp, typename T>
 transform_reduce_dst_v(
-    GraphType graph,
+    HandelType handle, GraphType graph,
     DstInputIterator dst_input_first, UnaryOp v_op, T init);
 
-template <typename GraphType,
-          typename SrcInputIterator, typename DstInputIterator,
-          typename BinaryOp, typename T>
+template <typename HandleType, typename GraphType,
+          typename SrcInputIterator, typename DstInputIterator, typename BinaryOp, typename T>
 transform_reduce_src_dst_v(
-    GraphType graph,
+    HandelType handle, GraphType graph,
     SrcInputIterator src_input_first, DstInputIterator dst_input_first, BinaryOp v_op, T init);
 
 // 2-levels
 
-template <typename GraphType,
+template <typename HandleType, typename GraphType,
           typename SrcInputIterator, typename DstInputIterator, typename SrcOutputIterator,
           typename EdgeOp, typename T>
 transform_src_v_transform_reduce_e(
-    GraphType graph,
+    HandelType handle, GraphType graph,
     SrcInputIterator src_input_first, DstInputIterator dst_input_first,
     SrcOutputIterator src_output_first, EdgeOp e_op, T init);
 
-template <typename GraphType,
+template <typename HandleType, typename GraphType,
           typename SrcInputIterator, typename DstInputIterator, typename DstOutputIterator,
           typename EdgeOp, typename T>
 transform_dst_v_transform_reduce_e(
-    GraphType graph,
+    HandelType handle, GraphType graph,
     SrcInputIterator src_input_first, DstInputIterator dst_input_first,
     DstOutputIterator dst_output_first, EdgeOp e_op, T init);
 
 /*
-lower triangular upper triangular (to iterate edges with i < j or i > j) target algorithms: triangle counting...
-
-triangle counting... actual cost of processing a single edge is proportional to max(degree(i), degree(j)), not just degree(i)... how should I handle this...
-
-Should we allow push-pull switching (e.g. direction optimized BFS), then a graph structure holding both CSR and CSC..
-
-LRB may be beneficial for triangle counting kinda applications... 
+iterating over lower triangular (or upper triangular) : triangle counting
+LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and degree(j) : triangle counting
+push-pull switching support (e.g. DOBFS), in this case, we need both CSR & CSC (trade-off execution time vs memory requirement)
 */
 
 }  // namespace experimental

@@ -32,7 +32,7 @@ namespace experimental {
 
 template <typename GraphType, typename VertexIterator, typename ResultIterator>
 void pagerank(
-    GraphType const& graph,
+    raft::Handle handle, GraphType const& graph,
     VertexIterator src_out_degree_first,
     VertexIterator dst_personalization_vertex_first, VertexIterator dst_personalization_vertex_last,
     ResultIteraotr dst_personalization_value_first,
@@ -66,7 +66,7 @@ void pagerank(
   if (graph.is_weighted()) {
     src_out_weight_sums.assign(num_src_vertices, static_cast<result_t>(0.0));
     transform_src_v_transform_reduce_e(
-      graph,
+      handle, graph,
       thrust::make_constant_iterator(0),  // dummy
       thrust::make_constant_iterator(0),  // dummy
       src_out_weight_sums.begin(),
@@ -78,7 +78,7 @@ void pagerank(
 
   if (has_initial_guess) {
     auto sum =
-      reduce_dst_v(graph, dst_pagerank_first, static_cast<result_t>(0.0));
+      reduce_dst_v(handle, graph, dst_pagerank_first, static_cast<result_t>(0.0));
     CUGRAPH_EXPECTS(sum > 0.0, "Sum of the PageRank initial guess values should be positive.");
     thrust::transform(
       dst_pagerank_first, dst_pagerank_first + num_dst_vertices, dst_pagerank_first,
@@ -94,7 +94,7 @@ void pagerank(
   if (is_personalized) {
     personalization_sum =
       reduce_dst_v(
-        graph, dst_personalization_value_first, static_cast<result_t>(0.0));
+        handle, graph, dst_personalization_value_first, static_cast<result_t>(0.0));
     CUGRAPH_EXPECTS(
       personalization_sum > 0.0, "Sum of personalization valuese should be positive.");
   }
@@ -103,7 +103,7 @@ void pagerank(
 
   size_t iter = 0;
   while (true) {
-    copy_dst_values_to_src(graph, dst_pagerank_first, src_pageranks.begin());
+    copy_dst_values_to_src(handle, graph, dst_pagerank_first, src_pageranks.begin());
 
     if (graph.is_weighted()) {
       auto src_val_first =
@@ -138,7 +138,7 @@ void pagerank(
       thrust::make_zip_iterator(thrust::make_tuple(src_pageranks.begin(), src_out_degree_first));
     auto dangling_sum =
       cguraph::transform_reduce_src_v(
-        graph, src_val_first,
+        handle, graph, src_val_first,
         [] __device__ (auto val) {
           auto const src_pagerank = thrust::get<0>(val);
           auto const out_degree = thrust::get<1>(val);
@@ -153,7 +153,7 @@ void pagerank(
         static_cast<result_t>(alpha) * (dangling_sum / static_cast<result_t>(num_vertices));
     }
     transform_dst_v_transform_reduce_e(
-      graph,
+      handle, graph,
       src_pageranks.begin(), thrust::make_constant_iterator(0)/* dummy */, dst_pagerank_first,
       [damping_factor] __device__ (auto src_val, auto dst_val) {
         return src_val * damping_factor;
@@ -175,7 +175,7 @@ void pagerank(
 
     auto diff_sum =
       transform_reduce_src_dst_v(
-        graph, src_pageranks.begin(), dst_pagerank_first,
+        handle, graph, src_pageranks.begin(), dst_pagerank_first,
         [] __device__ (auto src_val, auto dst_val) {
           return std::abs(dst_val - src_val);
         });
