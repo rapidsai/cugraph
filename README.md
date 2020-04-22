@@ -16,7 +16,7 @@ import cugraph
 # read data into a cuDF DataFrame using read_csv
 gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int32"] )
 
-# We now have data ias edge pairs
+# We now have data as edge pairs
 # create a Graph using the source (src) and destination (dst) vertex pairs the GDF  
 G = cugraph.Graph()
 G.from_cudf_edgelist(gdf, source='src', destination='dst')
