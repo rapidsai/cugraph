@@ -53,7 +53,7 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness, bool _normalize
     // --- Working data allocation ---
     ALLOC_TRY(&distances, number_of_vertices * sizeof(VT), nullptr);
     ALLOC_TRY(&predecessors, number_of_vertices * sizeof(VT), nullptr);
-    ALLOC_TRY(&sp_counters, number_of_vertices * sizeof(int), nullptr);
+    ALLOC_TRY(&sp_counters, number_of_vertices * sizeof(VT), nullptr);
     ALLOC_TRY(&deltas, number_of_vertices * sizeof(result_t), nullptr);
     // --- Confirm that configuration went through ---
     configured = true;
@@ -146,10 +146,10 @@ void BC<VT, ET, WT, result_t>::check_input() {
 // dispatch later
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex) {
-  std::cout << "[DBG][BC][COMPUTE_SINGLE_SOURCE] Computing from source " << source_vertex << std::endl;
-  CUGRAPH_EXPECTS(distances != nullptr, "distances is null");
-  CUGRAPH_EXPECTS(predecessors != nullptr, "predecessors is null");
-  CUGRAPH_EXPECTS(sp_counters != nullptr, "sp_counters i null");
+  //std::cout << "[DBG][BC][COMPUTE_SINGLE_SOURCE] Computing from source " << source_vertex << std::endl;
+  //CUGRAPH_EXPECTS(distances != nullptr, "distances is null");
+  //CUGRAPH_EXPECTS(predecessors != nullptr, "predecessors is null");
+  //CUGRAPH_EXPECTS(sp_counters != nullptr, "sp_counters i null");
   // Step 1) Singe-source shortest-path problem
   cugraph::bfs(graph, distances, predecessors, sp_counters, source_vertex,
                graph.prop.directed);

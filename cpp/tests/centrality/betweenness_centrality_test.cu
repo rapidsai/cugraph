@@ -34,6 +34,14 @@
  #define TEST_EPSILON 0.0001
 #endif
 
+// NOTE: Defines under which values the difference should  be discarded when
+// considering values are close to zero
+//  i.e: Do we consider that the difference between 1.3e-9 and 8.e-12 is
+// significant
+# ifndef TEST_ZERO_THRESHOLD
+ #define TEST_ZERO_THRESHOLD 1e-6
+#endif
+
 
 // =============================================================================
 // C++ Reference Implementation
@@ -277,8 +285,8 @@ void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz,
 
 // TODO(xcadet): This may actually operate an exact comparison when b == 0
 template <typename T>
-bool compare_close(const T &a, const T&b, const double epsilon) {
-  return (a >= b * (1.0 - epsilon)) and (a <= b * (1.0 + epsilon));
+bool compare_close(const T &a, const T&b, const double epsilon, double zero_threshold) {
+  return ((zero_threshold > a and zero_threshold > b)) or (a >= b * (1.0 - epsilon)) and (a <= b * (1.0 + epsilon));
 }
 
 
@@ -383,7 +391,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
     for (int i = 0 ; i < G.number_of_vertices ; ++i)
-      EXPECT_NEAR(result[i], expected[i], TEST_EPSILON) <<
+      EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD)) <<
                   "[MISMATCH] vaid = " << i << ", cugraph = " <<
                   result[i] << " expected = " << expected[i];
     std::cout << "[DBG][BC] Perfect math over " << G.number_of_vertices << std::endl;
@@ -392,11 +400,6 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 
 
 };
-
-struct BetweennessCentralityBFSTest : public ::testing::Test
-{
-};
-
 
 /*
 // BFS: Checking for shortest_path counting correctness
@@ -541,19 +544,26 @@ INSTANTIATE_TEST_CASE_P(
   Tests_BC,
   ::testing::Values(
       BC_Usecase("test/datasets/karate.mtx", 0),
-      BC_Usecase("test/datasets/karate.mtx", 4),
-      BC_Usecase("test/datasets/karate.mtx", 10),
       BC_Usecase("test/datasets/polbooks.mtx", 0),
-      BC_Usecase("test/datasets/polbooks.mtx", 4),
-      BC_Usecase("test/datasets/polbooks.mtx", 10),
       BC_Usecase("test/datasets/netscience.mtx", 0),
-      BC_Usecase("test/datasets/netscience.mtx", 4),
       BC_Usecase("test/datasets/netscience.mtx", 100),
-      BC_Usecase("test/datasets/wiki2003.mtx", 100),
       BC_Usecase("test/datasets/wiki2003.mtx", 1000)
     )
 );
 
+/*
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  TEST_BFS,
+  ::testing::Values(
+    BC_Usecase("test/datasets/karate.mtx", 0),
+    BC_Usecase("test/datasets/polbooks.mtx", 0),
+    BC_Usecase("test/datasets/netscience.mtx", 0),
+    BC_Usecase("test/datasets/netscience.mtx", 100),
+    BC_Usecase("test/datasets/wiki2003.mtx", 1000)
+  )
+);
+*/
 
 int main( int argc, char** argv )
 {
