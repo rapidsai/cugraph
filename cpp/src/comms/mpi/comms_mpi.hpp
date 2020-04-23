@@ -14,22 +14,55 @@
  * limitations under the License.
  */
 
-// snmg utils
-// Author: Alex Fender afender@nvidia.com
- 
+
 #pragma once
-#include <mpi.h>
-#include <nccl.h>
-#include <omp.h>
-#include <unistd.h>
-#include <vector>
-#include "mem_utils.h"
-#include "basic_kernels.cuh"
 
 #define USE_NCCL 1
 
+#if USE_NCCL
+#include <mpi.h>
+#include <nccl.h>
+#endif
+
+#include <omp.h>
+#include <unistd.h>
+#include <vector>
+#include "utilities/error_utils.h"
+
 namespace cugraph { 
-namespace opg {
+namespace experimental {
+
+/**---------------------------------------------------------------------------*
+ * @brief Exception thrown when a NCCL error is encountered.
+ *
+ *---------------------------------------------------------------------------**/
+struct nccl_error : public std::runtime_error {
+  nccl_error(std::string const& message) : std::runtime_error(message) {}
+};
+
+inline void throw_nccl_error(ncclResult_t error, const char* file,
+                             unsigned int line) {
+  throw nccl_error(
+      std::string{"NCCL error encountered at: " + std::string{file} + ":" +
+                  std::to_string(line) + ": " + ncclGetErrorString(error)});
+}
+
+#if USE_NCCL
+#define NCCL_TRY(call) {                                           \
+  ncclResult_t nccl_status = (call);                               \
+  if (nccl_status!= ncclSuccess) {                                 \
+    throw_nccl_error(nccl_status, __FILE__, __LINE__); \
+  }                                                                \
+} 
+
+// MPI errors are expected to be fatal before reaching this.
+// Fix me : improve when adding raft comms
+#define MPI_TRY(cmd) {                           \
+  int e = cmd;                                   \
+  if ( e != MPI_SUCCESS ) {                      \
+    CUGRAPH_FAIL("Failed: MPI error");           \
+  }                                              \
+}                                               
 
 template <typename value_t>
 constexpr MPI_Datatype get_mpi_type() {
@@ -79,7 +112,7 @@ constexpr MPI_Datatype get_mpi_type() {
     CUGRAPH_FAIL("unsupported type");
   }
 }
-#if USE_NCCL
+
 template <typename value_t>
 constexpr ncclDataType_t get_nccl_type() {
   if (std::is_integral<value_t>::value) {
@@ -122,7 +155,7 @@ constexpr ncclDataType_t get_nccl_type() {
     CUGRAPH_FAIL("unsupported type");
   }
 }
-#endif
+
 enum class ReduceOp { SUM, MAX, MIN };
 
 constexpr MPI_Op get_mpi_reduce_op(ReduceOp reduce_op) {
@@ -140,7 +173,6 @@ constexpr MPI_Op get_mpi_reduce_op(ReduceOp reduce_op) {
   }
 }
 
-#if USE_NCCL
 constexpr ncclRedOp_t get_nccl_reduce_op(ReduceOp reduce_op) {
   if (reduce_op == ReduceOp::SUM) {
     return ncclSum;
@@ -161,75 +193,71 @@ constexpr ncclRedOp_t get_nccl_reduce_op(ReduceOp reduce_op) {
 class Comm 
 { 
   private:
-  int _p_x{0};
-  int _p_y{0};
+    int _p{0};
 
-  int _mpi_world_rank{0};
-  int _mpi_world_size{0};
-  bool _finalize_mpi{false};
+    int _mpi_world_rank{0};
+    int _mpi_world_size{0};
+    bool _finalize_mpi{false};
 
-  int _device_id{0};
-  int _device_count{0};
+    int _device_id{0};
+    int _device_count{0};
 
-  std::vector<void*> _p_ipc_mems{};
-  std::vector<size_t> _local_ipc_mem_offsets{};
+    std::vector<void*> _p_ipc_mems{};
+    std::vector<size_t> _local_ipc_mem_offsets{};
 
-  int _sm_count_per_device{0};
-  int _max_grid_dim_1D{0};
-  int _max_block_dim_1D{0};
-  int _l2_cache_size{0};
-  int _shared_memory_size_per_sm{0};
-  int _cuda_stream_least_priority{0};
-  int _cuda_stream_greatest_priority{0};
+    int _sm_count_per_device{0};
+    int _max_grid_dim_1D{0};
+    int _max_block_dim_1D{0};
+    int _l2_cache_size{0};
+    int _shared_memory_size_per_sm{0};
+    int _cuda_stream_least_priority{0};
+    int _cuda_stream_greatest_priority{0};
 
-  MPI_Comm _mpi_comm_p_x{};
-  MPI_Comm _mpi_comm_p_y{};
-  MPI_Comm _mpi_comm_p{};
+    cudaStream_t _default_stream{};
+    std::vector<cudaStream_t> _extra_streams{};
 
-  cudaStream_t _default_stream{};
-  std::vector<cudaStream_t> _extra_streams{};
-
-  ncclComm_t _nccl_comm{};
-  
+#if USE_NCCL
+    MPI_Comm _mpi_comm{};
+    ncclComm_t _nccl_comm{};
+ #endif
+   
   public: 
-    Comm();
+    Comm(int p);
     ~Comm();
     int get_rank() const { return _mpi_world_rank; }
     int get_p() const { return _mpi_world_size; }
     int get_dev() const { return _device_id; }
     int get_dev_count() const { return _device_count; }
     int get_sm_count() const { return _sm_count_per_device; }
-    bool is_master() const return { return (_mpi_world_rank == 0)? true : false; }
-    void init();
+    bool is_master() const { return (_mpi_world_rank == 0)? true : false; }
 
-    template <typename val_t>
-    void allgather (size_t size, val_t* sendbuff, val_t* recvbuff);
+    template <typename value_t>
+    void allgather (size_t size, value_t* sendbuff, value_t* recvbuff);
 
-    template <typename val_t>
-    void allreduce (size_t size, val_t* sendbuff, val_t* recvbuff, ReduceOp reduce_op);
+    template <typename value_t>
+    void allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op);
 
 };
 
 // Wait for all host threads 
 void sync_all() {
   cudaDeviceSynchronize();
-  MPI_Barrier(MPI_COMM_WORLD);
-}
-
-template <typename val_t>
-void Comm::allgather (size_t size, val_t* sendbuff, val_t* recvbuff) {
 #if USE_NCCL
-  if(typeid(val_t) == typeid(float))
-    NCCL_TRY(ncclAllGather((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), _nccl_comm, cudaStreamDefault));
-  else 
-    CUGRAPH_FAIL("allgather needs floats");
+  MPI_Barrier(MPI_COMM_WORLD);
 #endif
 }
 
-template <typename val_t>
-void Comm::allreduce (size_t size, val_t* sendbuff, val_t* recvbuff, ReduceOp reduce_op) {
+template <typename value_t>
+void Comm::allgather (size_t size, value_t* sendbuff, value_t* recvbuff) {
 #if USE_NCCL
-    NCCL_TRY(ncclAllReduce(const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), get_nccl_reduce_op(reduce_op), _nccl_comm, cudaStreamDefault)););
+    NCCL_TRY(ncclAllGather((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), _nccl_comm, cudaStreamDefault));
+#endif
+}
+
+template <typename value_t>
+void Comm::allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op) {
+#if USE_NCCL
+    NCCL_TRY(ncclAllReduce((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), get_nccl_reduce_op(reduce_op), _nccl_comm, cudaStreamDefault));
 #endif
 }
 

@@ -50,14 +50,6 @@ struct logic_error : public std::logic_error {
 struct cuda_error : public std::runtime_error {
   cuda_error(std::string const& message) : std::runtime_error(message) {}
 };
-/**---------------------------------------------------------------------------*
- * @brief Exception thrown when a NCCL error is encountered.
- *
- *---------------------------------------------------------------------------**/
-struct nccl_error : public std::runtime_error {
-  nccl_error(std::string const& message) : std::runtime_error(message) {}
-};
-
 }  // namespace cugraph
 
 #define STRINGIFY_DETAIL(x) #x
@@ -132,13 +124,6 @@ inline void throw_cuda_error(cudaError_t error, const char* file,
       std::string{"CUDA error encountered at: " + std::string{file} + ":" +
                   std::to_string(line) + ": " + std::to_string(error) + " " +
                   cudaGetErrorName(error) + " " + cudaGetErrorString(error)});
-}
-
-inline void throw_nccl_error(ncclResult_t error, const char* file,
-                             unsigned int line) {
-  throw cugraph::nccl_error(
-      std::string{"NCCL error encountered at: " + std::string{file} + ":" +
-                  std::to_string(line) + ": " + ncclGetErrorString(error)});
 }
 
 inline void check_stream(cudaStream_t stream, const char* file,
@@ -224,12 +209,3 @@ inline void check_stream(cudaStream_t stream, const char* file,
   CUGRAPH_EXPECTS(graph != nullptr, "Invalid API parameter: graph is NULL"); \
   CUGRAPH_EXPECTS(graph->adjList != nullptr || graph->edgeList != nullptr, "Invalid API parameter: graph is empty");
 
-#define NCCL_TRY(cmd) {                                      \
-    ncclResult_t nccl_status = cmd;                           \
-    if (nccl_status!= ncclSuccess) {                          \
-      printf("NCCL failure %s:%d '%s'\n",                     \
-          __FILE__,__LINE__,ncclGetErrorString(nccl_status)); \
-      FAIL();                                                 \
-    }                                                         \
-  } 
-}

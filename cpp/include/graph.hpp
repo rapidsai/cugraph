@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #pragma once
-
+#include "comms/mpi/comms_mpi.hpp"
 namespace cugraph {
 namespace experimental {
 
@@ -47,8 +47,8 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphBase {
 public:
+  Comm comm;
   WT *edge_data;     ///< edge weight
-
   GraphProperties          prop;
 
   VT                       number_of_vertices;
@@ -61,8 +61,11 @@ public:
    */
   void get_vertex_identifiers(VT *identifiers) const;
 
+  void setCommunicator(Comm& comm_) {comm = comm_;}
+  
   GraphBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_):
     edge_data(edge_data_),
+    comm(0),
     prop(),
     number_of_vertices(number_of_vertices_),
     number_of_edges(number_of_edges_)
