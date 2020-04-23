@@ -30,6 +30,7 @@
 
 namespace cugraph {
 namespace experimental {
+namespace detail {
 
 template <typename GraphType, typename VertexIterator, typename ResultIterator, typename vertex_t>
 void bfs_this_graph_partition(
@@ -132,5 +133,6 @@ void bfs_this_graph_partition(
   return;
 }
 
-}  // namespace cugraph
+}  // namespace detail
 }  // namespace experimental
+}  // namespace cugraph

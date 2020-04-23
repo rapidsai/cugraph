@@ -29,6 +29,7 @@
 
 namespace cugraph {
 namespace experimental {
+namespace detail {
 
 template <typename GraphType, typename VertexIterator, typename ResultIterator>
 void pagerank_this_graph_partition(
@@ -196,5 +197,6 @@ void pagerank_this_graph_partition(
   return;
 }
 
-}  // namespace cugraph
+}  // namespace detail
 }  // namespace experimental
+}  // namespace cugraph

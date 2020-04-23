@@ -20,6 +20,7 @@
 
 namespace cugraph {
 namespace experimental {
+namespace detail {
 
 // 1-level
 
@@ -92,5 +93,6 @@ cugraph::count_if as a multi-GPU wrapper of thrust::count_if? (for expensive che
 if graph is symmetric, there will be additional optimization opportunities (e.g. in-degree == out-degree)
 */
 
+}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

@@ -28,6 +28,7 @@
 
 namespace cugraph {
 namespace experimental {
+namespace detail {
 
 template <typename GraphType, typename VertexIterator, typename ResultIterator>
 void katz_centrality_this_graph_partition(
@@ -143,5 +144,6 @@ void katz_centrality_this_graph_partition(
   return;
 }
 
-}  // namespace cugraph
+}  // namespace detail
 }  // namespace experimental
+}  // namespace cugraph
