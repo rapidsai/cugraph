@@ -25,31 +25,31 @@ namespace experimental {
 
 template <typename HandleType, typename GraphType,
           typename DstInputIterator, typename SrcOutputIterator>
-copy_dst_values_to_src(
+void copy_dst_values_to_src(
     HandleType handle, GraphType graph,
     DstInputIterator dst_input_first, SrcOutputIterator src_output_first);
 
 template <typename HandleType, typename GraphType, typename SrcInputIterator, typename T>
-reduce_src_v(HandelType handle, GraphType graph, SrcInputIterator src_input_first, T init);
+T reduce_src_v(HandelType handle, GraphType graph, SrcInputIterator src_input_first, T init);
 
 template <typename HandleType, typename GraphType, typename DstInputIterator, typename T>
-reduce_dst_v(HandelType handle, GraphType graph, DstInputIterator dst_input_first, T init);
+T reduce_dst_v(HandelType handle, GraphType graph, DstInputIterator dst_input_first, T init);
 
 template <typename HandleType, typename GraphType,
           typename SrcInputIterator, typename UnaryOp, typename T>
-transform_reduce_src_v(
+T transform_reduce_src_v(
     HandelType handle, GraphType graph,
     SrcInputIterator src_input_first, UnaryOp v_op, T init);
 
 template <typename HandleType, typename GraphType,
           typename DstInputIterator, typename UnaryOp, typename T>
-transform_reduce_dst_v(
+T transform_reduce_dst_v(
     HandelType handle, GraphType graph,
     DstInputIterator dst_input_first, UnaryOp v_op, T init);
 
 template <typename HandleType, typename GraphType,
           typename SrcInputIterator, typename DstInputIterator, typename BinaryOp, typename T>
-transform_reduce_src_dst_v(
+T transform_reduce_src_dst_v(
     HandelType handle, GraphType graph,
     SrcInputIterator src_input_first, DstInputIterator dst_input_first, BinaryOp v_op, T init);
 
@@ -58,7 +58,7 @@ transform_reduce_src_dst_v(
 template <typename HandleType, typename GraphType,
           typename SrcInputIterator, typename DstInputIterator, typename SrcOutputIterator,
           typename EdgeOp, typename T>
-transform_src_v_transform_reduce_e(
+void transform_src_v_transform_reduce_e(
     HandelType handle, GraphType graph,
     SrcInputIterator src_input_first, DstInputIterator dst_input_first,
     SrcOutputIterator src_output_first, EdgeOp e_op, T init);
@@ -66,15 +66,30 @@ transform_src_v_transform_reduce_e(
 template <typename HandleType, typename GraphType,
           typename SrcInputIterator, typename DstInputIterator, typename DstOutputIterator,
           typename EdgeOp, typename T>
-transform_dst_v_transform_reduce_e(
+void transform_dst_v_transform_reduce_e(
     HandelType handle, GraphType graph,
     SrcInputIterator src_input_first, DstInputIterator dst_input_first,
     DstOutputIterator dst_output_first, EdgeOp e_op, T init);
 
+template <typename HandleType, typename GraphType, typename SrcVertexIterator,
+          typename SrcInputIterator, typename DstInputIterator, typename SrcOutputIterator,
+          typename QueueOutputIterator,
+          typename EdgeOp, typename EdgePredOp>
+QueueOutputIterator for_each_src_v_expand_and_transform_if_e(
+    HandelType handle, GraphType graph,
+    SrcVertexIterator src_vertex_first, SrcVertexIterator src_vertex_last,
+    SrcInputIterator src_input_first, DstInputIterator dst_input_first,
+    SrcOutputIterator src_output_first, QueueOutputIterator queue_output_first,
+    EdgeOp e_op, EdgePredOp e_pred_op);
+
 /*
 iterating over lower triangular (or upper triangular) : triangle counting
 LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and degree(j) : triangle counting
-push-pull switching support (e.g. DOBFS), in this case, we need both CSR & CSC (trade-off execution time vs memory requirement)
+push-pull switching support (e.g. DOBFS), in this case, we need both CSR & CSC (trade-off execution time vs memory requirement, unless graph is symmetric)
+should I take multi-GPU support as a template argument?
+Add bool expensive_check = false ?
+cugraph::count_if as a multi-GPU wrapper of thrust::count_if? (for expensive check)
+if graph is symmetric, there will be additional optimization opportunities (e.g. in-degree == out-degree)
 */
 
 }  // namespace experimental
