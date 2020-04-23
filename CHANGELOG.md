@@ -12,6 +12,7 @@
 - PR #793 Fix legacy cudf imports/cimports
 - PR #803 Enable Ninja build
 - PR #804 Cythonize in parallel
+- PR #823 Remove gdf column from nvgraph
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
