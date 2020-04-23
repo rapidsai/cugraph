@@ -22,7 +22,6 @@
 #include <cusparse.h>
 
 #include "nvgraph_vector.hxx"
-#include "valued_csr_graph.hxx"
 
 namespace nvgraph {
 
@@ -157,9 +156,6 @@ namespace nvgraph {
 	      /*const*/ ValueType_ * _csrValA,
 	      const IndexType_ * _csrRowPtrA,
 	      const IndexType_ * _csrColIndA);
-
-    /// Constructor
-    CsrMatrix( ValuedCsrGraph<IndexType_,ValueType_> & G, const cusparseMatDescr_t _descrA =0);
 
     /// Destructor
     virtual ~CsrMatrix();

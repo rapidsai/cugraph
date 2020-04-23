@@ -26,7 +26,6 @@
 #include <thrust/device_vector.h>
 #include <ctime>
 #include "utilities/error_utils.h"
-#include "converters/nvgraph.cuh"
 #include <rmm_utils.h>
 
 namespace cugraph {

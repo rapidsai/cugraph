@@ -326,7 +326,6 @@ add_library(cugraph SHARED
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
-    src/converters/nvgraph.cu
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/nvgraph_gdf.cu
@@ -346,9 +345,6 @@ add_library(cugraph SHARED
     src/centrality/betweenness_centrality.cu
     src/snmg/degree/degree.cu
     src/snmg/COO2CSR/COO2CSR.cu
-    src/nvgraph/csrmv.cu
-    src/nvgraph/csrmv_cub.cu
-    src/nvgraph/csr_graph.cpp
     src/nvgraph/kmeans.cu
     src/nvgraph/lanczos.cu
     src/nvgraph/matrix.cu
@@ -360,8 +356,6 @@ add_library(cugraph SHARED
     src/nvgraph/nvgraph_lapack.cu
     src/nvgraph/nvgraph_vector_kernels.cu
     src/nvgraph/partition.cu
-    src/nvgraph/size2_selector.cu
-    src/nvgraph/valued_csr_graph.cpp
 )
 
 #

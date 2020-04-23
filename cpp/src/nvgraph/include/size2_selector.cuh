@@ -64,12 +64,10 @@ class Size2Selector
         m_weight_formula = 0;
     }
 
-//    NVGRAPH_ERROR setAggregates(const CsrGraph<IndexType, ValueType> &A, Vector<IndexType> &aggregates, int &num_aggregates);
     NVGRAPH_ERROR setAggregates(cusparseHandle_t, const IndexType n_vertex, const IndexType n_edges, IndexType* csr_ptr, IndexType* csr_ind, ValueType* csr_val, Vector<IndexType> &aggregates, int &num_aggregates);
 
 
   protected:
-//    NVGRAPH_ERROR setAggregates_common_sqblocks(const CsrGraph<IndexType, ValueType> &A, Vector<IndexType> &aggregates, int &num_aggregates);
     NVGRAPH_ERROR setAggregates_common_sqblocks(cusparseHandle_t, const IndexType n_vertex, const IndexType n_edges, IndexType* csr_ptr, IndexType* csr_ind, ValueType* csr_val, Vector<IndexType> &aggregates, int &num_aggregates);
  
     Matching_t m_similarity_metric;

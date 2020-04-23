@@ -18,7 +18,6 @@
 #include <graph.hpp>
 
 #include "nvgraph_error.hxx"
-#include "valued_csr_graph.hxx"
 #include "matrix.hxx"
 
 

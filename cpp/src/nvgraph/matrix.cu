@@ -216,6 +216,7 @@ namespace nvgraph {
     Cusparse::set_pointer_mode_host();
   }
 
+#if 0
   /// Constructor for CSR matrix class
   /** @param G Weighted graph in CSR format
    */
@@ -231,6 +232,7 @@ namespace nvgraph {
       csrColIndA(G.get_raw_column_indices()) {
     Cusparse::set_pointer_mode_host();
   }
+#endif
 
   /// Destructor for CSR matrix class
   template <typename IndexType_, typename ValueType_>
