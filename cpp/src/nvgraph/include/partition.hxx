@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <graph.hpp>
+
 #include "nvgraph_error.hxx"
 #include "valued_csr_graph.hxx"
 #include "matrix.hxx"
@@ -55,35 +57,18 @@ namespace nvgraph {
    *    performed.
    *  @return NVGRAPH error flag.
    */
-  template <typename IndexType_, typename ValueType_>
-  NVGRAPH_ERROR partition( ValuedCsrGraph<IndexType_,ValueType_>& G,
-		       IndexType_ nParts,
-		       IndexType_ nEigVecs,
-		       IndexType_ maxIter_lanczos,
-		       IndexType_ restartIter_lanczos,
-		       ValueType_ tol_lanczos,
-		       IndexType_ maxIter_kmeans,
-		       ValueType_ tol_kmeans,
-		       IndexType_ * __restrict__ parts,
-           Vector<ValueType_> &eigVals,
-           Vector<ValueType_> &eigVecs,
-		       IndexType_ & iters_lanczos,
-		       IndexType_ & iters_kmeans);
-
-  template <typename IndexType_, typename ValueType_>
-  NVGRAPH_ERROR partition_lobpcg( ValuedCsrGraph<IndexType_,ValueType_>& G, Matrix<IndexType_,ValueType_> * M, cusolverDnHandle_t cusolverHandle,
-           IndexType_ nParts,
-           IndexType_ nEigVecs,
-           IndexType_ maxIter_lanczos,
-           ValueType_ tol_lanczos,
-           IndexType_ maxIter_kmeans,
-           ValueType_ tol_kmeans,
-           IndexType_ * __restrict__ parts,
-           Vector<ValueType_> &eigVals,
-           Vector<ValueType_> &eigVecs,
-           IndexType_ & iters_lanczos,
-           IndexType_ & iters_kmeans);
-
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  NVGRAPH_ERROR partition(cugraph::experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
+                          vertex_t nParts,
+                          vertex_t nEigVecs,
+                          int maxIter_lanczos,
+                          int restartIter_lanczos,
+                          weight_t tol_lanczos,
+                          int maxIter_kmeans,
+                          weight_t tol_kmeans,
+                          vertex_t * __restrict__ parts,
+                          weight_t *eigVals,
+                          weight_t *eig_vects);
 
   /// Compute cost function for partition
   /** This function determines the edges cut by a partition and a cost
@@ -99,11 +84,11 @@ namespace nvgraph {
    *  @param cost On exit, partition cost function.
    *  @return NVGRAPH error flag.
    */
-  template <typename IndexType_, typename ValueType_>
-  NVGRAPH_ERROR analyzePartition(ValuedCsrGraph<IndexType_,ValueType_> & G,
-			      IndexType_ nParts,
-			      const IndexType_ * __restrict__ parts,
-			      ValueType_ & edgeCut, ValueType_ & cost);
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  NVGRAPH_ERROR analyzePartition(cugraph::experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
+                                 vertex_t nParts,
+                                 const vertex_t * __restrict__ parts,
+                                 weight_t & edgeCut, weight_t & cost);
 
 }
 

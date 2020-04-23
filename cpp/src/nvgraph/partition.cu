@@ -27,36 +27,14 @@
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
 
-#include "include/nvgraph_error.hxx"
-#include "include/nvgraph_vector.hxx"
-#include "include/nvgraph_cublas.hxx"
-#include "include/matrix.hxx"
-#include "include/lanczos.hxx"
-#include "include/kmeans.hxx"
-#include "include/debug_macros.h"
-#include "include/sm_utils.h"
-
-//#define COLLECT_TIME_STATISTICS 1
-//#undef COLLECT_TIME_STATISTICS
-
-#ifdef COLLECT_TIME_STATISTICS
-#include <stddef.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/sysinfo.h>
-#endif
-
-static double timer (void) {
-#ifdef COLLECT_TIME_STATISTICS
-    struct timeval tv;
-    cudaDeviceSynchronize();
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-#else
-    return 0.0; 
-#endif
-}
-
+#include <nvgraph/include/nvgraph_error.hxx>
+#include <nvgraph/include/nvgraph_vector.hxx>
+#include <nvgraph/include/nvgraph_cublas.hxx>
+#include <nvgraph/include/matrix.hxx>
+#include <nvgraph/include/lanczos.hxx>
+#include <nvgraph/include/kmeans.hxx>
+#include <nvgraph/include/debug_macros.h>
+#include <nvgraph/include/sm_utils.h>
 
 namespace nvgraph {
 
@@ -237,85 +215,32 @@ namespace nvgraph {
    *    performed.
    *  @return NVGRAPH error flag.
    */
-  template <typename IndexType_, typename ValueType_>
-  NVGRAPH_ERROR partition( ValuedCsrGraph<IndexType_,ValueType_>& G,
-           IndexType_ nParts,
-           IndexType_ nEigVecs,
-           IndexType_ maxIter_lanczos,
-           IndexType_ restartIter_lanczos,
-           ValueType_ tol_lanczos,
-           IndexType_ maxIter_kmeans,
-           ValueType_ tol_kmeans,
-           IndexType_ * __restrict__ parts,
-           Vector<ValueType_> &eigVals,
-           Vector<ValueType_> &eigVecs,
-           IndexType_ & iters_lanczos,
-           IndexType_ & iters_kmeans) {
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  NVGRAPH_ERROR partition(cugraph::experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
+                          vertex_t nParts,
+                          vertex_t nEigVecs,
+                          int maxIter_lanczos,
+                          int restartIter_lanczos,
+                          weight_t tol_lanczos,
+                          int maxIter_kmeans,
+                          weight_t tol_kmeans,
+                          vertex_t * __restrict__ parts,
+                          weight_t *eigVals,
+                          weight_t *eigVecs) {
 
-    // -------------------------------------------------------
-    // Check that parameters are valid
-    // -------------------------------------------------------
-
-    if(nParts < 1) {
-      WARNING("invalid parameter (nParts<1)");
-      return NVGRAPH_ERR_BAD_PARAMETERS;
-    }
-    if(nEigVecs < 1) {
-      WARNING("invalid parameter (nEigVecs<1)");
-      return NVGRAPH_ERR_BAD_PARAMETERS;
-    }
-    if(maxIter_lanczos < nEigVecs) {
-      WARNING("invalid parameter (maxIter_lanczos<nEigVecs)");
-      return NVGRAPH_ERR_BAD_PARAMETERS;
-    }
-    if(restartIter_lanczos < nEigVecs) {
-      WARNING("invalid parameter (restartIter_lanczos<nEigVecs)");
-      return NVGRAPH_ERR_BAD_PARAMETERS;
-    }
-    if(tol_lanczos < 0) {
-      WARNING("invalid parameter (tol_lanczos<0)");
-      return NVGRAPH_ERR_BAD_PARAMETERS;
-    }
-    if(maxIter_kmeans < 0) {
-      WARNING("invalid parameter (maxIter_kmeans<0)");
-      return NVGRAPH_ERR_BAD_PARAMETERS;
-    }
-    if(tol_kmeans < 0) {
-      WARNING("invalid parameter (tol_kmeans<0)");
-      return NVGRAPH_ERR_BAD_PARAMETERS;
-    }
-
-    // -------------------------------------------------------
-    // Variable declaration
-    // -------------------------------------------------------
-
-    // Useful constants
-    const ValueType_ zero = 0;
-    const ValueType_ one  = 1;
-
-    // Loop index
-    IndexType_ i;
-
-    // Matrix dimension
-    IndexType_ n = G.get_num_vertices();
-
-    // CUDA stream
-    //   TODO: handle non-zero streams
     cudaStream_t stream = 0;
 
-    // Matrices
-    Matrix<IndexType_, ValueType_> * A;  // Adjacency matrix
-    Matrix<IndexType_, ValueType_> * L;  // Laplacian matrix
+    const weight_t zero{0.0};
+    const weight_t one{1.0};
 
-    // Whether to perform full reorthogonalization in Lanczos
-    bool reorthogonalize_lanczos = false;
+    int iters_lanczos;
+    int iters_kmeans;
+
+    edge_t i;
+    edge_t n = graph.number_of_vertices;
 
     // k-means residual
-    ValueType_ residual_kmeans;
-
-    bool scale_eigevec_rows=SPECTRAL_USE_SCALING_OF_EIGVECS; //true; //false;
-
-    double t1=0.0,t2=0.0,t_kmeans=0.0;
+    weight_t residual_kmeans;
 
     // -------------------------------------------------------
     // Spectral partitioner
@@ -324,81 +249,69 @@ namespace nvgraph {
     // Compute eigenvectors of Laplacian
     
     // Initialize Laplacian
-    A = new CsrMatrix<IndexType_,ValueType_>(G);
-    L = new LaplacianMatrix<IndexType_,ValueType_>(*A);
+    CsrMatrix<vertex_t,weight_t> A(false,
+                                   false,
+                                   graph.number_of_vertices,
+                                   graph.number_of_vertices,
+                                   graph.number_of_edges,
+                                   0,
+                                   graph.edge_data,
+                                   graph.offsets,
+                                   graph.indices);
+    LaplacianMatrix<vertex_t,weight_t>  L(A);
 
     // Compute smallest eigenvalues and eigenvectors
-    CHECK_NVGRAPH(computeSmallestEigenvectors(*L, nEigVecs, maxIter_lanczos,
-             restartIter_lanczos, tol_lanczos,
-             reorthogonalize_lanczos, iters_lanczos,
-             eigVals.raw(), eigVecs.raw()));   
-    //eigVals.dump(0, nEigVecs);
-    //eigVecs.dump(0, nEigVecs);
-    //eigVecs.dump(n, nEigVecs);
-    //eigVecs.dump(2*n, nEigVecs);
+    CHECK_NVGRAPH(computeSmallestEigenvectors(L, nEigVecs, maxIter_lanczos,
+                                              restartIter_lanczos, tol_lanczos,
+                                              false, iters_lanczos,
+                                              eigVals, eigVecs));   
+
     // Whiten eigenvector matrix
     for(i=0; i<nEigVecs; ++i) {
-      ValueType_ mean, std;
-      mean = thrust::reduce(thrust::device_pointer_cast(eigVecs.raw()+IDX(0,i,n)),
-                            thrust::device_pointer_cast(eigVecs.raw()+IDX(0,i+1,n)));
+      weight_t mean, std;
+
+      mean = thrust::reduce(thrust::device_pointer_cast(eigVecs+IDX(0,i,n)),
+                            thrust::device_pointer_cast(eigVecs+IDX(0,i+1,n)));
       cudaCheckError();
       mean /= n;
-      thrust::transform(thrust::device_pointer_cast(eigVecs.raw()+IDX(0,i,n)),
-                        thrust::device_pointer_cast(eigVecs.raw()+IDX(0,i+1,n)), 
+      thrust::transform(thrust::device_pointer_cast(eigVecs+IDX(0,i,n)),
+                        thrust::device_pointer_cast(eigVecs+IDX(0,i+1,n)), 
                         thrust::make_constant_iterator(mean), 
-                        thrust::device_pointer_cast(eigVecs.raw()+IDX(0,i,n)), 
-                        thrust::minus<ValueType_>());
+                        thrust::device_pointer_cast(eigVecs+IDX(0,i,n)), 
+                        thrust::minus<weight_t>());
       cudaCheckError();
-      std = Cublas::nrm2(n, eigVecs.raw()+IDX(0,i,n), 1)/std::sqrt(static_cast<ValueType_>(n));
-      thrust::transform(thrust::device_pointer_cast(eigVecs.raw()+IDX(0,i,n)),
-                        thrust::device_pointer_cast(eigVecs.raw()+IDX(0,i+1,n)),
+      std = Cublas::nrm2(n, eigVecs+IDX(0,i,n), 1)/std::sqrt(static_cast<weight_t>(n));
+      thrust::transform(thrust::device_pointer_cast(eigVecs+IDX(0,i,n)),
+                        thrust::device_pointer_cast(eigVecs+IDX(0,i+1,n)),
                         thrust::make_constant_iterator(std),
-                        thrust::device_pointer_cast(eigVecs.raw()+IDX(0,i,n)), 
-                        thrust::divides<ValueType_>());
+                        thrust::device_pointer_cast(eigVecs+IDX(0,i,n)), 
+                        thrust::divides<weight_t>());
       cudaCheckError();
     }
-
-   delete L;
-   delete A;
 
     // Transpose eigenvector matrix
     //   TODO: in-place transpose
     {
-      Vector<ValueType_> work(nEigVecs*n, stream);
+      Vector<weight_t> work(nEigVecs*n, stream);
       Cublas::set_pointer_mode_host();
       Cublas::geam(true, false, nEigVecs, n,
-       &one, eigVecs.raw(), n,
-       &zero, (ValueType_*) NULL, nEigVecs,
-       work.raw(), nEigVecs);
-      CHECK_CUDA(cudaMemcpyAsync(eigVecs.raw(), work.raw(),
-         nEigVecs*n*sizeof(ValueType_),
-         cudaMemcpyDeviceToDevice));
+                   &one, eigVecs, n,
+                   &zero, (weight_t*) NULL, nEigVecs,
+                   work.raw(), nEigVecs);
+      CHECK_CUDA(cudaMemcpyAsync(eigVecs, work.raw(),
+                                 nEigVecs*n*sizeof(weight_t),
+                                 cudaMemcpyDeviceToDevice));
     }
 
      // Clean up
   
 
-    if (scale_eigevec_rows) {
-        //WARNING: notice that at this point the matrix has already been transposed, so we are scaling columns
-        scale_obs(nEigVecs,n,eigVecs.raw()); cudaCheckError()
-        //print_matrix<IndexType_,ValueType_,true,false>(nEigVecs-ifirst,n,obs,nEigVecs-ifirst,"Scaled obs");
-        //print_matrix<IndexType_,ValueType_,true,true>(nEigVecs-ifirst,n,obs,nEigVecs-ifirst,"Scaled obs");
-    }
-
-    t1=timer();
-
     //eigVecs.dump(0, nEigVecs*n);
     // Find partition with k-means clustering
     CHECK_NVGRAPH(kmeans(n, nEigVecs, nParts, 
-          tol_kmeans, maxIter_kmeans,
-          eigVecs.raw(), parts,
-          residual_kmeans, iters_kmeans));
-    t2=timer();
-    t_kmeans+=t2-t1;
-#ifdef COLLECT_TIME_STATISTICS
-    printf("time k-means %f\n",t_kmeans);
-#endif        
-
+                         tol_kmeans, maxIter_kmeans,
+                         eigVecs, parts,
+                         residual_kmeans, iters_kmeans));
 
     return NVGRAPH_OK;
   }
@@ -438,55 +351,37 @@ namespace nvgraph {
    *  @param cost On exit, partition cost function.
    *  @return NVGRAPH error flag.
    */
-  template <typename IndexType_, typename ValueType_>
-  NVGRAPH_ERROR analyzePartition(ValuedCsrGraph<IndexType_,ValueType_> & G,
-            IndexType_ nParts,
-            const IndexType_ * __restrict__ parts,
-            ValueType_ & edgeCut, ValueType_ & cost) {
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  NVGRAPH_ERROR analyzePartition(cugraph::experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
+                                 vertex_t nParts,
+                                 const vertex_t * __restrict__ parts,
+                                 weight_t & edgeCut, weight_t & cost) {
     
-    //using namespace thrust;
-
-    // -------------------------------------------------------
-    // Variable declaration
-    // -------------------------------------------------------
-
-    // Loop index
-    IndexType_ i;
-
-    // Matrix dimension
-    IndexType_ n = G.get_num_vertices();
-
-    // Values for computing partition cost
-    ValueType_ partEdgesCut, partSize;
-
-    // CUDA stream
-    //   TODO: handle non-zero streams
     cudaStream_t stream = 0;
-    
+
+    edge_t i;
+    edge_t n = graph.number_of_vertices;
+
+    weight_t partEdgesCut, partSize;
+
     // Device memory
-    Vector<ValueType_> part_i(n, stream);
-    Vector<ValueType_> Lx(n, stream);
-
-    // Adjacency and Laplacian matrices
-    Matrix<IndexType_, ValueType_> * A;
-    Matrix<IndexType_, ValueType_> * L;
-
-    // -------------------------------------------------------
-    // Implementation
-    // -------------------------------------------------------
-
-    // Check that parameters are valid
-    if(nParts < 1) {
-      WARNING("invalid parameter (nParts<1)");
-      return NVGRAPH_ERR_BAD_PARAMETERS;
-    }
+    Vector<weight_t> part_i(n, stream);
+    Vector<weight_t> Lx(n, stream);
 
     // Initialize cuBLAS
     Cublas::set_pointer_mode_host();
 
     // Initialize Laplacian
-    A = new CsrMatrix<IndexType_,ValueType_>(G);
-    L = new LaplacianMatrix<IndexType_,ValueType_>(*A);
+    CsrMatrix<vertex_t,weight_t> A(false,
+                                   false,
+                                   graph.number_of_vertices,
+                                   graph.number_of_vertices,
+                                   graph.number_of_edges,
+                                   0,
+                                   graph.edge_data,
+                                   graph.offsets,
+                                   graph.indices);
+    LaplacianMatrix<vertex_t,weight_t>  L(A);
 
     // Initialize output
     cost    = 0;
@@ -497,78 +392,74 @@ namespace nvgraph {
     
       // Construct indicator vector for ith partition
       thrust::for_each( thrust::make_zip_iterator(thrust::make_tuple(thrust::device_pointer_cast(parts),
-                thrust::device_pointer_cast(part_i.raw()))),
-                thrust::make_zip_iterator(thrust::make_tuple(thrust::device_pointer_cast(parts+n),
-                thrust::device_pointer_cast(part_i.raw()+n))),
-                equal_to_i_op<IndexType_,ValueType_>(i));
+                                                                     thrust::device_pointer_cast(part_i.raw()))),
+                        thrust::make_zip_iterator(thrust::make_tuple(thrust::device_pointer_cast(parts+n),
+                                                                     thrust::device_pointer_cast(part_i.raw()+n))),
+                        equal_to_i_op<vertex_t, weight_t>(i));
       cudaCheckError();
 
       // Compute size of ith partition
       Cublas::dot(n, part_i.raw(), 1, part_i.raw(), 1, &partSize);
       partSize = round(partSize);
       if(partSize < 0.5) {
-  WARNING("empty partition");
-  continue;
+        WARNING("empty partition");
+        continue;
       }
          
       // Compute number of edges cut by ith partition
-      L->mv(1, part_i.raw(), 0, Lx.raw());
+      L.mv(1, part_i.raw(), 0, Lx.raw());
       Cublas::dot(n, Lx.raw(), 1, part_i.raw(), 1, &partEdgesCut);
 
       // Record results
       cost    += partEdgesCut/partSize;
       edgeCut += partEdgesCut/2;
-
     }
 
     // Clean up and return
-    delete L;
-    delete A;
     return NVGRAPH_OK;
-
   }
 
   // =========================================================
   // Explicit instantiation
   // =========================================================
+  //template <typename vertex_t, typename edge_t, typename weight_t>
+  //NVGRAPH_ERROR partition(cugraph::experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
+
   template
-  NVGRAPH_ERROR partition<int,float>( ValuedCsrGraph<int,float> & G,
-          int nParts,
-          int nEigVecs,
-          int maxIter_lanczos,
-          int restartIter_lanczos,
-          float tol_lanczos,
-          int maxIter_kmeans,
-          float tol_kmeans,
-          int * __restrict__ parts,
-          Vector<float> &eigVals,
-          Vector<float> &eigVecs,
-          int & iters_lanczos,
-          int & iters_kmeans);
+  NVGRAPH_ERROR partition<int,int,float>(cugraph::experimental::GraphCSR<int, int, float> const &graph,
+                                         int nParts,
+                                         int nEigVecs,
+                                         int maxIter_lanczos,
+                                         int restartIter_lanczos,
+                                         float tol_lanczos,
+                                         int maxIter_kmeans,
+                                         float tol_kmeans,
+                                         int * __restrict__ parts,
+                                         float *eigVals,
+                                         float *eigVecs);
+
   template
-  NVGRAPH_ERROR partition<int,double>( ValuedCsrGraph<int,double> & G,
-           int nParts,
-           int nEigVecs,
-           int maxIter_lanczos,
-           int restartIter_lanczos,
-           double tol_lanczos,
-           int maxIter_kmeans,
-           double tol_kmeans,
-           int * __restrict__ parts,
-           Vector<double> &eigVals,
-           Vector<double> &eigVecs,
-           int & iters_lanczos,
-           int & iters_kmeans);
+  NVGRAPH_ERROR partition<int,int,double>(cugraph::experimental::GraphCSR<int, int, double> const &graph,
+                                          int nParts,
+                                          int nEigVecs,
+                                          int maxIter_lanczos,
+                                          int restartIter_lanczos,
+                                          double tol_lanczos,
+                                          int maxIter_kmeans,
+                                          double tol_kmeans,
+                                          int * __restrict__ parts,
+                                          double *eigVals,
+                                          double *eigVecs);
 
 
 
   template
-  NVGRAPH_ERROR analyzePartition<int,float>(ValuedCsrGraph<int,float> & G,
+  NVGRAPH_ERROR analyzePartition<int,int,float>(cugraph::experimental::GraphCSR<int,int,float> const &graph,
            int nParts,
            const int * __restrict__ parts,
            float & edgeCut, float & cost);
   template
-  NVGRAPH_ERROR analyzePartition<int,double>(ValuedCsrGraph<int,double> & G,
+  NVGRAPH_ERROR analyzePartition<int,int,double>(cugraph::experimental::GraphCSR<int,int,double> const &graph,
             int nParts,
             const int * __restrict__ parts,
             double & edgeCut, double & cost);

@@ -330,6 +330,7 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/nvgraph_gdf.cu
+    src/community/nvgraph_clustering.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu

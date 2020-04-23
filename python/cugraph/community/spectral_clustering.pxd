@@ -16,45 +16,45 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
-    cdef void balancedCutClustering_nvgraph(
-        Graph *gdf_G,
+    cdef void balancedCutClustering[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
         const int num_clusters,
         const int num_eigen_vects,
         const float evs_tolerance,
         const int evs_max_iter,
         const float kmean_tolerance,
         const int kmean_max_iter,
-        gdf_column* clustering) except +
+        VT* clustering) except +
     
-    cdef void spectralModularityMaximization_nvgraph(
-        Graph* gdf_G,
+    cdef void spectralModularityMaximization[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
         const int n_clusters,
         const int n_eig_vects,
         const float evs_tolerance,
         const int evs_max_iter,
         const float kmean_tolerance,
         const int kmean_max_iter,
-        gdf_column* clustering) except +
+        VT* clustering) except +
     
-    cdef void analyzeClustering_modularity_nvgraph(
-        Graph* gdf_G,
+    cdef void analyzeClustering_modularity[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
         const int n_clusters,
-        gdf_column* clustering,
-        float* score) except +
+        const VT* clustering,
+        WT* score) except +
     
-    cdef void analyzeClustering_edge_cut_nvgraph(
-        Graph* gdf_G,
+    cdef void analyzeClustering_edge_cut[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
         const int n_clusters,
-        gdf_column* clustering,
-        float* score) except +
+        const VT* clustering,
+        WT* score) except +
     
-    cdef void analyzeClustering_ratio_cut_nvgraph(
-        Graph* gdf_G,
+    cdef void analyzeClustering_ratio_cut[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
         const int n_clusters,
-        gdf_column* clustering,
-        float* score) except +
+        const VT* clustering,
+        WT* score) except +

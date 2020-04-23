@@ -455,5 +455,121 @@ void extract_subgraph_vertex(experimental::GraphCOO<VT, ET, WT> const &graph,
                              VT num_vertices,
                              experimental::GraphCOO<VT, ET, WT> &result);
 
+/**
+ * @brief     Wrapper function for Nvgraph balanced cut clustering
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  num_clusters          The desired number of clusters
+ * @param[in]  num_eigen_vects       The number of eigenvectors to use
+ * @param[in]  evs_tolerance         The tolerance to use for the eigenvalue solver
+ * @param[in]  evs_max_iter          The maximum number of iterations of the eigenvalue solver
+ * @param[in]  kmean_tolerance       The tolerance to use for the kmeans solver
+ * @param[in]  kmean_max_iter        The maximum number of iteration of the k-means solver
+ * @param[out] clustering            Pointer to device memory where the resulting clustering will be stored
+ */
+template <typename VT, typename ET, typename WT>
+void balancedCutClustering(experimental::GraphCSR<VT, ET, WT> const &graph,
+                           VT num_clusters,
+                           VT num_eigen_vects,
+                           WT evs_tolerance,
+                           int evs_max_iter,
+                           WT kmean_tolerance,
+                           int kmean_max_iter,
+                           VT *clustering);
+
+/**
+ * @brief      Wrapper function for Nvgraph spectral modularity maximization algorithm
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  num_clusters          The desired number of clusters
+ * @param[in]  num_eigen_vects       The number of eigenvectors to use
+ * @param[in]  evs_tolerance         The tolerance to use for the eigenvalue solver
+ * @param[in]  evs_max_iter          The maximum number of iterations of the eigenvalue solver
+ * @param[in]  kmean_tolerance       The tolerance to use for the kmeans solver
+ * @param[in]  kmean_max_iter        The maximum number of iteration of the k-means solver
+ * @param[out] clustering            Pointer to device memory where the resulting clustering will be stored
+ */
+template <typename VT, typename ET, typename WT>
+void spectralModularityMaximization(experimental::GraphCSR<VT, ET, WT> const &graph,
+                                    VT n_clusters,
+                                    VT n_eig_vects,
+                                    WT evs_tolerance,
+                                    int evs_max_iter,
+                                    WT kmean_tolerance,
+                                    int kmean_max_iter,
+                                    VT *clustering);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering modularity metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_modularity(experimental::GraphCSR<VT, ET, WT> const &graph,
+                                  int n_clusters,
+                                  VT const *clustering,
+                                  WT *score);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering edge cut metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_edge_cut(experimental::GraphCSR<VT, ET, WT> const &graph,
+                                int n_clusters,
+                                VT const *clustering,
+                                WT *score);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering ratio cut metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.   
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_ratio_cut(experimental::GraphCSR<VT, ET, WT> const &graph,
+                                 int n_clusters,
+                                 VT const *clustering,
+                                 WT *score);
+
 } //namespace nvgraph
 } //namespace cugraph
