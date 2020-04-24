@@ -42,7 +42,7 @@ def weight_type(input_graph):
     return weights_type
 
 
-cdef (uintptr_t, uintptr_t, uintptr_t) graph_params(input_graph):
+cdef (uintptr_t, uintptr_t, uintptr_t, int, int) graph_params(input_graph):
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
@@ -56,7 +56,10 @@ cdef (uintptr_t, uintptr_t, uintptr_t) graph_params(input_graph):
     if input_graph.edgelist.weights:
         [weights] = graph_new_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
         c_weights = weights.__cuda_array_interface__['data'][0]
-    return (c_src,c_dst,c_weights)
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(input_graph.edgelist.edgelist_df)
+    return (c_src,c_dst,c_weights,num_verts,num_edges)
 
 
 cdef (uintptr_t, uintptr_t) core_number_params(core_number):
@@ -67,11 +70,9 @@ cdef (uintptr_t, uintptr_t) core_number_params(core_number):
 
 
 def k_core_float(input_graph, k, core_number):
-    c_src, c_dst, c_weights = graph_params(input_graph)
+    c_src, c_dst, c_weights, num_verts, num_edges = graph_params(input_graph)
     c_vertex, c_values = core_number_params(core_number)
 
-    num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges()
     cdef GraphCOOView[int,int,float] in_graph
     in_graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
     cdef unique_ptr[GraphCOO[int,int,float]] out_graph = move(c_k_core[int,int,float](in_graph, k, <int*>c_vertex, <int*>c_values, len(core_number)))
@@ -83,24 +84,19 @@ def k_core_float(input_graph, k, core_number):
     dst = Buffer(dst)
 
     df = cudf.DataFrame()
-    df['src'] = cudf.core.column.build_column(data=src, dtype="int32", size=contents.number_of_edges)
-    df['dst'] = cudf.core.column.build_column(data=dst, dtype="int32", size=contents.number_of_edges)
+    df['src'] = cudf.core.column.build_column(data=src, dtype="int32")
+    df['dst'] = cudf.core.column.build_column(data=dst, dtype="int32")
     if weight_type(input_graph) == np.float32:
         wgt = Buffer(wgt)
-        df['weight'] = cudf.core.column.build_column(data=wgt, dtype="float32", size=contents.number_of_edges)
-
-    print('DEBUG_MESSAGE k_core_wrapper.pyx:92 number of edges', contents.number_of_edges)
-    print('DEBUG_MESSAGE k_core_wrapper.pyx:93 number of df edges', len(df))
+        df['weight'] = cudf.core.column.build_column(data=wgt, dtype="float32")
     
     return df
 
 
 def k_core_double(input_graph, k, core_number):
-    c_src, c_dst, c_weights = graph_params(input_graph)
+    c_src, c_dst, c_weights, num_verts, num_edges = graph_params(input_graph)
     c_vertex, c_values = core_number_params(core_number)
 
-    num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges()
     cdef GraphCOOView[int,int,double] in_graph
     in_graph = GraphCOOView[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
     cdef unique_ptr[GraphCOO[int,int,double]] out_graph = move(c_k_core[int,int,double](in_graph, k, <int*>c_vertex, <int*>c_values, len(core_number)))
@@ -112,11 +108,11 @@ def k_core_double(input_graph, k, core_number):
     dst = Buffer(dst)
 
     df = cudf.DataFrame()
-    df['src'] = cudf.core.column.build_column(data=src, dtype="int32", size=contents.number_of_edges)
-    df['dst'] = cudf.core.column.build_column(data=dst, dtype="int32", size=contents.number_of_edges)
+    df['src'] = cudf.core.column.build_column(data=src, dtype="int32")
+    df['dst'] = cudf.core.column.build_column(data=dst, dtype="int32")
     if weight_type(input_graph) == np.float64:
         wgt = Buffer(wgt)
-        df['weight'] = cudf.core.column.build_column(data=wgt, dtype="float64", size=contents.number_of_edges)
+        df['weight'] = cudf.core.column.build_column(data=wgt, dtype="float64")
     
     return df
 
