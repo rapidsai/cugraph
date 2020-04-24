@@ -61,7 +61,7 @@ public:
    */
   void get_vertex_identifiers(VT *identifiers) const;
 
-  void setCommunicator(Comm& comm_) {comm = comm_;}
+  void set_communicator(Comm& comm_) {comm = comm_;}
   
   GraphBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_):
     edge_data(edge_data_),
