@@ -35,20 +35,15 @@ namespace detail {
 template <typename GraphType, typename VertexIterator, typename ResultIterator, typename vertex_t>
 void bfs_this_graph_partition(
     raft::Handle handle, GraphType const& graph,
-    VertexIteraotr src_distance_first, VertexIteraotr src_predecessor_first, vertex_t starting_vertex,
-    bool direction_optimized = false,
-    size_t depth_limit = std::numeric_limits<size_t>::max()) {
-   
+    VertexIteraotr src_distance_first, VertexIteraotr src_predecessor_first,
+    vertex_t starting_vertex,
+    bool direction_optimized = false, size_t depth_limit = std::numeric_limits<size_t>::max()) {
   static_assert(
     std::is_same<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>::value,
     "VertexIterator should point to a vertex_t value.");
-  using result_t = typename std::iterator_traits<ResultIterator>::value_type;
   static_assert(
     std::is_integral<vertex_t>::value,
     "VertexIterator should point to an integral value.");
-  static_assert(
-    std::is_floating_point<result_t>::value,
-    "ResultIterator should point to a floating-point value.");
   static_assert(
     is_csr<GraphType>::value,
     "cugraph::experimental::bfs expects a CSR graph.");
@@ -102,6 +97,11 @@ void bfs_this_graph_partition(
     else {
       auto cur_src_frontier_first = src_frontiers.begin() + cur_src_froniter_offset;
       auto cur_src_frontier_last = cur_src_frontier_first + cur_src_frontier_size;
+
+      copy_src_values_to_dst(
+        handle, graph, cur_src_frontier_first, cur_src_frontier_last,
+        thrust::make_constant_iterator(true), dst_visited.begin());
+
       auto new_src_froniter_last =
         for_each_src_v_expand_and_transform_if_e(
           handle, graph,
