@@ -126,6 +126,10 @@ extract_subgraph(experimental::GraphCOOView<VT, ET, WT> const &in_graph,
       in_graph.has_data());
 
   experimental::GraphCOOView<VT, ET, WT> out_graph_view = out_graph->view();
+  std::cerr<<"DEBUG_MESSAGE core_number.cu:129 : C++ input graph edge count = ";
+  std::cerr<<in_graph.number_of_edges<<"\n";
+  std::cerr<<"DEBUG_MESSAGE core_number.cu:131 : C++ output graph edge count = ";
+  std::cerr<<out_graph_view.number_of_edges<<"\n";
   extract_edges(in_graph, out_graph_view, d_sorted_core_num, k);
 
   return out_graph;

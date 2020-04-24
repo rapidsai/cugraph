@@ -88,6 +88,9 @@ def k_core_float(input_graph, k, core_number):
     if weight_type(input_graph) == np.float32:
         wgt = Buffer(wgt)
         df['weight'] = cudf.core.column.build_column(data=wgt, dtype="float32", size=contents.number_of_edges)
+
+    print('DEBUG_MESSAGE k_core_wrapper.pyx:92 number of edges', contents.number_of_edges)
+    print('DEBUG_MESSAGE k_core_wrapper.pyx:93 number of df edges', len(df))
     
     return df
 
