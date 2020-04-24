@@ -181,6 +181,12 @@ namespace db {
     // The relationship table
     db_table<idx_t> relationshipsTable;
 
+    // The node labels table
+    db_table<idx_t> nodeLabelsTable;
+
+    // The node properties table
+    db_table<idx_t> nodePropertiesTable;
+
     // The relationship property table
     db_table<idx_t> relationshipPropertiesTable;
 

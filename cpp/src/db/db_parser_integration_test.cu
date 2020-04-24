@@ -57,6 +57,47 @@ void printOutAst(std::string input) {
       cypher_astnode_type_t cType = cypher_astnode_type(child);
       const char* ctype_desc = cypher_astnode_typestr(cType);
       std::cout << "Statement child is a " << ctype_desc << " node\n";
+      uint32_t n_child_query = cypher_astnode_nchildren(child);
+      std::cout << ctype_desc << " node has " << n_child_query << " children\n";
+      for (uint32_t i = 0; i < n_child_query; i++) {
+        const cypher_astnode_t* c = cypher_astnode_get_child(child, i);
+        cypher_astnode_type_t c_type = cypher_astnode_type(c);
+        const char* type_str = cypher_astnode_typestr(c_type);
+        std::cout << "Child " << i << " is a " << type_str << "\n";
+
+        if (type_str == std::string("LOAD CSV")) {
+          uint32_t n_c = cypher_astnode_nchildren(c);
+          const cypher_astnode_t* terminator = cypher_ast_load_csv_get_field_terminator(c);
+
+          if (terminator != nullptr) {
+            cypher_astnode_type_t tType = cypher_astnode_type(terminator);
+            const char* tStr = cypher_astnode_typestr(tType);
+            std::cout << "  Field Terminator node is a " << tStr << "\n";
+          }
+          else {
+            std::cout << "  Field Terminator node is NULL\n";
+          }
+
+          bool hasHeaders = cypher_ast_load_csv_has_with_headers(c);
+
+          std::cout << "  With headers is " << (hasHeaders ? "True " : "False ") << "\n";
+
+          std::cout << "  LOAD CSV node has " << n_c << " children" << "\n";
+          for (uint32_t j = 0; j < n_c; j++) {
+            const cypher_astnode_t* d = cypher_astnode_get_child(c, j);
+            cypher_astnode_type_t dType = cypher_astnode_type(d);
+            const char* dStr = cypher_astnode_typestr(dType);
+            std::string val = "";
+            if (dStr == std::string("string")) {
+              val = cypher_ast_string_get_value(d);
+            }
+            if (dStr == std::string("identifier")) {
+              val = cypher_ast_identifier_get_name(d);
+            }
+            std::cout << "    Child " << j << " is a " << dStr << " with value " << val << "\n";
+          }
+        }
+      }
     }
   }
 }

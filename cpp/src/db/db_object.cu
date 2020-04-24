@@ -496,6 +496,11 @@ db_object<idx_t>::db_object() {
   relationshipsTable.addColumn("begin");
   relationshipsTable.addColumn("end");
   relationshipsTable.addColumn("type");
+  nodeLabelsTable.addColumn("nodeId");
+  nodeLabelsTable.addColumn("Label Id");
+  nodePropertiesTable.addColumn("nodeId");
+  nodePropertiesTable.addColumn("propertyLabel");
+  nodePropertiesTable.addColumn("value");
   relationshipPropertiesTable.addColumn("id");
   relationshipPropertiesTable.addColumn("name");
   relationshipPropertiesTable.addColumn("value");
