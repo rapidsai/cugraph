@@ -188,7 +188,7 @@ template int pagerankSolver<int, double> (  int n, int e, const int *cscPtr, int
         double alpha, double *a, bool has_guess, float tolerance, int max_iter, double * &pagerank_vector, double * &residual);
 
 template <typename VT, typename ET, typename WT>
-void pagerank_impl (experimental::GraphCSC<VT,ET,WT> const &graph,
+void pagerank_impl (experimental::GraphCSCView<VT,ET,WT> const &graph,
                     WT* pagerank,
                     VT personalization_subset_size=0,
                     VT* personalization_subset=nullptr,
@@ -255,7 +255,7 @@ void pagerank_impl (experimental::GraphCSC<VT,ET,WT> const &graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void pagerank(experimental::GraphCSC<VT,ET,WT> const &graph, WT* pagerank,
+void pagerank(experimental::GraphCSCView<VT,ET,WT> const &graph, WT* pagerank,
               VT personalization_subset_size,
               VT* personalization_subset, WT* personalization_values,
               double alpha, double tolerance, int64_t max_iter, bool has_guess) {
@@ -270,10 +270,10 @@ void pagerank(experimental::GraphCSC<VT,ET,WT> const &graph, WT* pagerank,
 }
 
 // explicit instantiation
-template void pagerank<int, int, float>(experimental::GraphCSC<int,int,float> const &graph, float* pagerank,
+template void pagerank<int, int, float>(experimental::GraphCSCView<int,int,float> const &graph, float* pagerank,
   int personalization_subset_size, int* personalization_subset, float* personalization_values,
   double alpha, double tolerance, int64_t max_iter, bool has_guess);
-template void pagerank<int, int, double>(experimental::GraphCSC<int,int,double> const &graph, double* pagerank,
+template void pagerank<int, int, double>(experimental::GraphCSCView<int,int,double> const &graph, double* pagerank,
   int personalization_subset_size, int* personalization_subset, double* personalization_values,
   double alpha, double tolerance, int64_t max_iter, bool has_guess);
 

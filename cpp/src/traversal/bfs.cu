@@ -474,7 +474,7 @@ namespace detail {
 } // !namespace cugraph::detail
 
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
+void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *distances, VT *predecessors, const VT start_vertex, bool directed) {
   CUGRAPH_EXPECTS(typeid(VT) == typeid(int),
                   "Unsupported vertex id data type, please use int");
   CUGRAPH_EXPECTS(typeid(ET) == typeid(int),
@@ -498,6 +498,6 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances, VT *pre
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
+template void bfs<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph, int *distances, int *predecessors, const int source_vertex, bool directed);
 
 } // !namespace cugraph

@@ -47,11 +47,11 @@ def ktruss_subgraph_double(input_graph, k, use_weights, subgraph_truss):
     if input_graph.edgelist.weights:
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 
-    cdef GraphCOO[int,int,double] input_coo
-    cdef GraphCOO[int,int,double] output_coo
+    cdef GraphCOOView[int,int,double] input_coo
+    cdef GraphCOOView[int,int,double] output_coo
 
-    input_coo = GraphCOO[int,int,double](<int*>c_src_indices, <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
-    output_coo = GraphCOO[int,int,double]()
+    input_coo = GraphCOOView[int,int,double](<int*>c_src_indices, <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
+    output_coo = GraphCOOView[int,int,double]()
     k_truss_subgraph(input_coo, k, output_coo);
 
     src_array = rmm.device_array_from_ptr(<uintptr_t> output_coo.src_indices,
@@ -95,11 +95,11 @@ def ktruss_subgraph_float(input_graph, k, use_weights, subgraph_truss):
     if input_graph.edgelist.weights:
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 
-    cdef GraphCOO[int,int,float] input_coo
-    cdef GraphCOO[int,int,float] output_coo
+    cdef GraphCOOView[int,int,float] input_coo
+    cdef GraphCOOView[int,int,float] output_coo
 
-    input_coo = GraphCOO[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
-    output_coo = GraphCOO[int,int,float]()
+    input_coo = GraphCOOView[int,int,float](<int*>c_src_indices, <int*>c_dst_indices, <float*>c_weights, num_verts, num_edges)
+    output_coo = GraphCOOView[int,int,float]()
     k_truss_subgraph(input_coo, k, output_coo);
 
     src_array = rmm.device_array_from_ptr(<uintptr_t> output_coo.src_indices,

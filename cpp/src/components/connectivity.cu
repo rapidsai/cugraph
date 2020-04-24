@@ -42,7 +42,7 @@ namespace detail {
  */
 template<typename VT, typename ET, typename WT, int TPB_X = 32>
 std::enable_if_t<std::is_signed<VT>::value>
-connected_components_impl(experimental::GraphCSR<VT,ET,WT> const &graph,
+connected_components_impl(experimental::GraphCSRView<VT,ET,WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels,
                           cudaStream_t stream) {
@@ -72,7 +72,7 @@ connected_components_impl(experimental::GraphCSR<VT,ET,WT> const &graph,
 } //namespace detail
 
 template <typename VT, typename ET, typename WT>
-void connected_components(experimental::GraphCSR<VT,ET,WT> const &graph,
+void connected_components(experimental::GraphCSRView<VT,ET,WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels) {
   cudaStream_t stream{nullptr};
@@ -82,7 +82,7 @@ void connected_components(experimental::GraphCSR<VT,ET,WT> const &graph,
   return detail::connected_components_impl<VT,ET,WT>(graph, connectivity_type, labels, stream);
 }
 
-template void connected_components<int32_t,int32_t,float>(experimental::GraphCSR<int32_t,int32_t,float> const &, cugraph_cc_t, int32_t *);
-template void connected_components<int64_t,int64_t,float>(experimental::GraphCSR<int64_t,int64_t,float> const &, cugraph_cc_t, int64_t *);
+template void connected_components<int32_t,int32_t,float>(experimental::GraphCSRView<int32_t,int32_t,float> const &, cugraph_cc_t, int32_t *);
+template void connected_components<int64_t,int64_t,float>(experimental::GraphCSRView<int64_t,int64_t,float> const &, cugraph_cc_t, int64_t *);
 
 } //namespace cugraph

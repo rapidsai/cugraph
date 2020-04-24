@@ -107,7 +107,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase>
     CSR_Result<int>   result;
     ConvertCOOtoCSR(&cooColInd[0], &cooRowInd[0], nnz, result);
 
-    cugraph::experimental::GraphCSR<int,int,float> G(result.rowOffsets, result.colIndices, nullptr, m, nnz);
+    cugraph::experimental::GraphCSRView<int,int,float> G(result.rowOffsets, result.colIndices, nullptr, m, nnz);
 
     rmm::device_vector<int>  d_labels(m);
 

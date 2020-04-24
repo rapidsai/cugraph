@@ -359,7 +359,7 @@ namespace detail {
 } //namespace detail
 
 template <typename VT, typename ET, typename WT>
-void jaccard(experimental::GraphCSR<VT,ET,WT> const &graph,
+void jaccard(experimental::GraphCSRView<VT,ET,WT> const &graph,
              WT const *weights,
              WT *result) {
 
@@ -393,7 +393,7 @@ void jaccard(experimental::GraphCSR<VT,ET,WT> const &graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void jaccard_list(experimental::GraphCSR<VT,ET,WT> const &graph,
+void jaccard_list(experimental::GraphCSRView<VT,ET,WT> const &graph,
                   WT const *weights,
                   ET num_pairs,
                   VT const *first,
@@ -435,14 +435,14 @@ void jaccard_list(experimental::GraphCSR<VT,ET,WT> const &graph,
   }
 }
 
-template void jaccard<int32_t, int32_t, float>(experimental::GraphCSR<int32_t,int32_t,float> const &, float const *, float *);
-template void jaccard<int32_t, int32_t, double>(experimental::GraphCSR<int32_t,int32_t,double> const &, double const *, double *);
-template void jaccard<int64_t, int64_t, float>(experimental::GraphCSR<int64_t,int64_t,float> const &, float const *, float *);
-template void jaccard<int64_t, int64_t, double>(experimental::GraphCSR<int64_t,int64_t,double> const &, double const *, double *);
-template void jaccard_list<int32_t, int32_t, float>(experimental::GraphCSR<int32_t,int32_t,float> const &, float const *, int32_t, int32_t const *, int32_t const *, float *);
-template void jaccard_list<int32_t, int32_t, double>(experimental::GraphCSR<int32_t,int32_t,double> const &, double const *, int32_t, int32_t const *, int32_t const *, double *);
-template void jaccard_list<int64_t, int64_t, float>(experimental::GraphCSR<int64_t,int64_t,float> const &, float const *, int64_t, int64_t const *, int64_t const *, float *);
-template void jaccard_list<int64_t, int64_t, double>(experimental::GraphCSR<int64_t,int64_t,double> const &, double const *, int64_t, int64_t const *, int64_t const *, double *);
+template void jaccard<int32_t, int32_t, float>(experimental::GraphCSRView<int32_t,int32_t,float> const &, float const *, float *);
+template void jaccard<int32_t, int32_t, double>(experimental::GraphCSRView<int32_t,int32_t,double> const &, double const *, double *);
+template void jaccard<int64_t, int64_t, float>(experimental::GraphCSRView<int64_t,int64_t,float> const &, float const *, float *);
+template void jaccard<int64_t, int64_t, double>(experimental::GraphCSRView<int64_t,int64_t,double> const &, double const *, double *);
+template void jaccard_list<int32_t, int32_t, float>(experimental::GraphCSRView<int32_t,int32_t,float> const &, float const *, int32_t, int32_t const *, int32_t const *, float *);
+template void jaccard_list<int32_t, int32_t, double>(experimental::GraphCSRView<int32_t,int32_t,double> const &, double const *, int32_t, int32_t const *, int32_t const *, double *);
+template void jaccard_list<int64_t, int64_t, float>(experimental::GraphCSRView<int64_t,int64_t,float> const &, float const *, int64_t, int64_t const *, int64_t const *, float *);
+template void jaccard_list<int64_t, int64_t, double>(experimental::GraphCSRView<int64_t,int64_t,double> const &, double const *, int64_t, int64_t const *, int64_t const *, double *);
 
 } //namespace cugraph 
 

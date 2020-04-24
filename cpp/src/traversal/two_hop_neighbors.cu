@@ -33,7 +33,7 @@
 namespace cugraph{
 
 template <typename VT, typename ET, typename WT>
-ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph,
+ET get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph,
                          VT **first,
                          VT **second) {
 
@@ -121,8 +121,8 @@ ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph,
     return outputSize;
 }
 
-template int get_two_hop_neighbors(experimental::GraphCSR<int,int,float> const &, int **, int **);
+template int get_two_hop_neighbors(experimental::GraphCSRView<int,int,float> const &, int **, int **);
 
-template int64_t get_two_hop_neighbors(experimental::GraphCSR<int32_t,int64_t,float> const &, int32_t **, int32_t **);
+template int64_t get_two_hop_neighbors(experimental::GraphCSRView<int32_t,int64_t,float> const &, int32_t **, int32_t **);
 
 } //namespace cugraph

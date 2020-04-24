@@ -38,7 +38,7 @@ getTopKIds(double * p_katz, int count, int k = 10) {
 }
 
 template <typename VT, typename ET, typename WT>
-int getMaxDegree(cugraph::experimental::GraphCSR<VT,ET,WT> const &g) {
+int getMaxDegree(cugraph::experimental::GraphCSRView<VT,ET,WT> const &g) {
   cudaStream_t stream{nullptr};
 
   rmm::device_vector<ET> degree_vector(g.number_of_vertices);
@@ -112,7 +112,7 @@ public:
     CSR_Result<int>   result;
     ConvertCOOtoCSR(&cooColInd[0], &cooRowInd[0], nnz, result);
 
-    cugraph::experimental::GraphCSR<int,int,float> G(result.rowOffsets, result.colIndices, nullptr, m, nnz);
+    cugraph::experimental::GraphCSRView<int,int,float> G(result.rowOffsets, result.colIndices, nullptr, m, nnz);
 
     rmm::device_vector<double> katz_vector(m);
     double* d_katz = thrust::raw_pointer_cast(katz_vector.data());

@@ -51,18 +51,18 @@ namespace cugraph {
 namespace experimental {
 
 template <typename VT, typename ET, typename WT>
-void GraphBase<VT,ET,WT>::get_vertex_identifiers(VT *identifiers) const {
+void GraphViewBase<VT,ET,WT>::get_vertex_identifiers(VT *identifiers) const {
   cugraph::detail::sequence<VT>(number_of_vertices, identifiers);
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBase<VT,ET,WT>::get_source_indices(VT *src_indices) const {
+void GraphCompressedSparseBaseView<VT,ET,WT>::get_source_indices(VT *src_indices) const {
   CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-  cugraph::detail::offsets_to_indices<VT>(offsets, GraphBase<VT,ET,WT>::number_of_vertices, src_indices);
+  cugraph::detail::offsets_to_indices<VT>(offsets, GraphViewBase<VT,ET,WT>::number_of_vertices, src_indices);
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCOO<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
+void GraphCOOView<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
   //        in then x should be modified to reflect the expected direction.
@@ -72,16 +72,16 @@ void GraphCOO<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    degree_from_vertex_ids(GraphBase<VT,ET,WT>::number_of_edges, src_indices, degree, stream);
+    degree_from_vertex_ids(GraphViewBase<VT,ET,WT>::number_of_edges, src_indices, degree, stream);
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphBase<VT,ET,WT>::number_of_edges, dst_indices, degree, stream);
+    degree_from_vertex_ids(GraphViewBase<VT,ET,WT>::number_of_edges, dst_indices, degree, stream);
   }
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBase<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
+void GraphCompressedSparseBaseView<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
   //        in then x should be modified to reflect the expected direction.
@@ -91,20 +91,20 @@ void GraphCompressedSparseBase<VT,ET,WT>::degree(ET *degree, DegreeDirection dir
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    degree_from_offsets(GraphBase<VT,ET,WT>::number_of_vertices, offsets, degree, stream);
+    degree_from_offsets(GraphViewBase<VT,ET,WT>::number_of_vertices, offsets, degree, stream);
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphBase<VT,ET,WT>::number_of_edges, indices, degree, stream);
+    degree_from_vertex_ids(GraphViewBase<VT,ET,WT>::number_of_edges, indices, degree, stream);
   }
 }
 
 // explicit instantiation
-template class GraphBase<int32_t, int32_t, float>;
-template class GraphBase<int32_t, int32_t, double>;
-template class GraphCOO<int32_t,int32_t,float>;
-template class GraphCOO<int32_t,int32_t,double>;
-template class GraphCompressedSparseBase<int32_t,int32_t,float>;
-template class GraphCompressedSparseBase<int32_t,int32_t,double>;
+template class GraphViewBase<int32_t, int32_t, float>;
+template class GraphViewBase<int32_t, int32_t, double>;
+template class GraphCOOView<int32_t,int32_t,float>;
+template class GraphCOOView<int32_t,int32_t,double>;
+template class GraphCompressedSparseBaseView<int32_t,int32_t,float>;
+template class GraphCompressedSparseBaseView<int32_t,int32_t,double>;
 }
 }
