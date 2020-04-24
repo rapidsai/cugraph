@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 from cugraph.centrality import betweenness_centrality_wrapper
 
 
@@ -28,9 +29,10 @@ def betweenness_centrality(G, k=None, normalized=True,
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges where undirected edges are
         represented as directed edges in both directions.
-    k : int, optional
+    k : int, list, optional
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation
+        If k is a list, use the content of the list for estimation
     normalized : bool, optional
         Value defaults to true.  If true, the betweenness values are normalized
         by 2/((n-1)(n-2)) for graphs, and 1 / ((n-1)(n-2)) for directed graphs
@@ -77,19 +79,41 @@ def betweenness_centrality(G, k=None, normalized=True,
     # NOTE: cuDF doesn't currently support sampling, but there is a python
     # workaround.
     #
+    #TODO(xcadet) Vertices could be assigned to all the nodes from the graph instead of None
     vertices = None
-    if k is not None:
-        raise Exception("sampling feature of betweenness "
-                        "centrality not currently supported")
-
-    if weight is not None:
-        raise Exception("weighted implementation of betweenness "
-                        "centrality not currently supported")
-
     if implementation is None:
         implementation = "default"
     if not implementation in ["default", "gunrock"]:
         raise Exception("Only two implementations are supported: 'default' and 'gunrock'")
+
+    if k is not None:
+        if implementation == "gunrock":
+            raise Exception("sampling feature of betweenness "
+                            "centrality not currently supported "
+                            "with gunrock implementation, "
+                            "please use None or 'default'")
+        # In order to compare with preset sources,
+        # k can either be a list or an integer or None
+        #  int: Generate an random sample with k elements
+        # list: k become the length of the list and vertices become the content
+        # None: All the vertices are considered
+        if isinstance(k, int):
+            random.seed(seed)
+            vertices = random.sample(range(G.number_of_vertices()), k)
+        # Using k as a list allows to have an easier way to compare against
+        # other implementations on
+        elif isinstance(k, list):
+            vertices = k
+            k = len(vertices)
+        # NOTE: We assume that the vertices provided by the user are not in the
+        #       renumbered order
+        # FIXME: There might be a cleaner way to obtain the inverse mapping
+        if G.renumbered:
+            vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map == vert].index[0] for vert in vertices]
+
+    if weight is not None:
+        raise Exception("weighted implementation of betweenness "
+                        "centrality not currently supported")
 
     df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
                                                                endpoints,

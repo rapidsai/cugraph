@@ -39,7 +39,6 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     # NOTE: This is based on the fact that the call to the wrapper already
     #       checked for the validity of the implementation parameter
     cdef cugraph_bc_implem_t bc_implementation = cugraph_bc_implem_t.CUGRAPH_DEFAULT
-    print(implementation)
     if (implementation == "default"): # Redundant
         bc_implementation = cugraph_bc_implem_t.CUGRAPH_DEFAULT
     elif (implementation == "gunrock"):
@@ -70,8 +69,10 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     if weight is not None:
         c_weight = weight.__cuda_array_interface__['data'][0]
 
+    #FIXME: We could sample directly from a cudf array: i.e
+    #       c_vertices = vertices.__cuda_array_interface__['data'][0]
     if vertices is not None:
-        c_vertices = vertices.__cuda_array_interface__['data'][0]
+        c_vertices =  np.array(vertices, dtype=np.int32).__array_interface__['data'][0]
 
     c_k = 0
     if k is not None:
@@ -84,7 +85,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     c_betweenness_centrality[int,int,float,float](graph, <float*> c_betweenness,
                                                   normalized, endpoints,
                                                   <float*> c_weight, c_k,
-                                                  <int*>c_vertices,
+                                                  <int*> c_vertices,
                                                   <cugraph_bc_implem_t> bc_implementation)
 
     graph.get_vertex_identifiers(<int*>c_identifier)

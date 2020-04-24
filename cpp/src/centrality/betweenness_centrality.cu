@@ -72,13 +72,19 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::normalize() {
     printf("[DBG] Being normalized\n");
     thrust::device_vector<result_t> normalizer(number_of_vertices);
-    thrust::fill(normalizer.begin(), normalizer.end(), ((number_of_vertices - 1) * (number_of_vertices - 2)));
+    result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+    result_t casted_number_of_sources = static_cast<result_t>(number_of_sources);
 
-    if (typeid(result_t) == typeid(float)) {
-        thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness, betweenness + number_of_vertices, normalizer.begin(), betweenness, thrust::divides<float>());
-    } else if (typeid(result_t) == typeid(double)) {
-        thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness, betweenness + number_of_vertices, normalizer.begin(), betweenness, thrust::divides<double>());
+    WT scale = static_cast<result_t>(1) / ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
+    if (number_of_sources > 0) {
+      scale *= (casted_number_of_sources / casted_number_of_vertices);
     }
+    thrust::fill(normalizer.begin(), normalizer.end(), scale);
+
+
+    thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness,
+                      betweenness + number_of_vertices, normalizer.begin(),
+                      betweenness, thrust::multiplies<result_t>());
 }
 
 // Dependecy Accumulation: McLaughlin and Bader, 2018
@@ -343,6 +349,10 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
   //
   // These parameters are present in the API to support future features.
   //
+
+  //FIXME: Vertices are given through cudf but they should be accessed from
+  //       the host
+
   if (implem == cugraph_bc_implem_t::CUGRAPH_DEFAULT) {
     detail::betweenness_centrality(graph, result, normalize, endpoints, weight, k, vertices);
   } else if (implem == cugraph_bc_implem_t::CUGRAPH_GUNROCK) {

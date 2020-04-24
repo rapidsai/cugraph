@@ -39,7 +39,7 @@
 //  i.e: Do we consider that the difference between 1.3e-9 and 8.e-12 is
 // significant
 # ifndef TEST_ZERO_THRESHOLD
- #define TEST_ZERO_THRESHOLD 1e-6
+ #define TEST_ZERO_THRESHOLD 1e-10
 #endif
 
 
@@ -217,6 +217,9 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT
     result_t factor = static_cast<result_t>(number_of_vertices - 1) * static_cast<result_t>(number_of_vertices - 2);
     for (VT v = 0; v < number_of_vertices; ++v) {
       result[v] /= factor;
+      if (number_of_sources > 0) { // Include k normalization
+        result[v] *= static_cast<result_t>(number_of_sources) / static_cast<result_t>(number_of_vertices);
+      }
     }
   }
 }
@@ -386,9 +389,9 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                     cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT);
     cudaDeviceSynchronize();
     std::cout << "[DBG][BC] CUGRAPH IS DONE COMPUTING" << std::endl;
-    cudaMemcpy(result.data(), d_result.data().get(),
+    CUDA_TRY(cudaMemcpy(result.data(), d_result.data().get(),
                sizeof(result_t) * G.number_of_vertices,
-               cudaMemcpyDeviceToHost);
+               cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
     for (int i = 0 ; i < G.number_of_vertices ; ++i)
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD)) <<
@@ -543,11 +546,14 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_BC,
   ::testing::Values(
+      /*
       BC_Usecase("test/datasets/karate.mtx", 0),
       BC_Usecase("test/datasets/polbooks.mtx", 0),
       BC_Usecase("test/datasets/netscience.mtx", 0),
       BC_Usecase("test/datasets/netscience.mtx", 100),
-      BC_Usecase("test/datasets/wiki2003.mtx", 1000)
+      BC_Usecase("test/datasets/wiki2003.mtx", 1000),
+      */
+      BC_Usecase("/datasets/GAP/GAP-road.mtx", 4)
     )
 );
 
