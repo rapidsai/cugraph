@@ -231,31 +231,25 @@ class Comm
     int get_sm_count() const { return _sm_count_per_device; }
     bool is_master() const { return (_mpi_world_rank == 0)? true : false; }
 
-    template <typename value_t>
-    void allgather (size_t size, value_t* sendbuff, value_t* recvbuff);
+    void barrier();
 
     template <typename value_t>
-    void allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op);
+    void allgather (size_t size, value_t* sendbuff, value_t* recvbuff) const;
+
+    template <typename value_t>
+    void allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op) const;
 
 };
 
-// Wait for all host threads 
-void sync_all() {
-  cudaDeviceSynchronize();
-#if USE_NCCL
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif
-}
-
 template <typename value_t>
-void Comm::allgather (size_t size, value_t* sendbuff, value_t* recvbuff) {
+void Comm::allgather (size_t size, value_t* sendbuff, value_t* recvbuff) const {
 #if USE_NCCL
     NCCL_TRY(ncclAllGather((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), _nccl_comm, cudaStreamDefault));
 #endif
 }
 
 template <typename value_t>
-void Comm::allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op) {
+void Comm::allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op) const {
 #if USE_NCCL
     NCCL_TRY(ncclAllReduce((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), get_nccl_reduce_op(reduce_op), _nccl_comm, cudaStreamDefault));
 #endif

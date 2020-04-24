@@ -95,4 +95,11 @@ Comm::~Comm() {
   }
 #endif
 }
+
+void Comm::barrier() {
+  cudaDeviceSynchronize();
+#if USE_NCCL
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif
+}
 } }//namespace

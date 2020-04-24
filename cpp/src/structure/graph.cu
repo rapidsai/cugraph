@@ -34,7 +34,7 @@ void degree_from_offsets(vertex_t number_of_vertices,
 }
 
 template <typename vertex_t, typename edge_t>
-void degree_from_vertex_ids(cugraph::experimental::Comm& comm,
+void degree_from_vertex_ids(const cugraph::experimental::Comm& comm,
                             vertex_t number_of_vertices,
                             edge_t number_of_edges,
                             vertex_t const *indices,
@@ -47,7 +47,7 @@ void degree_from_vertex_ids(cugraph::experimental::Comm& comm,
                    [indices, degree] __device__ (edge_t e) {
                      cugraph::atomicAdd(degree + indices[e], 1);
                    });
-  comm.allreduce(degree, degree, number_of_vertices, cugraph::ReduceOp::SUM);
+  comm.allreduce(number_of_vertices, degree, degree, cugraph::experimental::ReduceOp::SUM);
 }
 
 } //namespace anonymous
