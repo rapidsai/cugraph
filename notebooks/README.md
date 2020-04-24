@@ -11,6 +11,7 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Centrality      |                                                              |                                                              |
 |                 | [Katz](centrality/Katz.ipynb)                                | Compute the Katz centrality for every vertex                 |
+|                 | [Betweenness](centrality/Betweenness.ipynb)                  | Compute the Betweenness centrality for every vertex          |
 | Community       |                                                              |                                                              |
 |                 | [Louvain](community/Louvain.ipynb)                           | Identify clusters in a graph using the Louvain algorithm     |
 |                 | [Spectral-Clustering](community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
