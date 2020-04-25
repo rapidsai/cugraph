@@ -18,6 +18,7 @@
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
 - PR #829 Updated README and CONTRIBUTIOIN docs
+- PR #832 Removed RMM ALLOC from db subtree
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
