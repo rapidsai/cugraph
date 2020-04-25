@@ -71,7 +71,7 @@ TEST_F(Test_FindMatches, firstTest){
   p.addEntry(p1);
   p.addEntry(p2);
   p.addEntry(p3);
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches(p, table, nullptr, 1);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(p, table, nullptr, 0, 1);
   ASSERT_EQ(result.getSize(), 1);
   int32_t* resultA = new int32_t[result.getSize()];
   int32_t* resultB = new int32_t[result.getSize()];
@@ -102,7 +102,7 @@ TEST_F(Test_FindMatches, secondTest) {
   q.addEntry(q2);
   q.addEntry(q3);
 
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 2);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 2);
 
   std::cout << result.toString();
 
@@ -137,12 +137,11 @@ TEST_F(Test_FindMatches, thirdTest) {
   int32_t* frontier_ptr;
   cudaMalloc(&frontier_ptr, sizeof(int32_t));
   thrust::fill(thrust::device, frontier_ptr, frontier_ptr + 1, 0);
-  gdf_column* frontier = (gdf_column*)malloc(sizeof(gdf_column));
-  cugraph::detail::gdf_col_set_defaults(frontier);
-  gdf_column_view(frontier, frontier_ptr, nullptr, 1, GDF_INT32);
 
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches(q, table, frontier, 0);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q, table, frontier_ptr, 1, 0);
 
+
+  cudaFree(frontier_ptr);
   ASSERT_EQ(result.getSize(), 1);
   int32_t* resultA = new int32_t[result.getSize()];
   cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
@@ -168,7 +167,7 @@ TEST_F(Test_FindMatches, fourthTest) {
   q.addEntry(q3);
   q.addEntry(q4);
 
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 0);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 0);
   std::cout << result.toString();
   ASSERT_EQ(result.getSize(), 3);
 
@@ -200,7 +199,7 @@ TEST_F(Test_FindMatches, fifthTest) {
   q.addEntry(q2);
   q.addEntry(q3);
 
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches(q, table, nullptr, 1);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 1);
   std::cout << result.toString();
 
   ASSERT_EQ(result.getSize(), 2);
