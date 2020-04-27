@@ -829,6 +829,21 @@ class Graph:
         else:
             return n
 
+    def neighbors(self, n):
+
+        if self.renumbered:
+            node = self.edgelist.renumber_map.index[self.edgelist.
+                                                    renumber_map == n]
+            if len(node) == 0:
+                return cudf.Series(dtype='int')
+
+        df = self.edgelist.edgelist_df
+        neighbors = df[df['src'] == n]['dst'].reset_index(drop=True)
+        if self.renumbered:
+            return self.edgelist.renumber_map[neighbors]
+        else:
+            return neighbors
+
 
 class DiGraph(Graph):
     def __init__(self, m_graph=None, edge_attr=None):
