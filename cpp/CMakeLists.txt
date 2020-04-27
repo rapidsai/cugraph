@@ -367,7 +367,6 @@ add_library(cugraph SHARED
     src/nvgraph/modularity_maximization.cu
     src/nvgraph/nvgraph_cusparse.cpp
     src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_error.cu
     src/nvgraph/nvgraph_lapack.cu
     src/nvgraph/nvgraph_vector_kernels.cu
     src/nvgraph/partition.cu

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -215,24 +215,6 @@ namespace nvgraph {
      NVGRAPH_ERR_BAD_PARAMETERS);
     Cusparse::set_pointer_mode_host();
   }
-
-#if 0
-  /// Constructor for CSR matrix class
-  /** @param G Weighted graph in CSR format
-   */
-  template <typename IndexType_, typename ValueType_>
-  CsrMatrix<IndexType_,ValueType_>
-  ::CsrMatrix(  ValuedCsrGraph<IndexType_,ValueType_> & G, const cusparseMatDescr_t _descrA)
-    : Matrix<IndexType_,ValueType_>(G.get_num_vertices(), G.get_num_vertices()),
-      trans(false), sym(false),
-      nnz(G.get_num_edges()),
-      descrA(_descrA), 
-      csrValA(G.get_raw_values()),
-      csrRowPtrA(G.get_raw_row_offsets()),
-      csrColIndA(G.get_raw_column_indices()) {
-    Cusparse::set_pointer_mode_host();
-  }
-#endif
 
   /// Destructor for CSR matrix class
   template <typename IndexType_, typename ValueType_>

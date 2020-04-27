@@ -19,7 +19,8 @@
 #include <graph.hpp>
 #include <algorithms.hpp>
 
-#include "nvgraph_error.hxx"
+#include <nvgraph/include/nvgraph_error.hxx>
+#include <nvgraph/include/sm_utils.h>
 
 #include <rmm/device_buffer.hpp>
 #include <rmm/thrust_rmm_allocator.h>
@@ -27,7 +28,6 @@
 #include <thrust/iterator/counting_iterator.h>
 
 #include "cub/cub.cuh"
-#include "sm_utils.h"
 
 #define TH_CENT_K_LOCLEN (34)
 #define WP_LEN_TH1 (24)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,25 +64,7 @@ namespace nvgraph {
   // Get index of matrix entry
 #define IDX(i,j,lda) ((i)+(j)*(lda))
 
-//    namespace {
-//      /// Get string associated with NVGRAPH error flag
-//      static
-//      const char* nvgraphGetErrorString(NVGRAPH_ERROR e) {
-//	switch(e) {
-//	case NVGRAPH_OK:                  return "NVGRAPH_OK";
-//	case NVGRAPH_ERR_BAD_PARAMETERS:  return "NVGRAPH_ERR_BAD_PARAMETERS";
-//	case NVGRAPH_ERR_UNKNOWN:         return "NVGRAPH_ERR_UNKNOWN";
-//	case NVGRAPH_ERR_CUDA_FAILURE:    return "NVGRAPH_ERR_CUDA_FAILURE";
-//	case NVGRAPH_ERR_THRUST_FAILURE:  return "NVGRAPH_ERR_THRUST_FAILURE";
-//	case NVGRAPH_ERR_IO:              return "NVGRAPH_ERR_IO";
-//	case NVGRAPH_ERR_NOT_IMPLEMENTED: return "NVGRAPH_ERR_NOT_IMPLEMENTED";
-//	case NVGRAPH_ERR_NO_MEMORY:       return "NVGRAPH_ERR_NO_MEMORY";
-//	default:                       return "unknown NVGRAPH error";
-//	}
-//      }
-//    }
-
-     template <typename IndexType_, typename ValueType_, bool Device_, bool print_transpose>
+    template <typename IndexType_, typename ValueType_, bool Device_, bool print_transpose>
     static int print_matrix(IndexType_ m, IndexType_ n, ValueType_ * A, IndexType_ lda, const char *s){
         IndexType_ i,j;
         ValueType_ * h_A;
