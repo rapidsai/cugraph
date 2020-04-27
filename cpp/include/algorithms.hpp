@@ -300,9 +300,11 @@ void sssp(experimental::GraphCSR<VT,ET,WT> const &graph,
  *
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
  *
- * @param[out] distances            If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
+ * @param[out] distances             If set to a valid column, this is populated by distance of every vertex in the graph from the starting vertex
  *
- * @param[out] predecessors         If set to a valid column, this is populated by bfs traversal predecessor of every vertex
+ * @param[out] predecessors          If set to a valid column, this is populated by bfs traversal predecessor of every vertex
+ *
+ * @param[out] sp_counters           If set to a valid column, this is populated by bfs traversal shortest_path counter of every vertex
  *
  * @param[in] start_vertex           The starting vertex for breadth first search traversal
  *
@@ -314,7 +316,7 @@ template <typename VT, typename ET, typename WT>
 void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
-         VT *sp_counters,
+         double *sp_counters,
          const VT start_vertex,
          bool directed = true);
 } //namespace cugraph

@@ -134,7 +134,7 @@ def sssp(input_graph, source):
         c_bfs.bfs[int, int, float](graph_float,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
-                                   <int*> NULL,
+                                   <double*> NULL,
                                    <int> source)
 
     #FIXME: Update with multiple column renumbering

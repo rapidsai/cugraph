@@ -46,7 +46,7 @@ class BC {
       // --- Data required to perform computation ----
       VT *distances = nullptr;      // array<VT>(|V|) stores the distances gathered by the latest SSSP
       VT *predecessors = nullptr;   // array<WT>(|V|) stores the predecessors of the latest SSSP
-      VT *sp_counters = nullptr;    // array<VT>(|V|) stores the shortest path counter for the latest SSSP
+      double *sp_counters = nullptr;    // array<VT>(|V|) stores the shortest path counter for the latest SSSP
       result_t *deltas = nullptr;   // array<result_t>(|V|) stores the dependencies for the latest SSSP
 
       cudaStream_t stream;
@@ -56,7 +56,7 @@ class BC {
       void clean();
 
       void accumulate(result_t *betweenness, VT *distances,
-                      VT *sp_counters, result_t *deltas, VT source, VT max_depth);
+                      double *sp_counters, result_t *deltas, VT source, VT max_depth);
       void compute_single_source(VT source_vertex);
       void normalize();
       void check_input();

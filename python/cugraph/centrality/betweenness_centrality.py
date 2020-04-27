@@ -109,7 +109,9 @@ def betweenness_centrality(G, k=None, normalized=True,
         #       renumbered order
         # FIXME: There might be a cleaner way to obtain the inverse mapping
         if G.renumbered:
+            print("[DBG] Vertices before:", vertices)
             vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map == vert].index[0] for vert in vertices]
+            print("[DBG] Vertices now:", vertices)
 
     if weight is not None:
         raise Exception("weighted implementation of betweenness "

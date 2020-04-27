@@ -77,7 +77,7 @@ def bfs(input_graph, start, directed=True):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['sp_counter'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['sp_counter'] = cudf.Series(np.zeros(num_verts, dtype=np.double))
 
     # Step 7: Associate <uintptr_t> to cudf Series
     c_identifier_ptr = df['vertex'].__cuda_array_interface__['data'][0]
@@ -87,6 +87,7 @@ def bfs(input_graph, start, directed=True):
 
     # Step 8: Proceed to BFS
     # TODO: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
+    # TODO(xcadet): Maybe we  graph_double should be added also
     graph_float = GraphCSR[int, int, float](<int*> c_offsets_ptr,
                                             <int*> c_indices_ptr,
                                             <float*> NULL,
@@ -96,7 +97,7 @@ def bfs(input_graph, start, directed=True):
     c_bfs.bfs[int, int, float](graph_float,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
-                               <int*> c_sp_counter_ptr,
+                               <double*> c_sp_counter_ptr,
                                <int> start,
                                directed)
     #FIXME: Update with multicolumn renumbering

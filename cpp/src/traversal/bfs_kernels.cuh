@@ -690,7 +690,7 @@ namespace bfs_kernels {
                                         int *bmap,
                                         IndexType *distances,
                                         IndexType *predecessors,
-                                        IndexType *sp_counters,
+                                        double *sp_counters,
                                         const int *edge_mask,
                                         const int *isolated_bmap,
                                         bool directed) {
@@ -1109,7 +1109,7 @@ namespace bfs_kernels {
                        int *visited_bmap,
                        IndexType *distances,
                        IndexType *predecessors,
-                       IndexType *sp_counters,
+                       double *sp_counters,
                        const int *edge_mask,
                        const int *isolated_bmap,
                        bool directed,

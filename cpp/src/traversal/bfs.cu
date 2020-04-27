@@ -109,7 +109,7 @@ namespace detail {
   template<typename IndexType>
   void BFS<IndexType>::configure(IndexType *_distances,
                                  IndexType *_predecessors,
-                                 IndexType *_sp_counters,
+                                 double *_sp_counters,
                                  int *_edge_mask)
   {
     distances = _distances;
@@ -165,9 +165,9 @@ namespace detail {
     }
 
     if (sp_counters) {
-      cudaMemsetAsync(sp_counters, 0, n * sizeof(IndexType), stream);
-      IndexType value = 1;
-      cudaMemcpyAsync(sp_counters + source_vertex, &value, sizeof(IndexType), cudaMemcpyHostToDevice);
+      cudaMemsetAsync(sp_counters, 0, n * sizeof(double), stream);
+      double value = 1;
+      cudaMemcpyAsync(sp_counters + source_vertex, &value, sizeof(double), cudaMemcpyHostToDevice);
     }
 
 
@@ -507,9 +507,11 @@ namespace detail {
   template class BFS<int> ;
 } // !namespace cugraph::detail
 
+// NOTE: SP counter increase extremely fast on large graph
+//       It can easily reach 1e40~1e70 on GAP-road.mtx
 template <typename VT, typename ET, typename WT>
 void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances,
-         VT *predecessors, VT *sp_counters, const VT start_vertex,
+         VT *predecessors, double *sp_counters, const VT start_vertex,
          bool directed) {
   CUGRAPH_EXPECTS(typeid(VT) == typeid(int),
                   "Unsupported vertex id data type, please use int");
@@ -535,6 +537,9 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph, VT *distances,
 }
 
 template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph, int *distances, int *predecessors,
-                                   int *sp_counters, const int source_vertex, bool directed);
+                                   double *sp_counters, const int source_vertex, bool directed);
+template void bfs<int, int, double>(experimental::GraphCSR<int, int, double> const &graph, int *distances, int *predecessors,
+                                   double *sp_counters, const int source_vertex, bool directed);
+
 
 } // !namespace cugraph

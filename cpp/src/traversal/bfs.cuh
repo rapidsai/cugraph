@@ -36,7 +36,7 @@ namespace detail {
 		bool computePredecessors;
 		IndexType *distances;
 		IndexType *predecessors;
-		IndexType *sp_counters = nullptr;
+		double *sp_counters = nullptr;
 		int *edge_mask;
 
 		//Working data
@@ -95,7 +95,7 @@ namespace detail {
 		}
 
 		void configure(IndexType *distances, IndexType *predecessors,
-									 IndexType *sp_counters, int *edge_mask);
+									 double *sp_counters, int *edge_mask);
 
 		void traverse(IndexType source_vertex);
 	};

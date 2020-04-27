@@ -53,7 +53,7 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness, bool _normalize
     // --- Working data allocation ---
     ALLOC_TRY(&distances, number_of_vertices * sizeof(VT), nullptr);
     ALLOC_TRY(&predecessors, number_of_vertices * sizeof(VT), nullptr);
-    ALLOC_TRY(&sp_counters, number_of_vertices * sizeof(VT), nullptr);
+    ALLOC_TRY(&sp_counters, number_of_vertices * sizeof(double), nullptr);
     ALLOC_TRY(&deltas, number_of_vertices * sizeof(result_t), nullptr);
     // --- Confirm that configuration went through ---
     configured = true;
@@ -88,17 +88,18 @@ void BC<VT, ET, WT, result_t>::normalize() {
 }
 
 // Dependecy Accumulation: McLaughlin and Bader, 2018
+// TODO(xcadet) It could be better to avoid casting to result_t until the end
 template <typename VT, typename ET, typename WT, typename result_t>
 __global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
                                   VT const *indices, ET const *offsets,
                                   VT *distances,
-                                  int *sp_counters,
+                                  double *sp_counters,
                                   result_t *deltas, VT source, VT depth) {
   for (int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < number_vertices;
        tid += gridDim.x * blockDim.x) {
     VT w = tid;
-    result_t dsw = 0;
-    result_t sw = static_cast<result_t>(sp_counters[w]);
+    double dsw = 0;
+    double sw = sp_counters[w];
     if (distances[w] == depth) { // Process nodes at this depth
       ET edge_start = offsets[w];
       ET edge_end = offsets[w + 1];
@@ -106,7 +107,7 @@ __global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
       for (ET edge_idx = 0; edge_idx < edge_count; ++edge_idx) { // Visit neighbors
         VT v = indices[edge_start + edge_idx];
         if (distances[v] == distances[w] + 1) {
-          result_t factor = (static_cast<result_t>(1) + deltas[v]) / static_cast<result_t>(sp_counters[v]);
+          double factor = (static_cast<double>(1) + static_cast<double>(deltas[v])) / sp_counters[v];
           dsw += sw * factor;
         }
       }
@@ -119,7 +120,7 @@ __global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
 // With BFS distances can be used to handle accumulation,
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* distances,
-                                          VT *sp_counters,
+                                          double *sp_counters,
                                           result_t *deltas, VT source, VT max_depth) {
     dim3 grid, block;
     //block.x = 256; // TODO(xcadet) Replace these values, only for debugging
@@ -268,7 +269,7 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
   //
   std::vector<ET>        v_offsets(graph.number_of_vertices + 1);
   std::vector<VT>        v_indices(graph.number_of_edges);
-  std::vector<result_t>  v_result(graph.number_of_vertices);
+  std::vector<float>  v_result(graph.number_of_vertices);
   std::vector<float>     v_sigmas(graph.number_of_vertices);
   std::vector<int>       v_labels(graph.number_of_vertices);
 
@@ -355,6 +356,7 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
 
   if (implem == cugraph_bc_implem_t::CUGRAPH_DEFAULT) {
     detail::betweenness_centrality(graph, result, normalize, endpoints, weight, k, vertices);
+  //FIXME: Gunrock call retunrs float and not result_t
   } else if (implem == cugraph_bc_implem_t::CUGRAPH_GUNROCK) {
     gunrock::betweenness_centrality(graph, result, normalize);
   } else {
@@ -362,7 +364,8 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
   }
 }
 
-template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int,int,float> const &, float*, bool, bool, float const *, int, int const *, cugraph_bc_implem_t);
+template void betweenness_centrality<int, int, float, float>(experimental::GraphCSR<int, int, float> const &, float*, bool, bool, float const *, int, int const *, cugraph_bc_implem_t);
+template void betweenness_centrality<int, int, double, double>(experimental::GraphCSR<int, int, double> const &, double*, bool, bool, double const *, int, int const *, cugraph_bc_implem_t);
 
 } //namespace cugraph
 
