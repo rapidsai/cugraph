@@ -18,6 +18,7 @@
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
 - PR #829 Updated README and CONTRIBUTIOIN docs
+- PR #834 Updated local gpuci build
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
