@@ -109,16 +109,13 @@ void bfs_this_graph_partition(
           thrust::make_counting_iterator(src_vertex_first), dst_visited.begin(),
           thrust::make_zip_iterator(src_distance_first, src_predecessor_first), cur_src_frontier_last,
           [] __device__ (auto src_val, auto dst_val) {
-            return thrust::make_tuple(depth + 1, src_val);
-          },
-          [] __device__ (auto src_val, auto dst_val) {
-            return !dst_val;
+            return thrust::make_tuple(!dst_val, thrust::make_tuple(depth + 1, src_val));
           });
       cur_src_frontier_offset += cur_src_frontier_size;
       cur_src_frontier_size =
         static_cast<vertex_t>(thrust::distance(cur_src_frontier_last, new_src_frontier_last));
 
-      aggregate_cur_frontier_size = reduce(handle, cur_src_frontier_size);
+      aggregate_cur_frontier_size = handle.reduce(cur_src_frontier_size);
       if (aggregate_cur_frontier_size == 0) {
         break;
       }

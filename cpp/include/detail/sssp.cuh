@@ -109,19 +109,20 @@ void sssp_this_graph_partition(
         thrust::make_zip_iterator(src_distance_first, src_predecessor_first),
         new_src_frontiers.begin(),
         [src_distance_first, src_vertex_first] __device__ (auto src_val, auto dst_val, weight_t w) {
-          auto new_dist = *(src_distance_first + (src_val - src_vertex_first)) + w;
-          return thrust::make_tuple(new_dist, src_val);
-        },
-        [src_distance_first, src_vertex_first] __device__ (auto src_val, auto dst_val, weight_t w) {
           auto old_dist = dst_val;
           auto new_dist = *(src_distance_first + (src_val - src_vertex_first)) + w;
-          return new_dist < old_dist;
+          return thrust::make_tuple(new_dist < old_dist, thrust::make_tuple(new_dist, src_val));
+        });
+        [] __device__ (auto val0, auto val1) {
+          auto dist0 = thrust::get<0>(val0);
+          auto dist1 = thrust::get<0>(val1);
+          return dist0 <= dist1 ? val0 : val1;
         });
     cur_src_frontier_size =
       static_cast<vertex_t>(thrust::distance(new_src_frontiers.begin(), new_src_frontier_last));
     std::swap(cur_src_frontiers, new_src_frontiers);
 
-    aggregate_cur_frontier_size = reduce(handle, cur_src_frontier_size);
+    aggregate_cur_frontier_size = handle.reduce(cur_src_frontier_size);
     if (aggregate_cur_frontier_size == 0) {
       break;
     }

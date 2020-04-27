@@ -75,14 +75,24 @@ void transform_dst_v_transform_reduce_e(
 template <typename HandleType, typename GraphType, typename SrcVertexIterator,
           typename SrcInputIterator, typename DstInputIterator, typename SrcOutputIterator,
           typename QueueOutputIterator,
-          typename EdgeOp, typename EdgePredOp>
+          typename EdgeOp>
 QueueOutputIterator for_each_src_v_expand_and_transform_if_e(
     HandelType handle, GraphType graph,
     SrcVertexIterator src_vertex_first, SrcVertexIterator src_vertex_last,
     SrcInputIterator src_input_first, DstInputIterator dst_input_first,
     SrcOutputIterator src_output_first, QueueOutputIterator queue_output_first,
-    EdgeOp e_op, EdgePredOp e_pred_op);
+    EdgeOp e_op);
 
+template <typename HandleType, typename GraphType, typename SrcVertexIterator,
+          typename SrcInputIterator, typename DstInputIterator, typename SrcOutputIterator,
+          typename QueueOutputIterator,
+          typename EdgeOp, typename ReduceOp>
+QueueOutputIterator for_each_src_v_expand_and_transform_if_e(
+    HandelType handle, GraphType graph,
+    SrcVertexIterator src_vertex_first, SrcVertexIterator src_vertex_last,
+    SrcInputIterator src_input_first, DstInputIterator dst_input_first,
+    SrcOutputIterator src_output_first, QueueOutputIterator queue_output_first,
+    EdgeOp e_op, ReduceOp reduce_op);
 /*
 iterating over lower triangular (or upper triangular) : triangle counting
 LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and degree(j) : triangle counting
