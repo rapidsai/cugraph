@@ -62,6 +62,7 @@ cpp/thirdparty/googletest/
 datasets/*
 !datasets/cyber.csv
 !datasets/karate-data.csv
+!datasets/karate_undirected.csv
 !datasets/netscience.csv
 
 
