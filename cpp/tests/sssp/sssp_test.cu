@@ -16,7 +16,6 @@
 #include <utility>
 #include <queue>
 #include <nvgraph/nvgraph.h>
-#include <nvgraph_gdf.h>
 #include "test_utils.h"
 #include "high_res_clock.h"
 #include <thrust/fill.h>

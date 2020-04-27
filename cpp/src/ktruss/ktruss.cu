@@ -28,7 +28,6 @@
 #include "Static/KTruss/KTruss.cuh"
 #include <StandardAPI.hpp>
 #include <rmm_utils.h>
-#include <nvgraph_gdf.h>
 #include <algorithms.hpp>
 
 using namespace hornets_nest;
