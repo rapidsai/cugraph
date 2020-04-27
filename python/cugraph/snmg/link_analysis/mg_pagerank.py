@@ -11,8 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def mg_pagerank(src_ptrs_info,
                 dest_ptrs_info,
                 alpha=0.85,
                 max_iter=30):
-    raise Exception("mg_pagerank currently disabled... new OPG version coming soon")
+    raise Exception("mg_pagerank currently disabled... "
+                    "new OPG version coming soon")
