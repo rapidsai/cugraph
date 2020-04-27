@@ -68,12 +68,10 @@ def nx_call(M, verts, directed=True):
     return nx.subgraph(G, verts)
 
 
-DATASETS = ['../datasets/karate.csv']
-
-#DATASETS = ['../datasets/karate.csv',
-#            '../datasets/dolphins.csv',
-#            '../datasets/netscience.csv',
-#            '../datasets/email-Eu-core.csv']
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/dolphins.csv',
+            '../datasets/netscience.csv',
+            '../datasets/email-Eu-core.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
