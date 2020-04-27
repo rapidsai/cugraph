@@ -35,7 +35,7 @@ namespace detail {
 template <typename GraphType, typename VertexIterator, typename ResultIterator, typename vertex_t>
 void bfs_this_graph_partition(
     raft::Handle handle, GraphType const& graph,
-    VertexIteraotr src_distance_first, VertexIteraotr src_predecessor_first,
+    VertexIteraotr dst_distance_first, VertexIteraotr dst_predecessor_first,
     vertex_t starting_vertex,
     bool direction_optimized = false, size_t depth_limit = std::numeric_limits<size_t>::max()) {
   static_assert(
@@ -64,12 +64,12 @@ void bfs_this_graph_partition(
   auto num_src_vertices = src_vertex_last - src_vertex_first;
   auto num_dst_vertices = dst_vertex_last - dst_vertex_first;
 
-  auto src_val_first =
-    thrust::make_zip_iterator(thrust::make_tuple(src_distance_first, src_predecessor_first));
+  auto dst_val_first =
+    thrust::make_zip_iterator(thrust::make_tuple(dst_distance_first, dst_predecessor_first));
   thrust::transform(
-    thrust::make_counting_iterator(src_vertex_first),
-    thrust::make_counting_iterator(src_vertex_last),
-    src_val_first,
+    thrust::make_counting_iterator(dst_vertex_first),
+    thrust::make_counting_iterator(dst_vertex_last),
+    dst_val_first,
     [starting_vertex] __device__ (auto val) {
       auto distance = std::numeric_limits<vertex_t>::max();
       if (val == starting_vertex) {
@@ -79,7 +79,6 @@ void bfs_this_graph_partition(
     });
 
   rmm::device_vector<vertex_t> src_frontiers(num_src_vertices, invalid_vertex_id<vertex_t>::value);
-  rmm::device_vector<bool> dst_visited(num_dst_vertices, false);
 
   size_t depth{0};
   vertex_t cur_src_froniter_offset{0};
@@ -88,7 +87,7 @@ void bfs_this_graph_partition(
     cur_src_frontier_size = 1;
   }
   if ((starting_vertex >= dst_vertex_first) && (starting_vertex < dst_vertex_last)) {
-    dst_visited[starting_vertex - dst_vertex_first] = true;
+    *(dst_distance_first + (starting_vertex - dst_vertex_first)) = static_cast<vertex_t>(depth);
   }
   while (true) {
     if (direction_optimized) {
@@ -98,16 +97,13 @@ void bfs_this_graph_partition(
       auto cur_src_frontier_first = src_frontiers.begin() + cur_src_froniter_offset;
       auto cur_src_frontier_last = cur_src_frontier_first + cur_src_frontier_size;
 
-      copy_src_values_to_dst(
-        handle, graph, cur_src_frontier_first, cur_src_frontier_last,
-        thrust::make_constant_iterator(true), dst_visited.begin());
-
       auto new_src_froniter_last =
         for_each_src_v_expand_and_transform_if_e(
           handle, graph,
           cur_src_frontier_first, cur_src_frontier_last,
-          thrust::make_counting_iterator(src_vertex_first), dst_visited.begin(),
-          thrust::make_zip_iterator(src_distance_first, src_predecessor_first), cur_src_frontier_last,
+          thrust::make_counting_iterator(src_vertex_first), dst_distance_first,
+          thrust::make_zip_iterator(dst_distance_first, dst_predecessor_first),
+          cur_src_frontier_last,
           [] __device__ (auto src_val, auto dst_val) {
             return thrust::make_tuple(!dst_val, thrust::make_tuple(depth + 1, src_val));
           });

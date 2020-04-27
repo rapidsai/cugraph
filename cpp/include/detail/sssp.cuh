@@ -60,12 +60,12 @@ void sssp_this_graph_partition(
   auto num_src_vertices = src_vertex_last - src_vertex_first;
   auto num_dst_vertices = dst_vertex_last - dst_vertex_first;
 
-  auto src_val_first =
-    thrust::make_zip_iterator(thrust::make_tuple(src_distance_first, src_predecessor_first));
+  auto dst_val_first =
+    thrust::make_zip_iterator(thrust::make_tuple(dst_distance_first, dst_predecessor_first));
   thrust::transform(
-    thrust::make_counting_iterator(src_vertex_first),
-    thrust::make_counting_iterator(src_vertex_last),
-    src_val_first,
+    thrust::make_counting_iterator(dst_vertex_first),
+    thrust::make_counting_iterator(dst_vertex_last),
+    dst_val_first,
     [starting_vertex] __device__ (auto val) {
       auto distance = std::numeric_limits<vertex_t>::max();
       if (val == starting_vertex) {
@@ -74,30 +74,26 @@ void sssp_this_graph_partition(
       return thrust::make_tuple(distance, invalid_vertex_id<vertex_t>::value);
     });
 
-  rmm::device_vector<vertex_t> cur_src_frontiers(num_src_vertices, invalid_vertex_id<vertex_t>::value);
-  rmm::device_vector<vertex_t> new_src_frontiers(num_src_vertices, invalid_vertex_id<vertex_t>::value);
-  rmm::device_vector<weight_t> dst_distances(
-    num_dst_vertices, std::numeric_limits<weight_t>::max());
+  rmm::device_vector<vertex_t> cur_src_frontiers(
+    num_src_vertices, invalid_vertex_id<vertex_t>::value);
+  rmm::device_vector<vertex_t> new_src_frontiers(
+    num_src_vertices, invalid_vertex_id<vertex_t>::value);
+  rmm::device_vector<weight_t> src_distances(
+    num_src_vertices, std::numeric_limits<weight_t>::max());
 
   vertex_t cur_src_frontier_size{0};
   if ((starting_vertex >= src_vertex_first) && (starting_vertex < src_vertex_last)) {
     cur_src_frontier_size = 1;
   }
+  if ((starting_vertex >= src_vertex_first) && (starting_vertex < src_vertex_last)) {
+    src_distances[starting_vertex - src_vertex_first] = static_cast<weight_t>(0.0);
+  }
   if ((starting_vertex >= dst_vertex_first) && (starting_vertex < dst_vertex_last)) {
-    dst_distances[starting_vertex - dst_vertex_first] = static_cast<weight_t>(0.0);
+    *(dst_distance_first + (starting_vertex - dst_vertex_first)) = static_cast<weight_t>(0.0);
   }
   while (true) {
     auto cur_src_frontier_first = cur_src_frontiers.begin();
     auto cur_src_frontier_last = cur_src_frontier_first + cur_src_frontier_size;
-
-    copy_src_values_to_dst(
-      handle, graph, cur_src_frontier_first, cur_src_frontier_last,
-      thrust::make_transform_iterator(
-        cur_src_frontier_first,
-        [src_distance_first, src_vertex_first] __device__ (auto val) {
-          return *(src_distance_first + (val - src_vertex_first));
-        }),
-      dst_distances.begin());
 
     // TODO: implement the near-far method to improve work efficiency
 
@@ -105,18 +101,21 @@ void sssp_this_graph_partition(
       for_each_src_v_expand_and_transform_if_e(
         handle, graph,
         cur_src_frontiers.begin(), cur_src_frontiers.begin() + cu_src_frontier_size,
-        thrust::make_counting_iterator(src_vertex_first), dst_distances.begin(),
-        thrust::make_zip_iterator(src_distance_first, src_predecessor_first),
-        new_src_frontiers.begin(),
-        [src_distance_first, src_vertex_first] __device__ (auto src_val, auto dst_val, weight_t w) {
+        src_distances.begin(), dst_distance_first,
+        thrust::make_zip_iterator(dst_distance_first, dst_predecessor_first),
+        new_src_frontiers.begin(), src_distances.begin(),
+        [] __device__ (auto src_val, auto dst_val, weight_t w) {
           auto old_dist = dst_val;
-          auto new_dist = *(src_distance_first + (src_val - src_vertex_first)) + w;
+          auto new_dist = src_val + w;
           return thrust::make_tuple(new_dist < old_dist, thrust::make_tuple(new_dist, src_val));
         });
         [] __device__ (auto val0, auto val1) {
           auto dist0 = thrust::get<0>(val0);
           auto dist1 = thrust::get<0>(val1);
           return dist0 <= dist1 ? val0 : val1;
+        },
+        [] __device__ (auto val) {
+          return thrust::get<0>(val);
         });
     cur_src_frontier_size =
       static_cast<vertex_t>(thrust::distance(new_src_frontiers.begin(), new_src_frontier_last));
