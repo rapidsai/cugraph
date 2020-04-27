@@ -47,22 +47,29 @@ def ktruss_ground_truth(graph_file):
     return df
 
 
-def cugraph_k_truss_subgraph(graph_file, k):
+def cugraph_k_truss_subgraph(graph_file, k, directed):
+    # directed is used to create either a Graph or DiGraph so the returned
+    # cugraph can be compared to nx graph of same type.
     cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph()
+    if directed:
+        G = cugraph.DiGraph()
+    else:
+        G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
     k_subgraph = cugraph.ktruss_subgraph(G, k)
     return k_subgraph
 
 
-def compare_k_truss(graph_file, k, ground_truth_file):
-    k_truss_cugraph = cugraph_k_truss_subgraph(graph_file, k)
+def compare_k_truss(graph_file, k, ground_truth_file, directed=True):
+    k_truss_cugraph = cugraph_k_truss_subgraph(graph_file, k, directed)
     k_truss_nx = ktruss_ground_truth(ground_truth_file)
 
     edgelist_df = k_truss_cugraph.view_edge_list()
     src = edgelist_df['src']
     dst = edgelist_df['dst']
     wgt = edgelist_df['weights']
+    if not directed:
+        assert len(edgelist_df) == len(k_truss_nx)
     for i in range(len(src)):
         has_edge = ((k_truss_nx['source'] == src[i]) &
                     (k_truss_nx['target'] == dst[i]) &
@@ -81,9 +88,9 @@ DATASETS = [('../datasets/polbooks.csv',
 
 
 @pytest.mark.parametrize('managed, pool',
-                         list(product([False], [False])))
+                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
-def test_ktruss_subgraph(managed, pool, graph_file, nx_ground_truth):
+def test_ktruss_subgraph_DiGraph(managed, pool, graph_file, nx_ground_truth):
     gc.collect()
 
     rmm.reinitialize(
@@ -93,3 +100,18 @@ def test_ktruss_subgraph(managed, pool, graph_file, nx_ground_truth):
     assert(rmm.is_initialized())
 
     compare_k_truss(graph_file, 5, nx_ground_truth)
+
+
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
+def test_ktruss_subgraph_Graph(managed, pool, graph_file, nx_ground_truth):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool)
+
+    assert(rmm.is_initialized())
+
+    compare_k_truss(graph_file, 5, nx_ground_truth, False)

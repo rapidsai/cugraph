@@ -14,7 +14,6 @@
 import gc
 from itertools import product
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -253,8 +252,8 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_adjlist(offsets, indices, None)
     edgelist = G.view_edge_list()
-    sources_cu = np.array(edgelist['src'])
-    destinations_cu = np.array(edgelist['dst'])
+    sources_cu = edgelist['src']
+    destinations_cu = edgelist['dst']
     assert compare_series(sources_cu, sources_exp)
     assert compare_series(destinations_cu, destinations_exp)
 
@@ -661,6 +660,138 @@ def test_number_of_vertices(managed, pool, graph_file):
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
                                   create_using=nx.DiGraph())
     assert(G.number_of_vertices() == Gnx.number_of_nodes())
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS2)
+def test_to_directed(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file)
+    cu_M = cu_M[cu_M['0'] <= cu_M['1']].reset_index(drop=True)
+    M = utils.read_csv_for_nx(graph_file)
+    M = M[M['0'] <= M['1']]
+    assert len(cu_M) == len(M)
+
+    # cugraph add_edge_list
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
+
+    DiG = G.to_directed()
+    DiGnx = Gnx.to_directed()
+
+    assert(DiG.number_of_nodes() == DiGnx.number_of_nodes())
+    assert(DiG.number_of_edges() == DiGnx.number_of_edges())
+
+    edgelist_df = G.edgelist.edgelist_df
+    for i in range(len(edgelist_df)):
+        assert DiGnx.has_edge(edgelist_df.iloc[i]['src'],
+                              edgelist_df.iloc[i]['dst'])
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS2)
+def test_to_undirected(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file)
+    cu_M = cu_M[cu_M['0'] <= cu_M['1']].reset_index(drop=True)
+    M = utils.read_csv_for_nx(graph_file)
+    M = M[M['0'] <= M['1']]
+    assert len(cu_M) == len(M)
+
+    # cugraph add_edge_list
+    DiG = cugraph.DiGraph()
+    DiG.from_cudf_edgelist(cu_M, source='0', destination='1')
+    DiGnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                    create_using=nx.DiGraph())
+
+    G = DiG.to_undirected()
+    Gnx = DiGnx.to_undirected()
+
+    assert(G.number_of_nodes() == Gnx.number_of_nodes())
+    assert(G.number_of_edges() == Gnx.number_of_edges())
+
+    edgelist_df = G.edgelist.edgelist_df
+
+    for i in range(len(edgelist_df)):
+        assert Gnx.has_edge(edgelist_df.iloc[i]['src'],
+                            edgelist_df.iloc[i]['dst'])
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS2)
+def test_has_edge(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file)
+    cu_M = cu_M[cu_M['0'] <= cu_M['1']].reset_index(drop=True)
+
+    # cugraph add_edge_list
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+
+    for i in range(len(cu_M)):
+        assert G.has_edge(cu_M.loc[i][0], cu_M.loc[i][1])
+        assert G.has_edge(cu_M.loc[i][1], cu_M.loc[i][0])
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS2)
+def test_has_node(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file)
+    nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
+
+    # cugraph add_edge_list
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+
+    for n in nodes:
+        assert G.has_node(n)
 
 
 '''@pytest.mark.parametrize('managed, pool',
