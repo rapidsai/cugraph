@@ -328,8 +328,8 @@ add_library(cugraph SHARED
     src/link_prediction/overlap.cu
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
-    src/community/nvgraph_gdf.cu
     src/community/nvgraph_clustering.cu
+    src/community/louvain.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
@@ -349,7 +349,6 @@ add_library(cugraph SHARED
     src/nvgraph/lanczos.cu
     src/nvgraph/matrix.cu
     src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph.cu
     src/nvgraph/nvgraph_cusparse.cpp
     src/nvgraph/nvgraph_cublas.cpp
     src/nvgraph/nvgraph_error.cu

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,12 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
-    cdef void ecg[IdxT, ValT](Graph* graph,
-                              ValT min_weight,
-                              size_t ensemble_size,
-                              IdxT* ecg_parts) except +
+    cdef void ecg[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
+        WT min_weight,
+        VT ensemble_size,
+        VT* ecg_parts) except +

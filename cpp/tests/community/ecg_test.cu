@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -9,18 +9,16 @@
  *
  */
 #include <gtest/gtest.h>
-#include <nvgraph/nvgraph.h>
-#include <cugraph.h>
-#include <algorithm>
-#include "test_utils.h"
 
-#include <rmm_utils.h>
+#include <graph.hpp>
+#include <algorithms.hpp>
 
-#if 0
+#include <rmm/thrust_rmm_allocator.h>
+
+#include "rmm_utils.h"
+
 TEST(ecg, success)
 {
-  cugraph::Graph G;
-
   std::vector<int> off_h = {0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66, 67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
   std::vector<int> ind_h = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 0, 2, 3, 7, 13, 17, 19, 21, 30, 0, 1, 3, 7, 8, 9, 13, 27, 28, 32, 0, 1, 2, 7, 12, 13, 0, 6, 10, 0,
       6, 10, 16, 0, 4, 5, 16, 0, 1, 2, 3, 0, 2, 30, 32, 33, 2, 33, 0, 4, 5, 0, 0, 3, 0, 1, 2, 3, 33, 32, 33, 32, 33, 5, 6, 0, 1, 32, 33, 0, 1, 33, 32, 33, 0, 1, 32, 33, 25, 27, 29, 32, 33,
@@ -32,46 +30,106 @@ TEST(ecg, success)
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
-  gdf_column col_off, col_ind, col_w;
+  int num_verts = off_h.size() - 1;
+  int num_edges = ind_h.size();
 
+  std::vector<int> cluster_id (num_verts, -1);
 
-  create_gdf_column(off_h,&col_off);
-  create_gdf_column(ind_h,&col_ind);
-  create_gdf_column(w_h  ,&col_w);
+  rmm::device_vector<int>    offsets_v(off_h);
+  rmm::device_vector<int>    indices_v(ind_h);
+  rmm::device_vector<float>  weights_v(w_h);
+  rmm::device_vector<int>    result_v(cluster_id);
 
-  cugraph::adj_list_view(&G, &col_off, &col_ind, &col_w);
+  cugraph::experimental::GraphCSR<int,int,float> graph_csr(offsets_v.data().get(),
+                                                           indices_v.data().get(),
+                                                           weights_v.data().get(),
+                                                           num_verts,
+                                                           num_edges);
 
-  int no_vertex = off_h.size()-1;
-  int* best_cluster_vec = NULL;
+  ASSERT_NO_THROW((cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get())));
 
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&best_cluster_vec, sizeof(int) * no_vertex, stream);
-
-  ASSERT_NO_THROW((cugraph::ecg<int32_t, float>(&G, .05, 16, best_cluster_vec)));
-
-  std::vector<int> cluster_id (34, -1);
-  cudaMemcpy ((void*) &(cluster_id[0]), best_cluster_vec, sizeof(int)*34, cudaMemcpyDeviceToHost);
+  cudaMemcpy ((void*) &(cluster_id[0]), result_v.data().get(), sizeof(int)*num_verts, cudaMemcpyDeviceToHost);
   int max = *max_element (cluster_id.begin(), cluster_id.end());
   int min = *min_element (cluster_id.begin(), cluster_id.end());
+
   ASSERT_EQ((min >= 0), 1);
+
   std::set<int> cluster_ids;
-  for (size_t i = 0; i < cluster_id.size(); i++)
-    cluster_ids.insert(cluster_id[i]);
+  for (auto c : cluster_id) {
+    cluster_ids.insert(c);
+  }
 
   ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
 
-  gdf_column* clusters_col = new gdf_column;
-  gdf_column_view(clusters_col, best_cluster_vec, nullptr, 34, GDF_INT32);
-  float modularity = 0.0;
+  float modularity{0.0};
 
-  // TODO:  this method not supported with old graph object
-  ASSERT_NO_THROW(analyzeClustering_modularity_nvgraph(&G, max + 1, clusters_col, &modularity));
+  ASSERT_NO_THROW(cugraph::nvgraph::analyzeClustering_modularity(graph_csr, max + 1, result_v.data().get(), &modularity));
 
   ASSERT_EQ((modularity >= 0.399), 1);
-
-  ALLOC_FREE_TRY (best_cluster_vec, stream);
 }
-#endif
+
+TEST(ecg, dolphin)
+{
+  std::vector<int> off_h = { 0, 6, 14, 18, 21, 22, 26, 32, 37, 43, 50, 55, 56, 57, 65, 77, 84, 90,
+                             99, 106, 110, 119, 125, 126, 129, 135, 138, 141, 146, 151, 160, 165, 166, 169, 179, 184,
+                             185, 192, 203, 211, 213, 221, 226, 232, 239, 243, 254, 256, 262, 263, 265, 272, 282, 286,
+                             288, 295, 297, 299, 308, 309, 314, 315, 318 };
+  std::vector<int> ind_h = { 10, 14, 15, 40, 42, 47, 17, 19, 26, 27, 28, 36, 41, 54, 10, 42, 44, 61,  8, 14, 59, 51,  9, 13,
+                             56, 57,  9, 13, 17, 54, 56, 57, 19, 27, 30, 40, 54,  3, 20, 28, 37, 45, 59,  5,  6, 13, 17, 32,
+                             41, 57,  0,  2, 29, 42, 47, 51, 33,  5,  6,  9, 17, 32, 41, 54, 57,  0,  3, 16, 24, 33, 34, 37,
+                             38, 40, 43, 50, 52,  0, 18, 24, 40, 45, 55, 59, 14, 20, 33, 37, 38, 50,  1,  6,  9, 13, 22, 25,
+                             27, 31, 57, 15, 20, 21, 24, 29, 45, 51,  1,  7, 30, 54,  8, 16, 18, 28, 36, 38, 44, 47, 50, 18,
+                             29, 33, 37, 45, 51, 17, 36, 45, 51, 14, 15, 18, 29, 45, 51, 17, 26, 27,  1, 25, 27,  1,  7, 17,
+                             25, 26,  1,  8, 20, 30, 47, 10, 18, 21, 24, 35, 43, 45, 51, 52,  7, 19, 28, 42, 47, 17,  9, 13,
+                             60, 12, 14, 16, 21, 34, 37, 38, 40, 43, 50, 14, 33, 37, 44, 49, 29,  1, 20, 23, 37, 39, 40, 59,
+                              8, 14, 16, 21, 33, 34, 36, 40, 43, 45, 61, 14, 16, 20, 33, 43, 44, 52, 58, 36, 57,  0,  7, 14,
+                             15, 33, 36, 37, 52,  1,  9, 13, 54, 57,  0,  2, 10, 30, 47, 50, 14, 29, 33, 37, 38, 46, 53,  2,
+                             20, 34, 38,  8, 15, 18, 21, 23, 24, 29, 37, 50, 51, 59, 43, 49,  0, 10, 20, 28, 30, 42, 57, 34,
+                             46, 14, 16, 20, 33, 42, 45, 51,  4, 11, 18, 21, 23, 24, 29, 45, 50, 55, 14, 29, 38, 40, 43, 61,
+                              1,  6,  7, 13, 19, 41, 57, 15, 51,  5,  6,  5,  6,  9, 13, 17, 39, 41, 48, 54, 38,  3,  8, 15,
+                             36, 45, 32,  2, 37, 53 };
+  
+  std::vector<float> w_h(ind_h.size(), float{1.0});
+
+  int num_verts = off_h.size() - 1;
+  int num_edges = ind_h.size();
+
+  std::vector<int> cluster_id (num_verts, -1);
+
+  rmm::device_vector<int>    offsets_v(off_h);
+  rmm::device_vector<int>    indices_v(ind_h);
+  rmm::device_vector<float>  weights_v(w_h);
+  rmm::device_vector<int>    result_v(cluster_id);
+
+  cugraph::experimental::GraphCSR<int,int,float> graph_csr(offsets_v.data().get(),
+                                                           indices_v.data().get(),
+                                                           weights_v.data().get(),
+                                                           num_verts,
+                                                           num_edges);
+
+  ASSERT_NO_THROW((cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get())));
+
+  cudaMemcpy ((void*) &(cluster_id[0]), result_v.data().get(), sizeof(int)*num_verts, cudaMemcpyDeviceToHost);
+  int max = *max_element (cluster_id.begin(), cluster_id.end());
+  int min = *min_element (cluster_id.begin(), cluster_id.end());
+
+  ASSERT_EQ((min >= 0), 1);
+
+  std::set<int> cluster_ids;
+  for (auto c : cluster_id) {
+    cluster_ids.insert(c);
+  }
+
+  ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
+
+  float modularity{0.0};
+
+  ASSERT_NO_THROW(cugraph::nvgraph::analyzeClustering_modularity(graph_csr, max + 1, result_v.data().get(), &modularity));
+
+  float random_modularity {0.95 * 0.4962422251701355};
+
+  ASSERT_EQ((modularity >= random_modularity), 1);
+}
 
 int main( int argc, char** argv )
 {

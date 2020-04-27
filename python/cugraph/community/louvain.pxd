@@ -16,14 +16,14 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
-    cdef void louvain(
-        Graph *graph,
-        void *final_modularity,
-        void *num_level,
-        void *louvain_parts,
+    cdef void louvain[VT,ET,WT](
+        const GraphCSR[VT,ET,WT] &graph,
+        WT *final_modularity,
+        VT *num_level,
+        VT *louvain_parts,
         int max_iter) except +

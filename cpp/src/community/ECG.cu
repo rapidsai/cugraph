@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** ---------------------------------------------------------------------------*
- * @brief Wrapper functions for Nvgraph
- *
- * @file nvgraph_gdf.cu
- * ---------------------------------------------------------------------------**/
 
-#include <cugraph.h>
+#include <graph.hpp>
+#include <algorithms.hpp>
+
 #include <thrust/random.h>
 #include <ctime>
 #include "utilities/error_utils.h"
@@ -97,130 +94,105 @@ struct update_functor{
  * @return A pointer to memory containing the requested permutation vector. The caller is
  * responsible for freeing the allocated memory using ALLOC_FREE_TRY().
  */
-template <typename IdxT>
-IdxT* get_permutation_vector(IdxT size, IdxT seed) {
-  IdxT* output_vector;
-  ALLOC_TRY(&output_vector, sizeof(IdxT) * size, nullptr);
-  float* randoms;
-  ALLOC_TRY(&randoms, sizeof(float) * size, nullptr);
+template <typename T>
+void get_permutation_vector(T size, T seed, T *permutation) {
+  rmm::device_vector<float> randoms_v(size);
 
   thrust::counting_iterator<uint32_t> index(seed);
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index, index + size, randoms, prg());
-  thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr), output_vector, output_vector + size, 0);
-  thrust::sort_by_key(rmm::exec_policy(nullptr)->on(nullptr), randoms, randoms + size, output_vector);
-
-  ALLOC_FREE_TRY(randoms, nullptr);
-
-  return output_vector;
+  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index, index + size, randoms_v.begin(), prg());
+  thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr), permutation, permutation + size, 0);
+  thrust::sort_by_key(rmm::exec_policy(nullptr)->on(nullptr), randoms_v.begin(), randoms_v.end(), permutation);
 }
 
 
 } // anonymous namespace
 
 namespace cugraph {
+namespace nvgraph {
 
-template<typename IdxT, typename ValT>
-void ecg(cugraph::Graph* graph,
-              ValT min_weight,
-              size_t ensemble_size,
-              IdxT* ecg_parts) {
-  CHECK_GRAPH(graph);
-  CUGRAPH_EXPECTS(graph->adjList->edge_data != nullptr, "Invalid API parameter: graph must have edge weights");
+template <typename VT, typename ET, typename WT>
+void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
+         WT min_weight,
+         VT ensemble_size,
+         VT *ecg_parts) {
+
+  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
   CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter: ecg_parts is NULL");
 
-  IdxT size = graph->adjList->offsets->size - 1;
-  IdxT nnz = graph->adjList->indices->size;
-  IdxT* offsets = (IdxT*) graph->adjList->offsets->data;
-  IdxT* indices = (IdxT*) graph->adjList->indices->data;
-  ValT* ecg_weights;
-  ALLOC_TRY(&ecg_weights, sizeof(ValT) * nnz, nullptr);
-  thrust::fill(rmm::exec_policy(nullptr)->on(nullptr),
-               ecg_weights,
-               ecg_weights + nnz,
-               0.0);
+  rmm::device_vector<WT> ecg_weights_v(graph.number_of_edges, WT{0.0});
+
+  VT size{graph.number_of_vertices};
+  VT seed{0};
+  //VT seed{1};  // Note... this seed won't work for the unit tests... retest after fixing Louvain.
+
   // Iterate over each member of the ensemble
-  for (size_t i = 0; i < ensemble_size; i++) {
+  for (VT i = 0; i < ensemble_size; i++) {
     // Take random permutation of the graph
-    IdxT* permutation = get_permutation_vector(size, (IdxT)(size * i));
-    cugraph::Graph* permuted = detail::permute_graph<IdxT, ValT>(graph, permutation);
+    rmm::device_vector<VT> permutation_v(size);
+    VT *d_permutation = permutation_v.data().get();
+
+    get_permutation_vector(size, seed, d_permutation);
+    seed += size;
+
+    experimental::GraphCSR<VT,ET,WT> permuted_graph;
+
+    detail::permute_graph(graph, d_permutation, permuted_graph);
 
     // Run Louvain clustering on the random permutation
-    IdxT* parts;
-    ALLOC_TRY(&parts, sizeof(IdxT) * size, nullptr);
-    ValT final_modularity;
-    IdxT num_level;
-    cugraph::louvain(permuted, &final_modularity, &num_level, parts, 1);
+    rmm::device_vector<VT> parts_v(size);
+    VT *d_parts = parts_v.data().get();
+
+    WT final_modularity;
+    VT num_level;
+
+    cugraph::nvgraph::louvain(permuted_graph, &final_modularity, &num_level, d_parts, 1);
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
     dim3 grid, block;
     block.x = 512;
-    grid.x = min((IdxT) CUDA_MAX_BLOCKS, (nnz / 512 + 1));
-    match_check_kernel<<<grid, block, 0, nullptr>>>(nnz,
-                                                    size,
-                                                    offsets,
-                                                    indices,
-                                                    permutation,
-                                                    parts,
-                                                    ecg_weights);
+    grid.x = min(VT{CUDA_MAX_BLOCKS}, (graph.number_of_edges / 512 + 1));
+    match_check_kernel<<<grid, block, 0, nullptr>>>(graph.number_of_edges,
+                                                    graph.number_of_vertices,
+                                                    graph.offsets,
+                                                    graph.indices,
+                                                    permutation_v.data().get(),
+                                                    d_parts,
+                                                    ecg_weights_v.data().get());
 
     // Clean up temporary allocations
-    delete permuted;
-    ALLOC_FREE_TRY(parts, nullptr);
-    ALLOC_FREE_TRY(permutation, nullptr);
+
+    // FIXME:  Address this when kaatish graph result PR is complete
+    ALLOC_FREE_TRY(permuted_graph.indices, nullptr);
+    ALLOC_FREE_TRY(permuted_graph.offsets, nullptr);
+    ALLOC_FREE_TRY(permuted_graph.edge_data, nullptr);
   }
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
-  update_functor<ValT> uf(min_weight, ensemble_size);
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), ecg_weights, ecg_weights + nnz, ecg_weights, uf);
+  update_functor<WT> uf(min_weight, ensemble_size);
+  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), ecg_weights_v.data().get(), ecg_weights_v.data().get() + graph.number_of_edges, ecg_weights_v.data().get(), uf);
 
   // Run Louvain on the original graph using the computed weights
-  cugraph::Graph* result = new cugraph::Graph;
-  result->adjList = new cugraph::gdf_adj_list;
-  result->adjList->offsets = new gdf_column;
-  result->adjList->indices = new gdf_column;
-  result->adjList->edge_data = new gdf_column;
-  result->adjList->ownership = 0;
-  gdf_column_view(result->adjList->offsets,
-                  offsets,
-                  nullptr,
-                  graph->adjList->offsets->size,
-                  graph->adjList->offsets->dtype);
-  gdf_column_view(result->adjList->indices,
-                  indices,
-                  nullptr,
-                  graph->adjList->indices->size,
-                  graph->adjList->indices->dtype);
-  gdf_column_view(result->adjList->edge_data,
-                  ecg_weights,
-                  nullptr,
-                  graph->adjList->edge_data->size,
-                  graph->adjList->edge_data->dtype);
-  ValT final_modularity;
-  IdxT num_level;
-  cugraph::louvain(result, &final_modularity, &num_level, ecg_parts, 100);
-
-  // Cleaning up temporary allocations
-  delete result;
-  ALLOC_FREE_TRY(ecg_weights, nullptr);
+  experimental::GraphCSR<VT,ET,WT> louvain_graph;
+  louvain_graph.indices = graph.indices;
+  louvain_graph.offsets = graph.offsets;
+  louvain_graph.edge_data = ecg_weights_v.data().get();
+  louvain_graph.number_of_vertices = graph.number_of_vertices;
+  louvain_graph.number_of_edges = graph.number_of_edges;
+  
+  WT final_modularity;
+  VT num_level;
+  cugraph::nvgraph::louvain(louvain_graph, &final_modularity, &num_level, ecg_parts, 100);
 }
 
 // Explicit template instantiations.
-template void ecg<int32_t, float>(cugraph::Graph* graph,
-                                  float min_weight,
-                                  size_t ensemble_size,
-                                  int32_t* ecg_parts);
-template void ecg<int32_t, double>(cugraph::Graph* graph,
-                                   double min_weight,
-                                   size_t ensemble_size,
-                                   int32_t* ecg_parts);
-template void ecg<int64_t, float>(cugraph::Graph* graph,
-                                  float min_weight,
-                                  size_t ensemble_size,
-                                  int64_t* ecg_parts);
-template void ecg<int64_t, double>(cugraph::Graph* graph,
-                                   double min_weight,
-                                   size_t ensemble_size,
-                                   int64_t* ecg_parts);
-
-} // cugraph namespace
+template void ecg<int32_t, int32_t, float>(experimental::GraphCSR<int32_t, int32_t, float> const &graph,
+                                           float min_weight,
+                                           int32_t ensemble_size,
+                                           int32_t* ecg_parts);
+template void ecg<int32_t, int32_t, double>(experimental::GraphCSR<int32_t, int32_t, double> const &graph,
+                                            double min_weight,
+                                            int32_t ensemble_size,
+                                            int32_t* ecg_parts);
+} //namespace nvgraph
+} //namespace cugraph

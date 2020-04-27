@@ -220,7 +220,7 @@ generate_cluster_inv_ptr(const int n_vertex, const int c_size, IdxIter cluster_i
 
   if(tid < n_vertex){
     ci = *(cluster_iter + tid);
-    atomicAdd(cluster_inv_ptr + ci, 1);
+    atomicAdd(cluster_inv_ptr + ci, IdxType{1});
   }
 }
 
