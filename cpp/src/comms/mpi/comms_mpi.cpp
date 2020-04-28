@@ -40,9 +40,8 @@ Comm::Comm(int p) : _p{p} {
 
   MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_world_rank));
   MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &_mpi_world_size));
-  CUGRAPH_EXPECTS(
-    _p == _mpi_world_size,
-    "Invalid input arguments: p should match the number of MPI processes.");
+  CUGRAPH_EXPECTS( (_p == _mpi_world_size), 
+                   "Invalid input arguments: p should match the number of MPI processes.");
 
   _mpi_comm = MPI_COMM_WORLD;
 
@@ -60,11 +59,6 @@ Comm::Comm(int p) : _p{p} {
   CUDA_TRY(
     cudaDeviceGetAttribute(
       &_shared_memory_size_per_sm, cudaDevAttrMaxSharedMemoryPerMultiprocessor, _device_id));
-  int supported{0};
-  CUDA_TRY(cudaDeviceGetAttribute(&supported, cudaDevAttrStreamPrioritiesSupported, _device_id));
-  CUDA_TRY(cudaDeviceGetStreamPriorityRange(&_cuda_stream_least_priority, &_cuda_stream_greatest_priority));
-
-  CUDA_TRY(cudaStreamCreate(&_default_stream));
 
   // NCCL
 
@@ -73,8 +67,8 @@ Comm::Comm(int p) : _p{p} {
     NCCL_TRY(ncclGetUniqueId(&nccl_unique_id_p));
   }
   MPI_TRY(MPI_Bcast(&nccl_unique_id_p, sizeof(ncclUniqueId), MPI_BYTE, 0, _mpi_comm));
-
   NCCL_TRY(ncclCommInitRank(&_nccl_comm, get_p(), nccl_unique_id_p, get_rank()));
+  _finalize_nccl = true;
 #endif
 
 }
@@ -82,13 +76,8 @@ Comm::Comm(int p) : _p{p} {
 Comm::~Comm() {
 #if USE_NCCL
   // NCCL
-  ncclCommDestroy(_nccl_comm);
-
-  // CUDA
-  for (auto& stream : _extra_streams) {
-    cudaStreamDestroy(stream);
-  }
-  cudaStreamDestroy(_default_stream);
+  if (_finalize_nccl)
+    ncclCommDestroy(_nccl_comm);
 
   if (_finalize_mpi) {
     MPI_Finalize();

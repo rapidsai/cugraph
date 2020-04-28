@@ -49,10 +49,14 @@ TEST(degree, success)
 
   // IN degree
   G.degree(thrust::raw_pointer_cast(degree_d.data()), cugraph::experimental::DegreeDirection::IN);
+
+  std::cout<< "passed"<<std::endl;
   thrust::copy(degree_d.begin(), degree_d.end(), degree_h.begin());
   ref_degree_h(dest_h, degree_ref); 
   for (size_t j = 0; j < degree_h.size(); ++j)
     EXPECT_EQ(degree_ref[j], degree_h[j]);
+  
+   thrust::fill (degree_d.begin(), degree_d.end(), 0);
 
   // OUT degree
   G.degree(thrust::raw_pointer_cast(degree_d.data()), cugraph::experimental::DegreeDirection::OUT);

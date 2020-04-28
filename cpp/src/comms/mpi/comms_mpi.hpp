@@ -198,6 +198,8 @@ class Comm
     int _mpi_world_rank{0};
     int _mpi_world_size{0};
     bool _finalize_mpi{false};
+    bool _finalize_nccl{false};
+
 
     int _device_id{0};
     int _device_count{0};
@@ -210,11 +212,6 @@ class Comm
     int _max_block_dim_1D{0};
     int _l2_cache_size{0};
     int _shared_memory_size_per_sm{0};
-    int _cuda_stream_least_priority{0};
-    int _cuda_stream_greatest_priority{0};
-
-    cudaStream_t _default_stream{};
-    std::vector<cudaStream_t> _extra_streams{};
 
 #if USE_NCCL
     MPI_Comm _mpi_comm{};
@@ -222,6 +219,7 @@ class Comm
  #endif
    
   public: 
+    Comm(){};
     Comm(int p);
     ~Comm();
     int get_rank() const { return _mpi_world_rank; }
