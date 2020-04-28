@@ -36,7 +36,7 @@
 #include <nvgraph/include/partition.hxx>
 #include <nvgraph/include/modularity_maximization.hxx>
 
-#include <nvgraph/include/matrix.hxx>
+#include <nvgraph/include/spectral_matrix.hxx>
 
 namespace cugraph {
 namespace nvgraph {

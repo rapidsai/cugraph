@@ -28,7 +28,7 @@
 #include <nvgraph/include/nvgraph_error.hxx>
 #include <nvgraph/include/nvgraph_vector.hxx>
 #include <nvgraph/include/nvgraph_cublas.hxx>
-#include <nvgraph/include/matrix.hxx>
+#include <nvgraph/include/spectral_matrix.hxx>
 #include <nvgraph/include/lanczos.hxx>
 #include <nvgraph/include/kmeans.hxx>
 #include <nvgraph/include/debug_macros.h>

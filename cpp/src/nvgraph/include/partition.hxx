@@ -19,7 +19,7 @@
 #include <graph.hpp>
 
 #include "nvgraph_error.hxx"
-#include "matrix.hxx"
+#include "spectral_matrix.hxx"
 
 
 namespace nvgraph {

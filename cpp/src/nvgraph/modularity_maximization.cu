@@ -29,7 +29,7 @@
 #include "include/nvgraph_error.hxx"
 #include "include/nvgraph_vector.hxx"
 #include "include/nvgraph_cublas.hxx"
-#include "include/matrix.hxx"
+#include "include/spectral_matrix.hxx"
 #include "include/lanczos.hxx"
 #include "include/kmeans.hxx"
 #include "include/debug_macros.h"

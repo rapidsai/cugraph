@@ -41,10 +41,6 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
                                                       input_graph.adjlist.indices], [np.int32, np.int64])
     [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
 
-    print("offsets = ", offsets.values)
-    print("indices = ", indices.values)
-    print("weights = ", weights.values)
-
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
 

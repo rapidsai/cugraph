@@ -16,7 +16,7 @@
 //#ifdef NVGRAPH_PARTITION
 //#ifdef DEBUG
 
-#include "include/matrix.hxx"
+#include "include/spectral_matrix.hxx"
 
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
