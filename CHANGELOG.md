@@ -17,6 +17,7 @@
 - PR #804 Cythonize in parallel
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
+- PR #799 Refactored graph class with RAII
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
