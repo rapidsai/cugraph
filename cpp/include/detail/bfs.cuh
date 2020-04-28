@@ -55,6 +55,10 @@ void bfs_this_graph_partition(
     "cugraph::experimental::bfs expects a symmetric graph if direction optimize is true.");
 
   auto const num_vertices = graph.get_number_of_vertices();
+  if (num_vertices == 0) {
+    return;
+  }
+
   vertex_t src_vertex_first{};
   vertex_t src_vertex_last{};
   vertex_t dst_vertex_first{};
@@ -78,41 +82,46 @@ void bfs_this_graph_partition(
       return thrust::make_tuple(distance, invalid_vertex_id<vertex_t>::value);
     });
 
-  rmm::device_vector<vertex_t> src_frontiers(num_src_vertices, invalid_vertex_id<vertex_t>::value);
+  enum class Bucket { cur, num_buckets };
+  SrcVertexQueue src_froniter_queue(graph, Bucket::num_buckets);
 
-  size_t depth{0};
-  vertex_t cur_src_froniter_offset{0};
-  vertex_t cur_src_frontier_size{0};
   if ((starting_vertex >= src_vertex_first) && (starting_vertex < src_vertex_last)) {
-    cur_src_frontier_size = 1;
+    src_frontier_queue.get_bucket(Bucket::cur).insert(starting_vertex);
   }
   if ((starting_vertex >= dst_vertex_first) && (starting_vertex < dst_vertex_last)) {
     *(dst_distance_first + (starting_vertex - dst_vertex_first)) = static_cast<vertex_t>(depth);
   }
+
+  size_t depth{0};
+  auto cur_src_frontier_first =
+    src_frontier_queue.get_bucket(Bucket::cur).begin();
   while (true) {
     if (direction_optimized) {
       CUGRAPH_FAIL("unimplemented.");
     }
     else {
-      auto cur_src_frontier_first = src_frontiers.begin() + cur_src_froniter_offset;
-      auto cur_src_frontier_last = cur_src_frontier_first + cur_src_frontier_size;
+      auto cur_src_frontier_last =
+        src_frontier_queue.get_bucket(Bucket::cur).end();
 
-      auto new_src_froniter_last =
-        for_each_src_v_expand_and_transform_if_e(
-          handle, graph,
-          cur_src_frontier_first, cur_src_frontier_last,
-          thrust::make_counting_iterator(src_vertex_first), dst_distance_first,
-          thrust::make_zip_iterator(dst_distance_first, dst_predecessor_first),
-          cur_src_frontier_last,
-          [] __device__ (auto src_val, auto dst_val) {
-            return thrust::make_tuple(!dst_val, thrust::make_tuple(depth + 1, src_val));
-          });
-      cur_src_frontier_offset += cur_src_frontier_size;
-      cur_src_frontier_size =
-        static_cast<vertex_t>(thrust::distance(cur_src_frontier_last, new_src_frontier_last));
+      for_each_src_v_expand_and_transform_if_e(
+        handle, graph,
+        cur_src_frontier_first, cur_src_frontier_last,
+        thrust::make_counting_iterator(src_vertex_first), dst_distance_first,
+        thrust::make_zip_iterator(dst_distance_first, dst_predecessor_first),
+        src_frontier_queue,
+        [] __device__ (auto src_val, auto dst_val) {
+          int idx = !dst_val ? Bucket::cur : SrcVertexQueue::invalid_bucket_idx;
+          return thrust::make_tuple(idx, thrust::make_tuple(depth + 1, src_val));
+        });
 
-      aggregate_cur_frontier_size = handle.reduce(cur_src_frontier_size);
-      if (aggregate_cur_frontier_size == 0) {
+      cur_src_frontier_first = cur_src_frontier_last;
+      auto cur_src_frontier_size =
+        static_cast<vertex_t>(
+          thrust::distance(cur_src_froniter_first, src_frontier_queue.get_bucket(Bucket::cur).end())
+        );
+
+      auto aggregate_cur_src_frontier_size = handle.reduce(cur_src_frontier_size);
+      if (aggregate_cur_src_frontier_size == 0) {
         break;
       }
     }

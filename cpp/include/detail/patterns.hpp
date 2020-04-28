@@ -58,6 +58,15 @@ T transform_reduce_src_dst_v(
     SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
     ReduceOp reduce_op, T init);
 
+template <typename HandleType, typename GraphType,
+          typename SrcValueInputIterator, typename DstValueInputIterator,
+          typename TransformOp, typename T>
+T transform_reduce_e(
+    HandelType handle, GraphType graph,
+    SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
+    TransformOp transform_op, T init);
+
+
 // 2-levels
 
 template <typename HandleType, typename GraphType,
@@ -83,7 +92,7 @@ template <typename HandleType, typename GraphType, typename SrcVertexIterator,
           typename DstValueOutputIterator,
           typename SrcQueueOutputIterator,
           typename EdgeOp>
-SrcQueueOutputIterator for_each_src_v_expand_and_transform_if_e(
+void for_each_src_v_expand_and_transform_if_e(
     HandelType handle, GraphType graph,
     SrcVertexIterator src_vertex_first, SrcVertexIterator src_vertex_last,
     SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
@@ -96,7 +105,7 @@ template <typename HandleType, typename GraphType, typename SrcVertexIterator,
           typename DstValueOutputIterator,
           typename SrcQueueOutputIterator, typename SrcValueOutputIterator,
           typename EdgeOp, typename ReduceOp, typename TransformOp>
-SrcQueueOutputIterator for_each_src_v_expand_and_transform_if_e(
+void for_each_src_v_expand_and_transform_if_e(
     HandelType handle, GraphType graph,
     SrcVertexIterator src_vertex_first, SrcVertexIterator src_vertex_last,
     SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
