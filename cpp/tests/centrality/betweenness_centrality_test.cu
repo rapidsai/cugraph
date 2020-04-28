@@ -181,6 +181,34 @@ void reference_betweenness_centrality_impl(VT *indices, ET *offsets,
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
+void reference_rescale(result_t *result, bool normalize, bool directed, VT const number_of_vertices, VT const number_of_sources) {
+  bool modified = false;
+  result_t rescale_factor = static_cast<result_t>(1);
+  result_t casted_number_of_sources = static_cast<result_t>(number_of_sources);
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  if (normalize) {
+    if (number_of_vertices > 2) {
+      rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
+      modified = true;
+    }
+  } else {
+    if (!directed) {
+      rescale_factor /= static_cast<result_t>(2);
+      modified = true;
+    }
+  }
+  if (modified) {
+    if (number_of_sources > 0) {
+      rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
+    }
+  }
+  for (auto idx = 0; idx < number_of_vertices; ++idx) {
+    result[idx] *=  rescale_factor;
+  }
+}
+
+
+template <typename VT, typename ET, typename WT, typename result_t>
 void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT> const &graph,
                                       result_t *result,
                                       bool normalize,
@@ -213,15 +241,7 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT
                                                               number_of_vertices,
                                                               result, sources,
                                                               number_of_sources);
-  if (normalize && number_of_vertices > 2) {
-    result_t factor = static_cast<result_t>(number_of_vertices - 1) * static_cast<result_t>(number_of_vertices - 2);
-    for (VT v = 0; v < number_of_vertices; ++v) {
-      result[v] /= factor;
-      if (number_of_sources > 0) { // Include k normalization
-        result[v] *= static_cast<result_t>(number_of_sources) / static_cast<result_t>(number_of_vertices);
-      }
-    }
-  }
+  reference_rescale<VT, ET, WT, result_t>(result, normalize, endpoints, number_of_vertices, number_of_sources);
 }
 // Explicit declaration
 template void reference_betweenness_centrality<int, int, float, float>(cugraph::experimental::GraphCSR<int, int, float> const&,

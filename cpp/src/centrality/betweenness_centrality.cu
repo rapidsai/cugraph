@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <iostream> // DBG
+#include <fstream> //  DBG
 #include <vector>
 
 #include <thrust/transform.h>
@@ -65,26 +67,6 @@ void BC<VT, ET, WT, result_t>::clean() {
     ALLOC_FREE_TRY(sp_counters, nullptr);
     ALLOC_FREE_TRY(deltas, nullptr);
     // ---  Betweenness is not ours ---
-}
-
-// TODO(xcadet) number_of_sources has to be used for rescale (also add it to reference tests)
-template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::normalize() {
-    printf("[DBG] Being normalized\n");
-    thrust::device_vector<result_t> normalizer(number_of_vertices);
-    result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
-    result_t casted_number_of_sources = static_cast<result_t>(number_of_sources);
-
-    WT scale = static_cast<result_t>(1) / ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
-    if (number_of_sources > 0) {
-      scale *= (casted_number_of_sources / casted_number_of_vertices);
-    }
-    thrust::fill(normalizer.begin(), normalizer.end(), scale);
-
-
-    thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness,
-                      betweenness + number_of_vertices, normalizer.begin(),
-                      betweenness, thrust::multiplies<result_t>());
 }
 
 // Dependecy Accumulation: McLaughlin and Bader, 2018
@@ -153,14 +135,23 @@ void BC<VT, ET, WT, result_t>::check_input() {
 // dispatch later
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex) {
-  //std::cout << "[DBG][BC][COMPUTE_SINGLE_SOURCE] Computing from source " << source_vertex << std::endl;
-  //CUGRAPH_EXPECTS(distances != nullptr, "distances is null");
-  //CUGRAPH_EXPECTS(predecessors != nullptr, "predecessors is null");
+  //printf("[DBG][BC][COMPUTE_SINGLE_SOURCE] Computing from source %d\n", source_vertex);
   //CUGRAPH_EXPECTS(sp_counters != nullptr, "sp_counters i null");
   // Step 1) Singe-source shortest-path problem
   cugraph::bfs(graph, distances, predecessors, sp_counters, source_vertex,
                graph.prop.directed);
   cudaDeviceSynchronize();
+  // ---- DBG
+  thrust::host_vector<double> h_sp_counters(number_of_vertices); // DBG
+  CUDA_TRY(cudaMemcpy(&h_sp_counters[0], &sp_counters[0], sizeof(double) * number_of_vertices, cudaMemcpyDeviceToHost)); // DBG
+  cudaDeviceSynchronize(); // DBG
+  std::string name = "/raid/xcadet/tmp/bc-bfs-net-" + std::to_string(source_vertex) + ".txt"; // DBGh
+  std::ofstream ofs; // DBG
+  ofs.open(name, std::ofstream::out); // DBG
+  assert(ofs.is_open());
+  thrust::copy(h_sp_counters.begin(), h_sp_counters.end(), std::ostream_iterator<double>(ofs, "\n"));
+  ofs.close(); // DBG
+  cudaDeviceSynchronize(); // DBG
 
   //TODO(xcadet) Remove that with a BC specific class to gather
   //             information during traversal
@@ -201,10 +192,39 @@ void BC<VT, ET, WT, result_t>::compute() {
         compute_single_source(source_vertex);
       }
     }
-    if (apply_normalization) {
-        normalize();
-    }
+    printf("[DBG][CU][BC] Should Normalize %s\n", apply_normalization ? "True" : "False");
+    printf("[DBG][CU][BC] Graph is directed ? %s\n", graph.prop.directed ? "True" : "False");
+    rescale();
     cudaDeviceSynchronize();
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::rescale() {
+  thrust::device_vector<result_t> normalizer(number_of_vertices);
+  bool modified = false;
+  result_t rescale_factor = static_cast<result_t>(1);
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  result_t casted_number_of_sources = static_cast<result_t>(number_of_sources);
+  if (apply_normalization) {
+    if (number_of_vertices > 2) {
+      rescale_factor /= ((casted_number_of_vertices - 1)  * (casted_number_of_vertices - 2));
+      modified = true;
+    }
+  } else {
+    if (!graph.prop.directed) {
+      rescale_factor /= static_cast<result_t>(2);
+      modified = true;
+    }
+  }
+  if (modified) {
+    if (number_of_sources > 0) {
+      rescale_factor *=  (casted_number_of_vertices / casted_number_of_sources);
+    }
+  }
+  thrust::fill(normalizer.begin(), normalizer.end(), rescale_factor);
+  thrust::transform(rmm::exec_policy(stream)->on(stream), betweenness,
+                    betweenness + number_of_vertices, normalizer.begin(),
+                    betweenness, thrust::multiplies<result_t>());
 }
   /**
   * ---------------------------------------------------------------------------*

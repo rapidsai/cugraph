@@ -19,6 +19,7 @@
 from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
 from cugraph.centrality.betweenness_centrality cimport cugraph_bc_implem_t
 from cugraph.structure.graph_new cimport *
+import cugraph.structure.graph
 from cugraph.utilities.column_utils cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
@@ -69,7 +70,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     if weight is not None:
         c_weight = weight.__cuda_array_interface__['data'][0]
 
-    #FIXME: We could sample directly from a cudf array: i.e
+    #FIXME: We could sample directly from a cudf array in the futur: i.e
     #       c_vertices = vertices.__cuda_array_interface__['data'][0]
     if vertices is not None:
         c_vertices =  np.array(vertices, dtype=np.int32).__array_interface__['data'][0]
@@ -81,6 +82,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     cdef GraphCSR[int,int,float] graph
 
     graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    # FIXME: There might be a way to avoid manually setting the Graph property
+    graph.prop.directed = type(input_graph) is cugraph.structure.graph.DiGraph
 
     c_betweenness_centrality[int,int,float,float](graph, <float*> c_betweenness,
                                                   normalized, endpoints,
@@ -94,6 +97,6 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
         # DBG
         #print(type(input_graph.edgelist.renumber_map))
         #df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        #df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df

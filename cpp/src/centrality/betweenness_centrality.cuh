@@ -58,7 +58,7 @@ class BC {
       void accumulate(result_t *betweenness, VT *distances,
                       double *sp_counters, result_t *deltas, VT source, VT max_depth);
       void compute_single_source(VT source_vertex);
-      void normalize();
+      void rescale();
       void check_input();
 
    public:
