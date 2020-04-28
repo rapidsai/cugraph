@@ -64,51 +64,6 @@ namespace nvgraph {
   // Get index of matrix entry
 #define IDX(i,j,lda) ((i)+(j)*(lda))
 
-    template <typename IndexType_, typename ValueType_, bool Device_, bool print_transpose>
-    static int print_matrix(IndexType_ m, IndexType_ n, ValueType_ * A, IndexType_ lda, const char *s){
-        IndexType_ i,j;
-        ValueType_ * h_A;
-
-        if (m > lda) {
-            WARNING("print_matrix - invalid parameter (m > lda)");
-            return -1;
-        }
-        if (Device_) {
-            h_A = (ValueType_ *)malloc(lda*n*sizeof(ValueType_));
-            if (!h_A) {
-                WARNING("print_matrix - malloc failed");
-                return -1;
-            }
-            cudaMemcpy(h_A, A, lda*n*sizeof(ValueType_), cudaMemcpyDeviceToHost); cudaCheckError()
-        }
-        else {
-            h_A = A;
-        }
-
-        printf("%s\n",s);
-        if(print_transpose){
-            for (j=0; j<n; j++) {
-                for (i=0; i<m; i++) { //assumption m<lda
-                    printf("%8.5f, ", h_A[i+j*lda]);
-                }
-                printf("\n");
-            }
-        }
-        else {
-            for (i=0; i<m; i++) { //assumption m<lda
-                for (j=0; j<n; j++) {
-                    printf("%8.5f, ", h_A[i+j*lda]);
-                }
-                printf("\n");
-            }
-        }
-
-        if (Device_) {
-            if (h_A) free(h_A);
-        }
-        return 0;
-    }
-
     template <typename IndexType_, typename ValueType_>
     static __global__ void scale_obs_kernel(IndexType_ m, IndexType_ n, ValueType_ *obs) {
         IndexType_ i,j,k,index,mm;
@@ -301,8 +256,6 @@ namespace nvgraph {
 
     //WARNING: notice that at this point the matrix has already been transposed, so we are scaling columns
     scale_obs(nEigVecs,n,eigVecs); cudaCheckError();
-    //print_matrix<IndexType_,ValueType_,true,false>(nEigVecs-ifirst,n,obs,nEigVecs-ifirst,"Scaled obs");
-    //print_matrix<IndexType_,ValueType_,true,true>(nEigVecs-ifirst,n,obs,nEigVecs-ifirst,"Scaled obs");
 
     //eigVecs.dump(0, nEigVecs*n);
     // Find partition with k-means clustering

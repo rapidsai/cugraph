@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <time.h>
+#include <vector>
 
 #include <cuda.h>
 
@@ -805,10 +806,11 @@ namespace nvgraph {
     *totalIter = 0;
 
     // Allocate host memory
-    Z_host = (ValueType_*) malloc(restartIter*restartIter *sizeof(ValueType_));
-    if(Z_host==NULL) WARNING("could not allocate host memory");
-    work_host = (ValueType_*) malloc(4*restartIter*sizeof(ValueType_));
-    if(work_host==NULL) WARNING("could not allocate host memory");
+    std::vector<ValueType_> Z_host_v(restartIter * restartIter);
+    std::vector<ValueType_> work_host_v(4*restartIter);
+
+    Z_host = Z_host_v.data();
+    work_host = work_host_v.data();
 
     // Initialize cuBLAS
     Cublas::set_pointer_mode_host();
@@ -949,8 +951,6 @@ namespace nvgraph {
      &zero, eigVecs_dev, n);
 
     // Clean up and exit
-    free(Z_host);
-    free(work_host);
     #ifdef USE_CURAND
       CHECK_CURAND(curandDestroyGenerator(randGen));
     #endif
@@ -1043,8 +1043,12 @@ namespace nvgraph {
     }
 
     // Allocate memory
-    ValueType_ * alpha_host = (ValueType_*) malloc(restartIter*sizeof(ValueType_));
-    ValueType_ * beta_host = (ValueType_*) malloc(restartIter*sizeof(ValueType_));
+    std::vector<ValueType_> alpha_host_v(restartIter);
+    std::vector<ValueType_> beta_host_v(restartIter);
+
+    ValueType_ * alpha_host = alpha_host_v.data();
+    ValueType_ * beta_host = beta_host_v.data();
+
     Vector<ValueType_> lanczosVecs_dev(n*(restartIter+1), stream);
     Vector<ValueType_> work_dev((n+restartIter)*restartIter, stream);
 
@@ -1060,8 +1064,6 @@ namespace nvgraph {
             eigVals_dev, eigVecs_dev);
 
     // Clean up and return
-    free(alpha_host);
-    free(beta_host);
     return status;
 
   }
@@ -1197,10 +1199,11 @@ namespace nvgraph {
     *totalIter = 0;
 
     // Allocate host memory
-    Z_host = (ValueType_*) malloc(restartIter*restartIter *sizeof(ValueType_));
-    if(Z_host==NULL) WARNING("could not allocate host memory");
-    work_host = (ValueType_*) malloc(4*restartIter*sizeof(ValueType_));
-    if(work_host==NULL) WARNING("could not allocate host memory");
+    std::vector<ValueType_> Z_host_v(restartIter * restartIter);
+    std::vector<ValueType_> work_host_v(4*restartIter);
+
+    Z_host = Z_host_v.data();
+    work_host = work_host_v.data();
 
     // Initialize cuBLAS
     Cublas::set_pointer_mode_host();
@@ -1350,8 +1353,6 @@ namespace nvgraph {
      &zero, eigVecs_dev, n);
 
     // Clean up and exit
-    free(Z_host);
-    free(work_host);
     #ifdef USE_CURAND
       CHECK_CURAND(curandDestroyGenerator(randGen));
     #endif
@@ -1444,8 +1445,12 @@ namespace nvgraph {
     }
 
     // Allocate memory
-    ValueType_ * alpha_host = (ValueType_*) malloc(restartIter*sizeof(ValueType_));
-    ValueType_ * beta_host = (ValueType_*) malloc(restartIter*sizeof(ValueType_));
+    std::vector<ValueType_> alpha_host_v(restartIter);
+    std::vector<ValueType_> beta_host_v(restartIter);
+
+    ValueType_ * alpha_host = alpha_host_v.data();
+    ValueType_ * beta_host = beta_host_v.data();
+
     Vector<ValueType_> lanczosVecs_dev(n*(restartIter+1), stream);
     Vector<ValueType_> work_dev((n+restartIter)*restartIter, stream);
 
@@ -1460,8 +1465,6 @@ namespace nvgraph {
             eigVals_dev, eigVecs_dev);
 
     // Clean up and return
-    free(alpha_host);
-    free(beta_host);
     return status;
 
   }
