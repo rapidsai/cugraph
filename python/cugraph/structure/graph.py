@@ -836,6 +836,7 @@ class Graph:
                                                     renumber_map == n]
             if len(node) == 0:
                 return cudf.Series(dtype='int')
+            n = node[0]
 
         df = self.edgelist.edgelist_df
         neighbors = df[df['src'] == n]['dst'].reset_index(drop=True)

@@ -820,6 +820,7 @@ def test_neighbors(managed, pool, graph_file):
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
                                   create_using=nx.Graph())
     for n in nodes:
+        print("NODE: ", n)
         cu_neighbors = G.neighbors(n).tolist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
         cu_neighbors.sort()
