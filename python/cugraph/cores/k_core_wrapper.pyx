@@ -84,11 +84,11 @@ def k_core_float(input_graph, k, core_number):
     dst = Buffer(dst)
 
     df = cudf.DataFrame()
-    df['src'] = cudf.core.column.build_column(data=src, dtype="int32")
-    df['dst'] = cudf.core.column.build_column(data=dst, dtype="int32")
+    df['src'] = cudf.Series(data=src, dtype="int32")
+    df['dst'] = cudf.Series(data=dst, dtype="int32")
     if weight_type(input_graph) == np.float32:
         wgt = Buffer(wgt)
-        df['weight'] = cudf.core.column.build_column(data=wgt, dtype="float32")
+        df['weight'] = cudf.Series(data=wgt, dtype="float32")
     
     return df
 
@@ -108,11 +108,11 @@ def k_core_double(input_graph, k, core_number):
     dst = Buffer(dst)
 
     df = cudf.DataFrame()
-    df['src'] = cudf.core.column.build_column(data=src, dtype="int32")
-    df['dst'] = cudf.core.column.build_column(data=dst, dtype="int32")
+    df['src'] = cudf.Series(data=src, dtype="int32")
+    df['dst'] = cudf.Series(data=dst, dtype="int32")
     if weight_type(input_graph) == np.float64:
         wgt = Buffer(wgt)
-        df['weight'] = cudf.core.column.build_column(data=wgt, dtype="float64")
+        df['weight'] = cudf.Series(data=wgt, dtype="float64")
     
     return df
 
