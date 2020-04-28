@@ -37,7 +37,7 @@ enum class DegreeDirection {
   IN_PLUS_OUT = 0,       ///> Compute sum of in and out degree
   IN,                    ///> Compute in degree
   OUT,                   ///> Compute out degree
-  DEGREE_DIRECTION_COUNT 
+  DEGREE_DIRECTION_COUNT
 };
 
 /**
@@ -97,12 +97,12 @@ public:
    * @param[in]  direction             IN_PLUS_OUT, IN or OUT
    */
   void degree(ET *degree, DegreeDirection direction) const;
-  
+
   /**
    * @brief      Default constructor
    */
   GraphCOOView(): GraphViewBase<VT,ET,WT>(nullptr, 0, 0) {}
-  
+
   /**
    * @brief      Wrap existing arrays representing an edge list in a Graph.
    *
@@ -158,7 +158,7 @@ public:
    *                                      2 : out-degree
    */
   void degree(ET *degree, DegreeDirection direction) const;
-  
+
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
    *             GraphCSRView does not own the memory used to represent this graph. This
@@ -195,7 +195,7 @@ public:
    * @brief      Default constructor
    */
   GraphCSRView(): GraphCompressedSparseBaseView<VT,ET,WT>(nullptr, nullptr, nullptr, 0, 0) {}
-  
+
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
    *             GraphCSRView does not own the memory used to represent this graph. This
@@ -230,7 +230,7 @@ public:
    * @brief      Default constructor
    */
   GraphCSCView(): GraphCompressedSparseBaseView<VT,ET,WT>(nullptr, nullptr, nullptr, 0, 0) {}
-  
+
   /**
    * @brief      Wrap existing arrays representing transposed adjacency lists in a Graph.
    *             GraphCSCView does not own the memory used to represent this graph. This
@@ -314,6 +314,19 @@ public:
     edge_data_(has_data? sizeof(WT)*number_of_edges : 0)
   {}
 
+  GraphCOO(GraphCOOView<VT,ET,WT> const &graph) :
+    number_of_vertices_(graph.number_of_vertices),
+    number_of_edges_(graph.number_of_edges),
+    src_indices_(graph.src_indices, graph.number_of_edges*sizeof(VT)),
+    dst_indices_(graph.dst_indices, graph.number_of_edges*sizeof(VT))
+  {
+    if (graph.has_data()) {
+      edge_data_ = rmm::device_buffer{graph.edge_data, graph.number_of_edges*sizeof(WT)};
+    }
+  }
+
+  VT number_of_vertices(void) { return number_of_vertices_; }
+  ET number_of_edges(void) { return number_of_edges_; }
   VT* src_indices(void) { return static_cast<VT*>(src_indices_.data()); }
   VT* dst_indices(void) { return static_cast<VT*>(dst_indices_.data()); }
   WT* edge_data(void) { return static_cast<WT*>(edge_data_.data()); }
@@ -337,6 +350,17 @@ public:
            number_of_vertices_, number_of_edges_);
   }
 
+  bool has_data(void) { return nullptr != edge_data_.data(); }
+
+};
+
+template <typename VT, typename ET, typename WT>
+struct GraphSparseContents {
+  VT number_of_vertices;
+  ET number_of_edges;
+  std::unique_ptr<rmm::device_buffer> offsets;
+  std::unique_ptr<rmm::device_buffer> indices;
+  std::unique_ptr<rmm::device_buffer> edge_data;
 };
 
 /**
@@ -348,11 +372,13 @@ public:
  */
 template <typename VT, typename ET, typename WT>
 class GraphCompressedSparseBase {
-  VT number_of_vertices_;
-  ET number_of_edges_;
+  VT number_of_vertices_{0};
+  ET number_of_edges_{0};
   rmm::device_buffer offsets_{};   ///< CSR offsets
   rmm::device_buffer indices_{};   ///< CSR indices
   rmm::device_buffer edge_data_{}; ///< CSR data
+
+  bool has_data_{false};
 
 public:
 
@@ -378,24 +404,26 @@ public:
     edge_data_(has_data? sizeof(WT)*number_of_edges : 0)
   {}
 
+  GraphCompressedSparseBase(GraphSparseContents<VT,ET,WT>&& contents):
+    number_of_vertices_(contents.number_of_vertices),
+    number_of_edges_(contents.number_of_edges),
+    offsets_(std::move(*contents.offsets.release())),
+    indices_(std::move(*contents.indices.release())),
+    edge_data_(std::move(*contents.edge_data.release()))
+  {}
+
+  VT number_of_vertices(void) { return number_of_vertices_; }
+  ET number_of_edges(void) { return number_of_edges_; }
   ET* offsets(void) { return static_cast<ET*>(offsets_.data()); }
   VT* indices(void) { return static_cast<VT*>(indices_.data()); }
   WT* edge_data(void) { return static_cast<WT*>(edge_data_.data()); }
 
-  struct contents {
-    VT number_of_vertices;
-    ET number_of_edges;
-    std::unique_ptr<rmm::device_buffer> offsets;
-    std::unique_ptr<rmm::device_buffer> indices;
-    std::unique_ptr<rmm::device_buffer> edge_data;
-  };
-
-  contents release() noexcept {
+  GraphSparseContents<VT,ET,WT> release() noexcept {
     VT number_of_vertices = number_of_vertices_;
     ET number_of_edges = number_of_edges_;
     number_of_vertices_ = 0;
     number_of_edges_ = 0;
-    return GraphCompressedSparseBase::contents{
+    return GraphSparseContents<VT,ET,WT>{
       number_of_vertices,
       number_of_edges,
       std::make_unique<rmm::device_buffer>(std::move(offsets_)),
@@ -403,6 +431,8 @@ public:
       std::make_unique<rmm::device_buffer>(std::move(edge_data_))
     };
   }
+
+  bool has_data(void) { return nullptr != edge_data_.data(); }
 
 };
 
@@ -420,7 +450,7 @@ public:
    * @brief      Default constructor
    */
   GraphCSR(): GraphCompressedSparseBase<VT,ET,WT>() {}
-  
+
   /**
    * @brief      Take ownership of the provided graph arrays in CSR format
    *
@@ -438,6 +468,20 @@ public:
            bool has_data_ = false):
     GraphCompressedSparseBase<VT,ET,WT>(number_of_vertices_, number_of_edges_, has_data_)
   {}
+
+  GraphCSR(GraphSparseContents<VT,ET,WT>&& contents):
+    GraphCompressedSparseBase<VT,ET,WT>(std::move(contents))
+  {}
+
+  GraphCSRView<VT, ET, WT> view(void) noexcept {
+    return GraphCSRView<VT, ET, WT>(
+        GraphCompressedSparseBase<VT,ET,WT>::offsets(),
+        GraphCompressedSparseBase<VT,ET,WT>::indices(),
+        GraphCompressedSparseBase<VT,ET,WT>::edge_data(),
+        GraphCompressedSparseBase<VT,ET,WT>::number_of_vertices(),
+        GraphCompressedSparseBase<VT,ET,WT>::number_of_edges());
+  }
+
 };
 
 /**
@@ -454,7 +498,7 @@ public:
    * @brief      Default constructor
    */
   GraphCSC(): GraphCompressedSparseBase<VT,ET,WT>() {}
-  
+
   /**
    * @brief      Take ownership of the provided graph arrays in CSR format
    *
@@ -472,6 +516,20 @@ public:
            bool has_data_ = false):
     GraphCompressedSparseBase<VT,ET,WT>(number_of_vertices_, number_of_edges_, has_data_)
   {}
+
+  GraphCSC(GraphSparseContents<VT,ET,WT>&& contents):
+    GraphCompressedSparseBase<VT,ET,WT>(contents)
+  {}
+
+  GraphCSCView<VT, ET, WT> view(void) noexcept {
+    return GraphCSCView<VT, ET, WT>(
+        GraphCompressedSparseBase<VT,ET,WT>::offsets(),
+        GraphCompressedSparseBase<VT,ET,WT>::indices(),
+        GraphCompressedSparseBase<VT,ET,WT>::edge_data(),
+        GraphCompressedSparseBase<VT,ET,WT>::number_of_vertices(),
+        GraphCompressedSparseBase<VT,ET,WT>::number_of_edges());
+  }
+
 };
 
 } //namespace experimental

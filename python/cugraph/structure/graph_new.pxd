@@ -92,6 +92,31 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         GraphCOOContents[VT,ET,WT] release()
         GraphCOOView[VT,ET,WT] view()
 
+    cdef cppclass GraphSparseContents[VT,ET,WT]:
+        VT number_of_vertices
+        ET number_of_edges
+        unique_ptr[device_buffer] offsets
+        unique_ptr[device_buffer] indices
+        unique_ptr[device_buffer] edge_data
+
+    cdef cppclass GraphCSC[VT,ET,WT]:
+        GraphCSC(
+                VT nv,
+                ET ne,
+                bool has_data) except+
+        GraphSparseContents[VT,ET,WT] release()
+        GraphCSCView[VT,ET,WT] view()
+
+    cdef cppclass GraphCSR[VT,ET,WT]:
+        GraphCSR(
+                VT nv,
+                ET ne,
+                bool has_data) except+
+        GraphSparseContents[VT,ET,WT] release()
+        GraphCSRView[VT,ET,WT] view()
+
+
+
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef ET get_two_hop_neighbors[VT,ET,WT](

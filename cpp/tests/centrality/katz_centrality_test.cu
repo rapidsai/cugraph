@@ -109,10 +109,9 @@ public:
     ASSERT_EQ( (mm_to_coo<int,int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
     ASSERT_EQ(fclose(fpin),0);
 
-    CSR_Result<int>   result;
-    ConvertCOOtoCSR(&cooColInd[0], &cooRowInd[0], nnz, result);
-
-    cugraph::experimental::GraphCSRView<int,int,float> G(result.rowOffsets, result.colIndices, nullptr, m, nnz);
+    cugraph::experimental::GraphCOOView<int,int,float> cooview(&cooColInd[0], &cooRowInd[0], nullptr, m, nnz);
+    auto csr = cugraph::experimental::coo_to_csr(cooview);
+    cugraph::experimental::GraphCSRView<int,int,float> G = csr->view();
 
     rmm::device_vector<double> katz_vector(m);
     double* d_katz = thrust::raw_pointer_cast(katz_vector.data());
