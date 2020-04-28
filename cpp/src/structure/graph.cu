@@ -47,7 +47,6 @@ void degree_from_vertex_ids(const cugraph::experimental::Comm& comm,
                    [indices, degree] __device__ (edge_t e) {
                      cugraph::atomicAdd(degree + indices[e], 1);
                    });
-  std::cout<< number_of_vertices<<" "<< number_of_edges<<std::endl;
   comm.allreduce(number_of_vertices, degree, degree, cugraph::experimental::ReduceOp::SUM);
 }
 
@@ -79,6 +78,8 @@ void GraphCOO<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
+    if (GraphBase<VT,ET,WT>::comm.get_p()); // FixMe retrieve global source indexing for the allreduce work
+      CUGRAPH_FAIL("OPG degree not implemented for OUT degree");
     degree_from_vertex_ids(GraphBase<VT,ET,WT>::comm, GraphBase<VT,ET,WT>::number_of_vertices, GraphBase<VT,ET,WT>::number_of_edges, src_indices, degree, stream);
   }
 
@@ -98,6 +99,8 @@ void GraphCompressedSparseBase<VT,ET,WT>::degree(ET *degree, DegreeDirection dir
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
+    if (GraphBase<VT,ET,WT>::comm.get_p());
+      CUGRAPH_FAIL("OPG degree not implemented for OUT degree"); // FixMe retrieve global source indexing for the allreduce to work
     degree_from_offsets(GraphBase<VT,ET,WT>::number_of_vertices, offsets, degree, stream);
   }
 

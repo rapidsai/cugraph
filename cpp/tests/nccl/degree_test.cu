@@ -70,12 +70,13 @@ TEST(degree, success)
   size_t e_loc;
 
   opg_edge_partioning(i, p, src_h, part_offset, e_loc);
+  #ifdef OPG_VERBOSE
   sleep(i);
   for (auto j = part_offset.begin(); j != part_offset.end(); ++j)
       std::cout << *j << ' ';
   std::cout << std::endl;
   std::cout<< "eloc: "<< e_loc <<std::endl;
-  
+  #endif
   std::vector<int> src_loc_h(src_h.begin()+part_offset[i], src_h.begin()+part_offset[i]+e_loc),
                    dest_loc_h(dest_h.begin()+part_offset[i], dest_h.begin()+part_offset[i]+e_loc);
   shift_by_front(src_loc_h);
@@ -96,10 +97,10 @@ TEST(degree, success)
   G.set_communicator(comm);
 
   // OUT degree
-  G.degree(thrust::raw_pointer_cast(degree_d.data()), cugraph::experimental::DegreeDirection::OUT);
+  G.degree(thrust::raw_pointer_cast(degree_d.data()), cugraph::experimental::DegreeDirection::IN);
   thrust::copy(degree_d.begin(), degree_d.end(), degree_h.begin());
-  ref_degree_h(src_h, degree_ref);
-  sleep(i);
+  ref_degree_h(dest_h, degree_ref);
+  //sleep(i);
   for (size_t j = 0; j < degree_h.size(); ++j)
     EXPECT_EQ(degree_ref[j], degree_h[j]);
     std::cout<< "Rank "<< i << " done checking." <<std::endl;
