@@ -47,6 +47,7 @@ void degree_from_vertex_ids(const cugraph::experimental::Comm& comm,
                    [indices, degree] __device__ (edge_t e) {
                      cugraph::atomicAdd(degree + indices[e], 1);
                    });
+  std::cout<< number_of_vertices<<" "<< number_of_edges<<std::endl;
   comm.allreduce(number_of_vertices, degree, degree, cugraph::experimental::ReduceOp::SUM);
 }
 
