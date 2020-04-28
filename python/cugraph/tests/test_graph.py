@@ -794,6 +794,39 @@ def test_has_node(managed, pool, graph_file):
         assert G.has_node(n)
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_neighbors(managed, pool, graph_file):
+    gc.collect()
+
+    rmm.reinitialize(
+        managed_memory=managed,
+        pool_allocator=pool,
+        initial_pool_size=2 << 27
+    )
+
+    assert(rmm.is_initialized())
+
+    cu_M = utils.read_csv_file(graph_file)
+    nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
+    print(nodes)
+    M = utils.read_csv_for_nx(graph_file)
+
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
+    for n in nodes:
+        cu_neighbors = G.neighbors(n).tolist()
+        nx_neighbors = [i for i in Gnx.neighbors(n)]
+        cu_neighbors.sort()
+        nx_neighbors.sort()
+        assert cu_neighbors == nx_neighbors
+
+
 '''@pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
