@@ -349,16 +349,11 @@ add_library(cugraph SHARED
     src/community/ECG.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
-    #src/snmg/blas/spmv.cu
-    #src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
     src/utilities/graph_utils.cu
-    #src/snmg/utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    #src/snmg/degree/degree.cu
-    #src/snmg/COO2CSR/COO2CSR.cu
     src/nvgraph/arnoldi.cu
     src/nvgraph/bfs.cu
     src/nvgraph/bfs2d.cu
