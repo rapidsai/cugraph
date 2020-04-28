@@ -113,6 +113,10 @@ def subgraph(input_graph, vertices, subgraph):
                                             dtype=np.float64)
             df['weights'] = cudf.Series(tmp)
 
+    # renumber vertices to match original input
+    df['src'] = vertices_renumbered[df['src']].reset_index(drop=True)
+    df['dst'] = vertices_renumbered[df['dst']].reset_index(drop=True)
+
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'src')
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'dst')

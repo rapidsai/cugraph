@@ -33,13 +33,13 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-def compare_edges(cg, nxg, verts):
+def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
     assert cg.edgelist.weights is False
     assert len(edgelist_df) == nxg.size()
     for i in range(len(edgelist_df)):
-        assert nxg.has_edge(verts[edgelist_df['src'][i]],
-                            verts[edgelist_df['dst'][i]])
+        assert nxg.has_edge(edgelist_df['src'][i],
+                            edgelist_df['dst'][i])
     return True
 
 
@@ -97,7 +97,7 @@ def test_subgraph_extraction_DiGraph(managed, pool, graph_file):
     cu_sg = cugraph_call(M, verts)
     nx_sg = nx_call(M, verts)
 
-    assert compare_edges(cu_sg, nx_sg, verts)
+    assert compare_edges(cu_sg, nx_sg)
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -122,4 +122,4 @@ def test_subgraph_extraction_Graph(managed, pool, graph_file):
     verts[2] = 17
     cu_sg = cugraph_call(M, verts, False)
     nx_sg = nx_call(M, verts, False)
-    assert compare_edges(cu_sg, nx_sg, verts)
+    assert compare_edges(cu_sg, nx_sg)
