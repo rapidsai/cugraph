@@ -1,6 +1,7 @@
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
+- PR #840 OPG degree
 
 ## Improvements
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
