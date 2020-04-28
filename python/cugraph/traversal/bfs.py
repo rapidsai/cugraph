@@ -14,7 +14,7 @@
 from cugraph.traversal import bfs_wrapper
 
 
-def bfs(G, start, directed=True):
+def bfs(G, start, directed=True, return_sp_counter=False):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -30,6 +30,8 @@ def bfs(G, start, directed=True):
         Indicates whether the graph in question is a directed graph, or whether
         each edge has a corresponding reverse edge. (Allows optimizations if
         the graph is undirected)
+    return_sp_counter : bool, optional, default=False
+        Indicates if shortest path counters should be returned
 
     Returns
     -------
@@ -42,6 +44,9 @@ def bfs(G, start, directed=True):
         df['predecessor'][i] gives for the i'th vertex the vertex it was
         reached from in the traversal
 
+        df['sp_counter'][i] gives for the i'th vertex the number of shortest
+        path leading to it during traversal (Only if retrun_sp_counter is True)
+
     Examples
     --------
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -53,6 +58,7 @@ def bfs(G, start, directed=True):
     >>> df = cugraph.bfs(G, 0)
     """
 
-    df = bfs_wrapper.bfs(G, start, directed)
+    df = bfs_wrapper.bfs(G, start, directed,
+                         return_sp_counter=return_sp_counter)
 
     return df

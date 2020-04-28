@@ -31,7 +31,8 @@ import rmm
 import numpy as np
 
 # TODO(xcadet): Add a parameter for BC specific path
-def bfs(input_graph, start, directed=True):
+def bfs(input_graph, start, directed=True,
+        return_sp_counter=False):
     """
     Call bfs
     """
@@ -77,13 +78,15 @@ def bfs(input_graph, start, directed=True):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['sp_counter'] = cudf.Series(np.zeros(num_verts, dtype=np.double))
+    if (return_sp_counter):
+        df['sp_counter'] = cudf.Series(np.zeros(num_verts, dtype=np.double))
 
     # Step 7: Associate <uintptr_t> to cudf Series
     c_identifier_ptr = df['vertex'].__cuda_array_interface__['data'][0]
     c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
     c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
-    c_sp_counter_ptr = df['sp_counter'].__cuda_array_interface__['data'][0]
+    if return_sp_counter:
+        c_sp_counter_ptr = df['sp_counter'].__cuda_array_interface__['data'][0]
 
     # Step 8: Proceed to BFS
     # TODO: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
@@ -94,6 +97,7 @@ def bfs(input_graph, start, directed=True):
                                             num_verts,
                                             num_edges)
     graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
+    # Different pathing wether shortest_path_counting is required or not
     c_bfs.bfs[int, int, float](graph_float,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,

@@ -636,14 +636,17 @@ TEST_F(BetweennessCentralityTest, SimpleGraph)
 }
 */
 // Verifiy Un-Normalized results
+/*
 TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS) {
   run_current_test<int, int, float, float, false, false>(GetParam());
 }
+*/
 
 TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS) {
   run_current_test<int, int, double, double, false, false>(GetParam());
 }
 
+/*
 // Verifiy Normalized results
 TEST_P(Tests_BC, CheckFP32_NORMALIZE_NO_ENPOINTS) {
   run_current_test<int, int, float, float, true, false>(GetParam());
@@ -652,6 +655,7 @@ TEST_P(Tests_BC, CheckFP32_NORMALIZE_NO_ENPOINTS) {
 TEST_P(Tests_BC, CheckFP64_NORMALIZE_NO_ENPOINTS) {
   run_current_test<int, int, double, double, true, false>(GetParam());
 }
+*/
 
 // FIXME: There is an InvalidValue on a Memcopy only on tests/datasets/dblp.mtx
 INSTANTIATE_TEST_CASE_P(
@@ -686,17 +690,17 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_BFS,
   ::testing::Values(
-    //BC_Usecase("test/datasets/karate.mtx", 0),
+    BC_Usecase("test/datasets/karate.mtx", 0)
     //BC_Usecase("test/datasets/polbooks.mtx", 0),
     //BC_Usecase("test/datasets/netscience.mtx", 0),
     //BC_Usecase("test/datasets/netscience.mtx", 100),
     //BC_Usecase("test/datasets/wiki2003.mtx", 1000),
     //BC_Usecase("/datasets/GAP/GAP-road.mtx", 4)
 
-    BC_Usecase("/datasets/GAP/GAP-road.mtx", 22489540),
-    BC_Usecase("/datasets/GAP/GAP-road.mtx", 3918777),
-    BC_Usecase("/datasets/GAP/GAP-road.mtx", 2269113),
-    BC_Usecase("/datasets/GAP/GAP-road.mtx", 8559617)
+    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 22489540),
+    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 3918777),
+    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 2269113),
+    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 8559617)
   )
 );
 
