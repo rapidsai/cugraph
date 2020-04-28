@@ -90,7 +90,7 @@ TEST(degree, success)
   thrust::device_vector<int> dest_d(dest_loc_h.begin(), dest_loc_h.end());
   thrust::device_vector<int> degree_d(v);
 
-  // load cugraph (fix me : split per process)
+  // load local chunck to cugraph
   cugraph::experimental::GraphCOO<int,int,float> G(thrust::raw_pointer_cast(src_d.data()), 
                                                    thrust::raw_pointer_cast(dest_d.data()), 
                                                    nullptr, degree_h.size(), e_loc);
