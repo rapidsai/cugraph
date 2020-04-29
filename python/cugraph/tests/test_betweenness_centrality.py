@@ -79,6 +79,8 @@ def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
     graph_file : string
         Path to COO Graph representation in .csv format
 
+    directed : bool, optional, default=True
+
     normalized : bool
         True: Normalize Betweenness Centrality scores
         False: Scores are left unormalized

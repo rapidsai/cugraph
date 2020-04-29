@@ -58,7 +58,6 @@ def bfs(G, start, directed=True, return_sp_counter=False):
     >>> df = cugraph.bfs(G, 0)
     """
 
-    df = bfs_wrapper.bfs(G, start, directed,
-                         return_sp_counter=return_sp_counter)
+    df = bfs_wrapper.bfs(G, start, directed, return_sp_counter)
 
     return df

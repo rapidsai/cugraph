@@ -14,7 +14,6 @@
 import cudf
 import pandas as pd
 
-
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):
     print('Reading ' + str(csv_file) + '...')
     if read_weights_in_sp is True:
