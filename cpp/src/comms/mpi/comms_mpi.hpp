@@ -17,8 +17,6 @@
 
 #pragma once
 
-#define USE_NCCL 1
-
 #if USE_NCCL
 #include <mpi.h>
 #include <nccl.h>
@@ -32,6 +30,9 @@
 namespace cugraph { 
 namespace experimental {
 
+enum class ReduceOp { SUM, MAX, MIN };
+
+#if USE_NCCL
 /**---------------------------------------------------------------------------*
  * @brief Exception thrown when a NCCL error is encountered.
  *
@@ -47,7 +48,6 @@ inline void throw_nccl_error(ncclResult_t error, const char* file,
                   std::to_string(line) + ": " + ncclGetErrorString(error)});
 }
 
-#if USE_NCCL
 #define NCCL_TRY(call) {                                           \
   ncclResult_t nccl_status = (call);                               \
   if (nccl_status!= ncclSuccess) {                                 \
@@ -155,8 +155,6 @@ constexpr ncclDataType_t get_nccl_type() {
     CUGRAPH_FAIL("unsupported type");
   }
 }
-
-enum class ReduceOp { SUM, MAX, MIN };
 
 constexpr MPI_Op get_mpi_reduce_op(ReduceOp reduce_op) {
   if (reduce_op == ReduceOp::SUM) {
