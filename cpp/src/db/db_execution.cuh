@@ -16,6 +16,7 @@
 
 #include <string>
 #include <cypher-parser.h>
+#include <db_object.cuh>
 
 namespace cugraph {
 namespace db {
@@ -32,6 +33,19 @@ public:
   string_table();
   string_table(std::string csvFile, bool with_headers);
   std::vector<std::string>& operator[](std::string colName);
+};
+
+/**
+ * Super class from which all execution node sub-types inherit
+ */
+template <typename idx_t>
+class execution_node {
+public:
+  virtual void ~execution_node() = 0;
+  virtual void execute() = 0;
+  virtual string_table& getStringResult() = 0;
+  virtual db_result<idx_t>& getGPUResult() = 0;
+  virtual std::string getResultIdentifier() = 0;
 };
 
 /**

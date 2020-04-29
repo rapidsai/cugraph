@@ -1,6 +1,7 @@
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
+- PR #822 Added new functions in python graph class, similar to networkx
 
 ## Improvements
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
@@ -16,12 +17,15 @@
 - PR #804 Cythonize in parallel
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
+- PR #829 Updated README and CONTRIBUTIOIN docs
+- PR #832 Removed RMM ALLOC from db subtree
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation
 - PR #800 Fix bfs error in optimization path
- 
+- PR #825 Fix outdated CONTRIBUTING.md
+- PR #827 Fix indexing CI errors due to cudf updates 
 
 # cuGraph 0.13.0 (Date TBD)
 
