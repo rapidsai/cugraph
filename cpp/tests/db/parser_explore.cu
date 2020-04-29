@@ -45,6 +45,12 @@ TEST_F(Test_Parser, printOut) {
   cugraph::db::printOutAst(input);
   std::cout << "\n";
 
+  input =
+      "LOAD CSV FROM 'file:///roles.csv' AS csvLine FIELDTERMINATOR ';'\nCREATE (person:Person {name: csvLine[0]})";
+  std::cout << input << "\n";
+  cugraph::db::printOutAst(input);
+  std::cout << "\n";
+
 //  std::string input = "LOAD CSV WITH HEADERS FROM 'file:///persons.csv' AS csvLine";
 //  std::cout << input << "\n";
 //  cugraph::db::printOutAst(input);
