@@ -93,10 +93,15 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
 
     graph.get_vertex_identifiers(<int*>c_identifier)
 
+    #FIXME: For large graph renumbering produces a dataframe organized
+    #       in buckets, i.e, if they are 3 buckets
+    # 0
+    # 8191
+    # 16382
+    # 1
+    # 8192 ...
+    # Instead of having  the sources in ascending order
     if input_graph.renumbered:
-        # DBG
-        #print(type(input_graph.edgelist.renumber_map))
-        #df['vertex'] = input_graph.edgelist.renumber_map[df['vertex']]
-        #df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df

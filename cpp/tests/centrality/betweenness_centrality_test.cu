@@ -207,7 +207,6 @@ void reference_rescale(result_t *result, bool normalize, bool directed, VT const
   }
 }
 
-
 template <typename VT, typename ET, typename WT, typename result_t>
 void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT> const &graph,
                                       result_t *result,
@@ -227,21 +226,14 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT
   thrust::copy(d_indices, d_indices + number_of_edges, h_indices.begin());
   thrust::copy(d_offsets, d_offsets + (number_of_vertices + 1), h_offsets.begin());
 
-
-  /*
-  cudaMemcpyAsync(&h_indices[0], &graph.indices[0],
-             sizeof(VT) * h_indices.size(), cudaMemcpyDeviceToHost, nullptr);
-  cudaMemcpyAsync(&h_offsets[0], &graph.offsets[0],
-             h_offsets.size() * sizeof(ET), cudaMemcpyDeviceToHost, nullptr);
-  CUDA_CHECK_LAST();
-  */
   cudaDeviceSynchronize();
+
   reference_betweenness_centrality_impl<VT, ET, WT, result_t>(&h_indices[0],
                                                               &h_offsets[0],
                                                               number_of_vertices,
                                                               result, sources,
                                                               number_of_sources);
-  reference_rescale<VT, ET, WT, result_t>(result, normalize, endpoints, number_of_vertices, number_of_sources);
+  reference_rescale<VT, ET, WT, result_t>(result, normalize, graph.prop.directed, number_of_vertices, number_of_sources);
 }
 // Explicit declaration
 template void reference_betweenness_centrality<int, int, float, float>(cugraph::experimental::GraphCSR<int, int, float> const&,
@@ -252,37 +244,7 @@ template void reference_betweenness_centrality<int, int, double, double>(cugraph
 // =============================================================================
 // Utility functions
 // =============================================================================
-/**
- * @brief     Extract betweenness centality values from file
- *
- * This function reads the content of a file containing betweenness values
- * The expected format per line is '<vertex_idx> <betweenness_centrality>'
- *
- * @tparam VT           Type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam ET           Type of edge identifiers. Supported value : int (signed, 32-bit)
- * @tparam result_t     Type of betweenness centrality value: float
- *
- * @param[out] result   Reference to a vector that is resized and filled with betweenness value
- * @param[in] bc_file   Path to the file to extract betweenness from
- *
- */
-// FIXME: This is not BC specific, it simply reads '<VT> <result_t>\n' files
-template <typename VT, typename result_t>
-void extract_bc(std::vector<result_t> &result, std::string bc_file) {
-  VT vid = 0; // Not really usefull, nx_bc_file is expected to be sorted
-  result_t bc = 0; // Not really usefull, nx_bc_file is expected to be sorted
-
-  result.clear();
-  std::ifstream ifs(bc_file);
-  ASSERT_TRUE(ifs.is_open());
-
-  while (ifs >> vid >> bc) {
-    result.push_back(bc);
-  }
-  ifs.close();
-}
-
-// TODO(xcadet): This could be useful in other testsuite (SSSP, BFS, ...)
+// TODO: This could be useful in other testsuite (SSSP, BFS, ...)
 template<typename VT, typename ET, typename WT>
 void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz, bool &is_directed, std::string matrix_file) {
   FILE* fpin = fopen(matrix_file.c_str(),"r");
@@ -309,20 +271,22 @@ void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz,
   CUDA_CHECK_LAST();
 }
 
-// TODO(xcadet): This may actually operate an exact comparison when b == 0
+// Compare while allowing relatie error of epsilon
+// zero_threshold indicates when  we should drop comparison for small numbers
 template <typename T, typename precision_t>
-bool compare_close(const T &a, const T&b, const precision_t epsilon, precision_t zero_threshold) {
-  return ((zero_threshold > a and zero_threshold > b)) or (a >= b * (1.0 - epsilon)) and (a <= b * (1.0 + epsilon));
+bool compare_close(const T &a, const T&b, const precision_t epsilon,
+                   precision_t zero_threshold) {
+  return ((zero_threshold > a && zero_threshold > b))
+          || (a >= b * (1.0 - epsilon)) && (a <= b * (1.0 + epsilon));
 }
-
 
 // =============================================================================
 // Test Suite
 // =============================================================================
-
 // Defines Betweenness Centrality UseCase
-// SSSP codes uses type of Graph parameter that could be used
-//TODO(xcadet) Use VT for srcs
+// SSSP's test suite codes uses type of Graph parameter that could be used
+// (MTX / RMAT)
+//TODO: Use VT for number_of_sources
 typedef struct BC_Usecase_t {
   std::string config_;
   std::string file_path_;
@@ -340,11 +304,6 @@ typedef struct BC_Usecase_t {
   };
 } BC_Usecase;
 
-/*
-struct BetweennessCentralityTest : public ::testing::Test
-{
-};
-*/
 class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
   public:
   Tests_BC() {}
@@ -390,10 +349,9 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
       sources_ptr = sources.data();
     }
 
-    // TODO(xcadet) reference should also include normalize, endpooint, number_of_sources and sources
     reference_betweenness_centrality(G, expected.data(),
                                      normalize, endpoints,
-                                     //weights
+                                     // TODO: weights
                                      configuration.number_of_sources_,
                                      sources_ptr);
 
@@ -402,7 +360,6 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
       sources_ptr = sources.data();
     }
 
-    printf("[DBG] Number of vertices %d\n", G.number_of_vertices);
     thrust::device_vector<result_t>  d_result(G.number_of_vertices);
     cugraph::betweenness_centrality(G, d_result.data().get(),
                                     normalize, endpoints,
@@ -411,7 +368,6 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                     sources_ptr,
                                     cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT);
     cudaDeviceSynchronize();
-    std::cout << "[DBG][BC] CUGRAPH IS DONE COMPUTING" << std::endl;
     CUDA_TRY(cudaMemcpy(result.data(), d_result.data().get(),
                sizeof(result_t) * G.number_of_vertices,
                cudaMemcpyDeviceToHost));
@@ -420,15 +376,14 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD)) <<
                   "[MISMATCH] vaid = " << i << ", cugraph = " <<
                   result[i] << " expected = " << expected[i];
-    std::cout << "[DBG][BC] Perfect math over " << G.number_of_vertices << std::endl;
   }
-
-
-
 };
 
 // BFS: Checking for shortest_path counting correctness
 // -----------------------------------------------------------------------------
+// TODO: For now this BFS testing is done here, as the tests mostly focused
+// around shortest path counting. It should probably used as a part of a
+// C++ test suite
 class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
   public:
   Tests_BFS() {}
@@ -437,9 +392,7 @@ class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
 
   virtual void SetUp() {}
   virtual void TearDown() {}
-  // TODO(xcadet) Should normalize be part of the configuration?
-  template <typename VT, typename ET, typename WT, typename result_t,
-            bool normalize, bool endpoints>
+  template <typename VT, typename ET, typename WT, typename result_t>
   void run_current_test(const BC_Usecase &configuration) {
     // Step 1: Construction of the graph based on configuration
     VT m;
@@ -466,20 +419,8 @@ class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
            && configuration.number_of_sources_ <= G.number_of_vertices)
            << "Number number of sources should be >= 0 and"
            << " less than the number of vertices in the graph";
-    /*
-    std::vector<VT> sources(configuration.number_of_sources_);
-    std::iota(sources.begin(), sources.end(), 0);
 
-    VT *sources_ptr = nullptr;
-    if (configuration.number_of_sources_ > 0) {
-      sources_ptr = sources.data();
-    }
-    VT source = 0;
-    if (sources_ptr != nullptr) {
-      source = sources_ptr[0];
-    }
     //TODO(xcadet) Make it generic again (it made it easier to check)
-    */
     VT source = configuration.number_of_sources_;
 
     VT number_of_vertices = G.number_of_vertices;
@@ -503,8 +444,6 @@ class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
                                     ref_bfs_dist, ref_bfs_pred,
                                     ref_bfs_sigmas, source);
 
-
-
     // Device data for cugraph_bfs
     thrust::device_vector<VT> d_cugraph_dist(number_of_vertices);
     thrust::device_vector<VT> d_cugraph_pred(number_of_vertices);
@@ -526,147 +465,24 @@ class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
       EXPECT_TRUE(compare_close(cugraph_sigmas[i], ref_bfs_sigmas[i], TEST_EPSILON, TEST_ZERO_THRESHOLD)) <<
                   "[MISMATCH] vaid = " << i << ", cugraph = " <<
                   cugraph_sigmas[i] << " c++ ref = " << ref_bfs_sigmas[i];
-      //std::cout << "Sigmas[" << i << "] = " << cugraph_sigmas[i] << std::endl;
     }
-    /*
-    std::cout << "Graph number_of_vertices " << number_of_vertices << ", number_of_edges " << number_of_edges << std::endl;
-    int sum_sigmas_cugraph = thrust::reduce(thrust::host, cugraph_sigmas.begin(), cugraph_sigmas.end(), 0);
-    int sum_sigmas_ref = thrust::reduce(thrust::host, ref_bfs_sigmas.begin(), ref_bfs_sigmas.end(), 0);
-    std::cout << "Source " << source << ", cugraph: " << sum_sigmas_cugraph << ", ref " << sum_sigmas_ref << std::endl;;
-    */
   }
-
 };
-/*
-
-
-
-TEST_F(BetweennessCentralityBFSTest, CheckReference) {
-  // TODO(xcadet) This dataset was manually generated and is not provided
-  //std::string matrix_file(get_rapids_dataset_root_dir() + "/" + "email-Eu-core-gen.mtx");
-  std::string matrix_file("../../datasets/email-Eu-core-gen.mtx");
-  //std::string matrix_file("../../datasets/karate-directed.mtx");
-  int m, nnz;
-  CSR_Result_Weighted<int, float> csr_result;
-  generate_graph_csr<int, int, float>(csr_result, m, nnz, matrix_file);
-  cugraph::experimental::GraphCSR<int, int, float> graph(csr_result.rowOffsets,
-                                                     csr_result.colIndices,
-                                                     csr_result.edgeWeights,
-                                                     m, nnz);
-  // FIXME: THIS IS CRITICAL:
-  graph.prop.directed = true;
-  std::vector<float> result(graph.number_of_vertices);
-
-  //int source = 2;
-  int source = 12;
-  // Ref BC_BFS requires many working values
-  int number_of_vertices = graph.number_of_vertices;
-  int number_of_edges = graph.number_of_edges;
-  //
-  std::vector<int> indices(number_of_edges);
-  std::vector<int> offsets(number_of_vertices + 1);
-
-  cudaMemcpy(indices.data(), graph.indices,
-             sizeof(int) * indices.size(), cudaMemcpyDeviceToHost);
-  cudaMemcpy(offsets.data(), graph.offsets,
-             sizeof(int) * offsets.size(), cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
-
-  std::queue<int> Q;
-  std::stack<int> S;
-  std::vector<int> ref_bfs_dist(number_of_vertices);
-  std::vector<std::vector<int>> ref_bfs_pred(number_of_vertices);
-  std::vector<float> ref_bfs_sigmas(number_of_vertices);
-
-  ref_bfs<int, int, float, float>(indices.data(), offsets.data(),
-                                  number_of_vertices, Q, S,
-                                  ref_bfs_dist, ref_bfs_pred,
-                                  ref_bfs_sigmas, source);
-
-
-
-  // Device data for cugraph_bfs
-  thrust::device_vector<int> d_cugraph_dist(number_of_vertices);
-  thrust::device_vector<int> d_cugraph_pred(number_of_vertices);
-  thrust::device_vector<int> d_cugraph_sigmas(number_of_vertices);
-
-  // This test only checks for sigmas equality
-  std::vector<int> cugraph_sigmas(number_of_vertices);
-
-  printf("Is graph directed ? %d\n", graph.prop.directed);
-  cugraph::bfs<int, int, float>(graph, d_cugraph_dist.data().get(),
-                                d_cugraph_pred.data().get(),
-                                d_cugraph_sigmas.data().get(),
-                                source, graph.prop.directed);
-  cudaMemcpy(cugraph_sigmas.data(), d_cugraph_sigmas.data().get(),
-             sizeof(int) * d_cugraph_sigmas.size(), cudaMemcpyDeviceToHost);
-  // TODO(xcadet): The implicit cast comes from BFS shortest_path counter being
-  // of type VT, while the ref_bfs uses float values
-  for (int i = 0 ; i < number_of_vertices ; ++i) {
-    EXPECT_TRUE(compare_close((float)cugraph_sigmas[i], ref_bfs_sigmas[i], 0.0001)) <<
-                "[MISMATCH] vaid = " << i << ", cugraph = " <<
-                cugraph_sigmas[i] << " c++ ref = " << ref_bfs_sigmas[i];
-    //std::cout << "Sigmas[" << i << "] = " << cugraph_sigmas[i] << std::endl;
-  }
-  std::cout << "Graph number_of_vertices " << number_of_vertices << ", number_of_edges " << number_of_edges << std::endl;
-  int sum_sigmas_cugraph = thrust::reduce(thrust::host, cugraph_sigmas.begin(), cugraph_sigmas.end(), 0);
-  int sum_sigmas_ref = thrust::reduce(thrust::host, ref_bfs_sigmas.begin(), ref_bfs_sigmas.end(), 0);
-  std::cout << "Source " << source << ", cugraph: " << sum_sigmas_cugraph << ", ref " << sum_sigmas_ref << std::endl;;
-}
-*/
-
-
+//==============================================================================
+// Tests
+//==============================================================================
 // BC
 // -----------------------------------------------------------------------------
-/*
-TEST_F(BetweennessCentralityTest, SimpleGraph)
-{
-  std::vector<int>  graph_offsets{ { 0, 1, 2, 5, 7, 10, 12, 14 } };
-  std::vector<int>  graph_indices{ { 2, 2, 0, 1, 3, 2, 4, 3, 5, 6, 4, 6, 4, 5 } };
-
-  std::vector<float> expected{ {0.0, 0.0, 0.6, 0.6, 0.5333333, 0.0, 0.0 } };
-
-  int num_verts = graph_offsets.size() - 1;
-  int num_edges = graph_indices.size();
-
-  thrust::device_vector<int>    d_graph_offsets(graph_offsets);
-  thrust::device_vector<int>    d_graph_indices(graph_indices);
-  thrust::device_vector<float>  d_result(num_verts);
-
-  std::vector<float>            result(num_verts);
-
-  cugraph::experimental::GraphCSR<int,int,float> G(d_graph_offsets.data().get(),
-                                                   d_graph_indices.data().get(),
-                                                   nullptr,
-                                                   num_verts,
-                                                   num_edges);
-
-  cugraph::betweenness_centrality(G, d_result.data().get());
-
-  cudaMemcpy(result.data(), d_result.data().get(), sizeof(float) * num_verts, cudaMemcpyDeviceToHost);
-
-  for (int i = 0 ; i < num_verts ; ++i)
-    EXPECT_FLOAT_EQ(result[i], expected[i]);
-
-  // TODO(xcadet) Remove this part, it is for testing the reference
-  std::vector<float> ref_result(num_verts);
-  reference_betweenness_centrality(G, ref_result.data(), true);
-  for (int i = 0 ; i < num_verts ; ++i)
-    EXPECT_FLOAT_EQ(ref_result[i], expected[i]);
-}
-*/
 // Verifiy Un-Normalized results
-/*
+// Endpoint parameter is currently not usefull, is for later use
 TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS) {
   run_current_test<int, int, float, float, false, false>(GetParam());
 }
-*/
 
 TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS) {
   run_current_test<int, int, double, double, false, false>(GetParam());
 }
 
-/*
 // Verifiy Normalized results
 TEST_P(Tests_BC, CheckFP32_NORMALIZE_NO_ENPOINTS) {
   run_current_test<int, int, float, float, true, false>(GetParam());
@@ -675,52 +491,42 @@ TEST_P(Tests_BC, CheckFP32_NORMALIZE_NO_ENPOINTS) {
 TEST_P(Tests_BC, CheckFP64_NORMALIZE_NO_ENPOINTS) {
   run_current_test<int, int, double, double, true, false>(GetParam());
 }
-*/
 
 // FIXME: There is an InvalidValue on a Memcopy only on tests/datasets/dblp.mtx
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_BC,
   ::testing::Values(
-      BC_Usecase("test/datasets/karate.mtx", 0)
-      //BC_Usecase("test/datasets/polbooks.mtx", 0),
-      //BC_Usecase("test/datasets/netscience.mtx", 0),
-      //BC_Usecase("test/datasets/netscience.mtx", 100),
-      //BC_Usecase("test/datasets/wiki2003.mtx", 1000),
-      //BC_Usecase("/datasets/GAP/GAP-road.mtx", 4)
-      //BC_Usecase("/datasets/GAP/GAP-road.mtx", 22489540),
-      //BC_Usecase("/datasets/GAP/GAP-road.mtx", 3918777),
-      //BC_Usecase("/datasets/GAP/GAP-road.mtx", 2269113),
-      //BC_Usecase("/datasets/GAP/GAP-road.mtx", 8559617)
+      BC_Usecase("test/datasets/karate.mtx", 0),
+      BC_Usecase("test/datasets/polbooks.mtx", 0),
+      BC_Usecase("test/datasets/netscience.mtx", 0),
+      BC_Usecase("test/datasets/netscience.mtx", 100),
+      BC_Usecase("test/datasets/wiki2003.mtx", 4),
+      BC_Usecase("test/datasets/wiki-Talk.mtx", 4)
     )
 );
 
+// BFS
+// -----------------------------------------------------------------------------
 // TODO(xcadet): This should be specialized for BFS
 TEST_P(Tests_BFS, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS) {
-  run_current_test<int, int, float, float, false, false>(GetParam());
+  run_current_test<int, int, float, float>(GetParam());
 }
 
-/*
 TEST_P(Tests_BFS, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS) {
-  run_current_test<int, int, double, double, false, false>(GetParam());
+  run_current_test<int, int, double, double>(GetParam());
 }
-*/
 
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_BFS,
   ::testing::Values(
-    BC_Usecase("test/datasets/karate.mtx", 0)
-    //BC_Usecase("test/datasets/polbooks.mtx", 0),
-    //BC_Usecase("test/datasets/netscience.mtx", 0),
-    //BC_Usecase("test/datasets/netscience.mtx", 100),
-    //BC_Usecase("test/datasets/wiki2003.mtx", 1000),
-    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 4)
-
-    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 22489540),
-    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 3918777),
-    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 2269113),
-    //BC_Usecase("/datasets/GAP/GAP-road.mtx", 8559617)
+    BC_Usecase("test/datasets/karate.mtx", 0),
+    BC_Usecase("test/datasets/polbooks.mtx", 0),
+    BC_Usecase("test/datasets/netscience.mtx", 0),
+    BC_Usecase("test/datasets/netscience.mtx", 100),
+    BC_Usecase("test/datasets/wiki2003.mtx", 1000),
+    BC_Usecase("test/datasets/wiki-Talk.mtx", 1000)
   )
 );
 

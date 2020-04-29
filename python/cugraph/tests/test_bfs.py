@@ -134,6 +134,7 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
         for start_vertex in Gnx:
             compare_func = _compare_bfs_spc if return_sp_counter else _compare_bfs
             compare_func(G, Gnx, start_vertex, directed)
+            print("[DBG] Done comparing {}".format(start_vertex))
     else: # Unknown type given to seed
         raise NotImplementedError
 
@@ -164,11 +165,19 @@ def _compare_bfs(G,  Gnx, start_vertex, directed):
     invalid_predrecessor_error = 0
     for vertex in nx_distances:
         if vertex in cu_distances:
-            if (cu_distances[vertex] != nx_distances[vertex]):
+            result = cu_distances[vertex]
+            expected = nx_distances[vertex]
+            if (result != expected):
+                print("[ERR] Mismatch on distances: "
+                      "vid = {}, cugraph = {}, nx = {}".format(vertex,
+                                                               result,
+                                                               expected))
                 distance_mismatch_error += 1
             pred = cu_predecessors[vertex]
             # The graph is unwehigted thus, predecessors are 1 away
             if (vertex != start_vertex and (nx_distances[pred] + 1 != cu_distances[vertex])):
+                print("[ERR] Invalid on predecessors: "
+                      "vid = {}, cugraph = {}".format(vertex, pred))
                 invalid_predrecessor_error += 1
         elif cu_distance[vertex] != max_val:
             missing_vertex_error += 1
@@ -184,7 +193,7 @@ def _compare_bfs_spc(G, Gnx, start_vertex, directed):
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor', 'sp_counter'
     assert len(df.columns) == 4, "The result of the BFS has an invalid number of columns"
-    _, _, nx_sp_counter = nx.algorithm.centrality.betweenness._single_source_shortest_path_basic(Gnx, start_vertex)
+    _, _, nx_sp_counter = nx.algorithms.centrality.betweenness._single_source_shortest_path_basic(Gnx, start_vertex)
     # We are not checking for distances / predecessors here as we assume
     # that these have been checked  in the _compare_bfs tests
     # We focus solely on shortest path counting
@@ -234,7 +243,7 @@ def test_bfs_spc(managed, pool, graph_file, directed, seed):
     """Test BFS traversal on random source with shortest path counting"""
     prepare_rmm(managed_memory=managed, pool_allocator=pool,
                 initial_pool_size=2<<27)
-    compare_bfs(graph_file, directed=directed, return_sp_counter=False,
+    compare_bfs(graph_file, directed=directed, return_sp_counter=True,
                 seed=seed)
 
 @pytest.mark.parametrize('managed, pool',
@@ -247,5 +256,19 @@ def test_bfs_spc_full(managed, pool, graph_file, directed, seed):
     """Test BFS traversal on every vertex with shortest path counting"""
     prepare_rmm(managed_memory=managed, pool_allocator=pool,
                 initial_pool_size=2<<27)
-    compare_bfs(graph_file, directed=directed, return_sp_counter=False,
+    compare_bfs(graph_file, directed=directed, return_sp_counter=True,
                 seed=seed)
+
+#@pytest.mark.large
+#@pytest.mark.parametrize('managed, pool',
+                         #list(product(RMM_MANAGED_MEMORY_OPTIONS,
+                                      #RMM_POOL_ALLOCATOR_OPTIONS)))
+#@pytest.mark.parametrize('graph_file', ['../datasets/cti.csv'])
+#@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+#@pytest.mark.parametrize('seed', [10645])
+#def test_bfs_spc_full_cti(managed, pool, graph_file, directed, seed):
+    #"""Test BFS traversal on every vertex with shortest path counting"""
+    #prepare_rmm(managed_memory=managed, pool_allocator=pool,
+                #initial_pool_size=2<<27)
+    #compare_bfs(graph_file, directed=directed, return_sp_counter=True,
+                #seed=seed)
