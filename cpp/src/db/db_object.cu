@@ -255,27 +255,25 @@ idx_t db_result<idx_t>::getSize() {
 
 template<typename idx_t>
 idx_t* db_result<idx_t>::getData(std::string idx) {
-  if (!dataValid)
-    throw new std::invalid_argument("Data not valid");
+  CUGRAPH_EXPECTS(dataValid, "Data not valid");
 
   idx_t* returnPtr = nullptr;
   for (size_t i = 0; i < names.size(); i++)
     if (names[i] == idx)
-      returnPtr = (idx_t*) columns[i].data();
+      returnPtr = reinterpret_cast<idx_t*>(columns[i].data());
   return returnPtr;
 }
 
 template<typename idx_t>
 void db_result<idx_t>::addColumn(std::string columnName) {
-  if (dataValid)
-    throw new std::invalid_argument("Cannot add a column to an allocated result");
+  CUGRAPH_EXPECTS(!dataValid, "Cannot add a column to an allocated result.");
   names.push_back(columnName);
 }
 
 template<typename idx_t>
 void db_result<idx_t>::allocateColumns(idx_t size) {
-  if (dataValid)
-    throw new std::invalid_argument("Already allocated columns");
+  CUGRAPH_EXPECTS(!dataValid, "Already allocated columns");
+
   for (size_t i = 0; i < names.size(); i++) {
     rmm::device_buffer col(sizeof(idx_t) * size);
     columns.push_back(std::move(col));
@@ -321,8 +319,7 @@ db_table<idx_t>::~db_table() {
 
 template<typename idx_t>
 void db_table<idx_t>::addColumn(std::string name) {
-  if (columns.size() > size_t { 0 } && column_size > 0)
-    throw new std::invalid_argument("Can't add a column to a non-empty table");
+  CUGRAPH_EXPECTS(column_size == 0, "Can't add a column to a non-empty table");
 
   rmm::device_buffer _col;
   columns.push_back(std::move(_col));
@@ -332,10 +329,10 @@ void db_table<idx_t>::addColumn(std::string name) {
 
 template<typename idx_t>
 void db_table<idx_t>::addEntry(db_pattern<idx_t>& pattern) {
-  if (!pattern.isAllConstants())
-    throw new std::invalid_argument("Can't add an entry that isn't all constants");
-  if (static_cast<size_t>(pattern.getSize()) != columns.size())
-    throw new std::invalid_argument("Can't add an entry that isn't the right size");
+  CUGRAPH_EXPECTS(pattern.isAllConstants(), "Can't add an entry that isn't all constants");
+  CUGRAPH_EXPECTS(static_cast<size_t>(pattern.getSize()) == columns.size(),
+                  "Can't add an entry that isn't the right size");
+
   inputBuffer.push_back(pattern);
 }
 
@@ -350,25 +347,28 @@ void db_table<idx_t>::rebuildIndices() {
     // Construct an array of ascending integers
     rmm::device_buffer indirection(sizeof(idx_t) * size);
     thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr),
-                     (idx_t*) indirection.data(),
-                     (idx_t*) indirection.data() + size);
+                     reinterpret_cast<idx_t*>(indirection.data()),
+                     reinterpret_cast<idx_t*>(indirection.data()) + size);
 
     // Sort the arrays together
     thrust::sort_by_key(rmm::exec_policy(nullptr)->on(nullptr),
-                        (idx_t*) tempColumn.data(),
-                        (idx_t*) tempColumn.data() + size,
-                        (idx_t*) indirection.data());
+                        reinterpret_cast<idx_t*>(tempColumn.data()),
+                        reinterpret_cast<idx_t*>(tempColumn.data()) + size,
+                        reinterpret_cast<idx_t*>(indirection.data()));
 
     // Compute offsets array based on sorted column
     idx_t maxId;
-    cudaMemcpy(&maxId, (idx_t*) tempColumn.data() + size - 1, sizeof(idx_t), cudaMemcpyDefault);
+    cudaMemcpy(&maxId,
+               reinterpret_cast<idx_t*>(tempColumn.data()) + size - 1,
+               sizeof(idx_t),
+               cudaMemcpyDefault);
     rmm::device_buffer offsets(sizeof(idx_t) * (maxId + 2));
     thrust::lower_bound(rmm::exec_policy(nullptr)->on(nullptr),
-                        (idx_t*) tempColumn.data(),
-                        (idx_t*) tempColumn.data() + size,
+                        reinterpret_cast<idx_t*>(tempColumn.data()),
+                        reinterpret_cast<idx_t*>(tempColumn.data()) + size,
                         thrust::counting_iterator<idx_t>(0),
                         thrust::counting_iterator<idx_t>(maxId + 2),
-                        (idx_t*) offsets.data());
+                        reinterpret_cast<idx_t*>(offsets.data()));
 
     // Assign new offsets array and indirection vector to index
     indices[i].resetData(std::move(offsets), maxId + 2, std::move(indirection), size);
@@ -380,11 +380,11 @@ void db_table<idx_t>::flush_input() {
   if (inputBuffer.size() == size_t { 0 })
     return;
   idx_t tempSize = inputBuffer.size();
-  std::vector<idx_t*> tempColumns;
+  std::vector<std::vector<idx_t>> tempColumns(columns.size());
   for (size_t i = 0; i < columns.size(); i++) {
-    tempColumns.push_back((idx_t*) malloc(sizeof(idx_t) * tempSize));
+    tempColumns[i].resize(tempSize);
     for (idx_t j = 0; j < tempSize; j++) {
-      tempColumns.back()[j] = inputBuffer[j].getEntry(i).getConstant();
+      tempColumns[i][j] = inputBuffer[j].getEntry(i).getConstant();
     }
   }
   inputBuffer.clear();
@@ -401,11 +401,10 @@ void db_table<idx_t>::flush_input() {
                  columns[i].data(),
                  sizeof(idx_t) * currentSize,
                  cudaMemcpyDefault);
-    cudaMemcpy((idx_t*)newColumns[i].data() + currentSize,
-               tempColumns[i],
+    cudaMemcpy(reinterpret_cast<idx_t*>(newColumns[i].data()) + currentSize,
+               tempColumns[i].data(),
                sizeof(idx_t) * tempSize,
                cudaMemcpyDefault);
-    free(tempColumns[i]);
     columns[i] = std::move(newColumns[i]);
     column_size = newSize;
   }
@@ -446,7 +445,7 @@ db_column_index<idx_t>& db_table<idx_t>::getIndex(int idx) {
 
 template<typename idx_t>
 idx_t* db_table<idx_t>::getColumn(int idx) {
-  return (idx_t*)columns[idx].data();
+  return reinterpret_cast<idx_t*>(columns[idx].data());
 }
 
 template class db_table<int32_t>;
