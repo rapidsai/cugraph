@@ -18,6 +18,7 @@
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
 - PR #829 Updated README and CONTRIBUTIOIN docs
+- PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
 - PR #833 Update graph functions to use new Graph class
 - PR #834 Updated local gpuci build
 
@@ -27,6 +28,7 @@
 - PR #800 Fix bfs error in optimization path
 - PR #825 Fix outdated CONTRIBUTING.md
 - PR #827 Fix indexing CI errors due to cudf updates 
+
 
 # cuGraph 0.13.0 (Date TBD)
 
