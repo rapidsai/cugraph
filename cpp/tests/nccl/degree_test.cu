@@ -2,8 +2,6 @@
 #include <cugraph.h>
 #include "test_utils.h"
 #include <string.h>
-#include <mpi.h>
-#include <nccl.h>
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
 #include <graph.hpp>
