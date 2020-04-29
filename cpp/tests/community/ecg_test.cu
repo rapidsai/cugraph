@@ -33,7 +33,7 @@ TEST(ecg, success)
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
 
-  std::vector<int> cluster_id (num_verts, -1);
+  thrust::host_vector<int> cluster_id (num_verts, -1);
 
   rmm::device_vector<int>    offsets_v(off_h);
   rmm::device_vector<int>    indices_v(ind_h);
@@ -48,7 +48,7 @@ TEST(ecg, success)
 
   ASSERT_NO_THROW((cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get())));
 
-  std::copy(result_v.begin(), result_v.end(), cluster_id.begin());
+  cluster_id = result_v;
   int max = *max_element (cluster_id.begin(), cluster_id.end());
   int min = *min_element (cluster_id.begin(), cluster_id.end());
 
@@ -94,7 +94,7 @@ TEST(ecg, dolphin)
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
 
-  std::vector<int> cluster_id (num_verts, -1);
+  thrust::host_vector<int> cluster_id (num_verts, -1);
 
   rmm::device_vector<int>    offsets_v(off_h);
   rmm::device_vector<int>    indices_v(ind_h);
@@ -109,7 +109,7 @@ TEST(ecg, dolphin)
 
   ASSERT_NO_THROW((cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get())));
 
-  std::copy(result_v.begin(), result_v.end(), cluster_id.begin());
+  cluster_id = result_v;
   int max = *max_element (cluster_id.begin(), cluster_id.end());
   int min = *min_element (cluster_id.begin(), cluster_id.end());
 
