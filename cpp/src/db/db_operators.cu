@@ -26,7 +26,7 @@ struct degree_iterator {
       offsets(_offsets) {
   }
 
-  __host__  __device__
+  __host__   __device__
   IndexType operator[](IndexType place) {
     return offsets[place + 1] - offsets[place];
   }
@@ -39,7 +39,7 @@ struct deref_functor {
       iterator(it) {
   }
 
-  __host__  __device__
+  __host__   __device__
   IndexType operator()(IndexType in) {
     return iterator[in];
   }
@@ -47,7 +47,7 @@ struct deref_functor {
 
 template<typename idx_t, typename flag_t>
 struct notNegativeOne {
-  __host__  __device__
+  __host__   __device__
   flag_t operator()(idx_t in) {
     return in != -1;
   }
@@ -236,20 +236,23 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   degree_iterator<idx_t>deg_it(offsets);
   deref_functor<degree_iterator<idx_t>, idx_t>deref(deg_it);
   thrust::fill(rmm::exec_policy(nullptr)->on(nullptr),
-               (idx_t*) exsum_degree.data(),
-               (idx_t*) exsum_degree.data() + 1,
+               reinterpret_cast<idx_t*>(exsum_degree.data()),
+               reinterpret_cast<idx_t*>(exsum_degree.data()) + 1,
                0);
   thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
                     frontier_ptr,
                     frontier_ptr + frontierSize,
-                    (idx_t*)exsum_degree.data() + 1,
+                    reinterpret_cast<idx_t*>(exsum_degree.data()) + 1,
                     deref);
   thrust::inclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
-                         (idx_t*)exsum_degree.data() + 1,
-                         (idx_t*)exsum_degree.data() + frontierSize + 1,
-                         (idx_t*)exsum_degree.data() + 1);
+                         reinterpret_cast<idx_t*>(exsum_degree.data()) + 1,
+                         reinterpret_cast<idx_t*>(exsum_degree.data()) + frontierSize + 1,
+                         reinterpret_cast<idx_t*>(exsum_degree.data()) + 1);
   idx_t output_size;
-  cudaMemcpy(&output_size, (idx_t*)exsum_degree.data() + frontierSize, sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&output_size,
+             reinterpret_cast<idx_t*>(exsum_degree.data()) + frontierSize,
+             sizeof(idx_t),
+             cudaMemcpyDefault);
 
   idx_t num_blocks = (output_size + FIND_MATCHES_BLOCK_SIZE - 1) / FIND_MATCHES_BLOCK_SIZE;
   rmm::device_buffer block_bucket_offsets(sizeof(idx_t) * (num_blocks + 1));
@@ -257,8 +260,8 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   dim3 grid, block;
   block.x = 512;
   grid.x = min((idx_t) MAXBLOCKS, (num_blocks / 512) + 1);
-  compute_bucket_offsets_kernel<<<grid, block, 0, nullptr>>>((idx_t*)exsum_degree.data(),
-                                                             (idx_t*)block_bucket_offsets.data(),
+  compute_bucket_offsets_kernel<<<grid, block, 0, nullptr>>>(reinterpret_cast<idx_t*>(exsum_degree.data()),
+                                                             reinterpret_cast<idx_t*>(block_bucket_offsets.data()),
                                                              frontierSize,
                                                              output_size);
 
@@ -273,19 +276,19 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   rmm::device_buffer outputDBuffer;
   if (pattern.getEntry(0).isVariable()) {
     outputABuffer.resize(sizeof(idx_t) * output_size);
-    outputA = (idx_t*)outputABuffer.data();
+    outputA = reinterpret_cast<idx_t*>(outputABuffer.data());
   }
   if (pattern.getEntry(1).isVariable()) {
     outputBBuffer.resize(sizeof(idx_t) * output_size);
-    outputB = (idx_t*)outputBBuffer.data();
+    outputB = reinterpret_cast<idx_t*>(outputBBuffer.data());
   }
   if (pattern.getEntry(2).isVariable()) {
     outputCBuffer.resize(sizeof(idx_t) * output_size);
-    outputC = (idx_t*)outputCBuffer.data();
+    outputC = reinterpret_cast<idx_t*>(outputCBuffer.data());
   }
   if (saveRowIds) {
     outputDBuffer.resize(sizeof(idx_t) * output_size);
-    outputD = (idx_t*)outputDBuffer.data();
+    outputD = reinterpret_cast<idx_t*>(outputDBuffer.data());
   }
 
   // Get the constant pattern entries from the pattern to pass into the main kernel
@@ -312,8 +315,8 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
                                                  num_blocks,
                                                  offsets,
                                                  indirection,
-                                                 (idx_t*)block_bucket_offsets.data(),
-                                                 (idx_t*)exsum_degree.data(),
+                                                 reinterpret_cast<idx_t*>(block_bucket_offsets.data()),
+                                                 reinterpret_cast<idx_t*>(exsum_degree.data()),
                                                  frontier_ptr,
                                                  columnA,
                                                  columnB,
@@ -353,7 +356,7 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
                     col_ptr,
                     col_ptr + output_size,
-                    (int8_t*)flags.data(),
+                    reinterpret_cast<int8_t*>(flags.data()),
                     notNegativeOne<idx_t, int8_t>());
 
   size_t tempSpaceSize = 0;
@@ -361,17 +364,17 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   cub::DeviceSelect::Flagged(nullptr,
                              tempSpaceSize,
                              col_ptr,
-                             (int8_t*)flags.data(),
+                             reinterpret_cast<int8_t*>(flags.data()),
                              col_ptr,
-                             (idx_t*)compactSize_d.data(),
+                             reinterpret_cast<idx_t*>(compactSize_d.data()),
                              output_size);
   rmm::device_buffer tempSpace(tempSpaceSize);
   cub::DeviceSelect::Flagged(tempSpace.data(),
                              tempSpaceSize,
                              col_ptr,
-                             (int8_t*)flags.data(),
+                             reinterpret_cast<int8_t*>(flags.data()),
                              col_ptr,
-                             (idx_t*)compactSize_d.data(),
+                             reinterpret_cast<idx_t*>(compactSize_d.data()),
                              output_size);
   idx_t compactSize_h;
   cudaMemcpy(&compactSize_h, compactSize_d.data(), sizeof(idx_t), cudaMemcpyDefault);
@@ -381,9 +384,9 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
     cub::DeviceSelect::Flagged(tempSpace.data(),
                                tempSpaceSize,
                                col_ptr,
-                               (int8_t*)flags.data(),
+                               reinterpret_cast<int8_t*>(flags.data()),
                                col_ptr,
-                               (idx_t*)compactSize_d.data(),
+                               reinterpret_cast<idx_t*>(compactSize_d.data()),
                                output_size);
   }
 
