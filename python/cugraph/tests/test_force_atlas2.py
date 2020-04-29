@@ -59,7 +59,7 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
     print('Cugraph Time : ' + str(t2))
     return pos
 
-DATASETS = ['../datasets/karate.csv', '../datasets/dolphins.csv']
+DATASETS = ['../datasets/karate.csv', '../datasets/polbooks.csv']
 MAX_ITERATIONS = [1000]
 BARNES_HUT_OPTIMIZE= [False, True]
 BARNES_HUT_THETA = [0.5]
@@ -102,4 +102,4 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
     cu_trust = trustworthiness(M, cu_pos[['x', 'y']].to_pandas()) 
-    assert cu_trust > 0.69
+    assert cu_trust > 0.71

@@ -38,7 +38,6 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge 
     nbsphinx ipython pandoc=\<2.0.0 recommonmark
 
 pip install sphinx-markdown-tables
-pip install fa2
 
 logger "Check versions..."
 python --version

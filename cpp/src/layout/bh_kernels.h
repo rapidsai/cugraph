@@ -427,7 +427,7 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
     }
 
   SKIP_LOOP:
-    __syncthreads();
+    __threadfence(); 
     if (flag != 0) {
       massd[k] = cm;
       k += inc;
@@ -494,7 +494,6 @@ __global__ __launch_bounds__(
                                 const int *restrict sortd,
                                 const int *restrict childd,
                                 const int *restrict massd,
-                                const int *restrict d_mass,
                                 const float *restrict posxd,
                                 const float *restrict posyd,
                                 float *restrict velxd, float *restrict velyd,
@@ -551,7 +550,6 @@ __global__ __launch_bounds__(
 
     const float px = posxd[i];
     const float py = posyd[i];
-    const int node_mass = d_mass[i];
 
     float vx = 0.0f;
     float vy = 0.0f;
@@ -583,7 +581,7 @@ __global__ __launch_bounds__(
         const float dxy1 = dx * dx + dy * dy + epssqd;
 
         if ((n < N) or __all_sync(__activemask(), dxy1 >= dq[depth])) {
-          const float tdist_2 = __fdividef(scaling_ratio * node_mass * massd[n],  dxy1);
+          const float tdist_2 = __fdividef(scaling_ratio * massd[i] * massd[n],  dxy1);
           vx += dx * tdist_2;
           vy += dy * tdist_2;
         } else {
@@ -606,5 +604,29 @@ __global__ __launch_bounds__(
   }
 }
   
+__global__ __launch_bounds__(THREADS6, FACTOR6)
+    void apply_forces_bh(float *restrict x_pos, float *restrict y_pos,
+            float *restrict Y_x, float *restrict Y_y,
+            const float *restrict repel_x, const float *restrict repel_y,
+            const float *restrict attract_x, const float *restrict attract_y,
+            float *restrict old_dx, float *restrict old_dy,
+            const float *restrict swinging, const float speed, const int n) {
+
+        for (int i = threadIdx.x + blockIdx.x * blockDim.x;
+                i < n;
+                i += gridDim.x * blockDim.x) {
+            const float dx = (repel_x[i] + attract_x[i]); 
+            const float dy = (repel_y[i] + attract_y[i]); 
+            old_dx[i] = dx; 
+            old_dy[i] = dy;
+
+            float factor = speed / (1.0 + sqrt(speed * swinging[i]));
+            Y_x[i] += dx * factor;
+            Y_y[i] += dy * factor;
+            x_pos[i] = Y_x[i];
+            y_pos[i] = Y_y[i];
+        }
+    }
+
 }  // namespace detail
 }  // namespace cugraph

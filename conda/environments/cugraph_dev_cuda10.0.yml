@@ -25,6 +25,7 @@ dependencies:
 - boost
 - cython>=0.29,<0.30
 - pytest
+- scikit-learn>=0.21
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport
@@ -35,4 +36,3 @@ dependencies:
 - pip
 - pip:
   - sphinx-markdown-tables
-  - fa2

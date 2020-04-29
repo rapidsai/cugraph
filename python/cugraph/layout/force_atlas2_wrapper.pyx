@@ -61,7 +61,6 @@ def force_atlas2(input_graph,
     num_verts = input_graph.number_of_vertices()
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
 
-    print(input_graph.edgelist.edgelist_df)
     cdef GraphCOO[int,int,float] graph_float
     cdef GraphCOO[int,int,double] graph_double
 
@@ -79,7 +78,6 @@ def force_atlas2(input_graph,
     cdef uintptr_t pos_ptr = <uintptr_t>NULL 
 
     if pos_list is not None:
-        df['vertex'] = pos_list['vertex']
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
@@ -158,7 +156,7 @@ def force_atlas2(input_graph,
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
         
-    if input_graph.renumbered and pos_list is None:
+    if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df

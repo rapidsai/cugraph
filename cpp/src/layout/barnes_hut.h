@@ -57,7 +57,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
     while ((nnodes & (32 - 1)) != 0) nnodes++;
     nnodes--;
-    if (verbose) printf("N_nodes = %d blocks = %d\n", nnodes, blocks);
+
     // Allocate more space
     //---------------------------------------------------
     rmm::device_vector<unsigned>d_limiter(1);
@@ -127,7 +127,6 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
     float *d_attract{nullptr};
     float *d_old_forces{nullptr};
-    int *d_mass{nullptr};
     float *d_swinging{nullptr};
     float *d_traction{nullptr};
 
@@ -139,7 +138,6 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
     d_attract = attract.data().get();
     d_old_forces = old_forces.data().get();
-    d_mass = mass.data().get();
     d_swinging = swinging.data().get();
     d_traction = traction.data().get();
 
@@ -149,9 +147,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
     sort_coo<vertex_t, edge_t, weight_t>(row,
                         col, v, &srcs, &dests, &weights, e);
-    init_mass<vertex_t, edge_t, int>(dests, d_mass, e, n);
-    copy(n, d_mass, massl);
-    //init_mass<vertex_t, edge_t, float>(dests, massl, e, n);
+    init_mass<vertex_t, edge_t, int>(dests, massl, e, n);
 
     float speed = 1.f;
     float speed_efficiency = 1.f;
@@ -159,8 +155,9 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     float jt = 0.f;
  
     if (outbound_attraction_distribution) {
-        int sum = thrust::reduce(mass.begin(), mass.end());
-        outbound_att_compensation = sum / (float)n;
+        int sum = thrust::reduce(d_massl.begin(), d_massl.end());
+        const float div = 1.f / n;
+        outbound_att_compensation = sum * div;
     }
     //
     // Set cache levels for faster algorithm execution
@@ -172,33 +169,18 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     cudaFuncSetCacheConfig(SummarizationKernel, cudaFuncCachePreferShared);
     cudaFuncSetCacheConfig(SortKernel, cudaFuncCachePreferL1);
     cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
 
     if(callback) {
         callback->setup<float>(n, 2);
         callback->on_preprocess_end(pos);
     }
 
-    float mean = 0.f;
-    // Normalize
-    float norm_max = *thrust::max_element(d_YY.begin(), d_YY.end());
-    norm_max = 1.0 / norm_max;
-    thrust::transform(d_YY.begin(), d_YY.end(),
-            thrust::make_constant_iterator(norm_max),
-            d_YY.begin(),
-            thrust::multiplies<float>());
-
     for (int iter = 0; iter < max_iter; ++iter) {
         fill((nnodes + 1) * 2, rep_forces, 0.f);
         fill(n * 2, d_attract, 0.f);
         fill(n, d_swinging, 0.f);
         fill(n, d_traction, 0.f);
-
-        // Zero mean
-        mean = thrust::reduce(d_YY.begin(), d_YY.end()) / ((nnodes + 1) * 2); 
-        thrust::transform(d_YY.begin(), d_YY.end(),
-            thrust::make_constant_iterator(mean),
-            d_YY.begin(),
-            thrust::minus<float>());
 
         Reset_Normalization<<<1, 1>>>(radiusd_squared,
                 bottomd, NNODES, radiusd);
@@ -232,36 +214,35 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
         RepulsionKernel<<<blocks * FACTOR5, THREADS5>>>(
                 scaling_ratio,
-                theta, epssq, sortl, childl, massl, d_mass, YY, YY + nnodes + 1,
+                theta, epssq, sortl, childl, massl, YY, YY + nnodes + 1,
                 rep_forces, rep_forces + nnodes + 1, theta_squared, NNODES,
                 FOUR_NNODES, n, radiusd_squared, maxdepthd);
         CUDA_CHECK_LAST();
 
         apply_gravity<vertex_t>(YY, YY + nnodes + 1, d_attract, d_attract + n,
-                d_mass, gravity, strong_gravity_mode, scaling_ratio, n);
+                massl, gravity, strong_gravity_mode, scaling_ratio, n);
 
         apply_attraction<vertex_t, edge_t, weight_t>(srcs,
                 dests, weights, e, YY, YY + nnodes + 1,
-                d_attract, d_attract + n, d_mass,
+                d_attract, d_attract + n, massl,
                 outbound_attraction_distribution, lin_log_mode,
                 edge_weight_influence, outbound_att_compensation);
 
         compute_local_speed(rep_forces, rep_forces + nnodes + 1,
                 d_attract, d_attract + n,
                 d_old_forces, d_old_forces + n,
-                d_mass, d_swinging, d_traction, n);
+                massl, d_swinging, d_traction, n);
 
-        cudaStream_t stream {nullptr};
-        const float s = thrust::reduce(rmm::exec_policy(stream)->on(stream),
+        const float s = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr),
                 swinging.begin(), swinging.end());
 
-        const float t = thrust::reduce(rmm::exec_policy(stream)->on(stream),
+        const float t = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr),
                 traction.begin(), traction.end());
 
         adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                 s, t, n);
 
-        apply_forces<vertex_t>(
+        apply_forces_bh<<<blocks * FACTOR6, THREADS6>>>(pos, pos + n,
                 YY, YY + nnodes + 1, d_attract, d_attract + n,
                 rep_forces, rep_forces + nnodes + 1,
                 d_old_forces, d_old_forces + n,
@@ -278,14 +259,6 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         }
 
     }
-
-    thrust::transform(d_YY.begin(), d_YY.end(),
-            thrust::make_constant_iterator(mean),
-            d_YY.begin(),
-            thrust::plus<float>());
-
-    copy(n, YY, pos);
-    copy(n, YY + nnodes + 1, pos + n);
 
     if (callback)
         callback->on_epoch_end(pos);

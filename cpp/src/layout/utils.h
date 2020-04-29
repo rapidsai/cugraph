@@ -26,7 +26,7 @@ struct prg {
     __host__ __device__
         float operator()(int n){
             thrust::default_random_engine rng;
-            thrust::uniform_real_distribution<float> dist(-1000.f, 1000.f);
+            thrust::uniform_real_distribution<float> dist(-100.f, 100.f);
             rng.discard(n);
             return dist(rng);
         }
@@ -45,6 +45,15 @@ inline int getMultiProcessorCount() {
     int mpCount;
     CUDA_TRY(
             cudaDeviceGetAttribute(&mpCount, cudaDevAttrMultiProcessorCount, devId));
+    return mpCount;
+}
+
+inline int getMaxThreadsCount() {
+    int devId;
+    CUDA_TRY(cudaGetDevice(&devId));
+    int mpCount;
+    CUDA_TRY(
+            cudaDeviceGetAttribute(&mpCount, cudaDevAttrMaxThreadsPerBlock, devId));
     return mpCount;
 }
 

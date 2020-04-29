@@ -78,8 +78,6 @@ pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
 logger "pip install git+https://github.com/dask/dask.git --upgrade --no-deps"
 pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
-#Install Force Atlas 2
-pip install fa2
 
 logger "Check versions..."
 python --version

@@ -90,7 +90,7 @@ attraction_kernel(const vertex_t *restrict row, const vertex_t *restrict col,
 
         float x_dist = x_pos[src] - x_pos[dst];
         float y_dist = y_pos[src] - y_pos[dst];
-        float distance = pow(x_dist, 2) * pow(y_dist, 2);
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
         distance += FLT_EPSILON;
         distance = sqrt(distance);
         float factor = -coef * weight;
@@ -143,11 +143,10 @@ linear_gravity_kernel(const float *restrict x_pos, const float *restrict y_pos,
 
         float x_dist = x_pos[i];
         float y_dist = y_pos[i];
-        float distance = sqrt(x_dist * x_dist + y_dist * y_dist);
-        distance += FLT_EPSILON;
+        float distance = sqrt(x_dist * x_dist + y_dist * y_dist + FLT_EPSILON);
         float factor = mass[i] * gravity / distance;
-        atomicAdd(&attract_x[i], -x_dist * factor);
-        atomicAdd(&attract_y[i], -y_dist * factor);
+        attract_x[i] -= x_dist * factor;
+        attract_y[i] -= y_dist * factor;
     }
 
 }
@@ -165,8 +164,8 @@ strong_gravity_kernel(const float *restrict x_pos, const float *restrict y_pos,
         float y_dist = y_pos[i];
 
         float factor = scaling_ratio * mass[i] * gravity;
-        atomicAdd(&attract_x[i], -x_dist * factor);
-        atomicAdd(&attract_y[i], -y_dist * factor);
+        attract_x[i] -= x_dist * factor;
+        attract_y[i] -= y_dist * factor;
     }
 }
 
@@ -212,8 +211,6 @@ local_speed_kernel(const float *restrict repel_x, const float *restrict repel_y,
         float node_swinging = mass[i] * sqrt(pow(old_dx[i] - dx, 2) + pow(old_dy[i] - dy, 2));
         float node_traction = 0.5 * mass[i] * \
         sqrt(pow(old_dx[i] + dx, 2) + pow(old_dy[i] + dy, 2));
-        //if (isnan(node_swinging) || isnan(node_traction))
-        //    printf("repel_x: %f, repel_y: %f\n", repel_x[i], repel_y[i]);
         swinging[i] = node_swinging;
         traction[i] = node_traction;
     }

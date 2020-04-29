@@ -49,9 +49,8 @@ def force_atlas2(input_graph,
             than the specified number of iterations. No error occurs when the
             algorithm terminates early in this manner.
         pos_list: cudf.DataFrame
-            Data frame with initial positions containing three columns:
-            'vertex' for the vertex id, 'x' for x positions and 'y' for
-            y positions.
+            Data frame with initial positions containing two columns:
+            'x' and 'y' positions.
         outbound_attraction_distribution: bool
             Distributes attraction along outbound edges.
             Hubs attract less and thus are pushed to the borders. 
@@ -89,7 +88,6 @@ def force_atlas2(input_graph,
         """
 
         if pos_list is not None:
-            null_check(pos_list['vertex'])
             null_check(pos_list['x'])
             null_check(pos_list['y'])
 
