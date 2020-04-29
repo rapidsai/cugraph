@@ -48,7 +48,8 @@ TEST(ecg, success)
 
   ASSERT_NO_THROW((cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get())));
 
-  cudaMemcpy ((void*) &(cluster_id[0]), result_v.data().get(), sizeof(int)*num_verts, cudaMemcpyDeviceToHost);
+  std::copy(result_v.begin(), result_v.end(), cluster_id.begin());
+  //cudaMemcpy ((void*) &(cluster_id[0]), result_v.data().get(), sizeof(int)*num_verts, cudaMemcpyDeviceToHost);
   int max = *max_element (cluster_id.begin(), cluster_id.end());
   int min = *min_element (cluster_id.begin(), cluster_id.end());
 
@@ -109,7 +110,8 @@ TEST(ecg, dolphin)
 
   ASSERT_NO_THROW((cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get())));
 
-  cudaMemcpy ((void*) &(cluster_id[0]), result_v.data().get(), sizeof(int)*num_verts, cudaMemcpyDeviceToHost);
+  std::copy(result_v.begin(), result_v.end(), cluster_id.begin());
+  //cudaMemcpy ((void*) &(cluster_id[0]), result_v.data().get(), sizeof(int)*num_verts, cudaMemcpyDeviceToHost);
   int max = *max_element (cluster_id.begin(), cluster_id.end());
   int min = *min_element (cluster_id.begin(), cluster_id.end());
 
