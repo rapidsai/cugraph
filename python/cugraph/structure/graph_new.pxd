@@ -131,3 +131,5 @@ cdef extern from "<utility>" namespace "std" nogil:
     cdef GraphCOOContents[int,int,double] move(GraphCOOContents[int,int,double])
     cdef device_buffer move(device_buffer)
     cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer])
+    cdef unique_ptr[GraphCSR[int,int,float]] move(unique_ptr[GraphCSR[int,int,float]])
+    cdef unique_ptr[GraphCSR[int,int,double]] move(unique_ptr[GraphCSR[int,int,double]])

@@ -57,4 +57,11 @@ template int32_t coo2csr<int32_t, int32_t>(int32_t, int32_t const*, int32_t cons
 template int32_t coo2csr_weighted<int32_t, int32_t, float>(int32_t, int32_t const*, int32_t const*, float const*, int32_t **, int32_t **, float **);
 template int32_t coo2csr_weighted<int32_t, int32_t, double>(int32_t, int32_t const*, int32_t const*, double const*, int32_t **, int32_t **, double **);
 
+namespace experimental {
+
+template<> std::unique_ptr<GraphCSR<int32_t, int32_t, float>>  coo_to_csr<int32_t, int32_t, float>(GraphCOOView<int32_t, int32_t, float> const &graph);
+template<> std::unique_ptr<GraphCSR<int32_t, int32_t, double>> coo_to_csr<int32_t, int32_t, double>(GraphCOOView<int32_t, int32_t, double> const &graph);
+
+} //namespace experimental
+
 } //namespace cugraph

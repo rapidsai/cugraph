@@ -318,7 +318,7 @@ rmm::device_buffer create_offset(
 } //namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCSR<VT ,ET ,WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const &graph) {
+std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const &graph) {
 
   cudaStream_t stream {nullptr};
 

@@ -17,6 +17,8 @@
 # cython: language_level = 3
 
 from cudf._lib.legacy.cudf cimport *
+from cugraph.structure.graph_new cimport *
+from libcpp.memory cimport unique_ptr
 
 
 cdef extern from "functions.hpp" namespace "cugraph":
@@ -34,3 +36,9 @@ cdef extern from "functions.hpp" namespace "cugraph":
                                                                edge_t **offsets,
                                                                vertex_t **indices,
                                                                weight_t **csr_weights)
+
+cdef extern from "functions.hpp" namespace "cugraph::experimental":
+
+    cdef unique_ptr[GraphCSR[VT,ET,WT]] coo_to_csr[VT,ET,WT](
+            const GraphCOOView[VT,ET,WT] &graph) except +
+

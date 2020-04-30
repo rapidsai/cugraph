@@ -17,6 +17,7 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
+from cugraph.structure.graph_new cimport *
 from cugraph.structure cimport utils as c_utils
 
 import cudf
@@ -46,10 +47,14 @@ def coo2csr(source_col, dest_col, weights=None):
 
     num_verts = 0
 
+    cdef GraphCOOView[int,int,float] in_graph
+    cdef unique_ptr[GraphCSR[int,int,float]] out_graph
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
 
         if weights.dtype == np.float32:
+            in_graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
+            out_graph = move(c_utils.coo_to_csr[int,int,float](in_graph))
             num_verts = c_utils.coo2csr_weighted[int, int, float](len(source_col),
                                                                   <const int*>c_src,
                                                                   <const int*>c_dst,

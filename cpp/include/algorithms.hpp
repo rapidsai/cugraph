@@ -319,12 +319,12 @@ void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_n
  * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.   
  *                                                                              
- * @param[in]  graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @param[in]  graph                 cuGRAPH graph in coordinate format
  * @param[in]  k                     Order of the core. This value must not be negative.
  * @param[in]  vertex_id             User specified vertex identifiers for which core number values are supplied
  * @param[in]  core_number           User supplied core number values corresponding to vertex_id
  * @param[in]  num_vertex_ids        Number of elements in vertex_id/core_number arrays
- * @param[out] out_graph             K Core subgraph
+ * @param[out] out_graph             Unique pointer to K Core subgraph in COO formate
  */                                                                             
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<experimental::GraphCOO<VT, ET, WT>>
