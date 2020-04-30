@@ -17,12 +17,85 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
-from cugraph.structure.graph_new cimport *
 from cugraph.structure cimport utils as c_utils
+from cugraph.structure.graph_new cimport *
+from cugraph.structure import graph_new_wrapper
+from libc.stdint cimport uintptr_t
 
 import cudf
 import rmm
 import numpy as np
+from rmm._lib.device_buffer cimport DeviceBuffer
+from cudf.core.buffer import Buffer
+
+
+def weight_type(weights):
+    weights_type = None
+    if weights:
+        weights_type = weights.dtype
+    return weights_type
+
+
+def create_csr_float(source_col, dest_col, weights):
+    num_verts = 0
+    num_edges = len(source_col)
+
+    cdef uintptr_t c_src = source_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst = dest_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = <uintptr_t> NULL
+
+    if weights is not None:
+        c_weights = weights.__cuda_array_interface__['data'][0]
+
+    cdef GraphCOOView[int,int,float] in_graph
+    in_graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
+    cdef unique_ptr[GraphCSR[int,int,float]] out_graph = move(c_utils.coo_to_csr[int,int,float](in_graph))
+    cdef GraphSparseContents[int,int,float] contents = move(out_graph.get()[0].release())
+    offsets = DeviceBuffer.c_from_unique_ptr(move(contents.offsets))
+    indices = DeviceBuffer.c_from_unique_ptr(move(contents.indices))
+    edge_data = DeviceBuffer.c_from_unique_ptr(move(contents.edge_data))
+    offsets = Buffer(offsets)
+    indices = Buffer(indices)
+    edge_data = Buffer(edge_data)
+    csr_offsets = cudf.Series(data=offsets, dtype="int32")
+    csr_indices = cudf.Series(data=indices, dtype="int32")
+
+    csr_weights = None
+    if weights is not None:
+        csr_weights = cudf.Series(data=edge_data, dtype="float32")
+
+    return csr_offsets, csr_indices, csr_weights
+
+
+def create_csr_double(source_col, dest_col, weights):
+    num_verts = 0
+    num_edges = len(source_col)
+
+    cdef uintptr_t c_src = source_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst = dest_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = <uintptr_t> NULL
+
+    if weights is not None:
+        c_weights = weights.__cuda_array_interface__['data'][0]
+
+    cdef GraphCOOView[int,int,double] in_graph
+    in_graph = GraphCOOView[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
+    cdef unique_ptr[GraphCSR[int,int,double]] out_graph = move(c_utils.coo_to_csr[int,int,double](in_graph))
+    cdef GraphSparseContents[int,int,double] contents = move(out_graph.get()[0].release())
+    offsets = DeviceBuffer.c_from_unique_ptr(move(contents.offsets))
+    indices = DeviceBuffer.c_from_unique_ptr(move(contents.indices))
+    edge_data = DeviceBuffer.c_from_unique_ptr(move(contents.edge_data))
+    offsets = Buffer(offsets)
+    indices = Buffer(indices)
+    edge_data = Buffer(edge_data)
+    csr_offsets = cudf.Series(data=offsets, dtype="int32")
+    csr_indices = cudf.Series(data=indices, dtype="int32")
+
+    csr_weights = None
+    if weights is not None:
+        csr_weights = cudf.Series(data=edge_data, dtype="float64")
+
+    return csr_offsets, csr_indices, csr_weights
 
 
 def coo2csr(source_col, dest_col, weights=None):
@@ -35,65 +108,7 @@ def coo2csr(source_col, dest_col, weights=None):
     if source_col.dtype != np.int32:
         raise Exception("source_col and dest_col must be type np.int32")
 
-    csr_weights = None
-    num_edges = len(source_col)
-
-    cdef uintptr_t c_src = source_col.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst = dest_col.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights = <uintptr_t> NULL
-    cdef uintptr_t c_offsets = <uintptr_t> NULL
-    cdef uintptr_t c_indices = <uintptr_t> NULL
-    cdef uintptr_t c_csr_weights = <uintptr_t> NULL
-
-    num_verts = 0
-
-    cdef GraphCOOView[int,int,float] in_graph
-    cdef unique_ptr[GraphCSR[int,int,float]] out_graph
-    if weights is not None:
-        c_weights = weights.__cuda_array_interface__['data'][0]
-
-        if weights.dtype == np.float32:
-            in_graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
-            out_graph = move(c_utils.coo_to_csr[int,int,float](in_graph))
-            num_verts = c_utils.coo2csr_weighted[int, int, float](len(source_col),
-                                                                  <const int*>c_src,
-                                                                  <const int*>c_dst,
-                                                                  <const float*>c_weights,
-                                                                  <int**>&c_offsets,
-                                                                  <int**>&c_indices,
-                                                                  <float**>&c_csr_weights)
-
-            csr_weights = cudf.Series(rmm.device_array_from_ptr(c_csr_weights,
-                                                                nelem=num_edges,
-                                                                dtype=np.float32))
-        elif weights.dtype == np.float64:
-            num_verts = c_utils.coo2csr_weighted[int, int, double](len(source_col),
-                                                                   <const int*>c_src,
-                                                                   <const int*>c_dst,
-                                                                   <const double*>c_weights,
-                                                                   <int**>&c_offsets,
-                                                                   <int**>&c_indices,
-                                                                   <double**>&c_csr_weights)
-
-            csr_weights = cudf.Series(rmm.device_array_from_ptr(c_csr_weights,
-                                                                nelem=num_edges,
-                                                                dtype=np.float64))
+    if weight_type(weights) == np.float64:
+        return create_csr_double(source_col, dest_col, weights)
     else:
-        num_verts = c_utils.coo2csr[int, int](len(source_col),
-                                              <const int*>c_src,
-                                              <const int*>c_dst,
-                                              <int**>&c_offsets,
-                                              <int**>&c_indices)
-
-        print("called coo2csr, num_verts = ", num_verts)
-        print("c_offsets = ", c_offsets)
-        print("c_indices = ", c_indices)
-
-    offsets = rmm.device_array_from_ptr(c_offsets,
-                                        nelem=num_verts+1,
-                                        dtype=np.int32)
-    indices = rmm.device_array_from_ptr(c_indices,
-                                        nelem=num_edges,
-                                        dtype=np.int32)
-
-    return cudf.Series(offsets), cudf.Series(indices), csr_weights
+        return create_csr_float(source_col, dest_col, weights)

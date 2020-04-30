@@ -226,7 +226,6 @@ void ConvertCOOtoCSR_weighted(T const * sources, T const * destinations, W const
 }
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 
@@ -247,7 +246,7 @@ namespace detail {
  * @param[out] result      Total number of vertices
  */
 template <typename VT, typename ET, typename WT>
-VT sort(GraphCOOView<VT,ET,WT> &graph, cudaStream_t stream) {
+VT sort(experimental::GraphCOOView<VT,ET,WT> &graph, cudaStream_t stream) {
   VT max_src_id;
   VT max_dst_id;
   if (graph.has_data()) {
@@ -318,9 +317,12 @@ rmm::device_buffer create_offset(
 } //namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const &graph) {
+std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(experimental::GraphCOOView<VT, ET, WT> const &graph) {
 
   cudaStream_t stream {nullptr};
+  using experimental::GraphCOO;
+  using experimental::GraphCOOView;
+  using experimental::GraphSparseContents;
 
   GraphCOO<VT, ET, WT> temp_graph(graph);
   GraphCOOView<VT, ET, WT> temp_graph_view = temp_graph.view();
@@ -338,8 +340,7 @@ std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const 
     std::move(coo_contents.dst_indices),
     std::move(coo_contents.edge_data)};
 
-  return std::make_unique<GraphCSR<VT, ET, WT>>(std::move(csr_contents));
+  return std::make_unique<experimental::GraphCSR<VT, ET, WT>>(std::move(csr_contents));
 }
 
-} //namespace experimental
 } //namespace cugraph

@@ -80,8 +80,6 @@ vertex_t coo2csr_weighted(edge_t num_edges,
                           vertex_t **indices,
                           weight_t **csr_weights);
 
-namespace experimental {
-
 /**
  * @brief    Convert COO to CSR
  *
@@ -99,8 +97,6 @@ namespace experimental {
  *
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const &graph);
-
-} //namespace experimental
+std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(experimental::GraphCOOView<VT, ET, WT> const &graph);
 
 } //namespace cugraph

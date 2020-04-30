@@ -110,7 +110,7 @@ public:
     ASSERT_EQ(fclose(fpin),0);
 
     cugraph::experimental::GraphCOOView<int,int,float> cooview(&cooColInd[0], &cooRowInd[0], nullptr, m, nnz);
-    auto csr = cugraph::experimental::coo_to_csr(cooview);
+    auto csr = cugraph::coo_to_csr(cooview);
     cugraph::experimental::GraphCSRView<int,int,float> G = csr->view();
 
     rmm::device_vector<double> katz_vector(m);

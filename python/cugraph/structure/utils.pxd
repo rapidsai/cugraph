@@ -37,8 +37,6 @@ cdef extern from "functions.hpp" namespace "cugraph":
                                                                vertex_t **indices,
                                                                weight_t **csr_weights)
 
-cdef extern from "functions.hpp" namespace "cugraph::experimental":
-
     cdef unique_ptr[GraphCSR[VT,ET,WT]] coo_to_csr[VT,ET,WT](
             const GraphCOOView[VT,ET,WT] &graph) except +
 
