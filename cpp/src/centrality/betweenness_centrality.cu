@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <iostream> // DBG
-#include <fstream> //  DBG
 #include <vector>
 
 #include <thrust/transform.h>
@@ -29,6 +27,10 @@
 #include <gunrock/gunrock.h>
 
 #include "betweenness_centrality.cuh"
+
+#ifndef MAXBLOCKS
+ #define MAXBLOCKS 65535 // This value is also in traversal_common.cuh
+#endif
 
 namespace cugraph {
 
@@ -57,6 +59,7 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness, bool _normalize
     ALLOC_TRY(&predecessors, number_of_vertices * sizeof(VT), nullptr);
     ALLOC_TRY(&sp_counters, number_of_vertices * sizeof(double), nullptr);
     ALLOC_TRY(&deltas, number_of_vertices * sizeof(result_t), nullptr);
+
     // --- Confirm that configuration went through ---
     configured = true;
 }
@@ -66,11 +69,15 @@ void BC<VT, ET, WT, result_t>::clean() {
     ALLOC_FREE_TRY(predecessors, nullptr);
     ALLOC_FREE_TRY(sp_counters, nullptr);
     ALLOC_FREE_TRY(deltas, nullptr);
-    // ---  Betweenness is not ours ---
 }
 
 // Dependecy Accumulation: McLaughlin and Bader, 2018
-// TODO(xcadet) It could be better to avoid casting to result_t until the end
+// NOTE: Accumulation kernel might not scale well, as each thread is handling
+//        all the edges for each node, an approach similar to the traversal
+//        bucket system might enable a proper speed up
+// NOTE: Shortest Path counter can increase extremely fast, thus double are used
+//       however, the user might want to get the result back in float
+//       thus we delay casting the result until dependecy accumulation
 template <typename VT, typename ET, typename WT, typename result_t>
 __global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
                                   VT const *indices, ET const *offsets,
@@ -93,27 +100,23 @@ __global__ void accumulation_kernel(result_t *betweenness, VT number_vertices,
           dsw += sw * factor;
         }
       }
-      deltas[w] = dsw;
+      deltas[w] = static_cast<result_t>(dsw);
     }
   }
 }
 
-// TODO(xcadet) We might be able to handle different nodes with a kernel
-// With BFS distances can be used to handle accumulation,
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness, VT* distances,
                                           double *sp_counters,
                                           result_t *deltas, VT source, VT max_depth) {
     dim3 grid, block;
-    //block.x = 256; // TODO(xcadet) Replace these values, only for debugging
     block.x = 512;
-    grid.x = min(65535, (number_of_edges / block.x + 1));
+    grid.x = min(MAXBLOCKS, (number_of_edges / block.x + 1));
   // Step 1) Dependencies (deltas) are initialized to 0 before starting
   thrust::fill(rmm::exec_policy(stream)->on(stream), deltas,
                deltas + number_of_vertices, static_cast<result_t>(0));
   // Step 2) Process each node, -1 is used to notify unreached nodes in the sssp
   for (VT depth = max_depth; depth > 0; --depth) {
-    //std::cout << "\t[ACC] Processing depth: " << depth << std::endl;
     accumulation_kernel<VT, ET, WT, result_t>
                      <<<grid, block, 0, stream>>>(betweenness, number_of_vertices,
                                              graph.indices, graph.offsets,
@@ -135,29 +138,16 @@ void BC<VT, ET, WT, result_t>::check_input() {
 // dispatch later
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex) {
-  //printf("[DBG][BC][COMPUTE_SINGLE_SOURCE] Computing from source %d\n", source_vertex);
-  //CUGRAPH_EXPECTS(sp_counters != nullptr, "sp_counters i null");
   // Step 1) Singe-source shortest-path problem
   cugraph::bfs(graph, distances, predecessors, sp_counters, source_vertex,
                graph.prop.directed);
   cudaDeviceSynchronize();
-  // ---- DBG
-  thrust::host_vector<double> h_sp_counters(number_of_vertices); // DBG
-  CUDA_TRY(cudaMemcpy(&h_sp_counters[0], &sp_counters[0], sizeof(double) * number_of_vertices, cudaMemcpyDeviceToHost)); // DBG
-  cudaDeviceSynchronize(); // DBG
-  std::string name = "/raid/xcadet/tmp/bc-bfs-net-" + std::to_string(source_vertex) + ".txt"; // DBGh
-  std::ofstream ofs; // DBG
-  ofs.open(name, std::ofstream::out); // DBG
-  assert(ofs.is_open());
-  thrust::copy(h_sp_counters.begin(), h_sp_counters.end(), std::ostream_iterator<double>(ofs, "\n"));
-  ofs.close(); // DBG
-  cudaDeviceSynchronize(); // DBG
 
-  //TODO(xcadet) Remove that with a BC specific class to gather
+  //TODO: Remove that with a BC specific class to gather
   //             information during traversal
+  // TODO: This could be extracted from the BFS(lvl)
   // NOTE: REPLACE INFINITY BY -1 otherwise the max depth will be maximal
   //       value!
-  // TODO(xcadet) This could be extracted from the BFS(lvl)
   thrust::replace(rmm::exec_policy(stream)->on(stream), distances,
                   distances + number_of_vertices,
                   std::numeric_limits<VT>::max(),
@@ -168,15 +158,14 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex) {
   VT max_depth = 0;
   cudaMemcpy(&max_depth, current_max_depth, sizeof(VT), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
+  // Step 2) Dependency accumulation
   accumulate(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
-             //*current_max_depth);
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute() {
     CUGRAPH_EXPECTS(configured, "BC must be configured before computation");
     // If sources is defined we only process vertices contained in it
-    std::cout << "IS SOURCES NUL: " << (sources == nullptr) << std::endl;
     thrust::fill(rmm::exec_policy(stream)->on(stream), betweenness,
                 betweenness + number_of_vertices, static_cast<result_t>(0));
     cudaStreamSynchronize(stream);
@@ -186,14 +175,12 @@ void BC<VT, ET, WT, result_t>::compute() {
         compute_single_source(source_vertex);
       }
     } else { // Otherwise process every vertices
-      // TODO(xcadet) Maybe we could still use number of sources and set it to number_of_vertices?
+      // TODO: Maybe we could still use number of sources and set it to number_of_vertices?
       for (VT source_vertex = 0; source_vertex < number_of_vertices;
            ++source_vertex) {
         compute_single_source(source_vertex);
       }
     }
-    printf("[DBG][CU][BC] Should Normalize %s\n", apply_normalization ? "True" : "False");
-    printf("[DBG][CU][BC] Graph is directed ? %s\n", graph.prop.directed ? "True" : "False");
     rescale();
     cudaDeviceSynchronize();
 }
@@ -240,8 +227,6 @@ void BC<VT, ET, WT, result_t>::rescale() {
                             WT const *weights,
                             VT const number_of_sources,
                             VT const *sources) {
-    //TODO(xcadet): DBG
-    printf("[DBG][BC] BETWEENNESS CENTRALITY NATIVE_CUGPRAPH\n");
     CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: output betwenness is nullptr");
     if (typeid(VT) != typeid(int)) {
       CUGRAPH_FAIL("Unsupported vertex id data type, please use int");
@@ -317,24 +302,28 @@ void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
   // copy to results
   CUDA_TRY(cudaMemcpy(result, v_result.data(), sizeof(result_t) * graph.number_of_vertices, cudaMemcpyHostToDevice));
 
-  // normalize result
+  // Rescale result (Based on normalize and directed/undirected)
   if (normalize) {
-    float denominator = (graph.number_of_vertices - 1) * (graph.number_of_vertices - 2);
+    if (graph.number_of_vertices > 2) {
+      float denominator = (graph.number_of_vertices - 1) * (graph.number_of_vertices - 2);
 
-    thrust::transform(rmm::exec_policy(stream)->on(stream),
-                      result, result + graph.number_of_vertices, result,
-                      [denominator] __device__ (float f) {
-                        return (f * 2) / denominator;
-                      });
+      thrust::transform(rmm::exec_policy(stream)->on(stream),
+                        result, result + graph.number_of_vertices, result,
+                        [denominator] __device__ (float f) {
+                          return (f * 2) / denominator;
+                        });
+    }
   } else {
     //
     //  gunrock answer needs to be doubled to match networkx
     //
-    thrust::transform(rmm::exec_policy(stream)->on(stream),
-                      result, result + graph.number_of_vertices, result,
-                      [] __device__ (float f) {
-                        return (f * 2);
-                      });
+    if (graph.prop.directed) {
+      thrust::transform(rmm::exec_policy(stream)->on(stream),
+                        result, result + graph.number_of_vertices, result,
+                        [] __device__ (float f) {
+                          return (f * 2);
+                        });
+    }
   }
 }
 

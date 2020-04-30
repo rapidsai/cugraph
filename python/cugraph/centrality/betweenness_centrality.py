@@ -29,20 +29,26 @@ def betweenness_centrality(G, k=None, normalized=True,
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges where undirected edges are
         represented as directed edges in both directions.
-    k : int, list, optional
+
+    k : int or list or None, optional, default=None
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation
         If k is a list, use the content of the list for estimation
-    normalized : bool, optional
+
+    normalized : bool, optional, default=True
         Value defaults to true.  If true, the betweenness values are normalized
         by 2/((n-1)(n-2)) for graphs, and 1 / ((n-1)(n-2)) for directed graphs
         where n is the number of nodes in G.
-    weight : cudf.Series
+
+    weight : cudf.Series, optional, default=None
         Specifies the weights to be used for each vertex.
-    endpoints : bool, optional
+
+    endpoints : bool, optional, default=False
         If true, include the endpoints in the shortest path counts
-    implementation : string, optional
+
+    implementation : string, optional, default=None
         if implementation is None or "default", uses native cugraph, if "gunrock" uses gunrock based bc
+
     seed : optional
         k is specified and seed is not None, use seed to initialize the random
         number generator
@@ -51,7 +57,9 @@ def betweenness_centrality(G, k=None, normalized=True,
     -------
     df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding katz centrality values.
+        identifiers and the corresponding betweenness centrality values.
+        Please note that the resulting the 'vertex' column might not be
+        in ascending order.
 
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
@@ -79,7 +87,6 @@ def betweenness_centrality(G, k=None, normalized=True,
     # NOTE: cuDF doesn't currently support sampling, but there is a python
     # workaround.
     #
-    #TODO(xcadet) Vertices could be assigned to all the nodes from the graph instead of None
     vertices = None
     if implementation is None:
         implementation = "default"
@@ -109,13 +116,15 @@ def betweenness_centrality(G, k=None, normalized=True,
         #       renumbered order
         # FIXME: There might be a cleaner way to obtain the inverse mapping
         if G.renumbered:
-            print("[DBG] Vertices before:", vertices)
             vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map == vert].index[0] for vert in vertices]
-            print("[DBG] Vertices now:", vertices)
+
+    if endpoints is not False:
+        raise NotImplementedError("endpoints accumulation for betweenness "
+                                  "centrality not currently supported")
 
     if weight is not None:
-        raise Exception("weighted implementation of betweenness "
-                        "centrality not currently supported")
+        raise NotImplementedError("weighted implementation of betweenness "
+                                  "centrality not currently supported")
 
     df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
                                                                endpoints,

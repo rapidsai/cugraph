@@ -169,14 +169,14 @@ void overlap_list(experimental::GraphCSR<VT,ET,WT> const &graph,
  * Betweenness centrality for a vertex is the sum of the fraction of
  * all pairs shortest paths that pass through the vertex.
  *
- * Note that gunrock (current implementation) does not support a weighted graph.
+ * Note that both the native and the gunrock implementations do not support a weighted graph.
  *
  * @throws                           cugraph::logic_error with a custom message when an error occurs.
  *
  * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
  * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
- * @tparam result_t                  Type of computed result.  Supported values :  float
+ * @tparam result_t                  Type of computed result.  Supported values :  float or double (double only supported in default implementation)
  *
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
  * @param[out] result                Device array of centrality scores
@@ -184,8 +184,8 @@ void overlap_list(experimental::GraphCSR<VT,ET,WT> const &graph,
  * @param[in] implem                 Cugraph currently supports 2 implementations: native and gunrock
  * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
  * @param[in] weight                 If specified, device array of weights for each edge
- * @param[in] k                      If specified, number of vertex samples defined in the vertices array if sample_seed is defined, or  the number of vertices to start traversal from
- * @param[in] vertices               If specified, device array of sampled vertex ids to estimate betweenness centrality.
+ * @param[in] k                      If specified, number of vertex samples defined in the vertices array .
+ * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness centrality.
  *
  */
 enum class cugraph_bc_implem_t {
