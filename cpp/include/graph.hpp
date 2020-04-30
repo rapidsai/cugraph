@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #pragma once
-#include "comms/mpi/comms_mpi.hpp"
+#include <comms_mpi.hpp>
 namespace cugraph {
 namespace experimental {
 

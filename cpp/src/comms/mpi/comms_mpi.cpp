@@ -14,13 +14,168 @@
  * limitations under the License.
  */
 
-#include "comms/mpi/comms_mpi.hpp"
 
 #include <iostream>
-#include <nccl.h>
+#include <comms_mpi.hpp>
+#include <vector>
+#include "utilities/error_utils.h"
 
 namespace cugraph { 
 namespace experimental {
+#if USE_NCCL
+
+/**---------------------------------------------------------------------------*
+ * @brief Exception thrown when a NCCL error is encountered.
+ *
+ *---------------------------------------------------------------------------**/
+struct nccl_error : public std::runtime_error {
+  nccl_error(std::string const& message) : std::runtime_error(message) {}
+};
+
+inline void throw_nccl_error(ncclResult_t error, const char* file,
+                             unsigned int line) {
+  throw nccl_error(
+      std::string{"NCCL error encountered at: " + std::string{file} + ":" +
+                  std::to_string(line) + ": " + ncclGetErrorString(error)});
+}
+
+#define NCCL_TRY(call) {                                           \
+  ncclResult_t nccl_status = (call);                               \
+  if (nccl_status!= ncclSuccess) {                                 \
+    throw_nccl_error(nccl_status, __FILE__, __LINE__); \
+  }                                                                \
+} 
+// MPI errors are expected to be fatal before reaching this.
+// Fix me : improve when adding raft comms
+#define MPI_TRY(cmd) {                           \
+  int e = cmd;                                   \
+  if ( e != MPI_SUCCESS ) {                      \
+    CUGRAPH_FAIL("Failed: MPI error");           \
+  }                                              \
+}                                               
+
+template <typename value_t>
+constexpr MPI_Datatype get_mpi_type() {
+  if (std::is_integral<value_t>::value) {
+    if (std::is_signed<value_t>::value) {
+      if (sizeof(value_t) == 1) {
+        return MPI_INT8_T;
+      }
+      else if (sizeof(value_t) == 2) {
+        return MPI_INT16_T;
+      }
+      else if (sizeof(value_t) == 4) {
+        return MPI_INT32_T;
+      }
+      else if (sizeof(value_t) == 8) {
+        return MPI_INT64_T;
+      }
+      else {
+        CUGRAPH_FAIL("unsupported type");
+      }
+    }
+    else {
+      if (sizeof(value_t) == 1) {
+        return MPI_UINT8_T;
+      }
+      else if (sizeof(value_t) == 2) {
+        return MPI_UINT16_T;
+      }
+      else if (sizeof(value_t) == 4) {
+        return MPI_UINT32_T;
+      }
+      else if (sizeof(value_t) == 8) {
+        return MPI_UINT64_T;
+      }
+      else {
+        CUGRAPH_FAIL("unsupported type");
+      }
+    }
+  }
+  else if(std::is_same<value_t, float>::value) {
+    return MPI_FLOAT;
+  }
+  else if(std::is_same<value_t, double>::value) {
+    return MPI_DOUBLE;
+  }
+  else {
+    CUGRAPH_FAIL("unsupported type");
+  }
+}
+
+template <typename value_t>
+constexpr ncclDataType_t get_nccl_type() {
+  if (std::is_integral<value_t>::value) {
+    if (std::is_signed<value_t>::value) {
+      if (sizeof(value_t) == 1) {
+        return ncclInt8;
+      }
+      else if (sizeof(value_t) == 4) {
+        return ncclInt32;
+      }
+      else if (sizeof(value_t) == 8) {
+        return ncclInt64;
+      }
+      else {
+        CUGRAPH_FAIL("unsupported type");
+      }
+    }
+    else {
+      if (sizeof(value_t) == 1) {
+        return ncclUint8;
+      }
+      else if (sizeof(value_t) == 4) {
+        return ncclUint32;
+      }
+      else if (sizeof(value_t) == 8) {
+        return ncclUint64;
+      }
+      else {
+        CUGRAPH_FAIL("unsupported type");
+      }
+    }
+  }
+  else if(std::is_same<value_t, float>::value) {
+    return ncclFloat32;
+  }
+  else if(std::is_same<value_t, double>::value) {
+    return ncclFloat64;
+  }
+  else {
+    CUGRAPH_FAIL("unsupported type");
+  }
+}
+
+constexpr MPI_Op get_mpi_reduce_op(ReduceOp reduce_op) {
+  if (reduce_op == ReduceOp::SUM) {
+    return MPI_SUM;
+  }
+  else if (reduce_op == ReduceOp::MAX) {
+    return MPI_MAX;
+  }
+  else if (reduce_op == ReduceOp::MIN) {
+    return MPI_MIN;
+  }
+  else {
+    CUGRAPH_FAIL("unsupported type");
+  }
+}
+
+constexpr ncclRedOp_t get_nccl_reduce_op(ReduceOp reduce_op) {
+  if (reduce_op == ReduceOp::SUM) {
+    return ncclSum;
+  }
+  else if (reduce_op == ReduceOp::MAX) {
+    return ncclMax;
+  }
+  else if (reduce_op == ReduceOp::MIN) {
+    return ncclMin;
+  }
+  else {
+    CUGRAPH_FAIL("unsupported type");
+  }
+}
+#endif
 
 Comm::Comm(int p) : _p{p} {
 #if USE_NCCL
@@ -90,4 +245,27 @@ void Comm::barrier() {
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
 }
+
+template <typename value_t>
+void Comm::allgather (size_t size, value_t* sendbuff, value_t* recvbuff) const {
+#if USE_NCCL
+    NCCL_TRY(ncclAllGather((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), _nccl_comm, cudaStreamDefault));
+#endif
+}
+
+template <typename value_t>
+void Comm::allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op) const {
+#if USE_NCCL
+    NCCL_TRY(ncclAllReduce((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), get_nccl_reduce_op(reduce_op), _nccl_comm, cudaStreamDefault));
+#endif
+}
+
+//explicit
+template void Comm::allgather<int>(size_t size, int* sendbuff, int* recvbuff) const;
+template void Comm::allgather<float>(size_t size, float* sendbuff, float* recvbuff) const;
+template void Comm::allgather<double>(size_t size, double* sendbuff, double* recvbuff) const;
+template void Comm::allreduce<int>(size_t size, int* sendbuff, int* recvbuff, ReduceOp reduce_op) const;
+template void Comm::allreduce<float>(size_t size, float* sendbuff, float* recvbuff, ReduceOp reduce_op) const;
+template void Comm::allreduce<double>(size_t size, double* sendbuff, double* recvbuff, ReduceOp reduce_op) const;
+  
 } }//namespace

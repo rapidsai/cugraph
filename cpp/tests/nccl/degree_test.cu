@@ -5,7 +5,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
 #include <graph.hpp>
-#include "comms/mpi/comms_mpi.hpp"
+#include <comms_mpi.hpp>
 
 // ref Degree on the host
 template<typename idx_t>
