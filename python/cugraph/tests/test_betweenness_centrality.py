@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.:
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.:
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,36 +33,35 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-# NOTE: endpoint parameter is not currently being tested, there could be a test
+# NOTE: Endpoint parameter is not currently being tested, there could be a test
 #       to verify that python raise an error if it is used
-#===============================================================================
+# =============================================================================
 # Parameters
-#===============================================================================
-RMM_MANAGED_MEMORY_OPTIONS  = [False, True]
-RMM_POOL_ALLOCATOR_OPTIONS  = [False, True]
-DIRECTED_GRAPH_OPTIONS      = [False, True]
-DEFAULT_EPSILON             = 0.0001
-IMPLEMENTATION_OPTIONS      = ['default', 'gunrock']
+# =============================================================================
+RMM_MANAGED_MEMORY_OPTIONS = [False, True]
+RMM_POOL_ALLOCATOR_OPTIONS = [False, True]
+DIRECTED_GRAPH_OPTIONS = [False, True]
+DEFAULT_EPSILON = 0.0001
+IMPLEMENTATION_OPTIONS = ['default', 'gunrock']
 
-TINY_DATASETS               = ['../datasets/karate.csv',
-                              '../datasets/polbooks.csv']
+TINY_DATASETS = ['../datasets/karate.csv']
 
-SMALL_DATASETS              = ['../datasets/netscience.csv']
+SMALL_DATASETS = ['../datasets/netscience.csv']
 
-SUBSET_SIZE_OPTIONS         = [4]
-SUBSET_SEED_OPTIONS         = [42]
+SUBSET_SIZE_OPTIONS = [4]
+SUBSET_SEED_OPTIONS = [42]
+RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 
-# This is more for debug purpose than an actual parameter
-VERBOSE_LEVEL = 0
-#===============================================================================
+
+# =============================================================================
 # Comparison functions
-#===============================================================================
+# =============================================================================
 def build_graphs(graph_file, directed=True):
     # cugraph
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph() if directed else cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    G.view_adj_list() # Enforce generation before computation
+    G.view_adj_list()  # Enforce generation before computation
 
     # networkx
     M = utils.read_csv_for_nx(graph_file)
@@ -70,6 +69,7 @@ def build_graphs(graph_file, directed=True):
                                                    else nx.Graph()),
                                   source='0', target='1')
     return G, Gnx
+
 
 def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
                                 k=None, seed=None, implementation=None):
@@ -86,6 +86,17 @@ def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
         True: Normalize Betweenness Centrality scores
         False: Scores are left unormalized
 
+    k : int or None, optional, default=None
+        int:  Number of sources  to sample  from
+        None: All sources are used to compute
+
+    seed : int or None, optional, default=None
+        Seed for random sampling  of the starting point
+
+    implementation : string or None, optional, default=None
+        There are 2 possibilities 'default' and 'gunrock', if None falls back
+        into 'defautl'
+
     Returns
     -------
         cu_bc : dict
@@ -97,52 +108,47 @@ def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
     """
     G, Gnx = build_graphs(graph_file, directed=directed)
 
-    if VERBOSE_LEVEL > 0:
-        print("[INFO] Graph file = '{}'".format(graph_file))
-        print("[INFO] directed = {}, cu = {}, nx = {}"
-               .format(directed, type(G), type(Gnx)))
-        print("[INFO] normalized = {}".format(normalized))
-        print("[INFO] k = {}".format(k))
-        print("[INFO] seed = {}".format(seed))
-    if VERBOSE_LEVEL > 1:
-        print("[INFO] Number of vertices: cu = {}, nx = {}".format(G.number_of_vertices(), len(Gnx.nodes())))
-        print("[INFO] Number of edges: cu = {}, nx = {}".format(G.number_of_edges(), len(Gnx.edges())))
-
     if k is not None and seed is not None:
-        cu_bc, nx_bc = _calc_betweenness_centrality_subset(G, Gnx,
-                                                     normalized=normalized, k=k,
-                                                     seed=seed)
+        cu_bc, nx_bc = _calc_bc_subset(G, Gnx,
+                                       normalized=normalized, k=k,
+                                       seed=seed)
     else:
-        cu_bc, nx_bc = _calc_betweenness_centrality_full(G, Gnx,
-                                                         normalized=normalized,
-                                                         implementation=implementation)
+        cu_bc, nx_bc = _calc_bc_full(G, Gnx,
+                                     normalized=normalized,
+                                     implementation=implementation)
 
     return cu_bc, nx_bc
 
-def _calc_betweenness_centrality_subset(G, Gnx, normalized, k, seed):
+
+def _calc_bc_subset(G, Gnx, normalized, k, seed):
     # NOTE: Networkx API does not allow passing a list of vertices
     # And the sampling is operated on Gnx.nodes() directly
     # We first mimic acquisition of the nodes to compare with same sources
-    random.seed(seed) # It will be called again in nx's call
+    random.seed(seed)  # It will be called again in nx's call
     sources = random.sample(Gnx.nodes(), k)
     df = cugraph.betweenness_centrality(G, normalized=normalized, k=sources)
-    nx_bc = nx.betweenness_centrality(Gnx, normalized=normalized, k=k, seed=seed)
-    cu_bc = {key: score for key, score in zip(df['vertex'].to_array(),
-                                      df['betweenness_centrality'].to_array())}
+    nx_bc = nx.betweenness_centrality(Gnx, normalized=normalized, k=k,
+                                      seed=seed)
+    cu_bc = {key: score for key, score in
+             zip(df['vertex'].to_array(),
+                 df['betweenness_centrality'].to_array())}
     return cu_bc, nx_bc
 
-def _calc_betweenness_centrality_full(G, Gnx, normalized, implementation):
+
+def _calc_bc_full(G, Gnx, normalized, implementation):
     df = cugraph.betweenness_centrality(G, normalized=normalized,
                                         implementation=implementation)
     nx_bc = nx.betweenness_centrality(Gnx, normalized=normalized)
 
-    cu_bc = {key: score for key, score in zip(df['vertex'].to_array(),
-                                      df['betweenness_centrality'].to_array())}
+    cu_bc = {key: score for key, score in
+             zip(df['vertex'].to_array(),
+                 df['betweenness_centrality'].to_array())}
     return cu_bc, nx_bc
 
-#===============================================================================
+
+# =============================================================================
 # Utils
-#===============================================================================
+# =============================================================================
 def prepare_rmm(managed_memory, pool_allocator):
     gc.collect()
     rmm.reinitialize(
@@ -150,6 +156,7 @@ def prepare_rmm(managed_memory, pool_allocator):
         pool_allocator=pool_allocator,
     )
     assert(rmm.is_initialized)
+
 
 def compare_single_score(result, expected, epsilon):
     """
@@ -173,6 +180,7 @@ def compare_single_score(result, expected, epsilon):
     close = np.isclose(result, expected, rtol=epsilon)
     return close
 
+
 # NOTE: We assume that both cugraph and networkx are generating dicts with
 #       all the sources, thus we can compare all of them
 def compare_scores(cu_bc, ref_bc, epsilon=DEFAULT_EPSILON):
@@ -192,9 +200,10 @@ def compare_scores(cu_bc, ref_bc, epsilon=DEFAULT_EPSILON):
     assert missing_key_error == 0, "Some vertices were missing"
     assert score_mismatch_error == 0, "Some scores were not close enough"
 
-#===============================================================================
+
+# =============================================================================
 # Tests
-#===============================================================================
+# =============================================================================
 @pytest.mark.parametrize('managed, pool',
                          list(product(RMM_MANAGED_MEMORY_OPTIONS,
                                       RMM_POOL_ALLOCATOR_OPTIONS)))
@@ -209,6 +218,7 @@ def test_betweenness_centrality_normalized_tiny(managed, pool, graph_file,
                                                normalized=True,
                                                implementation=implementation)
     compare_scores(cu_bc, nx_bc)
+
 
 @pytest.mark.parametrize('managed, pool',
                          list(product(RMM_MANAGED_MEMORY_OPTIONS,
@@ -225,6 +235,7 @@ def test_betweenness_centrality_unnormalized_tiny(managed, pool, graph_file,
                                                implementation=implementation)
     compare_scores(cu_bc, nx_bc)
 
+
 @pytest.mark.parametrize('managed, pool',
                          list(product(RMM_MANAGED_MEMORY_OPTIONS,
                                       RMM_POOL_ALLOCATOR_OPTIONS)))
@@ -232,13 +243,14 @@ def test_betweenness_centrality_unnormalized_tiny(managed, pool, graph_file,
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('implementation', IMPLEMENTATION_OPTIONS)
 def test_betweenness_centrality_normalized_small(managed, pool, graph_file,
-                                                   directed, implementation):
+                                                 directed, implementation):
     """Test Unnormalized Betweenness Centrality"""
     prepare_rmm(managed, pool)
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
                                                normalized=True,
                                                implementation=implementation)
     compare_scores(cu_bc, nx_bc)
+
 
 @pytest.mark.parametrize('managed, pool',
                          list(product(RMM_MANAGED_MEMORY_OPTIONS,
@@ -255,6 +267,7 @@ def test_betweenness_centrality_unnormalized_small(managed, pool, graph_file,
                                                implementation=implementation)
     compare_scores(cu_bc, nx_bc)
 
+
 @pytest.mark.parametrize('managed, pool',
                          list(product(RMM_MANAGED_MEMORY_OPTIONS,
                                       RMM_POOL_ALLOCATOR_OPTIONS)))
@@ -267,17 +280,18 @@ def test_betweenness_centrality_normalized_subset_small(managed, pool,
                                                         directed,
                                                         subset_size,
                                                         subset_seed):
-    """Test Unnormalized Betweenness Centrality on Directed Graph on subset
+    """Test Unnormalized Betweenness Centrality using a subset
 
     Only k sources are considered for an approximate Betweenness Centrality
     """
     prepare_rmm(managed, pool)
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                         directed=directed,
-                                         normalized=True,
-                                         k=subset_size,
-                                         seed=subset_seed)
+                                               directed=directed,
+                                               normalized=True,
+                                               k=subset_size,
+                                               seed=subset_seed)
     compare_scores(cu_bc, nx_bc)
+
 
 @pytest.mark.parametrize('managed, pool',
                          list(product(RMM_MANAGED_MEMORY_OPTIONS,
@@ -291,14 +305,14 @@ def test_betweenness_centrality_unnormalized_subset_small(managed, pool,
                                                           directed,
                                                           subset_size,
                                                           subset_seed):
-    """Test Unnormalized Betweenness Centrality on Directed Graph on subset
+    """Test Unnormalized Betweenness Centrality on Graph on subset
 
     Only k sources are considered for an approximate Betweenness Centrality
     """
     prepare_rmm(managed, pool)
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                         directed=directed,
-                                         normalized=False,
-                                         k=subset_size,
-                                         seed=subset_seed)
+                                               directed=directed,
+                                               normalized=False,
+                                               k=subset_size,
+                                               seed=subset_seed)
     compare_scores(cu_bc, nx_bc)

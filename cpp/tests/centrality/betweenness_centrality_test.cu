@@ -60,7 +60,7 @@ void populate_neighbors(VT *indices, ET *offsets,
   }
 }
 
-// TODO: This colud be moved to BFS testing on the c++ side
+// TODO: This should be moved to BFS testing on the c++ side (#778)
 // This implements the BFS from (Brandes, 2001) with shortest path counting
 template<typename VT, typename ET, typename WT, typename result_t>
 void ref_bfs(VT *indices, ET *offsets, VT const number_of_vertices,
@@ -246,13 +246,15 @@ template void reference_betweenness_centrality<int, int, double, double>(cugraph
 // =============================================================================
 // TODO: This could be useful in other testsuite (SSSP, BFS, ...)
 template<typename VT, typename ET, typename WT>
-void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz, bool &is_directed, std::string matrix_file) {
+void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz,
+                        bool &is_directed, std::string matrix_file) {
   FILE* fpin = fopen(matrix_file.c_str(),"r");
   ASSERT_NE(fpin, nullptr) << "fopen (" << matrix_file << ") failure.";
 
   VT k;
   MM_typecode mc;
-  ASSERT_EQ(mm_properties<VT>(fpin, 1, &mc, &m, &k, &nnz),0) << "could not read Matrix Market file properties"<< "\n";
+  ASSERT_EQ(mm_properties<VT>(fpin, 1, &mc, &m, &k, &nnz), 0)
+            << "could not read Matrix Market file properties"<< "\n";
   ASSERT_TRUE(mm_is_matrix(mc));
   ASSERT_TRUE(mm_is_coordinate(mc));
   ASSERT_FALSE(mm_is_complex(mc));
@@ -264,10 +266,13 @@ void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result, VT &m, VT &nnz,
   std::vector<WT> cooVal(nnz);
 
   // Read
-  ASSERT_EQ( (mm_to_coo<VT, WT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)) , 0)<< "could not read matrix data"<< "\n";
+  ASSERT_EQ((mm_to_coo<VT, WT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0],
+                               &cooVal[0], NULL)), 0)
+            << "could not read matrix data"<< "\n";
   ASSERT_EQ(fclose(fpin),0);
 
-  ConvertCOOtoCSR_weighted(&cooRowInd[0], &cooColInd[0], &cooVal[0], nnz, csr_result);
+  ConvertCOOtoCSR_weighted(&cooRowInd[0], &cooColInd[0], &cooVal[0], nnz,
+                           csr_result);
   CUDA_CHECK_LAST();
 }
 
@@ -284,13 +289,13 @@ bool compare_close(const T &a, const T&b, const precision_t epsilon,
 // Test Suite
 // =============================================================================
 // Defines Betweenness Centrality UseCase
-// SSSP's test suite codes uses type of Graph parameter that could be used
+// SSSP's test suite code uses type of Graph parameter that could be used
 // (MTX / RMAT)
-//TODO: Use VT for number_of_sources
+//TODO: Use VT for number_of_sources?
 typedef struct BC_Usecase_t {
-  std::string config_;
-  std::string file_path_;
-  int number_of_sources_;
+  std::string config_;        // Path to graph file
+  std::string file_path_;     // Complete path to graph using dataset_root_dir
+  int number_of_sources_;     // Starting point from the traversal
   BC_Usecase_t(const std::string& config, int number_of_sources)
                : config_(config), number_of_sources_(number_of_sources) {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
@@ -312,7 +317,13 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 
   virtual void SetUp() {}
   virtual void TearDown() {}
-  // TODO(xcadet) Should normalize be part of the configuration?
+  // TODO(xcadet) Should normalize be part of the configuration instead?
+  // VT         vertex identifier data type
+  // ET         edge identifier data type
+  // WT         edge weight data type
+  // result_t   result data type
+  // normalize  should the result be normalized
+  // endpoints  should the endpoints be included (Not Implemented Yet)
   template <typename VT, typename ET, typename WT, typename result_t,
             bool normalize, bool endpoints>
   void run_current_test(const BC_Usecase &configuration) {
@@ -361,12 +372,25 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     }
 
     thrust::device_vector<result_t>  d_result(G.number_of_vertices);
-    cugraph::betweenness_centrality(G, d_result.data().get(),
-                                    normalize, endpoints,
-                                    static_cast<WT*>(nullptr),
-                                    configuration.number_of_sources_,
-                                    sources_ptr,
-                                    cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT);
+    // TODO: Remove this once endpoints in handled
+    if (endpoints) {
+      ASSERT_THROW(
+        cugraph::betweenness_centrality(G, d_result.data().get(),
+                                      normalize, endpoints,
+                                      static_cast<WT*>(nullptr),
+                                      configuration.number_of_sources_,
+                                      sources_ptr,
+                                      cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT),
+        cugraph::logic_error);
+        return;
+    } else {
+      cugraph::betweenness_centrality(G, d_result.data().get(),
+                                      normalize, endpoints,
+                                      static_cast<WT*>(nullptr),
+                                      configuration.number_of_sources_,
+                                      sources_ptr,
+                                      cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT);
+    }
     cudaDeviceSynchronize();
     CUDA_TRY(cudaMemcpy(result.data(), d_result.data().get(),
                sizeof(result_t) * G.number_of_vertices,
@@ -381,10 +405,26 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 
 // BFS: Checking for shortest_path counting correctness
 // -----------------------------------------------------------------------------
-// TODO: For now this BFS testing is done here, as the tests mostly focused
-// around shortest path counting. It should probably used as a part of a
-// C++ test suite
-class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
+// TODO: This BFS testing is kept here as it only focus on the shortest path
+// counting problem that is a core component of Betweennees Centrality,
+// This should be moved to a separate file in for #778 dedicated to BFS,
+// results verification.
+typedef struct BFS_Usecase_t {
+  std::string config_;          // Path to graph file
+  std::string file_path_;       // Complete path to graph using dataset_root_dir
+  int source_;                  // Starting point from the traversal
+  BFS_Usecase_t(const std::string& config, int source)
+               : config_(config), source_(source) {
+    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    if ((config_ != "") && (config_[0] != '/')) {
+      file_path_ = rapidsDatasetRootDir + "/" + config_;
+    } else {
+      file_path_ = config_;
+    }
+  };
+} BFS_Usecase;
+
+class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   public:
   Tests_BFS() {}
   static void SetupTestCase() {}
@@ -393,7 +433,7 @@ class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
   virtual void SetUp() {}
   virtual void TearDown() {}
   template <typename VT, typename ET, typename WT, typename result_t>
-  void run_current_test(const BC_Usecase &configuration) {
+  void run_current_test(const BFS_Usecase &configuration) {
     // Step 1: Construction of the graph based on configuration
     VT m;
     ET nnz;
@@ -412,16 +452,12 @@ class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G. number_of_vertices, 0);
 
-    // Step 2: Generation of sources based on configuration
-    //         if number_of_sources_ is 0 then sources must be nullptr
-    //         Otherwise we only  use the first k values
-    ASSERT_TRUE(configuration.number_of_sources_ >= 0
-           && configuration.number_of_sources_ <= G.number_of_vertices)
-           << "Number number of sources should be >= 0 and"
+    ASSERT_TRUE(configuration.source_ >= 0
+           && configuration.source_ <= G.number_of_vertices)
+           << "Starting sources should be >= 0 and"
            << " less than the number of vertices in the graph";
 
-    //TODO(xcadet) Make it generic again (it made it easier to check)
-    VT source = configuration.number_of_sources_;
+    VT source = configuration.source_;
 
     VT number_of_vertices = G.number_of_vertices;
     ET number_of_edges = G.number_of_edges;
@@ -452,15 +488,12 @@ class Tests_BFS : public ::testing::TestWithParam<BC_Usecase> {
     // This test only checks for sigmas equality
     std::vector<double> cugraph_sigmas(number_of_vertices);
 
-    printf("Is graph directed ? %d\n", G.prop.directed);
     cugraph::bfs<VT, ET, WT>(G, d_cugraph_dist.data().get(),
                                   d_cugraph_pred.data().get(),
                                   d_cugraph_sigmas.data().get(),
                                   source, G.prop.directed);
     CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(), d_cugraph_sigmas.data().get(),
               sizeof(double) * d_cugraph_sigmas.size(), cudaMemcpyDeviceToHost));
-    // TODO(xcadet): The implicit cast comes from BFS shortest_path counter being
-    // of type VT, while the ref_bfs uses float values
     for (int i = 0 ; i < number_of_vertices ; ++i) {
       EXPECT_TRUE(compare_close(cugraph_sigmas[i], ref_bfs_sigmas[i], TEST_EPSILON, TEST_ZERO_THRESHOLD)) <<
                   "[MISMATCH] vaid = " << i << ", cugraph = " <<
@@ -483,6 +516,15 @@ TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS) {
   run_current_test<int, int, double, double, false, false>(GetParam());
 }
 
+// TODO: Currently endpoints throws and exception as it is not supported
+TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_ENDPOINTS) {
+  run_current_test<int, int, float, float, false, true>(GetParam());
+}
+
+TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_ENDPOINTS) {
+  run_current_test<int, int, double, double, false, true>(GetParam());
+}
+
 // Verifiy Normalized results
 TEST_P(Tests_BC, CheckFP32_NORMALIZE_NO_ENPOINTS) {
   run_current_test<int, int, float, float, true, false>(GetParam());
@@ -492,15 +534,22 @@ TEST_P(Tests_BC, CheckFP64_NORMALIZE_NO_ENPOINTS) {
   run_current_test<int, int, double, double, true, false>(GetParam());
 }
 
+// TODO: Currently endpoints throws and exception as it is not supported
+TEST_P(Tests_BC, CheckFP32_NORMALIZE_ENDPOINTS) {
+  run_current_test<int, int, float, float, true, true>(GetParam());
+}
+
+TEST_P(Tests_BC, CheckFP64_NORMALIZE_ENDPOINTS) {
+  run_current_test<int, int, double, double, true, true>(GetParam());
+}
+
 // FIXME: There is an InvalidValue on a Memcopy only on tests/datasets/dblp.mtx
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_BC,
   ::testing::Values(
       BC_Usecase("test/datasets/karate.mtx", 0),
-      BC_Usecase("test/datasets/polbooks.mtx", 0),
-      BC_Usecase("test/datasets/netscience.mtx", 0),
-      BC_Usecase("test/datasets/netscience.mtx", 100),
+      BC_Usecase("test/datasets/netscience.mtx", 4),
       BC_Usecase("test/datasets/wiki2003.mtx", 4),
       BC_Usecase("test/datasets/wiki-Talk.mtx", 4)
     )
@@ -509,11 +558,12 @@ INSTANTIATE_TEST_CASE_P(
 // BFS
 // -----------------------------------------------------------------------------
 // TODO(xcadet): This should be specialized for BFS
-TEST_P(Tests_BFS, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS) {
+// TODO: Issue #778
+TEST_P(Tests_BFS, CheckFP32) {
   run_current_test<int, int, float, float>(GetParam());
 }
 
-TEST_P(Tests_BFS, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS) {
+TEST_P(Tests_BFS, CheckFP64) {
   run_current_test<int, int, double, double>(GetParam());
 }
 
@@ -521,12 +571,12 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_BFS,
   ::testing::Values(
-    BC_Usecase("test/datasets/karate.mtx", 0),
-    BC_Usecase("test/datasets/polbooks.mtx", 0),
-    BC_Usecase("test/datasets/netscience.mtx", 0),
-    BC_Usecase("test/datasets/netscience.mtx", 100),
-    BC_Usecase("test/datasets/wiki2003.mtx", 1000),
-    BC_Usecase("test/datasets/wiki-Talk.mtx", 1000)
+    BFS_Usecase("test/datasets/karate.mtx", 0),
+    BFS_Usecase("test/datasets/polbooks.mtx", 0),
+    BFS_Usecase("test/datasets/netscience.mtx", 0),
+    BFS_Usecase("test/datasets/netscience.mtx", 100),
+    BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
+    BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000)
   )
 );
 

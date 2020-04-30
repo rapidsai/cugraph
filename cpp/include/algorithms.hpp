@@ -163,6 +163,11 @@ void overlap_list(experimental::GraphCSR<VT,ET,WT> const &graph,
                   VT const *second,
                   WT *result);
 
+enum class cugraph_bc_implem_t {
+  CUGRAPH_DEFAULT = 0,            ///> Native cugraph implementation
+  CUGRAPH_GUNROCK                 ///> Gunrock implementation
+};
+
 /**
  * @brief     Compute betweenness centrality for a graph
  *
@@ -181,17 +186,13 @@ void overlap_list(experimental::GraphCSR<VT,ET,WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity information as a CSR
  * @param[out] result                Device array of centrality scores
  * @param[in] normalized             If true, return normalized scores, if false return unnormalized scores.
- * @param[in] implem                 Cugraph currently supports 2 implementations: native and gunrock
  * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
  * @param[in] weight                 If specified, device array of weights for each edge
  * @param[in] k                      If specified, number of vertex samples defined in the vertices array .
  * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness centrality.
+ * @param[in] implem                 Cugraph currently supports 2 implementations: native and gunrock
  *
  */
-enum class cugraph_bc_implem_t {
-  CUGRAPH_DEFAULT = 0,
-  CUGRAPH_GUNROCK
-};
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSR<VT,ET,WT> const &graph,
                             result_t *result,

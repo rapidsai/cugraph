@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,12 +12,14 @@
 # limitations under the License.
 
 import random
+import numpy as np
 from cugraph.centrality import betweenness_centrality_wrapper
 
 
+# NOTE: result_type=float could ne an intuitive way to indicate the result type
 def betweenness_centrality(G, k=None, normalized=True,
                            weight=None, endpoints=False, implementation=None,
-                           seed=None):
+                           seed=None, result_dtype=np.float32):
     """
     Compute betweenness centrality for the nodes of the graph G. cuGraph
     does not currently support the 'endpoints' and 'weight' parameters
@@ -47,11 +49,16 @@ def betweenness_centrality(G, k=None, normalized=True,
         If true, include the endpoints in the shortest path counts
 
     implementation : string, optional, default=None
-        if implementation is None or "default", uses native cugraph, if "gunrock" uses gunrock based bc
+        if implementation is None or "default", uses native cugraph,
+        if "gunrock" uses gunrock based bc
 
     seed : optional
-        k is specified and seed is not None, use seed to initialize the random
-        number generator
+        if k is specified and seed is not None, use seed to initialize the
+        random number generator
+
+    result_dtype : np.float32 or np.float64, optional, default=np.float32
+        Indicate the data type of the betweenness centrality scores
+        Using double automatically switch implementation to default
 
     Returns
     -------
@@ -90,8 +97,9 @@ def betweenness_centrality(G, k=None, normalized=True,
     vertices = None
     if implementation is None:
         implementation = "default"
-    if not implementation in ["default", "gunrock"]:
-        raise Exception("Only two implementations are supported: 'default' and 'gunrock'")
+    if implementation not in ["default", "gunrock"]:
+        raise Exception("Only two implementations are supported: 'default' "
+                        "and 'gunrock'")
 
     if k is not None:
         if implementation == "gunrock":
@@ -112,11 +120,11 @@ def betweenness_centrality(G, k=None, normalized=True,
         elif isinstance(k, list):
             vertices = k
             k = len(vertices)
-        # NOTE: We assume that the vertices provided by the user are not in the
-        #       renumbered order
         # FIXME: There might be a cleaner way to obtain the inverse mapping
         if G.renumbered:
-            vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map == vert].index[0] for vert in vertices]
+            vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map ==
+                                                vert].index[0] for vert in
+                        vertices]
 
     if endpoints is not False:
         raise NotImplementedError("endpoints accumulation for betweenness "
@@ -125,10 +133,14 @@ def betweenness_centrality(G, k=None, normalized=True,
     if weight is not None:
         raise NotImplementedError("weighted implementation of betweenness "
                                   "centrality not currently supported")
+    if result_dtype not in [np.float32, np.float64]:
+        raise TypeError("result type can only be float or double centrality "
+                        "not currently supported")
 
     df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
                                                                endpoints,
                                                                weight,
                                                                k, vertices,
-                                                               implementation)
+                                                               implementation,
+                                                               result_dtype)
     return df
