@@ -37,7 +37,7 @@ void bfs_this_graph_partition(
     raft::Handle handle, GraphType const& graph,
     VertexIteraotr dst_distance_first, VertexIteraotr dst_predecessor_first,
     vertex_t starting_vertex,
-    bool direction_optimized = false, size_t depth_limit = std::numeric_limits<size_t>::max()) {
+    bool direction_optimizing = false, size_t depth_limit = std::numeric_limits<size_t>::max()) {
   static_assert(
     std::is_same<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>::value,
     "VertexIterator should point to a vertex_t value.");
@@ -51,7 +51,7 @@ void bfs_this_graph_partition(
   CUGRAPH_EXPECTS(
     graph.is_directed(), "cugraph::experimental::bfs expects a directed graph.");
   CUGRAPH_EXPECTS(
-    graph.is_symmetric() || !direction_optimized,
+    graph.is_symmetric() || !direction_optimizing,
     "cugraph::experimental::bfs expects a symmetric graph if direction optimize is true.");
 
   auto const num_vertices = graph.get_number_of_vertices();
@@ -96,7 +96,7 @@ void bfs_this_graph_partition(
   auto cur_src_frontier_first =
     src_frontier_queue.get_bucket(Bucket::cur).begin();
   while (true) {
-    if (direction_optimized) {
+    if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     }
     else {

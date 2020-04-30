@@ -120,6 +120,8 @@ should I take multi-GPU support as a template argument?
 Add bool expensive_check = false ?
 cugraph::count_if as a multi-GPU wrapper of thrust::count_if? (for expensive check)
 if graph is symmetric, there will be additional optimization opportunities (e.g. in-degree == out-degree)
+
+For BFS, sending a bit vector (for the entire set of dest vertices per partitoin may work better
 */
 
 }  // namespace detail
