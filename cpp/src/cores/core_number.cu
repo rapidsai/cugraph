@@ -101,7 +101,8 @@ extract_subgraph(experimental::GraphCOOView<VT, ET, WT> const &in_graph,
                       int const *vid,
                       int const *core_num,
                       int k,
-                      int len) {
+                      int len,
+                      rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource()) {
 
   cudaStream_t stream{nullptr};
 
@@ -123,7 +124,8 @@ extract_subgraph(experimental::GraphCOOView<VT, ET, WT> const &in_graph,
       thrust::count_if(rmm::exec_policy(stream)->on(stream),
                        edge, edge + in_graph.number_of_edges,
                        detail::FilterEdges(k, d_sorted_core_num)),
-      in_graph.has_data());
+      in_graph.has_data(),
+      stream, mr);
 
   experimental::GraphCOOView<VT, ET, WT> out_graph_view = out_graph->view();
   extract_edges(in_graph, out_graph_view, d_sorted_core_num, k);
@@ -145,7 +147,8 @@ k_core(experimental::GraphCOOView<VT, ET, WT> const &in_graph,
             int k,
             VT const *vertex_id,
             VT const *core_number,
-            VT num_vertex_ids) {
+            VT num_vertex_ids,
+            rmm::mr::device_memory_resource* mr) {
 
   CUGRAPH_EXPECTS(vertex_id != nullptr, "Invalid API parameter: vertex_id is NULL");
   CUGRAPH_EXPECTS(core_number != nullptr, "Invalid API parameter: core_number is NULL");
@@ -153,15 +156,15 @@ k_core(experimental::GraphCOOView<VT, ET, WT> const &in_graph,
 
   return detail::extract_subgraph(in_graph,
                            vertex_id, core_number,
-                           k, num_vertex_ids);
+                           k, num_vertex_ids, mr);
 }
 
 template void core_number<int32_t, int32_t, float>(experimental::GraphCSRView<int32_t, int32_t, float> const &, int32_t *core_number);
 template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, float>>
 k_core<int32_t, int32_t, float>(experimental::GraphCOOView<int32_t, int32_t, float> const &, int, int32_t const *,
-                                              int32_t const *, int32_t);
+                                              int32_t const *, int32_t, rmm::mr::device_memory_resource*);
 template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, double>>
 k_core<int32_t, int32_t, double>(experimental::GraphCOOView<int32_t, int32_t, double> const &, int, int32_t const *,
-                                               int32_t const *, int32_t);
+                                               int32_t const *, int32_t, rmm::mr::device_memory_resource*);
 
 } //namespace cugraph

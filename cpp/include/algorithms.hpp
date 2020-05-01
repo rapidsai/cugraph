@@ -324,6 +324,8 @@ void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_n
  * @param[in]  vertex_id             User specified vertex identifiers for which core number values are supplied
  * @param[in]  core_number           User supplied core number values corresponding to vertex_id
  * @param[in]  num_vertex_ids        Number of elements in vertex_id/core_number arrays
+ * @param[in]  mr                    Memory resource used to allocate the returned graph
+ *
  * @param[out] out_graph             Unique pointer to K Core subgraph in COO formate
  */                                                                             
 template <typename VT, typename ET, typename WT>
@@ -332,7 +334,8 @@ k_core(experimental::GraphCOOView<VT, ET, WT> const &graph,
             int k,
             VT const *vertex_id,
             VT const *core_number,
-            VT num_vertex_ids);
+            VT num_vertex_ids,
+            rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource());
 
 /**
  * @brief      Find all 2-hop neighbors in the graph

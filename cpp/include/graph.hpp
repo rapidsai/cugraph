@@ -306,22 +306,26 @@ public:
    */
   GraphCOO(VT number_of_vertices,
            ET number_of_edges,
-           bool has_data = false):
+           bool has_data = false,
+           cudaStream_t stream = nullptr,
+           rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource()):
     number_of_vertices_(number_of_vertices),
     number_of_edges_(number_of_edges),
-    src_indices_(sizeof(VT)*number_of_edges),
-    dst_indices_(sizeof(VT)*number_of_edges),
-    edge_data_(has_data? sizeof(WT)*number_of_edges : 0)
+    src_indices_(sizeof(VT)*number_of_edges, stream, mr),
+    dst_indices_(sizeof(VT)*number_of_edges, stream, mr),
+    edge_data_((has_data? sizeof(WT)*number_of_edges : 0), stream, mr)
   {}
 
-  GraphCOO(GraphCOOView<VT,ET,WT> const &graph) :
+  GraphCOO(GraphCOOView<VT,ET,WT> const &graph,
+           cudaStream_t stream = nullptr,
+           rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource()):
     number_of_vertices_(graph.number_of_vertices),
     number_of_edges_(graph.number_of_edges),
-    src_indices_(graph.src_indices, graph.number_of_edges*sizeof(VT)),
-    dst_indices_(graph.dst_indices, graph.number_of_edges*sizeof(VT))
+    src_indices_(graph.src_indices, graph.number_of_edges*sizeof(VT), stream, mr),
+    dst_indices_(graph.dst_indices, graph.number_of_edges*sizeof(VT), stream, mr)
   {
     if (graph.has_data()) {
-      edge_data_ = rmm::device_buffer{graph.edge_data, graph.number_of_edges*sizeof(WT)};
+      edge_data_ = rmm::device_buffer{graph.edge_data, graph.number_of_edges*sizeof(WT), stream, mr};
     }
   }
 
@@ -396,12 +400,14 @@ public:
    */
   GraphCompressedSparseBase(VT number_of_vertices,
                             ET number_of_edges,
-                            bool has_data):
+                            bool has_data,
+                            cudaStream_t stream,
+                            rmm::mr::device_memory_resource* mr):
     number_of_vertices_(number_of_vertices),
     number_of_edges_(number_of_edges),
-    offsets_(sizeof(ET)*(number_of_vertices + 1)),
-    indices_(sizeof(VT)*number_of_edges),
-    edge_data_(has_data? sizeof(WT)*number_of_edges : 0)
+    offsets_(sizeof(ET)*(number_of_vertices + 1), stream, mr),
+    indices_(sizeof(VT)*number_of_edges, stream, mr),
+    edge_data_((has_data? sizeof(WT)*number_of_edges : 0), stream, mr)
   {}
 
   GraphCompressedSparseBase(GraphSparseContents<VT,ET,WT>&& contents):
@@ -465,8 +471,10 @@ public:
    */
   GraphCSR(VT number_of_vertices_,
            ET number_of_edges_,
-           bool has_data_ = false):
-    GraphCompressedSparseBase<VT,ET,WT>(number_of_vertices_, number_of_edges_, has_data_)
+           bool has_data_ = false,
+           cudaStream_t stream = nullptr,
+           rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource()):
+    GraphCompressedSparseBase<VT,ET,WT>(number_of_vertices_, number_of_edges_, has_data_, stream, mr)
   {}
 
   GraphCSR(GraphSparseContents<VT,ET,WT>&& contents):
@@ -513,8 +521,10 @@ public:
    */
   GraphCSC(VT number_of_vertices_,
            ET number_of_edges_,
-           bool has_data_ = false):
-    GraphCompressedSparseBase<VT,ET,WT>(number_of_vertices_, number_of_edges_, has_data_)
+           bool has_data_ = false,
+           cudaStream_t stream = nullptr,
+           rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource()):
+    GraphCompressedSparseBase<VT,ET,WT>(number_of_vertices_, number_of_edges_, has_data_, stream, mr)
   {}
 
   GraphCSC(GraphSparseContents<VT,ET,WT>&& contents):

@@ -288,10 +288,11 @@ rmm::device_buffer create_offset(
     VT * source,
     VT number_of_vertices,
     ET number_of_edges,
-    cudaStream_t stream) {
+    cudaStream_t stream,
+    rmm::mr::device_memory_resource* mr) {
   //Offset array needs an extra element at the end to contain the ending offsets
   //of the last vertex
-  rmm::device_buffer offsets_buffer(sizeof(ET)*(number_of_vertices+1), stream);
+  rmm::device_buffer offsets_buffer(sizeof(ET)*(number_of_vertices+1), stream, mr);
   ET * offsets = static_cast<ET*>(offsets_buffer.data());
 
   thrust::fill(rmm::exec_policy(stream)->on(stream),
@@ -317,21 +318,23 @@ rmm::device_buffer create_offset(
 } //namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(experimental::GraphCOOView<VT, ET, WT> const &graph) {
+std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
+    experimental::GraphCOOView<VT, ET, WT> const &graph,
+    rmm::mr::device_memory_resource* mr) {
 
   cudaStream_t stream {nullptr};
   using experimental::GraphCOO;
   using experimental::GraphCOOView;
   using experimental::GraphSparseContents;
 
-  GraphCOO<VT, ET, WT> temp_graph(graph);
+  GraphCOO<VT, ET, WT> temp_graph(graph, stream, mr);
   GraphCOOView<VT, ET, WT> temp_graph_view = temp_graph.view();
   VT total_vertex_count = detail::sort(temp_graph_view, stream);
   rmm::device_buffer offsets = detail::create_offset(
       temp_graph.src_indices(),
       total_vertex_count,
       temp_graph.number_of_edges(),
-      stream);
+      stream, mr);
   auto coo_contents = temp_graph.release();
   GraphSparseContents<VT, ET, WT> csr_contents{
     total_vertex_count,
