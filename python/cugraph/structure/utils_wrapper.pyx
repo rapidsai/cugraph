@@ -30,7 +30,7 @@ from cudf.core.buffer import Buffer
 
 def weight_type(weights):
     weights_type = None
-    if weights:
+    if weights is not None:
         weights_type = weights.dtype
     return weights_type
 
