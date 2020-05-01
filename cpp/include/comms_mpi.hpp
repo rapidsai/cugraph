@@ -17,7 +17,7 @@
 
 #pragma once
 
-#if USE_NCCL
+#if ENABLE_OPG
 #include <mpi.h>
 #include <nccl.h>
 #endif
@@ -45,7 +45,7 @@ class Comm
     int _l2_cache_size{0};
     int _shared_memory_size_per_sm{0};
 
-#if USE_NCCL
+#if ENABLE_OPG
     MPI_Comm _mpi_comm{};
     ncclComm_t _nccl_comm{};
  #endif
@@ -53,7 +53,7 @@ class Comm
   public: 
     Comm(){};
     Comm(int p);
-  #if USE_NCCL
+  #if ENABLE_OPG
     Comm(ncclComm_t comm, int size, int rank);
   #endif
     ~Comm();

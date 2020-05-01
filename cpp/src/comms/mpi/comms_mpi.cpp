@@ -22,7 +22,7 @@
 
 namespace cugraph { 
 namespace experimental {
-#if USE_NCCL
+#if ENABLE_OPG
 
 /**---------------------------------------------------------------------------*
  * @brief Exception thrown when a NCCL error is encountered.
@@ -178,7 +178,7 @@ constexpr ncclRedOp_t get_nccl_reduce_op(ReduceOp reduce_op) {
 #endif
 
 Comm::Comm(int p) : _p{p} {
-#if USE_NCCL
+#if ENABLE_OPG
   // MPI
   int flag{}, mpi_world_size;
 
@@ -228,7 +228,7 @@ Comm::Comm(int p) : _p{p} {
 
 }
 
-#if USE_NCCL
+#if ENABLE_OPG
 Comm::Comm(ncclComm_t comm, int size, int rank)
   : _nccl_comm(comm), _p(size), _rank(rank) {
 
@@ -249,7 +249,7 @@ Comm::Comm(ncclComm_t comm, int size, int rank)
 #endif
 
 Comm::~Comm() {
-#if USE_NCCL
+#if ENABLE_OPG
   // NCCL
   if (_finalize_nccl)
     ncclCommDestroy(_nccl_comm);
@@ -261,21 +261,21 @@ Comm::~Comm() {
 }
 
 void Comm::barrier() {
-#if USE_NCCL
+#if ENABLE_OPG
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
 }
 
 template <typename value_t>
 void Comm::allgather (size_t size, value_t* sendbuff, value_t* recvbuff) const {
-#if USE_NCCL
+#if ENABLE_OPG
     NCCL_TRY(ncclAllGather((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), _nccl_comm, cudaStreamDefault));
 #endif
 }
 
 template <typename value_t>
 void Comm::allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op) const {
-#if USE_NCCL
+#if ENABLE_OPG
     NCCL_TRY(ncclAllReduce((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), get_nccl_reduce_op(reduce_op), _nccl_comm, cudaStreamDefault));
 #endif
 }

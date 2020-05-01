@@ -399,7 +399,7 @@ add_library(cugraph SHARED
 add_dependencies(cugraph cugunrock)
 
 if (BUILD_MPI)
-    add_compile_definitions(USE_NCCL=1)
+    add_compile_definitions(ENABLE_OPG=1)
 endif (BUILD_MPI)
 
 ###################################################################################################
