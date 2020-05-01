@@ -35,7 +35,7 @@ if [ "$UPLOAD_CUGRAPH" == "1" ]; then
 
   echo "Upload"
   echo ${UPLOADFILE}
-  anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --force ${UPLOADFILE}
+  anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${UPLOADFILE}
 else
     echo "Skipping cugraph upload"
     return 0

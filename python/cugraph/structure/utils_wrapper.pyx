@@ -80,10 +80,6 @@ def coo2csr(source_col, dest_col, weights=None):
                                               <int**>&c_offsets,
                                               <int**>&c_indices)
 
-        print("called coo2csr, num_verts = ", num_verts)
-        print("c_offsets = ", c_offsets)
-        print("c_indices = ", c_indices)
-
     offsets = rmm.device_array_from_ptr(c_offsets,
                                         nelem=num_verts+1,
                                         dtype=np.int32)
