@@ -13,12 +13,9 @@
 
 import gc
 from itertools import product
-import queue
-import time
 
 import numpy as np
 import pytest
-import scipy
 import cugraph
 from cugraph.tests import utils
 import rmm
@@ -161,11 +158,12 @@ def _compare_bfs(G,  Gnx, source):
     cu_predecessors = {vertex: dist for vertex, dist in
                        zip(df['vertex'].to_array(),
                            df['predecessor'].to_array())}
+
     nx_distances = nx.single_source_shortest_path_length(Gnx, source)
     # TODO: The following only verifies vertices that were reached
     #       by cugraph's BFS.
     # We assume that the distances are ginven back as integers in BFS
-    max_val = np.iinfo(df['distance'].dtype).max
+    # max_val = np.iinfo(df['distance'].dtype).max
     # Unreached vertices have a distance of max_val
 
     missing_vertex_error = 0
@@ -181,14 +179,20 @@ def _compare_bfs(G,  Gnx, source):
                                                                result,
                                                                expected))
                 distance_mismatch_error += 1
-            pred = cu_predecessors[vertex]
-            # The graph is unwehigted thus, predecessors are 1 away
-            if (vertex != source and (nx_distances[pred] + 1 !=
-                                      cu_distances[vertex])):
-                print("[ERR] Invalid on predecessors: "
-                      "vid = {}, cugraph = {}".format(vertex, pred))
-                invalid_predrecessor_error += 1
-        elif cu_distance[vertex] != max_val:
+            if vertex not in cu_predecessors:
+                missing_vertex_error += 1
+            else:
+                pred = cu_predecessors[vertex]
+                if vertex != source and pred not in nx_distances:
+                    invalid_predrecessor_error += 1
+                else:
+                    # The graph is unwehigted thus, predecessors are 1 away
+                    if (vertex != source and ((nx_distances[pred] + 1 !=
+                                              cu_distances[vertex]))):
+                        print("[ERR] Invalid on predecessors: "
+                              "vid = {}, cugraph = {}".format(vertex, pred))
+                        invalid_predrecessor_error += 1
+        else:
             missing_vertex_error += 1
     assert missing_vertex_error == 0, "There are missing vertices"
     assert distance_mismatch_error == 0, "There are invalid distances"

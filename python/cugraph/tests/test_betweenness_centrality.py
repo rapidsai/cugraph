@@ -20,7 +20,6 @@ import cugraph
 from cugraph.tests import utils
 import rmm
 import random
-import time
 import numpy as np
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -193,7 +192,7 @@ def compare_scores(cu_bc, ref_bc, epsilon=DEFAULT_EPSILON):
             if not compare_single_score(result, expected, epsilon=epsilon):
                 score_mismatch_error += 1
                 print("ERROR: vid = {}, cu = {}, "
-                      "nx = {}".format(vid, resulty, expected))
+                      "nx = {}".format(vertex, result, expected))
         else:
             missing_key_error += 1
             print("[ERROR] Missing vertex {vertex}".format(vertex=vertex))
