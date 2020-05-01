@@ -43,16 +43,12 @@ namespace detail {
 /**
  * Intializes the states of objects. This speeds the overall kernel up.
  */
-__global__ void InitializationKernel(/*int *restrict errd, */
-                                     unsigned *restrict limiter,
+__global__ void InitializationKernel(unsigned *restrict limiter,
                                      int *restrict maxdepthd,
-                                     float *restrict radiusd,
-                                     int *restrict errd) {
-  // errd[0] = 0;
+                                     float *restrict radiusd) {
   maxdepthd[0] = 1;
   limiter[0] = 0;
   radiusd[0] = 0.0f;
-  errd[0] = 0;
 }
 
 /**
@@ -176,8 +172,7 @@ __global__ __launch_bounds__(
                                              const int NNODES, const int N,
                                              int *restrict maxdepthd,
                                              int *restrict bottomd,
-                                             const float *restrict radiusd,
-                                             int *restrict errd) {
+                                             const float *restrict radiusd) {
   int j, depth;
   float x, y, r;
   float px, py;
@@ -241,8 +236,7 @@ __global__ __launch_bounds__(
             const int cell = atomicSub(bottomd, 1) - 1;
             if (cell <= N) {
                 // out of cell memory
-              atomicExch(bottomd, N);
-              atomicExch(errd, 1);
+                atomicExch(bottomd, N);
             }
 
             if (patch != -1) childd[n * 4 + j] = cell;
@@ -420,7 +414,7 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
           cm += m;
           px += posxd[ch] * m;
           py += posyd[ch] * m;
-        } 
+        }
       }
 
       countd[k] = cnt;
@@ -431,8 +425,7 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
     }
 
   SKIP_LOOP:
-   // __syncthreads();
-    __threadfence(); 
+    __threadfence();
     if (flag != 0) {
       massd[k] = cm;
       k += inc;
@@ -598,28 +591,26 @@ __global__ __launch_bounds__(
     velyd[i] += vy;
   }
 }
-  
+
 __global__ __launch_bounds__(THREADS6, FACTOR6)
-    void apply_forces_bh(float *restrict x_pos, float *restrict y_pos,
+    void apply_forces_bh(
             float *restrict Y_x, float *restrict Y_y,
-            const float *restrict repel_x, const float *restrict repel_y,
             const float *restrict attract_x, const float *restrict attract_y,
+            const float *restrict repel_x, const float *restrict repel_y,
             float *restrict old_dx, float *restrict old_dy,
             const float *restrict swinging, const float speed, const int n) {
 
         for (int i = threadIdx.x + blockIdx.x * blockDim.x;
                 i < n;
                 i += gridDim.x * blockDim.x) {
-            const float dx = (repel_x[i] + attract_x[i]); 
-            const float dy = (repel_y[i] + attract_y[i]); 
-            old_dx[i] = dx; 
+            const float dx = (repel_x[i] + attract_x[i]);
+            const float dy = (repel_y[i] + attract_y[i]);
+            old_dx[i] = dx;
             old_dy[i] = dy;
 
             float factor = speed / (1.0 + sqrt(speed * swinging[i]));
             Y_x[i] += dx * factor;
             Y_y[i] += dy * factor;
-            x_pos[i] = Y_x[i];
-            y_pos[i] = Y_y[i];
         }
     }
 

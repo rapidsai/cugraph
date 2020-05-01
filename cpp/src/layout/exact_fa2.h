@@ -45,7 +45,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
         const float jitter_tolerance=1.0,
         const float scaling_ratio=2.0, bool strong_gravity_mode=false,
         const float gravity=1.0, bool verbose=false,
-        internals::GraphBasedDimRedCallback* callback=nullptr) { 
+        internals::GraphBasedDimRedCallback* callback=nullptr) {
 
     float *d_repel{nullptr};
     float *d_attract{nullptr};
@@ -135,7 +135,7 @@ void exact_fa2(const vertex_t *row, const vertex_t *col,
             callback->on_epoch_end(pos);
 
         if (verbose) {
-            printf("iteration %i: speed: %f, speed_efficiency: %f, ",
+            printf("iteration %i, speed: %f, speed_efficiency: %f, ",
                     iter, speed, speed_efficiency);
             printf("jt: %f, ", jt);
             printf("swinging: %f, traction: %f\n", s, t);

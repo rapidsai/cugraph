@@ -115,14 +115,9 @@ def force_atlas2(input_graph,
                     <bool> verbose,
                     <GraphBasedDimRedCallback*>callback_ptr)
 
-        x_pos = rmm.device_array_from_ptr(<uintptr_t> pos_ptr,   
-                              nelem=num_verts,                                   
-                              dtype=np.float64)
-        df['x'] = cudf.Series(x_pos) 
-        y_pos = rmm.device_array_from_ptr(<uintptr_t> pos_ptr + num_verts,   
-                              nelem=num_verts,                                   
-                              dtype=np.float64)
-        df['y'] = cudf.Series(y_pos) 
+        pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
+        df['x'] = pos_df['x']
+        df['y'] = pos_df['y']
     else:
         pos = rmm.device_array(                                                   
             (num_verts, 2),                                             

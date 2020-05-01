@@ -15,7 +15,7 @@
  */
 
 #pragma once
-#define restrict __restrict__ 
+#define restrict __restrict__
 #define CUDA_MAX_BLOCKS_2D 256
 
 namespace cugraph {
@@ -63,7 +63,7 @@ void apply_repulsion(const float *restrict x_pos, const float *restrict y_pos,
     repulsion_kernel<vertex_t><<<nblocks, nthreads>>>(x_pos, y_pos,
             repel_x, repel_y, mass, scaling_ratio, n);
     CUDA_CHECK_LAST();
-} 
+}
 
 } // namespace detail
 } // namespace cugraph

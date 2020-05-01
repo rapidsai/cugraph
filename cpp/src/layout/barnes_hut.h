@@ -16,22 +16,22 @@
 
 #pragma once
 
-#include <cugraph.h>                                                            
-#include <graph.hpp>                                                            
-#include <rmm/device_buffer.hpp>                                                
-#include <rmm/thrust_rmm_allocator.h>                                           
-#include <rmm_utils.h>                                                          
+#include <cugraph.h>
+#include <graph.hpp>
 #include <internals.h>
-#include <stdio.h>                                                              
-                                                                                
+#include <rmm/device_buffer.hpp>
+#include <rmm/thrust_rmm_allocator.h>
+#include <rmm_utils.h>
+#include <stdio.h>
+
 #include <thrust/transform.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/functional.h>
 
-#include "utilities/error_utils.h"                                              
-#include "utilities/graph_utils.cuh"     
 #include "bh_kernels.h"
 #include "fa2_kernels.h"
+#include "utilities/error_utils.h"
+#include "utilities/graph_utils.cuh"
 #include "utils.h"
 
 namespace cugraph {
@@ -42,7 +42,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         const weight_t *v, const edge_t e, const vertex_t n,
         float *pos, const int max_iter=1000,
         float *x_start=nullptr, float *y_start=nullptr,
-        bool outbound_attraction_distribution=false,
+        bool outbounattraction_distribution=false,
         bool lin_log_mode=false, bool prevent_overlapping=false,
         const float edge_weight_influence=1.0,
         const float jitter_tolerance=1.0, const float theta=0.5,
@@ -64,17 +64,15 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     rmm::device_vector<unsigned>d_limiter(1);
     rmm::device_vector<int>d_maxdepthd(1);
     rmm::device_vector<int>d_bottomd(1);
-    rmm::device_vector<int>d_err(1);
     rmm::device_vector<float>d_radiusd(1);
 
     unsigned *limiter = d_limiter.data().get();
     int *maxdepthd = d_maxdepthd.data().get();
     int *bottomd = d_bottomd.data().get();
-    int *errd = d_err.data().get();
     float *radiusd = d_radiusd.data().get();
 
-    InitializationKernel<<<1, 1>>>(/*errl,*/ limiter, maxdepthd,
-          radiusd, errd);
+    InitializationKernel<<<1, 1>>>(limiter, maxdepthd,
+          radiusd);
     CUDA_CHECK_LAST();
 
     const int FOUR_NNODES = 4 * nnodes;
@@ -117,32 +115,31 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     rmm::device_vector<float>d_radius_squared(1, 0);
     float *radiusd_squared = d_radius_squared.data().get();
 
-    rmm::device_vector<float>d_YY((nnodes + 1) * 2, 0);
-    float *YY = d_YY.data().get();
+    rmm::device_vector<float>d_nodes_pos((nnodes + 1) * 2, 0);
+    float *nodes_pos = d_nodes_pos.data().get();
 
-    int random_state = 0;
-    random_vector(YY, (nnodes + 1) * 2, random_state);
+    int random_state = -1;
+    random_vector(nodes_pos, (nnodes + 1) * 2, random_state);
 
     if (x_start && y_start) {
-        copy(n, x_start, YY);
-        copy(n, y_start, YY + nnodes + 1);
+        copy(n, x_start, nodes_pos);
+        copy(n, y_start, nodes_pos + nnodes + 1);
     }
 
-    float *d_attract{nullptr};
-    float *d_old_forces{nullptr};
-    float *d_swinging{nullptr};
-    float *d_traction{nullptr};
+    float *attract{nullptr};
+    float *old_forces{nullptr};
+    float *swinging{nullptr};
+    float *traction{nullptr};
 
-    rmm::device_vector<float> attract(n * 2, 0);
-    rmm::device_vector<float> old_forces(n * 2, 0);
-    rmm::device_vector<int> mass(n, 1);
-    rmm::device_vector<float> swinging(n, 0);
-    rmm::device_vector<float> traction(n, 0);
+    rmm::device_vector<float> d_attract(n * 2, 0);
+    rmm::device_vector<float> d_old_forces(n * 2, 0);
+    rmm::device_vector<float> d_swinging(n, 0);
+    rmm::device_vector<float> d_traction(n, 0);
 
-    d_attract = attract.data().get();
-    d_old_forces = old_forces.data().get();
-    d_swinging = swinging.data().get();
-    d_traction = traction.data().get();
+    attract = d_attract.data().get();
+    old_forces = d_old_forces.data().get();
+    swinging = d_swinging.data().get();
+    traction = d_traction.data().get();
 
     vertex_t* srcs{nullptr};
     vertex_t* dests{nullptr};
@@ -156,11 +153,10 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     float speed_efficiency = 1.f;
     float outbound_att_compensation = 1.f;
     float jt = 0.f;
- 
-    if (outbound_attraction_distribution) {
-        int sum = thrust::reduce(d_massl.begin(), d_massl.end());
-        const float div = 1.f / n;
-        outbound_att_compensation = sum * div;
+
+    if (outbounattraction_distribution) {
+        int sum = thrust::reduce(d_massl.begin(), d_massl.begin() + n);
+        outbound_att_compensation = sum / (float)n;
     }
     //
     // Set cache levels for faster algorithm execution
@@ -175,22 +171,23 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
 
     if(callback) {
-        callback->setup<float>(n, 2);
-        callback->on_preprocess_end(pos);
+        callback->setup<float>(nnodes + 1, 2);
+        callback->on_preprocess_end(nodes_pos);
     }
 
     for (int iter = 0; iter < max_iter; ++iter) {
         fill((nnodes + 1) * 2, rep_forces, 0.f);
-        fill(n * 2, d_attract, 0.f);
-        fill(n, d_swinging, 0.f);
-        fill(n, d_traction, 0.f);
+        fill(n * 2, attract, 0.f);
+        fill(n, swinging, 0.f);
+        fill(n, traction, 0.f);
 
         ResetKernel<<<1, 1>>>(radiusd_squared,
                 bottomd, NNODES, radiusd);
         CUDA_CHECK_LAST();
 
         BoundingBoxKernel<<<blocks * FACTOR1, THREADS1>>>(
-                startl, childl, massl, YY, YY + nnodes + 1, maxxl, maxyl, minxl, minyl,
+                startl, childl, massl, nodes_pos, nodes_pos + nnodes + 1,
+                maxxl, maxyl, minxl, minyl,
                 FOUR_NNODES, NNODES, n, limiter, radiusd);
         CUDA_CHECK_LAST();
 
@@ -199,8 +196,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         CUDA_CHECK_LAST();
 
         TreeBuildingKernel<<<blocks * FACTOR2, THREADS2>>>(
-                childl, YY, YY + nnodes + 1, NNODES, n, maxdepthd, bottomd,
-                radiusd, errd);
+                childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n,
+                maxdepthd, bottomd, radiusd);
         CUDA_CHECK_LAST();
 
         ClearKernel2<<<blocks, 1024>>>(startl, massl, NNODES,
@@ -208,7 +205,8 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         CUDA_CHECK_LAST();
 
         SummarizationKernel<<<blocks * FACTOR3, THREADS3>>>(
-                countl, childl, massl, YY, YY + nnodes + 1, NNODES, n, bottomd);
+                countl, childl, massl, nodes_pos,
+                nodes_pos + nnodes + 1, NNODES, n, bottomd);
         CUDA_CHECK_LAST();
 
         SortKernel<<<blocks * FACTOR4, THREADS4>>>(
@@ -217,54 +215,58 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
         RepulsionKernel<<<blocks * FACTOR5, THREADS5>>>(
                 scaling_ratio,
-                theta, epssq, sortl, childl, massl, YY, YY + nnodes + 1,
+                theta, epssq, sortl, childl, massl,
+                nodes_pos, nodes_pos + nnodes + 1,
                 rep_forces, rep_forces + nnodes + 1, theta_squared, NNODES,
                 FOUR_NNODES, n, radiusd_squared, maxdepthd);
         CUDA_CHECK_LAST();
 
-        apply_gravity<vertex_t>(YY, YY + nnodes + 1, d_attract, d_attract + n,
+        apply_gravity<vertex_t>(nodes_pos, nodes_pos + nnodes + 1,
+                attract, attract + n,
                 massl, gravity, strong_gravity_mode, scaling_ratio, n);
 
         apply_attraction<vertex_t, edge_t, weight_t>(srcs,
-                dests, weights, e, YY, YY + nnodes + 1,
-                d_attract, d_attract + n, massl,
-                outbound_attraction_distribution, lin_log_mode,
+                dests, weights, e, nodes_pos, nodes_pos + nnodes + 1,
+                attract, attract + n, massl,
+                outbounattraction_distribution, lin_log_mode,
                 edge_weight_influence, outbound_att_compensation);
 
         compute_local_speed(rep_forces, rep_forces + nnodes + 1,
-                d_attract, d_attract + n,
-                d_old_forces, d_old_forces + n,
-                massl, d_swinging, d_traction, n);
+                attract, attract + n,
+                old_forces, old_forces + n,
+                massl, swinging, traction, n);
 
         const float s = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr),
-                swinging.begin(), swinging.end());
+                d_swinging.begin(), d_swinging.end());
 
         const float t = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr),
-                traction.begin(), traction.end());
+                d_traction.begin(), d_traction.end());
 
         adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
                 s, t, n);
 
-        apply_forces_bh<<<blocks * FACTOR6, THREADS6>>>(pos, pos + n,
-                YY, YY + nnodes + 1, d_attract, d_attract + n,
+        apply_forces_bh<<<blocks * FACTOR6, THREADS6>>>(
+                nodes_pos, nodes_pos + nnodes + 1, attract, attract + n,
                 rep_forces, rep_forces + nnodes + 1,
-                d_old_forces, d_old_forces + n,
-                d_swinging, speed, n);
+                old_forces, old_forces + n,
+                swinging, speed, n);
 
         if (callback)
-            callback->on_epoch_end(pos);
+            callback->on_epoch_end(nodes_pos);
 
         if (verbose) {
-            printf("iteration %i: speed: %f, speed_efficiency: %f, ",
+            printf("iteration %i, speed: %f, speed_efficiency: %f, ",
                     iter, speed, speed_efficiency);
             printf("jt: %f, ", jt);
             printf("swinging: %f, traction: %f\n", s, t);
         }
-
     }
 
+    copy(n, nodes_pos, pos);
+    copy(n, nodes_pos + nnodes + 1, pos + n);
+
     if (callback)
-        callback->on_epoch_end(pos);
+        callback->on_epoch_end(nodes_pos);
 
     ALLOC_FREE_TRY(srcs, nullptr);
     ALLOC_FREE_TRY(dests, nullptr);
