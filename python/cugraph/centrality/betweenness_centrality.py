@@ -29,30 +29,18 @@ def betweenness_centrality(G, k=None, normalized=True,
     ----------
     G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-<<<<<<< HEAD
-        contain either directed or undirected edges where undirected edges are
-        represented as directed edges in both directions.
+        be either directed (DiGraph) or undirected (Graph)
 
     k : int or list or None, optional, default=None
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation
         If k is a list, use the content of the list for estimation
 
-    normalized : bool, optional, default=True
-        Value defaults to true.  If true, the betweenness values are normalized
-        by 2/((n-1)(n-2)) for graphs, and 1 / ((n-1)(n-2)) for directed graphs
-=======
-        be either directed (DiGraph) or undirected (Graph)
-    k : int, optional
-        Default is None.
-        If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation
     normalized : bool, optional
         Default is True.
         If true, the betweenness values are normalized by
         2/((n-1)(n-2)) for Graphs (undirected), and
         1 / ((n-1)(n-2)) for DiGraphs (directed graphs)
->>>>>>> upstream/branch-0.14
         where n is the number of nodes in G.
 
     weight : cudf.Series, optional, default=None
@@ -109,20 +97,27 @@ def betweenness_centrality(G, k=None, normalized=True,
     if implementation is None:
         implementation = "default"
     if implementation not in ["default", "gunrock"]:
-        raise Exception("Only two implementations are supported: 'default' "
-                        "and 'gunrock'")
+        raise ValueError("Only two implementations are supported: 'default' "
+                         "and 'gunrock'")
 
     if k is not None:
         if implementation == "gunrock":
-            raise Exception("sampling feature of betweenness "
-                            "centrality not currently supported "
-                            "with gunrock implementation, "
-                            "please use None or 'default'")
-        # In order to compare with preset sources,
+            raise ValueError("sampling feature of betweenness "
+                             "centrality not currently supported "
+                             "with gunrock implementation, "
+                             "please use None or 'default'")
+        # In order to compare with pre-set sources,
         # k can either be a list or an integer or None
         #  int: Generate an random sample with k elements
         # list: k become the length of the list and vertices become the content
         # None: All the vertices are considered
+        # NOTE: We do not renumber in case k is an int, the sampling is
+        #       not operating on the valid vertices identifiers but their
+        #       indices:
+        # Example:
+        # - vertex '2' is missing
+        # - vertices '0' '1' '3' '4' exist
+        # - There is a vertex at index 2 (there is not guarantee that 3 )
         if isinstance(k, int):
             random.seed(seed)
             vertices = random.sample(range(G.number_of_vertices()), k)
@@ -131,13 +126,17 @@ def betweenness_centrality(G, k=None, normalized=True,
         elif isinstance(k, list):
             vertices = k
             k = len(vertices)
-        # FIXME: There might be a cleaner way to obtain the inverse mapping
-        if G.renumbered:
-            vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map ==
-                                                vert].index[0] for vert in
-                        vertices]
+            # We assume that the list that was provided is not the indices
+            # in the graph structure but the vertices indentifiers in the grap
+            # hence: [1, 2, 10] should proceed to sampling on vertices that
+            # have 1, 2 and 10 as their identifiers
+            # FIXME: There might be a cleaner way to obtain the inverse mapping
+            if G.renumbered:
+                vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map ==
+                                                    vert].index[0] for vert in
+                            vertices]
 
-    if endpoints is not False:
+    if endpoints is True:
         raise NotImplementedError("endpoints accumulation for betweenness "
                                   "centrality not currently supported")
 
@@ -145,8 +144,7 @@ def betweenness_centrality(G, k=None, normalized=True,
         raise NotImplementedError("weighted implementation of betweenness "
                                   "centrality not currently supported")
     if result_dtype not in [np.float32, np.float64]:
-        raise TypeError("result type can only be float or double centrality "
-                        "not currently supported")
+        raise TypeError("result type can only be float or double")
 
     df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
                                                                endpoints,
