@@ -353,7 +353,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
            << "Number number of sources should be >= 0 and"
            << " less than the number of vertices in the graph";
     std::vector<VT> sources(configuration.number_of_sources_);
-    std::iota(sources.begin(), sources.end(), 0);
+    thrust::sequence(thrust::host, sources.begin(), sources.end(), 0);
 
     VT *sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) {
