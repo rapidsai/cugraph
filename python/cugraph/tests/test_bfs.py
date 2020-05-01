@@ -130,24 +130,23 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
         #       not contain all the vertices while the cugraph version return
         #       a cudf.DataFrame with all the vertices, also some verification
         #       become slow with the data transfer
-        compare_func(G, Gnx, start_vertex, directed)
+        compare_func(G, Gnx, start_vertex)
     elif isinstance(seed, list):  # For other Verifications
         for start_vertex in seed:
             compare_func = _compare_bfs_spc if return_sp_counter else \
                            _compare_bfs
-            compare_func(G, Gnx, start_vertex, directed)
+            compare_func(G, Gnx, start_vertex)
     elif seed is None:  # Same here, it is only to run full checks
         for start_vertex in Gnx:
             compare_func = _compare_bfs_spc if return_sp_counter else \
                            _compare_bfs
-            compare_func(G, Gnx, start_vertex, directed)
+            compare_func(G, Gnx, start_vertex)
     else:  # Unknown type given to seed
         raise NotImplementedError("Invalid type for seed")
 
 
-def _compare_bfs(G,  Gnx, source, directed):
-    df = cugraph.bfs(G, source, directed=directed,
-                     return_sp_counter=False)
+def _compare_bfs(G,  Gnx, source):
+    df = cugraph.bfs(G, source, return_sp_counter=False)
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor'
     # It also confirms wether or not 'sp_counter' has been created by the call
@@ -196,9 +195,8 @@ def _compare_bfs(G,  Gnx, source, directed):
     assert invalid_predrecessor_error == 0, "There are invalid predecessors"
 
 
-def _compare_bfs_spc(G, Gnx, source, directed):
-    df = cugraph.bfs(G, source, directed=directed,
-                     return_sp_counter=True)
+def _compare_bfs_spc(G, Gnx, source):
+    df = cugraph.bfs(G, source, return_sp_counter=True)
     cu_sp_counter = {vertex: dist for vertex, dist in
                      zip(df['vertex'].to_array(), df['sp_counter'].to_array())}
     # This call should only contain 3 columns:

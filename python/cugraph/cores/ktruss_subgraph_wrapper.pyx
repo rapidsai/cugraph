@@ -38,7 +38,7 @@ def ktruss_subgraph_double(input_graph, k, use_weights, subgraph_truss):
         input_graph.view_edge_list()
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges()
+    num_edges = len(input_graph.edgelist.edgelist_df)
 
     cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
@@ -86,7 +86,7 @@ def ktruss_subgraph_float(input_graph, k, use_weights, subgraph_truss):
         input_graph.view_edge_list()
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges()
+    num_edges = len(input_graph.edgelist.edgelist_df)
 
     cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]

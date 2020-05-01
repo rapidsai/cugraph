@@ -21,7 +21,7 @@ def betweenness_centrality(G, k=None, normalized=True,
                            weight=None, endpoints=False, implementation=None,
                            seed=None, result_dtype=np.float32):
     """
-    Compute betweenness centrality for the nodes of the graph G. cuGraph
+    Compute the betweenness centrality for all nodes of the graph G. cuGraph
     does not currently support the 'endpoints' and 'weight' parameters
     as seen in the corresponding networkX call.
 
@@ -29,6 +29,7 @@ def betweenness_centrality(G, k=None, normalized=True,
     ----------
     G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
+<<<<<<< HEAD
         contain either directed or undirected edges where undirected edges are
         represented as directed edges in both directions.
 
@@ -40,6 +41,18 @@ def betweenness_centrality(G, k=None, normalized=True,
     normalized : bool, optional, default=True
         Value defaults to true.  If true, the betweenness values are normalized
         by 2/((n-1)(n-2)) for graphs, and 1 / ((n-1)(n-2)) for directed graphs
+=======
+        be either directed (DiGraph) or undirected (Graph)
+    k : int, optional
+        Default is None.
+        If k is not None, use k node samples to estimate betweenness.  Higher
+        values give better approximation
+    normalized : bool, optional
+        Default is True.
+        If true, the betweenness values are normalized by
+        2/((n-1)(n-2)) for Graphs (undirected), and
+        1 / ((n-1)(n-2)) for DiGraphs (directed graphs)
+>>>>>>> upstream/branch-0.14
         where n is the number of nodes in G.
 
     weight : cudf.Series, optional, default=None
@@ -77,15 +90,13 @@ def betweenness_centrality(G, k=None, normalized=True,
     --------
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> bc = cugraph.betweenness_centrality(G)
     """
 
     #
-    # Some features not implemented for gunrock implementation, failing fast,
+    # Some features not implemented in gunrock implementation, failing fast,
     # but passing parameters through
     #
     # vertices is intended to be a cuDF series that contains a sampling of

@@ -46,6 +46,13 @@ Katz Centrality
     :members:
     :undoc-members:
 
+Betweenness Centrality
+----------------------
+
+.. automodule:: cugraph.centrality.betweenness_centrality
+    :members:
+    :undoc-members:
+
 Community
 =========
 
@@ -115,7 +122,7 @@ Core Number
 K-Truss
 -------
 
-.. automodule:: cugraph.ktruss.ktruss_max
+.. automodule:: cugraph.ktruss.ktruss_subgraph
     :members:
     :undoc-members:
 

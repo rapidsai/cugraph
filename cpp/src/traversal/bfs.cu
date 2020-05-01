@@ -269,7 +269,7 @@ namespace detail {
     // In case the shortest path counters need to be computeed, the bottom_up approach cannot be used
     bool can_use_bottom_up = (!sp_counters && !directed && distances);
 
-    while (nf > 0) {
+    while (nf > 0 && nu > 0) {
       //Each vertices can appear only once in the frontierer array - we know it will fit
       new_frontier = frontier + nf;
       IndexType old_nf = nf;

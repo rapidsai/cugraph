@@ -1,15 +1,35 @@
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
+- PR #822 Added new functions in python graph class, similar to networkx
 
 ## Improvements
 - PR #817 Add native Betweenness Centrality with sources subset
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
+- PR #780 Remove gdf_column from cuhornet features
+- PR #781 Fix compiler argument syntax for ccache
+- PR #782 Use Cython's `new_build_ext` (if available)
+- PR #788 Added options and config file to enable codecov
 - PR #793 Fix legacy cudf imports/cimports
+- PR #802 Removed use of gdf_column from db code
+- PR #798 Edit return graph type in algorithms return graphs
+- PR #803 Enable Ninja build
+- PR #804 Cythonize in parallel
+- PR #807 Updating the Python docs
+- PR #820 OPG infra and all-gather smoke test
+- PR #829 Updated README and CONTRIBUTIOIN docs
+- PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
+- PR #833 Update graph functions to use new Graph class
+- PR #834 Updated local gpuci build
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
+- PR #795 Fix some documentation
+- PR #800 Fix bfs error in optimization path
+- PR #825 Fix outdated CONTRIBUTING.md
+- PR #827 Fix indexing CI errors due to cudf updates 
+
 
 # cuGraph 0.13.0 (Date TBD)
 

@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure import graph_wrapper
+from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
@@ -67,6 +67,7 @@ class Graph:
         --------
         >>> import cuGraph
         >>> G = cuGraph.Graph()
+
         """
         self.symmetrized = symmetrized
         self.renumbered = False
@@ -146,6 +147,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2',
                                  renumber=False)
+
         """
 
         if self.edgelist is not None or self.adjlist is not None:
@@ -234,7 +236,8 @@ class Graph:
             containing the weight value for each edge.
         """
         if self.edgelist is None:
-            graph_wrapper.view_edge_list(self)
+            src, dst, weights = graph_new_wrapper.view_edge_list(self)
+            self.edgelist = self.EdgeList(src, dst, weights)
         if type(self) is Graph:
             edgelist_df = self.edgelist.edgelist_df[self.edgelist.edgelist_df[
                           'src'] <= self.edgelist.edgelist_df['dst']].\
@@ -288,6 +291,7 @@ class Graph:
         stores references to the deep-copies of the passed objects pointed by
         offset_col and index_col.
         Undirected edges must be stored as directed edges in both directions.
+
         Parameters
         ----------
         offset_col : cudf.Series
@@ -319,6 +323,7 @@ class Graph:
         >>> indices = cudf.Series(M.indices)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_adjlist(offsets, indices, None)
+
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
@@ -354,7 +359,8 @@ class Graph:
             number.
         """
         if self.adjlist is None:
-            graph_wrapper.view_adj_list(self)
+            offsets, indices, weights = graph_new_wrapper.view_adj_list(self)
+            self.adjlist = self.AdjList(offsets, indices, weights)
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
     def view_transposed_adj_list(self):
@@ -380,9 +386,11 @@ class Graph:
             The gdf column contains the weight value for each edge.
             The expected type of the gdf_column element is floating point
             number.
+
         """
         if self.transposedadjlist is None:
-            graph_wrapper.view_transposed_adj_list(self)
+            off, ind, vals = graph_new_wrapper.view_transposed_adj_list(self)
+            self.transposedadjlist = self.transposedAdjList(off, ind, vals)
 
         return (self.transposedadjlist.offsets,
                 self.transposedadjlist.indices,
@@ -398,6 +406,7 @@ class Graph:
         """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -405,8 +414,9 @@ class Graph:
                 the first vertex id of a pair.
             df['second'] : cudf.Series
                 the second vertex id of a pair.
+
         """
-        df = graph_wrapper.get_two_hop_neighbors(self)
+        df = graph_new_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 n_cols = len(self.edgelist.renumber_map.columns) - 1
@@ -432,25 +442,32 @@ class Graph:
         return df
 
     def number_of_vertices(self):
+        """
+        Get the number of nodes in the graph.
+
+        """
         if self.node_count is None:
             if self.adjlist is not None:
                 self.node_count = len(self.adjlist.offsets)-1
             elif self.transposedadjlist is not None:
                 self.node_count = len(self.transposedadjlist.offsets)-1
-            else:
-                self.node_count = graph_wrapper.number_of_vertices(self)
+            elif self.edgelist is not None:
+                df = self.edgelist.edgelist_df[['src', 'dst']]
+                self.node_count = df.max().max() + 1
         return self.node_count
 
     def number_of_nodes(self):
         """
         An alias of number_of_vertices(). This function is added for NetworkX
         compatibility.
+
         """
         return self.number_of_vertices()
 
     def number_of_edges(self):
         """
         Get the number of edges in the graph.
+
         """
         if self.edge_count is None:
             if self.edgelist is not None:
@@ -476,11 +493,13 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -493,6 +512,7 @@ class Graph:
                 specified).
             df['degree'] : cudf.Series
                 The computed in-degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -502,6 +522,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.in_degree([0,9,12])
+
         """
         return self._degree(vertex_subset, x=1)
 
@@ -512,11 +533,13 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding out-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -529,6 +552,7 @@ class Graph:
                 specified).
             df['degree'] : cudf.Series
                 The computed out-degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -538,6 +562,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.out_degree([0,9,12])
+
         """
         return self._degree(vertex_subset, x=2)
 
@@ -547,11 +572,13 @@ class Graph:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -564,6 +591,7 @@ class Graph:
                 specified).
             df['degree'] : cudf.Series
                 The computed degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -573,6 +601,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.degree([0,9,12])
+
         """
         return self._degree(vertex_subset)
 
@@ -582,11 +611,13 @@ class Graph:
         computes vertex degrees for the entire set of vertices. If
         vertex_subset is provided, this method optionally filters out all but
         those listed in vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -597,6 +628,7 @@ class Graph:
                 The in-degree of the vertex.
             df['out_degree'] : cudf.Series
                 The out-degree of the vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -606,8 +638,9 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.add_edge_list(sources, destinations, None)
         >>> df = G.degrees([0,9,12])
+
         """
-        vertex_col, in_degree_col, out_degree_col = graph_wrapper._degrees(
+        vertex_col, in_degree_col, out_degree_col = graph_new_wrapper._degrees(
                                                         self)
 
         df = cudf.DataFrame()
@@ -640,15 +673,10 @@ class Graph:
                     np.asarray([out_degree_col[i] for i in vertex_subset],
                                dtype=np.int32))
 
-            # is this necessary???
-            del vertex_col
-            del in_degree_col
-            del out_degree_col
-
         return df
 
     def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = graph_wrapper._degree(self, x)
+        vertex_col, degree_col = graph_new_wrapper._degree(self, x)
 
         df = cudf.DataFrame()
         if vertex_subset is None:
@@ -673,11 +701,149 @@ class Graph:
                 df['degree'] = cudf.Series(np.asarray(
                     [degree_col[i] for i in vertex_subset], dtype=np.int32
                 ))
-            # is this necessary???
-            del vertex_col
-            del degree_col
 
         return df
+
+    def to_directed(self):
+        """
+        Return a directed representation of the graph.
+        This function sets the type of graph as DiGraph() and returns the
+        directed view.
+
+        Returns
+        -------
+        G : DiGraph
+            A directed graph with the same nodes, and each edge (u,v,weights)
+            replaced by two directed edges (u,v,weights) and (v,u,weights).
+
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> DiG = G.to_directed()
+
+        """
+
+        if type(self) is DiGraph:
+            return self
+        if type(self) is Graph:
+            DiG = DiGraph()
+            DiG.renumbered = self.renumbered
+            DiG.edgelist = self.edgelist
+            DiG.adjlist = self.adjlist
+            DiG.transposedadjlist = self.transposedadjlist
+            return DiG
+
+    def to_undirected(self):
+        """
+        Return an undirected copy of the graph.
+
+        Returns
+        -------
+        G : Graph
+            A undirected graph with the same nodes, and each directed edge
+            (u,v,weights) replaced by an undirected edge (u,v,weights).
+
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> DiG = cugraph.DiGraph()
+        >>> DiG.from_cudf_edgelist(M, '0', '1')
+        >>> G = DiG.to_undirected()
+
+        """
+
+        if type(self) is Graph:
+            return self
+        if type(self) is DiGraph:
+            G = Graph()
+            df = self.edgelist.edgelist_df
+            G.renumbered = self.renumbered
+            if self.edgelist.weights:
+                source_col, dest_col, value_col = symmetrize(df['src'],
+                                                             df['dst'],
+                                                             df['weights'])
+            else:
+                source_col, dest_col = symmetrize(df['src'],
+                                                  df['dst'])
+                value_col = None
+            G.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
+                                        self.edgelist.renumber_map)
+
+            return G
+
+    def is_directed(self):
+        if type(self) is DiGraph:
+            return True
+        else:
+            return False
+
+    def has_node(self, n):
+        """
+        Returns True if the graph contains the node n.
+        """
+
+        if self.renumbered:
+            return (self.edgelist.renumber_map == n).any()
+        else:
+            df = self.edgelist.edgelist_df[['src', 'dst']]
+            return (df == n).any().any()
+
+    def has_edge(self, u, v):
+        """
+        Returns True if the graph contains the edge (u,v).
+        """
+
+        if self.renumbered:
+            src = self.edgelist.renumber_map.index[self.edgelist.
+                                                   renumber_map == u]
+            dst = self.edgelist.renumber_map.index[self.edgelist.
+                                                   renumber_map == v]
+            if (len(src) and len(dst)) == 0:
+                return False
+            else:
+                u = src[0]
+                v = dst[0]
+        df = self.edgelist.edgelist_df
+        return ((df['src'] == u) & (df['dst'] == v)).any()
+
+    def edges(self):
+        """
+        Returns all the edges in the graph as a cudf.DataFrame containing
+        sources and destinations. It does not return the edge weights.
+        For viewing edges with weights use view_edge_list()
+        """
+        return self.view_edge_list()[['src', 'dst']]
+
+    def nodes(self):
+        """
+        Returns all the nodes in the graph as a cudf.Series
+        """
+        df = self.edgelist.edgelist_df
+        n = cudf.concat([df['src'], df['dst']]).unique()
+        if self.renumbered:
+            return self.edgelist.renumber_map[n]
+        else:
+            return n
+
+    def neighbors(self, n):
+
+        if self.renumbered:
+            node = self.edgelist.renumber_map.index[self.edgelist.
+                                                    renumber_map == n]
+            if len(node) == 0:
+                return cudf.Series(dtype='int')
+            n = node[0]
+
+        df = self.edgelist.edgelist_df
+        neighbors = df[df['src'] == n]['dst'].reset_index(drop=True)
+        if self.renumbered:
+            return self.edgelist.renumber_map[neighbors]
+        else:
+            return neighbors
 
 
 class DiGraph(Graph):

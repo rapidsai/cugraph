@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,9 +12,10 @@
 # limitations under the License.
 
 from cugraph.traversal import bfs_wrapper
+from cugraph.structure.graph import Graph
 
 
-def bfs(G, start, directed=True, return_sp_counter=False):
+def bfs(G, start, return_sp_counter=False):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -26,10 +27,7 @@ def bfs(G, start, directed=True, return_sp_counter=False):
         as an adjacency list.
     start : Integer
         The index of the graph vertex from which the traversal begins
-    directed : bool
-        Indicates whether the graph in question is a directed graph, or whether
-        each edge has a corresponding reverse edge. (Allows optimizations if
-        the graph is undirected)
+
     return_sp_counter : bool, optional, default=False
         Indicates if shortest path counters should be returned
 
@@ -51,12 +49,15 @@ def bfs(G, start, directed=True, return_sp_counter=False):
     --------
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.bfs(G, 0)
     """
+
+    if type(G) is Graph:
+        directed = False
+    else:
+        directed = True
 
     df = bfs_wrapper.bfs(G, start, directed, return_sp_counter)
 

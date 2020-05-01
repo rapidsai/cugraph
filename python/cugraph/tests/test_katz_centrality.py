@@ -46,7 +46,7 @@ def calc_katz(graph_file):
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
     largest_out_degree = G.degrees().nlargest(n=1, columns='out_degree')
-    largest_out_degree = largest_out_degree['out_degree'][0]
+    largest_out_degree = largest_out_degree['out_degree'].iloc[0]
     katz_alpha = 1/(largest_out_degree + 1)
 
     k_df = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
