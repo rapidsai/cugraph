@@ -180,7 +180,7 @@ constexpr ncclRedOp_t get_nccl_reduce_op(ReduceOp reduce_op) {
 Comm::Comm(int p) : _p{p} {
 #if USE_NCCL
   // MPI
-  int flag{};
+  int flag{}, mpi_world_size;
 
   MPI_TRY(MPI_Initialized(&flag));
 
@@ -193,9 +193,9 @@ Comm::Comm(int p) : _p{p} {
     _finalize_mpi = true;
   }
 
-  MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_world_rank));
-  MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &_mpi_world_size));
-  CUGRAPH_EXPECTS( (_p == _mpi_world_size), 
+  MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &_rank));
+  MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size));
+  CUGRAPH_EXPECTS( (_p == mpi_world_size), 
                    "Invalid input arguments: p should match the number of MPI processes.");
 
   _mpi_comm = MPI_COMM_WORLD;
@@ -203,7 +203,7 @@ Comm::Comm(int p) : _p{p} {
   // CUDA
 
   CUDA_TRY(cudaGetDeviceCount(&_device_count));
-  _device_id = _mpi_world_rank % _device_count;
+  _device_id = _rank % _device_count; // FixMe : assumes each node has the same number of GPUs
   CUDA_TRY(cudaSetDevice(_device_id));
 
   CUDA_TRY(
@@ -227,6 +227,26 @@ Comm::Comm(int p) : _p{p} {
 #endif
 
 }
+
+#if USE_NCCL
+Comm::Comm(ncclComm_t comm, int size, int rank)
+  : _nccl_comm(comm), _p(size), _rank(rank) {
+
+  // CUDA
+  CUDA_TRY(cudaGetDeviceCount(&_device_count));
+  _device_id = _rank % _device_count; // FixMe : assumes each node has the same number of GPUs
+  CUDA_TRY(cudaSetDevice(_device_id)); // FixMe : check if this is needed or if python takes care of this
+
+  CUDA_TRY(
+    cudaDeviceGetAttribute(&_sm_count_per_device, cudaDevAttrMultiProcessorCount, _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_max_grid_dim_1D, cudaDevAttrMaxGridDimX, _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_max_block_dim_1D, cudaDevAttrMaxBlockDimX, _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_l2_cache_size, cudaDevAttrL2CacheSize, _device_id));
+  CUDA_TRY(
+    cudaDeviceGetAttribute(
+      &_shared_memory_size_per_sm, cudaDevAttrMaxSharedMemoryPerMultiprocessor, _device_id));
+}
+#endif
 
 Comm::~Comm() {
 #if USE_NCCL

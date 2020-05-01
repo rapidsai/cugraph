@@ -32,12 +32,9 @@ class Comm
 { 
   private:
     int _p{0};
-
-    int _mpi_world_rank{0};
-    int _mpi_world_size{0};
+    int _rank{0};
     bool _finalize_mpi{false};
     bool _finalize_nccl{false};
-
 
     int _device_id{0};
     int _device_count{0};
@@ -56,13 +53,16 @@ class Comm
   public: 
     Comm(){};
     Comm(int p);
+  #if USE_NCCL
+    Comm(ncclComm_t comm, int size, int rank);
+  #endif
     ~Comm();
-    int get_rank() const { return _mpi_world_rank; }
-    int get_p() const { return _mpi_world_size; }
+    int get_rank() const { return _rank; }
+    int get_p() const { return _p; }
     int get_dev() const { return _device_id; }
     int get_dev_count() const { return _device_count; }
     int get_sm_count() const { return _sm_count_per_device; }
-    bool is_master() const { return (_mpi_world_rank == 0)? true : false; }
+    bool is_master() const { return (_rank == 0)? true : false; }
 
     void barrier();
 
