@@ -19,7 +19,6 @@
 from libc.stdint cimport uintptr_t
 from cugraph.structure cimport utils as c_utils
 from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
