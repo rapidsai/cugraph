@@ -46,17 +46,19 @@ namespace detail {
 __global__ void InitializationKernel(/*int *restrict errd, */
                                      unsigned *restrict limiter,
                                      int *restrict maxdepthd,
-                                     float *restrict radiusd) {
+                                     float *restrict radiusd,
+                                     int *restrict errd) {
   // errd[0] = 0;
   maxdepthd[0] = 1;
   limiter[0] = 0;
   radiusd[0] = 0.0f;
+  errd[0] = 0;
 }
 
 /**
- * Reset normalization back to 0.
+ * Reset root.
  */
-__global__ void Reset_Normalization(float *restrict radiusd_squared,
+__global__ void ResetKernel(float *restrict radiusd_squared,
                                     int *restrict bottomd, const int NNODES,
                                     const float *restrict radiusd) {
   radiusd_squared[0] = radiusd[0] * radiusd[0];
@@ -174,7 +176,8 @@ __global__ __launch_bounds__(
                                              const int NNODES, const int N,
                                              int *restrict maxdepthd,
                                              int *restrict bottomd,
-                                             const float *restrict radiusd) {
+                                             const float *restrict radiusd,
+                                             int *restrict errd) {
   int j, depth;
   float x, y, r;
   float px, py;
@@ -237,8 +240,9 @@ __global__ __launch_bounds__(
 
             const int cell = atomicSub(bottomd, 1) - 1;
             if (cell <= N) {
-              // atomicExch(errd, 1);
-              atomicExch(bottomd, NNODES);
+                // out of cell memory
+              atomicExch(bottomd, N);
+              atomicExch(errd, 1);
             }
 
             if (patch != -1) childd[n * 4 + j] = cell;
@@ -257,7 +261,9 @@ __global__ __launch_bounds__(
             y += ((y < py) ? (j |= 2, r) : (-r));
 
             ch = childd[n * 4 + j];
-            if (r <= 1e-10) break;
+
+            if (r <= 1e-10)
+                break;
           }
 
           childd[n * 4 + j] = i;
@@ -266,7 +272,7 @@ __global__ __launch_bounds__(
 
           i += inc;  // move on to next body
           skip = 2;
-        }
+       }
       }
     }
     __threadfence();
@@ -275,8 +281,6 @@ __global__ __launch_bounds__(
   }
 
   // record maximum tree depth
-  // if (localmaxdepth >= THREADS5)
-  //   localmaxdepth = THREADS5 - 1;
   if (localmaxdepth > 32) localmaxdepth = 32;
 
   atomicMax(maxdepthd, localmaxdepth);
@@ -326,7 +330,7 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
   {
     // iterate over all cells assigned to thread
     while (k <= NNODES) {
-      if (massd[k] < 0) {
+     if (massd[k] < 0) {
         for (int i = 0; i < 4; i++) {
           const int ch = childd[k * 4 + i];
           child[i * THREADS3 + threadIdx.x] = ch;
@@ -387,15 +391,15 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
         if ((ch < N) or ((mass[i * THREADS3 + threadIdx.x] = massd[ch]) >= 0))
           j--;
       }
+
     } else {
       j = 4;
       for (int i = 0; i < 4; i++) {
         const int ch = child[i * THREADS3 + threadIdx.x];
-
-        if ((ch < N) or (mass[i * THREADS3 + threadIdx.x] >= 0) or
+       if ((ch < N) or (mass[i * THREADS3 + threadIdx.x] >= 0) or
             ((mass[i * THREADS3 + threadIdx.x] = massd[ch]) >= 0))
           j--;
-      }
+     }
     }
 
     if (j == 0) {
@@ -416,7 +420,7 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
           cm += m;
           px += posxd[ch] * m;
           py += posyd[ch] * m;
-        }
+        } 
       }
 
       countd[k] = cnt;
@@ -427,6 +431,7 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
     }
 
   SKIP_LOOP:
+   // __syncthreads();
     __threadfence(); 
     if (flag != 0) {
       massd[k] = cm;
@@ -501,15 +506,7 @@ __global__ __launch_bounds__(
                                 const int FOUR_NNODES, const int N,
                                 const float *restrict radiusd_squared,
                                 const int *restrict maxdepthd) {
-  // Return if max depth is too deep
-  // Not possible since I limited it to 32
-  // if (maxdepthd[0] > 32)
-  // {
-  //   atomicExch(errd, max_depth);
-  //   return;
-  // }
-
-  __shared__ int pos[THREADS5], node[THREADS5];
+   __shared__ int pos[THREADS5], node[THREADS5];
   __shared__ float dq[THREADS5];
 
   if (threadIdx.x == 0) {
@@ -533,10 +530,8 @@ __global__ __launch_bounds__(
   const int diff = threadIdx.x - sbase;
   // make multiple copies to avoid index calculations later
   // Always true
-  // if (diff < 32)
   dq[diff + sbase] = dq[diff];
 
-  //__syncthreads();
   __threadfence_block();
 
   // iterate over all bodies assigned to thread

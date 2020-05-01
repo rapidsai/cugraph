@@ -57,21 +57,24 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
     if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
     while ((nnodes & (32 - 1)) != 0) nnodes++;
     nnodes--;
+    if (verbose) printf("N_nodes = %d blocks = %d\n", nnodes, blocks);
 
     // Allocate more space
     //---------------------------------------------------
     rmm::device_vector<unsigned>d_limiter(1);
     rmm::device_vector<int>d_maxdepthd(1);
     rmm::device_vector<int>d_bottomd(1);
+    rmm::device_vector<int>d_err(1);
     rmm::device_vector<float>d_radiusd(1);
 
     unsigned *limiter = d_limiter.data().get();
     int *maxdepthd = d_maxdepthd.data().get();
     int *bottomd = d_bottomd.data().get();
+    int *errd = d_err.data().get();
     float *radiusd = d_radiusd.data().get();
 
     InitializationKernel<<<1, 1>>>(/*errl,*/ limiter, maxdepthd,
-          radiusd);
+          radiusd, errd);
     CUDA_CHECK_LAST();
 
     const int FOUR_NNODES = 4 * nnodes;
@@ -182,7 +185,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
         fill(n, d_swinging, 0.f);
         fill(n, d_traction, 0.f);
 
-        Reset_Normalization<<<1, 1>>>(radiusd_squared,
+        ResetKernel<<<1, 1>>>(radiusd_squared,
                 bottomd, NNODES, radiusd);
         CUDA_CHECK_LAST();
 
@@ -197,7 +200,7 @@ void barnes_hut(const vertex_t *row, const vertex_t *col,
 
         TreeBuildingKernel<<<blocks * FACTOR2, THREADS2>>>(
                 childl, YY, YY + nnodes + 1, NNODES, n, maxdepthd, bottomd,
-                radiusd);
+                radiusd, errd);
         CUDA_CHECK_LAST();
 
         ClearKernel2<<<blocks, 1024>>>(startl, massl, NNODES,
