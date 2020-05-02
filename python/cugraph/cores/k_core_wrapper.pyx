@@ -69,52 +69,50 @@ cdef (uintptr_t, uintptr_t) core_number_params(core_number):
     return (c_vertex, c_values)
 
 
-def k_core_float(input_graph, k, core_number):
+cdef GraphCOOViewType get_graph_view(input_graph, GraphCOOViewType* dummy=NULL):
     c_src, c_dst, c_weights, num_verts, num_edges = graph_params(input_graph)
-    c_vertex, c_values = core_number_params(core_number)
+    cdef GraphCOOViewType in_graph
+    if GraphCOOViewType is GraphCOOViewFloat:
+        in_graph = GraphCOOViewFloat(<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
+    elif GraphCOOViewType is GraphCOOViewDouble:
+        in_graph = GraphCOOViewDouble(<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
+    return in_graph
 
-    cdef GraphCOOView[int,int,float] in_graph
-    in_graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
-    cdef unique_ptr[GraphCOO[int,int,float]] out_graph = move(c_k_core[int,int,float](in_graph, k, <int*>c_vertex, <int*>c_values, len(core_number)))
-    cdef GraphCOOContents[int,int,float] contents = move(out_graph.get()[0].release())
+
+cdef coo_to_df(GraphCOOType graph):
+    contents = move(graph.get()[0].release())
     src = DeviceBuffer.c_from_unique_ptr(move(contents.src_indices))
     dst = DeviceBuffer.c_from_unique_ptr(move(contents.dst_indices))
     wgt = DeviceBuffer.c_from_unique_ptr(move(contents.edge_data))
     src = Buffer(src)
     dst = Buffer(dst)
+    wgt = Buffer(wgt)
+
+    src = cudf.Series(data=src, dtype="int32")
+    dst = cudf.Series(data=dst, dtype="int32")
 
     df = cudf.DataFrame()
-    df['src'] = cudf.Series(data=src, dtype="int32")
-    df['dst'] = cudf.Series(data=dst, dtype="int32")
-    if weight_type(input_graph) == np.float32:
-        wgt = Buffer(wgt)
-        df['weight'] = cudf.Series(data=wgt, dtype="float32")
-    
+    df['src'] = src
+    df['dst'] = dst
+    if wgt.nbytes != 0:
+        if GraphCOOType is GraphCOOFloat:
+            wgt = cudf.Series(data=wgt, dtype="float32")
+        elif GraphCOOType is GraphCOODouble:
+            wgt = cudf.Series(data=wgt, dtype="float64")
+        df['weight'] = wgt
     return df
+
+
+def k_core_float(input_graph, k, core_number):
+    c_vertex, c_values = core_number_params(core_number)
+    cdef GraphCOOViewFloat in_graph = get_graph_view[GraphCOOViewFloat](input_graph)
+    return coo_to_df(move(c_k_core[int,int,float](in_graph, k, <int*>c_vertex, <int*>c_values, len(core_number))))
 
 
 def k_core_double(input_graph, k, core_number):
-    c_src, c_dst, c_weights, num_verts, num_edges = graph_params(input_graph)
     c_vertex, c_values = core_number_params(core_number)
-
-    cdef GraphCOOView[int,int,double] in_graph
-    in_graph = GraphCOOView[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
-    cdef unique_ptr[GraphCOO[int,int,double]] out_graph = move(c_k_core[int,int,double](in_graph, k, <int*>c_vertex, <int*>c_values, len(core_number)))
-    cdef GraphCOOContents[int,int,double] contents = move(out_graph.get()[0].release())
-    src = DeviceBuffer.c_from_unique_ptr(move(contents.src_indices))
-    dst = DeviceBuffer.c_from_unique_ptr(move(contents.dst_indices))
-    wgt = DeviceBuffer.c_from_unique_ptr(move(contents.edge_data))
-    src = Buffer(src)
-    dst = Buffer(dst)
-
-    df = cudf.DataFrame()
-    df['src'] = cudf.Series(data=src, dtype="int32")
-    df['dst'] = cudf.Series(data=dst, dtype="int32")
-    if weight_type(input_graph) == np.float64:
-        wgt = Buffer(wgt)
-        df['weight'] = cudf.Series(data=wgt, dtype="float64")
-    
-    return df
+    cdef GraphCOOViewDouble in_graph = get_graph_view[GraphCOOViewDouble](input_graph)
+    return coo_to_df(move(c_k_core[int,int,double](in_graph, k, <int*>c_vertex, <int*>c_values, len(core_number))))
 
 
 def k_core(input_graph, k, core_number):

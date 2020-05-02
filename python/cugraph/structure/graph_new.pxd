@@ -135,3 +135,17 @@ cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[GraphCSR[int,int,double]] move(unique_ptr[GraphCSR[int,int,double]])
     cdef GraphSparseContents[int,int,float] move(GraphSparseContents[int,int,float])
     cdef GraphSparseContents[int,int,double] move(GraphSparseContents[int,int,double])
+
+ctypedef unique_ptr[GraphCOO[int,int,float]] GraphCOOFloat 
+ctypedef unique_ptr[GraphCOO[int,int,double]] GraphCOODouble
+
+ctypedef fused GraphCOOType:
+    GraphCOOFloat
+    GraphCOODouble
+
+ctypedef GraphCOOView[int,int,float] GraphCOOViewFloat 
+ctypedef GraphCOOView[int,int,double] GraphCOOViewDouble
+
+ctypedef fused GraphCOOViewType:
+    GraphCOOViewFloat
+    GraphCOOViewDouble
