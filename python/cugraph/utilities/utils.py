@@ -62,14 +62,14 @@ def get_traversed_path(df, id):
     ddf = df[df['vertex'] == id]
     if len(ddf) == 0:
         raise ValueError("The vertex (", id, " is not in the result set")
-    pred = ddf['predecessor']
+    pred = ddf['predecessor'].iloc[0]
 
     answer = []
     answer.append(ddf)
 
     while pred != -1:
         ddf = df[df['vertex'] == pred]
-        pred = ddf['predecessor']
+        pred = ddf['predecessor'].iloc[0]
         answer.append(ddf)
 
     return cudf.concat(answer)
