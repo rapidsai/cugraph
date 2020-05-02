@@ -48,22 +48,7 @@ def create_csr_float(source_col, dest_col, weights):
 
     cdef GraphCOOView[int,int,float] in_graph
     in_graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
-    cdef unique_ptr[GraphCSR[int,int,float]] out_graph = move(c_utils.coo_to_csr[int,int,float](in_graph))
-    cdef GraphSparseContents[int,int,float] contents = move(out_graph.get()[0].release())
-    offsets = DeviceBuffer.c_from_unique_ptr(move(contents.offsets))
-    indices = DeviceBuffer.c_from_unique_ptr(move(contents.indices))
-    edge_data = DeviceBuffer.c_from_unique_ptr(move(contents.edge_data))
-    offsets = Buffer(offsets)
-    indices = Buffer(indices)
-    edge_data = Buffer(edge_data)
-    csr_offsets = cudf.Series(data=offsets, dtype="int32")
-    csr_indices = cudf.Series(data=indices, dtype="int32")
-
-    csr_weights = None
-    if weights is not None:
-        csr_weights = cudf.Series(data=edge_data, dtype="float32")
-
-    return csr_offsets, csr_indices, csr_weights
+    return csr_to_series(move(c_utils.coo_to_csr[int,int,float](in_graph)))
 
 
 def create_csr_double(source_col, dest_col, weights):
@@ -79,22 +64,7 @@ def create_csr_double(source_col, dest_col, weights):
 
     cdef GraphCOOView[int,int,double] in_graph
     in_graph = GraphCOOView[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
-    cdef unique_ptr[GraphCSR[int,int,double]] out_graph = move(c_utils.coo_to_csr[int,int,double](in_graph))
-    cdef GraphSparseContents[int,int,double] contents = move(out_graph.get()[0].release())
-    offsets = DeviceBuffer.c_from_unique_ptr(move(contents.offsets))
-    indices = DeviceBuffer.c_from_unique_ptr(move(contents.indices))
-    edge_data = DeviceBuffer.c_from_unique_ptr(move(contents.edge_data))
-    offsets = Buffer(offsets)
-    indices = Buffer(indices)
-    edge_data = Buffer(edge_data)
-    csr_offsets = cudf.Series(data=offsets, dtype="int32")
-    csr_indices = cudf.Series(data=indices, dtype="int32")
-
-    csr_weights = None
-    if weights is not None:
-        csr_weights = cudf.Series(data=edge_data, dtype="float64")
-
-    return csr_offsets, csr_indices, csr_weights
+    return csr_to_series(move(c_utils.coo_to_csr[int,int,double](in_graph)))
 
 
 def coo2csr(source_col, dest_col, weights=None):

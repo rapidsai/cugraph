@@ -136,12 +136,19 @@ cdef extern from "<utility>" namespace "std" nogil:
     cdef GraphSparseContents[int,int,float] move(GraphSparseContents[int,int,float])
     cdef GraphSparseContents[int,int,double] move(GraphSparseContents[int,int,double])
 
-ctypedef unique_ptr[GraphCOO[int,int,float]] GraphCOOFloat 
-ctypedef unique_ptr[GraphCOO[int,int,double]] GraphCOODouble
+ctypedef unique_ptr[GraphCOO[int,int,float]] GraphCOOPtrFloat 
+ctypedef unique_ptr[GraphCOO[int,int,double]] GraphCOOPtrDouble
 
-ctypedef fused GraphCOOType:
-    GraphCOOFloat
-    GraphCOODouble
+ctypedef fused GraphCOOPtrType:
+    GraphCOOPtrFloat
+    GraphCOOPtrDouble
+
+ctypedef unique_ptr[GraphCSR[int,int,float]] GraphCSRPtrFloat 
+ctypedef unique_ptr[GraphCSR[int,int,double]] GraphCSRPtrDouble
+
+ctypedef fused GraphCSRPtrType:
+    GraphCSRPtrFloat
+    GraphCSRPtrDouble
 
 ctypedef GraphCOOView[int,int,float] GraphCOOViewFloat 
 ctypedef GraphCOOView[int,int,double] GraphCOOViewDouble
@@ -149,3 +156,7 @@ ctypedef GraphCOOView[int,int,double] GraphCOOViewDouble
 ctypedef fused GraphCOOViewType:
     GraphCOOViewFloat
     GraphCOOViewDouble
+
+cdef coo_to_df(GraphCOOPtrType graph)
+cdef csr_to_series(GraphCSRPtrType graph)
+cdef GraphCOOViewType get_graph_view(input_graph, GraphCOOViewType* dummy=*)
