@@ -77,7 +77,7 @@ def test_betweenness_centrality(managed, pool, graph_file):
         if (scores['cu'][i] < (scores['nx'][i] * (1 - epsilon)) or
            scores['cu'][i] > (scores['nx'][i] * (1 + epsilon))):
             err = err + 1
-            print('ERROR: cu = {}, nx = {}'.format(scores['cu'].loc[i],
+            print('ERROR: cu = {}, nx = {}'.format(scores['cu'].iloc[i],
                                                    scores['nx'].iloc[i]))
 
     assert err == 0
