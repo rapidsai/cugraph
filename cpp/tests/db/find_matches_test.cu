@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
+#include <cugraph.h>
+#include "db/db_operators.cuh"
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
-#include <cugraph.h>
 #include "test_utils.h"
-#include "db/db_operators.cuh"
 #include "utilities/graph_utils.cuh"
 
-class Test_FindMatches: public ::testing::Test {
-public:
+class Test_FindMatches : public ::testing::Test {
+ public:
   Test_FindMatches() {}
-  virtual void SetUp() {
+  virtual void SetUp()
+  {
     cugraph::db::db_pattern<int32_t> p;
     cugraph::db::db_pattern_entry<int32_t> p1(0);
     cugraph::db::db_pattern_entry<int32_t> p2(1);
@@ -39,7 +40,8 @@ public:
     table.flush_input();
   }
   virtual void TearDown() {}
-  void insertConstantEntry(int32_t a, int32_t b, int32_t c) {
+  void insertConstantEntry(int32_t a, int32_t b, int32_t c)
+  {
     cugraph::db::db_pattern<int32_t> p;
     cugraph::db::db_pattern_entry<int32_t> p1(a);
     cugraph::db::db_pattern_entry<int32_t> p2(b);
@@ -52,7 +54,8 @@ public:
   cugraph::db::db_table<int32_t> table;
 };
 
-TEST_F(Test_FindMatches, verifyIndices) {
+TEST_F(Test_FindMatches, verifyIndices)
+{
   insertConstantEntry(0, 1, 1);
   insertConstantEntry(2, 0, 1);
   table.flush_input();
@@ -63,7 +66,8 @@ TEST_F(Test_FindMatches, verifyIndices) {
   std::cout << "Index[2]: " << table.getIndex(2).toString();
 }
 
-TEST_F(Test_FindMatches, firstTest){
+TEST_F(Test_FindMatches, firstTest)
+{
   cugraph::db::db_pattern<int32_t> p;
   cugraph::db::db_pattern_entry<int32_t> p1(0);
   cugraph::db::db_pattern_entry<int32_t> p2("a");
@@ -84,8 +88,8 @@ TEST_F(Test_FindMatches, firstTest){
   delete[] resultB;
 }
 
-
-TEST_F(Test_FindMatches, secondTest) {
+TEST_F(Test_FindMatches, secondTest)
+{
   insertConstantEntry(0, 1, 1);
   insertConstantEntry(2, 0, 1);
   table.flush_input();
@@ -121,7 +125,8 @@ TEST_F(Test_FindMatches, secondTest) {
   delete[] resultB;
 }
 
-TEST_F(Test_FindMatches, thirdTest) {
+TEST_F(Test_FindMatches, thirdTest)
+{
   insertConstantEntry(1, 1, 2);
   insertConstantEntry(2, 1, 2);
   table.flush_input();
@@ -153,7 +158,8 @@ TEST_F(Test_FindMatches, thirdTest) {
   delete[] resultA;
 }
 
-TEST_F(Test_FindMatches, fourthTest) {
+TEST_F(Test_FindMatches, fourthTest)
+{
   insertConstantEntry(1, 1, 2);
   insertConstantEntry(2, 1, 2);
   table.flush_input();
@@ -186,7 +192,8 @@ TEST_F(Test_FindMatches, fourthTest) {
   delete[] resultR;
 }
 
-TEST_F(Test_FindMatches, fifthTest) {
+TEST_F(Test_FindMatches, fifthTest)
+{
   insertConstantEntry(0, 1, 3);
   insertConstantEntry(0, 2, 1);
   insertConstantEntry(0, 2, 2);
@@ -218,11 +225,11 @@ TEST_F(Test_FindMatches, fifthTest) {
   delete[] resultB;
 }
 
-int main( int argc, char** argv )
+int main(int argc, char** argv)
 {
-    rmmInitialize(nullptr);
-    testing::InitGoogleTest(&argc,argv);
-    int rc = RUN_ALL_TESTS();
-    rmmFinalize();
-    return rc;
+  rmmInitialize(nullptr);
+  testing::InitGoogleTest(&argc, argv);
+  int rc = RUN_ALL_TESTS();
+  rmmFinalize();
+  return rc;
 }

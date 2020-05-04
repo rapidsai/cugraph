@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include <stdint.h>
 #include <cuda_profiler_api.h>
+#include <stdint.h>
 
 template <typename Key_t, typename Len_t>
 struct LeftmostBits {
@@ -31,18 +31,14 @@ struct LeftmostBits {
    *
    * @param[in]  numBits  The number of bits to gather from the left of the key
    */
-  LeftmostBits(int numBits) {
-    shiftRight_ = 8 * sizeof(Key_t) - numBits;
-  }
+  LeftmostBits(int numBits) { shiftRight_ = 8 * sizeof(Key_t) - numBits; }
 
   /**
    * @brief This is the () operator used by the functor
    *
    * @return  The leftmost bits in the key
    */
-  Len_t __device__ operator() (const Key_t &v) const {
-    return (v >> shiftRight_);
-  }
+  Len_t __device__ operator()(const Key_t &v) const { return (v >> shiftRight_); }
 
   int shiftRight_;
 };
@@ -60,10 +56,10 @@ struct SkipNBits {
    * @param[in]  skipBits  The number of bits to skip from the left of the key
    *
    */
-  SkipNBits(int numBits, int skipBits) {
+  SkipNBits(int numBits, int skipBits)
+  {
     shiftRight_ = 8 * sizeof(Key_t) - (numBits + skipBits);
-    if (shiftRight_ < 0)
-      shiftRight_ = 0;
+    if (shiftRight_ < 0) shiftRight_ = 0;
 
     bitMask_ = (Key_t{1} << numBits) - 1;
   }
@@ -73,9 +69,7 @@ struct SkipNBits {
    *
    * @return  The desired bits in the key, right justified
    */
-  Len_t __device__ operator() (const Key_t &v) const {
-    return (v >> shiftRight_) & bitMask_;
-  }
+  Len_t __device__ operator()(const Key_t &v) const { return (v >> shiftRight_) & bitMask_; }
 
   int shiftRight_;
   Key_t bitMask_;
@@ -92,15 +86,14 @@ struct SkipNBits {
  * @param[in]     computeBin  A functor that computes a bin number from a key
  */
 template <typename Key_t, typename Len_t, typename ComputeBin_t>
-__global__ void binCounting(Key_t* array, Len_t numKeys, Len_t* binSizes, ComputeBin_t computeBin)
+__global__ void binCounting(Key_t *array, Len_t numKeys, Len_t *binSizes, ComputeBin_t computeBin)
 {
-  Len_t pos = blockIdx.x*blockDim.x + threadIdx.x;
-  if(pos>=numKeys)
-    return;
+  Len_t pos = blockIdx.x * blockDim.x + threadIdx.x;
+  if (pos >= numKeys) return;
 
   Len_t myBin = computeBin(array[pos]);
 
-  atomicAdd((Len_t*) binSizes+myBin,(Len_t)1L);
+  atomicAdd((Len_t *)binSizes + myBin, (Len_t)1L);
 }
 
 /**
@@ -117,19 +110,22 @@ __global__ void binCounting(Key_t* array, Len_t numKeys, Len_t* binSizes, Comput
  * @param[in]     binMap        Maps each bin to a partition id
  * @param[in]     numPartitions Number of partitions
  */
-template <int NUMGPUS, int THREADS,
-          typename Key_t, typename Val_t, typename Len_t,
+template <int NUMGPUS,
+          int THREADS,
+          typename Key_t,
+          typename Val_t,
+          typename Len_t,
           typename ComputeBin_t>
 __global__ void partitionRelabel(Key_t *array,
                                  Key_t *reorgArray,
                                  Val_t *vals,
                                  Val_t *reorgVals,
-                                 Len_t  numKeys, 
+                                 Len_t numKeys,
                                  Len_t *binOffsets,
                                  ComputeBin_t computeBin,
                                  unsigned char *binMap,
-                                 int numPartitions) {
-
+                                 int numPartitions)
+{
   Len_t pos = blockIdx.x * blockDim.x + threadIdx.x;
   Len_t tid = threadIdx.x;
 
@@ -137,10 +133,10 @@ __global__ void partitionRelabel(Key_t *array,
   //    NOTE:  These dimensions are NUMGPUS+1?  I think this is
   //           to reduce the number of bank collisions
   //
-  __shared__ Len_t counter[2][NUMGPUS+1];
-  __shared__ Len_t counter2[NUMGPUS+1];
-  __shared__ Len_t prefix[NUMGPUS+1];
-  __shared__ Len_t globalPositions[NUMGPUS+1];
+  __shared__ Len_t counter[2][NUMGPUS + 1];
+  __shared__ Len_t counter2[NUMGPUS + 1];
+  __shared__ Len_t prefix[NUMGPUS + 1];
+  __shared__ Len_t globalPositions[NUMGPUS + 1];
 
   __shared__ Key_t reOrderedLocalKey[THREADS];
   __shared__ Val_t reOrderedLocalVal[THREADS];
@@ -152,7 +148,7 @@ __global__ void partitionRelabel(Key_t *array,
   if (tid < numPartitions) {
     counter[0][tid] = 0L;
     counter[1][tid] = 0L;
-    counter2[tid] = 0L;
+    counter2[tid]   = 0L;
   }
 
   __syncthreads();
@@ -167,17 +163,17 @@ __global__ void partitionRelabel(Key_t *array,
   Len_t gpuBin = 0L;
 
   if (pos < numKeys) {
-    key    =  array[pos];
-    val    =  vals[pos];
+    key = array[pos];
+    val = vals[pos];
 
-    gpuBin =  binMap[computeBin(key)];
+    gpuBin = binMap[computeBin(key)];
 
     //
     // TODO:  Would % 2 be also efficient?
     //        Would 4 be better than 2?
     //
-    Len_t tidBin =  tid / (THREADS / 2);
-    //Len_t tidBin =  tid % 2;
+    Len_t tidBin = tid / (THREADS / 2);
+    // Len_t tidBin =  tid % 2;
 
     atomicAdd(counter[tidBin] + gpuBin, Len_t{1});
   }
@@ -190,14 +186,13 @@ __global__ void partitionRelabel(Key_t *array,
   //  right place.
   //
   if (tid < numPartitions) {
-    globalPositions[tid] = atomicAdd(binOffsets + tid,
-                                     counter[0][tid] + counter[1][tid]);
+    globalPositions[tid] = atomicAdd(binOffsets + tid, counter[0][tid] + counter[1][tid]);
   }
 
   if (tid == 0) {
     prefix[0] = 0L;
-    for (int p = 0 ; p < numPartitions ; ++p) {
-      prefix[p+1] = prefix[p] + counter[0][p] + counter[1][p];
+    for (int p = 0; p < numPartitions; ++p) {
+      prefix[p + 1] = prefix[p] + counter[0][p] + counter[1][p];
     }
   }
 
@@ -210,7 +205,7 @@ __global__ void partitionRelabel(Key_t *array,
   Len_t posWithinBin;
   if (pos < numKeys) {
     posWithinBin = atomicAdd(counter2 + gpuBin, Len_t{1});
-    
+
     reOrderedLocalKey[prefix[gpuBin] + posWithinBin] = key;
     reOrderedLocalVal[prefix[gpuBin] + posWithinBin] = val;
 
@@ -223,8 +218,8 @@ __global__ void partitionRelabel(Key_t *array,
   //
   if (pos < numKeys) {
     reorgArray[reOrderedPositions[tid]] = reOrderedLocalKey[tid];
-    reorgVals[reOrderedPositions[tid]] = reOrderedLocalVal[tid];
-  }  
+    reorgVals[reOrderedPositions[tid]]  = reOrderedLocalVal[tid];
+  }
   __syncthreads();
 }
 
@@ -240,17 +235,15 @@ __global__ void partitionRelabel(Key_t *array,
  * @param[in]     binMap        Maps each bin to a partition id
  * @param[in]     numPartitions Number of partitions
  */
-template <int NUMGPUS, int THREADS,
-          typename Key_t, typename Len_t,
-          typename ComputeBin_t>
+template <int NUMGPUS, int THREADS, typename Key_t, typename Len_t, typename ComputeBin_t>
 __global__ void partitionRelabel(Key_t *array,
                                  Key_t *reorgArray,
-                                 Len_t  numKeys, 
+                                 Len_t numKeys,
                                  Len_t *binOffsets,
                                  ComputeBin_t computeBin,
                                  unsigned char *binMap,
-                                 int numPartitions) {
-
+                                 int numPartitions)
+{
   Len_t pos = blockIdx.x * blockDim.x + threadIdx.x;
   Len_t tid = threadIdx.x;
 
@@ -258,10 +251,10 @@ __global__ void partitionRelabel(Key_t *array,
   //    NOTE:  These dimensions are NUMGPUS+1?  I think this is
   //           to reduce the number of bank collisions
   //
-  __shared__ Len_t counter[2][NUMGPUS+1];
-  __shared__ Len_t counter2[NUMGPUS+1];
-  __shared__ Len_t prefix[NUMGPUS+1];
-  __shared__ Len_t globalPositions[NUMGPUS+1];
+  __shared__ Len_t counter[2][NUMGPUS + 1];
+  __shared__ Len_t counter2[NUMGPUS + 1];
+  __shared__ Len_t prefix[NUMGPUS + 1];
+  __shared__ Len_t globalPositions[NUMGPUS + 1];
 
   __shared__ Key_t reOrderedLocalKey[THREADS];
   __shared__ Len_t reOrderedPositions[THREADS];
@@ -272,7 +265,7 @@ __global__ void partitionRelabel(Key_t *array,
   if (tid < numPartitions) {
     counter[0][tid] = 0L;
     counter[1][tid] = 0L;
-    counter2[tid] = 0L;
+    counter2[tid]   = 0L;
   }
 
   __syncthreads();
@@ -286,15 +279,15 @@ __global__ void partitionRelabel(Key_t *array,
   Len_t gpuBin = 0L;
 
   if (pos < numKeys) {
-    key    =  array[pos];
-    gpuBin =  binMap[computeBin(key)];
+    key    = array[pos];
+    gpuBin = binMap[computeBin(key)];
 
     //
     // TODO:  Would % 2 be also efficient?
     //        Would 4 be better than 2?
     //
-    Len_t tidBin =  tid / (THREADS / 2);
-    //Len_t tidBin =  tid % 2;
+    Len_t tidBin = tid / (THREADS / 2);
+    // Len_t tidBin =  tid % 2;
 
     atomicAdd(counter[tidBin] + gpuBin, Len_t{1});
   }
@@ -307,14 +300,13 @@ __global__ void partitionRelabel(Key_t *array,
   //  right place.
   //
   if (tid < numPartitions) {
-    globalPositions[tid] = atomicAdd(binOffsets + tid,
-                                     counter[0][tid] + counter[1][tid]);
+    globalPositions[tid] = atomicAdd(binOffsets + tid, counter[0][tid] + counter[1][tid]);
   }
 
   if (tid == 0) {
     prefix[0] = 0L;
-    for (int p = 0 ; p < numPartitions ; ++p) {
-      prefix[p+1] = prefix[p] + counter[0][p] + counter[1][p];
+    for (int p = 0; p < numPartitions; ++p) {
+      prefix[p + 1] = prefix[p] + counter[0][p] + counter[1][p];
     }
   }
 
@@ -326,8 +318,8 @@ __global__ void partitionRelabel(Key_t *array,
   //
   Len_t posWithinBin;
   if (pos < numKeys) {
-    posWithinBin = atomicAdd(counter2 + gpuBin, Len_t{1});
-    reOrderedLocalKey[prefix[gpuBin] + posWithinBin] = key;
+    posWithinBin                                      = atomicAdd(counter2 + gpuBin, Len_t{1});
+    reOrderedLocalKey[prefix[gpuBin] + posWithinBin]  = key;
     reOrderedPositions[prefix[gpuBin] + posWithinBin] = posWithinBin + globalPositions[gpuBin];
   }
   __syncthreads();
@@ -335,8 +327,6 @@ __global__ void partitionRelabel(Key_t *array,
   //
   //  Now do serial memory accesses to populate the output.
   //
-  if (pos < numKeys) {
-    reorgArray[reOrderedPositions[tid]] = reOrderedLocalKey[tid];
-  }  
+  if (pos < numKeys) { reorgArray[reOrderedPositions[tid]] = reOrderedLocalKey[tid]; }
   __syncthreads();
 }

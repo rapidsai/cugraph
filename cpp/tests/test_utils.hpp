@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cudf/utilities/type_dispatcher.hpp>
 #include <cudf/utilities/traits.hpp>
+#include <cudf/utilities/type_dispatcher.hpp>
 #include <rmm/device_buffer.hpp>
 
 #include <cudf/column/column.hpp>
@@ -26,19 +26,22 @@
 namespace detail {
 
 template <typename Element, typename InputIterator>
-rmm::device_buffer make_elements(InputIterator begin, InputIterator end) {
+rmm::device_buffer make_elements(InputIterator begin, InputIterator end)
+{
   static_assert(cudf::is_fixed_width<Element>(), "Unexpected non-fixed width type.");
   std::vector<Element> elements(begin, end);
   return rmm::device_buffer{elements.data(), elements.size() * sizeof(Element)};
 }
 
-
 template <typename Element, typename iterator_t>
-std::unique_ptr<cudf::column> create_column(iterator_t begin, iterator_t end) {
+std::unique_ptr<cudf::column> create_column(iterator_t begin, iterator_t end)
+{
+  cudf::size_type size = thrust::distance(begin, end);
 
-  cudf::size_type size = thrust::distance(begin,end);
-
-  return std::unique_ptr<cudf::column>(new cudf::column{cudf::data_type{cudf::experimental::type_to_id<Element>()}, size, detail::make_elements<Element>(begin, end)});
+  return std::unique_ptr<cudf::column>(
+    new cudf::column{cudf::data_type{cudf::experimental::type_to_id<Element>()},
+                     size,
+                     detail::make_elements<Element>(begin, end)});
 }
 
-} //namespace detail
+}  // namespace detail

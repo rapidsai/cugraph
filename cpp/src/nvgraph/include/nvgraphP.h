@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  *
  *
  * WARNING: this is a private header file, it should not be publically exposed.
@@ -27,32 +27,30 @@
 
 #include "nvgraph/nvgraph.h"
 
-#if defined(__cplusplus) 
-  extern "C" {
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 /* Graph descriptor types */
-typedef enum
-{
-   IS_EMPTY = 0, //nothing
-   HAS_TOPOLOGY = 1, //connectivity info
-   HAS_VALUES = 2, //MultiValuedCSRGraph
-   IS_2D = 3
+typedef enum {
+  IS_EMPTY     = 0,  // nothing
+  HAS_TOPOLOGY = 1,  // connectivity info
+  HAS_VALUES   = 2,  // MultiValuedCSRGraph
+  IS_2D        = 3
 } nvgraphGraphStatus_t;
 
 struct nvgraphContext {
-   cudaStream_t stream;
-   int nvgraphIsInitialized;  
+  cudaStream_t stream;
+  int nvgraphIsInitialized;
 };
 
 struct nvgraphGraphDescr {
-   nvgraphGraphStatus_t graphStatus;
-   cudaDataType T;							// This is the type of values for the graph
-   nvgraphTopologyType_t TT;				// The topology type (class to cast graph_handle pointer to)
-   void* graph_handle;						// Opaque pointer to the graph class object
+  nvgraphGraphStatus_t graphStatus;
+  cudaDataType T;            // This is the type of values for the graph
+  nvgraphTopologyType_t TT;  // The topology type (class to cast graph_handle pointer to)
+  void* graph_handle;        // Opaque pointer to the graph class object
 };
 
-#if defined(__cplusplus) 
-}//extern "C"
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
-

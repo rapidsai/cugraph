@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once 
+#pragma once
 
 namespace cugraph {
 
@@ -39,11 +39,8 @@ namespace cugraph {
  *
  */
 template <typename vertex_t, typename edge_t>
-vertex_t coo2csr(edge_t num_edges,
-                 vertex_t const *src,
-                 vertex_t const *dst,
-                 edge_t **offsets,
-                 vertex_t **indices);
+vertex_t coo2csr(
+  edge_t num_edges, vertex_t const *src, vertex_t const *dst, edge_t **offsets, vertex_t **indices);
 
 /**
  * @brief    Convert COO to CSR, weighted
@@ -78,4 +75,4 @@ vertex_t coo2csr_weighted(edge_t num_edges,
                           vertex_t **indices,
                           weight_t **csr_weights);
 
-} //namespace cugraph
+}  // namespace cugraph
