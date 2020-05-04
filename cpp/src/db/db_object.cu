@@ -121,76 +121,37 @@ template class db_pattern<int32_t>;
 template class db_pattern<int64_t>;
 
 template<typename idx_t>
-db_column_index<idx_t>::db_column_index() {
-  offsets_size = 0;
-  indirection_size = 0;
+db_column_index<idx_t>::db_column_index(rmm::device_buffer&& off,
+                                        rmm::device_buffer&& ind) {
+  offsets = std::move(off);
+  indirection = std::move(ind);
 }
 
 template<typename idx_t>
-db_column_index<idx_t>::db_column_index(rmm::device_buffer&& _offsets,
-                                        idx_t _offsets_size,
-                                        rmm::device_buffer&& _indirection,
-                                        idx_t _indirection_size) {
-  offsets = std::move(_offsets);
-  offsets_size = _offsets_size;
-  indirection = std::move(_indirection);
-  indirection_size = _indirection_size;
-}
-
-template<typename idx_t>
-db_column_index<idx_t>::db_column_index(db_column_index<idx_t>&& other) {
-  offsets = std::move(other.offsets);
-  offsets_size = other.offsets_size;
-  indirection = std::move(other.indirection);
-  indirection_size = other.indirection_size;
-  other.offsets_size = 0;
-  other.indirection_size = 0;
-}
-
-template<typename idx_t>
-db_column_index<idx_t>::~db_column_index() {
-}
-
-template<typename idx_t>
-db_column_index<idx_t>& db_column_index<idx_t>::operator=(db_column_index<idx_t>&& other) {
-  offsets = std::move(other.offsets);
-  offsets_size = other.offsets_size;
-  indirection = std::move(other.indirection);
-  indirection_size = other.indirection_size;
-  other.offsets_size = 0;
-  other.indirection_size = 0;
-  return *this;
-}
-
-template<typename idx_t>
-void db_column_index<idx_t>::resetData(rmm::device_buffer&& _offsets,
-                                       idx_t _offsets_size,
-                                       rmm::device_buffer&& _indirection,
-                                       idx_t _indirection_size) {
-  offsets = std::move(_offsets);
-  offsets_size = _offsets_size;
-  indirection = std::move(_indirection);
-  indirection_size = _indirection_size;
+void db_column_index<idx_t>::resetData(rmm::device_buffer&& off,
+                                       rmm::device_buffer&& ind) {
+  offsets = std::move(off);
+  indirection = std::move(ind);
 }
 
 template<typename idx_t>
 idx_t* db_column_index<idx_t>::getOffsets() {
-  return (idx_t*) offsets.data();
+  return reinterpret_cast<idx_t*>(offsets.data());
 }
 
 template<typename idx_t>
 idx_t db_column_index<idx_t>::getOffsetsSize() {
-  return offsets_size;
+  return offsets.size() / sizeof(idx_t);
 }
 
 template<typename idx_t>
 idx_t* db_column_index<idx_t>::getIndirection() {
-  return (idx_t*) indirection.data();
+  return reinterpret_cast<idx_t*>(indirection.data());
 }
 
 template<typename idx_t>
 idx_t db_column_index<idx_t>::getIndirectionSize() {
-  return indirection_size;
+  return indirection.size() / sizeof(idx_t);
 }
 
 template<typename idx_t>
@@ -198,22 +159,22 @@ std::string db_column_index<idx_t>::toString() {
   std::stringstream ss;
   ss << "db_column_index:\n";
   ss << "Offsets: ";
-  idx_t* hostOffsets = (idx_t*) malloc(sizeof(idx_t) * offsets_size);
-  cudaMemcpy(hostOffsets, offsets.data(), sizeof(idx_t) * offsets_size, cudaMemcpyDefault);
-  for (idx_t i = 0; i < offsets_size; i++) {
-    ss << hostOffsets[i] << " ";
+  std::vector<idx_t> hostOff(getOffsetsSize());
+  idx_t* hostOffsets = reinterpret_cast<idx_t*>(hostOff.data());
+  CUDA_TRY(cudaMemcpy(hostOffsets, offsets.data(), sizeof(idx_t) * getOffsetsSize(), cudaMemcpyDefault));
+  for (idx_t i = 0; i < getOffsetsSize(); i++) {
+    ss << hostOff[i] << " ";
   }
-  free(hostOffsets);
   ss << "\nIndirection: ";
-  idx_t* hostIndirection = (idx_t*) malloc(sizeof(idx_t) * indirection_size);
-  cudaMemcpy(hostIndirection,
-             indirection.data(),
-             sizeof(idx_t) * indirection_size,
-             cudaMemcpyDefault);
-  for (idx_t i = 0; i < indirection_size; i++) {
-    ss << hostIndirection[i] << " ";
+  std::vector<idx_t> hostInd(getIndirectionSize());
+  idx_t* hostIndirection = reinterpret_cast<idx_t*>(hostInd.data());
+  CUDA_TRY(cudaMemcpy(hostIndirection,
+                      indirection.data(),
+                      sizeof(idx_t) * getIndirectionSize(),
+                      cudaMemcpyDefault));
+  for (idx_t i = 0; i < getIndirectionSize(); i++) {
+    ss << hostInd[i] << " ";
   }
-  free(hostIndirection);
   ss << "\n";
   return ss.str();
 }
@@ -242,10 +203,6 @@ db_result<idx_t>& db_result<idx_t>::operator =(db_result<idx_t>&& other) {
   names = std::move(other.names);
   other.dataValid = false;
   return *this;
-}
-
-template<typename idx_t>
-db_result<idx_t>::~db_result() {
 }
 
 template<typename idx_t>
@@ -289,19 +246,20 @@ std::string db_result<idx_t>::toString() {
   for (size_t i = 0; i < columns.size(); i++)
     ss << names[i] << " ";
   ss << "\n";
-  std::vector<idx_t*> hostColumns;
+  std::vector<std::vector<idx_t>> hostColumns;
+  hostColumns.resize(columns.size());
   for (size_t i = 0; i < columns.size(); i++) {
-    idx_t* hostColumn = (idx_t*) malloc(sizeof(idx_t) * columnSize);
-    cudaMemcpy(hostColumn, columns[i].data(), sizeof(idx_t) * columnSize, cudaMemcpyDefault);
-    hostColumns.push_back(hostColumn);
+    hostColumns[i].resize(columnSize);
+    CUDA_TRY(cudaMemcpy(hostColumns[i].data(),
+                        columns[i].data(),
+                        sizeof(idx_t) * columnSize,
+                        cudaMemcpyDefault));
   }
   for (idx_t i = 0; i < columnSize; i++) {
     for (size_t j = 0; j < hostColumns.size(); j++)
       ss << hostColumns[j][i] << " ";
     ss << "\n";
   }
-  for (size_t i = 0; i < hostColumns.size(); i++)
-    free(hostColumns[i]);
   return ss.str();
 }
 
@@ -311,10 +269,6 @@ template class db_result<int64_t>;
 template<typename idx_t>
 db_table<idx_t>::db_table() {
   column_size = 0;
-}
-
-template<typename idx_t>
-db_table<idx_t>::~db_table() {
 }
 
 template<typename idx_t>
@@ -332,7 +286,6 @@ void db_table<idx_t>::addEntry(db_pattern<idx_t>& pattern) {
   CUGRAPH_EXPECTS(pattern.isAllConstants(), "Can't add an entry that isn't all constants");
   CUGRAPH_EXPECTS(static_cast<size_t>(pattern.getSize()) == columns.size(),
                   "Can't add an entry that isn't the right size");
-
   inputBuffer.push_back(pattern);
 }
 
@@ -358,10 +311,10 @@ void db_table<idx_t>::rebuildIndices() {
 
     // Compute offsets array based on sorted column
     idx_t maxId;
-    cudaMemcpy(&maxId,
+    CUDA_TRY(cudaMemcpy(&maxId,
                reinterpret_cast<idx_t*>(tempColumn.data()) + size - 1,
                sizeof(idx_t),
-               cudaMemcpyDefault);
+               cudaMemcpyDefault));
     rmm::device_buffer offsets(sizeof(idx_t) * (maxId + 2));
     thrust::lower_bound(rmm::exec_policy(nullptr)->on(nullptr),
                         reinterpret_cast<idx_t*>(tempColumn.data()),
@@ -371,7 +324,7 @@ void db_table<idx_t>::rebuildIndices() {
                         reinterpret_cast<idx_t*>(offsets.data()));
 
     // Assign new offsets array and indirection vector to index
-    indices[i].resetData(std::move(offsets), maxId + 2, std::move(indirection), size);
+    indices[i].resetData(std::move(offsets), std::move(indirection));
   }
 }
 
@@ -392,19 +345,18 @@ void db_table<idx_t>::flush_input() {
   idx_t newSize = currentSize + tempSize;
   std::vector<rmm::device_buffer> newColumns;
   for (size_t i = 0; i < columns.size(); i++) {
-    rmm::device_buffer newCol(sizeof(idx_t) * newSize);
-    newColumns.push_back(std::move(newCol));
+    newColumns.emplace_back(sizeof(idx_t) * newSize);
   }
   for (size_t i = 0; i < columns.size(); i++) {
     if (currentSize > 0)
-      cudaMemcpy(newColumns[i].data(),
-                 columns[i].data(),
-                 sizeof(idx_t) * currentSize,
-                 cudaMemcpyDefault);
-    cudaMemcpy(reinterpret_cast<idx_t*>(newColumns[i].data()) + currentSize,
-               tempColumns[i].data(),
-               sizeof(idx_t) * tempSize,
-               cudaMemcpyDefault);
+      CUDA_TRY(cudaMemcpy(newColumns[i].data(),
+                          columns[i].data(),
+                          sizeof(idx_t) * currentSize,
+                          cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(reinterpret_cast<idx_t*>(newColumns[i].data()) + currentSize,
+                        tempColumns[i].data(),
+                        sizeof(idx_t) * tempSize,
+                        cudaMemcpyDefault));
     columns[i] = std::move(newColumns[i]);
     column_size = newSize;
   }
@@ -422,19 +374,20 @@ std::string db_table<idx_t>::toString() {
   for (size_t i = 0; i < names.size(); i++)
     ss << names[i] << " ";
   ss << "\n";
-  std::vector<idx_t*> hostColumns;
+  std::vector<std::vector<idx_t>> hostColumns;
+  hostColumns.resize(columns.size());
   for (size_t i = 0; i < columns.size(); i++) {
-    idx_t* hostColumn = (idx_t*) malloc(sizeof(idx_t) * columnSize);
-    cudaMemcpy(hostColumn, columns[i].data(), sizeof(idx_t) * columnSize, cudaMemcpyDefault);
-    hostColumns.push_back(hostColumn);
+    hostColumns[i].resize(columnSize);
+    CUDA_TRY(cudaMemcpy(hostColumns[i].data(),
+                        columns[i].data(),
+                        sizeof(idx_t) * columnSize,
+                        cudaMemcpyDefault));
   }
   for (idx_t i = 0; i < columnSize; i++) {
     for (size_t j = 0; j < hostColumns.size(); j++)
       ss << hostColumns[j][i] << " ";
     ss << "\n";
   }
-  for (size_t i = 0; i < hostColumns.size(); i++)
-    free(hostColumns[i]);
   return ss.str();
 }
 

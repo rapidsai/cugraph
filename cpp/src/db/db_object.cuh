@@ -71,24 +71,18 @@ template<typename idx_t>
 class db_column_index {
   rmm::device_buffer offsets;
   rmm::device_buffer indirection;
-  idx_t offsets_size;
-  idx_t indirection_size;
 
   public:
-  db_column_index();
-  db_column_index(rmm::device_buffer&& offsets,
-                  idx_t offsets_size,
-                  rmm::device_buffer&& indirection,
-                  idx_t indirection_size);
+  db_column_index() = default;
+  db_column_index(rmm::device_buffer&& off,
+                  rmm::device_buffer&& ind);
   db_column_index(const db_column_index& other) = delete;
-  db_column_index(db_column_index&& other);
-  ~db_column_index();
+  db_column_index(db_column_index&& other) = default;
+  ~db_column_index() = default;
   db_column_index& operator=(const db_column_index& other) = delete;
-  db_column_index& operator=(db_column_index&& other);
+  db_column_index& operator=(db_column_index&& other) = default;
   void resetData(rmm::device_buffer&& offsets,
-                 idx_t offsets_size,
-                 rmm::device_buffer&& indirection,
-                 idx_t indirection_size);
+                 rmm::device_buffer&& indirection);
   idx_t* getOffsets();
   idx_t getOffsetsSize();
   idx_t* getIndirection();
@@ -115,7 +109,7 @@ class db_result {
   db_result(db_result&& other);
   db_result(db_result& other) = delete;
   db_result(const db_result& other) = delete;
-  ~db_result();
+  ~db_result() = default;
   db_result& operator=(db_result&& other);
   db_result& operator=(db_result& other) = delete;
   db_result& operator=(const db_result& other) = delete;
@@ -142,7 +136,7 @@ class db_table {
   std::vector<db_column_index<idx_t>> indices;
   public:
   db_table();
-  ~db_table();
+  ~db_table() = default;
   void addColumn(std::string name);
   void addEntry(db_pattern<idx_t>& pattern);
 

@@ -20,10 +20,13 @@
 #include "test_utils.h"
 #include "db/db_operators.cuh"
 #include "utilities/graph_utils.cuh"
+#include "rmm/device_buffer.hpp"
+#include "utilities/error_utils.h"
 
 class Test_FindMatches: public ::testing::Test {
 public:
-  Test_FindMatches() {}
+  Test_FindMatches() {
+  }
   virtual void SetUp() {
     cugraph::db::db_pattern<int32_t> p;
     cugraph::db::db_pattern_entry<int32_t> p1(0);
@@ -38,7 +41,8 @@ public:
     table.addEntry(p);
     table.flush_input();
   }
-  virtual void TearDown() {}
+  virtual void TearDown() {
+  }
   void insertConstantEntry(int32_t a, int32_t b, int32_t c) {
     cugraph::db::db_pattern<int32_t> p;
     cugraph::db::db_pattern_entry<int32_t> p1(a);
@@ -63,7 +67,7 @@ TEST_F(Test_FindMatches, verifyIndices) {
   std::cout << "Index[2]: " << table.getIndex(2).toString();
 }
 
-TEST_F(Test_FindMatches, firstTest){
+TEST_F(Test_FindMatches, firstTest) {
   cugraph::db::db_pattern<int32_t> p;
   cugraph::db::db_pattern_entry<int32_t> p1(0);
   cugraph::db::db_pattern_entry<int32_t> p2("a");
@@ -71,19 +75,25 @@ TEST_F(Test_FindMatches, firstTest){
   p.addEntry(p1);
   p.addEntry(p2);
   p.addEntry(p3);
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(p, table, nullptr, 0, 1);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(p,
+                                                                             table,
+                                                                             nullptr,
+                                                                             0,
+                                                                             1);
   ASSERT_EQ(result.getSize(), 1);
-  int32_t* resultA = new int32_t[result.getSize()];
-  int32_t* resultB = new int32_t[result.getSize()];
-  cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
-  cudaMemcpy(resultB, result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
+  std::vector<int32_t> resultA(result.getSize());
+  std::vector<int32_t> resultB(result.getSize());
+  CUDA_TRY(cudaMemcpy(resultA.data(),
+                      result.getData("a"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
+  CUDA_TRY(cudaMemcpy(resultB.data(),
+                      result.getData("b"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
   ASSERT_EQ(resultA[0], 1);
   ASSERT_EQ(resultB[0], 2);
-
-  delete[] resultA;
-  delete[] resultB;
 }
-
 
 TEST_F(Test_FindMatches, secondTest) {
   insertConstantEntry(0, 1, 1);
@@ -102,23 +112,30 @@ TEST_F(Test_FindMatches, secondTest) {
   q.addEntry(q2);
   q.addEntry(q3);
 
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 2);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q,
+                                                                             table,
+                                                                             nullptr,
+                                                                             0,
+                                                                             2);
 
   std::cout << result.toString();
 
   ASSERT_EQ(result.getSize(), 2);
-  int32_t* resultA = new int32_t[result.getSize()];
-  int32_t* resultB = new int32_t[result.getSize()];
-  cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
-  cudaMemcpy(resultB, result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
+  std::vector<int32_t> resultA(result.getSize());
+  std::vector<int32_t> resultB(result.getSize());
+  CUDA_TRY(cudaMemcpy(resultA.data(),
+                      result.getData("a"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
+  CUDA_TRY(cudaMemcpy(resultB.data(),
+                      result.getData("b"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
 
   ASSERT_EQ(resultA[0], 1);
   ASSERT_EQ(resultB[0], 1);
   ASSERT_EQ(resultA[1], 1);
   ASSERT_EQ(resultB[1], 2);
-
-  delete[] resultA;
-  delete[] resultB;
 }
 
 TEST_F(Test_FindMatches, thirdTest) {
@@ -134,22 +151,26 @@ TEST_F(Test_FindMatches, thirdTest) {
   q.addEntry(q2);
   q.addEntry(q3);
 
-  int32_t* frontier_ptr;
-  cudaMalloc(&frontier_ptr, sizeof(int32_t));
+  rmm::device_buffer frontier(sizeof(int32_t));
+  int32_t* frontier_ptr = reinterpret_cast<int32_t*>(frontier.data());
   thrust::fill(thrust::device, frontier_ptr, frontier_ptr + 1, 0);
 
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q, table, frontier_ptr, 1, 0);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q,
+                                                                             table,
+                                                                             frontier_ptr,
+                                                                             1,
+                                                                             0);
 
-
-  cudaFree(frontier_ptr);
   ASSERT_EQ(result.getSize(), 1);
-  int32_t* resultA = new int32_t[result.getSize()];
-  cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
+  std::vector<int32_t> resultA(result.getSize());
+  CUDA_TRY(cudaMemcpy(resultA.data(),
+                      result.getData("a"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
 
   std::cout << result.toString();
 
   ASSERT_EQ(resultA[0], 0);
-  delete[] resultA;
 }
 
 TEST_F(Test_FindMatches, fourthTest) {
@@ -167,22 +188,32 @@ TEST_F(Test_FindMatches, fourthTest) {
   q.addEntry(q3);
   q.addEntry(q4);
 
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 0);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q,
+                                                                             table,
+                                                                             nullptr,
+                                                                             0,
+                                                                             0);
   std::cout << result.toString();
   ASSERT_EQ(result.getSize(), 3);
 
-  int32_t* resultA = new int32_t[result.getSize()];
-  cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
-  int32_t* resultR = new int32_t[result.getSize()];
-  cudaMemcpy(resultR, result.getData("r"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
+  std::vector<int32_t> resultA(result.getSize());
+  std::vector<int32_t> resultR(result.getSize());
+
+  CUDA_TRY(cudaMemcpy(resultA.data(),
+                      result.getData("a"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
+  CUDA_TRY(cudaMemcpy(resultR.data(),
+                      result.getData("r"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
+
   ASSERT_EQ(resultA[0], 0);
   ASSERT_EQ(resultA[1], 1);
   ASSERT_EQ(resultA[2], 2);
   ASSERT_EQ(resultR[0], 0);
   ASSERT_EQ(resultR[1], 1);
   ASSERT_EQ(resultR[2], 2);
-  delete[] resultA;
-  delete[] resultR;
 }
 
 TEST_F(Test_FindMatches, fifthTest) {
@@ -199,29 +230,37 @@ TEST_F(Test_FindMatches, fifthTest) {
   q.addEntry(q2);
   q.addEntry(q3);
 
-  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 1);
+  cugraph::db::db_result<int32_t> result = cugraph::db::findMatches<int32_t>(q,
+                                                                             table,
+                                                                             nullptr,
+                                                                             0,
+                                                                             1);
   std::cout << result.toString();
 
   ASSERT_EQ(result.getSize(), 2);
-  int32_t* resultA = new int32_t[result.getSize()];
-  int32_t* resultB = new int32_t[result.getSize()];
-  cudaMemcpy(resultA, result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
-  cudaMemcpy(resultB, result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault);
+  std::vector<int32_t> resultA(result.getSize());
+  std::vector<int32_t> resultB(result.getSize());
+
+  CUDA_TRY(cudaMemcpy(resultA.data(),
+                      result.getData("a"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
+  CUDA_TRY(cudaMemcpy(resultB.data(),
+                      result.getData("b"),
+                      sizeof(int32_t) * result.getSize(),
+                      cudaMemcpyDefault));
 
   ASSERT_EQ(resultA[0], 0);
   ASSERT_EQ(resultA[1], 0);
   ASSERT_EQ(resultB[0], 2);
   ASSERT_EQ(resultB[1], 3);
-
-  delete[] resultA;
-  delete[] resultB;
 }
 
-int main( int argc, char** argv )
-{
-    rmmInitialize(nullptr);
-    testing::InitGoogleTest(&argc,argv);
-    int rc = RUN_ALL_TESTS();
-    rmmFinalize();
-    return rc;
+int main(int argc, char** argv)
+         {
+  rmmInitialize(nullptr);
+  testing::InitGoogleTest(&argc, argv);
+  int rc = RUN_ALL_TESTS();
+  rmmFinalize();
+  return rc;
 }

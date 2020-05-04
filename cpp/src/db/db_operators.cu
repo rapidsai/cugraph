@@ -16,6 +16,7 @@
 
 #include <db/db_operators.cuh>
 #include <cub/device/device_select.cuh>
+#include <utilities/error_utils.h>
 
 namespace cugraph {
 namespace db {
@@ -26,7 +27,7 @@ struct degree_iterator {
       offsets(_offsets) {
   }
 
-  __host__   __device__
+  __host__    __device__
   IndexType operator[](IndexType place) {
     return offsets[place + 1] - offsets[place];
   }
@@ -39,7 +40,7 @@ struct deref_functor {
       iterator(it) {
   }
 
-  __host__   __device__
+  __host__    __device__
   IndexType operator()(IndexType in) {
     return iterator[in];
   }
@@ -47,7 +48,7 @@ struct deref_functor {
 
 template<typename idx_t, typename flag_t>
 struct notNegativeOne {
-  __host__   __device__
+  __host__    __device__
   flag_t operator()(idx_t in) {
     return in != -1;
   }
@@ -206,10 +207,10 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
       idx_t constantValue = pattern.getEntry(indexPosition).getConstant();
       frontierBuffer.resize(sizeof(idx_t));
       thrust::fill(rmm::exec_policy(nullptr)->on(nullptr),
-                   (idx_t*) frontierBuffer.data(),
-                   (idx_t*) frontierBuffer.data() + 1,
+                   reinterpret_cast<idx_t*>(frontierBuffer.data()),
+                   reinterpret_cast<idx_t*>(frontierBuffer.data()) + 1,
                    constantValue);
-      frontier_ptr = (idx_t*) frontierBuffer.data();
+      frontier_ptr = reinterpret_cast<idx_t*>(frontierBuffer.data());
       frontierSize = 1;
     }
     else {
@@ -217,9 +218,9 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
       idx_t highestId = theIndex.getOffsetsSize() - 2;
       frontierBuffer.resize(sizeof(idx_t) * (highestId + 1));
       thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr),
-                       (idx_t*) frontierBuffer.data(),
-                       (idx_t*) frontierBuffer.data() + highestId + 1);
-      frontier_ptr = (idx_t*) frontierBuffer.data();
+                       reinterpret_cast<idx_t*>(frontierBuffer.data()),
+                       reinterpret_cast<idx_t*>(frontierBuffer.data()) + highestId + 1);
+      frontier_ptr = reinterpret_cast<idx_t*>(frontierBuffer.data());
       frontierSize = highestId + 1;
     }
   }
@@ -249,10 +250,10 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
                          reinterpret_cast<idx_t*>(exsum_degree.data()) + frontierSize + 1,
                          reinterpret_cast<idx_t*>(exsum_degree.data()) + 1);
   idx_t output_size;
-  cudaMemcpy(&output_size,
-             reinterpret_cast<idx_t*>(exsum_degree.data()) + frontierSize,
-             sizeof(idx_t),
-             cudaMemcpyDefault);
+  CUDA_TRY(cudaMemcpy(&output_size,
+                      reinterpret_cast<idx_t*>(exsum_degree.data()) + frontierSize,
+                      sizeof(idx_t),
+                      cudaMemcpyDefault));
 
   idx_t num_blocks = (output_size + FIND_MATCHES_BLOCK_SIZE - 1) / FIND_MATCHES_BLOCK_SIZE;
   rmm::device_buffer block_bucket_offsets(sizeof(idx_t) * (num_blocks + 1));
@@ -399,7 +400,7 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   for (size_t i = 0; i < columns.size(); i++) {
     idx_t* outputPtr = result.getData(names[i]);
     idx_t* inputPtr = columns[i];
-    cudaMemcpy(outputPtr, inputPtr, sizeof(idx_t) * compactSize_h, cudaMemcpyDefault);
+    CUDA_TRY(cudaMemcpy(outputPtr, inputPtr, sizeof(idx_t) * compactSize_h, cudaMemcpyDefault));
   }
 
   // Return the result
