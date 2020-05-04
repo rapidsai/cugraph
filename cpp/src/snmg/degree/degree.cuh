@@ -16,25 +16,26 @@
 
 #pragma once
 #include <omp.h>
-#include "utilities/graph_utils.cuh"
-#include "snmg/utils.cuh"
 #include "rmm_utils.h"
+#include "snmg/utils.cuh"
+#include "utilities/graph_utils.cuh"
 
-namespace cugraph { 
+namespace cugraph {
 namespace snmg {
-  /**
-   * Single node multi-GPU method for degree calculation on a partitioned graph.
-   * @param x Indicates whether to compute in degree, out degree, or the sum of both.
-   *    0 = in + out degree
-   *    1 = in-degree
-   *    2 = out-degree
-   * @param part_off The vertex partitioning of the global graph
-   * @param off The offsets array of the local partition
-   * @param ind The indices array of the local partition
-   * @param degree Pointer to pointers to memory on each GPU for the result
-   * @return Error code
-   */
-  template<typename idx_t>
-  void snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree);
+/**
+ * Single node multi-GPU method for degree calculation on a partitioned graph.
+ * @param x Indicates whether to compute in degree, out degree, or the sum of both.
+ *    0 = in + out degree
+ *    1 = in-degree
+ *    2 = out-degree
+ * @param part_off The vertex partitioning of the global graph
+ * @param off The offsets array of the local partition
+ * @param ind The indices array of the local partition
+ * @param degree Pointer to pointers to memory on each GPU for the result
+ * @return Error code
+ */
+template <typename idx_t>
+void snmg_degree(int x, size_t* part_off, idx_t* off, idx_t* ind, idx_t** degree);
 
-} } //namespace
+}  // namespace snmg
+}  // namespace cugraph

@@ -16,13 +16,11 @@
 
 #include "include/valued_csr_graph.hxx"
 
-namespace nvgraph
+namespace nvgraph {
+template <typename IndexType_, typename ValueType_>
+ValuedCsrGraph<IndexType_, ValueType_>& ValuedCsrGraph<IndexType_, ValueType_>::operator=(
+  const ValuedCsrGraph<IndexType_, ValueType_>& graph)
 {
-    template <typename IndexType_, typename ValueType_>
-    ValuedCsrGraph<IndexType_, ValueType_>& ValuedCsrGraph<IndexType_, ValueType_>::operator=(const ValuedCsrGraph<IndexType_, ValueType_>& graph)
-    {
-    	
-    }
-
 }
 
+}  // namespace nvgraph
