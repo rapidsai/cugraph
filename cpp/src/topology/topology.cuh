@@ -59,8 +59,8 @@ bool check_symmetry(const Vector<IndexT>& d_row_offsets, const Vector<IndexT>& d
 
   const IndexT* ptr_r_o = thrust::raw_pointer_cast(&d_row_offsets.front());
   const IndexT* ptr_c_i = thrust::raw_pointer_cast(&d_col_indices.front());
-  BoolT* start_flags = thrust::raw_pointer_cast(&d_flags.front());  // d_flags.begin();
-  BoolT* end_flags = start_flags + nrows;
+  BoolT* start_flags    = thrust::raw_pointer_cast(&d_flags.front());  // d_flags.begin();
+  BoolT* end_flags      = start_flags + nrows;
   BoolT init{1};
   return thrust::transform_reduce(
     thrust::device,
@@ -110,7 +110,7 @@ bool check_symmetry(IndexT nrows, const IndexT* ptr_r_o, IndexT nnz, const Index
   Vector d_flags(nrows, 1);
 
   BoolT* start_flags = thrust::raw_pointer_cast(&d_flags.front());  // d_flags.begin();
-  BoolT* end_flags = start_flags + nrows;
+  BoolT* end_flags   = start_flags + nrows;
   BoolT init{1};
   return thrust::transform_reduce(
     thrust::device,

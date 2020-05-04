@@ -49,7 +49,7 @@ struct SpmvBlockThread  // this is in agent file other template parameters ignor
 {
   // set constants
   enum {
-    BLOCK_THREADS = _BLOCK_THREADS,        // number of threads per thread block
+    BLOCK_THREADS    = _BLOCK_THREADS,     // number of threads per thread block
     ITEMS_PER_THREAD = _ITEMS_PER_THREAD,  // number of items per thread per tile(tid) of input
   };
 };
@@ -131,7 +131,7 @@ template <typename SpmvPolicyT,  // parameterized SpmvBlockThread tuning policy 
                                    // on the enum
           bool hasAlpha,  // signifies whether the input parameter alpha is 1 in y = alpha*A*x +
                           // beta*A*y
-          bool hasBeta>  // signifies whether the input parameter beta is 0
+          bool hasBeta>   // signifies whether the input parameter beta is 0
 struct AgentSpmv {
   // set constants
   enum {
@@ -153,8 +153,9 @@ struct AgentSpmv {
       tileStartCoord.x;  // length(rowOffSets) = numRows + 1 in merge path ignore first element for
                          // 1 and so length of path in x-direction gives the exact number of rows
     IndexType_ tileNnz =
-      tileEndCoord.y - tileStartCoord.y;  // number of nonzero goes down path countingITerator is
-                                          // indexed by columnInd and Val array which are of size nnz
+      tileEndCoord.y -
+      tileStartCoord.y;  // number of nonzero goes down path countingITerator is
+                         // indexed by columnInd and Val array which are of size nnz
     // load row offsets into shared memory-create shared memory row offset pointer
     __shared__ IndexType_ smemTileRowPtr[ITEMS_PER_THREAD + TILE_ITEMS + 1];
     // copy row offsets into shared memory for accumulating matrix vector dot products in the merge
@@ -205,7 +206,7 @@ struct AgentSpmv {
       // indexed by y whereas rowOffset goes to the move and is A indexed by x
       countIndId = threadCurrentCoord.y + tileStartCoord.y;  // line number problem
 
-      IndexType_ nnzId = min(countIndId, spParams.nnz - 1);  // make sure stay in bounds
+      IndexType_ nnzId  = min(countIndId, spParams.nnz - 1);  // make sure stay in bounds
       IndexType_ colIdx = spParams.csrColInd[nnzId];
 
       ValueType_ A_val = spParams.csrVal[nnzId];  // A val
@@ -292,7 +293,7 @@ struct AgentSpmv {
                                  // one per block
     ValueType_ *dTileCarryValues,  // output pointer to temporary array carry-out dot product
                                    // row-ids, one per block
-    int numMergeTiles,  // number of merge tiles
+    int numMergeTiles,             // number of merge tiles
     CsrMvParams<IndexType_, ValueType_> spParams,
     SemiRingType_ SR)
   {
@@ -328,22 +329,22 @@ struct AgentSpmv {
 // this device kernel will call the above agent function-ignoring policies for now
 template <typename SpmvBlockThread,  // parameterized spmvpolicy tunign policy type
           typename IndexType_,       // index type either 32 bit or 64 bit integer for rowoffsets of
-                                // columnindices
-          typename ValueType_,     // matrix and vector value type
+                                     // columnindices
+          typename ValueType_,       // matrix and vector value type
           typename SemiRingType_,  // this follows different semiring structs to be passed depending
                                    // on the enum
-          bool hasAlpha,                         // determines where alpha = 1 as above
-          bool hasBeta>                          // determines whether beta = 0 as above
-__global__ void DeviceSpmvKernel(                // this will call consume tile
+          bool hasAlpha,           // determines where alpha = 1 as above
+          bool hasBeta>            // determines whether beta = 0 as above
+__global__ void DeviceSpmvKernel(  // this will call consume tile
   CsrMvParams<IndexType_, ValueType_> spParams,  // pass constant reference to spmv parameters
   const SemiRingType_ &SR,
   Coord<IndexType_> *dTileCoords,  // input pointer to temporaray array of the tile starting
                                    // coordinates of each (y,x) = (i,j) pair on the merge path
-  IndexType_ *dTileCarryKeys,  // output is a pointer to the temp array that carries out the dot
-                               // porduct row-ids where it is one per block
-  ValueType_ *dTileCarryValues,  // output is a pointer to the temp array that carries out the dot
-                                 // porduct row-ids where it is one per block
-  int numTiles  // input which is the number of merge tiles
+  IndexType_ *dTileCarryKeys,      // output is a pointer to the temp array that carries out the dot
+                                   // porduct row-ids where it is one per block
+  ValueType_ *dTileCarryValues,    // output is a pointer to the temp array that carries out the dot
+                                   // porduct row-ids where it is one per block
+  int numTiles                     // input which is the number of merge tiles
 )
 {
   // call Spmv agent type specialization- need to fix this call!!
@@ -467,7 +468,7 @@ struct AgentSegmentReduction {
     // Blocks are launched in increasing order, so we assign one tile per block
     int tileIdx =
       (blockIdx.x * gridDim.y) + blockIdx.y;          // current tile index same as in consumeTile
-    IndexType_ tileOffset = tileIdx * TILE_ITEMS;     // Global offset for the current tile
+    IndexType_ tileOffset   = tileIdx * TILE_ITEMS;   // Global offset for the current tile
     IndexType_ numRemaining = numItems - tileOffset;  // Remaining items which includes this tile
     if (numRemaining >
         TILE_ITEMS)  // this is not the last tile so call wit template argument set to be false
@@ -581,8 +582,8 @@ struct DispatchSpmv {
 
       // Get search grid dimensions
       int searchBlockSize = INIT_KERNEL_THREADS;
-      int searchGridSize = (numMergeTiles + searchBlockSize) / searchBlockSize;  // ignored the +1
-                                                                                 // -1
+      int searchGridSize  = (numMergeTiles + searchBlockSize) / searchBlockSize;  // ignored the +1
+                                                                                  // -1
       // call Search Kernel within the host so need <<>>>
       // call devicesearch kernel to compute starting coordiantes of merge path
       DeviceSpmvSearchKernel<typename Policy350::SpmvPolicyT, IndexType_, ValueType_>

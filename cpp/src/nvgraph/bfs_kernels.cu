@@ -1045,7 +1045,7 @@ __global__ void topdown_expand_kernel(
         IndexType *vec_v_visited_bmap = vec_frontier_degrees_exclusive_sum_index;
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-          IndexType v = vec_dest_v[iv];
+          IndexType v            = vec_dest_v[iv];
           vec_v_visited_bmap[iv] = (v != -1) ? bmap[v / INT_SIZE] : (~0);  // will look visited
         }
 
@@ -1153,8 +1153,8 @@ __global__ void topdown_expand_kernel(
 
           if (idx_shared < block_n_frontier_candidates) {
             IndexType v = shared_local_new_frontier_candidates[idx_shared];  // popping queue
-            int m = 1 << (v % INT_SIZE);
-            int q = atomicOr(&bmap[v / INT_SIZE], m);  // atomicOr returns old
+            int m       = 1 << (v % INT_SIZE);
+            int q       = atomicOr(&bmap[v / INT_SIZE], m);  // atomicOr returns old
 
             if (!(m & q)) {  // if this thread was the first to discover this node
               if (distances) distances[v] = lvl;

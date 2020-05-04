@@ -197,8 +197,9 @@ void ConvertCOOtoCSR_weighted(T* sources,
   result.colIndices  = dests;
   result.edgeWeights = weights;
   RMM_FREE(
-    srcs, stream);  // Better to be error checked, but we do not have a policy for error checking
-                    // yet (in particular for void functions), so I defer error check as future work.
+    srcs,
+    stream);  // Better to be error checked, but we do not have a policy for error checking
+              // yet (in particular for void functions), so I defer error check as future work.
   RMM_FREE(
     unique,
     stream);  // Better to be error checked, but we do not have a policy for error checking yet (in
@@ -603,15 +604,15 @@ class VertexData2D {
     cudaStream_t stream{nullptr};
     for (size_t i = 0; i < values.size(); i++) {
       if (values[i].Current())
-        RMM_FREE(
-          values[i].Current(),
-          stream);  // Better to be error checked, but we do not have a policy for error checking
-                    // yet (in particular for void functions), so I defer error check as future work.
+        RMM_FREE(values[i].Current(),
+                 stream);  // Better to be error checked, but we do not have a policy for error
+                           // checking yet (in particular for void functions), so I defer error
+                           // check as future work.
       if (values[i].Alternate())
-        RMM_FREE(
-          values[i].Alternate(),
-          stream);  // Better to be error checked, but we do not have a policy for error checking
-                    // yet (in particular for void functions), so I defer error check as future work.
+        RMM_FREE(values[i].Alternate(),
+                 stream);  // Better to be error checked, but we do not have a policy for error
+                           // checking yet (in particular for void functions), so I defer error
+                           // check as future work.
     }
   }
 
@@ -1127,10 +1128,10 @@ class VertexData2D_Unbuffered {
     cudaStream_t stream{nullptr};
     for (size_t i = 0; i < values.size(); i++) {
       if (values[i]) {
-        RMM_FREE(
-          values[i],
-          stream);  // Better to be error checked, but we do not have a policy for error checking
-                    // yet (in particular for void functions), so I defer error check as future work.
+        RMM_FREE(values[i],
+                 stream);  // Better to be error checked, but we do not have a policy for error
+                           // checking yet (in particular for void functions), so I defer error
+                           // check as future work.
       }
     }
   }

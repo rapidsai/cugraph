@@ -33,7 +33,7 @@ class rmmAllocatorAdapter : public MLCommon::deviceAllocator {
   rmmAllocatorAdapter() : _rmmInitialized(rmmIsInitialized(NULL))
   {
     //@todo: Log warning if RMM is not initialized. Blocked by
-    //https://github.com/rapidsai/cuml/issues/229
+    // https://github.com/rapidsai/cuml/issues/229
   }
 
   /**

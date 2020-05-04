@@ -176,7 +176,7 @@ NVGRAPH_ERROR Bfs2d<GlobalType, LocalType, ValueType>::traverse(GlobalType sourc
         //					std::cout << "Block " << i << " before compaction.\n";
         //					debug::printDeviceVector(frontier->get(i), frontierSize_h[i], "Frontier");
         //					debug::printDeviceVector(exSumDegree->get(i), frontierSize_h[i], "Frontier
-        //Degree");
+        // Degree");
 
         // Use degreeIterator as flags to compact the frontier
         cudaSetDevice(deviceAssignments[i]);
@@ -210,7 +210,7 @@ NVGRAPH_ERROR Bfs2d<GlobalType, LocalType, ValueType>::traverse(GlobalType sourc
         //					std::cout << "Block " << i << " after compaction.\n";
         //					debug::printDeviceVector(trim_frontier->get(i), frontierSize_h[i], "Frontier");
         //					debug::printDeviceVector(exSumDegree->get(i), frontierSize_h[i], "Frontier
-        //Degree");
+        // Degree");
 
         // Get the exclusive sum of the frontier degrees, store in exSumDegree
         size_t numBytes = exSumStorage->getN();
@@ -277,7 +277,7 @@ NVGRAPH_ERROR Bfs2d<GlobalType, LocalType, ValueType>::traverse(GlobalType sourc
         //																									+ frontier_bmap->getN(),
         //																							popCount()));
         //					std::cout << "Block " << i << " Level " << level << " has " << bitsSet << " bits
-        //set\n";
+        // set\n";
       }
     }
     description.syncAllStreams();

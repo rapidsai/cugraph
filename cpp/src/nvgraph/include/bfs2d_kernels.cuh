@@ -482,7 +482,7 @@ __global__ void topdown_expand_kernel(
 
   //		if (threadIdx.x == 0)
   //			printf("n_items_per_thread_left=%d max_items_per_thread=%d\n", n_items_per_thread_left,
-  //max_items_per_thread);
+  // max_items_per_thread);
   n_items_per_thread_left = min(max_items_per_thread, n_items_per_thread_left);
 
   for (; (n_items_per_thread_left > 0) && (block_offset < totaldegree);

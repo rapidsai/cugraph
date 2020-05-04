@@ -334,7 +334,7 @@ int lobpcg_simplified(cublasHandle_t cublasHandle,
   // const bool use_magma = SPECTRAL_USE_MAGMA; //true; //false;
   const bool use_throttle             = SPECTRAL_USE_THROTTLE;              // true; //false;
   const bool use_normalized_laplacian = SPECTRAL_USE_NORMALIZED_LAPLACIAN;  // true; //false;
-  const bool use_R_orthogonalization = SPECTRAL_USE_R_ORTHOGONALIZATION;    // true; //false;
+  const bool use_R_orthogonalization  = SPECTRAL_USE_R_ORTHOGONALIZATION;   // true; //false;
 
   // Status flags
   // int minfo;
