@@ -1,6 +1,7 @@
 #include <cugraph.h>
 #include <rmm_utils.h>
 #include "converters/COOtoCSR.cuh"
+#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {

@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <thrust/extrema.h>
+
 namespace cugraph {
 //
 //  This should go into RAFT...

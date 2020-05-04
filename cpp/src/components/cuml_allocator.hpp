@@ -17,7 +17,7 @@
 #pragma once
 
 #include <cuda_runtime.h>
-//#include <cuml/common/utils.hpp>
+#include <components/utils.h>
 
 namespace MLCommon {
 

@@ -19,7 +19,6 @@
 #include <iomanip>
 #include <utility>
 
-#include "include/arnoldi.hxx"
 #include "include/matrix.hxx"
 #include "include/nvgraph_csrmv.hxx"
 #include "include/nvgraph_cublas.hxx"
@@ -30,6 +29,8 @@
 #include "include/nvgraph_vector_kernels.hxx"
 #include "include/pagerank_kernels.hxx"
 #include "include/valued_csr_graph.hxx"
+
+#include "include/arnoldi.hxx"
 
 namespace nvgraph {
 
