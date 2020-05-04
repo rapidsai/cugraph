@@ -267,6 +267,9 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
   EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
+#if 0
+// Leaving this test here, when we refactor to use
+// cudf++ this test can be refactored to test strings
 TEST_F(RenumberingTest, SmallFixedVertexListString)
 {
   const char *src_data[] = {"4U", "6U", "8U", "20U", "1U"};
@@ -369,6 +372,7 @@ TEST_F(RenumberingTest, SmallFixedVertexListString)
   NVStrings::destroy(srcs);
   NVStrings::destroy(dsts);
 }
+#endif
 
 TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
 {
@@ -597,6 +601,9 @@ TEST_F(RenumberingTest, Random10MVertexSet)
   EXPECT_EQ(test_free(number_map_d), cudaSuccess);
 }
 
+#if 0
+// Leaving this test here, when we refactor to use
+// cudf++ this test can be refactored to test strings
 TEST_F(RenumberingTest, Random10MVertexListString)
 {
   const int num_verts = 10000000;
@@ -754,6 +761,7 @@ TEST_F(RenumberingTest, Random10MVertexListString)
   delete[] src;
   delete[] dst;
 }
+#endif
 
 TEST_F(RenumberingTest, Random100MVertexSet)
 {

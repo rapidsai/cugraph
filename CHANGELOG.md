@@ -18,6 +18,7 @@
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
 - PR #829 Updated README and CONTRIBUTIOIN docs
+- PR #836 Remove SNMG code
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
 - PR #833 Update graph functions to use new Graph class
 - PR #834 Updated local gpuci build
