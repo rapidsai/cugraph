@@ -21,6 +21,7 @@
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
 - PR #833 Update graph functions to use new Graph class
 - PR #834 Updated local gpuci build
+- PR #845 Add .clang-format & format all files
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
