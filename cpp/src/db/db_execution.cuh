@@ -15,6 +15,7 @@
  */
 
 #include <string>
+#include <vector>
 #include <cypher-parser.h>
 #include <db_object.cuh>
 
@@ -26,19 +27,24 @@ namespace db {
  * result of a LOAD CSV command.
  */
 class string_table {
-  std::vector<std::vector<std::string>>columns;
-  std::vector<std::string>names;
+  std::vector<std::vector<std::string>> columns;
+  std::vector<std::string> names;
 
 public:
   string_table();
-  string_table(std::string csvFile, bool with_headers);
+  string_table(const string_table& other) = delete;
+  string_table(string_table&& other);
+  string_table(std::string csvFile, bool with_headers, std::string delim = ",");
+  string_table& operator=(const string_table& other) = delete;
+  string_table& operator=(string_table&& other);
   std::vector<std::string>& operator[](std::string colName);
+  std::vector<std::string>& operator[](int colIdx);
 };
 
 /**
  * Super class from which all execution node sub-types inherit
  */
-template <typename idx_t>
+template<typename idx_t>
 class execution_node {
 public:
   virtual void ~execution_node() = 0;
@@ -51,30 +57,35 @@ public:
 /**
  * Class which encapsulates a load csv node in the execution tree
  */
-class load_csv_node {
+template<typename idx_t>
+class load_csv_node: public execution_node<idx_t>{
   bool with_headers;
   std::string filename;
   std::string identifier;
+  std::string delimiter;
   string_table result;
-public:
+  public:
   load_csv_node();
-  load_csv_node(std::string filename, bool with_headers, std::string identifier);
   load_csv_node(const cypher_astnode_t* astNode);
-  string_table& getResult();
-  std::string getIdentifier();
+  string_table& getStringResult() override;
+  db_result<idx_t>& getGPUResult() override;
+  std::string getResultIdentifier() override;
+  void execute() override;
 };
 
 /**
  * Class which encapsulates a match node in the execution tree
  */
-class match_node {
+template<typename idx_t>
+class match_node: public execution_node<idx_t>{
 
 };
 
 /**
  * Class which  encapsulates a create node in the execution tree
  */
-class create_node {
+template<typename idx_t>
+class create_node: public execution_node<idx_t>{
 
 };
 
@@ -82,22 +93,22 @@ class create_node {
  * Class which encapsulates a projection of the result set in the
  * execution tree.
  */
-class return_node {
+template<typename idx_t>
+class return_node: public execution_node<idx_t>{
 
 };
 
-template <typename IdxT>
+template<typename IdxT>
 class query_plan {
   load_csv_node loadCsv;
   match_node match;
   create_node create;
   return_node project;
-public:
+  public:
   query_plan();
   query_plan(const cypher_parse_result_t* parseResult);
 
 };
-
 
 } // namespace db
 } // namespace cugraph
