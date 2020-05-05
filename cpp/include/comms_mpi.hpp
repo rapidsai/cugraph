@@ -19,7 +19,7 @@
 #include <mpi.h>
 #include <nccl.h>
 #endif
-
+#include <cstddef>
 namespace cugraph {
 namespace experimental {
 
