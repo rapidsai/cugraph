@@ -22,15 +22,16 @@
 #include <cuda_runtime_api.h>
 
 #include <cudf/types.h>
-#include "nvgraph_error_utils.h"
 #include <thrust/sort.h>
+#include "nvgraph_error_utils.h"
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
 
 // Function for checking 0-based indexing
 template <typename T>
-void indexing_check (T* srcs, T* dests, int64_t nnz) {
+void indexing_check(T* srcs, T* dests, int64_t nnz)
+{
 #if 0
     cudaStream_t stream {nullptr};
 
@@ -61,7 +62,7 @@ void indexing_check (T* srcs, T* dests, int64_t nnz) {
         std::cerr<< "cuGraph renumbering feature." << std::endl;
     }
 #endif
-    
-} 
+}
 
-} } //namespace
+}  // namespace detail
+}  // namespace cugraph

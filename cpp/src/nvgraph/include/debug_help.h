@@ -13,28 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- /*
+/*
  * debug_help.h
  *
  *  Created on: Jul 19, 2018
  *      Author: jwyles
  */
 
-#include <string>
 #include <iostream>
+#include <string>
 
 #pragma once
 
 namespace debug {
-	template <typename T>
-	void printDeviceVector(T* dev_ptr, int items, std::string title) {
-		T* host_ptr = (T*)malloc(sizeof(T) * items);
-		cudaMemcpy(host_ptr, dev_ptr, sizeof(T) * items, cudaMemcpyDefault);
-		std::cout << title << ": { ";
-		for (int i = 0; i < items; i++) {
-			std::cout << host_ptr[i] << ((i < items - 1) ? ", " : " ");
-		}
-		std::cout << "}\n";
-		free(host_ptr);
-	}
+template <typename T>
+void printDeviceVector(T* dev_ptr, int items, std::string title)
+{
+  T* host_ptr = (T*)malloc(sizeof(T) * items);
+  cudaMemcpy(host_ptr, dev_ptr, sizeof(T) * items, cudaMemcpyDefault);
+  std::cout << title << ": { ";
+  for (int i = 0; i < items; i++) { std::cout << host_ptr[i] << ((i < items - 1) ? ", " : " "); }
+  std::cout << "}\n";
+  free(host_ptr);
 }
+}  // namespace debug

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once 
+#pragma once
 
 #include <graph.hpp>
 
@@ -41,11 +41,8 @@ namespace cugraph {
  *
  */
 template <typename vertex_t, typename edge_t>
-vertex_t coo2csr(edge_t num_edges,
-                 vertex_t const *src,
-                 vertex_t const *dst,
-                 edge_t **offsets,
-                 vertex_t **indices);
+vertex_t coo2csr(
+  edge_t num_edges, vertex_t const *src, vertex_t const *dst, edge_t **offsets, vertex_t **indices);
 
 /**
  * @brief    Convert COO to CSR, weighted
@@ -102,4 +99,4 @@ std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
     experimental::GraphCOOView<VT, ET, WT> const &graph,
     rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource());
 
-} //namespace cugraph
+}  // namespace cugraph

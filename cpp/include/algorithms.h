@@ -30,13 +30,18 @@ namespace cugraph {
  *                                               --rmat_nodes=<number-nodes>
  *                                               --rmat_edgefactor=<edge-factor>
  *                                               --rmat_edges=<number-edges>
- *                                               --rmat_a=<factor> --rmat_b=<factor> --rmat_c=<factor>
- *                                               --rmat_self_loops If this option is supplied, then self loops will be retained
- *                                               --rmat_undirected If this option is not mentioned, then the graps will be undirected
- *                                       Optional arguments:
- *                                       [--device=<device_index>] Set GPU(s) for testing (Default: 0).
- *                                       [--quiet]                 No output (unless --json is specified).
- *                                       [--random_seed]           This will enable usage of random seed, else it will use same seed
+ *                                               --rmat_a=<factor> --rmat_b=<factor>
+ * --rmat_c=<factor>
+ *                                               --rmat_self_loops If this option is supplied, then
+ * self loops will be retained
+ *                                               --rmat_undirected If this option is not mentioned,
+ * then the graps will be undirected Optional arguments:
+ *                                       [--device=<device_index>] Set GPU(s) for testing (Default:
+ * 0).
+ *                                       [--quiet]                 No output (unless --json is
+ * specified).
+ *                                       [--random_seed]           This will enable usage of random
+ * seed, else it will use same seed
  *
  * @Param[out] &vertices             Number of vertices in the generated edge list
  *
@@ -52,17 +57,14 @@ namespace cugraph {
  */
 /* ----------------------------------------------------------------------------*/
 void grmat_gen(const char* argv,
-               size_t &vertices,
-               size_t &edges,
+               size_t& vertices,
+               size_t& edges,
                gdf_column* src,
                gdf_column* dest,
                gdf_column* val);
 
-void louvain(Graph* graph,
-             void *final_modularity,
-             void *num_level,
-             void *louvain_parts,
-             int max_iter = 100);
+void louvain(
+  Graph* graph, void* final_modularity, void* num_level, void* louvain_parts, int max_iter = 100);
 
 /**
  * @brief Computes the ecg clustering of the given graph.
@@ -78,12 +80,10 @@ void louvain(Graph* graph,
  * @param graph The input graph
  * @param min_weight The minimum weight parameter
  * @param ensemble_size The ensemble size parameter
- * @param ecg_parts A pointer to a gdf_column which has allocated memory for the resulting partition identifiers.
+ * @param ecg_parts A pointer to a gdf_column which has allocated memory for the resulting partition
+ * identifiers.
  */
-template<typename IdxT, typename ValT>
-void ecg(Graph* graph,
-         ValT min_weight,
-         size_t ensemble_size,
-         IdxT *ecg_parts);
+template <typename IdxT, typename ValT>
+void ecg(Graph* graph, ValT min_weight, size_t ensemble_size, IdxT* ecg_parts);
 
-} //namespace cugraph
+}  // namespace cugraph

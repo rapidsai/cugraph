@@ -66,16 +66,18 @@ class SSSP {
        const IndexType* _col_indices,
        const DistType* _edge_weights,
        cudaStream_t _stream = 0)
-      : n(_n),
-        nnz(_nnz),
-        row_offsets(_row_offsets),
-        edge_weights(_edge_weights),
-        col_indices(_col_indices),
-        stream(_stream) {
+    : n(_n),
+      nnz(_nnz),
+      row_offsets(_row_offsets),
+      edge_weights(_edge_weights),
+      col_indices(_col_indices),
+      stream(_stream)
+  {
     setup();
   }
 
   void configure(DistType* distances, IndexType* predecessors, int* edge_mask);
   void traverse(IndexType source_vertex);
 };
-} } //namespace
+}  // namespace detail
+}  // namespace cugraph

@@ -21,10 +21,10 @@
  * @file katz_centrality.cu
  * --------------------------------------------------------------------------*/
 
-#include <graph.hpp>
-#include "utilities/error_utils.h"
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
+#include <graph.hpp>
+#include "utilities/error_utils.h"
 
 namespace cugraph {
 
@@ -35,26 +35,24 @@ void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                      int max_iter,
                      double tol,
                      bool has_guess,
-                     bool normalized) {
-
+                     bool normalized)
+{
   const bool isStatic = true;
-  using HornetGraph = hornet::gpu::HornetStatic<VT>;
-  using HornetInit  = hornet::HornetInit<VT>;
-  using Katz = hornets_nest::KatzCentralityStatic;
+  using HornetGraph   = hornet::gpu::HornetStatic<VT>;
+  using HornetInit    = hornet::HornetInit<VT>;
+  using Katz          = hornets_nest::KatzCentralityStatic;
 
-  HornetInit init(graph.number_of_vertices, graph.number_of_edges,
-                  graph.offsets, graph.indices);
+  HornetInit init(graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices);
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
   Katz katz(hnt, alpha, max_iter, tol, normalized, isStatic, result);
   if (katz.getAlpha() < alpha) {
     CUGRAPH_FAIL("Error : alpha is not small enough for convergence");
   }
   katz.run();
-  if (!katz.hasConverged()) {
-    CUGRAPH_FAIL("Error : Convergence not reached");
-  }
+  if (!katz.hasConverged()) { CUGRAPH_FAIL("Error : Convergence not reached"); }
 }
 
-template void katz_centrality<int,int,float,double>(experimental::GraphCSRView<int,int,float> const &, double *, double, int, double, bool, bool);
+template void katz_centrality<int, int, float, double>(
+  experimental::GraphCSRView<int, int, float> const &, double *, double, int, double, bool, bool);
 
-}
+}  // namespace cugraph

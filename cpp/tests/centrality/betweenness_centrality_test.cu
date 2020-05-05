@@ -14,44 +14,40 @@
  * limitations under the License.
  */
 
-#include "gtest/gtest.h"
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include <thrust/device_vector.h>
 
-#include <graph.hpp>
 #include <algorithms.hpp>
+#include <graph.hpp>
 
-struct BetweennessCentralityTest : public ::testing::Test
-{
+struct BetweennessCentralityTest : public ::testing::Test {
 };
 
 TEST_F(BetweennessCentralityTest, SimpleGraph)
 {
-  std::vector<int>  graph_offsets{ { 0, 1, 2, 5, 7, 10, 12, 14 } };
-  std::vector<int>  graph_indices{ { 2, 2, 0, 1, 3, 2, 4, 3, 5, 6, 4, 6, 4, 5 } };
+  std::vector<int> graph_offsets{{0, 1, 2, 5, 7, 10, 12, 14}};
+  std::vector<int> graph_indices{{2, 2, 0, 1, 3, 2, 4, 3, 5, 6, 4, 6, 4, 5}};
 
-  std::vector<float> expected{ {0.0, 0.0, 0.6, 0.6, 0.5333333, 0.0, 0.0 } };
+  std::vector<float> expected{{0.0, 0.0, 0.6, 0.6, 0.5333333, 0.0, 0.0}};
 
   int num_verts = graph_offsets.size() - 1;
   int num_edges = graph_indices.size();
 
-  thrust::device_vector<int>    d_graph_offsets(graph_offsets);
-  thrust::device_vector<int>    d_graph_indices(graph_indices);
-  thrust::device_vector<float>  d_result(num_verts);
+  thrust::device_vector<int> d_graph_offsets(graph_offsets);
+  thrust::device_vector<int> d_graph_indices(graph_indices);
+  thrust::device_vector<float> d_result(num_verts);
 
-  std::vector<float>            result(num_verts);
+  std::vector<float> result(num_verts);
 
-  cugraph::experimental::GraphCSRView<int,int,float> G(d_graph_offsets.data().get(),
-                                                   d_graph_indices.data().get(),
-                                                   nullptr,
-                                                   num_verts,
-                                                   num_edges);
+  cugraph::experimental::GraphCSRView<int, int, float> G(
+    d_graph_offsets.data().get(), d_graph_indices.data().get(), nullptr, num_verts, num_edges);
 
   cugraph::betweenness_centrality(G, d_result.data().get());
 
-  cudaMemcpy(result.data(), d_result.data().get(), sizeof(float) * num_verts, cudaMemcpyDeviceToHost);
+  cudaMemcpy(
+    result.data(), d_result.data().get(), sizeof(float) * num_verts, cudaMemcpyDeviceToHost);
 
-  for (int i = 0 ; i < num_verts ; ++i)
-    EXPECT_FLOAT_EQ(result[i], expected[i]);
+  for (int i = 0; i < num_verts; ++i) EXPECT_FLOAT_EQ(result[i], expected[i]);
 }

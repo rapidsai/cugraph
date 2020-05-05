@@ -31,12 +31,12 @@ namespace cugraph {
 namespace gunrock {
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT,ET,WT> const &graph,
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
-                            VT const *sample_seeds = nullptr,
-                            VT number_of_sample_seeds = 0) {
-
+                            VT const *sample_seeds    = nullptr,
+                            VT number_of_sample_seeds = 0)
+{
   cudaStream_t stream{nullptr};
 
   //
@@ -49,15 +49,19 @@ void betweenness_centrality(experimental::GraphCSRView<VT,ET,WT> const &graph,
   //  cuGraph we will first copy the graph back into local memory and when we are finished
   //  copy the result back into device memory.
   //
-  std::vector<ET>        v_offsets(graph.number_of_vertices + 1);
-  std::vector<VT>        v_indices(graph.number_of_edges);
-  std::vector<result_t>  v_result(graph.number_of_vertices);
-  std::vector<float>     v_sigmas(graph.number_of_vertices);
-  std::vector<int>       v_labels(graph.number_of_vertices);
-  
+  std::vector<ET> v_offsets(graph.number_of_vertices + 1);
+  std::vector<VT> v_indices(graph.number_of_edges);
+  std::vector<result_t> v_result(graph.number_of_vertices);
+  std::vector<float> v_sigmas(graph.number_of_vertices);
+  std::vector<int> v_labels(graph.number_of_vertices);
+
   // fill them
-  CUDA_TRY(cudaMemcpy(v_offsets.data(), graph.offsets, sizeof(ET) * (graph.number_of_vertices + 1), cudaMemcpyDeviceToHost));
-  CUDA_TRY(cudaMemcpy(v_indices.data(), graph.indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDeviceToHost));
+  CUDA_TRY(cudaMemcpy(v_offsets.data(),
+                      graph.offsets,
+                      sizeof(ET) * (graph.number_of_vertices + 1),
+                      cudaMemcpyDeviceToHost));
+  CUDA_TRY(cudaMemcpy(
+    v_indices.data(), graph.indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDeviceToHost));
 
   if (sample_seeds == nullptr) {
     bc(graph.number_of_vertices,
@@ -77,40 +81,41 @@ void betweenness_centrality(experimental::GraphCSRView<VT,ET,WT> const &graph,
   }
 
   // copy to results
-  CUDA_TRY(cudaMemcpy(result, v_result.data(), sizeof(result_t) * graph.number_of_vertices, cudaMemcpyHostToDevice));
+  CUDA_TRY(cudaMemcpy(
+    result, v_result.data(), sizeof(result_t) * graph.number_of_vertices, cudaMemcpyHostToDevice));
 
   // normalize result
   if (normalize) {
     float denominator = (graph.number_of_vertices - 1) * (graph.number_of_vertices - 2);
 
     thrust::transform(rmm::exec_policy(stream)->on(stream),
-                      result, result + graph.number_of_vertices, result,
-                      [denominator] __device__ (float f) {
-                        return (f * 2) / denominator;
-                      });
+                      result,
+                      result + graph.number_of_vertices,
+                      result,
+                      [denominator] __device__(float f) { return (f * 2) / denominator; });
   } else {
     //
     //  gunrock answer needs to be doubled to match networkx
     //
     thrust::transform(rmm::exec_policy(stream)->on(stream),
-                      result, result + graph.number_of_vertices, result,
-                      [] __device__ (float f) {
-                        return (f * 2);
-                      });
+                      result,
+                      result + graph.number_of_vertices,
+                      result,
+                      [] __device__(float f) { return (f * 2); });
   }
 }
 
-} // namespace detail
+}  // namespace gunrock
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT,ET,WT> const &graph,
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
                             WT const *weight,
                             VT k,
-                            VT const *vertices) {
-
+                            VT const *vertices)
+{
   //
   // NOTE:  gunrock implementation doesn't yet support the unused parameters:
   //     - endpoints
@@ -123,7 +128,13 @@ void betweenness_centrality(experimental::GraphCSRView<VT,ET,WT> const &graph,
   gunrock::betweenness_centrality(graph, result, normalize);
 }
 
-template void betweenness_centrality<int, int, float, float>(experimental::GraphCSRView<int,int,float> const &, float*, bool, bool, float const *, int, int const *);
+template void betweenness_centrality<int, int, float, float>(
+  experimental::GraphCSRView<int, int, float> const &,
+  float *,
+  bool,
+  bool,
+  float const *,
+  int,
+  int const *);
 
-} //namespace cugraph
-
+}  // namespace cugraph

@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -10,9 +10,9 @@
  */
 
 #include <graph.hpp>
-#include "utilities/graph_utils.cuh"
-#include "utilities/error_utils.h"
 #include "utilities/cuda_utils.cuh"
+#include "utilities/error_utils.h"
+#include "utilities/graph_utils.cuh"
 
 namespace {
 
@@ -20,49 +20,51 @@ template <typename vertex_t, typename edge_t>
 void degree_from_offsets(vertex_t number_of_vertices,
                          edge_t const *offsets,
                          edge_t *degree,
-                         cudaStream_t stream) {
-
+                         cudaStream_t stream)
+{
   // Computes out-degree for x = 0 and x = 2
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                   thrust::make_counting_iterator<vertex_t>(0),
-                   thrust::make_counting_iterator<vertex_t>(number_of_vertices),
-                   [offsets, degree] __device__ (vertex_t v) {
-                     degree[v] = offsets[v+1]-offsets[v];
-                   });
+  thrust::for_each(
+    rmm::exec_policy(stream)->on(stream),
+    thrust::make_counting_iterator<vertex_t>(0),
+    thrust::make_counting_iterator<vertex_t>(number_of_vertices),
+    [offsets, degree] __device__(vertex_t v) { degree[v] = offsets[v + 1] - offsets[v]; });
 }
 
 template <typename vertex_t, typename edge_t>
 void degree_from_vertex_ids(edge_t number_of_edges,
                             vertex_t const *indices,
                             edge_t *degree,
-                            cudaStream_t stream) {
-
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                   thrust::make_counting_iterator<edge_t>(0),
-                   thrust::make_counting_iterator<edge_t>(number_of_edges),
-                   [indices, degree] __device__ (edge_t e) {
-                     cugraph::atomicAdd(degree + indices[e], 1);
-                   });
+                            cudaStream_t stream)
+{
+  thrust::for_each(
+    rmm::exec_policy(stream)->on(stream),
+    thrust::make_counting_iterator<edge_t>(0),
+    thrust::make_counting_iterator<edge_t>(number_of_edges),
+    [indices, degree] __device__(edge_t e) { cugraph::atomicAdd(degree + indices[e], 1); });
 }
 
-} //namespace anonymous
+}  // namespace
 
 namespace cugraph {
 namespace experimental {
 
 template <typename VT, typename ET, typename WT>
-void GraphViewBase<VT,ET,WT>::get_vertex_identifiers(VT *identifiers) const {
+void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT *identifiers) const
+{
   cugraph::detail::sequence<VT>(number_of_vertices, identifiers);
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBaseView<VT,ET,WT>::get_source_indices(VT *src_indices) const {
-  CUGRAPH_EXPECTS( offsets != nullptr , "No graph specified");
-  cugraph::detail::offsets_to_indices<VT>(offsets, GraphViewBase<VT,ET,WT>::number_of_vertices, src_indices);
+void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT *src_indices) const
+{
+  CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
+  cugraph::detail::offsets_to_indices<VT>(
+    offsets, GraphViewBase<VT, ET, WT>::number_of_vertices, src_indices);
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCOOView<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
+void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
+{
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
   //        in then x should be modified to reflect the expected direction.
@@ -72,16 +74,17 @@ void GraphCOOView<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    degree_from_vertex_ids(GraphViewBase<VT,ET,WT>::number_of_edges, src_indices, degree, stream);
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::number_of_edges, src_indices, degree, stream);
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphViewBase<VT,ET,WT>::number_of_edges, dst_indices, degree, stream);
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::number_of_edges, dst_indices, degree, stream);
   }
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBaseView<VT,ET,WT>::degree(ET *degree, DegreeDirection direction) const {
+void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
+{
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
   //        in then x should be modified to reflect the expected direction.
@@ -91,20 +94,20 @@ void GraphCompressedSparseBaseView<VT,ET,WT>::degree(ET *degree, DegreeDirection
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    degree_from_offsets(GraphViewBase<VT,ET,WT>::number_of_vertices, offsets, degree, stream);
+    degree_from_offsets(GraphViewBase<VT, ET, WT>::number_of_vertices, offsets, degree, stream);
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphViewBase<VT,ET,WT>::number_of_edges, indices, degree, stream);
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::number_of_edges, indices, degree, stream);
   }
 }
 
 // explicit instantiation
 template class GraphViewBase<int32_t, int32_t, float>;
 template class GraphViewBase<int32_t, int32_t, double>;
-template class GraphCOOView<int32_t,int32_t,float>;
-template class GraphCOOView<int32_t,int32_t,double>;
-template class GraphCompressedSparseBaseView<int32_t,int32_t,float>;
-template class GraphCompressedSparseBaseView<int32_t,int32_t,double>;
-}
-}
+template class GraphCOOView<int32_t, int32_t, float>;
+template class GraphCOOView<int32_t, int32_t, double>;
+template class GraphCompressedSparseBaseView<int32_t, int32_t, float>;
+template class GraphCompressedSparseBaseView<int32_t, int32_t, double>;
+}  // namespace experimental
+}  // namespace cugraph
