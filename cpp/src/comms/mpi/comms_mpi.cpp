@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-
-#include <iostream>
-#include <comms_mpi.hpp>
-#include <vector>
 #include "utilities/error_utils.h"
+#include <comms_mpi.hpp>
+#include <iostream>
+#include <vector>
 
-namespace cugraph { 
+namespace cugraph {
 namespace experimental {
 #if ENABLE_OPG
 
@@ -29,119 +28,97 @@ namespace experimental {
  *
  *---------------------------------------------------------------------------**/
 struct nccl_error : public std::runtime_error {
-  nccl_error(std::string const& message) : std::runtime_error(message) {}
+  nccl_error(std::string const &message) : std::runtime_error(message) {}
 };
 
-inline void throw_nccl_error(ncclResult_t error, const char* file,
+inline void throw_nccl_error(ncclResult_t error, const char *file,
                              unsigned int line) {
   throw nccl_error(
       std::string{"NCCL error encountered at: " + std::string{file} + ":" +
                   std::to_string(line) + ": " + ncclGetErrorString(error)});
 }
 
-#define NCCL_TRY(call) {                                           \
-  ncclResult_t nccl_status = (call);                               \
-  if (nccl_status!= ncclSuccess) {                                 \
-    throw_nccl_error(nccl_status, __FILE__, __LINE__); \
-  }                                                                \
-} 
+#define NCCL_TRY(call)                                                         \
+  {                                                                            \
+    ncclResult_t nccl_status = (call);                                         \
+    if (nccl_status != ncclSuccess) {                                          \
+      throw_nccl_error(nccl_status, __FILE__, __LINE__);                       \
+    }                                                                          \
+  }
 // MPI errors are expected to be fatal before reaching this.
 // Fix me : improve when adding raft comms
-#define MPI_TRY(cmd) {                           \
-  int e = cmd;                                   \
-  if ( e != MPI_SUCCESS ) {                      \
-    CUGRAPH_FAIL("Failed: MPI error");           \
-  }                                              \
-}                                               
+#define MPI_TRY(cmd)                                                           \
+  {                                                                            \
+    int e = cmd;                                                               \
+    if (e != MPI_SUCCESS) {                                                    \
+      CUGRAPH_FAIL("Failed: MPI error");                                       \
+    }                                                                          \
+  }
 
-template <typename value_t>
-constexpr MPI_Datatype get_mpi_type() {
+template <typename value_t> constexpr MPI_Datatype get_mpi_type() {
   if (std::is_integral<value_t>::value) {
     if (std::is_signed<value_t>::value) {
       if (sizeof(value_t) == 1) {
         return MPI_INT8_T;
-      }
-      else if (sizeof(value_t) == 2) {
+      } else if (sizeof(value_t) == 2) {
         return MPI_INT16_T;
-      }
-      else if (sizeof(value_t) == 4) {
+      } else if (sizeof(value_t) == 4) {
         return MPI_INT32_T;
-      }
-      else if (sizeof(value_t) == 8) {
+      } else if (sizeof(value_t) == 8) {
         return MPI_INT64_T;
-      }
-      else {
+      } else {
         CUGRAPH_FAIL("unsupported type");
       }
-    }
-    else {
+    } else {
       if (sizeof(value_t) == 1) {
         return MPI_UINT8_T;
-      }
-      else if (sizeof(value_t) == 2) {
+      } else if (sizeof(value_t) == 2) {
         return MPI_UINT16_T;
-      }
-      else if (sizeof(value_t) == 4) {
+      } else if (sizeof(value_t) == 4) {
         return MPI_UINT32_T;
-      }
-      else if (sizeof(value_t) == 8) {
+      } else if (sizeof(value_t) == 8) {
         return MPI_UINT64_T;
-      }
-      else {
+      } else {
         CUGRAPH_FAIL("unsupported type");
       }
     }
-  }
-  else if(std::is_same<value_t, float>::value) {
+  } else if (std::is_same<value_t, float>::value) {
     return MPI_FLOAT;
-  }
-  else if(std::is_same<value_t, double>::value) {
+  } else if (std::is_same<value_t, double>::value) {
     return MPI_DOUBLE;
-  }
-  else {
+  } else {
     CUGRAPH_FAIL("unsupported type");
   }
 }
 
-template <typename value_t>
-constexpr ncclDataType_t get_nccl_type() {
+template <typename value_t> constexpr ncclDataType_t get_nccl_type() {
   if (std::is_integral<value_t>::value) {
     if (std::is_signed<value_t>::value) {
       if (sizeof(value_t) == 1) {
         return ncclInt8;
-      }
-      else if (sizeof(value_t) == 4) {
+      } else if (sizeof(value_t) == 4) {
         return ncclInt32;
-      }
-      else if (sizeof(value_t) == 8) {
+      } else if (sizeof(value_t) == 8) {
         return ncclInt64;
-      }
-      else {
+      } else {
         CUGRAPH_FAIL("unsupported type");
       }
-    }
-    else {
+    } else {
       if (sizeof(value_t) == 1) {
         return ncclUint8;
-      }
-      else if (sizeof(value_t) == 4) {
+      } else if (sizeof(value_t) == 4) {
         return ncclUint32;
-      }
-      else if (sizeof(value_t) == 8) {
+      } else if (sizeof(value_t) == 8) {
         return ncclUint64;
-      }
-      else {
+      } else {
         CUGRAPH_FAIL("unsupported type");
       }
     }
-  }
-  else if(std::is_same<value_t, float>::value) {
+  } else if (std::is_same<value_t, float>::value) {
     return ncclFloat32;
-  }
-  else if(std::is_same<value_t, double>::value) {
+  } else if (std::is_same<value_t, double>::value) {
     return ncclFloat64;
-  }
-  else {
+  } else {
     CUGRAPH_FAIL("unsupported type");
   }
 }
@@ -149,14 +126,11 @@ constexpr ncclDataType_t get_nccl_type() {
 constexpr MPI_Op get_mpi_reduce_op(ReduceOp reduce_op) {
   if (reduce_op == ReduceOp::SUM) {
     return MPI_SUM;
-  }
-  else if (reduce_op == ReduceOp::MAX) {
+  } else if (reduce_op == ReduceOp::MAX) {
     return MPI_MAX;
-  }
-  else if (reduce_op == ReduceOp::MIN) {
+  } else if (reduce_op == ReduceOp::MIN) {
     return MPI_MIN;
-  }
-  else {
+  } else {
     CUGRAPH_FAIL("unsupported type");
   }
 }
@@ -164,14 +138,11 @@ constexpr MPI_Op get_mpi_reduce_op(ReduceOp reduce_op) {
 constexpr ncclRedOp_t get_nccl_reduce_op(ReduceOp reduce_op) {
   if (reduce_op == ReduceOp::SUM) {
     return ncclSum;
-  }
-  else if (reduce_op == ReduceOp::MAX) {
+  } else if (reduce_op == ReduceOp::MAX) {
     return ncclMax;
-  }
-  else if (reduce_op == ReduceOp::MIN) {
+  } else if (reduce_op == ReduceOp::MIN) {
     return ncclMin;
-  }
-  else {
+  } else {
     CUGRAPH_FAIL("unsupported type");
   }
 }
@@ -195,25 +166,31 @@ Comm::Comm(int p) : _p{p} {
 
   MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &_rank));
   MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size));
-  CUGRAPH_EXPECTS( (_p == mpi_world_size), 
-                   "Invalid input arguments: p should match the number of MPI processes.");
+  CUGRAPH_EXPECTS(
+      (_p == mpi_world_size),
+      "Invalid input arguments: p should match the number of MPI processes.");
 
   _mpi_comm = MPI_COMM_WORLD;
 
   // CUDA
 
   CUDA_TRY(cudaGetDeviceCount(&_device_count));
-  _device_id = _rank % _device_count; // FixMe : assumes each node has the same number of GPUs
+  _device_id =
+      _rank %
+      _device_count; // FixMe : assumes each node has the same number of GPUs
   CUDA_TRY(cudaSetDevice(_device_id));
 
-  CUDA_TRY(
-    cudaDeviceGetAttribute(&_sm_count_per_device, cudaDevAttrMultiProcessorCount, _device_id));
-  CUDA_TRY(cudaDeviceGetAttribute(&_max_grid_dim_1D, cudaDevAttrMaxGridDimX, _device_id));
-  CUDA_TRY(cudaDeviceGetAttribute(&_max_block_dim_1D, cudaDevAttrMaxBlockDimX, _device_id));
-  CUDA_TRY(cudaDeviceGetAttribute(&_l2_cache_size, cudaDevAttrL2CacheSize, _device_id));
-  CUDA_TRY(
-    cudaDeviceGetAttribute(
-      &_shared_memory_size_per_sm, cudaDevAttrMaxSharedMemoryPerMultiprocessor, _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_sm_count_per_device,
+                                  cudaDevAttrMultiProcessorCount, _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_max_grid_dim_1D, cudaDevAttrMaxGridDimX,
+                                  _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_max_block_dim_1D, cudaDevAttrMaxBlockDimX,
+                                  _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_l2_cache_size, cudaDevAttrL2CacheSize,
+                                  _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_shared_memory_size_per_sm,
+                                  cudaDevAttrMaxSharedMemoryPerMultiprocessor,
+                                  _device_id));
 
   // NCCL
 
@@ -221,30 +198,37 @@ Comm::Comm(int p) : _p{p} {
   if (get_rank() == 0) {
     NCCL_TRY(ncclGetUniqueId(&nccl_unique_id_p));
   }
-  MPI_TRY(MPI_Bcast(&nccl_unique_id_p, sizeof(ncclUniqueId), MPI_BYTE, 0, _mpi_comm));
-  NCCL_TRY(ncclCommInitRank(&_nccl_comm, get_p(), nccl_unique_id_p, get_rank()));
+  MPI_TRY(MPI_Bcast(&nccl_unique_id_p, sizeof(ncclUniqueId), MPI_BYTE, 0,
+                    _mpi_comm));
+  NCCL_TRY(
+      ncclCommInitRank(&_nccl_comm, get_p(), nccl_unique_id_p, get_rank()));
   _finalize_nccl = true;
 #endif
-
 }
 
 #if ENABLE_OPG
 Comm::Comm(ncclComm_t comm, int size, int rank)
-  : _nccl_comm(comm), _p(size), _rank(rank) {
+    : _nccl_comm(comm), _p(size), _rank(rank) {
 
   // CUDA
   CUDA_TRY(cudaGetDeviceCount(&_device_count));
-  _device_id = _rank % _device_count; // FixMe : assumes each node has the same number of GPUs
-  CUDA_TRY(cudaSetDevice(_device_id)); // FixMe : check if this is needed or if python takes care of this
+  _device_id =
+      _rank %
+      _device_count; // FixMe : assumes each node has the same number of GPUs
+  CUDA_TRY(cudaSetDevice(_device_id)); // FixMe : check if this is needed or if
+                                       // python takes care of this
 
-  CUDA_TRY(
-    cudaDeviceGetAttribute(&_sm_count_per_device, cudaDevAttrMultiProcessorCount, _device_id));
-  CUDA_TRY(cudaDeviceGetAttribute(&_max_grid_dim_1D, cudaDevAttrMaxGridDimX, _device_id));
-  CUDA_TRY(cudaDeviceGetAttribute(&_max_block_dim_1D, cudaDevAttrMaxBlockDimX, _device_id));
-  CUDA_TRY(cudaDeviceGetAttribute(&_l2_cache_size, cudaDevAttrL2CacheSize, _device_id));
-  CUDA_TRY(
-    cudaDeviceGetAttribute(
-      &_shared_memory_size_per_sm, cudaDevAttrMaxSharedMemoryPerMultiprocessor, _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_sm_count_per_device,
+                                  cudaDevAttrMultiProcessorCount, _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_max_grid_dim_1D, cudaDevAttrMaxGridDimX,
+                                  _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_max_block_dim_1D, cudaDevAttrMaxBlockDimX,
+                                  _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_l2_cache_size, cudaDevAttrL2CacheSize,
+                                  _device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&_shared_memory_size_per_sm,
+                                  cudaDevAttrMaxSharedMemoryPerMultiprocessor,
+                                  _device_id));
 }
 #endif
 
@@ -267,25 +251,38 @@ void Comm::barrier() {
 }
 
 template <typename value_t>
-void Comm::allgather (size_t size, value_t* sendbuff, value_t* recvbuff) const {
+void Comm::allgather(size_t size, value_t *sendbuff, value_t *recvbuff) const {
 #if ENABLE_OPG
-    NCCL_TRY(ncclAllGather((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), _nccl_comm, cudaStreamDefault));
+  NCCL_TRY(ncclAllGather((const void *)sendbuff, (void *)recvbuff, size,
+                         get_nccl_type<value_t>(), _nccl_comm,
+                         cudaStreamDefault));
 #endif
 }
 
 template <typename value_t>
-void Comm::allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op) const {
+void Comm::allreduce(size_t size, value_t *sendbuff, value_t *recvbuff,
+                     ReduceOp reduce_op) const {
 #if ENABLE_OPG
-    NCCL_TRY(ncclAllReduce((const void*)sendbuff, (void*)recvbuff, size, get_nccl_type<value_t>(), get_nccl_reduce_op(reduce_op), _nccl_comm, cudaStreamDefault));
+  NCCL_TRY(ncclAllReduce(
+      (const void *)sendbuff, (void *)recvbuff, size, get_nccl_type<value_t>(),
+      get_nccl_reduce_op(reduce_op), _nccl_comm, cudaStreamDefault));
 #endif
 }
 
-//explicit
-template void Comm::allgather<int>(size_t size, int* sendbuff, int* recvbuff) const;
-template void Comm::allgather<float>(size_t size, float* sendbuff, float* recvbuff) const;
-template void Comm::allgather<double>(size_t size, double* sendbuff, double* recvbuff) const;
-template void Comm::allreduce<int>(size_t size, int* sendbuff, int* recvbuff, ReduceOp reduce_op) const;
-template void Comm::allreduce<float>(size_t size, float* sendbuff, float* recvbuff, ReduceOp reduce_op) const;
-template void Comm::allreduce<double>(size_t size, double* sendbuff, double* recvbuff, ReduceOp reduce_op) const;
-  
-} }//namespace
+// explicit
+template void Comm::allgather<int>(size_t size, int *sendbuff,
+                                   int *recvbuff) const;
+template void Comm::allgather<float>(size_t size, float *sendbuff,
+                                     float *recvbuff) const;
+template void Comm::allgather<double>(size_t size, double *sendbuff,
+                                      double *recvbuff) const;
+template void Comm::allreduce<int>(size_t size, int *sendbuff, int *recvbuff,
+                                   ReduceOp reduce_op) const;
+template void Comm::allreduce<float>(size_t size, float *sendbuff,
+                                     float *recvbuff, ReduceOp reduce_op) const;
+template void Comm::allreduce<double>(size_t size, double *sendbuff,
+                                      double *recvbuff,
+                                      ReduceOp reduce_op) const;
+
+} // namespace experimental
+} // namespace cugraph

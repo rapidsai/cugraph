@@ -15,50 +15,54 @@
  */
 #pragma once
 
+#include <thrust/extrema.h>
+
 namespace cugraph {
 //
 //  This should go into RAFT...
 //
-__device__ static __forceinline__ int64_t atomicMin(int64_t* addr, int64_t val) {
-  unsigned long long *addr_as_ull{reinterpret_cast<unsigned long long*>(addr)};
-  unsigned long long *val_addr_as_ull{reinterpret_cast<unsigned long long*>(&val)};
-  unsigned long long  old = *addr_as_ull;
-  unsigned long long  val_as_ull = *val_addr_as_ull;
-  int64_t            *p_old{reinterpret_cast<int64_t*>(&old)};
-  unsigned long long  expected;
+__device__ static __forceinline__ int64_t atomicMin(int64_t *addr,
+                                                    int64_t val) {
+  unsigned long long *addr_as_ull{reinterpret_cast<unsigned long long *>(addr)};
+  unsigned long long *val_addr_as_ull{
+      reinterpret_cast<unsigned long long *>(&val)};
+  unsigned long long old = *addr_as_ull;
+  unsigned long long val_as_ull = *val_addr_as_ull;
+  int64_t *p_old{reinterpret_cast<int64_t *>(&old)};
+  unsigned long long expected;
 
   do {
-      expected = old;
-      old = ::atomicCAS(addr_as_ull,
-                        expected,
-                        thrust::min(val_as_ull, expected));
-    } while (expected != old);
+    expected = old;
+    old = ::atomicCAS(addr_as_ull, expected, thrust::min(val_as_ull, expected));
+  } while (expected != old);
   return *p_old;
 }
 
-__device__ static __forceinline__ int32_t atomicMin(int32_t* addr, int32_t val) {
+__device__ static __forceinline__ int32_t atomicMin(int32_t *addr,
+                                                    int32_t val) {
   return ::atomicMin(addr, val);
 }
 
-__device__ static __forceinline__ int64_t atomicAdd(int64_t* addr, int64_t val) {
-  unsigned long long *addr_as_ull{reinterpret_cast<unsigned long long*>(addr)};
-  unsigned long long *val_addr_as_ull{reinterpret_cast<unsigned long long*>(&val)};
-  unsigned long long  old = *addr_as_ull;
-  unsigned long long  val_as_ull = *val_addr_as_ull;
-  int64_t            *p_old{reinterpret_cast<int64_t*>(&old)};
-  unsigned long long  expected;
+__device__ static __forceinline__ int64_t atomicAdd(int64_t *addr,
+                                                    int64_t val) {
+  unsigned long long *addr_as_ull{reinterpret_cast<unsigned long long *>(addr)};
+  unsigned long long *val_addr_as_ull{
+      reinterpret_cast<unsigned long long *>(&val)};
+  unsigned long long old = *addr_as_ull;
+  unsigned long long val_as_ull = *val_addr_as_ull;
+  int64_t *p_old{reinterpret_cast<int64_t *>(&old)};
+  unsigned long long expected;
 
   do {
-      expected = old;
-      old = ::atomicCAS(addr_as_ull,
-                        expected,
-                        (expected + val_as_ull));
-    } while (expected != old);
+    expected = old;
+    old = ::atomicCAS(addr_as_ull, expected, (expected + val_as_ull));
+  } while (expected != old);
   return *p_old;
 }
 
-__device__ static __forceinline__ int32_t atomicAdd(int32_t* addr, int32_t val) {
+__device__ static __forceinline__ int32_t atomicAdd(int32_t *addr,
+                                                    int32_t val) {
   return ::atomicAdd(addr, val);
 }
 
-} //namespace cugraph
+} // namespace cugraph

@@ -14,64 +14,62 @@
  * limitations under the License.
  */
 
-
 #pragma once
-
 #if ENABLE_OPG
 #include <mpi.h>
 #include <nccl.h>
 #endif
 
-namespace cugraph { 
+namespace cugraph {
 namespace experimental {
 
 enum class ReduceOp { SUM, MAX, MIN };
 
 // basic info about the snmg env setup
-class Comm 
-{ 
-  private:
-    int _p{0};
-    int _rank{0};
-    bool _finalize_mpi{false};
-    bool _finalize_nccl{false};
+class Comm {
+private:
+  int _p{0};
+  int _rank{0};
+  bool _finalize_mpi{false};
+  bool _finalize_nccl{false};
 
-    int _device_id{0};
-    int _device_count{0};
+  int _device_id{0};
+  int _device_count{0};
 
-    int _sm_count_per_device{0};
-    int _max_grid_dim_1D{0};
-    int _max_block_dim_1D{0};
-    int _l2_cache_size{0};
-    int _shared_memory_size_per_sm{0};
+  int _sm_count_per_device{0};
+  int _max_grid_dim_1D{0};
+  int _max_block_dim_1D{0};
+  int _l2_cache_size{0};
+  int _shared_memory_size_per_sm{0};
 
 #if ENABLE_OPG
-    MPI_Comm _mpi_comm{};
-    ncclComm_t _nccl_comm{};
- #endif
-   
-  public: 
-    Comm(){};
-    Comm(int p);
-  #if ENABLE_OPG
-    Comm(ncclComm_t comm, int size, int rank);
-  #endif
-    ~Comm();
-    int get_rank() const { return _rank; }
-    int get_p() const { return _p; }
-    int get_dev() const { return _device_id; }
-    int get_dev_count() const { return _device_count; }
-    int get_sm_count() const { return _sm_count_per_device; }
-    bool is_master() const { return (_rank == 0)? true : false; }
+  MPI_Comm _mpi_comm{};
+  ncclComm_t _nccl_comm{};
+#endif
 
-    void barrier();
+public:
+  Comm(){};
+  Comm(int p);
+#if ENABLE_OPG
+  Comm(ncclComm_t comm, int size, int rank);
+#endif
+  ~Comm();
+  int get_rank() const { return _rank; }
+  int get_p() const { return _p; }
+  int get_dev() const { return _device_id; }
+  int get_dev_count() const { return _device_count; }
+  int get_sm_count() const { return _sm_count_per_device; }
+  bool is_master() const { return (_rank == 0) ? true : false; }
 
-    template <typename value_t>
-    void allgather (size_t size, value_t* sendbuff, value_t* recvbuff) const;
+  void barrier();
 
-    template <typename value_t>
-    void allreduce (size_t size, value_t* sendbuff, value_t* recvbuff, ReduceOp reduce_op) const;
+  template <typename value_t>
+  void allgather(size_t size, value_t *sendbuff, value_t *recvbuff) const;
 
+  template <typename value_t>
+  void allreduce(size_t size, value_t *sendbuff, value_t *recvbuff,
+                 ReduceOp reduce_op) const;
 };
 
-} } //namespace
+} // namespace experimental
+} // namespace cugraph
