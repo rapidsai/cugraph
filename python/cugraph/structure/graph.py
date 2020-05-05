@@ -29,8 +29,14 @@ def null_check(col):
 class Graph:
 
     class EdgeList:
-        def __init__(self, source, destination, edge_attr=None,
-                     renumber_map=None):
+        def __init__(self, *args):
+            if len(args) == 1:
+                self.__from_dask_cudf(*args)
+            else:
+                self.__from_cudf(*args)
+
+        def __from_cudf(self, source, destination, edge_attr=None,
+                        renumber_map=None):
             self.renumber_map = renumber_map
             self.edgelist_df = cudf.DataFrame()
             self.edgelist_df['src'] = source
@@ -43,6 +49,11 @@ class Graph:
                         self.edgelist_df[k] = edge_attr[k]
                 else:
                     self.edgelist_df['weights'] = edge_attr
+
+        def __from_dask_cudf(self, ddf):
+            self.renumber_map = None
+            self.edgelist_df = ddf
+            self.weights = False
 
     class AdjList:
         def __init__(self, offsets, indices, value=None):
@@ -153,6 +164,7 @@ class Graph:
 
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
+
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception('edge_attr should be a list of column names')
@@ -187,7 +199,7 @@ class Graph:
             else:
                 source_col, dest_col = symmetrize(source_col, dest_col)
 
-        self.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
+        self.edgelist = self.EdgeList(source_col, dest_col, value_col,
                                        renumber_map)
 
     def add_edge_list(self, source, destination, value=None):
@@ -201,6 +213,10 @@ class Graph:
             self.from_cudf_edgelist(input_df, edge_attr='weights')
         else:
             self.from_cudf_edgelist(input_df)
+
+
+    def from_dask_cudf_edgelist(self, input_ddf):
+        self.edgelist = self.EdgeList(input_ddf)
 
     def view_edge_list(self):
         """
@@ -327,7 +343,7 @@ class Graph:
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
-        self.adjlist = Graph.AdjList(offset_col, index_col, value_col)
+        self.adjlist = self.AdjList(offset_col, index_col, value_col)
 
     def add_adj_list(self, offset_col, index_col, value_col=None):
         warnings.warn('add_adj_list will be deprecated in next release.\

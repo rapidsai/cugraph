@@ -3,12 +3,7 @@ from dask.distributed import Client
 import gc
 import cudf
 
-class gGraph():
-    #edgelist=None
-    def __init__(self):
-        self.edgelist=None
-        print("init graph")
-
+import cugraph
 import dask_cudf
 
 ## Move to conftest
@@ -32,8 +27,8 @@ def test_dask_pagerank():
     print(ddf)
     ##
 
-    g = gGraph()
-    g.edgelist = ddf
+    g = cugraph.DiGraph()
+    g.from_dask_cudf_edgelist(ddf)
 
     pagerank(g)
 

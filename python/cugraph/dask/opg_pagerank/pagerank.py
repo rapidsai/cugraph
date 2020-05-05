@@ -28,7 +28,7 @@ def common_func(sID, data):
 def pagerank(input_graph):
     print("INSIDE DASK PAGERANK")
     client = default_client()
-    ddf = input_graph.edgelist
+    ddf = input_graph.edgelist.edgelist_df
 
     data = DistributedDataHandler.create(data=ddf)
 
@@ -38,6 +38,7 @@ def pagerank(input_graph):
     data.calculate_parts_to_sizes(comms)
     #self.ranks = data.ranks
 
+    print("Calling function")
     result = dict([(data.worker_info[wf[0]]["rank"],
                             client.submit(
             common_func,
