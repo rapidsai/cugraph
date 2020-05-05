@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <graph.hpp>
 #include <algorithms.hpp>
+#include <graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -27,52 +27,54 @@
 
 namespace {
 
-  template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>
-  void extract_subgraph_by_vertices(cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t> const &graph,
-                                    vertex_t const *vertices,
-                                    vertex_t num_vertices,
-                                    cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t> &result,
-                                    cudaStream_t stream) {
+template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>
+void extract_subgraph_by_vertices(
+  cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t> const &graph,
+  vertex_t const *vertices,
+  vertex_t num_vertices,
+  cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t> &result,
+  cudaStream_t stream)
+{
+  edge_t graph_num_verts = graph.number_of_vertices;
 
-    edge_t    graph_num_verts = graph.number_of_vertices;
+  rmm::device_vector<int64_t> error_count_v{1, 0};
+  rmm::device_vector<vertex_t> vertex_used_v{graph_num_verts, num_vertices};
 
-    rmm::device_vector<int64_t> error_count_v{1, 0};
-    rmm::device_vector<vertex_t> vertex_used_v{graph_num_verts, num_vertices};
+  vertex_t *d_vertex_used = vertex_used_v.data().get();
+  int64_t *d_error_count  = error_count_v.data().get();
 
-    vertex_t *d_vertex_used = vertex_used_v.data().get();
-    int64_t  *d_error_count = error_count_v.data().get();
+  thrust::for_each(
+    rmm::exec_policy(stream)->on(stream),
+    thrust::make_counting_iterator<vertex_t>(0),
+    thrust::make_counting_iterator<vertex_t>(num_vertices),
+    [vertices, d_vertex_used, d_error_count, graph_num_verts] __device__(vertex_t idx) {
+      vertex_t v = vertices[idx];
+      if ((v >= 0) && (v < graph_num_verts)) {
+        d_vertex_used[v] = idx;
+      } else {
+        cugraph::atomicAdd(d_error_count, int64_t{1});
+      }
+    });
 
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_counting_iterator<vertex_t>(0),
-                     thrust::make_counting_iterator<vertex_t>(num_vertices),
-                     [vertices, d_vertex_used, d_error_count, graph_num_verts]
-                     __device__ (vertex_t idx) {
-                       vertex_t v = vertices[idx];
-                       if ((v >= 0) && (v < graph_num_verts)) {
-                         d_vertex_used[v] = idx;
-                       } else {
-                         cugraph::atomicAdd(d_error_count, int64_t{1});
-                       }
-                     });
+  CUGRAPH_EXPECTS(error_count_v[0] == 0,
+                  "Input error... vertices specifies vertex id out of range");
 
-    CUGRAPH_EXPECTS(error_count_v[0] == 0, "Input error... vertices specifies vertex id out of range");
+  vertex_t *graph_src    = graph.src_indices;
+  vertex_t *graph_dst    = graph.dst_indices;
+  weight_t *graph_weight = graph.edge_data;
 
-    vertex_t *graph_src = graph.src_indices;
-    vertex_t *graph_dst = graph.dst_indices;
-    weight_t *graph_weight = graph.edge_data;
+  // iterate over the edges and count how many make it into the output
+  int64_t count = thrust::count_if(
+    rmm::exec_policy(stream)->on(stream),
+    thrust::make_counting_iterator<edge_t>(0),
+    thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
+    [graph_src, graph_dst, d_vertex_used, num_vertices] __device__(edge_t e) {
+      vertex_t s = graph_src[e];
+      vertex_t d = graph_dst[e];
+      return ((d_vertex_used[s] < num_vertices) && (d_vertex_used[d] < num_vertices));
+    });
 
-    // iterate over the edges and count how many make it into the output
-    int64_t count = thrust::count_if(rmm::exec_policy(stream)->on(stream),
-                                     thrust::make_counting_iterator<edge_t>(0),
-                                     thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
-                                     [graph_src, graph_dst, d_vertex_used, num_vertices]
-                                     __device__ (edge_t e) {
-                                       vertex_t s = graph_src[e];
-                                       vertex_t d = graph_dst[e];
-                                       return ((d_vertex_used[s] < num_vertices) && (d_vertex_used[d] < num_vertices));
-                                     });
-
-    if (count > 0) {
+  if (count > 0) {
 #if 0
       rmm::device_vector<vertex_t> new_src_v(count);
       rmm::device_vector<vertex_t> new_dst_v(count);
@@ -87,57 +89,59 @@ namespace {
         d_new_weight = new_weight_v.data().get();
       }
 #endif
-      vertex_t *d_new_src{nullptr};
-      vertex_t *d_new_dst{nullptr};
-      weight_t *d_new_weight{nullptr};
+    vertex_t *d_new_src{nullptr};
+    vertex_t *d_new_dst{nullptr};
+    weight_t *d_new_weight{nullptr};
 
-      ALLOC_TRY(&d_new_src, count * sizeof(vertex_t), nullptr);
-      ALLOC_TRY(&d_new_dst, count * sizeof(vertex_t), nullptr);
+    ALLOC_TRY(&d_new_src, count * sizeof(vertex_t), nullptr);
+    ALLOC_TRY(&d_new_dst, count * sizeof(vertex_t), nullptr);
 
-      if (has_weight) {
-        ALLOC_TRY(&d_new_weight, count * sizeof(weight_t), nullptr);
-      }
+    if (has_weight) { ALLOC_TRY(&d_new_weight, count * sizeof(weight_t), nullptr); }
 
-      //  reusing error_count as a vertex counter...
-      thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                       thrust::make_counting_iterator<edge_t>(0),
-                       thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
-                       [graph_src, graph_dst, graph_weight, d_vertex_used, num_vertices,
-                        d_error_count, d_new_src, d_new_dst, d_new_weight]
-                       __device__ (edge_t e) {
-                         vertex_t s = graph_src[e];
-                         vertex_t d = graph_dst[e];
-                         if ((d_vertex_used[s] < num_vertices) && (d_vertex_used[d] < num_vertices)) {
-                           //  NOTE: Could avoid atomic here by doing a inclusive sum, but that would
-                           //     require 2*|E| temporary memory.  If this becomes important perhaps
-                           //     we make 2 implementations and pick one based on the number of vertices
-                           //     in the subgraph set.
-                           auto pos = cugraph::atomicAdd(d_error_count, 1);
-                           d_new_src[pos] = d_vertex_used[s];
-                           d_new_dst[pos] = d_vertex_used[d];
-                           if (has_weight)
-                             d_new_weight[pos] = graph_weight[e];
-                         }
-                       });
-      
+    //  reusing error_count as a vertex counter...
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                     thrust::make_counting_iterator<edge_t>(0),
+                     thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
+                     [graph_src,
+                      graph_dst,
+                      graph_weight,
+                      d_vertex_used,
+                      num_vertices,
+                      d_error_count,
+                      d_new_src,
+                      d_new_dst,
+                      d_new_weight] __device__(edge_t e) {
+                       vertex_t s = graph_src[e];
+                       vertex_t d = graph_dst[e];
+                       if ((d_vertex_used[s] < num_vertices) && (d_vertex_used[d] < num_vertices)) {
+                         //  NOTE: Could avoid atomic here by doing a inclusive sum, but that would
+                         //     require 2*|E| temporary memory.  If this becomes important perhaps
+                         //     we make 2 implementations and pick one based on the number of
+                         //     vertices in the subgraph set.
+                         auto pos       = cugraph::atomicAdd(d_error_count, 1);
+                         d_new_src[pos] = d_vertex_used[s];
+                         d_new_dst[pos] = d_vertex_used[d];
+                         if (has_weight) d_new_weight[pos] = graph_weight[e];
+                       }
+                     });
+
 #if 0
       //
       //  Need to return rmm::device_vectors
       //
 #else
-      result.number_of_edges = count;
-      result.number_of_vertices = num_vertices;
-      result.src_indices = d_new_src;
-      result.dst_indices = d_new_dst;
-      result.edge_data = d_new_weight;
+    result.number_of_edges    = count;
+    result.number_of_vertices = num_vertices;
+    result.src_indices        = d_new_src;
+    result.dst_indices        = d_new_dst;
+    result.edge_data          = d_new_weight;
 #endif
 
-    } else {
-      // return an empty graph
-    }
+  } else {
+    // return an empty graph
   }
-} //namespace anonymous
-
+}
+}  // namespace
 
 namespace cugraph {
 namespace nvgraph {
@@ -146,22 +150,29 @@ template <typename VT, typename ET, typename WT>
 void extract_subgraph_vertex(experimental::GraphCOO<VT, ET, WT> const &graph,
                              VT const *vertices,
                              VT num_vertices,
-                             experimental::GraphCOO<VT, ET, WT> &result) {
-
+                             experimental::GraphCOO<VT, ET, WT> &result)
+{
   CUGRAPH_EXPECTS(vertices != nullptr, "API error, vertices must be non null");
-  
+
   cudaStream_t stream{0};
 
   if (graph.edge_data == nullptr) {
-    extract_subgraph_by_vertices<VT,ET,WT,false>(graph, vertices, num_vertices, result, stream);
+    extract_subgraph_by_vertices<VT, ET, WT, false>(graph, vertices, num_vertices, result, stream);
   } else {
-    extract_subgraph_by_vertices<VT,ET,WT,true>(graph, vertices, num_vertices, result, stream);
+    extract_subgraph_by_vertices<VT, ET, WT, true>(graph, vertices, num_vertices, result, stream);
   }
 }
 
-template void extract_subgraph_vertex<int32_t,int32_t,float>(experimental::GraphCOO<int32_t, int32_t, float> const &, int32_t const *, int32_t, experimental::GraphCOO<int32_t, int32_t, float> &);
-template void extract_subgraph_vertex<int32_t,int32_t,double>(experimental::GraphCOO<int32_t, int32_t, double> const &, int32_t const *, int32_t, experimental::GraphCOO<int32_t, int32_t, double> &);
+template void extract_subgraph_vertex<int32_t, int32_t, float>(
+  experimental::GraphCOO<int32_t, int32_t, float> const &,
+  int32_t const *,
+  int32_t,
+  experimental::GraphCOO<int32_t, int32_t, float> &);
+template void extract_subgraph_vertex<int32_t, int32_t, double>(
+  experimental::GraphCOO<int32_t, int32_t, double> const &,
+  int32_t const *,
+  int32_t,
+  experimental::GraphCOO<int32_t, int32_t, double> &);
 
-} //namespace nvgraph
-} //namespace cugraph
-
+}  // namespace nvgraph
+}  // namespace cugraph

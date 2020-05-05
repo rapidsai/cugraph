@@ -30,13 +30,18 @@ namespace cugraph {
  *                                               --rmat_nodes=<number-nodes>
  *                                               --rmat_edgefactor=<edge-factor>
  *                                               --rmat_edges=<number-edges>
- *                                               --rmat_a=<factor> --rmat_b=<factor> --rmat_c=<factor>
- *                                               --rmat_self_loops If this option is supplied, then self loops will be retained
- *                                               --rmat_undirected If this option is not mentioned, then the graps will be undirected
- *                                       Optional arguments:
- *                                       [--device=<device_index>] Set GPU(s) for testing (Default: 0).
- *                                       [--quiet]                 No output (unless --json is specified).
- *                                       [--random_seed]           This will enable usage of random seed, else it will use same seed
+ *                                               --rmat_a=<factor> --rmat_b=<factor>
+ * --rmat_c=<factor>
+ *                                               --rmat_self_loops If this option is supplied, then
+ * self loops will be retained
+ *                                               --rmat_undirected If this option is not mentioned,
+ * then the graps will be undirected Optional arguments:
+ *                                       [--device=<device_index>] Set GPU(s) for testing (Default:
+ * 0).
+ *                                       [--quiet]                 No output (unless --json is
+ * specified).
+ *                                       [--random_seed]           This will enable usage of random
+ * seed, else it will use same seed
  *
  * @Param[out] &vertices             Number of vertices in the generated edge list
  *
@@ -52,15 +57,15 @@ namespace cugraph {
  */
 /* ----------------------------------------------------------------------------*/
 void grmat_gen(const char* argv,
-               size_t &vertices,
-               size_t &edges,
+               size_t& vertices,
+               size_t& edges,
                gdf_column* src,
                gdf_column* dest,
                gdf_column* val);
 
 /**
- * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph. This is
- * a multi-gpu operation operating on a partitioned graph.
+ * Computes the in-degree, out-degree, or the sum of both (determined by x) for the given graph.
+ * This is a multi-gpu operation operating on a partitioned graph.
  * @param x 0 for in+out, 1 for in, 2 for out
  * @param part_offsets Contains the start/end of each partitions vertex id range
  * @param off The local partition offsets
@@ -68,15 +73,12 @@ void grmat_gen(const char* argv,
  * @param x_cols The results (located on each GPU)
  * @throws     cugraph::logic_error when an error occurs.
  */
-void snmg_degree(int x,
-                 size_t* part_offsets,
-                 gdf_column* off,
-                 gdf_column* ind,
-                 gdf_column** x_cols);
+void snmg_degree(
+  int x, size_t* part_offsets, gdf_column* off, gdf_column* ind, gdf_column** x_cols);
 
 /**
- * Converts the input edge list (partitioned and loaded onto the GPUs) into a partitioned csr representation.
- * This is a multi-gpu operation operating on partitioned data.
+ * Converts the input edge list (partitioned and loaded onto the GPUs) into a partitioned csr
+ * representation. This is a multi-gpu operation operating on partitioned data.
  * @param part_offsets Set to contain the start/end of each partition's vertex ID range. (output)
  * @param comm1 A pointer to void pointer which will be used for inter-thread communication
  * @param cooRow The local partition's initial COO row indices (input)
@@ -97,24 +99,36 @@ void snmg_coo2csr(size_t* part_offsets,
                   gdf_column* csrInd,
                   gdf_column* csrVal);
 
- /**
-Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank eigenvector using the power method.
- * @param[in] src_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column src_col_ptrs[i] contains the index of the source for each edge on GPU i. Indices must be in the range [0, V-1], where V is the global number of vertices.
- * @param[in] dest_col_ptrs     Array of size n_gpu containing pointers to gdf columns. The column dest_col_ptrs[i] contains the index of the destination for each edge on GPU i. Indices must be in the range [0, V-1], where V is the global number of vertices.
- * @param[out] pr_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column pr_col_ptrs[i] contains a copy of the full pagerank result on GPU i.
- * @Param[in] alpha             The damping factor alpha represents the probability to follow an outgoing edge, standard value is 0.85.
- *                              Thus, 1.0-alpha is the probability to “teleport” to a random vertex. Alpha should be greater than 0.0 and strictly lower than 1.0.
- * @param[in] n_gpus            The number of GPUs. This function will launch n_gpus threads and set devices [0, n_gpu-1]. 
- * @Param[in] n_iter            The number of iterations before an answer is returned. This must be greater than 0. It is recommended to run between 10 and 100 iterations.  
- *                              The number of iterations should vary depending on the properties of the network itself and the desired approximation quality; it should be increased when alpha increases toward the limiting value of 1.
+/**
+Find the PageRank vertex values for a graph. cuGraph computes an approximation of the Pagerank
+eigenvector using the power method.
+* @param[in] src_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column
+src_col_ptrs[i] contains the index of the source for each edge on GPU i. Indices must be in the
+range [0, V-1], where V is the global number of vertices.
+* @param[in] dest_col_ptrs     Array of size n_gpu containing pointers to gdf columns. The column
+dest_col_ptrs[i] contains the index of the destination for each edge on GPU i. Indices must be in
+the range [0, V-1], where V is the global number of vertices.
+* @param[out] pr_col_ptrs      Array of size n_gpu containing pointers to gdf columns. The column
+pr_col_ptrs[i] contains a copy of the full pagerank result on GPU i.
+* @Param[in] alpha             The damping factor alpha represents the probability to follow an
+outgoing edge, standard value is 0.85.
+*                              Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
+Alpha should be greater than 0.0 and strictly lower than 1.0.
+* @param[in] n_gpus            The number of GPUs. This function will launch n_gpus threads and set
+devices [0, n_gpu-1].
+* @Param[in] n_iter            The number of iterations before an answer is returned. This must be
+greater than 0. It is recommended to run between 10 and 100 iterations.
+*                              The number of iterations should vary depending on the properties of
+the network itself and the desired approximation quality; it should be increased when alpha
+increases toward the limiting value of 1.
 
- * @throws     cugraph::logic_error when an error occurs.
- */
-void snmg_pagerank (gdf_column **src_col_ptrs, 
-                    gdf_column **dest_col_ptrs, 
-                    gdf_column *pr_col_ptrs, 
-                    const size_t n_gpus, 
-                    const float damping_factor, 
-                    const int n_iter);
+* @throws     cugraph::logic_error when an error occurs.
+*/
+void snmg_pagerank(gdf_column** src_col_ptrs,
+                   gdf_column** dest_col_ptrs,
+                   gdf_column* pr_col_ptrs,
+                   const size_t n_gpus,
+                   const float damping_factor,
+                   const int n_iter);
 
-} //namespace cugraph
+}  // namespace cugraph

@@ -9,21 +9,23 @@
  *
  */
 
-// Interanl helper functions 
+// Interanl helper functions
 #include "utilities/graph_utils.cuh"
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
-    
-void gdf_col_set_defaults(gdf_column* col) {
-  col->dtype = GDF_invalid;
-  col->size = 0;
-  col->data = nullptr;
-  col->valid = nullptr;
+
+void gdf_col_set_defaults(gdf_column* col)
+{
+  col->dtype      = GDF_invalid;
+  col->size       = 0;
+  col->data       = nullptr;
+  col->valid      = nullptr;
   col->null_count = 0;
   gdf_dtype_extra_info extra_info;
   extra_info.time_unit = TIME_UNIT_NONE;
-  col->dtype_info = extra_info;  
+  col->dtype_info      = extra_info;
 }
 
-} } //namespace
+}  // namespace detail
+}  // namespace cugraph

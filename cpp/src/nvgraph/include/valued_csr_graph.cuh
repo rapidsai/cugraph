@@ -19,32 +19,34 @@
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 
-namespace nvlouvain{
-
+namespace nvlouvain {
 
 template <typename ValType>
-class Vector: public rmm::device_vector<ValType>{
-  public:
-    Vector(): rmm::device_vector<ValType>(){}
-    Vector(int size): rmm::device_vector<ValType>(size){}
- 
-    template <typename Iter> 
-    Vector(Iter begin, Iter end): rmm::device_vector<ValType>(begin, end){}
- 
-    inline void fill(const ValType val){
-      thrust::fill(thrust::cuda::par, this->begin(), this->end(), val);
-    }
-    inline rmm::device_vector<ValType>& to_device_vector(){
-      return static_cast<rmm::device_vector<ValType>> (*this);
-    }
+class Vector : public rmm::device_vector<ValType> {
+ public:
+  Vector() : rmm::device_vector<ValType>() {}
+  Vector(int size) : rmm::device_vector<ValType>(size) {}
 
-    inline ValType* raw(){
-      return (ValType*)thrust::raw_pointer_cast( rmm::device_vector<ValType>::data() );
-    }
+  template <typename Iter>
+  Vector(Iter begin, Iter end) : rmm::device_vector<ValType>(begin, end)
+  {
+  }
 
-    inline int get_size(){
-      return this->size();
-    }
+  inline void fill(const ValType val)
+  {
+    thrust::fill(thrust::cuda::par, this->begin(), this->end(), val);
+  }
+  inline rmm::device_vector<ValType>& to_device_vector()
+  {
+    return static_cast<rmm::device_vector<ValType>>(*this);
+  }
+
+  inline ValType* raw()
+  {
+    return (ValType*)thrust::raw_pointer_cast(rmm::device_vector<ValType>::data());
+  }
+
+  inline int get_size() { return this->size(); }
 };
 
-}; //nvlouvain
+};  // namespace nvlouvain

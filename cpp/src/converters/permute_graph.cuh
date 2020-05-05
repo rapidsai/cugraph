@@ -13,21 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <graph.hpp>
 #include <rmm_utils.h>
+#include <graph.hpp>
 #include "converters/COOtoCSR.cuh"
 
 namespace cugraph {
 namespace detail {
 
 template <typename IdxT>
-struct permutation_functor{
+struct permutation_functor {
   IdxT const *permutation;
-  permutation_functor(IdxT const *p):permutation(p){}
-  __host__ __device__
-  IdxT operator()(IdxT in) const {
-    return permutation[in];
-  }
+  permutation_functor(IdxT const *p) : permutation(p) {}
+  __host__ __device__ IdxT operator()(IdxT in) const { return permutation[in]; }
 };
 
 /**
@@ -42,8 +39,8 @@ struct permutation_functor{
 template <typename vertex_t, typename edge_t, typename weight_t>
 void permute_graph(experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t const *permutation,
-                   experimental::GraphCSR<vertex_t, edge_t, weight_t> &result) {
-
+                   experimental::GraphCSR<vertex_t, edge_t, weight_t> &result)
+{
   //  Create a COO out of the CSR
   rmm::device_vector<vertex_t> src_vertices_v(graph.number_of_edges);
   rmm::device_vector<vertex_t> dst_vertices_v(graph.number_of_edges);
@@ -60,49 +57,37 @@ void permute_graph(experimental::GraphCSR<vertex_t, edge_t, weight_t> const &gra
 
   // Permute the src_indices
   permutation_functor<vertex_t> pf(permutation);
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
-                    d_src,
-                    d_src + graph.number_of_edges,
-                    d_src,
-                    pf);
+  thrust::transform(
+    rmm::exec_policy(nullptr)->on(nullptr), d_src, d_src + graph.number_of_edges, d_src, pf);
 
   // Permute the destination indices
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
-                    d_dst,
-                    d_dst + graph.number_of_edges,
-                    d_dst,
-                    pf);
+  thrust::transform(
+    rmm::exec_policy(nullptr)->on(nullptr), d_dst, d_dst + graph.number_of_edges, d_dst, pf);
 
   if (graph.edge_data == nullptr) {
     // Call COO2CSR to get the new adjacency
     CSR_Result<vertex_t> new_csr;
-    ConvertCOOtoCSR(d_src,
-                    d_dst,
-                    (int64_t) graph.number_of_edges,
-                    new_csr);
+    ConvertCOOtoCSR(d_src, d_dst, (int64_t)graph.number_of_edges, new_csr);
 
     // Construct the result graph
-    result.offsets = new_csr.rowOffsets;
-    result.indices = new_csr.colIndices;
+    result.offsets   = new_csr.rowOffsets;
+    result.indices   = new_csr.colIndices;
     result.edge_data = nullptr;
   } else {
     // Call COO2CSR to get the new adjacency
     CSR_Result_Weighted<vertex_t, weight_t> new_csr;
-    ConvertCOOtoCSR_weighted(d_src,
-                             d_dst,
-                             graph.edge_data,
-                             (int64_t) graph.number_of_edges,
-                             new_csr);
+    ConvertCOOtoCSR_weighted(
+      d_src, d_dst, graph.edge_data, (int64_t)graph.number_of_edges, new_csr);
 
     // Construct the result graph
-    result.offsets = new_csr.rowOffsets;
-    result.indices = new_csr.colIndices;
+    result.offsets   = new_csr.rowOffsets;
+    result.indices   = new_csr.colIndices;
     result.edge_data = new_csr.edgeWeights;
   }
-  
+
   result.number_of_vertices = graph.number_of_vertices;
-  result.number_of_edges = graph.number_of_edges;
+  result.number_of_edges    = graph.number_of_edges;
 }
 
-} // namespace detail
-} // namespace cugraph
+}  // namespace detail
+}  // namespace cugraph
