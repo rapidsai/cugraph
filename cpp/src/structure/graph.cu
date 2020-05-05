@@ -1,12 +1,17 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
- * NVIDIA CORPORATION and its licensors retain all intellectual property
- * and proprietary rights in and to this software, related documentation
- * and any modifications thereto.  Any use, reproduction, disclosure or
- * distribution of this software and related documentation without an express
- * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include "utilities/cuda_utils.cuh"
@@ -75,7 +80,7 @@ void GraphCOO<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const {
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    if (GraphBase<VT, ET, WT>::comm.get_p()) // FixMe retrieve global source
+    if (GraphBase<VT, ET, WT>::comm.get_p()) // FIXME retrieve global source
                                              // indexing for the allreduce work
       CUGRAPH_FAIL("OPG degree not implemented for OUT degree");
     degree_from_vertex_ids(
@@ -104,7 +109,7 @@ void GraphCompressedSparseBase<VT, ET, WT>::degree(
   if (direction != DegreeDirection::IN) {
     if (GraphBase<VT, ET, WT>::comm.get_p())
       CUGRAPH_FAIL(
-          "OPG degree not implemented for OUT degree"); // FixMe retrieve global
+          "OPG degree not implemented for OUT degree"); // FIXME retrieve global
                                                         // source indexing for
                                                         // the allreduce to work
     degree_from_offsets(GraphBase<VT, ET, WT>::number_of_vertices, offsets,

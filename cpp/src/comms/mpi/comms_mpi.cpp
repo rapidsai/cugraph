@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ inline void throw_nccl_error(ncclResult_t error, const char *file,
     }                                                                          \
   }
 // MPI errors are expected to be fatal before reaching this.
-// Fix me : improve when adding raft comms
+// FIXME : improve when adding raft comms
 #define MPI_TRY(cmd)                                                           \
   {                                                                            \
     int e = cmd;                                                               \
@@ -177,7 +177,7 @@ Comm::Comm(int p) : _p{p} {
   CUDA_TRY(cudaGetDeviceCount(&_device_count));
   _device_id =
       _rank %
-      _device_count; // FixMe : assumes each node has the same number of GPUs
+      _device_count; // FIXME : assumes each node has the same number of GPUs
   CUDA_TRY(cudaSetDevice(_device_id));
 
   CUDA_TRY(cudaDeviceGetAttribute(&_sm_count_per_device,
@@ -214,8 +214,8 @@ Comm::Comm(ncclComm_t comm, int size, int rank)
   CUDA_TRY(cudaGetDeviceCount(&_device_count));
   _device_id =
       _rank %
-      _device_count; // FixMe : assumes each node has the same number of GPUs
-  CUDA_TRY(cudaSetDevice(_device_id)); // FixMe : check if this is needed or if
+      _device_count; // FIXME : assumes each node has the same number of GPUs
+  CUDA_TRY(cudaSetDevice(_device_id)); // FIXME : check if this is needed or if
                                        // python takes care of this
 
   CUDA_TRY(cudaDeviceGetAttribute(&_sm_count_per_device,
