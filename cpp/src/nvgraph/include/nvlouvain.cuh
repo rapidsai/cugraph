@@ -381,7 +381,6 @@ NVLOUVAIN_STATUS louvain(IdxType const* csr_ptr,
       cluster_inv_ptr_ptr = thrust::raw_pointer_cast(cluster_inv_ptr.data());
       cluster_inv_ind_ptr = thrust::raw_pointer_cast(cluster_inv_ind.data());
 
-      // display_vec(cluster_inv_ind, log);
       hr_clock.start();
       // get new modularity after we generate super vertices.
       IdxType* new_csr_ptr_ptr = thrust::raw_pointer_cast(new_csr_ptr.data());
@@ -462,9 +461,6 @@ NVLOUVAIN_STATUS louvain(IdxType const* csr_ptr,
         thrust::copy(
           thrust::device, new_csr_val.begin(), new_csr_val.begin() + n_edges, csr_val_d.begin());
       }
-
-      // cudaMemGetInfo(&mem_free, &mem_tot);
-      // std::cout<<"Mem usage : "<< (float)(mem_tot-mem_free)/(1<<30) <<std::endl;
     } else {
       LOG() << "Didn't increase in modularity\n";
       updated = false;
@@ -489,7 +485,6 @@ NVLOUVAIN_STATUS louvain(IdxType const* csr_ptr,
   display_vec(csr_ptr_d);
   display_vec(csr_ind_d);
   display_vec(csr_val_d);
-
 #endif
 
   // LOG()<<"Final modularity: "<<COLOR_MGT<<best_modularity<<COLOR_WHT<<std::endl;

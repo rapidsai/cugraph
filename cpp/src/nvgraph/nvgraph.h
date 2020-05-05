@@ -106,8 +106,8 @@ typedef enum {
 
 typedef enum {
   NVGRAPH_MODULARITY_MAXIMIZATION = 0,  // maximize modularity with Lanczos solver
-  NVGRAPH_BALANCED_CUT_LANCZOS = 1,     // minimize balanced cut with Lanczos solver
-  NVGRAPH_BALANCED_CUT_LOBPCG = 2       // minimize balanced cut with LOPCG solver
+  NVGRAPH_BALANCED_CUT_LANCZOS    = 1,  // minimize balanced cut with Lanczos solver
+  NVGRAPH_BALANCED_CUT_LOBPCG     = 2   // minimize balanced cut with LOPCG solver
 } nvgraphSpectralClusteringType_t;
 
 struct SpectralClusteringParameter {

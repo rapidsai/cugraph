@@ -136,54 +136,53 @@ struct SCC_Data {
     do {
       flag.set(0);
 
-      thrust::for_each(
-        thrust::device,
-        thrust::make_counting_iterator<size_t>(0),
-        thrust::make_counting_iterator<size_t>(n2),
-        [nrows, p_d_C, p_d_Cprev, p_d_flag, p_d_ro, p_d_ci] __device__(size_t indx) {
-          ByteT one{1};
+      thrust::for_each(thrust::device,
+                       thrust::make_counting_iterator<size_t>(0),
+                       thrust::make_counting_iterator<size_t>(n2),
+                       [nrows, p_d_C, p_d_Cprev, p_d_flag, p_d_ro, p_d_ci] __device__(size_t indx) {
+                         ByteT one{1};
 
-          auto i = indx / nrows;
-          auto j = indx % nrows;
+                         auto i = indx / nrows;
+                         auto j = indx % nrows;
 
-          if ((i == j) || (p_d_Cprev[indx] == one))
-            p_d_C[indx] = one;
-          else {
-            // this is where a hash-map could help:
-            // only need hashmap[(i,j)]={0,1} (`1` for "hit");
-            // and only for new entries!
-            // already existent entries are covered by
-            // the `if`-branch above!
-            // Hence, hashmap[] can use limited space:
-            // M = max_l{number(new `1` entries)}, where
-            // l = #iterations in the do-loop!
-            // M ~ new `1` entries between A^k and A^{k+1},
-            //    k=1,2,...
-            // Might M actually be M ~ nnz(A) = |E| ?!
-            // Probably, because the primitive hash
-            //(via find_if) uses a search space of nnz(A)
-            //
-            // But, what if more than 1 entry pops-up in a row?
-            // Not an issue! Because the hash key is (i,j), and no
-            // more than one entry can exist in position (i,j)!
-            //
-            // And remember, we only need to store the new (i,j) keys
-            // that an iteration produces wrt to the previous iteration!
-            //
-            auto begin = p_d_ci + p_d_ro[i];
-            auto end   = p_d_ci + p_d_ro[i + 1];
-            auto pos   = thrust::find_if(
-              thrust::seq, begin, end, [one, j, nrows, p_d_Cprev, p_d_ci](IndexT k) {
-                return (p_d_Cprev[k * nrows + j] == one);
-              });
+                         if ((i == j) || (p_d_Cprev[indx] == one))
+                           p_d_C[indx] = one;
+                         else {
+                           // this is where a hash-map could help:
+                           // only need hashmap[(i,j)]={0,1} (`1` for "hit");
+                           // and only for new entries!
+                           // already existent entries are covered by
+                           // the `if`-branch above!
+                           // Hence, hashmap[] can use limited space:
+                           // M = max_l{number(new `1` entries)}, where
+                           // l = #iterations in the do-loop!
+                           // M ~ new `1` entries between A^k and A^{k+1},
+                           //    k=1,2,...
+                           // Might M actually be M ~ nnz(A) = |E| ?!
+                           // Probably, because the primitive hash
+                           //(via find_if) uses a search space of nnz(A)
+                           //
+                           // But, what if more than 1 entry pops-up in a row?
+                           // Not an issue! Because the hash key is (i,j), and no
+                           // more than one entry can exist in position (i,j)!
+                           //
+                           // And remember, we only need to store the new (i,j) keys
+                           // that an iteration produces wrt to the previous iteration!
+                           //
+                           auto begin = p_d_ci + p_d_ro[i];
+                           auto end   = p_d_ci + p_d_ro[i + 1];
+                           auto pos   = thrust::find_if(
+                             thrust::seq, begin, end, [one, j, nrows, p_d_Cprev, p_d_ci](IndexT k) {
+                               return (p_d_Cprev[k * nrows + j] == one);
+                             });
 
-            if (pos != end) p_d_C[indx] = one;
-          }
+                           if (pos != end) p_d_C[indx] = one;
+                         }
 
-          if (p_d_C[indx] != p_d_Cprev[indx])
-            *p_d_flag = 1;  // race-condition: harmless, worst case many threads write the same
-                            // value
-        });
+                         if (p_d_C[indx] != p_d_Cprev[indx])
+                           *p_d_flag = 1;  // race-condition: harmless, worst case many threads
+                                           // write the same value
+                       });
       ++count;
       cudaDeviceSynchronize();
 

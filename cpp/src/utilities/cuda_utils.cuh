@@ -15,8 +15,7 @@
  */
 #pragma once
 
-#include <thrust/functional.h>
-#include <cuda_runtime.h>
+#include <thrust/extrema.h>
 
 namespace cugraph {
 //
@@ -33,12 +32,7 @@ __device__ static __forceinline__ int64_t atomicMin(int64_t *addr, int64_t val)
 
   do {
     expected = old;
-
-    unsigned long long min = val_as_ull;
-    if (expected < val_as_ull)
-      min = val_as_ull;
-
-    old      = ::atomicCAS(addr_as_ull, expected, min);
+    old      = ::atomicCAS(addr_as_ull, expected, thrust::min(val_as_ull, expected));
   } while (expected != old);
   return *p_old;
 }

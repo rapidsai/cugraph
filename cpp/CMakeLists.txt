@@ -172,46 +172,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - NVStrings -------------------------------------------------------------------------------------
-
-find_path(NVSTRINGS_INCLUDE "nvstrings"
-          HINTS "$ENV{NVSTRINGS_ROOT}/include"
-                "$ENV{CONDA_PREFIX}/include/nvstrings"
-                "$ENV{CONDA_PREFIX}/include")
-
-find_library(NVSTRINGS_LIBRARY "NVStrings"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-find_library(NVCATEGORY_LIBRARY "NVCategory"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-find_library(NVTEXT_LIBRARY "NVText"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "NVSTRINGS: NVSTRINGS_INCLUDE set to ${NVSTRINGS_INCLUDE}")
-message(STATUS "NVSTRINGS: NVSTRINGS_LIBRARY set to ${NVSTRINGS_LIBRARY}")
-message(STATUS "NVSTRINGS: NVCATEGORY_LIBRARY set to ${NVCATEGORY_LIBRARY}")
-message(STATUS "NVSTRINGS: NVTEXT_LIBRARY set to ${NVTEXT_LIBRARY}")
-
-add_library(NVStrings SHARED IMPORTED ${NVSTRINGS_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
-    set_target_properties(NVStrings PROPERTIES IMPORTED_LOCATION ${NVSTRINGS_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
-
-add_library(NVCategory SHARED IMPORTED ${NVCATEGORY_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
-    set_target_properties(NVCategory PROPERTIES IMPORTED_LOCATION ${NVCATEGORY_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
-
-add_library(NVText SHARED IMPORTED ${NVTEXT_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
-    set_target_properties(NVText PROPERTIES IMPORTED_LOCATION ${NVTEXT_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
-
-###################################################################################################
 # - cudf ------------------------------------------------------------------------------------------
 
 find_path(CUDF_INCLUDE "cudf"
@@ -351,16 +311,11 @@ add_library(cugraph SHARED
     src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
-    src/snmg/blas/spmv.cu
-    src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
     src/utilities/graph_utils.cu
-    src/snmg/utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/snmg/degree/degree.cu
-    src/snmg/COO2CSR/COO2CSR.cu
     src/nvgraph/kmeans.cu
     src/nvgraph/lanczos.cu
     src/nvgraph/spectral_matrix.cu

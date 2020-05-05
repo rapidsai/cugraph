@@ -50,7 +50,6 @@ static inline void printStackTrace(std::ostream &eout = std::cerr, unsigned int 
 
   // retrieve current stack addresses
   int addrlen = backtrace(addrlist, sizeof(addrlist) / sizeof(void *));
-
   if (addrlen == 0) {
     out << "  <empty, possibly corrupt>\n";
     return;

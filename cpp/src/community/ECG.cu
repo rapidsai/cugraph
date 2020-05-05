@@ -15,7 +15,6 @@
  */
 
 #include <algorithms.hpp>
-#include <graph.hpp>
 
 #include <rmm_utils.h>
 #include <thrust/random.h>
@@ -158,7 +157,6 @@ void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
                                                     permutation_v.data().get(),
                                                     d_parts,
                                                     ecg_weights_v.data().get());
-
     // Clean up temporary allocations
 
     // FIXME:  Address this when kaatish graph result PR is complete
