@@ -21,7 +21,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -139,25 +138,17 @@ HAS_GUESS = [0, 1]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('tol', TOLERANCE)
 @pytest.mark.parametrize('alpha', ALPHA)
 @pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
 @pytest.mark.parametrize('has_guess', HAS_GUESS)
-def test_pagerank(managed, pool, graph_file, max_iter, tol, alpha,
+def test_pagerank(graph_file, max_iter, tol, alpha,
                   personalization_perc, has_guess):
     gc.collect()
 
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
     M = utils.read_csv_for_nx(graph_file)
     networkx_pr, networkx_prsn = networkx_call(M, max_iter, tol, alpha,
                                                personalization_perc)

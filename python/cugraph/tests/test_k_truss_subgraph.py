@@ -19,7 +19,6 @@ import pytest
 import cugraph
 from cugraph.tests import utils
 
-import rmm
 import numpy as np
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -87,31 +86,15 @@ DATASETS = [('../datasets/polbooks.csv',
              '../datasets/ref/ktruss/netscience.csv')]
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
-def test_ktruss_subgraph_DiGraph(managed, pool, graph_file, nx_ground_truth):
+def test_ktruss_subgraph_DiGraph(graph_file, nx_ground_truth):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool)
-
-    assert(rmm.is_initialized())
 
     compare_k_truss(graph_file, 5, nx_ground_truth)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
-def test_ktruss_subgraph_Graph(managed, pool, graph_file, nx_ground_truth):
+def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool)
-
-    assert(rmm.is_initialized())
 
     compare_k_truss(graph_file, 5, nx_ground_truth, False)

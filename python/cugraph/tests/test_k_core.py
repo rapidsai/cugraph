@@ -18,7 +18,6 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -67,36 +66,20 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv']
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_core_number_DiGraph(managed, pool, graph_file):
+def test_core_number_DiGraph(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     cu_kcore, nx_kcore = calc_k_cores(graph_file)
 
     assert compare_edges(cu_kcore, nx_kcore)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_core_number_Graph(managed, pool, graph_file):
+def test_core_number_Graph(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 

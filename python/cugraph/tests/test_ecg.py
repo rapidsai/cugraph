@@ -16,7 +16,6 @@ from itertools import product
 import pytest
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 
 def cugraph_call(G, min_weight, ensemble_size):
@@ -45,25 +44,14 @@ ENSEMBLE_SIZES = [16, 32]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('min_weight', MIN_WEIGHTS)
 @pytest.mark.parametrize('ensemble_size', ENSEMBLE_SIZES)
-def test_ecg_clustering(managed,
-                        pool,
-                        graph_file,
+def test_ecg_clustering(graph_file,
                         min_weight,
                         ensemble_size):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)

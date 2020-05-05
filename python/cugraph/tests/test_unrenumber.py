@@ -21,7 +21,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv',
@@ -29,19 +28,10 @@ DATASETS = ['../datasets/karate.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_multi_column_unrenumbering(managed, pool, graph_file):
+def test_multi_column_unrenumbering(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     translate = 100
     cu_M = utils.read_csv_file(graph_file)
