@@ -367,15 +367,15 @@ void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_n
  * @param[in]  mr                    Memory resource used to allocate the returned graph
  *
  * @param[out] out_graph             Unique pointer to K Core subgraph in COO formate
- */                                                                             
+ */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>>
-k_core(experimental::GraphCOOView<VT, ET, WT> const &graph,
-            int k,
-            VT const *vertex_id,
-            VT const *core_number,
-            VT num_vertex_ids,
-            rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource());
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
+  experimental::GraphCOOView<VT, ET, WT> const &graph,
+  int k,
+  VT const *vertex_id,
+  VT const *core_number,
+  VT num_vertex_ids,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 /**
  * @brief      Find all 2-hop neighbors in the graph
@@ -399,7 +399,9 @@ k_core(experimental::GraphCOOView<VT, ET, WT> const &graph,
  * @return    The number of pairs
  */
 template <typename VT, typename ET, typename WT>
-ET get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph, VT **first, VT **second);
+ET get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                         VT **first,
+                         VT **second);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.

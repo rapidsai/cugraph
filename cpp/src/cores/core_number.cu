@@ -55,18 +55,17 @@ template <typename VT, typename ET, typename WT>
 void extract_edges(experimental::GraphCOOView<VT, ET, WT> const &i_graph,
                    experimental::GraphCOOView<VT, ET, WT> &o_graph,
                    VT *d_core,
-                   int k) {
+                   int k)
+{
   cudaStream_t stream{nullptr};
 
-  //If an edge satisfies k-core conditions i.e. core_num[src] and core_num[dst]
-  //are both greater than or equal to k, copy it to the output graph
+  // If an edge satisfies k-core conditions i.e. core_num[src] and core_num[dst]
+  // are both greater than or equal to k, copy it to the output graph
   if (i_graph.has_data()) {
-    auto inEdge = thrust::make_zip_iterator(thrust::make_tuple(i_graph.src_indices,
-                                                               i_graph.dst_indices,
-                                                               i_graph.edge_data));
-    auto outEdge = thrust::make_zip_iterator(thrust::make_tuple(o_graph.src_indices,
-                                                                o_graph.dst_indices,
-                                                                o_graph.edge_data));
+    auto inEdge = thrust::make_zip_iterator(
+      thrust::make_tuple(i_graph.src_indices, i_graph.dst_indices, i_graph.edge_data));
+    auto outEdge = thrust::make_zip_iterator(
+      thrust::make_tuple(o_graph.src_indices, o_graph.dst_indices, o_graph.edge_data));
     auto ptr = thrust::copy_if(rmm::exec_policy(stream)->on(stream),
                                inEdge,
                                inEdge + i_graph.number_of_edges,
@@ -97,13 +96,13 @@ void extract_edges(experimental::GraphCOOView<VT, ET, WT> const &i_graph,
 // i.e. All edges (s,d,w) in in_graph are copied over to out_graph
 // if core_num[s] and core_num[d] are greater than or equal to k.
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>>
-extract_subgraph(experimental::GraphCOOView<VT, ET, WT> const &in_graph,
-                      int const *vid,
-                      int const *core_num,
-                      int k,
-                      int len,
-                      rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource())
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph(
+  experimental::GraphCOOView<VT, ET, WT> const &in_graph,
+  int const *vid,
+  int const *core_num,
+  int k,
+  int len,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
 
 {
   cudaStream_t stream{nullptr};
@@ -121,12 +120,14 @@ extract_subgraph(experimental::GraphCOOView<VT, ET, WT> const &in_graph,
     thrust::make_zip_iterator(thrust::make_tuple(in_graph.src_indices, in_graph.dst_indices));
 
   auto out_graph = std::make_unique<experimental::GraphCOO<VT, ET, WT>>(
-      in_graph.number_of_vertices,
-      thrust::count_if(rmm::exec_policy(stream)->on(stream),
-                       edge, edge + in_graph.number_of_edges,
-                       detail::FilterEdges(k, d_sorted_core_num)),
-      in_graph.has_data(),
-      stream, mr);
+    in_graph.number_of_vertices,
+    thrust::count_if(rmm::exec_policy(stream)->on(stream),
+                     edge,
+                     edge + in_graph.number_of_edges,
+                     detail::FilterEdges(k, d_sorted_core_num)),
+    in_graph.has_data(),
+    stream,
+    mr);
 
   experimental::GraphCOOView<VT, ET, WT> out_graph_view = out_graph->view();
   extract_edges(in_graph, out_graph_view, d_sorted_core_num, k);
@@ -143,39 +144,36 @@ void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_n
 }
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>>
-k_core(experimental::GraphCOOView<VT, ET, WT> const &in_graph,
-            int k,
-            VT const *vertex_id,
-            VT const *core_number,
-            VT num_vertex_ids,
-            rmm::mr::device_memory_resource* mr)
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
+  experimental::GraphCOOView<VT, ET, WT> const &in_graph,
+  int k,
+  VT const *vertex_id,
+  VT const *core_number,
+  VT num_vertex_ids,
+  rmm::mr::device_memory_resource *mr)
 {
   CUGRAPH_EXPECTS(vertex_id != nullptr, "Invalid API parameter: vertex_id is NULL");
   CUGRAPH_EXPECTS(core_number != nullptr, "Invalid API parameter: core_number is NULL");
   CUGRAPH_EXPECTS(k >= 0, "Invalid API parameter: k must be >= 0");
 
-  return detail::extract_subgraph(
-    in_graph, vertex_id, core_number, k, num_vertex_ids, mr);
+  return detail::extract_subgraph(in_graph, vertex_id, core_number, k, num_vertex_ids, mr);
 }
 
 template void core_number<int32_t, int32_t, float>(
   experimental::GraphCSRView<int32_t, int32_t, float> const &, int32_t *core_number);
 template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, float>>
-  k_core<int32_t, int32_t, float>(
-      experimental::GraphCOOView<int32_t, int32_t, float> const &,
-      int,
-      int32_t const *,
-      int32_t const *,
-      int32_t,
-      rmm::mr::device_memory_resource*);
+k_core<int32_t, int32_t, float>(experimental::GraphCOOView<int32_t, int32_t, float> const &,
+                                int,
+                                int32_t const *,
+                                int32_t const *,
+                                int32_t,
+                                rmm::mr::device_memory_resource *);
 template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, double>>
-  k_core<int32_t, int32_t, double>(
-      experimental::GraphCOOView<int32_t, int32_t, double> const &,
-      int,
-      int32_t const *,
-      int32_t const *,
-      int32_t,
-      rmm::mr::device_memory_resource*);
+k_core<int32_t, int32_t, double>(experimental::GraphCOOView<int32_t, int32_t, double> const &,
+                                 int,
+                                 int32_t const *,
+                                 int32_t const *,
+                                 int32_t,
+                                 rmm::mr::device_memory_resource *);
 
 }  // namespace cugraph

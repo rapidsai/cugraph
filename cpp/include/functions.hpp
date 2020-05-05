@@ -96,7 +96,7 @@ vertex_t coo2csr_weighted(edge_t num_edges,
  */
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
-    experimental::GraphCOOView<VT, ET, WT> const &graph,
-    rmm::mr::device_memory_resource* mr = rmm::mr::get_default_resource());
+  experimental::GraphCOOView<VT, ET, WT> const &graph,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 }  // namespace cugraph

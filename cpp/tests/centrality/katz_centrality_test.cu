@@ -116,10 +116,10 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    cugraph::experimental::GraphCOOView<int,int,float> cooview(
-        &cooColInd[0], &cooRowInd[0], nullptr, m, nnz);
-    auto csr = cugraph::coo_to_csr(cooview);
-    cugraph::experimental::GraphCSRView<int,int,float> G = csr->view();
+    cugraph::experimental::GraphCOOView<int, int, float> cooview(
+      &cooColInd[0], &cooRowInd[0], nullptr, m, nnz);
+    auto csr                                               = cugraph::coo_to_csr(cooview);
+    cugraph::experimental::GraphCSRView<int, int, float> G = csr->view();
 
     rmm::device_vector<double> katz_vector(m);
     double* d_katz = thrust::raw_pointer_cast(katz_vector.data());
