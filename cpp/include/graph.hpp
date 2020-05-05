@@ -49,6 +49,7 @@ class GraphBase {
  public:
   Comm comm;
   WT *edge_data;  ///< edge weight
+
   GraphProperties prop;
 
   VT number_of_vertices;
@@ -92,9 +93,8 @@ class GraphCOO : public GraphBase<VT, ET, WT> {
    *
    * @throws     cugraph::logic_error when an error occurs.
    *
-   * @param[out] degree                Device array of size V (V is number of
-   * vertices) initialized to zeros. Will contain the computed degree of every
-   * vertex.
+   * @param[out] degree                Device array of size V (V is number of vertices) initialized
+   * to zeros. Will contain the computed degree of every vertex.
    * @param[in]  direction             IN_PLUS_OUT, IN or OUT
    */
   void degree(ET *degree, DegreeDirection direction) const;
@@ -110,15 +110,12 @@ class GraphCOO : public GraphBase<VT, ET, WT> {
    *             GraphCOO does not own the memory used to represent this graph.
    * This function does not allocate memory.
    *
-   * @param  source_indices        This array of size E (number of edges)
-   * contains the index of the source for each edge. Indices must be in the
-   * range [0, V-1].
-   * @param  destination_indices   This array of size E (number of edges)
-   * contains the index of the destination for each edge. Indices must be in the
-   * range [0, V-1].
-   * @param  edge_data             This array size E (number of edges) contains
-   * the weight for each edge.  This array can be null in which case the graph
-   * is considered unweighted.
+   * @param  source_indices        This array of size E (number of edges) contains the index of the
+   * source for each edge. Indices must be in the range [0, V-1].
+   * @param  destination_indices   This array of size E (number of edges) contains the index of the
+   * destination for each edge. Indices must be in the range [0, V-1].
+   * @param  edge_data             This array size E (number of edges) contains the weight for each
+   * edge.  This array can be null in which case the graph is considered unweighted.
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
@@ -132,8 +129,8 @@ class GraphCOO : public GraphBase<VT, ET, WT> {
 };
 
 /**
- * @brief       Base class for graph stored in CSR (Compressed Sparse Row)
- * format or CSC (Compressed Sparse Column) format
+ * @brief       Base class for graph stored in CSR (Compressed Sparse Row) format or CSC (Compressed
+ * Sparse Column) format
  *
  * @tparam VT   Type of vertex id
  * @tparam ET   Type of edge id
@@ -159,11 +156,12 @@ class GraphCompressedSparseBase : public GraphBase<VT, ET, WT> {
    *
    * @throws     cugraph::logic_error when an error occurs.
    *
-   * @param[out] degree                Device array of size V (V is number of
-   * vertices) initialized to zeros. Will contain the computed degree of every
-   * vertex.
-   * @param[in]  x                     Integer value indicating type of degree
-   * calculation 0 : in+out degree 1 : in-degree 2 : out-degree
+   * @param[out] degree                Device array of size V (V is number of vertices) initialized
+   * to zeros. Will contain the computed degree of every vertex.
+   * @param[in]  x                     Integer value indicating type of degree calculation
+   *                                      0 : in+out degree
+   *                                      1 : in-degree
+   *                                      2 : out-degree
    */
   void degree(ET *degree, DegreeDirection direction) const;
 
@@ -172,14 +170,13 @@ class GraphCompressedSparseBase : public GraphBase<VT, ET, WT> {
    *             GraphCSR does not own the memory used to represent this graph.
    * This function does not allocate memory.
    *
-   * @param  offsets               This array of size V+1 (V is number of
-   * vertices) contains the offset of adjacency lists of every vertex. Offsets
-   * must be in the range [0, E] (number of edges).
-   * @param  indices               This array of size E contains the index of
-   * the destination for each edge. Indices must be in the range [0, V-1].
-   * @param  edge_data             This array of size E (number of edges)
-   * contains the weight for each edge.  This array can be null in which case
-   * the graph is considered unweighted.
+   * @param  offsets               This array of size V+1 (V is number of vertices) contains the
+   * offset of adjacency lists of every vertex. Offsets must be in the range [0, E] (number of
+   * edges).
+   * @param  indices               This array of size E contains the index of the destination for
+   * each edge. Indices must be in the range [0, V-1].
+   * @param  edge_data             This array of size E (number of edges) contains the weight for
+   * each edge.  This array can be null in which case the graph is considered unweighted.
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
@@ -212,14 +209,13 @@ class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
    *             GraphCSR does not own the memory used to represent this graph.
    * This function does not allocate memory.
    *
-   * @param  offsets               This array of size V+1 (V is number of
-   * vertices) contains the offset of adjacency lists of every vertex. Offsets
-   * must be in the range [0, E] (number of edges).
-   * @param  indices               This array of size E contains the index of
-   * the destination for each edge. Indices must be in the range [0, V-1].
-   * @param  edge_data             This array of size E (number of edges)
-   * contains the weight for each edge.  This array can be null in which case
-   * the graph is considered unweighted.
+   * @param  offsets               This array of size V+1 (V is number of vertices) contains the
+   * offset of adjacency lists of every vertex. Offsets must be in the range [0, E] (number of
+   * edges).
+   * @param  indices               This array of size E contains the index of the destination for
+   * each edge. Indices must be in the range [0, V-1].
+   * @param  edge_data             This array of size E (number of edges) contains the weight for
+   * each edge.  This array can be null in which case the graph is considered unweighted.
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
@@ -250,14 +246,13 @@ class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
    * a Graph. GraphCSC does not own the memory used to represent this graph.
    * This function does not allocate memory.
    *
-   * @param  offsets               This array of size V+1 (V is number of
-   * vertices) contains the offset of adjacency lists of every vertex. Offsets
-   * must be in the range [0, E] (number of edges).
-   * @param  indices               This array of size E contains the index of
-   * the destination for each edge. Indices must be in the range [0, V-1].
-   * @param  edge_data             This array of size E (number of edges)
-   * contains the weight for each edge.  This array can be null in which case
-   * the graph is considered unweighted.
+   * @param  offsets               This array of size V+1 (V is number of vertices) contains the
+   * offset of adjacency lists of every vertex. Offsets must be in the range [0, E] (number of
+   * edges).
+   * @param  indices               This array of size E contains the index of the destination for
+   * each edge. Indices must be in the range [0, V-1].
+   * @param  edge_data             This array of size E (number of edges) contains the weight for
+   * each edge.  This array can be null in which case the graph is considered unweighted.
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */

@@ -15,51 +15,45 @@
  */
 #pragma once
 
+#include "multi_valued_csr_graph.hxx"
 #include "nvgraph/nvgraph.h"
 #include "nvgraph_error.hxx"
-#include "multi_valued_csr_graph.hxx"
 
-namespace nvgraph
-{
+namespace nvgraph {
 
 template <typename I, typename V>
-class SemiringDispatch
-{
-public:
-    template <typename SR>
-    static NVGRAPH_ERROR Dispatch(
-        const V*             d_values,
-        const I*             d_row_offsets,
-        const I*             d_column_indices,
-        const V*             d_vector_x,
-        V*             d_vector_y,
-        V              alpha,
-        V              beta, 
-        I              num_rows,
-        I              num_cols,
-        I              num_nonzeros,
-        cudaStream_t   stream);
+class SemiringDispatch {
+ public:
+  template <typename SR>
+  static NVGRAPH_ERROR Dispatch(const V* d_values,
+                                const I* d_row_offsets,
+                                const I* d_column_indices,
+                                const V* d_vector_x,
+                                V* d_vector_y,
+                                V alpha,
+                                V beta,
+                                I num_rows,
+                                I num_cols,
+                                I num_nonzeros,
+                                cudaStream_t stream);
 
-    static NVGRAPH_ERROR InitAndLaunch(
-            const nvgraph::MultiValuedCsrGraph<I, V> &graph,
-            const size_t weight_index,
-            const void *p_alpha,
-            const size_t x_index,
-            const void *p_beta,
-            const size_t y_index,
-            const nvgraphSemiring_t SR,
-            cudaStream_t stream
-        );
+  static NVGRAPH_ERROR InitAndLaunch(const nvgraph::MultiValuedCsrGraph<I, V>& graph,
+                                     const size_t weight_index,
+                                     const void* p_alpha,
+                                     const size_t x_index,
+                                     const void* p_beta,
+                                     const size_t y_index,
+                                     const nvgraphSemiring_t SR,
+                                     cudaStream_t stream);
 };
-
 
 // API wrapper to avoid bloating main API object nvgraph.cpp
 NVGRAPH_ERROR SemiringAPILauncher(nvgraphHandle_t handle,
-                           const nvgraphGraphDescr_t descrG,
-                           const size_t weight_index,
-                           const void *alpha,
-                           const size_t x,
-                           const void *beta,
-                           const size_t y,
-                           const nvgraphSemiring_t sr);
-} //namespace nvgraph
+                                  const nvgraphGraphDescr_t descrG,
+                                  const size_t weight_index,
+                                  const void* alpha,
+                                  const size_t x,
+                                  const void* beta,
+                                  const size_t y,
+                                  const nvgraphSemiring_t sr);
+}  // namespace nvgraph

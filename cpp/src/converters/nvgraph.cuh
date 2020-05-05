@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <nvgraph/nvgraph.h>
 #include <cugraph.h>
+#include <nvgraph/nvgraph.h>
 
 namespace cugraph {
 /**
@@ -27,7 +27,7 @@ namespace cugraph {
  * @return Error code
  */
 void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  Graph* gdf_G,
-                                  nvgraphGraphDescr_t * nvgraph_G,
-bool use_transposed = false);
-}
+                         Graph* gdf_G,
+                         nvgraphGraphDescr_t* nvgraph_G,
+                         bool use_transposed = false);
+}  // namespace cugraph

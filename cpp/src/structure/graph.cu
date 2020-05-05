@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
+#include <graph.hpp>
 #include "utilities/cuda_utils.cuh"
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
-
-#include <graph.hpp>
 
 namespace {
 
