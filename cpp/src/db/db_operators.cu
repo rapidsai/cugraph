@@ -14,56 +14,43 @@
  * limitations under the License.
  */
 
-#include <db/db_operators.cuh>
-#include <cub/device/device_select.cuh>
 #include <utilities/error_utils.h>
+#include <cub/device/device_select.cuh>
+#include <db/db_operators.cuh>
 
 namespace cugraph {
 namespace db {
-template<typename IndexType>
+template <typename IndexType>
 struct degree_iterator {
   IndexType* offsets;
-  degree_iterator(IndexType* _offsets) :
-      offsets(_offsets) {
-  }
+  degree_iterator(IndexType* _offsets) : offsets(_offsets) {}
 
-  __host__    __device__
-  IndexType operator[](IndexType place) {
+  __host__ __device__ IndexType operator[](IndexType place)
+  {
     return offsets[place + 1] - offsets[place];
   }
 };
 
-template<typename It, typename IndexType>
+template <typename It, typename IndexType>
 struct deref_functor {
   It iterator;
-  deref_functor(It it) :
-      iterator(it) {
-  }
+  deref_functor(It it) : iterator(it) {}
 
-  __host__    __device__
-  IndexType operator()(IndexType in) {
-    return iterator[in];
-  }
+  __host__ __device__ IndexType operator()(IndexType in) { return iterator[in]; }
 };
 
-template<typename idx_t, typename flag_t>
+template <typename idx_t, typename flag_t>
 struct notNegativeOne {
-  __host__    __device__
-  flag_t operator()(idx_t in) {
-    return in != -1;
-  }
+  __host__ __device__ flag_t operator()(idx_t in) { return in != -1; }
 };
 
-template<typename IndexType>
-__device__ IndexType binsearch_maxle(const IndexType *vec,
-                                     const IndexType val,
-                                     IndexType low,
-                                     IndexType high) {
+template <typename IndexType>
+__device__ IndexType
+binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexType high)
+{
   while (true) {
-    if (low == high)
-      return low; //we know it exists
-    if ((low + 1) == high)
-      return (vec[high] <= val) ? high : low;
+    if (low == high) return low;  // we know it exists
+    if ((low + 1) == high) return (vec[high] <= val) ? high : low;
 
     IndexType mid = low + (high - low) / 2;
 
@@ -74,28 +61,24 @@ __device__ IndexType binsearch_maxle(const IndexType *vec,
   }
 }
 
-template<typename IndexType>
-__global__ void compute_bucket_offsets_kernel(const IndexType *frontier_degrees_exclusive_sum,
-                                              IndexType *bucket_offsets,
+template <typename IndexType>
+__global__ void compute_bucket_offsets_kernel(const IndexType* frontier_degrees_exclusive_sum,
+                                              IndexType* bucket_offsets,
                                               const IndexType frontier_size,
-                                              IndexType total_degree) {
+                                              IndexType total_degree)
+{
   IndexType end = ((total_degree - 1 + FIND_MATCHES_BLOCK_SIZE) / FIND_MATCHES_BLOCK_SIZE);
 
-  for (IndexType bid = blockIdx.x * blockDim.x + threadIdx.x;
-      bid <= end;
-      bid += gridDim.x * blockDim.x) {
-
+  for (IndexType bid = blockIdx.x * blockDim.x + threadIdx.x; bid <= end;
+       bid += gridDim.x * blockDim.x) {
     IndexType eid = min(bid * FIND_MATCHES_BLOCK_SIZE, total_degree - 1);
 
-    bucket_offsets[bid] = binsearch_maxle(frontier_degrees_exclusive_sum,
-                                          eid,
-                                          (IndexType) 0,
-                                          frontier_size - 1);
-
+    bucket_offsets[bid] =
+      binsearch_maxle(frontier_degrees_exclusive_sum, eid, (IndexType)0, frontier_size - 1);
   }
 }
 
-template<typename idx_t>
+template <typename idx_t>
 __global__ void findMatchesKernel(idx_t inputSize,
                                   idx_t outputSize,
                                   idx_t maxBlock,
@@ -113,7 +96,8 @@ __global__ void findMatchesKernel(idx_t inputSize,
                                   idx_t* outputD,
                                   idx_t patternA,
                                   idx_t patternB,
-                                  idx_t patternC) {
+                                  idx_t patternC)
+{
   __shared__ idx_t blockRange[2];
   __shared__ idx_t localExSum[FIND_MATCHES_BLOCK_SIZE * 2];
   __shared__ idx_t localFrontier[FIND_MATCHES_BLOCK_SIZE * 2];
@@ -123,15 +107,13 @@ __global__ void findMatchesKernel(idx_t inputSize,
     if (threadIdx.x == 0) {
       blockRange[0] = blockStarts[bid];
       blockRange[1] = blockStarts[bid + 1];
-      if (blockRange[0] > 0) {
-        blockRange[0] -= 1;
-      }
+      if (blockRange[0] > 0) { blockRange[0] -= 1; }
     }
     __syncthreads();
 
     idx_t sectionSize = blockRange[1] - blockRange[0];
     for (int tid = threadIdx.x; tid <= sectionSize; tid += blockDim.x) {
-      localExSum[tid] = expandCounts[blockRange[0] + tid];
+      localExSum[tid]    = expandCounts[blockRange[0] + tid];
       localFrontier[tid] = frontier[blockRange[0] + tid];
     }
     __syncthreads();
@@ -140,10 +122,10 @@ __global__ void findMatchesKernel(idx_t inputSize,
     idx_t tid = bid * blockDim.x + threadIdx.x;
     if (tid < outputSize) {
       // Figure out which row this thread/iteration is working on
-      idx_t sourceIdx = binsearch_maxle(localExSum, tid, (idx_t) 0, (idx_t) sectionSize);
-      idx_t source = localFrontier[sourceIdx];
-      idx_t rank = tid - localExSum[sourceIdx];
-      idx_t row_id = indirection[offsets[source] + rank];
+      idx_t sourceIdx = binsearch_maxle(localExSum, tid, (idx_t)0, (idx_t)sectionSize);
+      idx_t source    = localFrontier[sourceIdx];
+      idx_t rank      = tid - localExSum[sourceIdx];
+      idx_t row_id    = indirection[offsets[source] + rank];
 
       // Load in values from the row for A, B, and C columns
       idx_t valA = columnA[row_id];
@@ -157,31 +139,28 @@ __global__ void findMatchesKernel(idx_t inputSize,
 
       // If row doesn't match, set row values to -1 before writing out
       if (!(matchA && matchB && matchC)) {
-        valA = -1;
-        valB = -1;
-        valC = -1;
+        valA   = -1;
+        valB   = -1;
+        valC   = -1;
         row_id = -1;
       }
 
       // Write out values to non-null outputs
-      if (outputA != nullptr)
-        outputA[tid] = valA;
-      if (outputB != nullptr)
-        outputB[tid] = valB;
-      if (outputC != nullptr)
-        outputC[tid] = valC;
-      if (outputD != nullptr)
-        outputD[tid] = row_id;
+      if (outputA != nullptr) outputA[tid] = valA;
+      if (outputB != nullptr) outputB[tid] = valB;
+      if (outputC != nullptr) outputC[tid] = valC;
+      if (outputD != nullptr) outputD[tid] = row_id;
     }
   }
 }
 
-template<typename idx_t>
-db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
-                            db_table<idx_t>& table,
-                            idx_t* frontier,
-                            idx_t frontier_size,
-                            int indexPosition) {
+template <typename idx_t>
+db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
+                             db_table<idx_t>& table,
+                             idx_t* frontier,
+                             idx_t frontier_size,
+                             int indexPosition)
+{
   // Find out if the indexPosition is a variable or constant
   bool indexConstant = !pattern.getEntry(indexPosition).isVariable();
 
@@ -189,8 +168,7 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
 
   // Check to see whether we are going to be saving out the row ids from matches
   bool saveRowIds = false;
-  if (pattern.getSize() == 4)
-    saveRowIds = true;
+  if (pattern.getSize() == 4) saveRowIds = true;
 
   // Check if we have a frontier to use, if we don't make one up
   bool givenInputFrontier = frontier != nullptr;
@@ -200,8 +178,7 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   if (givenInputFrontier) {
     frontier_ptr = frontier;
     frontierSize = frontier_size;
-  }
-  else {
+  } else {
     if (indexConstant) {
       // Use a single value equal to the constant in the pattern
       idx_t constantValue = pattern.getEntry(indexPosition).getConstant();
@@ -212,8 +189,7 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
                    constantValue);
       frontier_ptr = reinterpret_cast<idx_t*>(frontierBuffer.data());
       frontierSize = 1;
-    }
-    else {
+    } else {
       // Making a sequence of values from zero to n where n is the highest ID present in the index.
       idx_t highestId = theIndex.getOffsetsSize() - 2;
       frontierBuffer.resize(sizeof(idx_t) * (highestId + 1));
@@ -226,16 +202,16 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   }
 
   // Collect all the pointers needed to run the main kernel
-  idx_t* columnA = table.getColumn(0);
-  idx_t* columnB = table.getColumn(1);
-  idx_t* columnC = table.getColumn(2);
-  idx_t* offsets = theIndex.getOffsets();
+  idx_t* columnA     = table.getColumn(0);
+  idx_t* columnB     = table.getColumn(1);
+  idx_t* columnC     = table.getColumn(2);
+  idx_t* offsets     = theIndex.getOffsets();
   idx_t* indirection = theIndex.getIndirection();
 
   // Load balance the input
   rmm::device_buffer exsum_degree(sizeof(idx_t) * (frontierSize + 1));
-  degree_iterator<idx_t>deg_it(offsets);
-  deref_functor<degree_iterator<idx_t>, idx_t>deref(deg_it);
+  degree_iterator<idx_t> deg_it(offsets);
+  deref_functor<degree_iterator<idx_t>, idx_t> deref(deg_it);
   thrust::fill(rmm::exec_policy(nullptr)->on(nullptr),
                reinterpret_cast<idx_t*>(exsum_degree.data()),
                reinterpret_cast<idx_t*>(exsum_degree.data()) + 1,
@@ -260,17 +236,18 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
 
   dim3 grid, block;
   block.x = 512;
-  grid.x = min((idx_t) MAXBLOCKS, (num_blocks / 512) + 1);
-  compute_bucket_offsets_kernel<<<grid, block, 0, nullptr>>>(reinterpret_cast<idx_t*>(exsum_degree.data()),
-                                                             reinterpret_cast<idx_t*>(block_bucket_offsets.data()),
-                                                             frontierSize,
-                                                             output_size);
+  grid.x  = min((idx_t)MAXBLOCKS, (num_blocks / 512) + 1);
+  compute_bucket_offsets_kernel<<<grid, block, 0, nullptr>>>(
+    reinterpret_cast<idx_t*>(exsum_degree.data()),
+    reinterpret_cast<idx_t*>(block_bucket_offsets.data()),
+    frontierSize,
+    output_size);
 
   // Allocate space for the result
-  idx_t *outputA = nullptr;
-  idx_t *outputB = nullptr;
-  idx_t *outputC = nullptr;
-  idx_t *outputD = nullptr;
+  idx_t* outputA = nullptr;
+  idx_t* outputB = nullptr;
+  idx_t* outputC = nullptr;
+  idx_t* outputD = nullptr;
   rmm::device_buffer outputABuffer;
   rmm::device_buffer outputBBuffer;
   rmm::device_buffer outputCBuffer;
@@ -296,39 +273,33 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   idx_t patternA = -1;
   idx_t patternB = -1;
   idx_t patternC = -1;
-  if (!pattern.getEntry(0).isVariable()) {
-    patternA = pattern.getEntry(0).getConstant();
-  }
-  if (!pattern.getEntry(1).isVariable()) {
-    patternB = pattern.getEntry(1).getConstant();
-  }
-  if (!pattern.getEntry(2).isVariable()) {
-    patternC = pattern.getEntry(2).getConstant();
-  }
+  if (!pattern.getEntry(0).isVariable()) { patternA = pattern.getEntry(0).getConstant(); }
+  if (!pattern.getEntry(1).isVariable()) { patternB = pattern.getEntry(1).getConstant(); }
+  if (!pattern.getEntry(2).isVariable()) { patternC = pattern.getEntry(2).getConstant(); }
 
   // Call the main kernel
   block.x = FIND_MATCHES_BLOCK_SIZE;
-  grid.x = min((idx_t) MAXBLOCKS,
-               (output_size + (idx_t) FIND_MATCHES_BLOCK_SIZE - 1)
-                   / (idx_t) FIND_MATCHES_BLOCK_SIZE);
-  findMatchesKernel<<<grid, block, 0, nullptr>>>(frontierSize,
-                                                 output_size,
-                                                 num_blocks,
-                                                 offsets,
-                                                 indirection,
-                                                 reinterpret_cast<idx_t*>(block_bucket_offsets.data()),
-                                                 reinterpret_cast<idx_t*>(exsum_degree.data()),
-                                                 frontier_ptr,
-                                                 columnA,
-                                                 columnB,
-                                                 columnC,
-                                                 outputA,
-                                                 outputB,
-                                                 outputC,
-                                                 outputD,
-                                                 patternA,
-                                                 patternB,
-                                                 patternC);
+  grid.x  = min((idx_t)MAXBLOCKS,
+               (output_size + (idx_t)FIND_MATCHES_BLOCK_SIZE - 1) / (idx_t)FIND_MATCHES_BLOCK_SIZE);
+  findMatchesKernel<<<grid, block, 0, nullptr>>>(
+    frontierSize,
+    output_size,
+    num_blocks,
+    offsets,
+    indirection,
+    reinterpret_cast<idx_t*>(block_bucket_offsets.data()),
+    reinterpret_cast<idx_t*>(exsum_degree.data()),
+    frontier_ptr,
+    columnA,
+    columnB,
+    columnC,
+    outputA,
+    outputB,
+    outputC,
+    outputD,
+    patternA,
+    patternB,
+    patternC);
 
   // Get the non-null output columns
   std::vector<idx_t*> columns;
@@ -392,14 +363,12 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   }
 
   // Put together the result to return
-  db_result<idx_t>result;
-  for (size_t i = 0; i < names.size(); i++) {
-    result.addColumn(names[i]);
-  }
+  db_result<idx_t> result;
+  for (size_t i = 0; i < names.size(); i++) { result.addColumn(names[i]); }
   result.allocateColumns(compactSize_h);
   for (size_t i = 0; i < columns.size(); i++) {
     idx_t* outputPtr = result.getData(names[i]);
-    idx_t* inputPtr = columns[i];
+    idx_t* inputPtr  = columns[i];
     CUDA_TRY(cudaMemcpy(outputPtr, inputPtr, sizeof(idx_t) * compactSize_h, cudaMemcpyDefault));
   }
 
@@ -407,15 +376,15 @@ db_result<idx_t>findMatches(db_pattern<idx_t>& pattern,
   return result;
 }
 
-template db_result<int32_t>findMatches(db_pattern<int32_t>& pattern,
-                                       db_table<int32_t>& table,
-                                       int32_t* frontier,
-                                       int32_t frontier_size,
-                                       int indexPosition);
-template db_result<int64_t>findMatches(db_pattern<int64_t>& pattern,
-                                       db_table<int64_t>& table,
-                                       int64_t* frontier,
-                                       int64_t frontier_size,
-                                       int indexPosition);
-}
-} //namespace
+template db_result<int32_t> findMatches(db_pattern<int32_t>& pattern,
+                                        db_table<int32_t>& table,
+                                        int32_t* frontier,
+                                        int32_t frontier_size,
+                                        int indexPosition);
+template db_result<int64_t> findMatches(db_pattern<int64_t>& pattern,
+                                        db_table<int64_t>& table,
+                                        int64_t* frontier,
+                                        int64_t frontier_size,
+                                        int indexPosition);
+}  // namespace db
+}  // namespace cugraph

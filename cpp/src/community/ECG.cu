@@ -20,24 +20,21 @@
  * ---------------------------------------------------------------------------**/
 
 #include <cugraph.h>
+#include <rmm_utils.h>
 #include <thrust/random.h>
+#include <converters/permute_graph.cuh>
 #include <ctime>
 #include "utilities/error_utils.h"
-#include <rmm_utils.h>
 #include "utilities/graph_utils.cuh"
-#include <converters/permute_graph.cuh>
 
 namespace {
-template<typename IndexType>
-__device__ IndexType binsearch_maxle(const IndexType *vec,
-                                      const IndexType val,
-                                      IndexType low,
-                                      IndexType high) {
+template <typename IndexType>
+__device__ IndexType
+binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexType high)
+{
   while (true) {
-    if (low == high)
-      return low; //we know it exists
-    if ((low + 1) == high)
-      return (vec[high] <= val) ? high : low;
+    if (low == high) return low;  // we know it exists
+    if ((low + 1) == high) return (vec[high] <= val) ? high : low;
 
     IndexType mid = low + (high - low) / 2;
 
@@ -48,27 +45,27 @@ __device__ IndexType binsearch_maxle(const IndexType *vec,
   }
 }
 
-template<typename IdxT, typename ValT>
+template <typename IdxT, typename ValT>
 __global__ void match_check_kernel(IdxT size,
                                    IdxT num_verts,
                                    IdxT* offsets,
                                    IdxT* indices,
                                    IdxT* permutation,
                                    IdxT* parts,
-                                   ValT* weights) {
+                                   ValT* weights)
+{
   IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < size) {
     IdxT source = binsearch_maxle(offsets, tid, (IdxT)0, num_verts);
-    IdxT dest = indices[tid];
-    if (parts[permutation[source]] == parts[permutation[dest]])
-      weights[tid] += 1;
+    IdxT dest   = indices[tid];
+    if (parts[permutation[source]] == parts[permutation[dest]]) weights[tid] += 1;
     tid += gridDim.x * blockDim.x;
   }
 }
 
 struct prg {
-  __host__ __device__
-  float operator()(int n){
+  __host__ __device__ float operator()(int n)
+  {
     thrust::default_random_engine rng;
     thrust::uniform_real_distribution<float> dist(0.0, 1.0);
     rng.discard(n);
@@ -76,14 +73,14 @@ struct prg {
   }
 };
 
-template<typename ValT>
-struct update_functor{
+template <typename ValT>
+struct update_functor {
   ValT min_value;
   ValT ensemble_size;
-  update_functor(ValT minv, ValT es):min_value(minv), ensemble_size(es){}
-  __host__ __device__
-  ValT operator()(ValT input) {
-    return min_value + (1 - min_value)*(input / ensemble_size);
+  update_functor(ValT minv, ValT es) : min_value(minv), ensemble_size(es) {}
+  __host__ __device__ ValT operator()(ValT input)
+  {
+    return min_value + (1 - min_value) * (input / ensemble_size);
   }
 };
 
@@ -98,7 +95,8 @@ struct update_functor{
  * responsible for freeing the allocated memory using ALLOC_FREE_TRY().
  */
 template <typename IdxT>
-IdxT* get_permutation_vector(IdxT size, IdxT seed) {
+IdxT* get_permutation_vector(IdxT size, IdxT seed)
+{
   IdxT* output_vector;
   ALLOC_TRY(&output_vector, sizeof(IdxT) * size, nullptr);
   float* randoms;
@@ -107,41 +105,37 @@ IdxT* get_permutation_vector(IdxT size, IdxT seed) {
   thrust::counting_iterator<uint32_t> index(seed);
   thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index, index + size, randoms, prg());
   thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr), output_vector, output_vector + size, 0);
-  thrust::sort_by_key(rmm::exec_policy(nullptr)->on(nullptr), randoms, randoms + size, output_vector);
+  thrust::sort_by_key(
+    rmm::exec_policy(nullptr)->on(nullptr), randoms, randoms + size, output_vector);
 
   ALLOC_FREE_TRY(randoms, nullptr);
 
   return output_vector;
 }
 
-
-} // anonymous namespace
+}  // anonymous namespace
 
 namespace cugraph {
 
-template<typename IdxT, typename ValT>
-void ecg(cugraph::Graph* graph,
-              ValT min_weight,
-              size_t ensemble_size,
-              IdxT* ecg_parts) {
+template <typename IdxT, typename ValT>
+void ecg(cugraph::Graph* graph, ValT min_weight, size_t ensemble_size, IdxT* ecg_parts)
+{
   CHECK_GRAPH(graph);
-  CUGRAPH_EXPECTS(graph->adjList->edge_data != nullptr, "Invalid API parameter: graph must have edge weights");
+  CUGRAPH_EXPECTS(graph->adjList->edge_data != nullptr,
+                  "Invalid API parameter: graph must have edge weights");
   CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter: ecg_parts is NULL");
 
-  IdxT size = graph->adjList->offsets->size - 1;
-  IdxT nnz = graph->adjList->indices->size;
-  IdxT* offsets = (IdxT*) graph->adjList->offsets->data;
-  IdxT* indices = (IdxT*) graph->adjList->indices->data;
+  IdxT size     = graph->adjList->offsets->size - 1;
+  IdxT nnz      = graph->adjList->indices->size;
+  IdxT* offsets = (IdxT*)graph->adjList->offsets->data;
+  IdxT* indices = (IdxT*)graph->adjList->indices->data;
   ValT* ecg_weights;
   ALLOC_TRY(&ecg_weights, sizeof(ValT) * nnz, nullptr);
-  thrust::fill(rmm::exec_policy(nullptr)->on(nullptr),
-               ecg_weights,
-               ecg_weights + nnz,
-               0.0);
+  thrust::fill(rmm::exec_policy(nullptr)->on(nullptr), ecg_weights, ecg_weights + nnz, 0.0);
   // Iterate over each member of the ensemble
   for (size_t i = 0; i < ensemble_size; i++) {
     // Take random permutation of the graph
-    IdxT* permutation = get_permutation_vector(size, (IdxT)(size * i));
+    IdxT* permutation        = get_permutation_vector(size, (IdxT)(size * i));
     cugraph::Graph* permuted = detail::permute_graph<IdxT, ValT>(graph, permutation);
 
     // Run Louvain clustering on the random permutation
@@ -155,14 +149,9 @@ void ecg(cugraph::Graph* graph,
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
     dim3 grid, block;
     block.x = 512;
-    grid.x = min((IdxT) CUDA_MAX_BLOCKS, (nnz / 512 + 1));
-    match_check_kernel<<<grid, block, 0, nullptr>>>(nnz,
-                                                    size,
-                                                    offsets,
-                                                    indices,
-                                                    permutation,
-                                                    parts,
-                                                    ecg_weights);
+    grid.x  = min((IdxT)CUDA_MAX_BLOCKS, (nnz / 512 + 1));
+    match_check_kernel<<<grid, block, 0, nullptr>>>(
+      nnz, size, offsets, indices, permutation, parts, ecg_weights);
 
     // Clean up temporary allocations
     delete permuted;
@@ -172,13 +161,14 @@ void ecg(cugraph::Graph* graph,
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
   update_functor<ValT> uf(min_weight, ensemble_size);
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), ecg_weights, ecg_weights + nnz, ecg_weights, uf);
+  thrust::transform(
+    rmm::exec_policy(nullptr)->on(nullptr), ecg_weights, ecg_weights + nnz, ecg_weights, uf);
 
   // Run Louvain on the original graph using the computed weights
-  cugraph::Graph* result = new cugraph::Graph;
-  result->adjList = new cugraph::gdf_adj_list;
-  result->adjList->offsets = new gdf_column;
-  result->adjList->indices = new gdf_column;
+  cugraph::Graph* result     = new cugraph::Graph;
+  result->adjList            = new cugraph::gdf_adj_list;
+  result->adjList->offsets   = new gdf_column;
+  result->adjList->indices   = new gdf_column;
   result->adjList->edge_data = new gdf_column;
   result->adjList->ownership = 0;
   gdf_column_view(result->adjList->offsets,
@@ -223,4 +213,4 @@ template void ecg<int64_t, double>(cugraph::Graph* graph,
                                    size_t ensemble_size,
                                    int64_t* ecg_parts);
 
-} // cugraph namespace
+}  // namespace cugraph

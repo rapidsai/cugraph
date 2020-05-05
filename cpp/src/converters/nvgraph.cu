@@ -21,19 +21,19 @@
 
 #include <nvgraph_gdf.h>
 #include <ctime>
-#include "utilities/error_utils.h"
 #include "converters/nvgraph.cuh"
+#include "utilities/error_utils.h"
 
 namespace cugraph {
 
 void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
-                                  Graph* gdf_G,
-                                  nvgraphGraphDescr_t* nvg_G,
-                                  bool use_transposed) {
-
+                         Graph *gdf_G,
+                         nvgraphGraphDescr_t *nvg_G,
+                         bool use_transposed)
+{
   // check input
   CHECK_GRAPH(gdf_G)
-  //CUGRAPH_EXPECTS( gdf_G->transposedAdjList != nullptr,
+  // CUGRAPH_EXPECTS( gdf_G->transposedAdjList != nullptr,
   //            "Invalid API parameter: transposedAdjList is NULL");
 
   nvgraphTopologyType_t TT;
@@ -44,80 +44,63 @@ void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
   if (use_transposed) {
     // convert edgeList to transposedAdjList
     CUGRAPH_EXPECTS(gdf_G->transposedAdjList != nullptr,
-      "Invalid API parameter: graph transposed is NULL");
+                    "Invalid API parameter: graph transposed is NULL");
 
     // using exiting transposedAdjList if it exisits and if adjList is missing
     TT = NVGRAPH_CSC_32;
     nvgraphCSCTopology32I_st topoData;
-    topoData.nvertices = gdf_G->transposedAdjList->offsets->size - 1;
-    topoData.nedges = gdf_G->transposedAdjList->indices->size;
-    topoData.destination_offsets = (int *) gdf_G->transposedAdjList->offsets->data;
-    topoData.source_indices = (int *) gdf_G->transposedAdjList->indices->data;
+    topoData.nvertices           = gdf_G->transposedAdjList->offsets->size - 1;
+    topoData.nedges              = gdf_G->transposedAdjList->indices->size;
+    topoData.destination_offsets = (int *)gdf_G->transposedAdjList->offsets->data;
+    topoData.source_indices      = (int *)gdf_G->transposedAdjList->indices->data;
     // attach the transposed adj list
-    NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void * )&topoData, TT));
-    //attach edge values
+    NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void *)&topoData, TT));
+    // attach edge values
     if (gdf_G->transposedAdjList->edge_data) {
       switch (gdf_G->transposedAdjList->edge_data->dtype) {
         case GDF_FLOAT32:
           settype = CUDA_R_32F;
-          NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
-                                        *nvg_G,
-                                        0,
-                                        settype,
-                                        (float * ) gdf_G->transposedAdjList->edge_data->data))
+          NVG_TRY(nvgraphAttachEdgeData(
+            nvg_handle, *nvg_G, 0, settype, (float *)gdf_G->transposedAdjList->edge_data->data))
           break;
         case GDF_FLOAT64:
           settype = CUDA_R_64F;
-          NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
-                                        *nvg_G,
-                                        0,
-                                        settype,
-                                        (double * ) gdf_G->transposedAdjList->edge_data->data))
+          NVG_TRY(nvgraphAttachEdgeData(
+            nvg_handle, *nvg_G, 0, settype, (double *)gdf_G->transposedAdjList->edge_data->data))
           break;
-        default:
-          CUGRAPH_FAIL("Unsupported data type: edge data needs to be float32 or float64");
+        default: CUGRAPH_FAIL("Unsupported data type: edge data needs to be float32 or float64");
       }
     }
 
-  }
-  else {
-    CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, 
-      "Invalid API parameter: graph adjList is NULL");
+  } else {
+    CUGRAPH_EXPECTS(gdf_G->adjList != nullptr, "Invalid API parameter: graph adjList is NULL");
 
     TT = NVGRAPH_CSR_32;
     nvgraphCSRTopology32I_st topoData;
-    topoData.nvertices = gdf_G->adjList->offsets->size - 1;
-    topoData.nedges = gdf_G->adjList->indices->size;
-    topoData.source_offsets = (int *) gdf_G->adjList->offsets->data;
-     topoData.destination_indices = (int *) gdf_G->adjList->indices->data;
- 
+    topoData.nvertices           = gdf_G->adjList->offsets->size - 1;
+    topoData.nedges              = gdf_G->adjList->indices->size;
+    topoData.source_offsets      = (int *)gdf_G->adjList->offsets->data;
+    topoData.destination_indices = (int *)gdf_G->adjList->indices->data;
+
     // attach adj list
-    NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void * )&topoData, TT));
-    //attach edge values
+    NVG_TRY(nvgraphAttachGraphStructure(nvg_handle, *nvg_G, (void *)&topoData, TT));
+    // attach edge values
     if (gdf_G->adjList->edge_data) {
       switch (gdf_G->adjList->edge_data->dtype) {
         case GDF_FLOAT32:
           settype = CUDA_R_32F;
-          NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
-                                        *nvg_G,
-                                        0,
-                                        settype,
-                                        (float * ) gdf_G->adjList->edge_data->data))
+          NVG_TRY(nvgraphAttachEdgeData(
+            nvg_handle, *nvg_G, 0, settype, (float *)gdf_G->adjList->edge_data->data))
           break;
         case GDF_FLOAT64:
           settype = CUDA_R_64F;
-          NVG_TRY(nvgraphAttachEdgeData(nvg_handle,
-                                        *nvg_G,
-                                        0,
-                                        settype,
-                                        (double * ) gdf_G->adjList->edge_data->data))
+          NVG_TRY(nvgraphAttachEdgeData(
+            nvg_handle, *nvg_G, 0, settype, (double *)gdf_G->adjList->edge_data->data))
           break;
-        default:
-          CUGRAPH_FAIL("Unsupported data type: edge data needs to be float32 or float64");
+        default: CUGRAPH_FAIL("Unsupported data type: edge data needs to be float32 or float64");
       }
     }
   }
-  
 }
 
-} // namespace
+}  // namespace cugraph
