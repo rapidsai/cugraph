@@ -17,10 +17,10 @@
 #pragma once
 
 #include <cugraph.h>
-#include <vector>
 #include <map>
-#include "utilities/graph_utils.cuh"
+#include <vector>
 #include "rmm/device_buffer.hpp"
+#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace db {
@@ -28,12 +28,13 @@ namespace db {
  * Class for representing an entry in a pattern, which may either be a variable or constant value
  * See description of db_pattern for more info on how this is used.
  */
-template<typename idx_t>
+template <typename idx_t>
 class db_pattern_entry {
   bool is_var;
   idx_t constantValue;
   std::string variableName;
-  public:
+
+ public:
   db_pattern_entry(std::string variable);
   db_pattern_entry(idx_t constant);
   db_pattern_entry(const db_pattern_entry<idx_t>& other);
@@ -51,10 +52,11 @@ class db_pattern_entry {
  * {'a', :haslabel, Person} (Where :haslabel and Person are dictionary encoded constants and
  * 'a' is a variable) We are looking for all nodes that have the label Person.
  */
-template<typename idx_t>
+template <typename idx_t>
 class db_pattern {
   std::vector<db_pattern_entry<idx_t>> entries;
-  public:
+
+ public:
   db_pattern();
   db_pattern(const db_pattern<idx_t>& other);
   db_pattern& operator=(const db_pattern<idx_t>& other);
@@ -67,28 +69,20 @@ class db_pattern {
 /**
  * Class which encapsulates a CSR-style index on a column
  */
-template<typename idx_t>
+template <typename idx_t>
 class db_column_index {
   rmm::device_buffer offsets;
   rmm::device_buffer indirection;
-  idx_t offsets_size;
-  idx_t indirection_size;
 
-  public:
-  db_column_index();
-  db_column_index(rmm::device_buffer&& offsets,
-                  idx_t offsets_size,
-                  rmm::device_buffer&& indirection,
-                  idx_t indirection_size);
+ public:
+  db_column_index() = default;
+  db_column_index(rmm::device_buffer&& off, rmm::device_buffer&& ind);
   db_column_index(const db_column_index& other) = delete;
-  db_column_index(db_column_index&& other);
-  ~db_column_index();
+  db_column_index(db_column_index&& other)      = default;
+  ~db_column_index()                            = default;
   db_column_index& operator=(const db_column_index& other) = delete;
-  db_column_index& operator=(db_column_index&& other);
-  void resetData(rmm::device_buffer&& offsets,
-                 idx_t offsets_size,
-                 rmm::device_buffer&& indirection,
-                 idx_t indirection_size);
+  db_column_index& operator=(db_column_index&& other) = default;
+  void resetData(rmm::device_buffer&& offsets, rmm::device_buffer&& indirection);
   idx_t* getOffsets();
   idx_t getOffsetsSize();
   idx_t* getIndirection();
@@ -104,19 +98,20 @@ class db_column_index {
 /**
  * Class which encapsulates a result set binding
  */
-template<typename idx_t>
+template <typename idx_t>
 class db_result {
   std::vector<rmm::device_buffer> columns;
   std::vector<std::string> names;
   bool dataValid;
   idx_t columnSize;
-  public:
+
+ public:
   db_result();
   db_result(db_result&& other);
-  db_result(db_result& other) = delete;
+  db_result(db_result& other)       = delete;
   db_result(const db_result& other) = delete;
-  ~db_result();
-  db_result& operator=(db_result&& other);
+  ~db_result()                      = default;
+  db_result& operator               =(db_result&& other);
   db_result& operator=(db_result& other) = delete;
   db_result& operator=(const db_result& other) = delete;
   idx_t getSize();
@@ -133,16 +128,17 @@ class db_result {
 /**
  * Class which glues an arbitrary number of columns together to form a table
  */
-template<typename idx_t>
+template <typename idx_t>
 class db_table {
   std::vector<rmm::device_buffer> columns;
   idx_t column_size;
   std::vector<std::string> names;
   std::vector<db_pattern<idx_t>> inputBuffer;
   std::vector<db_column_index<idx_t>> indices;
-  public:
+
+ public:
   db_table();
-  ~db_table();
+  ~db_table() = default;
   void addColumn(std::string name);
   void addEntry(db_pattern<idx_t>& pattern);
 
@@ -176,7 +172,7 @@ class db_table {
  * The main database object. It stores the needed tables and provides a method hook to run
  * a query on the data.
  */
-template<typename idx_t>
+template <typename idx_t>
 class db_object {
   // The dictionary and reverse dictionary encoding strings to ids and vice versa
   std::map<std::string, idx_t> valueToId;
@@ -184,20 +180,21 @@ class db_object {
   idx_t next_id;
 
   // The relationship table
-  db_table<idx_t>relationshipsTable;
+  db_table<idx_t> relationshipsTable;
 
   // The node labels table
-  db_table<idx_t>nodeLabelsTable;
+  db_table<idx_t> nodeLabelsTable;
 
   // The node properties table
-  db_table<idx_t>nodePropertiesTable;
+  db_table<idx_t> nodePropertiesTable;
 
   // The relationship property table
-  db_table<idx_t>relationshipPropertiesTable;
+  db_table<idx_t> relationshipPropertiesTable;
 
-public:
+ public:
   db_object();
   std::string query(std::string query);
 };
-} //namespace db
-} //namespace cugraph
+
+}  // namespace db
+}  // namespace cugraph

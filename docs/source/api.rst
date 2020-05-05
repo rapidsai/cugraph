@@ -122,7 +122,7 @@ Core Number
 K-Truss
 -------
 
-.. automodule:: cugraph.ktruss.ktruss_max
+.. automodule:: cugraph.ktruss.ktruss_subgraph
     :members:
     :undoc-members:
 
