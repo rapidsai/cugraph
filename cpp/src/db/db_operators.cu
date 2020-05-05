@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <utilities/error_utils.h>
 #include <cub/device/device_select.cuh>
 #include <db/db_operators.cuh>
 
@@ -156,7 +157,8 @@ __global__ void findMatchesKernel(idx_t inputSize,
 template <typename idx_t>
 db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
                              db_table<idx_t>& table,
-                             gdf_column* frontier,
+                             idx_t* frontier,
+                             idx_t frontier_size,
                              int indexPosition)
 {
   // Find out if the indexPosition is a variable or constant
@@ -172,23 +174,29 @@ db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
   bool givenInputFrontier = frontier != nullptr;
   idx_t frontierSize;
   idx_t* frontier_ptr = nullptr;
+  rmm::device_buffer frontierBuffer;
   if (givenInputFrontier) {
-    frontier_ptr = (idx_t*)frontier->data;
-    frontierSize = frontier->size;
+    frontier_ptr = frontier;
+    frontierSize = frontier_size;
   } else {
     if (indexConstant) {
       // Use a single value equal to the constant in the pattern
       idx_t constantValue = pattern.getEntry(indexPosition).getConstant();
-      ALLOC_TRY(&frontier_ptr, sizeof(idx_t), nullptr);
-      thrust::fill(
-        rmm::exec_policy(nullptr)->on(nullptr), frontier_ptr, frontier_ptr + 1, constantValue);
+      frontierBuffer.resize(sizeof(idx_t));
+      thrust::fill(rmm::exec_policy(nullptr)->on(nullptr),
+                   reinterpret_cast<idx_t*>(frontierBuffer.data()),
+                   reinterpret_cast<idx_t*>(frontierBuffer.data()) + 1,
+                   constantValue);
+      frontier_ptr = reinterpret_cast<idx_t*>(frontierBuffer.data());
       frontierSize = 1;
     } else {
       // Making a sequence of values from zero to n where n is the highest ID present in the index.
       idx_t highestId = theIndex.getOffsetsSize() - 2;
-      ALLOC_TRY(&frontier_ptr, sizeof(idx_t) * (highestId + 1), nullptr);
-      thrust::sequence(
-        rmm::exec_policy(nullptr)->on(nullptr), frontier_ptr, frontier_ptr + highestId + 1);
+      frontierBuffer.resize(sizeof(idx_t) * (highestId + 1));
+      thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr),
+                       reinterpret_cast<idx_t*>(frontierBuffer.data()),
+                       reinterpret_cast<idx_t*>(frontierBuffer.data()) + highestId + 1);
+      frontier_ptr = reinterpret_cast<idx_t*>(frontierBuffer.data());
       frontierSize = highestId + 1;
     }
   }
@@ -201,48 +209,65 @@ db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
   idx_t* indirection = theIndex.getIndirection();
 
   // Load balance the input
-  idx_t* exsum_degree = nullptr;
-  ALLOC_TRY(&exsum_degree, sizeof(idx_t) * (frontierSize + 1), nullptr);
+  rmm::device_buffer exsum_degree(sizeof(idx_t) * (frontierSize + 1));
   degree_iterator<idx_t> deg_it(offsets);
   deref_functor<degree_iterator<idx_t>, idx_t> deref(deg_it);
-  thrust::fill(rmm::exec_policy(nullptr)->on(nullptr), exsum_degree, exsum_degree + 1, 0);
+  thrust::fill(rmm::exec_policy(nullptr)->on(nullptr),
+               reinterpret_cast<idx_t*>(exsum_degree.data()),
+               reinterpret_cast<idx_t*>(exsum_degree.data()) + 1,
+               0);
   thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
                     frontier_ptr,
                     frontier_ptr + frontierSize,
-                    exsum_degree + 1,
+                    reinterpret_cast<idx_t*>(exsum_degree.data()) + 1,
                     deref);
   thrust::inclusive_scan(rmm::exec_policy(nullptr)->on(nullptr),
-                         exsum_degree + 1,
-                         exsum_degree + frontierSize + 1,
-                         exsum_degree + 1);
+                         reinterpret_cast<idx_t*>(exsum_degree.data()) + 1,
+                         reinterpret_cast<idx_t*>(exsum_degree.data()) + frontierSize + 1,
+                         reinterpret_cast<idx_t*>(exsum_degree.data()) + 1);
   idx_t output_size;
-  cudaMemcpy(&output_size, &exsum_degree[frontierSize], sizeof(idx_t), cudaMemcpyDefault);
+  CUDA_TRY(cudaMemcpy(&output_size,
+                      reinterpret_cast<idx_t*>(exsum_degree.data()) + frontierSize,
+                      sizeof(idx_t),
+                      cudaMemcpyDefault));
 
   idx_t num_blocks = (output_size + FIND_MATCHES_BLOCK_SIZE - 1) / FIND_MATCHES_BLOCK_SIZE;
-  idx_t* block_bucket_offsets = nullptr;
-  ALLOC_TRY(&block_bucket_offsets, sizeof(idx_t) * (num_blocks + 1), nullptr);
+  rmm::device_buffer block_bucket_offsets(sizeof(idx_t) * (num_blocks + 1));
 
   dim3 grid, block;
   block.x = 512;
   grid.x  = min((idx_t)MAXBLOCKS, (num_blocks / 512) + 1);
   compute_bucket_offsets_kernel<<<grid, block, 0, nullptr>>>(
-    exsum_degree, block_bucket_offsets, frontierSize, output_size);
+    reinterpret_cast<idx_t*>(exsum_degree.data()),
+    reinterpret_cast<idx_t*>(block_bucket_offsets.data()),
+    frontierSize,
+    output_size);
 
   // Allocate space for the result
   idx_t* outputA = nullptr;
   idx_t* outputB = nullptr;
   idx_t* outputC = nullptr;
   idx_t* outputD = nullptr;
+  rmm::device_buffer outputABuffer;
+  rmm::device_buffer outputBBuffer;
+  rmm::device_buffer outputCBuffer;
+  rmm::device_buffer outputDBuffer;
   if (pattern.getEntry(0).isVariable()) {
-    ALLOC_TRY(&outputA, sizeof(idx_t) * output_size, nullptr);
+    outputABuffer.resize(sizeof(idx_t) * output_size);
+    outputA = reinterpret_cast<idx_t*>(outputABuffer.data());
   }
   if (pattern.getEntry(1).isVariable()) {
-    ALLOC_TRY(&outputB, sizeof(idx_t) * output_size, nullptr);
+    outputBBuffer.resize(sizeof(idx_t) * output_size);
+    outputB = reinterpret_cast<idx_t*>(outputBBuffer.data());
   }
   if (pattern.getEntry(2).isVariable()) {
-    ALLOC_TRY(&outputC, sizeof(idx_t) * output_size, nullptr);
+    outputCBuffer.resize(sizeof(idx_t) * output_size);
+    outputC = reinterpret_cast<idx_t*>(outputCBuffer.data());
   }
-  if (saveRowIds) { ALLOC_TRY(&outputD, sizeof(idx_t) * output_size, nullptr); }
+  if (saveRowIds) {
+    outputDBuffer.resize(sizeof(idx_t) * output_size);
+    outputD = reinterpret_cast<idx_t*>(outputDBuffer.data());
+  }
 
   // Get the constant pattern entries from the pattern to pass into the main kernel
   idx_t patternA = -1;
@@ -256,24 +281,25 @@ db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
   block.x = FIND_MATCHES_BLOCK_SIZE;
   grid.x  = min((idx_t)MAXBLOCKS,
                (output_size + (idx_t)FIND_MATCHES_BLOCK_SIZE - 1) / (idx_t)FIND_MATCHES_BLOCK_SIZE);
-  findMatchesKernel<<<grid, block, 0, nullptr>>>(frontierSize,
-                                                 output_size,
-                                                 num_blocks,
-                                                 offsets,
-                                                 indirection,
-                                                 block_bucket_offsets,
-                                                 exsum_degree,
-                                                 frontier_ptr,
-                                                 columnA,
-                                                 columnB,
-                                                 columnC,
-                                                 outputA,
-                                                 outputB,
-                                                 outputC,
-                                                 outputD,
-                                                 patternA,
-                                                 patternB,
-                                                 patternC);
+  findMatchesKernel<<<grid, block, 0, nullptr>>>(
+    frontierSize,
+    output_size,
+    num_blocks,
+    offsets,
+    indirection,
+    reinterpret_cast<idx_t*>(block_bucket_offsets.data()),
+    reinterpret_cast<idx_t*>(exsum_degree.data()),
+    frontier_ptr,
+    columnA,
+    columnB,
+    columnC,
+    outputA,
+    outputB,
+    outputC,
+    outputD,
+    patternA,
+    patternB,
+    patternC);
 
   // Get the non-null output columns
   std::vector<idx_t*> columns;
@@ -296,31 +322,44 @@ db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
   }
 
   // Remove non-matches from result
-  int8_t* flags = nullptr;
-  ALLOC_TRY(&flags, sizeof(int8_t) * output_size, nullptr);
+  rmm::device_buffer flags(sizeof(int8_t) * output_size);
+
   idx_t* col_ptr = columns[0];
   thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
                     col_ptr,
                     col_ptr + output_size,
-                    flags,
+                    reinterpret_cast<int8_t*>(flags.data()),
                     notNegativeOne<idx_t, int8_t>());
 
-  void* tempSpace      = nullptr;
   size_t tempSpaceSize = 0;
-  idx_t* compactSize_d = nullptr;
-  ALLOC_TRY(&compactSize_d, sizeof(idx_t), nullptr);
-  cub::DeviceSelect::Flagged(
-    tempSpace, tempSpaceSize, col_ptr, flags, col_ptr, compactSize_d, output_size);
-  ALLOC_TRY(&tempSpace, tempSpaceSize, nullptr);
-  cub::DeviceSelect::Flagged(
-    tempSpace, tempSpaceSize, col_ptr, flags, col_ptr, compactSize_d, output_size);
+  rmm::device_buffer compactSize_d(sizeof(idx_t));
+  cub::DeviceSelect::Flagged(nullptr,
+                             tempSpaceSize,
+                             col_ptr,
+                             reinterpret_cast<int8_t*>(flags.data()),
+                             col_ptr,
+                             reinterpret_cast<idx_t*>(compactSize_d.data()),
+                             output_size);
+  rmm::device_buffer tempSpace(tempSpaceSize);
+  cub::DeviceSelect::Flagged(tempSpace.data(),
+                             tempSpaceSize,
+                             col_ptr,
+                             reinterpret_cast<int8_t*>(flags.data()),
+                             col_ptr,
+                             reinterpret_cast<idx_t*>(compactSize_d.data()),
+                             output_size);
   idx_t compactSize_h;
-  cudaMemcpy(&compactSize_h, compactSize_d, sizeof(idx_t), cudaMemcpyDefault);
+  cudaMemcpy(&compactSize_h, compactSize_d.data(), sizeof(idx_t), cudaMemcpyDefault);
 
   for (size_t i = 1; i < columns.size(); i++) {
     col_ptr = columns[i];
-    cub::DeviceSelect::Flagged(
-      tempSpace, tempSpaceSize, col_ptr, flags, col_ptr, compactSize_d, output_size);
+    cub::DeviceSelect::Flagged(tempSpace.data(),
+                               tempSpaceSize,
+                               col_ptr,
+                               reinterpret_cast<int8_t*>(flags.data()),
+                               col_ptr,
+                               reinterpret_cast<idx_t*>(compactSize_d.data()),
+                               output_size);
   }
 
   // Put together the result to return
@@ -330,20 +369,8 @@ db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
   for (size_t i = 0; i < columns.size(); i++) {
     idx_t* outputPtr = result.getData(names[i]);
     idx_t* inputPtr  = columns[i];
-    cudaMemcpy(outputPtr, inputPtr, sizeof(idx_t) * compactSize_h, cudaMemcpyDefault);
+    CUDA_TRY(cudaMemcpy(outputPtr, inputPtr, sizeof(idx_t) * compactSize_h, cudaMemcpyDefault));
   }
-
-  // Clean up allocations
-  if (!givenInputFrontier) ALLOC_FREE_TRY(frontier_ptr, nullptr);
-  ALLOC_FREE_TRY(exsum_degree, nullptr);
-  ALLOC_FREE_TRY(block_bucket_offsets, nullptr);
-  ALLOC_FREE_TRY(tempSpace, nullptr);
-  ALLOC_FREE_TRY(compactSize_d, nullptr);
-  ALLOC_FREE_TRY(flags, nullptr);
-  if (outputA != nullptr) ALLOC_FREE_TRY(outputA, nullptr);
-  if (outputB != nullptr) ALLOC_FREE_TRY(outputB, nullptr);
-  if (outputC != nullptr) ALLOC_FREE_TRY(outputC, nullptr);
-  if (outputD != nullptr) ALLOC_FREE_TRY(outputD, nullptr);
 
   // Return the result
   return result;
@@ -351,11 +378,13 @@ db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
 
 template db_result<int32_t> findMatches(db_pattern<int32_t>& pattern,
                                         db_table<int32_t>& table,
-                                        gdf_column* frontier,
+                                        int32_t* frontier,
+                                        int32_t frontier_size,
                                         int indexPosition);
 template db_result<int64_t> findMatches(db_pattern<int64_t>& pattern,
                                         db_table<int64_t>& table,
-                                        gdf_column* frontier,
+                                        int64_t* frontier,
+                                        int64_t frontier_size,
                                         int indexPosition);
 }  // namespace db
 }  // namespace cugraph

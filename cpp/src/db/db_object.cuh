@@ -19,6 +19,7 @@
 #include <cugraph.h>
 #include <map>
 #include <vector>
+#include "rmm/device_buffer.hpp"
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {
@@ -70,22 +71,18 @@ class db_pattern {
  */
 template <typename idx_t>
 class db_column_index {
-  idx_t* offsets;
-  idx_t* indirection;
-  idx_t offsets_size;
-  idx_t indirection_size;
-
-  void deleteData();
+  rmm::device_buffer offsets;
+  rmm::device_buffer indirection;
 
  public:
-  db_column_index();
-  db_column_index(idx_t* offsets, idx_t offsets_size, idx_t* indirection, idx_t indirection_size);
+  db_column_index() = default;
+  db_column_index(rmm::device_buffer&& off, rmm::device_buffer&& ind);
   db_column_index(const db_column_index& other) = delete;
-  db_column_index(db_column_index&& other);
-  ~db_column_index();
+  db_column_index(db_column_index&& other)      = default;
+  ~db_column_index()                            = default;
   db_column_index& operator=(const db_column_index& other) = delete;
-  db_column_index& operator                                =(db_column_index&& other);
-  void resetData(idx_t* offsets, idx_t offsets_size, idx_t* indirection, idx_t indirection_size);
+  db_column_index& operator=(db_column_index&& other) = default;
+  void resetData(rmm::device_buffer&& offsets, rmm::device_buffer&& indirection);
   idx_t* getOffsets();
   idx_t getOffsetsSize();
   idx_t* getIndirection();
@@ -103,7 +100,7 @@ class db_column_index {
  */
 template <typename idx_t>
 class db_result {
-  std::vector<idx_t*> columns;
+  std::vector<rmm::device_buffer> columns;
   std::vector<std::string> names;
   bool dataValid;
   idx_t columnSize;
@@ -113,11 +110,10 @@ class db_result {
   db_result(db_result&& other);
   db_result(db_result& other)       = delete;
   db_result(const db_result& other) = delete;
-  ~db_result();
-  db_result& operator=(db_result&& other);
+  ~db_result()                      = default;
+  db_result& operator               =(db_result&& other);
   db_result& operator=(db_result& other) = delete;
   db_result& operator=(const db_result& other) = delete;
-  void deleteData();
   idx_t getSize();
   idx_t* getData(std::string idx);
   void addColumn(std::string columnName);
@@ -134,7 +130,7 @@ class db_result {
  */
 template <typename idx_t>
 class db_table {
-  std::vector<idx_t*> columns;
+  std::vector<rmm::device_buffer> columns;
   idx_t column_size;
   std::vector<std::string> names;
   std::vector<db_pattern<idx_t>> inputBuffer;
@@ -142,7 +138,7 @@ class db_table {
 
  public:
   db_table();
-  ~db_table();
+  ~db_table() = default;
   void addColumn(std::string name);
   void addEntry(db_pattern<idx_t>& pattern);
 

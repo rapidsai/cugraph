@@ -19,6 +19,7 @@
 #include <cugraph.h>
 #include <rmm_utils.h>
 #include <db/db_object.cuh>
+#include "rmm/device_buffer.hpp"
 
 #define MAXBLOCKS 65535
 #define FIND_MATCHES_BLOCK_SIZE 512
@@ -41,7 +42,8 @@ namespace db {
 template <typename idx_t>
 db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
                              db_table<idx_t>& table,
-                             gdf_column* frontier,
+                             idx_t* frontier,
+                             idx_t frontier_size,
                              int indexPosition);
 }  // namespace db
 }  // namespace cugraph

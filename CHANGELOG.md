@@ -20,6 +20,7 @@
 - PR #829 Updated README and CONTRIBUTIOIN docs
 - PR #836 Remove SNMG code
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
+- PR #832 Removed RMM ALLOC from db subtree
 - PR #833 Update graph functions to use new Graph class
 - PR #834 Updated local gpuci build
 - PR #845 Add .clang-format & format all files
