@@ -14,7 +14,6 @@
 # This file test the Renumbering features
 
 import gc
-from itertools import product
 
 import pandas as pd
 import pytest

@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pandas as pd
 import pytest

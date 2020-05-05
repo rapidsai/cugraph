@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import time
 
 import numpy as np

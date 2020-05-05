@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pytest
 
@@ -62,7 +61,6 @@ def calc_katz(graph_file):
 
 DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv']
-
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)

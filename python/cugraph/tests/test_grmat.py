@@ -13,7 +13,6 @@
 
 import gc
 import pytest
-# from itertools import product # flake8 required
 
 import cugraph
 

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pytest
 

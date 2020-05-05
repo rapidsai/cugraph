@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pytest
 
@@ -66,7 +65,6 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv']
 
 
-
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_core_number_DiGraph(graph_file):
     gc.collect()
@@ -74,7 +72,6 @@ def test_core_number_DiGraph(graph_file):
     cu_kcore, nx_kcore = calc_k_cores(graph_file)
 
     assert compare_edges(cu_kcore, nx_kcore)
-
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
