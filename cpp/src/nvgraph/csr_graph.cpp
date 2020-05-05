@@ -13,17 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 #include "include/csr_graph.hxx"
 
-namespace nvgraph
+namespace nvgraph {
+
+template <typename IndexType_>
+CsrGraph<IndexType_>& CsrGraph<IndexType_>::operator=(const CsrGraph<IndexType_>& graph)
 {
+}
 
-    template <typename IndexType_>
-    CsrGraph<IndexType_>& CsrGraph<IndexType_>::operator=(const CsrGraph<IndexType_>& graph)
-    {
-
-    }
-
-} // end namespace nvgraph
-
+}  // end namespace nvgraph

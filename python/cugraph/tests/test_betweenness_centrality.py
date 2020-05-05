@@ -37,8 +37,8 @@ with warnings.catch_warnings():
 # =============================================================================
 # Parameters
 # =============================================================================
-RMM_MANAGED_MEMORY_OPTIONS = [False, True]
-RMM_POOL_ALLOCATOR_OPTIONS = [False, True]
+RMM_MANAGED_MEMORY_OPTIONS = [False]  # False is the default parameter
+RMM_POOL_ALLOCATOR_OPTIONS = [False]  # False is the default parameter
 DIRECTED_GRAPH_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 IMPLEMENTATION_OPTIONS = ['default', 'gunrock']

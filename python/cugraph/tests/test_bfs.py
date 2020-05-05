@@ -35,10 +35,10 @@ with warnings.catch_warnings():
 # =============================================================================
 # Parameters
 # =============================================================================
-RMM_MANAGED_MEMORY_OPTIONS = [False, True]
-RMM_POOL_ALLOCATOR_OPTIONS = [False, True]
+RMM_MANAGED_MEMORY_OPTIONS = [False]
+RMM_POOL_ALLOCATOR_OPTIONS = [False]
 
-DIRECTED_GRAPH_OPTIONS = [True]
+DIRECTED_GRAPH_OPTIONS = [True, False]
 
 TINY_DATASETS = ['../datasets/karate.csv',
                  '../datasets/dolphins.csv',

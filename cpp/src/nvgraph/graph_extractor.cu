@@ -16,52 +16,55 @@
 
 #include "include/graph_concrete_visitors.hxx"
 
-
-
-namespace nvgraph
+namespace nvgraph {
+//------------------------- SubGraph Extraction: ----------------------
+//
+CsrGraph<int>* extract_subgraph_by_vertices(CsrGraph<int>& graph,
+                                            int* pV,
+                                            size_t n,
+                                            cudaStream_t stream)
 {
-  //------------------------- SubGraph Extraction: ----------------------
-  //
-  CsrGraph<int>* extract_subgraph_by_vertices(CsrGraph<int>& graph,
-											  int* pV, size_t n, cudaStream_t stream)
-  {
-	return extract_from_vertex_subset<int, double>(graph, pV, n, stream);
-  }
+  return extract_from_vertex_subset<int, double>(graph, pV, n, stream);
+}
 
-  MultiValuedCsrGraph<int, float>* extract_subgraph_by_vertices(MultiValuedCsrGraph<int, float>& graph, 
-																int* pV, size_t n, cudaStream_t stream)
-  {
-	return static_cast<nvgraph::MultiValuedCsrGraph<int, float>*>(extract_from_vertex_subset<int, float>(graph, pV, n, stream));
-  }
+MultiValuedCsrGraph<int, float>* extract_subgraph_by_vertices(
+  MultiValuedCsrGraph<int, float>& graph, int* pV, size_t n, cudaStream_t stream)
+{
+  return static_cast<nvgraph::MultiValuedCsrGraph<int, float>*>(
+    extract_from_vertex_subset<int, float>(graph, pV, n, stream));
+}
 
-  MultiValuedCsrGraph<int, double>* extract_subgraph_by_vertices(MultiValuedCsrGraph<int, double>& graph, 
-																int* pV, size_t n, cudaStream_t stream)
-  {
-	return static_cast<nvgraph::MultiValuedCsrGraph<int, double>*>(extract_from_vertex_subset<int, double>(graph, pV, n, stream));
-  }
+MultiValuedCsrGraph<int, double>* extract_subgraph_by_vertices(
+  MultiValuedCsrGraph<int, double>& graph, int* pV, size_t n, cudaStream_t stream)
+{
+  return static_cast<nvgraph::MultiValuedCsrGraph<int, double>*>(
+    extract_from_vertex_subset<int, double>(graph, pV, n, stream));
+}
 
-  CsrGraph<int>* extract_subgraph_by_edges(CsrGraph<int>& graph,
-										   int* pV, size_t n, cudaStream_t stream)
-  {
-	return extract_from_edge_subset<int, double>(graph, pV, n, stream);
-  }
+CsrGraph<int>* extract_subgraph_by_edges(CsrGraph<int>& graph,
+                                         int* pV,
+                                         size_t n,
+                                         cudaStream_t stream)
+{
+  return extract_from_edge_subset<int, double>(graph, pV, n, stream);
+}
 
-  MultiValuedCsrGraph<int, float>* extract_subgraph_by_edges(MultiValuedCsrGraph<int, float>& graph,
-															 int* pV, size_t n, cudaStream_t stream)
-  {
-	return static_cast<nvgraph::MultiValuedCsrGraph<int, float>*>(extract_from_edge_subset<int, float>(graph, pV, n, stream));
-  }
+MultiValuedCsrGraph<int, float>* extract_subgraph_by_edges(MultiValuedCsrGraph<int, float>& graph,
+                                                           int* pV,
+                                                           size_t n,
+                                                           cudaStream_t stream)
+{
+  return static_cast<nvgraph::MultiValuedCsrGraph<int, float>*>(
+    extract_from_edge_subset<int, float>(graph, pV, n, stream));
+}
 
-  MultiValuedCsrGraph<int, double>* extract_subgraph_by_edges(MultiValuedCsrGraph<int, double>& graph,
-															 int* pV, size_t n, cudaStream_t stream)
-  {
-	return static_cast<nvgraph::MultiValuedCsrGraph<int, double>*>(extract_from_edge_subset<int, double>(graph, pV, n, stream));
-  }
+MultiValuedCsrGraph<int, double>* extract_subgraph_by_edges(MultiValuedCsrGraph<int, double>& graph,
+                                                            int* pV,
+                                                            size_t n,
+                                                            cudaStream_t stream)
+{
+  return static_cast<nvgraph::MultiValuedCsrGraph<int, double>*>(
+    extract_from_edge_subset<int, double>(graph, pV, n, stream));
+}
 
-
-  
-
-	
-  
-}// end namespace nvgraph
-
+}  // end namespace nvgraph

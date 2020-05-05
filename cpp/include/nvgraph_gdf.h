@@ -18,7 +18,7 @@
  *
  * @file nvgraph_gdf.h
  * ---------------------------------------------------------------------------**/
-#pragma once 
+#pragma once
 
 #include <cudf/cudf.h>
 #include "types.h"
@@ -32,7 +32,7 @@ namespace cugraph {
  * @param use_transposed True if we are transposing the input graph while wrapping
  * @return Error code
  */
-//void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
+// void createGraph_nvgraph(nvgraphHandle_t nvg_handle,
 //                                  Graph* gdf_G,
 //                                  nvgraphGraphDescr_t * nvgraph_G,
 //                                  bool use_transposed = false);
@@ -44,7 +44,7 @@ namespace cugraph {
  * @param sssp_distances Pointer to a GDF column in which the resulting distances will be stored
  * @return Error code
  */
-void sssp_nvgraph(Graph* gdf_G, const int *source_vert, gdf_column *sssp_distances);
+void sssp_nvgraph(Graph* gdf_G, const int* source_vert, gdf_column* sssp_distances);
 
 /**
  * Wrapper function for Nvgraph balanced cut clustering
@@ -139,9 +139,7 @@ void analyzeClustering_ratio_cut_nvgraph(Graph* gdf_G,
  * @param result Pointer to GDF graph object, this is the output must be a valid pointer
  * @throws     cugraph::logic_error when an error occurs.
  */
-void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
-                                     gdf_column* vertices,
-                                     Graph* result);
+void extract_subgraph_vertex_nvgraph(Graph* gdf_G, gdf_column* vertices, Graph* result);
 /**
  * Wrapper function for Nvgraph triangle counting
  * @param G Pointer to GDF graph object
@@ -150,5 +148,4 @@ void extract_subgraph_vertex_nvgraph(Graph* gdf_G,
  */
 void triangle_count_nvgraph(Graph* G, uint64_t* result);
 
-
-} //namespace cugraph
+}  // namespace cugraph

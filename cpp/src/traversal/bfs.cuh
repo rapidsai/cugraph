@@ -19,84 +19,86 @@
 
 namespace cugraph {
 namespace detail {
-	//FIXME: Differentiate IndexType for vertices and edges
-	template<typename IndexType>
-	class BFS {
-	private:
-		IndexType n, nnz;
-		const IndexType* row_offsets;
-		const IndexType* col_indices;
+// FIXME: Differentiate IndexType for vertices and edges
+template <typename IndexType>
+class BFS {
+ private:
+  IndexType n, nnz;
+  const IndexType *row_offsets;
+  const IndexType *col_indices;
 
-		bool directed;
-		bool deterministic;
+  bool directed;
+  bool deterministic;
 
-		// edgemask, distances, predecessors are set/read by users - using Vectors
-		bool useEdgeMask;
-		bool computeDistances;
-		bool computePredecessors;
-		IndexType *distances;
-		IndexType *predecessors;
-		double *sp_counters = nullptr;
-		int *edge_mask;
+  // edgemask, distances, predecessors are set/read by users - using Vectors
+  bool useEdgeMask;
+  bool computeDistances;
+  bool computePredecessors;
+  IndexType *distances;
+  IndexType *predecessors;
+  double *sp_counters = nullptr;
+  int *edge_mask;
 
-		//Working data
-		//For complete description of each, go to bfs.cu
-		IndexType nisolated;
-		IndexType *frontier, *new_frontier;
-		IndexType * original_frontier;
-		IndexType vertices_bmap_size;
-		int *visited_bmap, *isolated_bmap, *previous_visited_bmap;
-		IndexType *vertex_degree;
-		IndexType *buffer_np1_1, *buffer_np1_2;
-		IndexType *frontier_vertex_degree;
-		IndexType *exclusive_sum_frontier_vertex_degree;
-		IndexType *unvisited_queue;
-		IndexType *left_unvisited_queue;
-		IndexType *exclusive_sum_frontier_vertex_buckets_offsets;
-		IndexType *d_counters_pad;
-		IndexType *d_new_frontier_cnt;
-		IndexType *d_mu;
-		IndexType *d_unvisited_cnt;
-		IndexType *d_left_unvisited_cnt;
-		void *d_cub_exclusive_sum_storage;
-		size_t cub_exclusive_sum_storage_bytes;
+  // Working data
+  // For complete description of each, go to bfs.cu
+  IndexType nisolated;
+  IndexType *frontier, *new_frontier;
+  IndexType *original_frontier;
+  IndexType vertices_bmap_size;
+  int *visited_bmap, *isolated_bmap, *previous_visited_bmap;
+  IndexType *vertex_degree;
+  IndexType *buffer_np1_1, *buffer_np1_2;
+  IndexType *frontier_vertex_degree;
+  IndexType *exclusive_sum_frontier_vertex_degree;
+  IndexType *unvisited_queue;
+  IndexType *left_unvisited_queue;
+  IndexType *exclusive_sum_frontier_vertex_buckets_offsets;
+  IndexType *d_counters_pad;
+  IndexType *d_new_frontier_cnt;
+  IndexType *d_mu;
+  IndexType *d_unvisited_cnt;
+  IndexType *d_left_unvisited_cnt;
+  void *d_cub_exclusive_sum_storage;
+  size_t cub_exclusive_sum_storage_bytes;
 
-		//Parameters for direction optimizing
-		IndexType alpha, beta;
-		cudaStream_t stream;
+  // Parameters for direction optimizing
+  IndexType alpha, beta;
+  cudaStream_t stream;
 
-		//resets pointers defined by d_counters_pad (see implem)
-		void resetDevicePointers();
-		void setup();
-		void clean();
+  // resets pointers defined by d_counters_pad (see implem)
+  void resetDevicePointers();
+  void setup();
+  void clean();
 
-	public:
-		virtual ~BFS(void) {
-			clean();
-		}
+ public:
+  virtual ~BFS(void) { clean(); }
 
-		BFS(IndexType _n,
-				IndexType _nnz,
-				const IndexType *_row_offsets,
-				const IndexType *_col_indices,
-				bool _directed,
-				IndexType _alpha,
-				IndexType _beta,
-				cudaStream_t _stream = 0) :
-						n(_n),
-						nnz(_nnz),
-						row_offsets(_row_offsets),
-						col_indices(_col_indices),
-						directed(_directed),
-						alpha(_alpha),
-						beta(_beta),
-						stream(_stream) {
-			setup();
-		}
+  BFS(IndexType _n,
+      IndexType _nnz,
+      const IndexType *_row_offsets,
+      const IndexType *_col_indices,
+      bool _directed,
+      IndexType _alpha,
+      IndexType _beta,
+      cudaStream_t _stream = 0)
+    : n(_n),
+      nnz(_nnz),
+      row_offsets(_row_offsets),
+      col_indices(_col_indices),
+      directed(_directed),
+      alpha(_alpha),
+      beta(_beta),
+      stream(_stream)
+  {
+    setup();
+  }
 
-		void configure(IndexType *distances, IndexType *predecessors,
-									 double *sp_counters, int *edge_mask);
+  void configure(IndexType *distances,
+                 IndexType *predecessors,
+                 double *sp_counters,
+                 int *edge_mask);
 
-		void traverse(IndexType source_vertex);
-	};
-} } //namespace
+  void traverse(IndexType source_vertex);
+};
+}  // namespace detail
+}  // namespace cugraph
