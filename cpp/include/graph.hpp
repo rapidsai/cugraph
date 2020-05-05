@@ -31,9 +31,9 @@ struct GraphProperties {
 };
 
 enum class DegreeDirection {
-  IN_PLUS_OUT = 0, ///> Compute sum of in and out degree
-  IN,              ///> Compute in degree
-  OUT,             ///> Compute out degree
+  IN_PLUS_OUT = 0,  ///> Compute sum of in and out degree
+  IN,               ///> Compute in degree
+  OUT,              ///> Compute out degree
   DEGREE_DIRECTION_COUNT
 };
 
@@ -44,10 +44,11 @@ enum class DegreeDirection {
  * @tparam ET   Type of edge id
  * @tparam WT   Type of weight
  */
-template <typename VT, typename ET, typename WT> class GraphBase {
-public:
+template <typename VT, typename ET, typename WT>
+class GraphBase {
+ public:
   Comm comm;
-  WT *edge_data; ///< edge weight
+  WT *edge_data;  ///< edge weight
   GraphProperties prop;
 
   VT number_of_vertices;
@@ -64,9 +65,13 @@ public:
   void set_communicator(Comm &comm_) { comm = comm_; }
 
   GraphBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
-      : edge_data(edge_data_), comm(), prop(),
-        number_of_vertices(number_of_vertices_),
-        number_of_edges(number_of_edges_) {}
+    : edge_data(edge_data_),
+      comm(),
+      prop(),
+      number_of_vertices(number_of_vertices_),
+      number_of_edges(number_of_edges_)
+  {
+  }
 };
 
 /**
@@ -78,9 +83,9 @@ public:
  */
 template <typename VT, typename ET, typename WT>
 class GraphCOO : public GraphBase<VT, ET, WT> {
-public:
-  VT *src_indices{nullptr}; ///< rowInd
-  VT *dst_indices{nullptr}; ///< colInd
+ public:
+  VT *src_indices{nullptr};  ///< rowInd
+  VT *dst_indices{nullptr};  ///< colInd
 
   /**
    * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
@@ -117,11 +122,13 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCOO(VT *src_indices_, VT *dst_indices_, WT *edge_data_,
-           VT number_of_vertices_, ET number_of_edges_)
-      : GraphBase<VT, ET, WT>(edge_data_, number_of_vertices_,
-                              number_of_edges_),
-        src_indices(src_indices_), dst_indices(dst_indices_) {}
+  GraphCOO(
+    VT *src_indices_, VT *dst_indices_, WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
+    : GraphBase<VT, ET, WT>(edge_data_, number_of_vertices_, number_of_edges_),
+      src_indices(src_indices_),
+      dst_indices(dst_indices_)
+  {
+  }
 };
 
 /**
@@ -134,9 +141,9 @@ public:
  */
 template <typename VT, typename ET, typename WT>
 class GraphCompressedSparseBase : public GraphBase<VT, ET, WT> {
-public:
-  ET *offsets{nullptr}; ///< CSR offsets
-  VT *indices{nullptr}; ///< CSR indices
+ public:
+  ET *offsets{nullptr};  ///< CSR offsets
+  VT *indices{nullptr};  ///< CSR indices
 
   /**
    * @brief      Fill the identifiers in the array with the source vertex
@@ -176,11 +183,13 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCompressedSparseBase(ET *offsets_, VT *indices_, WT *edge_data_,
-                            VT number_of_vertices_, ET number_of_edges_)
-      : GraphBase<VT, ET, WT>(edge_data_, number_of_vertices_,
-                              number_of_edges_),
-        offsets{offsets_}, indices{indices_} {}
+  GraphCompressedSparseBase(
+    ET *offsets_, VT *indices_, WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
+    : GraphBase<VT, ET, WT>(edge_data_, number_of_vertices_, number_of_edges_),
+      offsets{offsets_},
+      indices{indices_}
+  {
+  }
 };
 
 /**
@@ -192,13 +201,11 @@ public:
  */
 template <typename VT, typename ET, typename WT>
 class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
-public:
+ public:
   /**
    * @brief      Default constructor
    */
-  GraphCSR()
-      : GraphCompressedSparseBase<VT, ET, WT>(nullptr, nullptr, nullptr, 0, 0) {
-  }
+  GraphCSR() : GraphCompressedSparseBase<VT, ET, WT>(nullptr, nullptr, nullptr, 0, 0) {}
 
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
@@ -216,11 +223,11 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSR(ET *offsets_, VT *indices_, WT *edge_data_, VT number_of_vertices_,
-           ET number_of_edges_)
-      : GraphCompressedSparseBase<VT, ET, WT>(offsets_, indices_, edge_data_,
-                                              number_of_vertices_,
-                                              number_of_edges_) {}
+  GraphCSR(ET *offsets_, VT *indices_, WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
+    : GraphCompressedSparseBase<VT, ET, WT>(
+        offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+  {
+  }
 };
 
 /**
@@ -232,13 +239,11 @@ public:
  */
 template <typename VT, typename ET, typename WT>
 class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
-public:
+ public:
   /**
    * @brief      Default constructor
    */
-  GraphCSC()
-      : GraphCompressedSparseBase<VT, ET, WT>(nullptr, nullptr, nullptr, 0, 0) {
-  }
+  GraphCSC() : GraphCompressedSparseBase<VT, ET, WT>(nullptr, nullptr, nullptr, 0, 0) {}
 
   /**
    * @brief      Wrap existing arrays representing transposed adjacency lists in
@@ -256,12 +261,12 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSC(ET *offsets_, VT *indices_, WT *edge_data_, VT number_of_vertices_,
-           ET number_of_edges_)
-      : GraphCompressedSparseBase<VT, ET, WT>(offsets_, indices_, edge_data_,
-                                              number_of_vertices_,
-                                              number_of_edges_) {}
+  GraphCSC(ET *offsets_, VT *indices_, WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
+    : GraphCompressedSparseBase<VT, ET, WT>(
+        offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+  {
+  }
 };
 
-} // namespace experimental
-} // namespace cugraph
+}  // namespace experimental
+}  // namespace cugraph

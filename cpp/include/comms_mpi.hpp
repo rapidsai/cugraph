@@ -27,7 +27,7 @@ enum class ReduceOp { SUM, MAX, MIN };
 
 // basic info about the snmg env setup
 class Comm {
-private:
+ private:
   int _p{0};
   int _rank{0};
   bool _finalize_mpi{false};
@@ -47,7 +47,7 @@ private:
   ncclComm_t _nccl_comm{};
 #endif
 
-public:
+ public:
   Comm(){};
   Comm(int p);
 #if ENABLE_OPG
@@ -67,9 +67,8 @@ public:
   void allgather(size_t size, value_t *sendbuff, value_t *recvbuff) const;
 
   template <typename value_t>
-  void allreduce(size_t size, value_t *sendbuff, value_t *recvbuff,
-                 ReduceOp reduce_op) const;
+  void allreduce(size_t size, value_t *sendbuff, value_t *recvbuff, ReduceOp reduce_op) const;
 };
 
-} // namespace experimental
-} // namespace cugraph
+}  // namespace experimental
+}  // namespace cugraph
