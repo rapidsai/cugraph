@@ -47,10 +47,6 @@ void katz_centrality_this_partition(
   static_assert(is_csc<GraphType>::value, "GraphType should be CSC.");
 
   auto const num_vertices = csc_graph.get_number_of_vertices();
-  vertex_t this_partition_vertex_first{};
-  vertex_t this_partition_vertex_last{};
-  std::tie(this_partition_vertex_first, this_partition_vertex_last) =
-    csc_graph.get_this_partition_vertex_range();
   auto const num_this_partition_vertices =
     csc_graph.get_this_partition_number_of_vertices();
   auto num_this_partition_adj_matrix_col_vertices =

@@ -100,7 +100,7 @@ void pagerank_this_partition(
     if (has_initial_guess) {
       auto num_negative_values =
         count_if_v(
-          handle, csc_graph, pagerank_first, pagerank_first + num_this_partition_vertices,
+          handle, csc_graph, pagerank_first,
           [] __device__ (auto val) { return val < 0.0; });
       CUGRAPH_EXPECTS(
         num_negative_values == 0,
