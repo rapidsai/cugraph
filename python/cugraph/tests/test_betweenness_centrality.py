@@ -12,13 +12,11 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -55,18 +53,9 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv']
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_betweenness_centrality(managed, pool, graph_file):
+def test_betweenness_centrality(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     scores = calc_betweenness_centrality(graph_file)
 
@@ -83,18 +72,9 @@ def test_betweenness_centrality(managed, pool, graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_betweenness_centrality_unnormalized(managed, pool, graph_file):
+def test_betweenness_centrality_unnormalized(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     scores = calc_betweenness_centrality(graph_file, False)
 

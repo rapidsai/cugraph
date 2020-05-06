@@ -14,7 +14,6 @@
 # This file test the Renumbering features
 
 import gc
-from itertools import product
 
 import pandas as pd
 import pytest
@@ -22,7 +21,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv',
@@ -152,19 +150,10 @@ def test_renumber_negative_col():
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_renumber_files(managed, pool, graph_file):
+def test_renumber_files(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M['0'])
@@ -183,19 +172,9 @@ def test_renumber_files(managed, pool, graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_renumber_files_col(managed, pool, graph_file):
+def test_renumber_files_col(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M['0'])
@@ -215,19 +194,9 @@ def test_renumber_files_col(managed, pool, graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_renumber_files_multi_col(managed, pool, graph_file):
+def test_renumber_files_multi_col(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M['0'])

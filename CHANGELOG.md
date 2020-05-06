@@ -32,6 +32,7 @@
 - PR #825 Fix outdated CONTRIBUTING.md
 - PR #827 Fix indexing CI errors due to cudf updates
 - PR #844 Fixing tests, converting __getitem__ calls to .iloc
+- PR #851 Removed RMM from tests
 
 
 # cuGraph 0.13.0 (Date TBD)
