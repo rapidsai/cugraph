@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import random
 
 import pytest
@@ -20,7 +19,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 
 def cugraph_call(G, partitions):
@@ -49,29 +47,15 @@ PARTITIONS = [2, 4, 8]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
-def test_edge_cut_clustering(managed, pool, graph_file, partitions):
+def test_edge_cut_clustering(graph_file, partitions):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
-    '''row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
-
-    G_adj = cugraph.Graph()
-    G_adj.from_cudf_adjlist(row_offsets, col_indices)'''
     G_edge = cugraph.Graph()
     G_edge.from_cudf_edgelist(cu_M, source='0', destination='1')
 
@@ -93,34 +77,14 @@ def test_edge_cut_clustering(managed, pool, graph_file, partitions):
     assert cu_score < rand_score
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
-def test_edge_cut_clustering_with_edgevals(managed, pool,
-                                           graph_file, partitions):
+def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     gc.collect()
 
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
     # Read in the graph and get a cugraph object
-    # M = utils.read_csv_for_nx(graph_file,
-    #                          read_weights_in_sp=False)
-    # M = M.tocsr().sorted_indices()
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
-    '''row_offsets = cudf.Series(M.indptr)
-    col_indices = cudf.Series(M.indices)
-    val = cudf.Series(M.data)
-
-    G_adj = cugraph.Graph()
-    G_adj.from_cudf_adjlist(row_offsets, col_indices, val)
-    '''
     G_edge = cugraph.Graph()
     G_edge.from_cudf_edgelist(cu_M, source='0', destination='1',
                               edge_attr='2')
@@ -145,18 +109,9 @@ def test_edge_cut_clustering_with_edgevals(managed, pool,
 
 # Test to ensure DiGraph objs are not accepted
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-def test_digraph_rejected(managed, pool):
+
+def test_digraph_rejected():
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     df = cudf.DataFrame()
     df['src'] = cudf.Series(range(10))
