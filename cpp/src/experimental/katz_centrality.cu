@@ -154,6 +154,14 @@ void katz_centrality_this_partition(
   return;
 }
 
+// explicit instantiation
+
+template void katz_centrality_this_partition(
+    raft::Handle handle, GraphCSC<uint32_t, uint32_t, float> const& csc_graph,
+    float* beta_first, float* katz_centrality_first,
+    double alpha, double epsilon, size_t max_iterations,
+    bool has_initial_guess, normalize, bool do_expensive_check);
+
 }  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

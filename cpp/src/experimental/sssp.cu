@@ -227,6 +227,13 @@ void sssp_this_partition(
   return;
 }
 
+// explicit instantiation
+
+template void sssp_this_partition(
+    raft::Handle handle, GraphCSR<uint32_t, uint32_t, float> const& csr_graph,
+    float* distance_first, uint32_t predecessor_first, uint32_t starting_vertex,
+    size_t depth_limit, bool do_expensive_check);
+
 }  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

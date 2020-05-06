@@ -230,6 +230,17 @@ void pagerank_this_partition(
   return;
 }
 
+// explicit instantiation
+
+template void pagerank_this_partition(
+    raft::Handle handle, GraphCSC<uint32_t, uint32_t, float> const& csc_graph,
+    float* adj_matrix_col_out_weight_sum_first,
+    uint32_t* personalization_vertex_first, uint32_t* personalization_vertex_last,
+    float* personalization_value_first,
+    float* pagerank_first,
+    double alpha, double epsilon, size_t max_iterations,
+    bool has_initial_guess, bool personalize, bool do_expensive_check);
+
 }  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph
