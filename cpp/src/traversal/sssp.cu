@@ -258,7 +258,7 @@ void SSSP<IndexType, DistType>::clean()
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
-void sssp(experimental::GraphCSR<VT, ET, WT> const &graph,
+void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
           WT *distances,
           VT *predecessors,
           const VT source_vertex)
@@ -309,11 +309,11 @@ void sssp(experimental::GraphCSR<VT, ET, WT> const &graph,
 }
 
 // explicit instantiation
-template void sssp<int, int, float>(experimental::GraphCSR<int, int, float> const &graph,
+template void sssp<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
                                     float *distances,
                                     int *predecessors,
                                     const int source_vertex);
-template void sssp<int, int, double>(experimental::GraphCSR<int, int, double> const &graph,
+template void sssp<int, int, double>(experimental::GraphCSRView<int, int, double> const &graph,
                                      double *distances,
                                      int *predecessors,
                                      const int source_vertex);

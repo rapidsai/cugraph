@@ -40,8 +40,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
     # NOTE: This is based on the fact that the call to the wrapper already
     #       checked for the validity of the implementation parameter
     cdef cugraph_bc_implem_t bc_implementation = cugraph_bc_implem_t.CUGRAPH_DEFAULT
-    cdef GraphCSR[int, int, float] graph_float
-    cdef GraphCSR[int, int, double] graph_double
+    cdef GraphCSRView[int, int, float] graph_float
+    cdef GraphCSRView[int, int, double] graph_double
 
     if (implementation == "default"): # Redundant
         bc_implementation = cugraph_bc_implem_t.CUGRAPH_DEFAULT
@@ -87,7 +87,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
     #       The current BFS requires the GraphCSR to be declared
     #       as <int, int, float> or <int, int double> even if weights is null
     if result_dtype == np.float32:
-        graph_float = GraphCSR[int, int, float](<int*> c_offsets, <int*> c_indices,
+        graph_float = GraphCSRView[int, int, float](<int*> c_offsets, <int*> c_indices,
                                                 <float*> NULL, num_verts, num_edges)
         # FIXME: There might be a way to avoid manually setting the Graph property
         graph_float.prop.directed = type(input_graph) is cugraph.structure.graph.DiGraph
@@ -100,7 +100,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
                                                          <cugraph_bc_implem_t> bc_implementation)
         graph_float.get_vertex_identifiers(<int*>c_identifier)
     elif result_dtype == np.float64:
-        graph_double = GraphCSR[int, int, double](<int*>c_offsets, <int*>c_indices,
+        graph_double = GraphCSRView[int, int, double](<int*>c_offsets, <int*>c_indices,
                                                   <double*> NULL, num_verts, num_edges)
         # FIXME: There might be a way to avoid manually setting the Graph property
         graph_double.prop.directed = type(input_graph) is cugraph.structure.graph.DiGraph

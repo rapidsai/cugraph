@@ -23,7 +23,7 @@ template <typename VT, typename ET, typename WT, typename result_t>
 class BC {
  private:
   // --- Information concerning the graph ---
-  const experimental::GraphCSR<VT, ET, WT> &graph;
+  const experimental::GraphCSRView<VT, ET, WT> &graph;
   // --- These information are extracted on setup ---
   VT number_of_vertices;  // Number of vertices in the graph
   VT number_of_edges;     // Number of edges in the graph
@@ -67,7 +67,7 @@ class BC {
 
  public:
   virtual ~BC(void) { clean(); }
-  BC(experimental::GraphCSR<VT, ET, WT> const &_graph, cudaStream_t _stream = 0)
+  BC(experimental::GraphCSRView<VT, ET, WT> const &_graph, cudaStream_t _stream = 0)
     : graph(_graph), stream(_stream)
   {
     setup();

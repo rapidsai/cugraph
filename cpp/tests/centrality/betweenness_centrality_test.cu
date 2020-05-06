@@ -198,7 +198,7 @@ void reference_rescale(result_t *result,
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT> const &graph,
+void reference_betweenness_centrality(cugraph::experimental::GraphCSRView<VT, ET, WT> const &graph,
                                       result_t *result,
                                       bool normalize,
                                       bool endpoints,  // This is not yet implemented
@@ -225,14 +225,14 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSR<VT, ET, WT
 }
 // Explicit declaration
 template void reference_betweenness_centrality<int, int, float, float>(
-  cugraph::experimental::GraphCSR<int, int, float> const &,
+  cugraph::experimental::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   bool,
   const int,
   int const *);
 template void reference_betweenness_centrality<int, int, double, double>(
-  cugraph::experimental::GraphCSR<int, int, double> const &,
+  cugraph::experimental::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
@@ -342,10 +342,9 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     bool is_directed = false;
     generate_graph_csr<VT, ET, WT>(csr_result, m, nnz, is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSR<VT, ET, WT> G(
+    cugraph::experimental::GraphCSRView<VT, ET, WT> G(
       csr_result.rowOffsets, csr_result.colIndices, csr_result.edgeWeights, m, nnz);
     G.prop.directed = is_directed;
-
     CUDA_CHECK_LAST();
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);
@@ -449,7 +448,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     bool is_directed = false;
     generate_graph_csr<VT, ET, WT>(csr_result, m, nnz, is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSR<VT, ET, WT> G(
+    cugraph::experimental::GraphCSRView<VT, ET, WT> G(
       csr_result.rowOffsets, csr_result.colIndices, csr_result.edgeWeights, m, nnz);
     G.prop.directed = is_directed;
 

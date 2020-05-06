@@ -2,6 +2,7 @@
 
 ## New Features
 - PR #822 Added new functions in python graph class, similar to networkx
+- PR #840 OPG degree
 
 ## Improvements
 - PR #817 Add native Betweenness Centrality with sources subset
@@ -18,6 +19,7 @@
 - PR #804 Cythonize in parallel
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
+- PR #799 Refactored graph class with RAII
 - PR #829 Updated README and CONTRIBUTIOIN docs
 - PR #836 Remove SNMG code
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
@@ -33,7 +35,8 @@
 - PR #825 Fix outdated CONTRIBUTING.md
 - PR #827 Fix indexing CI errors due to cudf updates
 - PR #844 Fixing tests, converting __getitem__ calls to .iloc
-
+- PR #851 Removed RMM from tests
+- PR #852 Fix BFS Notebook
 
 # cuGraph 0.13.0 (Date TBD)
 

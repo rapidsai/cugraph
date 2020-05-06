@@ -37,8 +37,8 @@ def bfs(input_graph, start, directed=True,
     Call bfs
     """
     # Step 1: Declare the different varibales
-    cdef GraphCSR[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
-    cdef GraphCSR[int, int, double] graph_double    # For weighted double graph (SSSP)
+    cdef GraphCSRView[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
+    cdef GraphCSRView[int, int, double] graph_double    # For weighted double graph (SSSP)
 
     # Pointers required for CSR Graph
     cdef uintptr_t c_offsets_ptr        = <uintptr_t> NULL # Pointer to the CSR offsets
@@ -90,8 +90,7 @@ def bfs(input_graph, start, directed=True,
 
     # Step 8: Proceed to BFS
     # TODO: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
-    # TODO(xcadet): Maybe we  graph_double should be added also
-    graph_float = GraphCSR[int, int, float](<int*> c_offsets_ptr,
+    graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                             <int*> c_indices_ptr,
                                             <float*> NULL,
                                             num_verts,

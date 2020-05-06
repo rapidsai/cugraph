@@ -21,7 +21,7 @@ from cugraph.structure.graph_new cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void sssp[VT, ET, WT](
-        const GraphCSR[VT, ET, WT] &graph,
+        const GraphCSRView[VT, ET, WT] &graph,
         WT *distances,
         VT *predecessors,
         VT start_vertex) except +

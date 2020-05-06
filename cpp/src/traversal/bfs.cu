@@ -481,7 +481,7 @@ template class BFS<int>;
 // NOTE: SP counter increase extremely fast on large graph
 //       It can easily reach 1e40~1e70 on GAP-road.mtx
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
+void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
          double *sp_counters,
@@ -508,13 +508,13 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph,
+template void bfs<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
                                    int *distances,
                                    int *predecessors,
                                    double *sp_counters,
                                    const int source_vertex,
                                    bool directed);
-template void bfs<int, int, double>(experimental::GraphCSR<int, int, double> const &graph,
+template void bfs<int, int, double>(experimental::GraphCSRView<int, int, double> const &graph,
                                     int *distances,
                                     int *predecessors,
                                     double *sp_counters,

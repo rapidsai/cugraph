@@ -282,7 +282,7 @@ void verify_input(result_t *result,
  * @file betweenness_centrality.cu
  * --------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -307,7 +307,7 @@ namespace gunrock {
 //       replaced by k and vertices parameters, delegating the random
 //       generation to somewhere else (i.e python's side)
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             VT const *sample_seeds    = nullptr,
@@ -397,8 +397,7 @@ void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
  * @param[in]   vertices        array<VT>(k) Sources for traversal
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-
-void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -437,7 +436,7 @@ void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
 }
 
 template void betweenness_centrality<int, int, float, float>(
-  experimental::GraphCSR<int, int, float> const &,
+  experimental::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   bool,
@@ -446,7 +445,7 @@ template void betweenness_centrality<int, int, float, float>(
   int const *,
   cugraph_bc_implem_t);
 template void betweenness_centrality<int, int, double, double>(
-  experimental::GraphCSR<int, int, double> const &,
+  experimental::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
