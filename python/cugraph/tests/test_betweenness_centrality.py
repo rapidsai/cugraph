@@ -12,13 +12,11 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 import random
 import numpy as np
 
@@ -37,13 +35,13 @@ with warnings.catch_warnings():
 # =============================================================================
 # Parameters
 # =============================================================================
-RMM_MANAGED_MEMORY_OPTIONS = [False]  # False is the default parameter
-RMM_POOL_ALLOCATOR_OPTIONS = [False]  # False is the default parameter
 DIRECTED_GRAPH_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 IMPLEMENTATION_OPTIONS = ['default', 'gunrock']
 
 TINY_DATASETS = ['../datasets/karate.csv']
+
+UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
 
 SMALL_DATASETS = ['../datasets/netscience.csv']
 
@@ -150,27 +148,26 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed,
                                "when k is given as an int"
     # In the fixed set we compare cu_bc against istelf as we random.seed(seed)
     # on the same seed and then sample on the number of vertices themselves
-    random.seed(seed)  # It will be called again in nx's call
+    if seed is None:
+        seed = 123  # random.seed(None) uses time, but we want same sources
+    random.seed(seed)  # It will be called again in cugraph's call
     sources = random.sample(range(G.number_of_vertices()), k)
     # The first call is going to proceed to the random sampling in the same
     # fashion as the lines above
-    df = cugraph.betweenness_centrality(G, normalized=normalized,
+    df = cugraph.betweenness_centrality(G, k=k, normalized=normalized,
                                         weight=weight,
                                         endpoints=endpoints,
-                                        k=k,
-                                        seed=seed,
                                         implementation=implementation,
+                                        seed=seed,
                                         result_dtype=result_dtype)
-
     # The second call is going to process source that were already sampled
     # We set seed to None as k : int, seed : not none should not be normal
     # behavior
-    df2 = cugraph.betweenness_centrality(G, normalized=normalized,
+    df2 = cugraph.betweenness_centrality(G, k=sources, normalized=normalized,
                                          weight=weight,
                                          endpoints=endpoints,
-                                         k=sources,
-                                         seed=None,
                                          implementation=implementation,
+                                         seed=None,
                                          result_dtype=result_dtype)
     cu_bc = {key: score for key, score in
              zip(df['vertex'].to_array(),
@@ -203,15 +200,6 @@ def _calc_bc_full(G, Gnx, normalized, weight, endpoints, implementation,
 # =============================================================================
 # Utils
 # =============================================================================
-def prepare_rmm(managed_memory, pool_allocator):
-    gc.collect()
-    rmm.reinitialize(
-        managed_memory=managed_memory,
-        pool_allocator=pool_allocator,
-    )
-    assert(rmm.is_initialized)
-
-
 def compare_single_score(result, expected, epsilon):
     """
     Compare value in score at given index with relative error
@@ -255,82 +243,70 @@ def compare_scores(cu_bc, ref_bc, epsilon=DEFAULT_EPSILON):
     assert score_mismatch_error == 0, "Some scores were not close enough"
 
 
+def prepare_test():
+    gc.collect()
+
+
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('implementation', IMPLEMENTATION_OPTIONS)
-def test_betweenness_centrality_normalized_tiny(managed, pool, graph_file,
+def test_betweenness_centrality_normalized_tiny(graph_file,
                                                 directed, implementation):
     """Test Normalized Betweenness Centrality"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
                                                normalized=True,
                                                implementation=implementation)
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('implementation', IMPLEMENTATION_OPTIONS)
-def test_betweenness_centrality_unnormalized_tiny(managed, pool, graph_file,
+def test_betweenness_centrality_unnormalized_tiny(graph_file,
                                                   directed, implementation):
     """Test Unnormalized Betweenness Centrality"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
                                                normalized=False,
                                                implementation=implementation)
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', SMALL_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('implementation', IMPLEMENTATION_OPTIONS)
-def test_betweenness_centrality_normalized_small(managed, pool, graph_file,
+def test_betweenness_centrality_normalized_small(graph_file,
                                                  directed, implementation):
     """Test Unnormalized Betweenness Centrality"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
                                                normalized=True,
                                                implementation=implementation)
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', SMALL_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('implementation', IMPLEMENTATION_OPTIONS)
-def test_betweenness_centrality_unnormalized_small(managed, pool, graph_file,
+def test_betweenness_centrality_unnormalized_small(graph_file,
                                                    directed, implementation):
     """Test Unnormalized Betweenness Centrality"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
                                                normalized=False,
                                                implementation=implementation)
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', SMALL_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
-def test_betweenness_centrality_normalized_subset_small(managed, pool,
-                                                        graph_file,
+def test_betweenness_centrality_normalized_subset_small(graph_file,
                                                         directed,
                                                         subset_size,
                                                         subset_seed):
@@ -338,7 +314,7 @@ def test_betweenness_centrality_normalized_subset_small(managed, pool,
 
     Only k sources are considered for an approximate Betweenness Centrality
     """
-    prepare_rmm(managed, pool)
+    prepare_test()
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                directed=directed,
                                                normalized=True,
@@ -347,15 +323,34 @@ def test_betweenness_centrality_normalized_subset_small(managed, pool,
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
+# NOTE: This test should only be execute on unrenumbered datasets
+#       the function operating the comparison inside is first proceeding
+#       to a random sampling over the number of vertices (thus direct offsets)
+#       in the graph structure instead of actual vertices identifiers
+@pytest.mark.parametrize('graph_file', UNRENUMBERED_DATASETS)
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
+def test_betweenness_centrality_normalized_fixed_sample(graph_file,
+                                                        directed,
+                                                        subset_size):
+    """Test Unnormalized Betweenness Centrality using a subset
+
+    Only k sources are considered for an approximate Betweenness Centrality
+    """
+    prepare_test()
+    cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
+                                               directed=directed,
+                                               normalized=True,
+                                               k=subset_size,
+                                               seed=None)
+    compare_scores(cu_bc, nx_bc)
+
+
 @pytest.mark.parametrize('graph_file', SMALL_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
-def test_betweenness_centrality_unnormalized_subset_small(managed, pool,
-                                                          graph_file,
+def test_betweenness_centrality_unnormalized_subset_small(graph_file,
                                                           directed,
                                                           subset_size,
                                                           subset_seed):
@@ -363,7 +358,7 @@ def test_betweenness_centrality_unnormalized_subset_small(managed, pool,
 
     Only k sources are considered for an approximate Betweenness Centrality
     """
-    prepare_rmm(managed, pool)
+    prepare_test()
     cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                directed=directed,
                                                normalized=False,
@@ -372,32 +367,24 @@ def test_betweenness_centrality_unnormalized_subset_small(managed, pool,
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-def test_betweenness_centrality_invalid_implementation(managed, pool,
-                                                       graph_file,
+def test_betweenness_centrality_invalid_implementation(graph_file,
                                                        directed):
     """Test calls betwenness_centality with an invalid implementation name"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     with pytest.raises(ValueError):
         cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                    directed=directed,
                                                    implementation="invalid")
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-def test_betweenness_centrality_gunrock_subset(managed, pool,
-                                               graph_file,
+def test_betweenness_centrality_gunrock_subset(graph_file,
                                                directed):
     """Test calls betwenness_centality with subset and gunrock"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     with pytest.raises(ValueError):
         cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                    directed=directed,
@@ -406,74 +393,65 @@ def test_betweenness_centrality_gunrock_subset(managed, pool,
                                                    implementation="gunrock")
 
 
-# =============================================================================
-# Starting from here Tests no longer check for both DiGraph and Graph
-# =============================================================================
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
-def test_betweenness_centrality_unnormalized_endpoints_execep(managed, pool,
-                                                              graph_file):
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+def test_betweenness_centrality_unnormalized_endpoints_execep(graph_file,
+                                                              directed):
     """Test calls betwenness_centality unnnormalized + endpoints"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     with pytest.raises(NotImplementedError):
         cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                    normalized=False,
-                                                   endpoints=True)
+                                                   endpoints=True,
+                                                   directed=directed)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
-def test_betweenness_centrality_normalized_enpoints_except(managed, pool,
-                                                           graph_file):
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+def test_betweenness_centrality_normalized_enpoints_except(graph_file,
+                                                           directed):
     """Test calls betwenness_centality normalized + endpoints"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     with pytest.raises(NotImplementedError):
         cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                    normalized=True,
-                                                   endpoints=True)
+                                                   endpoints=True,
+                                                   directed=directed)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
-def test_betweenness_centrality_unnormalized_weight_except(managed, pool,
-                                                           graph_file):
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+def test_betweenness_centrality_unnormalized_weight_except(graph_file,
+                                                           directed):
     """Test calls betwenness_centality unnnormalized + weight"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     with pytest.raises(NotImplementedError):
         cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                    normalized=False,
-                                                   weight=True)
+                                                   weight=True,
+                                                   directed=directed)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
-def test_betweenness_centrality_normalized_weight_except(managed, pool,
-                                                         graph_file):
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+def test_betweenness_centrality_normalized_weight_except(graph_file,
+                                                         directed):
     """Test calls betwenness_centality normalized + weight"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     with pytest.raises(NotImplementedError):
         cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                    normalized=True,
-                                                   weight=True)
+                                                   weight=True,
+                                                   directed=directed)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
-def test_betweenness_centrality_invalid_dtype(managed, pool,
-                                              graph_file):
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+def test_betweenness_centrality_invalid_dtype(graph_file, directed):
     """Test calls betwenness_centality normalized + weight"""
-    prepare_rmm(managed, pool)
+    prepare_test()
     with pytest.raises(TypeError):
         cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
                                                    normalized=True,
-                                                   result_dtype=str)
+                                                   result_dtype=str,
+                                                   directed=directed)

@@ -12,13 +12,11 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import numpy as np
 import pytest
 import cugraph
 from cugraph.tests import utils
-import rmm
 import random
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -35,9 +33,6 @@ with warnings.catch_warnings():
 # =============================================================================
 # Parameters
 # =============================================================================
-RMM_MANAGED_MEMORY_OPTIONS = [False]
-RMM_POOL_ALLOCATOR_OPTIONS = [False]
-
 DIRECTED_GRAPH_OPTIONS = [True, False]
 
 TINY_DATASETS = ['../datasets/karate.csv',
@@ -56,14 +51,8 @@ DEFAULT_EPSILON = 1e-6
 # =============================================================================
 # Utils
 # =============================================================================
-def prepare_rmm(managed_memory, pool_allocator, **kwargs):
+def prepare_test():
     gc.collect()
-    rmm.reinitialize(
-        managed_memory=managed_memory,
-        pool_allocator=pool_allocator,
-        **kwargs
-    )
-    assert rmm.is_initialized()
 
 
 # TODO: This is also present in test_betweenness_centrality.py
@@ -237,42 +226,30 @@ def _compare_bfs_spc(G, Gnx, source):
 # Tests
 # =============================================================================
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('seed', SUBSET_SEED_OPTIONS)
-def test_bfs(managed, pool, graph_file, directed, seed):
+def test_bfs(graph_file, directed, seed):
     """Test BFS traversal on random source with distance and predecessors"""
-    prepare_rmm(managed_memory=managed, pool_allocator=pool,
-                initial_pool_size=2 << 27)
+    prepare_test()
     compare_bfs(graph_file, directed=directed, return_sp_counter=False,
                 seed=seed)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('seed', SUBSET_SEED_OPTIONS)
-def test_bfs_spc(managed, pool, graph_file, directed, seed):
+def test_bfs_spc(graph_file, directed, seed):
     """Test BFS traversal on random source with shortest path counting"""
-    prepare_rmm(managed_memory=managed, pool_allocator=pool,
-                initial_pool_size=2 << 27)
+    prepare_test()
     compare_bfs(graph_file, directed=directed, return_sp_counter=True,
                 seed=seed)
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product(RMM_MANAGED_MEMORY_OPTIONS,
-                                      RMM_POOL_ALLOCATOR_OPTIONS)))
 @pytest.mark.parametrize('graph_file', TINY_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-def test_bfs_spc_full(managed, pool, graph_file, directed):
+def test_bfs_spc_full(graph_file, directed):
     """Test BFS traversal on every vertex with shortest path counting"""
-    prepare_rmm(managed_memory=managed, pool_allocator=pool,
-                initial_pool_size=2 << 27)
+    prepare_test()
     compare_bfs(graph_file, directed=directed, return_sp_counter=True,
                 seed=None)
