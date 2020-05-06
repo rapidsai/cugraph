@@ -410,4 +410,12 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
          VT *predecessors,
          const VT start_vertex,
          bool directed = true);
+
+
+/////////////////////////////////////////////////////////
+template <typename VT, typename ET, typename WT>
+void mg_pagerank_temp(experimental::GraphCSC<VT,ET,WT> const &graph,
+              WT* pagerank);
+//////////////////////////////////////////////////////////
+
 } //namespace cugraph

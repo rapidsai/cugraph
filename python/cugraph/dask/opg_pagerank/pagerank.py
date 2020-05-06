@@ -17,12 +17,13 @@ from cugraph.dask.common.comms import CommsContext
 from cugraph.dask.common.input_utils import DistributedDataHandler
 from dask.distributed import wait, default_client
 from cugraph.dask.common.comms import worker_state
+from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
 
 def common_func(sID, data):
     print(data)
     sessionstate = worker_state(sID)
     print("nworkers: ", sessionstate['nworkers'],"  id: ", sessionstate['wid'])
-    print("INSIDE common_func: ", sID)
+    mg_pagerank.mg_pagerank(data[0])
     return 1
 
 def pagerank(input_graph):
@@ -48,3 +49,36 @@ def pagerank(input_graph):
             for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
     print(result)
+
+
+def get_n_gpus():
+    import os
+    try:
+        return len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
+    except KeyError:
+        return len(os.popen("nvidia-smi -L").read().strip().split("\n"))
+
+
+def get_chunksize(input_path):
+    """
+    Calculate the appropriate chunksize for dask_cudf.read_csv
+    to get a number of partitions equal to the number of GPUs
+
+    Examples
+    --------
+    >>> import dask_cugraph.pagerank as dcg
+    >>> chunksize = dcg.get_chunksize(edge_list.csv)
+    """
+
+    import os
+    from glob import glob
+    import math
+
+    input_files = sorted(glob(str(input_path)))
+    if len(input_files) == 1:
+        size = os.path.getsize(input_files[0])
+        chunksize = math.ceil(size/get_n_gpus())
+    else:
+        size = [os.path.getsize(_file) for _file in input_files]
+        chunksize = max(size)
+    return chunksize

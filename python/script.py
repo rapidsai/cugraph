@@ -1,4 +1,4 @@
-from cugraph.dask.opg_pagerank import pagerank
+import cugraph.dask.opg_pagerank as dcg
 from dask.distributed import Client
 import gc
 import cudf
@@ -16,21 +16,22 @@ def test_dask_pagerank():
     gc.collect()
     cluster = LocalCUDACluster(protocol="tcp", scheduler_port=0)
     client = Client(cluster)
-    print(dir(client))
-    print(dir(cluster))
-    ## Create temp ddf
-    df = cudf.DataFrame()
-    df['0']=[1,1,1,2,3,4]
-    df['1']=[4,4,0,3,1,2]
 
-    ddf = dask_cudf.from_cudf(df, npartitions=2)
-    print(ddf)
-    ##
+    input_data_path = r"../datasets/karate.csv"
+
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
+                             delimiter=' ',
+                             names=['src', 'dst', 'value'],
+                             dtype=['int32', 'int32', 'float32'])
+
+
 
     g = cugraph.DiGraph()
     g.from_dask_cudf_edgelist(ddf)
 
-    pagerank(g)
+    dcg.pagerank(g)
 
     client.close()
     cluster.close()
