@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import time
 
 import numpy as np
@@ -20,7 +19,6 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -96,20 +94,11 @@ SOURCES = [1]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('source', SOURCES)
-def test_sssp(managed, pool, graph_file, source):
+def test_sssp(graph_file, source):
     gc.collect()
 
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
     cu_paths, max_val = cugraph_call(cu_M, source)
@@ -136,20 +125,10 @@ def test_sssp(managed, pool, graph_file, source):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
 @pytest.mark.parametrize('source', SOURCES)
-def test_sssp_edgevals(managed, pool, graph_file, source):
+def test_sssp_edgevals(graph_file, source):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -178,20 +157,10 @@ def test_sssp_edgevals(managed, pool, graph_file, source):
     assert err == 0
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
 @pytest.mark.parametrize('source', SOURCES)
-def test_sssp_data_type_conversion(managed, pool, graph_file, source):
+def test_sssp_data_type_conversion(graph_file, source):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
