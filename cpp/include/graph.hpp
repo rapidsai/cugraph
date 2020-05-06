@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 #pragma once
+#include <comms_mpi.hpp>
 #include <iostream>
 #include <memory>
 #include <rmm/device_buffer.hpp>
-#include <comms_mpi.hpp>
 
 namespace cugraph {
 namespace experimental {

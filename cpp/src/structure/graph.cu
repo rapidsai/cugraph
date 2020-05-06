@@ -83,7 +83,7 @@ void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) con
 
   if (direction != DegreeDirection::IN) {
     if (GraphViewBase<VT, ET, WT>::comm.get_p())  // FIXME retrieve global source
-                                              // indexing for the allreduce work
+                                                  // indexing for the allreduce work
       CUGRAPH_FAIL("OPG degree not implemented for OUT degree");
     degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
                            GraphViewBase<VT, ET, WT>::number_of_vertices,
