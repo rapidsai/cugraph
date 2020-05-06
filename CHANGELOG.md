@@ -33,7 +33,7 @@
 - PR #827 Fix indexing CI errors due to cudf updates
 - PR #844 Fixing tests, converting __getitem__ calls to .iloc
 - PR #851 Removed RMM from tests
-
+- PR #852 Fix BFS Notebook
 
 # cuGraph 0.13.0 (Date TBD)
 
