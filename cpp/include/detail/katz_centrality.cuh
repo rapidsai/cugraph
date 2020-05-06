@@ -30,7 +30,7 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename ResultIterator, bool opg = false>
+template <typename GraphType, typename VertexIterator, typename ResultIterator>
 void katz_centrality_this_partition(
     raft::Handle handle, GraphType const& csc_graph,
     ResultIteraotr beta_first, ResultIteraotr katz_centrality_first,
@@ -139,14 +139,11 @@ void katz_centrality_this_partition(
 
   if (normalize) {
     auto l2_norm =
-      thrust::transform_reduce(
-        katz_centrality_first, katz_centrality_first + num_this_partition_vertices,
+      transform_reduce_v(
+        handle, csc_graph, katz_centrality_first,
         [] __device__ (auto val) {
           return val * val;
-        });
-    if (opg) {
-      handle.reduce(&l2_norm, &l2_norm, 1);
-    }
+        }, static_cast<result_t>(0.0));
     l2_norm = std::sqrt(l2_norm);
     CUGRAPH_EXPECTS(
       l2_norm > 0.0, "L2 norm of the computed Katz Centrality values should be positive.");

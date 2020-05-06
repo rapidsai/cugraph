@@ -32,8 +32,7 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename WeightIterator, typename vertex_t,
-          bool opg = false>
+template <typename GraphType, typename VertexIterator, typename WeightIterator, typename vertex_t>
 void sssp_this_partition(
     raft::Handle handle, GraphType const& csr_graph,
     WeightIteraotr distance_first, VertexIteraotr predecessor_first,
@@ -162,12 +161,9 @@ void sssp_this_partition(
         // FIXME: this check is unnecessary if not OPG, instead of taking opg as a template
         // parameter, it might be cleaner to take a graph device view object (similar to cuDF),
         // and implement check_local() which becomes a constexpr function always returning true
-        // if not OPG. We may not need to take opg as a template parameter for graph analytics
-        // functions.
+        // if not OPG.
         bool local =
-          opg
-          ? (dst_val >= this_partition_vertex_first) && (dst_val < this_partition_vertetx_last)
-          : true;
+          (dst_val >= this_partition_vertex_first) && (dst_val < this_partition_vertetx_last);
         if (local) {
           auto old_distance = *(distance_first + (dst_val - this_partition_vertex_first));
           if (new_distance >= old_distance) {

@@ -32,8 +32,7 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename ResultIterator, typename vertex_t,
-          bool opg = false>
+template <typename GraphType, typename VertexIterator, typename ResultIterator, typename vertex_t>:w
 void bfs_this_partition(
     raft::Handle handle, GraphType const& csr_graph,
     VertexIteraotr distance_first, VertexIteraotr predecessor_first,
@@ -112,6 +111,8 @@ void bfs_this_partition(
   size_t depth{0};
   auto cur_adj_matrix_row_frontier_first =
     adj_matrix_row_frontier.get_bucket(Bucket::cur).begin();
+  auto cur_adj_matrix_row_frontier_aggregate_size =
+    adj_matrix_row_frontier.get_bucket(Bucket::cur).aggregate_size();
   while (true) {
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
@@ -133,12 +134,9 @@ void bfs_this_partition(
           // FIXME: this check is unnecessary if not OPG, instead of taking opg as a template
           // parameter, it might be cleaner to take a graph device view object (similar to cuDF),
           // and implement check_local() which becomes a constexpr function always returning true
-          // if not OPG. We may not need to take opg as a template parameter for graph analytics
-          // functions.
+          // if not OPG.
           bool local =
-            opg
-            ? (dst_val >= this_partition_vertex_first) && (dst_val < this_partition_vertetx_last)
-            : true;
+            (dst_val >= this_partition_vertex_first) && (dst_val < this_partition_vertetx_last);
           if (local) {
             auto distance = *(distance_first + (dst_val - this_partition_vertex_first));
             if (distance != std::numeric_limits<vertex_t>::max()) {
@@ -157,18 +155,15 @@ void bfs_this_partition(
           return thrust::make_tuple(idx, new_val);
         });
 
-      cur_adj_matrix_row_frontier_first = cur_adj_matrix_row_frontier_last;
-      auto cur_adj_matrix_row_frontier_size =
-        static_cast<vertex_t>(
-          thrust::distance(
-            cur_row_vertex_froniter_first, adj_matrix_row_frontier.get_bucket(Bucket::cur).end()));
-      if (opg) {
-        handle.allreduce(&cur_adj_matrix_row_frontier_size, &cur_adj_matrix_row_frontier_size, 1);
-      }
-
-      if (cur_adj_matrix_row_frontier_size == 0) {
+      auto new_adj_matrix_row_frontier_aggregate_size =
+        adj_matrix_row_frontier.get_bucket(Bucket::cur).aggregate_size() -
+        cur_adj_matrix_row_frontier_aggregate_size;
+      if (new_adj_matrix_row_frontier_aggregate_size == 0) {
         break;
       }
+
+      cur_adj_matrix_row_frontier_first = cur_adj_matrix_row_frontier_last;
+      cur_adj_matrix_row_frontier_aggregate_size += new_frontier_aggregate_size;
     }
 
     depth++;

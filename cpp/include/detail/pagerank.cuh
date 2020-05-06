@@ -31,7 +31,7 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename ResultIterator, bool opg = false>
+template <typename GraphType, typename VertexIterator, typename ResultIterator>
 void pagerank_this_partition(
     raft::Handle handle, GraphType const& csc_graph,
     ResultIterator adj_matrix_col_out_weight_sum_first,  // should be set to the vertex out-degrees
@@ -75,15 +75,12 @@ void pagerank_this_partition(
 
   if (do_expensive_check) {
     auto num_nonpositive_weight_sums =
-      thrust::count_if(
+      count_if_adj_matrix_col(
+        handle, csc_graph,
         adj_matrix_col_out_weight_sum_first,
-        adj_matrix_col_out_weight_sum_first + num_this_partitttion_adj_matrix_col_vertices,
         [] __device__ (auto val) {
           return val < static_cast<result_t>(0.0);
         });
-    if (opg) {
-      handle.allreduce(&num_nonpositive_weight_sums, &num_nonpositive_weight_sums, 1);
-    }
     CUGRAPH_EXPECTS(
       num_nonpositive_weight_sums == 0,
       "Invalid input argument: outgoing edge weight sum values should be positive.");
@@ -102,24 +99,18 @@ void pagerank_this_partition(
 
     if (has_initial_guess) {
       auto num_negative_values =
-        thrust::count_if(
-          pagerank_first, pagerank_first + num_this_partition_vertices,
+        count_if_v(
+          handle, csc_graph, pagerank_first, pagerank_first + num_this_partition_vertices,
           [] __device__ (auto val) { return val < 0.0; });
-      if (opg) {
-        handle.allreduce(&num_negative_values, &num_negative_values, 1);
-      }
       CUGRAPH_EXPECTS(
         num_negative_values == 0,
         "Invalid input argument: initial guess values should be non-negative.");
     }
     if (personalize) {
       auto num_negative_values =
-        thrust::count_if(
-          personalization_value_first, personalization_value_first + num_this_partition_vertices,
+        thrust::count_if_v(
+          handle, csc_graph, personalization_value_first,
           [] __device__ (auto val) { return val < 0.0; });
-      if (opg) {
-        handle.allreduce(&num_negative_values, &num_negative_values, 1);
-      }
       CUGRAPH_EXPECTS(
         num_negative_values == 0,
         "Invalid input argument: peresonalization values should be non-negative.");
@@ -129,10 +120,7 @@ void pagerank_this_partition(
   // 2. initialize pagerank values
 
   if (has_initial_guess) {
-    auto sum = thrust::reduce(pagerank_first, pagerank_first + num_this_partition_vertices);
-    if (opg) {
-      handle.allreduce(&sum, &sum, 1);
-    }
+    auto sum = reduce_v(handle, csc_graph, pagerank_first);
     CUGRAPH_EXPECTS(
       sum > 0.0,
       "Invalid input argument: sum of the PageRank initial guess values should be positive.");
@@ -150,14 +138,8 @@ void pagerank_this_partition(
 
   result_t personalization_sum{0.0};
   if (personalize) {
-    auto num_personalization_values = 
-      thrust::distance(personalization_vertex_first, personalization_vertex_last);
     personalization_sum =
-      thrust::reduce(
-        personalization_value_first, personalization_value_first + num_personalization_values);
-    if (opg) {
-      handle.allreduce(&personalization_sum, &personalization_sum, 1);
-    }
+      reduce_v(handle, csc_graph, personalization_value_first, personalization_value_last);
     CUGRAPH_EXPECTS(
       personalization_sum > 0.0,
       "Invalid input argument: sum of personalization valuese should be positive.");

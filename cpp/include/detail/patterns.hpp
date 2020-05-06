@@ -58,6 +58,39 @@ void copy_to_adj_matrix_col(
 // 1-level
 
 template <typename HandleType, typename GraphType,
+          typename VertexValueInputIterator,
+          typename T>
+T reduce_v(
+    HandelType handle, GraphType graph,
+    VertexValueInputIterator vertex_value_input_first,
+    T init);
+
+template <typename HandleType, typename GraphType,
+          typename VertexValueInputIterator,
+          typename T>
+T reduce_v(
+    HandelType handle, GraphType graph,
+    VertexValueInputIterator vertex_value_input_first,
+    VertexValueInputIterator vertex_value_input_last,
+    T init);
+
+template <typename HandleType, typename GraphType,
+          typename VertexValueInputIterator,
+          typename VertexOp, typename T>
+T transform_reduce_v(
+    HandelType handle, GraphType graph,
+    VertexValueInputIterator vertex_value_input_first,
+    VertexOp v_op, T init);
+
+template <typename HandleType, typename GraphType,
+          typename VertexValueInputIterator,
+          typename VertexOp>
+GraphType::vertex_type count_if_v(
+    HandelType handle, GraphType graph,
+    VertexValueInputIterator vertex_value_input_first,
+    VertexOp v_op);
+
+template <typename HandleType, typename GraphType,
           typename VertexValueInputIterator, typename AdjMatrixColValueInputIterator,
           typename VertexValueOutputIterator,
           typename VertexOp, typename T>
@@ -67,6 +100,14 @@ T transform_reduce_v_with_adj_matrix_col(
     AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
     VertexValueOutputIterator vetex_value_output_first,
     VertexOp v_op, T init);
+
+template <typename HandleType, typename GraphType,
+          typename AdjMatrixColValueInputIterator,
+          typename ColOp>
+GraphType::vertex_type count_if_adj_matrix_col(
+    HandelType handle, GraphType graph,
+    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+    ColOp col_op);
 
 template <typename HandleType, typename GraphType,
           typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
