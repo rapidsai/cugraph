@@ -30,12 +30,12 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename ResultIterator>
-void katz_centrality_this_graph_partition(
-    raft::Handle handle, GraphType const& graph,
-    ResultIteraotr dst_beta_first, ResultIteraotr dst_katz_centrality_first,
+template <typename GraphType, typename VertexIterator, typename ResultIterator, bool opg = false>
+void katz_centrality_this_partition(
+    raft::Handle handle, GraphType const& csc_graph,
+    ResultIteraotr beta_first, ResultIteraotr katz_centrality_first,
     double alpha = 0.1, double epsilon = 1e-5, size_t max_iterations = 500,
-    bool has_initial_guess = false, normalize = true) {
+    bool has_initial_guess = false, normalize = true, bool do_expensive_check = false) {
   using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
   using result_t = typename std::iterator_traits<ResultIterator>::value_type;
   static_assert(
@@ -44,23 +44,35 @@ void katz_centrality_this_graph_partition(
   static_assert(
     std::is_floating_point<result_t>::value,
     "ResultIterator should point to a floating-point value.");
-  static_assert(
-    is_csc<GraphType>::value,
-    "cugraph::experimental::katz_centrality_this_graph_partition expects a CSC graph.");
+  static_assert(is_csc<GraphType>::value, "GraphType should be CSC.");
+
+  auto const num_vertices = csc_graph.get_number_of_vertices();
+  vertex_t this_partition_vertex_first{};
+  vertex_t this_partition_vertex_last{};
+  std::tie(this_partition_vertex_first, this_partition_vertex_last) =
+    csc_graph.get_this_partition_vertex_range();
+  auto const num_this_partition_vertices =
+    csc_graph.get_this_partition_number_of_vertices();
+  auto num_this_partition_adj_matrix_col_vertices =
+    csc_graph.get_this_partition_adj_matrix_col_number_of_vertices();
+  if (num_vertices == 0) {
+    return;
+  }
+
+  // 1. check input arguments
 
   CUGRAPH_EXPECTS(
-    graph.is_directed(),
-    "cugraph::experimental::katz_centrality_this_graph_partition expects a directed graph.");
+    csc_graph.is_directed(),
+    "Invalid input argumnet: input graph should be directed.");
+  CUGRAPH_EXPECTS(
+    (alpha >= 0.0) && (alpha <= 1.0), "Invalid input argument: alpha should be in [0.0, 1.0].");
+  CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
 
-  auto const num_vertices = graph.get_number_of_vertices();
-  vertex_t src_vertex_first{};
-  vertex_t src_vertex_last{};
-  vertex_t dst_vertex_first{};
-  vertex_t dst_vertex_last{};
-  std::tie(src_vertex_first, src_vertex_last) = graph.get_this_src_vertex_range();
-  std::tie(dst_vertex_first, dst_vertex_last) = graph.get_this_dst_vertex_range();
-  auto num_src_vertices = src_vertex_last - src_vertex_first;
-  auto num_dst_vertices = dst_vertex_last - dst_vertex_first;
+  if (do_expensive_check) {
+    // nothing to do (should we check beta or initial guess values?)
+  }
+
+  // 2. initialize katz centrality values
 
   if (!has_initial_guess) {
     thrust::fill(
@@ -68,37 +80,39 @@ void katz_centrality_this_graph_partition(
       static_cast<result_t>(0.0));
   }
 
-  rmm::device_vector<result_t> src_katz_centralities(num_src_vertices, static_cast<result_t>(0.0));
+  // 3. katz centrality iteration
 
+  rmm::device_vector<result_t> adj_matrix_col_katz_centralities(
+    num_adj_matrix_col_vertices, static_cast<result_t>(0.0));
   size_t iter = 0;
   while (true) {
-    copy_dst_values_to_src(
-      handle, graph, dst_katz_centrality_first, src_katz_centralities.begin());
+    copy_to_adj_matrix_col(
+      handle, csc_graph, katz_centrality_first, adj_matrix_col_katz_centralities.begin());
 
-    if (graph.is_weighted()) {
-      transform_dst_v_transform_reduce_e(
-        handle, graph,
-        src_katz_centrality_first, thrust::make_constant_iterator(0)/* dummy */,
-        dst_katz_centrality_first,
+    if (csc_graph.is_weighted()) {
+      transform_v_transform_reduce_e(
+        handle, csc_graph,
+        thrust::make_constant_iterator(0)/* dummy */, adj_matrix_col_katz_centralities.begin(),
+        katz_centrality_first,
         [alpha] __device__ (auto src_val, auto dst_val, weight_t w) {
           return static_cast<result_t>(alpha * src_val * w);
         },
         static_cast<result_t>(0.0));
     }
     else {
-      transform_dst_v_transform_reduce_e(
-        handle, graph,
-        src_katz_centrality_first, thrust::make_constant_iterator(0)/* dummy */,
-        dst_katz_centrality_first,
+      transform_v_transform_reduce_e(
+        handle, csc_graph,
+        thrust::make_constant_iterator(0)/* dummy */, adj_matrix_col_katz_centralities.begin(),
+        katz_centrality_first,
         [alpha] __device__ (auto src_val, auto dst_val) {
           return static_cast<result_t>(alpha * src_val);
         },
         static_cast<result_t>(0.0));
     }
-    auto dst_val_first =
-      thrust::make_zip_iterator(thrust::make_tuple(dst_katz_centrality_first, dst_beta_first));
+    auto val_first =
+      thrust::make_zip_iterator(thrust::make_tuple(katz_centrality_first, beta_first));
     thrust::transform(
-      dst_val_first, dst_val_first + num_dst_vertices, dst_katz_centrality_first,
+      val_first, val_first + num_this_partition_vertices, katz_centrality_first,
       [] __device__ (auto val) {
         auto const katz_centrality = thrust::get<0>(val);
         auto const beta = thrust::get<1>(val);
@@ -106,10 +120,10 @@ void katz_centrality_this_graph_partition(
       });
 
     auto diff_sum =
-      transform_reduce_src_dst_v(
-        handle, graph, src_katz_centralities.begin(), dst_katz_centrality_first,
-        [] __device__ (auto src_val, auto dst_val) {
-          return std::abs(dst_val - src_val);
+      transform_reduce_v_with_adj_matrix_col(
+        handle, csc_graph, katz_centrality_first, adj_matrix_col_katz_centralities.begin(),
+        [] __device__ (auto v_val, auto col_val) {
+          return std::abs(v_val - col_val);
         },
         static_cast<result_t>(0.0));
 
@@ -125,17 +139,20 @@ void katz_centrality_this_graph_partition(
 
   if (normalize) {
     auto l2_norm =
-      transform_reduce_dst_v(
-        handle, graph, dst_katz_centrality_first,
+      thrust::transform_reduce(
+        katz_centrality_first, katz_centrality_first + num_this_partition_vertices,
         [] __device__ (auto val) {
           return val * val;
         });
+    if (opg) {
+      handle.reduce(&l2_norm, &l2_norm, 1);
+    }
     l2_norm = std::sqrt(l2_norm);
     CUGRAPH_EXPECTS(
       l2_norm > 0.0, "L2 norm of the computed Katz Centrality values should be positive.");
     thrust::transform(
-      dst_katz_centrality_first, dst_katz_centrality_first + num_dst_vertices,
-      dst_katz_centrality_first,
+      katz_centrality_first, katz_centrality_first + num_this_partition_vertices,
+      katz_centrality_first,
       [l2_norm] __device__ (auto val) {
         return val / l2_norm;
       });

@@ -17,111 +17,170 @@
 
 #include <graph.hpp>
 
-
 namespace cugraph {
 namespace experimental {
 namespace detail {
 
 // 1-level
 
-template <typename HandleType, typename GraphType,
-          typename DstValueInputIterator, typename SrcValueOutputIterator>
-void copy_dst_values_to_src(
-    HandleType handle, GraphType graph,
-    DstValueInputIterator dst_value_input_first, SrcValueOutputIterator src_value_output_first);
+template <typename HandleType,
+          typename GraphType,
+          typename DstValueInputIterator,
+          typename SrcValueOutputIterator>
+void copy_dst_values_to_src(HandleType handle,
+                            GraphType graph,
+                            DstValueInputIterator dst_value_input_first,
+                            SrcValueOutputIterator src_value_output_first);
 
 template <typename HandleType, typename GraphType, typename SrcValueInputIterator, typename T>
-T reduce_src_v(
-    HandelType handle, GraphType graph, SrcValueInputIterator src_value_input_first, T init);
+T reduce_src_v(HandelType handle,
+               GraphType graph,
+               SrcValueInputIterator src_value_input_first,
+               T init);
 
 template <typename HandleType, typename GraphType, typename DstValueInputIterator, typename T>
-T reduce_dst_v(
-    HandelType handle, GraphType graph, DstValueInputIterator dst_value_input_first, T init);
+T reduce_dst_v(HandelType handle,
+               GraphType graph,
+               DstValueInputIterator dst_value_input_first,
+               T init);
 
-template <typename HandleType, typename GraphType,
-          typename SrcValueInputIterator, typename TransformOp, typename T>
-T transform_reduce_src_v(
-    HandelType handle, GraphType graph,
-    SrcValueInputIterator src_value_input_first, TransformOp transform_op, T init);
+template <typename HandleType,
+          typename GraphType,
+          typename SrcValueInputIterator,
+          typename TransformOp,
+          typename T>
+T transform_reduce_src_v(HandelType handle,
+                         GraphType graph,
+                         SrcValueInputIterator src_value_input_first,
+                         TransformOp transform_op,
+                         T init);
 
-template <typename HandleType, typename GraphType,
-          typename DstValueInputIterator, typename TransformOp, typename T>
-T transform_reduce_dst_v(
-    HandelType handle, GraphType graph,
-    DstValueInputIterator dst_value_input_first, TransformOp transform_op, T init);
+template <typename HandleType,
+          typename GraphType,
+          typename DstValueInputIterator,
+          typename TransformOp,
+          typename T>
+T transform_reduce_dst_v(HandelType handle,
+                         GraphType graph,
+                         DstValueInputIterator dst_value_input_first,
+                         TransformOp transform_op,
+                         T init);
 
-template <typename HandleType, typename GraphType,
-          typename SrcValueInputIterator, typename DstValueInputIterator,
-          typename ReduceOp, typename T>
-T transform_reduce_src_dst_v(
-    HandelType handle, GraphType graph,
-    SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
-    ReduceOp reduce_op, T init);
+template <typename HandleType,
+          typename GraphType,
+          typename SrcValueInputIterator,
+          typename DstValueInputIterator,
+          typename ReduceOp,
+          typename T>
+T transform_reduce_src_dst_v(HandelType handle,
+                             GraphType graph,
+                             SrcValueInputIterator src_value_input_first,
+                             DstValueInputIterator dst_value_input_first,
+                             ReduceOp reduce_op,
+                             T init);
 
-template <typename HandleType, typename GraphType,
-          typename SrcValueInputIterator, typename DstValueInputIterator,
-          typename TransformOp, typename T>
-T transform_reduce_e(
-    HandelType handle, GraphType graph,
-    SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
-    TransformOp transform_op, T init);
-
+template <typename HandleType,
+          typename GraphType,
+          typename SrcValueInputIterator,
+          typename DstValueInputIterator,
+          typename TransformOp,
+          typename T>
+T transform_reduce_e(HandelType handle,
+                     GraphType graph,
+                     SrcValueInputIterator src_value_input_first,
+                     DstValueInputIterator dst_value_input_first,
+                     TransformOp transform_op,
+                     T init);
 
 // 2-levels
 
-template <typename HandleType, typename GraphType,
-          typename SrcValueInputIterator, typename DstValueInputIterator,
+template <typename HandleType,
+          typename GraphType,
+          typename SrcValueInputIterator,
+          typename DstValueInputIterator,
           typename SrcValueOutputIterator,
-          typename EdgeOp, typename T>
-void transform_src_v_transform_reduce_e(
-    HandelType handle, GraphType graph,
-    SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
-    SrcValueOutputIterator src_value_output_first, EdgeOp e_op, T init);
+          typename EdgeOp,
+          typename T>
+void transform_src_v_transform_reduce_e(HandelType handle,
+                                        GraphType graph,
+                                        SrcValueInputIterator src_value_input_first,
+                                        DstValueInputIterator dst_value_input_first,
+                                        SrcValueOutputIterator src_value_output_first,
+                                        EdgeOp e_op,
+                                        T init);
 
-template <typename HandleType, typename GraphType,
-          typename SrcValueInputIterator, typename DstValueInputIterator,
+template <typename HandleType,
+          typename GraphType,
+          typename SrcValueInputIterator,
+          typename DstValueInputIterator,
           typename DstValueOutputIterator,
-          typename EdgeOp, typename T>
-void transform_dst_v_transform_reduce_e(
-    HandelType handle, GraphType graph,
-    SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
-    DstValueOutputIterator dst_value_output_first, EdgeOp e_op, T init);
+          typename EdgeOp,
+          typename T>
+void transform_dst_v_transform_reduce_e(HandelType handle,
+                                        GraphType graph,
+                                        SrcValueInputIterator src_value_input_first,
+                                        DstValueInputIterator dst_value_input_first,
+                                        DstValueOutputIterator dst_value_output_first,
+                                        EdgeOp e_op,
+                                        T init);
 
-template <typename HandleType, typename GraphType, typename SrcVertexIterator,
-          typename SrcValueInputIterator, typename DstValueInputIterator,
+template <typename HandleType,
+          typename GraphType,
+          typename SrcVertexIterator,
+          typename SrcValueInputIterator,
+          typename DstValueInputIterator,
           typename DstValueOutputIterator,
           typename SrcQueueOutputIterator,
           typename EdgeOp>
-void for_each_src_v_expand_and_transform_if_e(
-    HandelType handle, GraphType graph,
-    SrcVertexIterator src_vertex_first, SrcVertexIterator src_vertex_last,
-    SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
-    DstValueOutputIterator dst_value_output_first,
-    SrcQueueOutputIterator src_queue_output_first,
-    EdgeOp e_op);
+void for_each_src_v_expand_and_transform_if_e(HandelType handle,
+                                              GraphType graph,
+                                              SrcVertexIterator src_vertex_first,
+                                              SrcVertexIterator src_vertex_last,
+                                              SrcValueInputIterator src_value_input_first,
+                                              DstValueInputIterator dst_value_input_first,
+                                              DstValueOutputIterator dst_value_output_first,
+                                              SrcQueueOutputIterator src_queue_output_first,
+                                              EdgeOp e_op);
 
-template <typename HandleType, typename GraphType, typename SrcVertexIterator,
-          typename SrcValueInputIterator, typename DstValueInputIterator,
+template <typename HandleType,
+          typename GraphType,
+          typename SrcVertexIterator,
+          typename SrcValueInputIterator,
+          typename DstValueInputIterator,
           typename DstValueOutputIterator,
-          typename SrcQueueOutputIterator, typename SrcValueOutputIterator,
-          typename EdgeOp, typename ReduceOp, typename TransformOp>
-void for_each_src_v_expand_and_transform_if_e(
-    HandelType handle, GraphType graph,
-    SrcVertexIterator src_vertex_first, SrcVertexIterator src_vertex_last,
-    SrcValueInputIterator src_value_input_first, DstValueInputIterator dst_value_input_first,
-    DstValueOutputIterator dst_value_output_first,
-    SrcQueueOutputIterator src_queue_output_first, SrcValueOutputIterator src_value_output_first,
-    EdgeOp e_op, ReduceOp reduce_op, TransformOp transform_op);
+          typename SrcQueueOutputIterator,
+          typename SrcValueOutputIterator,
+          typename EdgeOp,
+          typename ReduceOp,
+          typename TransformOp>
+void for_each_src_v_expand_and_transform_if_e(HandelType handle,
+                                              GraphType graph,
+                                              SrcVertexIterator src_vertex_first,
+                                              SrcVertexIterator src_vertex_last,
+                                              SrcValueInputIterator src_value_input_first,
+                                              DstValueInputIterator dst_value_input_first,
+                                              DstValueOutputIterator dst_value_output_first,
+                                              SrcQueueOutputIterator src_queue_output_first,
+                                              SrcValueOutputIterator src_value_output_first,
+                                              EdgeOp e_op,
+                                              ReduceOp reduce_op,
+                                              TransformOp transform_op);
 /*
 iterating over lower triangular (or upper triangular) : triangle counting
-LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and degree(j) : triangle counting
-push-pull switching support (e.g. DOBFS), in this case, we need both CSR & CSC (trade-off execution time vs memory requirement, unless graph is symmetric)
-should I take multi-GPU support as a template argument?
-Add bool expensive_check = false ?
-cugraph::count_if as a multi-GPU wrapper of thrust::count_if? (for expensive check)
-if graph is symmetric, there will be additional optimization opportunities (e.g. in-degree == out-degree)
+LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and
+degree(j) : triangle counting push-pull switching support (e.g. DOBFS), in this case, we need both
+CSR & CSC (trade-off execution time vs memory requirement, unless graph is symmetric) should I take
+multi-GPU support as a template argument? Add bool expensive_check = false ? cugraph::count_if as a
+multi-GPU wrapper of thrust::count_if? (for expensive check) if graph is symmetric, there will be
+additional optimization opportunities (e.g. in-degree == out-degree)
 
 For BFS, sending a bit vector (for the entire set of dest vertices per partitoin may work better
+
+we can use thrust::set_intersection for triangle counting
+
+think about adding thrust wrappers for reduction functions.
+thrust::(); if (opg) { allreduce }; can be cugraph::(), and be more consistant with other APIs that
+hide communication inside if opg.
 */
 
 }  // namespace detail

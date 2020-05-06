@@ -31,15 +31,16 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename ResultIterator>
-void pagerank_this_graph_partition(
-    raft::Handle handle, GraphType const& graph,
-    VertexIterator src_out_degree_first,
-    VertexIterator dst_personalization_vertex_first, VertexIterator dst_personalization_vertex_last,
-    ResultIteraotr dst_personalization_value_first,
-    ResultIteraotr dst_pagerank_first,
+template <typename GraphType, typename VertexIterator, typename ResultIterator, bool opg = false>
+void pagerank_this_partition(
+    raft::Handle handle, GraphType const& csc_graph,
+    ResultIterator adj_matrix_col_out_weight_sum_first,  // should be set to the vertex out-degrees
+                                                         // for an unweighted graph
+    VertexIterator personalization_vertex_first, VertexIterator personalization_vertex_last,
+    ResultIteraotr personalization_value_first,
+    ResultIteraotr pagerank_first,
     double alpha = 0.85, double epsilon = 1e-5, size_t max_iterations = 500,
-    bool has_initial_guess = false, bool is_personalized = false) {
+    bool has_initial_guess = false, bool personalize = false, bool do_expensive_check = false) {
   using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
   using result_t = typename std::iterator_traits<ResultIterator>::value_type;
   static_assert(
@@ -48,140 +49,190 @@ void pagerank_this_graph_partition(
   static_assert(
     std::is_floating_point<result_t>::value,
     "ResultIterator should point to a floating-point value.");
-  static_assert(
-    is_csc<GraphType>::value,
-    "cugraph::experimental::pagerank_this_graph_partition expects a CSC graph.");
+  static_assert(is_csc<GraphType>::value, "GraphType should be CSC.");
 
-  CUGRAPH_EXPECTS(
-    graph.is_directed(),
-    "cugraph::experimental::pagerank_this_graph_partition expects a directed graph.");
-
-  auto const num_vertices = graph.get_number_of_vertices();
-  vertex_t src_vertex_first{};
-  vertex_t src_vertex_last{};
-  vertex_t dst_vertex_first{};
-  vertex_t dst_vertex_last{};
-  std::tie(src_vertex_first, src_vertex_last) = graph.get_this_src_vertex_range();
-  std::tie(dst_vertex_first, dst_vertex_last) = graph.get_this_dst_vertex_range();
-  auto num_src_vertices = src_vertex_last - src_vertex_first;
-  auto num_dst_vertices = dst_vertex_last - dst_vertex_first;
-
-  rmm::device_vector<result_t> src_out_weight_sums{};
-  if (graph.is_weighted()) {
-    src_out_weight_sums.assign(num_src_vertices, static_cast<result_t>(0.0));
-    transform_src_v_transform_reduce_e(
-      handle, graph,
-      thrust::make_constant_iterator(0),  // dummy
-      thrust::make_constant_iterator(0),  // dummy
-      src_out_weight_sums.begin(),
-      [] __device__ (auto src_val, dst_val, weight_t w) {
-        return w;
-      },
-      static_cast<result_t>(0.0));
+  auto const num_vertices = csc_graph.get_number_of_vertices();
+  vertex_t this_partition_vertex_first{};
+  vertex_t this_partition_vertex_last{};
+  std::tie(this_partition_vertex_first, this_partition_vertex_last) =
+    csc_graph.get_this_partition_vertex_range();
+  auto const num_this_partition_vertices =
+    csc_graph.get_this_partition_number_of_vertices();
+  auto num_this_partition_adj_matrix_col_vertices =
+    csc_graph.get_this_partition_adj_matrix_col_number_of_vertices();
+  if (num_vertices == 0) {
+    return;
   }
 
+  // 1. check input arguments
+
+  CUGRAPH_EXPECTS(
+    csc_graph.is_directed(),
+    "Invalid input argument: input graph should be directed.");
+  CUGRAPH_EXPECTS(
+    (alpha >= 0.0) && (alpha <= 1.0), "Invalid input argument: alpha should be in [0.0, 1.0].");
+  CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
+
+  if (do_expensive_check) {
+    auto num_nonpositive_weight_sums =
+      thrust::count_if(
+        adj_matrix_col_out_weight_sum_first,
+        adj_matrix_col_out_weight_sum_first + num_this_partitttion_adj_matrix_col_vertices,
+        [] __device__ (auto val) {
+          return val < static_cast<result_t>(0.0);
+        });
+    if (opg) {
+      handle.allreduce(&num_nonpositive_weight_sums, &num_nonpositive_weight_sums, 1);
+    }
+    CUGRAPH_EXPECTS(
+      num_nonpositive_weight_sums == 0,
+      "Invalid input argument: outgoing edge weight sum values should be positive.");
+
+    if (graph.is_weighted()) {
+      auto num_nonpositive_edge_weights =
+        count_if_e(
+          handle, graph,
+          thrust::make_constant_iterator(0)/* dummy */,
+          thrust::make_constant_iterator(0)/* dummy */,
+          [] __device__ (auto src_val, auto dst_val, weight_t w) { return w <= 0.0; });
+      CUGRAPH_EXPECTS(
+        num_nonpositive_edge_weights == 0,
+        "Invalid input argument: input graph should have postive edge weights.");
+    }
+
+    if (has_initial_guess) {
+      auto num_negative_values =
+        thrust::count_if(
+          pagerank_first, pagerank_first + num_this_partition_vertices,
+          [] __device__ (auto val) { return val < 0.0; });
+      if (opg) {
+        handle.allreduce(&num_negative_values, &num_negative_values, 1);
+      }
+      CUGRAPH_EXPECTS(
+        num_negative_values == 0,
+        "Invalid input argument: initial guess values should be non-negative.");
+    }
+    if (personalize) {
+      auto num_negative_values =
+        thrust::count_if(
+          personalization_value_first, personalization_value_first + num_this_partition_vertices,
+          [] __device__ (auto val) { return val < 0.0; });
+      if (opg) {
+        handle.allreduce(&num_negative_values, &num_negative_values, 1);
+      }
+      CUGRAPH_EXPECTS(
+        num_negative_values == 0,
+        "Invalid input argument: peresonalization values should be non-negative.");
+    }
+  }
+
+  // 2. initialize pagerank values
+
   if (has_initial_guess) {
-    auto sum =
-      reduce_dst_v(handle, graph, dst_pagerank_first, static_cast<result_t>(0.0));
-    CUGRAPH_EXPECTS(sum > 0.0, "Sum of the PageRank initial guess values should be positive.");
+    auto sum = thrust::reduce(pagerank_first, pagerank_first + num_this_partition_vertices);
+    if (opg) {
+      handle.allreduce(&sum, &sum, 1);
+    }
+    CUGRAPH_EXPECTS(
+      sum > 0.0,
+      "Invalid input argument: sum of the PageRank initial guess values should be positive.");
     thrust::transform(
-      dst_pagerank_first, dst_pagerank_first + num_dst_vertices, dst_pagerank_first,
+      pagerank_first, pagerank_first + num_this_partition_vertices, pagerank_first,
       [sum] __device__ (auto val) { return val / sum; });
   }
   else {
     thrust::fill(
-      dst_pagerank_first, dst_pagerank_first + num_dst_vertices,
+      pagerank_first, pagerank_first + num_this_partition_vertices,
       static_cast<result_t>(1.0) / static_cast<result_t>(num_vertices));
   }
 
+  // 3. sum the personalization values
+
   result_t personalization_sum{0.0};
-  if (is_personalized) {
+  if (personalize) {
+    auto num_personalization_values = 
+      thrust::distance(personalization_vertex_first, personalization_vertex_last);
     personalization_sum =
-      reduce_dst_v(
-        handle, graph, dst_personalization_value_first, static_cast<result_t>(0.0));
+      thrust::reduce(
+        personalization_value_first, personalization_value_first + num_personalization_values);
+    if (opg) {
+      handle.allreduce(&personalization_sum, &personalization_sum, 1);
+    }
     CUGRAPH_EXPECTS(
-      personalization_sum > 0.0, "Sum of personalization valuese should be positive.");
+      personalization_sum > 0.0,
+      "Invalid input argument: sum of personalization valuese should be positive.");
   }
 
-  rmm::device_vector<result_t> src_pageranks(num_src_vertices, static_cast<result_t>(0.0));
+  // 4. pagerank iteration
 
+  rmm::device_vector<result_t> adj_matrix_col_pageranks(
+    num_adj_matrix_col_vertices, static_cast<result_t>(0.0));
   size_t iter = 0;
   while (true) {
-    copy_dst_values_to_src(handle, graph, dst_pagerank_first, src_pageranks.begin());
+    copy_to_adj_matrix_col(handle, csc_graph, pagerank_first, adj_matrix_col_pageranks.begin());
 
-    if (graph.is_weighted()) {
-      auto src_val_first =
-        thrust::make_zip_iterator(
-          thrust::make_tuple(
-            src_pageranks.begin(), src_out_degree_first, src_out_weight_sums.begin()));
-      thrust::transform(
-        src_val_first, src_val_first + num_src_vertices, src_pageranks.begin(),
-        [] __device__ (auto val) {
-          auto const src_pagerank = thrust::get<0>(val);
-          auto const out_degree = thrust::get<1>(val);
-          auto const out_weight_sum = thrust::get<2>(val);
-          auto const divisor =
-            out_degree == 0 ? static_cast<result_t>(1.0) : out_weight_sum;
-          return src_pagerank / divisor;
-        });
-    }
-    else {
-      auto src_val_first =
-        thrust::make_zip_iterator(thrust::make_tuple(src_pageranks.begin(), src_out_degree_first));
-      thrust::transform(
-        src_val_first, src_val_first + num_src_vertices, src_pageranks.begin(),
-        [] __device__ (auto val) {
-          auto const src_pagerank = thrust::get<0>(val);
-          auto const out_degree = thrust::get<1>(val);
-          auto const divisor =
-            out_degree == 0 ? static_cast<result_t>(1.0) : static_cast<result_t>(out_degree);
-          return src_pagerank / divisor;
-        });
-    }
-    auto src_val_first =
-      thrust::make_zip_iterator(thrust::make_tuple(src_pageranks.begin(), src_out_degree_first));
+    auto col_val_first =
+      thrust::make_zip_iterator(
+        thrust::make_tuple(
+          adj_matrix_col_pageranks.begin(), adj_matrix_col_out_weight_sum_first));
+    thrust::transform(
+      col_val_first, col_val_first + num_this_partition_adj_matrix_col_vertices,
+      adj_matrix_col_pageranks.begin(),
+      [] __device__ (auto val) {
+        auto const col_pagerank = thrust::get<0>(val);
+        auto const col_out_weight_sum = thrust::get<1>(val);
+        auto const divisor =
+          col_out_weight_sum == static_cast<result_t>(0.0)
+          ? static_cast<result_t>(1.0) : col_out_weight_sum;
+        return col_pagerank / divisor;
+      });
+
     auto dangling_sum =
-      cguraph::transform_reduce_src_v(
-        handle, graph, src_val_first,
-        [] __device__ (auto val) {
-          auto const src_pagerank = thrust::get<0>(val);
-          auto const out_degree = thrust::get<1>(val);
-          return out_degree == 0 ? src_pagerank : static_cast<result_t>(0.0);
+      transform_reduce_v_with_adj_matrix_col(
+        handle, csc_graph, thrust::make_constant_iteraotr(0)/* dummy */, col_val_first,
+        [] __device__ (auto v_val, auto col_val) {
+          auto const col_pagerank = thrust::get<0>(col_val);
+          auto const col_out_weight_sum = thrust::get<1>(col_val);
+          return col_out_weight_sum == static_cast<result_t>(0.0)
+                 ? col_pagerank : static_cast<result_t>(0.0);
         },
         static_cast<result_t>(0.0));
 
     auto unvarying_part{0.0};
-    if (!is_personalized) {
+    if (!personalize) {
       unvarying_part =
         (static_cast<result_t>(1.0 - alpha)) / static_cast<result_t>(num_vertices) +
         static_cast<result_t>(alpha) * (dangling_sum / static_cast<result_t>(num_vertices));
     }
-    transform_dst_v_transform_reduce_e(
-      handle, graph,
-      src_pageranks.begin(), thrust::make_constant_iterator(0)/* dummy */, dst_pagerank_first,
+    transform_v_transform_reduce_e(
+      handle, csc_graph,
+      thrust::make_constant_iterator(0)/* dummy */, adj_matrix_col_pageranks.begin(), pagerank_first,
       [damping_factor] __device__ (auto src_val, auto dst_val) {
         return src_val * damping_factor;
       },
       unvarying_part);
-    if (is_personalized) {
-      auto dst_val_first =
+    if (personalize) {
+      auto val_first =
         thrust::make_zip_iterator(
-          thrust::make_tuple(dst_personalization_vertex_first, dst_personalization_value_first));
+          thrust::make_tuple(personalization_vertex_first, personalization_value_first));
+      auto num_personalization_values = 
+        thrust::distance(personalization_vertex_first, personalization_vertex_last);
       thrust::for_each(
-        dst_val_first, dst_val_first + num_dst_vertices,
-        [dangling_sum, personalization_sum, dst_pagerank_first] __device__ (auto val) {
-          auto dst_v = thrust::get<0>(val);
-          auto dst_value = thrust::get<1>(val);
-          *(dst_pagerank_first + (dst_v - dst_vertex_first)) +=
-            (dangling_sum + static_cast<result_t>(1.0 - alpha)) * (dst_value / personalization_sum);
+        val_first, val_first + num_personalization_values,
+        [pagerank_first, dangling_sum, personalization_sum, this_partition_vertex_first]
+            __device__ (auto val) {
+          auto v = thrust::get<0>(val);
+          auto value = thrust::get<1>(val);
+          *(pagerank_first + (v - this_partition_vertex_first)) +=
+            (dangling_sum + static_cast<result_t>(1.0 - alpha)) * (value / personalization_sum);
         });
     }
 
     auto diff_sum =
-      transform_reduce_src_dst_v(
-        handle, graph, src_pageranks.begin(), dst_pagerank_first,
-        [] __device__ (auto src_val, auto dst_val) {
-          return std::abs(dst_val - src_val);
+      transform_reduce_v_with_adj_matrix_col(
+        handle, csc_graph, pagerank_first, adj_matrix_col_pageranks.begin(),
+        [] __device__ (auto v_val, auto col_val) {
+          return std::abs(v_val - col_val);
         });
 
     iter++;

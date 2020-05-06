@@ -32,48 +32,63 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename ResultIterator, typename vertex_t>
-void bfs_this_graph_partition(
-    raft::Handle handle, GraphType const& graph,
-    VertexIteraotr dst_distance_first, VertexIteraotr dst_predecessor_first,
+template <typename GraphType, typename VertexIterator, typename ResultIterator, typename vertex_t,
+          bool opg = false>
+void bfs_this_partition(
+    raft::Handle handle, GraphType const& csr_graph,
+    VertexIteraotr distance_first, VertexIteraotr predecessor_first,
     vertex_t starting_vertex,
-    bool direction_optimizing = false, size_t depth_limit = std::numeric_limits<size_t>::max()) {
+    bool direction_optimizing = false, size_t depth_limit = std::numeric_limits<size_t>::max(),
+    bool do_expensive_check = false) {
   static_assert(
     std::is_same<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>::value,
     "VertexIterator should point to a vertex_t value.");
   static_assert(
     std::is_integral<vertex_t>::value,
     "VertexIterator should point to an integral value.");
-  static_assert(
-    is_csr<GraphType>::value,
-    "cugraph::experimental::bfs expects a CSR graph.");
+  static_assert(is_csr<GraphType>::value, "GraphType should be CSR.");
 
-  CUGRAPH_EXPECTS(
-    graph.is_directed(), "cugraph::experimental::bfs expects a directed graph.");
-  CUGRAPH_EXPECTS(
-    graph.is_symmetric() || !direction_optimizing,
-    "cugraph::experimental::bfs expects a symmetric graph if direction optimize is true.");
-
-  auto const num_vertices = graph.get_number_of_vertices();
+  auto const num_vertices = csr_graph.get_number_of_vertices();
+  vertex_t this_partition_vertex_first{};
+  vertex_t this_partition_vertex_last{};
+  std::tie(this_partition_vertex_first, this_partition_vertex_last) =
+    csr_graph.get_this_partition_vertex_range();
+  vertex_t this_partition_adj_matrix_row_vertex_first{};
+  vertex_t this_partition_adj_matrix_row_vertex_last{};
+  std::tie(this_partition_adj_matrix_row_vertex_first, this_partition_adj_matrix_row_vertex_last) =
+    csr_graph.get_this_partition_adj_matrix_row_vertex_range();
+  vertex_t this_partition_adj_matrix_col_vertex_first{};
+  vertex_t this_partition_adj_matrix_col_vertex_last{};
+  std::tie(this_partition_adj_matrix_col_vertex_first, this_partition_adj_matrix_col_vertex_last) =
+    csr_graph.get_this_partition_adj_matrix_col_vertex_range();
   if (num_vertices == 0) {
     return;
   }
 
-  vertex_t src_vertex_first{};
-  vertex_t src_vertex_last{};
-  vertex_t dst_vertex_first{};
-  vertex_t dst_vertex_last{};
-  std::tie(src_vertex_first, src_vertex_last) = graph.get_this_src_vertex_range();
-  std::tie(dst_vertex_first, dst_vertex_last) = graph.get_this_dst_vertex_range();
-  auto num_src_vertices = src_vertex_last - src_vertex_first;
-  auto num_dst_vertices = dst_vertex_last - dst_vertex_first;
+  // 1. check input arguments
 
-  auto dst_val_first =
-    thrust::make_zip_iterator(thrust::make_tuple(dst_distance_first, dst_predecessor_first));
+  CUGRAPH_EXPECTS(
+    csr_graph.is_directed(),
+    "Invalid input argument: input graph should be directed.");
+  CUGRAPH_EXPECTS(
+    csr_graph.is_symmetric() || !direction_optimizing,
+    "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
+  CUGRAPH_EXPECTS(
+    (starting_vertex >= static_cast<vertex_t>(0)) && (starting_vertex < num_vertices),
+    "Invalid input argument: starting vertex out-of-range.");
+
+  if (do_expensive_check) {
+    // nothing to do
+  }
+
+  // 2. initialize distances and predecessors
+
+  auto val_first =
+    thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first));
   thrust::transform(
-    thrust::make_counting_iterator(dst_vertex_first),
-    thrust::make_counting_iterator(dst_vertex_last),
-    dst_val_first,
+    thrust::make_counting_iterator(this_partition_vertex_first),
+    thrust::make_counting_iterator(this_partition_vertex_last),
+    val_first,
     [starting_vertex] __device__ (auto val) {
       auto distance = std::numeric_limits<vertex_t>::max();
       if (val == starting_vertex) {
@@ -82,46 +97,71 @@ void bfs_this_graph_partition(
       return thrust::make_tuple(distance, invalid_vertex_id<vertex_t>::value);
     });
 
-  enum class Bucket { cur, num_buckets };
-  SrcVertexQueue src_froniter_queue(graph, Bucket::num_buckets);
+  // 3. initialize BFS frontier
 
-  if ((starting_vertex >= src_vertex_first) && (starting_vertex < src_vertex_last)) {
-    src_frontier_queue.get_bucket(Bucket::cur).insert(starting_vertex);
+  enum class Bucket { cur, num_buckets };
+  RowVertexFrontier row_vertex_froniter(csr_graph, Bucket::num_buckets);
+
+  if ((starting_vertex >= this_partition_adj_matrix_row_vertex_first) &&
+      (starting_vertex < this_partition_adj_matrix_row_vertex_last)) {
+    row_vertex_frontier.get_bucket(Bucket::cur).insert(starting_vertex);
   }
-  if ((starting_vertex >= dst_vertex_first) && (starting_vertex < dst_vertex_last)) {
-    *(dst_distance_first + (starting_vertex - dst_vertex_first)) = static_cast<vertex_t>(depth);
-  }
+
+  // 4. BFS iteration
 
   size_t depth{0};
-  auto cur_src_frontier_first =
-    src_frontier_queue.get_bucket(Bucket::cur).begin();
+  auto cur_row_vertex_frontier_first =
+    row_vertex_frontier.get_bucket(Bucket::cur).begin();
   while (true) {
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     }
     else {
-      auto cur_src_frontier_last =
-        src_frontier_queue.get_bucket(Bucket::cur).end();
+      auto cur_row_vertex_frontier_last =
+        row_vertex_frontier.get_bucket(Bucket::cur).end();
 
-      for_each_src_v_expand_and_transform_if_e(
-        handle, graph,
-        cur_src_frontier_first, cur_src_frontier_last,
-        thrust::make_counting_iterator(src_vertex_first), dst_distance_first,
-        thrust::make_zip_iterator(dst_distance_first, dst_predecessor_first),
-        src_frontier_queue,
-        [] __device__ (auto src_val, auto dst_val) {
-          int idx = !dst_val ? Bucket::cur : SrcVertexQueue::invalid_bucket_idx;
-          return thrust::make_tuple(idx, thrust::make_tuple(depth + 1, src_val));
+      expand_and_update_if_v_push_if_e(
+        handle, csr_graph,
+        cur_row_vertex_frontier_first, cur_row_vertex_frontier_last,
+        thrust::make_counting_iterator(this_partition_adj_matrix_row_vertex_first),
+        thrust::make_constant_iteraotr(this_partition_adj_matrix_col_vertex_first),
+        distance_first,
+        thrust::make_zip_iterator(distance_first, predecessor_first),
+        row_frontier_queue,
+        [distance_first, this_partition_vertex_first] __device__ (auto src_val, auto dst_val) {
+          auto push = true;
+          bool local =
+            opg
+            ? (dst_val >= this_partition_vertex_first) && (dst_val < this_partition_vertetx_last)
+            : true;
+          if (local) {
+            auto distance = *(distance_first + (dst_val - this_partition_vertex_first));
+            if (distance != std::numeric_limits<vertex_t>::max()) {
+              push = false;
+            }
+          }
+          return thrust::make_tuple(push, src_val);
+        },
+        reduce_op::any<vertex_t>(),
+        [] __device__ (auto v_val, auto pushed_val) {
+          auto new_val = thrust::make_tuple(depth + 1, pushed_val);
+          auto idx = RowVertexFrontier::invalid_bucket_idx;
+          if (v_val == std::numeric_limits<vertex_t>::max()) {
+            idx = Bucket::cur;
+          }
+          return thrust::make_tuple(idx, new_val);
         });
 
-      cur_src_frontier_first = cur_src_frontier_last;
-      auto cur_src_frontier_size =
+      cur_row_vertex_frontier_first = cur_row_vertex_frontier_last;
+      auto cur_row_vertex_frontier_size =
         static_cast<vertex_t>(
-          thrust::distance(cur_src_froniter_first, src_frontier_queue.get_bucket(Bucket::cur).end())
-        );
+          thrust::distance(
+            cur_row_vertex_froniter_first, row_vertex_frontier.get_bucket(Bucket::cur).end()));
+      if (opg) {
+        handle.allreduce(&cur_row_vertex_frontier_size, &cur_row_vertex_frontier_size, 1);
+      }
 
-      auto aggregate_cur_src_frontier_size = handle.reduce(cur_src_frontier_size);
-      if (aggregate_cur_src_frontier_size == 0) {
+      if (cur_row_vertex_frontier_size == 0) {
         break;
       }
     }
