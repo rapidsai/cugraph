@@ -130,6 +130,11 @@ void bfs_this_partition(
         row_frontier_queue,
         [distance_first, this_partition_vertex_first] __device__ (auto src_val, auto dst_val) {
           auto push = true;
+          // FIXME: this check is unnecessary if not OPG, instead of taking opg as a template
+          // parameter, it might be cleaner to take a graph device view object (similar to cuDF),
+          // and implement check_local() which becomes a constexpr function always returning true
+          // if not OPG. We may not need to take opg as a template parameter for graph analytics
+          // functions.
           bool local =
             opg
             ? (dst_val >= this_partition_vertex_first) && (dst_val < this_partition_vertetx_last)
