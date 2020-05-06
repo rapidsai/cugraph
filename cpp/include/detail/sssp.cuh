@@ -125,8 +125,8 @@ void sssp_this_partition(
   // 4. initialize SSSP frontier
 
   enum class Bucket { cur_near, new_near, far, num_buckets };
-  RowVertexFrontier row_vertex_frontier(csr_graph, Bucket::num_buckets);
-  row_vertex_frontier.track_updated_vertices_in_this_partition();
+  AdjMatrixRowFrontier adj_matrix_row_frontier(csr_graph, Bucket::num_buckets);
+  adj_matrix_row_frontier.track_updated_vertices_in_this_partition();
 
   // 5. SSSP iteration
 
@@ -135,19 +135,19 @@ void sssp_this_partition(
 
   if ((starting_vertex >= adj_matrix_row_vertex_first) &&
       (starting_vertex < adj_matrix_row_vertex_last)) {
-    row_vertex_frontier.get_bucket(Bucket::cur_near).insert(starting_vertex);
+    adj_matrix_row_frontier.get_bucket(Bucket::cur_near).insert(starting_vertex);
     adj_matrix_row_distances[starting_vertex - adj_matrix_row_veretx_first] =
       static_cast<weight_t>(0.0);
   }
 
   auto near_far_threshold = delta;
   while (true) {
-    row_vertex_frontier.clear_updated_vertices_in_this_partition();
+    adj_matrix_row_frontier.clear_updated_vertices_in_this_partition();
 
     expand_and_update_if_v_push_if_e(
       handle, csr_graph,
-      row_vertex_frontier.get_bucket(Bucket::cur_near).begin(),
-      row_vertex_frontier.get_bucket(Bucket::cur_near).end(),
+      adj_matrix_row_frontier.get_bucket(Bucket::cur_near).begin(),
+      adj_matrix_row_frontier.get_bucket(Bucket::cur_near).end(),
       thrust::make_zip_iterator(
         adj_matrix_row_distances.begin(),
         thrust::make_counting_iterator(this_partition_adj_matrix_row_vertex_first)),
@@ -182,19 +182,19 @@ void sssp_this_partition(
         auto idx =
           new_dist < v_val
           ? (new_dist < near_far_threshold ? Bucket::new_near : Bucket::far)
-          : RowVertexFrontier::invalid_bucket_idx;
+          : AdjMatrixRowFrontier::invalid_bucket_idx;
         return thrust::make_tuple(idx, pushed_val);
       });
 
     copy_to_adj_matrix_row(
       handle, csc_graph,
-      row_vertex_frontier.get_updated_vertices_in_this_partition().begin(),
-      row_vertex_frontier.get_updated_vertices_in_this_partition().end(),
+      adj_matrix_row_frontier.get_updated_vertices_in_this_partition().begin(),
+      adj_matrix_row_frontier.get_updated_vertices_in_this_partition().end(),
       distance_first, adj_matrix_row_distances.begin());
 
-    row_vertex_frontier.get_bucket(Bucket::cur_near).clear();
-    if (row_vertex_frontier.get_bucket(Bucket::new_near).aggregate_size() > 0) {
-      row_vertex_frontier.swap_buckets(Bucket::cur_near, Bucket::new_near);
+    adj_matrix_row_frontier.get_bucket(Bucket::cur_near).clear();
+    if (adj_matrix_row_frontier.get_bucket(Bucket::new_near).aggregate_size() > 0) {
+      adj_matrix_row_frontier.swap_buckets(Bucket::cur_near, Bucket::new_near);
     }
     else {  // near queue is empty, split the far queue
       auto old_near_far_threshold = near_far_threshold;
@@ -206,7 +206,7 @@ void sssp_this_partition(
            near_far_threshold] __device__ (auto v) {
             auto dist = *(adj_matrix_row_distance_first + (v - adj_matrix_row_vertex_first));
             if (dist < old_near_far_threshold) {
-              return RowVertexFrontier::invalid_bucket_idx;
+              return AdjMatrixRowFrontier::invalid_bucket_idx;
             }
             else if (dist < near_far_threshold) {
               return Bucket::cur_near;
@@ -215,10 +215,10 @@ void sssp_this_partition(
               return Bucket::far;
             }
           });
-        if (row_vertex_frontier.get_bucket(Bucket::cur_near).aggregate_size() > 0) {
+        if (adj_matrix_row_frontier.get_bucket(Bucket::cur_near).aggregate_size() > 0) {
           break;
         }
-        else if (row_vertex_frontier.get_bucket(Bucket::far).aggregate_size() > 0) {
+        else if (adj_matrix_row_frontier.get_bucket(Bucket::far).aggregate_size() > 0) {
           near_far_threshold += delta;
         }
         else {

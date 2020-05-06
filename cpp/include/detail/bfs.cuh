@@ -100,29 +100,29 @@ void bfs_this_partition(
   // 3. initialize BFS frontier
 
   enum class Bucket { cur, num_buckets };
-  RowVertexFrontier row_vertex_froniter(csr_graph, Bucket::num_buckets);
+  AdjMatrixRowFrontier row_vertex_froniter(csr_graph, Bucket::num_buckets);
 
   if ((starting_vertex >= this_partition_adj_matrix_row_vertex_first) &&
       (starting_vertex < this_partition_adj_matrix_row_vertex_last)) {
-    row_vertex_frontier.get_bucket(Bucket::cur).insert(starting_vertex);
+    adj_matrix_row_frontier.get_bucket(Bucket::cur).insert(starting_vertex);
   }
 
   // 4. BFS iteration
 
   size_t depth{0};
-  auto cur_row_vertex_frontier_first =
-    row_vertex_frontier.get_bucket(Bucket::cur).begin();
+  auto cur_adj_matrix_row_frontier_first =
+    adj_matrix_row_frontier.get_bucket(Bucket::cur).begin();
   while (true) {
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     }
     else {
-      auto cur_row_vertex_frontier_last =
-        row_vertex_frontier.get_bucket(Bucket::cur).end();
+      auto cur_adj_matrix_row_frontier_last =
+        adj_matrix_row_frontier.get_bucket(Bucket::cur).end();
 
       expand_and_update_if_v_push_if_e(
         handle, csr_graph,
-        cur_row_vertex_frontier_first, cur_row_vertex_frontier_last,
+        cur_adj_matrix_row_frontier_first, cur_adj_matrix_row_frontier_last,
         thrust::make_counting_iterator(this_partition_adj_matrix_row_vertex_first),
         thrust::make_constant_iteraotr(this_partition_adj_matrix_col_vertex_first),
         distance_first,
@@ -150,23 +150,23 @@ void bfs_this_partition(
         reduce_op::any<vertex_t>(),
         [] __device__ (auto v_val, auto pushed_val) {
           auto new_val = thrust::make_tuple(depth + 1, pushed_val);
-          auto idx = RowVertexFrontier::invalid_bucket_idx;
+          auto idx = AdjMatrixRowFrontier::invalid_bucket_idx;
           if (v_val == std::numeric_limits<vertex_t>::max()) {
             idx = Bucket::cur;
           }
           return thrust::make_tuple(idx, new_val);
         });
 
-      cur_row_vertex_frontier_first = cur_row_vertex_frontier_last;
-      auto cur_row_vertex_frontier_size =
+      cur_adj_matrix_row_frontier_first = cur_adj_matrix_row_frontier_last;
+      auto cur_adj_matrix_row_frontier_size =
         static_cast<vertex_t>(
           thrust::distance(
-            cur_row_vertex_froniter_first, row_vertex_frontier.get_bucket(Bucket::cur).end()));
+            cur_row_vertex_froniter_first, adj_matrix_row_frontier.get_bucket(Bucket::cur).end()));
       if (opg) {
-        handle.allreduce(&cur_row_vertex_frontier_size, &cur_row_vertex_frontier_size, 1);
+        handle.allreduce(&cur_adj_matrix_row_frontier_size, &cur_adj_matrix_row_frontier_size, 1);
       }
 
-      if (cur_row_vertex_frontier_size == 0) {
+      if (cur_adj_matrix_row_frontier_size == 0) {
         break;
       }
     }
