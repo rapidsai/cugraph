@@ -220,7 +220,8 @@ enum class cugraph_bc_implem_t {
  * @param[in] k                      If specified, number of vertex samples defined in the vertices
  * array.
  * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
- * centrality.
+ * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
+ * shortest path counters.
  * @param[in] implem                 Cugraph currently supports 2 implementations: native and
  * gunrock
  *
@@ -457,13 +458,13 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a CSR
  *
- * @param[out] distances             If set to a valid column, this is populated by distance of
+ * @param[out] distances             If set to a valid poiner, this is populated by distance of
  * every vertex in the graph from the starting vertex
  *
- * @param[out] predecessors          If set to a valid column, this is populated by bfs traversal
+ * @param[out] predecessors          If set to a valid pointer, this is populated by bfs traversal
  * predecessor of every vertex
  *
- * @param[out] sp_counters           If set to a valid column, this is populated by bfs traversal
+ * @param[out] sp_counters           If set to a valid pointer, this is populated by bfs traversal
  * shortest_path counter of every vertex
  *
  * @param[in] start_vertex           The starting vertex for breadth first search traversal

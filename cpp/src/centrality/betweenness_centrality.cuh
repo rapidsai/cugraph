@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,10 @@ class BC {
     nullptr;  // array<VT>(|V|) stores the shortest path counter for the latest SSSP
   result_t *deltas = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
 
+  // FIXME: This should be replaced using RAFT handle
+  int device_id        = 0;
+  int max_grid_dim_1D  = 0;
+  int max_block_dim_1D = 0;
   cudaStream_t stream;
 
   // -----------------------------------------------------------------------

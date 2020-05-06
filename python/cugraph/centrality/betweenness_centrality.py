@@ -19,47 +19,65 @@ from cugraph.centrality import betweenness_centrality_wrapper
 # NOTE: result_type=float could ne an intuitive way to indicate the result type
 def betweenness_centrality(G, k=None, normalized=True,
                            weight=None, endpoints=False, implementation=None,
-                           seed=None, result_dtype=np.float32):
+                           seed=None, result_dtype=np.float64):
     """
-    Compute the betweenness centrality for all nodes of the graph G. cuGraph
-    does not currently support the 'endpoints' and 'weight' parameters
+    Compute the betweenness centrality for all nodes of the graph G from a
+    sample of 'k' sources.
+    CuGraph does not currently support the 'endpoints' and 'weight' parameters
     as seen in the corresponding networkX call.
 
     Parameters
     ----------
     G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        be either directed (DiGraph) or undirected (Graph)
+        be either directed (DiGraph) or undirected (Graph).
+        Weights in the graph are ignored, the current implementation uses
+        BFS traversals. Use weight parameter if weights need to be considered
+        (currently not supported)
 
     k : int or list or None, optional, default=None
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation
-        If k is a list, use the content of the list for estimation
+        If k is a list, use the content of the list for estimation: the list
+        should contain vertices identifiers.
+        Vertices obtained through sampling or defined as a list will be used as
+        sources for traversals inside the algorithm.
 
     normalized : bool, optional
         Default is True.
         If true, the betweenness values are normalized by
-        2/((n-1)(n-2)) for Graphs (undirected), and
-        1 / ((n-1)(n-2)) for DiGraphs (directed graphs)
+        2 / ((n - 1) * (n - 2)) for Graphs (undirected), and
+        1 / ((n - 1) * (n - 2)) for DiGraphs (directed graphs)
         where n is the number of nodes in G.
+        Normalization will ensure that the values in [0, 1],
+        this normalization scales fo the highest possible value where one
+        node is crossed by every single shortest path.
 
-    weight : cudf.Series, optional, default=None
-        Specifies the weights to be used for each vertex.
+    weight : dict, optional, default=None
+        Specifies the weights to be used for each edge.
+        Currently not supported. Should contain a mapping between
+        edges and weights.
 
     endpoints : bool, optional, default=False
-        If true, include the endpoints in the shortest path counts
+        If true, include the endpoints in the shortest path counts.
+        (Not Supported)
 
     implementation : string, optional, default=None
         if implementation is None or "default", uses native cugraph,
-        if "gunrock" uses gunrock based bc
+        if "gunrock" uses gunrock based bc.
+        The default version supports normalized, k and seed options.
+        "gunrock" might be faster when considering all the sources, but
+        only return float results and consider all the vertices as sources.
 
     seed : optional
-        if k is specified and seed is not None, use seed to initialize the
-        random number generator
+        if k is specified, use seed to initialize the
+        random number generator.
+        Using None as seed relies on random.seed() behavior: using current
+        system time
 
     result_dtype : np.float32 or np.float64, optional, default=np.float32
         Indicate the data type of the betweenness centrality scores
-        Using double automatically switch implementation to default
+        Using double automatically switch implementation to "default"
 
     Returns
     -------

@@ -28,10 +28,6 @@
 
 #include "betweenness_centrality.cuh"
 
-#ifndef MAXBLOCKS
-#define MAXBLOCKS 65535  // This value is also in traversal_common.cuh
-#endif
-
 namespace cugraph {
 namespace detail {
 
@@ -66,6 +62,11 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness,
   ALLOC_TRY(&predecessors, number_of_vertices * sizeof(VT), nullptr);
   ALLOC_TRY(&sp_counters, number_of_vertices * sizeof(double), nullptr);
   ALLOC_TRY(&deltas, number_of_vertices * sizeof(result_t), nullptr);
+
+  // --- Get Device Information ---
+  CUDA_TRY(cudaGetDevice(&device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&max_grid_dim_1D, cudaDevAttrMaxGridDimX, device_id));
+  CUDA_TRY(cudaDeviceGetAttribute(&max_block_dim_1D, cudaDevAttrMaxBlockDimX, device_id));
 
   // --- Confirm that configuration went through ---
   configured = true;
@@ -128,8 +129,8 @@ void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness,
                                           VT max_depth)
 {
   dim3 grid, block;
-  block.x = 512;
-  grid.x  = min(MAXBLOCKS, (number_of_edges / block.x + 1));
+  block.x = max_block_dim_1D;
+  grid.x  = min(max_grid_dim_1D, (number_of_edges / block.x + 1));
   // Step 1) Dependencies (deltas) are initialized to 0 before starting
   thrust::fill(rmm::exec_policy(stream)->on(stream),
                deltas,
@@ -387,7 +388,6 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
 
 }  // namespace gunrock
 
-// TODO(xcadet) k parameter could be used to store the sice of 'vertices' data?
 /**
  * @param[out]  result          array<result_t>(number_of_vertices)
  * @param[in]   normalize       bool True -> Apply normalization

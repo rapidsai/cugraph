@@ -30,7 +30,6 @@ import cudf
 import rmm
 import numpy as np
 
-# TODO(xcadet): Add a parameter for BC specific path
 def bfs(input_graph, start, directed=True,
         return_sp_counter=False):
     """

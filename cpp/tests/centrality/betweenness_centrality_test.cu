@@ -320,7 +320,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 
   virtual void SetUp() {}
   virtual void TearDown() {}
-  // TODO(xcadet) Should normalize be part of the configuration instead?
+  // FIXME: Should normalize be part of the configuration instead?
   // VT         vertex identifier data type
   // ET         edge identifier data type
   // WT         edge weight data type
@@ -574,7 +574,6 @@ INSTANTIATE_TEST_CASE_P(simple_test,
 
 // BFS
 // -----------------------------------------------------------------------------
-// TODO(xcadet): This should be specialized for BFS
 // TODO: Issue #778
 TEST_P(Tests_BFS, CheckFP32) { run_current_test<int, int, float, float>(GetParam()); }
 
