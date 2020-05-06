@@ -32,6 +32,7 @@
 - PR #736 cuHornet KTruss integration
 - PR #735 Integration gunrock's betweenness centrality
 - PR #760 cuHornet Weighted KTruss
+- PR #846 OPG dask infrastructure
 
 ## Improvements
 - PR #688 Cleanup datasets after testing on gpuCI
