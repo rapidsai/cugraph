@@ -120,7 +120,7 @@ void bfs_this_partition(
       auto cur_adj_matrix_row_frontier_last =
         adj_matrix_row_frontier.get_bucket(Bucket::cur).end();
 
-      expand_and_update_if_v_push_if_e(
+      expand_and_transform_if_v_push_if_e(
         handle, csr_graph,
         cur_adj_matrix_row_frontier_first, cur_adj_matrix_row_frontier_last,
         thrust::make_counting_iterator(this_partition_adj_matrix_row_vertex_first),

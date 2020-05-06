@@ -21,166 +21,119 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
+// copy (interprocess if OPG)
+
+template <typename HandleType, typename GraphType,
+          typename VertexValueInputIterator, typename AdjMatrixRowValueOutputIterator>
+void copy_to_adj_matrix_row(
+    HandleType handle, GraphType graph,
+    VertexValueInputIterator vertex_value_input_first,
+    AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first);
+
+template <typename HandleType, typename GraphType,
+          typename VertexIterator,
+          typename VertexValueInputIterator, typename AdjMatrixRowValueOutputIterator>
+void copy_to_adj_matrix_row(
+    HandleType handle, GraphType graph,
+    VertexIterator vertex_first, VertexIterator vertex_last,
+    VertexValueInputIterator vertex_value_input_first,
+    AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first);
+
+template <typename HandleType, typename GraphType,
+          typename VertexValueInputIterator, typename AdjMatrixColValueOutputIterator>
+void copy_to_adj_matrix_col(
+    HandleType handle, GraphType graph,
+    VertexValueInputIterator vertex_value_input_first,
+    AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first);
+
+template <typename HandleType, typename GraphType,
+          typename VertexIterator,
+          typename VertexValueInputIterator, typename AdjMatrixColValueOutputIterator>
+void copy_to_adj_matrix_col(
+    HandleType handle, GraphType graph,
+    VertexIterator vertex_first, VertexIterator vertex_last,
+    VertexValueInputIterator vertex_value_input_first,
+    AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first);
+
 // 1-level
 
-template <typename HandleType,
-          typename GraphType,
-          typename DstValueInputIterator,
-          typename SrcValueOutputIterator>
-void copy_dst_values_to_src(HandleType handle,
-                            GraphType graph,
-                            DstValueInputIterator dst_value_input_first,
-                            SrcValueOutputIterator src_value_output_first);
+template <typename HandleType, typename GraphType,
+          typename VertexValueInputIterator, typename AdjMatrixColValueInputIterator,
+          typename VertexValueOutputIterator,
+          typename VertexOp, typename T>
+T transform_reduce_v_with_adj_matrix_col(
+    HandelType handle, GraphType graph,
+    VertexValueInputIterator vertex_value_input_first,
+    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+    VertexValueOutputIterator vetex_value_output_first,
+    VertexOp v_op, T init);
 
-template <typename HandleType, typename GraphType, typename SrcValueInputIterator, typename T>
-T reduce_src_v(HandelType handle,
-               GraphType graph,
-               SrcValueInputIterator src_value_input_first,
-               T init);
+template <typename HandleType, typename GraphType,
+          typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
+          typename EdgeOp, typename T>
+T transform_reduce_e(
+    HandelType handle, GraphType graph,
+    AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+    EdgeOp e_op, T init);
 
-template <typename HandleType, typename GraphType, typename DstValueInputIterator, typename T>
-T reduce_dst_v(HandelType handle,
-               GraphType graph,
-               DstValueInputIterator dst_value_input_first,
-               T init);
-
-template <typename HandleType,
-          typename GraphType,
-          typename SrcValueInputIterator,
-          typename TransformOp,
-          typename T>
-T transform_reduce_src_v(HandelType handle,
-                         GraphType graph,
-                         SrcValueInputIterator src_value_input_first,
-                         TransformOp transform_op,
-                         T init);
-
-template <typename HandleType,
-          typename GraphType,
-          typename DstValueInputIterator,
-          typename TransformOp,
-          typename T>
-T transform_reduce_dst_v(HandelType handle,
-                         GraphType graph,
-                         DstValueInputIterator dst_value_input_first,
-                         TransformOp transform_op,
-                         T init);
-
-template <typename HandleType,
-          typename GraphType,
-          typename SrcValueInputIterator,
-          typename DstValueInputIterator,
-          typename ReduceOp,
-          typename T>
-T transform_reduce_src_dst_v(HandelType handle,
-                             GraphType graph,
-                             SrcValueInputIterator src_value_input_first,
-                             DstValueInputIterator dst_value_input_first,
-                             ReduceOp reduce_op,
-                             T init);
-
-template <typename HandleType,
-          typename GraphType,
-          typename SrcValueInputIterator,
-          typename DstValueInputIterator,
-          typename TransformOp,
-          typename T>
-T transform_reduce_e(HandelType handle,
-                     GraphType graph,
-                     SrcValueInputIterator src_value_input_first,
-                     DstValueInputIterator dst_value_input_first,
-                     TransformOp transform_op,
-                     T init);
+template <typename HandleType, typename GraphType,
+          typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
+          typename EdgeOp>
+GraphType::edge_type count_if_e(
+    HandelType handle, GraphType graph,
+    AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+    EdgeOp e_op);
 
 // 2-levels
 
-template <typename HandleType,
-          typename GraphType,
-          typename SrcValueInputIterator,
-          typename DstValueInputIterator,
-          typename SrcValueOutputIterator,
-          typename EdgeOp,
-          typename T>
-void transform_src_v_transform_reduce_e(HandelType handle,
-                                        GraphType graph,
-                                        SrcValueInputIterator src_value_input_first,
-                                        DstValueInputIterator dst_value_input_first,
-                                        SrcValueOutputIterator src_value_output_first,
-                                        EdgeOp e_op,
-                                        T init);
+template <typename HandleType, typename GraphType,
+          typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
+          typename VertexValueInputIterator,
+          typename VertexValueOutputIterator,
+          typename EdgeOp, typename T>
+void transform_v_transform_reduce_e(
+    HandelType handle, GraphType graph,
+    AdjMatrixRowValueIterator adj_matrix_row_value_input_first,
+    AdjMatrixColValueIterator adj_matrix_col_value_input_first,
+    VertexValueInputIterator vertex_value_input_first,
+    VertexValueOutputIterator vertex_value_output_first,
+    EdgeOp e_op, T init);
 
-template <typename HandleType,
-          typename GraphType,
-          typename SrcValueInputIterator,
-          typename DstValueInputIterator,
-          typename DstValueOutputIterator,
-          typename EdgeOp,
-          typename T>
-void transform_dst_v_transform_reduce_e(HandelType handle,
-                                        GraphType graph,
-                                        SrcValueInputIterator src_value_input_first,
-                                        DstValueInputIterator dst_value_input_first,
-                                        DstValueOutputIterator dst_value_output_first,
-                                        EdgeOp e_op,
-                                        T init);
+template <typename HandleType, typename GraphType,
+          typename RowIterator,
+          typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
+          typename VertexValueInputIterator,
+          typename VertexValueOutputIterator,
+          typename RowFrontierType,
+          typename EdgeOp, typename ReduceOp, typename VertexOp>
+void expand_and_transform_if_v_push_if_e(
+    HandelType handle, GraphType graph,
+    RowIterator row_first, RowIterator row_last,
+    AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+    AdjMatrixColValueInputIterator adj_matrix_row_value_input_last,
+    VertexValueInputIterator vertex_value_input_first,
+    VertexValueOutputIterator vertex_value_output_first,
+    RowFrontierType row_frontier,
+    EdgeOp e_op, ReduceOp reduce_op, VertexOp v_op);
 
-template <typename HandleType,
-          typename GraphType,
-          typename SrcVertexIterator,
-          typename SrcValueInputIterator,
-          typename DstValueInputIterator,
-          typename DstValueOutputIterator,
-          typename SrcQueueOutputIterator,
-          typename EdgeOp>
-void for_each_src_v_expand_and_transform_if_e(HandelType handle,
-                                              GraphType graph,
-                                              SrcVertexIterator src_vertex_first,
-                                              SrcVertexIterator src_vertex_last,
-                                              SrcValueInputIterator src_value_input_first,
-                                              DstValueInputIterator dst_value_input_first,
-                                              DstValueOutputIterator dst_value_output_first,
-                                              SrcQueueOutputIterator src_queue_output_first,
-                                              EdgeOp e_op);
-
-template <typename HandleType,
-          typename GraphType,
-          typename SrcVertexIterator,
-          typename SrcValueInputIterator,
-          typename DstValueInputIterator,
-          typename DstValueOutputIterator,
-          typename SrcQueueOutputIterator,
-          typename SrcValueOutputIterator,
-          typename EdgeOp,
-          typename ReduceOp,
-          typename TransformOp>
-void for_each_src_v_expand_and_transform_if_e(HandelType handle,
-                                              GraphType graph,
-                                              SrcVertexIterator src_vertex_first,
-                                              SrcVertexIterator src_vertex_last,
-                                              SrcValueInputIterator src_value_input_first,
-                                              DstValueInputIterator dst_value_input_first,
-                                              DstValueOutputIterator dst_value_output_first,
-                                              SrcQueueOutputIterator src_queue_output_first,
-                                              SrcValueOutputIterator src_value_output_first,
-                                              EdgeOp e_op,
-                                              ReduceOp reduce_op,
-                                              TransformOp transform_op);
 /*
 iterating over lower triangular (or upper triangular) : triangle counting
 LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and
-degree(j) : triangle counting push-pull switching support (e.g. DOBFS), in this case, we need both
-CSR & CSC (trade-off execution time vs memory requirement, unless graph is symmetric) should I take
-multi-GPU support as a template argument? Add bool expensive_check = false ? cugraph::count_if as a
-multi-GPU wrapper of thrust::count_if? (for expensive check) if graph is symmetric, there will be
-additional optimization opportunities (e.g. in-degree == out-degree)
-
+degree(j) : triangle counting
+push-pull switching support (e.g. DOBFS), in this case, we need both
+CSR & CSC (trade-off execution time vs memory requirement, unless graph is symmetric)
+should I take multi-GPU support as a template argument?
+Add bool expensive_check = false ?
+cugraph::count_if as a multi-GPU wrapper of thrust::count_if? (for expensive check)
+if graph is symmetric, there will be additional optimization opportunities (e.g. in-degree == out-degree)
 For BFS, sending a bit vector (for the entire set of dest vertices per partitoin may work better
-
 we can use thrust::set_intersection for triangle counting
-
 think about adding thrust wrappers for reduction functions.
 thrust::(); if (opg) { allreduce }; can be cugraph::(), and be more consistant with other APIs that
 hide communication inside if opg.
+Can I pass nullptr for dummy instead of thrust::make_counting_iterator(0)?
 */
 
 }  // namespace detail

@@ -144,7 +144,7 @@ void sssp_this_partition(
   while (true) {
     adj_matrix_row_frontier.clear_updated_vertices_in_this_partition();
 
-    expand_and_update_if_v_push_if_e(
+    expand_and_transform_if_v_push_if_e(
       handle, csr_graph,
       adj_matrix_row_frontier.get_bucket(Bucket::cur_near).begin(),
       adj_matrix_row_frontier.get_bucket(Bucket::cur_near).end(),
