@@ -184,10 +184,17 @@ ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 # - ECG tests ---------------------------------------------------------------------------------
 
 set(ECG_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/ecg_test.cu")
 
 ConfigureTest(ECG_TEST "${ECG_TEST_SRC}" "")
+
+###################################################################################################
+# - TRIANGLE tests ---------------------------------------------------------------------------------
+
+set(TRIANGLE_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/triangle_test.cu")
+
+ConfigureTest(TRIANGLE_TEST "${TRIANGLE_TEST_SRC}" "")
 
 ###################################################################################################
 # - RENUMBERING tests -----------------------------------------------------------------------------

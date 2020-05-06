@@ -718,6 +718,7 @@ TrianglesCount<IndexType>::TrianglesCount(IndexType num_vertices,
   // fill spmat struct;
   m_mat.nnz    = num_edges;
   m_mat.N      = num_vertices;
+  m_mat.nrows  = num_vertices;
   m_mat.roff_d = row_offsets;
   m_mat.cols_d = col_indices;
 
@@ -729,7 +730,6 @@ TrianglesCount<IndexType>::TrianglesCount(IndexType num_vertices,
 template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_bsh()
 {
-  //    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
   if (m_shared_mem_per_block * 8 < (size_t)m_mat.nrows) {
     FatalError("Number of vertices too high to use this kernel!", NVGRAPH_ERR_BAD_PARAMETERS);
   }
@@ -746,8 +746,6 @@ void TrianglesCount<IndexType>::tcount_bsh()
 template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_b2b()
 {
-  //    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
-
   // allocate a big enough array for output
 
   rmm::device_vector<uint64_t> ocnt_d(m_mat.nrows, uint64_t{0});
@@ -782,8 +780,6 @@ void TrianglesCount<IndexType>::tcount_b2b()
 template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_wrp()
 {
-  //    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
-
   // allocate a big enough array for output
   rmm::device_vector<uint64_t> ocnt_d(DIV_UP(m_mat.nrows, (THREADS / 32)), uint64_t{0});
 
@@ -808,7 +804,6 @@ void TrianglesCount<IndexType>::tcount_wrp()
 template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_thr()
 {
-  //    printf("TrianglesCount: %s\n", __func__); fflush(stdout);
   int maxblocks = m_multi_processor_count * m_max_threads_per_multi_processor / THREADS;
 
   int nblock = MIN(maxblocks, DIV_UP(m_mat.nrows, THREADS));
