@@ -16,45 +16,48 @@
 
 // snmg spmv
 // Author: Alex Fender afender@nvidia.com
- 
+
 #pragma once
-#include "cub/cub.cuh"
 #include <omp.h>
+#include "cub/cub.cuh"
 #include "rmm_utils.h"
+#include "snmg/utils.cuh"
 #include "utilities/cusparse_helper.h"
 #include "utilities/graph_utils.cuh"
-#include "snmg/utils.cuh"
 //#define SNMG_DEBUG
 
-namespace cugraph { 
+namespace cugraph {
 namespace snmg {
 
 template <typename IndexType, typename ValueType>
-class SNMGcsrmv 
-{ 
+class SNMGcsrmv {
+ private:
+  size_t v_glob;
+  size_t v_loc;
+  size_t e_loc;
+  SNMGinfo env;
+  size_t* part_off;
+  int i;
+  int p;
+  IndexType* off;
+  IndexType* ind;
+  ValueType* val;
+  ValueType* y_loc;
+  cudaStream_t stream;
+  cugraph::detail::CusparseCsrMV<ValueType> spmv;
 
-  private:
-    size_t v_glob;
-    size_t v_loc;
-    size_t e_loc;
-    SNMGinfo env;
-    size_t* part_off;
-    int i;
-    int p;
-    IndexType * off;
-    IndexType * ind;
-    ValueType * val;
-    ValueType * y_loc;
-    cudaStream_t stream;
-    cugraph::detail::CusparseCsrMV<ValueType> spmv;
-  public: 
-    SNMGcsrmv(SNMGinfo & env_, size_t* part_off_, 
-              IndexType * off_, IndexType * ind_, ValueType * val_, ValueType ** x);
+ public:
+  SNMGcsrmv(SNMGinfo& env_,
+            size_t* part_off_,
+            IndexType* off_,
+            IndexType* ind_,
+            ValueType* val_,
+            ValueType** x);
 
-    ~SNMGcsrmv();
+  ~SNMGcsrmv();
 
-    void run (ValueType ** x);
+  void run(ValueType** x);
 };
 
-
-} } //namespace
+}  // namespace snmg
+}  // namespace cugraph

@@ -16,46 +16,43 @@
 
 #include "include/nvgraph_error.hxx"
 
-namespace nvgraph
+namespace nvgraph {
+
+void nvgraph_default_output(const char *msg, int length)
 {
-
-
-  void nvgraph_default_output(const char *msg, int length) {
 #if defined(DEBUG) || defined(VERBOSE_DIAG)
-    printf("%s", msg);
+  printf("%s", msg);
 #endif
-  }
+}
 
-  NVGRAPH_output_callback nvgraph_output = nvgraph_default_output;
-  NVGRAPH_output_callback error_output = nvgraph_default_output;
-  //NVGRAPH_output_callback nvgraph_distributed_output = nvgraph_default_output;*/
+NVGRAPH_output_callback nvgraph_output = nvgraph_default_output;
+NVGRAPH_output_callback error_output   = nvgraph_default_output;
+// NVGRAPH_output_callback nvgraph_distributed_output = nvgraph_default_output;*/
 
-  // Timer 
-  struct cuda_timer::event_pair
-  {
-    cudaEvent_t start;
-    cudaEvent_t end;
-  };
-  cuda_timer::cuda_timer(): p(new event_pair()) { }
-  
-  void cuda_timer::start()
-  {
-    cudaEventCreate(&p->start);
-    cudaEventCreate(&p->end);
-    cudaEventRecord(p->start, 0);
-    cudaCheckError();
-  }
-  float cuda_timer::stop()
-  {
-    cudaEventRecord(p->end, 0);
-    cudaEventSynchronize(p->end);
-    float elapsed_time;
-    cudaEventElapsedTime(&elapsed_time, p->start, p->end);
-    cudaEventDestroy(p->start);
-    cudaEventDestroy(p->end);
-    cudaCheckError();
-    return elapsed_time;
-  }
+// Timer
+struct cuda_timer::event_pair {
+  cudaEvent_t start;
+  cudaEvent_t end;
+};
+cuda_timer::cuda_timer() : p(new event_pair()) {}
 
-} // end namespace nvgraph
+void cuda_timer::start()
+{
+  cudaEventCreate(&p->start);
+  cudaEventCreate(&p->end);
+  cudaEventRecord(p->start, 0);
+  cudaCheckError();
+}
+float cuda_timer::stop()
+{
+  cudaEventRecord(p->end, 0);
+  cudaEventSynchronize(p->end);
+  float elapsed_time;
+  cudaEventElapsedTime(&elapsed_time, p->start, p->end);
+  cudaEventDestroy(p->start);
+  cudaEventDestroy(p->end);
+  cudaCheckError();
+  return elapsed_time;
+}
 
+}  // end namespace nvgraph

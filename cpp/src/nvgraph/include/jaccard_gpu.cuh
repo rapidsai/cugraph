@@ -18,8 +18,17 @@
 
 #pragma once
 
-namespace nvlouvain 
-{
-template <bool weighted, typename T> 
-int jaccard(int n, int e, int *csrPtr, int *csrInd, T * csrVal, T *v, T *work, T gamma, T *weight_i, T *weight_s, T *weight_j);
+namespace nvlouvain {
+template <bool weighted, typename T>
+int jaccard(int n,
+            int e,
+            int *csrPtr,
+            int *csrInd,
+            T *csrVal,
+            T *v,
+            T *work,
+            T gamma,
+            T *weight_i,
+            T *weight_s,
+            T *weight_j);
 }

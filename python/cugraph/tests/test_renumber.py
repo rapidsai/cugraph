@@ -210,8 +210,8 @@ def test_renumber_files_col(managed, pool, graph_file):
     src, dst, numbering = cugraph.renumber_from_cudf(gdf, ['src'], ['dst'])
 
     for i in range(len(gdf)):
-        assert sources[i] == (numbering['0'][src[i]] - translate)
-        assert destinations[i] == (numbering['0'][dst[i]] - translate)
+        assert sources[i] == (numbering['0'].iloc[src[i]] - translate)
+        assert destinations[i] == (numbering['0'].iloc[dst[i]] - translate)
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -245,5 +245,5 @@ def test_renumber_files_multi_col(managed, pool, graph_file):
         gdf, ['src', 'src_old'], ['dst', 'dst_old'])
 
     for i in range(len(gdf)):
-        assert sources[i] == (numbering['0'][src[i]] - translate)
-        assert destinations[i] == (numbering['0'][dst[i]] - translate)
+        assert sources[i] == (numbering['0'].iloc[src[i]] - translate)
+        assert destinations[i] == (numbering['0'].iloc[dst[i]] - translate)

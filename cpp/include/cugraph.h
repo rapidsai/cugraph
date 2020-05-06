@@ -15,9 +15,8 @@
  */
 #pragma once
 
-
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 
 #include <cudf/cudf.h>
 
