@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <rmm/device_buffer.hpp>
+#include <comms_mpi.hpp>
 
 namespace cugraph {
 namespace experimental {
@@ -50,6 +51,7 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphViewBase {
  public:
+  Comm comm;
   WT *edge_data;  ///< edge weight
 
   GraphProperties prop;
@@ -60,12 +62,15 @@ class GraphViewBase {
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
    *
-   * @param[out]    identifier      Pointer to device memory to store the vertex identifiers
+   * @param[out]    identifier      Pointer to device memory to store the vertex
+   * identifiers
    */
   void get_vertex_identifiers(VT *identifiers) const;
+  void set_communicator(Comm &comm_) { comm = comm_; }
 
   GraphViewBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
     : edge_data(edge_data_),
+      comm(),
       prop(),
       number_of_vertices(number_of_vertices_),
       number_of_edges(number_of_edges_)
@@ -142,9 +147,11 @@ class GraphCompressedSparseBaseView : public GraphViewBase<VT, ET, WT> {
   VT *indices{nullptr};  ///< CSR indices
 
   /**
-   * @brief      Fill the identifiers in the array with the source vertex identifiers
+   * @brief      Fill the identifiers in the array with the source vertex
+   * identifiers
    *
-   * @param[out]    src_indices      Pointer to device memory to store the source vertex identifiers
+   * @param[out]    src_indices      Pointer to device memory to store the
+   * source vertex identifiers
    */
   void get_source_indices(VT *src_indices) const;
 

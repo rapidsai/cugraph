@@ -1,12 +1,17 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
- * NVIDIA CORPORATION and its licensors retain all intellectual property
- * and proprietary rights in and to this software, related documentation
- * and any modifications thereto.  Any use, reproduction, disclosure or
- * distribution of this software and related documentation without an express
- * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <graph.hpp>
@@ -31,7 +36,9 @@ void degree_from_offsets(vertex_t number_of_vertices,
 }
 
 template <typename vertex_t, typename edge_t>
-void degree_from_vertex_ids(edge_t number_of_edges,
+void degree_from_vertex_ids(const cugraph::experimental::Comm &comm,
+                            vertex_t number_of_vertices,
+                            edge_t number_of_edges,
                             vertex_t const *indices,
                             edge_t *degree,
                             cudaStream_t stream)
@@ -41,6 +48,7 @@ void degree_from_vertex_ids(edge_t number_of_edges,
     thrust::make_counting_iterator<edge_t>(0),
     thrust::make_counting_iterator<edge_t>(number_of_edges),
     [indices, degree] __device__(edge_t e) { cugraph::atomicAdd(degree + indices[e], 1); });
+  comm.allreduce(number_of_vertices, degree, degree, cugraph::experimental::ReduceOp::SUM);
 }
 
 }  // namespace
@@ -74,11 +82,24 @@ void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) con
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::number_of_edges, src_indices, degree, stream);
+    if (GraphViewBase<VT, ET, WT>::comm.get_p())  // FIXME retrieve global source
+                                              // indexing for the allreduce work
+      CUGRAPH_FAIL("OPG degree not implemented for OUT degree");
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+                           GraphViewBase<VT, ET, WT>::number_of_vertices,
+                           GraphViewBase<VT, ET, WT>::number_of_edges,
+                           src_indices,
+                           degree,
+                           stream);
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::number_of_edges, dst_indices, degree, stream);
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+                           GraphViewBase<VT, ET, WT>::number_of_vertices,
+                           GraphViewBase<VT, ET, WT>::number_of_edges,
+                           dst_indices,
+                           degree,
+                           stream);
   }
 }
 
@@ -94,11 +115,20 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET *degree, DegreeDirecti
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
+    if (GraphViewBase<VT, ET, WT>::comm.get_p())
+      CUGRAPH_FAIL("OPG degree not implemented for OUT degree");  // FIXME retrieve global
+                                                                  // source indexing for
+                                                                  // the allreduce to work
     degree_from_offsets(GraphViewBase<VT, ET, WT>::number_of_vertices, offsets, degree, stream);
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::number_of_edges, indices, degree, stream);
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+                           GraphViewBase<VT, ET, WT>::number_of_vertices,
+                           GraphViewBase<VT, ET, WT>::number_of_edges,
+                           indices,
+                           degree,
+                           stream);
   }
 }
 

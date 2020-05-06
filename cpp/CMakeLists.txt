@@ -290,6 +290,7 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
+    src/comms/mpi/comms_mpi.cpp
     src/ktruss/ktruss.cu
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
@@ -351,6 +352,10 @@ add_library(cugraph SHARED
 #        wait until after cugunrock is constructed.
 #
 add_dependencies(cugraph cugunrock)
+
+if (BUILD_MPI)
+    add_compile_definitions(ENABLE_OPG=1)
+endif (BUILD_MPI)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
