@@ -18,6 +18,10 @@
 
 from libcpp cimport bool
 
+cdef extern from "comms_mpi.hpp" namespace "cugraph::experimental":
+    cdef cppclass Comm:
+        pass
+
 cdef extern from "graph.hpp" namespace "cugraph::experimental":
 
     ctypedef enum PropType:
@@ -45,7 +49,7 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         ET number_of_edges
 
         void get_vertex_identifiers(VT *) const
-
+        void set_communicator(Comm &comm_)
         GraphBase(WT*,VT,ET)
 
     cdef cppclass GraphCOO[VT,ET,WT](GraphBase[VT,ET,WT]):

@@ -289,7 +289,8 @@ template <typename VT, typename ET, typename WT>
 void mg_pagerank_temp(experimental::GraphCSC<VT,ET,WT> const &graph, WT* pagerank){
 
 std::cout<<"\nINSIDE CPP\n";
-
+std::cout<<graph.comm.get_rank()<<"\n";
+std::cout<<graph.comm.get_p()<<"\n";
 }
 
 // explicit instantiation

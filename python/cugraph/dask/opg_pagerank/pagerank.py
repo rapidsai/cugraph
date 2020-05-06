@@ -23,7 +23,7 @@ def common_func(sID, data):
     print(data)
     sessionstate = worker_state(sID)
     print("nworkers: ", sessionstate['nworkers'],"  id: ", sessionstate['wid'])
-    mg_pagerank.mg_pagerank(data[0])
+    mg_pagerank.mg_pagerank(data[0], sessionstate['comm'])
     return 1
 
 def pagerank(input_graph):
