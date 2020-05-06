@@ -80,8 +80,8 @@ def view_edge_list(input_graph):
 
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
-    cdef GraphCSR[int,int,float] graph
-    graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    cdef GraphCSRView[int,int,float] graph
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     src_indices = cudf.Series(np.zeros(num_edges), dtype= indices.dtype)
     cdef uintptr_t c_src_indices = src_indices.__cuda_array_interface__['data'][0]
@@ -113,14 +113,14 @@ def _degree_coo(src, dst, x=0):
     vertex_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     degree_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
-    cdef GraphCOO[int,int,float] graph
+    cdef GraphCOOView[int,int,float] graph
 
     cdef uintptr_t c_vertex = vertex_col.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_degree = degree_col.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_src = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst = dst.__cuda_array_interface__['data'][0]
 
-    graph = GraphCOO[int,int,float](<int*>c_src, <int*>c_dst, <float*>NULL, num_verts, num_edges)
+    graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>NULL, num_verts, num_edges)
 
     graph.degree(<int*> c_degree, dir)
     graph.get_vertex_identifiers(<int*>c_vertex)
@@ -148,14 +148,14 @@ def _degree_csr(offsets, indices, x=0):
     vertex_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     degree_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
-    cdef GraphCSR[int,int,float] graph
+    cdef GraphCSRView[int,int,float] graph
 
     cdef uintptr_t c_vertex = vertex_col.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_degree = degree_col.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
 
-    graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
         
     graph.degree(<int*> c_degree, dir)
     graph.get_vertex_identifiers(<int*>c_vertex)
@@ -194,7 +194,7 @@ def _degrees(input_graph):
 
 
 def get_two_hop_neighbors(input_graph):
-    cdef GraphCSR[int,int,float] graph
+    cdef GraphCSRView[int,int,float] graph
 
     offsets = None
     indices = None
@@ -217,7 +217,7 @@ def get_two_hop_neighbors(input_graph):
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
 
-    graph = GraphCSR[int,int,float](<int*>c_offsets, <int*> c_indices, <float*>NULL, num_verts, num_edges)
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*> c_indices, <float*>NULL, num_verts, num_edges)
 
     count = c_get_two_hop_neighbors(graph, <int**> &c_first, <int**> &c_second)
     

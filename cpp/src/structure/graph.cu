@@ -57,21 +57,21 @@ namespace cugraph {
 namespace experimental {
 
 template <typename VT, typename ET, typename WT>
-void GraphBase<VT, ET, WT>::get_vertex_identifiers(VT *identifiers) const
+void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT *identifiers) const
 {
   cugraph::detail::sequence<VT>(number_of_vertices, identifiers);
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBase<VT, ET, WT>::get_source_indices(VT *src_indices) const
+void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT *src_indices) const
 {
   CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
   cugraph::detail::offsets_to_indices<VT>(
-    offsets, GraphBase<VT, ET, WT>::number_of_vertices, src_indices);
+    offsets, GraphViewBase<VT, ET, WT>::number_of_vertices, src_indices);
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCOO<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
+void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
 {
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
@@ -82,21 +82,21 @@ void GraphCOO<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    if (GraphBase<VT, ET, WT>::comm.get_p())  // FIXME retrieve global source
-                                              // indexing for the allreduce work
+    if (GraphViewBase<VT, ET, WT>::comm.get_p())  // FIXME retrieve global source
+                                                  // indexing for the allreduce work
       CUGRAPH_FAIL("OPG degree not implemented for OUT degree");
-    degree_from_vertex_ids(GraphBase<VT, ET, WT>::comm,
-                           GraphBase<VT, ET, WT>::number_of_vertices,
-                           GraphBase<VT, ET, WT>::number_of_edges,
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+                           GraphViewBase<VT, ET, WT>::number_of_vertices,
+                           GraphViewBase<VT, ET, WT>::number_of_edges,
                            src_indices,
                            degree,
                            stream);
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphBase<VT, ET, WT>::comm,
-                           GraphBase<VT, ET, WT>::number_of_vertices,
-                           GraphBase<VT, ET, WT>::number_of_edges,
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+                           GraphViewBase<VT, ET, WT>::number_of_vertices,
+                           GraphViewBase<VT, ET, WT>::number_of_edges,
                            dst_indices,
                            degree,
                            stream);
@@ -104,7 +104,7 @@ void GraphCOO<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBase<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
+void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
 {
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
@@ -115,17 +115,17 @@ void GraphCompressedSparseBase<VT, ET, WT>::degree(ET *degree, DegreeDirection d
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    if (GraphBase<VT, ET, WT>::comm.get_p())
+    if (GraphViewBase<VT, ET, WT>::comm.get_p())
       CUGRAPH_FAIL("OPG degree not implemented for OUT degree");  // FIXME retrieve global
                                                                   // source indexing for
                                                                   // the allreduce to work
-    degree_from_offsets(GraphBase<VT, ET, WT>::number_of_vertices, offsets, degree, stream);
+    degree_from_offsets(GraphViewBase<VT, ET, WT>::number_of_vertices, offsets, degree, stream);
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphBase<VT, ET, WT>::comm,
-                           GraphBase<VT, ET, WT>::number_of_vertices,
-                           GraphBase<VT, ET, WT>::number_of_edges,
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+                           GraphViewBase<VT, ET, WT>::number_of_vertices,
+                           GraphViewBase<VT, ET, WT>::number_of_edges,
                            indices,
                            degree,
                            stream);
@@ -133,11 +133,11 @@ void GraphCompressedSparseBase<VT, ET, WT>::degree(ET *degree, DegreeDirection d
 }
 
 // explicit instantiation
-template class GraphBase<int32_t, int32_t, float>;
-template class GraphBase<int32_t, int32_t, double>;
-template class GraphCOO<int32_t, int32_t, float>;
-template class GraphCOO<int32_t, int32_t, double>;
-template class GraphCompressedSparseBase<int32_t, int32_t, float>;
-template class GraphCompressedSparseBase<int32_t, int32_t, double>;
+template class GraphViewBase<int32_t, int32_t, float>;
+template class GraphViewBase<int32_t, int32_t, double>;
+template class GraphCOOView<int32_t, int32_t, float>;
+template class GraphCOOView<int32_t, int32_t, double>;
+template class GraphCompressedSparseBaseView<int32_t, int32_t, float>;
+template class GraphCompressedSparseBaseView<int32_t, int32_t, double>;
 }  // namespace experimental
 }  // namespace cugraph

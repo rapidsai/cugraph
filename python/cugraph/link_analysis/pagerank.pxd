@@ -23,7 +23,7 @@ from libcpp cimport bool
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void pagerank[VT,ET,WT](
-        const GraphCSC[VT,ET,WT] &graph,
+        const GraphCSCView[VT,ET,WT] &graph,
         WT *pagerank,
         VT size,
         VT *personalization_subset,
