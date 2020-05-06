@@ -61,8 +61,8 @@ def force_atlas2(input_graph,
     num_verts = input_graph.number_of_vertices()
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
 
-    cdef GraphCOO[int,int,float] graph_float
-    cdef GraphCOO[int,int,double] graph_double
+    cdef GraphCOOView[int,int,float] graph_float
+    cdef GraphCOOView[int,int,double] graph_double
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
@@ -73,9 +73,9 @@ def force_atlas2(input_graph,
     if input_graph.edgelist.weights:
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t x_start = <uintptr_t>NULL 
-    cdef uintptr_t y_start = <uintptr_t>NULL 
-    cdef uintptr_t pos_ptr = <uintptr_t>NULL 
+    cdef uintptr_t x_start = <uintptr_t>NULL
+    cdef uintptr_t y_start = <uintptr_t>NULL
+    cdef uintptr_t pos_ptr = <uintptr_t>NULL
 
     if pos_list is not None:
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
@@ -87,14 +87,14 @@ def force_atlas2(input_graph,
 
     if input_graph.edgelist.weights \
         and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
-        pos = rmm.device_array(                                                   
-            (num_verts, 2),                                             
-            order="F",                                                          
-            dtype=np.float64)  
+        pos = rmm.device_array(
+            (num_verts, 2),
+            order="F",
+            dtype=np.float64)
 
-        pos_ptr = pos.device_ctypes_pointer.value 
- 
-        graph_double = GraphCOO[int,int, double](<int*>c_src_indices,
+        pos_ptr = pos.device_ctypes_pointer.value
+
+        graph_double = GraphCOOView[int,int, double](<int*>c_src_indices,
                 <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
 
         c_force_atlas2[int, int, double](graph_double,
@@ -119,14 +119,14 @@ def force_atlas2(input_graph,
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
     else:
-        pos = rmm.device_array(                                                   
-            (num_verts, 2),                                             
-            order="F",                                                          
-            dtype=np.float32)  
+        pos = rmm.device_array(
+            (num_verts, 2),
+            order="F",
+            dtype=np.float32)
 
-        pos_ptr = pos.device_ctypes_pointer.value 
- 
-        graph_float = GraphCOO[int,int,float](<int*>c_src_indices,
+        pos_ptr = pos.device_ctypes_pointer.value
+
+        graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
                 <int*>c_dst_indices, <float*>c_weights, num_verts,
                 num_edges)
         c_force_atlas2[int, int, float](graph_float,
@@ -150,7 +150,7 @@ def force_atlas2(input_graph,
         pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
-        
+
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 

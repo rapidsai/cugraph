@@ -20,7 +20,7 @@
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
+void force_atlas2(experimental::GraphCOOView<VT, ET, WT> const &graph,
                   float *pos, const int max_iter,
                   float *x_start,
                   float *y_start, bool outbound_attraction_distribution,
@@ -62,7 +62,7 @@ void force_atlas2(experimental::GraphCOO<VT, ET, WT> const &graph,
 }
 
 template void force_atlas2<int, int, float>(
-        experimental::GraphCOO<int, int, float> const &graph,
+        experimental::GraphCOOView<int, int, float> const &graph,
         float *pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,
@@ -74,7 +74,7 @@ template void force_atlas2<int, int, float>(
         internals::GraphBasedDimRedCallback* callback);
 
 template void force_atlas2<int, int, double>(
-        experimental::GraphCOO<int, int, double> const &graph,
+        experimental::GraphCOOView<int, int, double> const &graph,
         float *pos, const int max_iter,
         float *x_start, float *y_start,
         bool outbound_attraction_distribution,

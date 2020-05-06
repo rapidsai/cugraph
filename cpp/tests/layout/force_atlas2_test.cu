@@ -114,7 +114,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
      ASSERT_EQ(fclose(fpin),0);
 
 
-     cugraph::experimental::GraphCOO<int,int,T> G(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
+     cugraph::experimental::GraphCOOView<int,int,T> G(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
 
      std::cout << m << " "<< nnz << "\n";
 
@@ -184,10 +184,10 @@ TEST_P(Tests_Force_Atlas2, CheckFP32_T) {
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test, Tests_Force_Atlas2,
         ::testing::Values(
-              Force_Atlas2_Usecase("test/datasets/karate.mtx", 0)//,
-    //        Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0)//,
-    //        Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0)//,
-//            Force_Atlas2_Usecase("test/datasets/netscience.mtx", 0)//,
+              Force_Atlas2_Usecase("test/datasets/karate.mtx", 0),
+            Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0),
+            Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0),
+            Force_Atlas2_Usecase("test/datasets/netscience.mtx", 0)
             )
         );
 

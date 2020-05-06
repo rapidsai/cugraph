@@ -60,29 +60,14 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
     return pos
 
 DATASETS = ['../datasets/karate.csv', '../datasets/polbooks.csv']
-MAX_ITERATIONS = [1000]
+MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE= [False, True]
-BARNES_HUT_THETA = [0.5]
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('barnes_hut_optimize', BARNES_HUT_OPTIMIZE)
-@pytest.mark.parametrize('barnes_hut_theta', BARNES_HUT_THETA)
-def test_force_atlas2(managed, pool, graph_file, max_iter,
+def test_force_atlas2(graph_file, max_iter,
         barnes_hut_optimize, barnes_hut_theta):
-    gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
-
     cu_M = utils.read_csv_file(graph_file)
     cu_pos = cugraph_call(cu_M,
                           max_iter=max_iter,
@@ -101,5 +86,5 @@ def test_force_atlas2(managed, pool, graph_file, max_iter,
     matrix_file = graph_file[:-4] + '.mtx'
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
-    cu_trust = trustworthiness(M, cu_pos[['x', 'y']].to_pandas()) 
+    cu_trust = trustworthiness(M, cu_pos[['x', 'y']].to_pandas())
     assert cu_trust > 0.71
