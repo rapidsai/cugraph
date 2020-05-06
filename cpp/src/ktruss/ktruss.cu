@@ -36,9 +36,9 @@ namespace cugraph {
 namespace detail {
 
 template <typename VT, typename ET, typename WT>
-void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
+void ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
                           int k,
-                          experimental::GraphCOO<VT, ET, WT> &output_graph)
+                          experimental::GraphCOOView<VT, ET, WT> &output_graph)
 {
   using HornetGraph = hornet::gpu::Hornet<VT>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::EMPTY, hornet::DeviceType::DEVICE>;
@@ -80,7 +80,7 @@ void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
 
   kt.copyGraph(out_src, out_dst);
 
-  experimental::GraphCOO<VT, ET, WT> subgraph(
+  experimental::GraphCOOView<VT, ET, WT> subgraph(
     out_src, out_dst, nullptr, graph.number_of_vertices, subgraph_edge_count);
 
   output_graph               = subgraph;
@@ -90,9 +90,9 @@ void ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void weighted_ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &graph,
+void weighted_ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
                                    int k,
-                                   experimental::GraphCOO<VT, ET, WT> &output_graph)
+                                   experimental::GraphCOOView<VT, ET, WT> &output_graph)
 {
   using HornetGraph = hornet::gpu::Hornet<VT, hornet::EMPTY, hornet::TypeList<WT>>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::TypeList<WT>, hornet::DeviceType::DEVICE>;
@@ -137,7 +137,7 @@ void weighted_ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &gra
 
   kt.copyGraph(out_src, out_dst, out_wgt);
 
-  experimental::GraphCOO<VT, ET, WT> subgraph(
+  experimental::GraphCOOView<VT, ET, WT> subgraph(
     out_src, out_dst, out_wgt, graph.number_of_vertices, subgraph_edge_count);
 
   output_graph               = subgraph;
@@ -149,9 +149,9 @@ void weighted_ktruss_subgraph_impl(experimental::GraphCOO<VT, ET, WT> const &gra
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
+void k_truss_subgraph(experimental::GraphCOOView<VT, ET, WT> const &graph,
                       int k,
-                      experimental::GraphCOO<VT, ET, WT> &output_graph)
+                      experimental::GraphCOOView<VT, ET, WT> &output_graph)
 {
   CUGRAPH_EXPECTS(graph.src_indices != nullptr, "Graph source indices cannot be a nullptr");
   CUGRAPH_EXPECTS(graph.dst_indices != nullptr, "Graph destination indices cannot be a nullptr");
@@ -164,12 +164,12 @@ void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
 }
 
 template void k_truss_subgraph<int, int, float>(
-  experimental::GraphCOO<int, int, float> const &graph,
+  experimental::GraphCOOView<int, int, float> const &graph,
   int k,
-  experimental::GraphCOO<int, int, float> &output_graph);
+  experimental::GraphCOOView<int, int, float> &output_graph);
 template void k_truss_subgraph<int, int, double>(
-  experimental::GraphCOO<int, int, double> const &graph,
+  experimental::GraphCOOView<int, int, double> const &graph,
   int k,
-  experimental::GraphCOO<int, int, double> &output_graph);
+  experimental::GraphCOOView<int, int, double> &output_graph);
 
 }  // namespace cugraph

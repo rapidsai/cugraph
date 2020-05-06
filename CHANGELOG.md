@@ -2,6 +2,7 @@
 
 ## New Features
 - PR #822 Added new functions in python graph class, similar to networkx
+- PR #840 OPG degree
 
 ## Improvements
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
@@ -18,9 +19,11 @@
 - PR #823 Remove gdf column from nvgraph
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
+- PR #799 Refactored graph class with RAII
 - PR #829 Updated README and CONTRIBUTIOIN docs
 - PR #836 Remove SNMG code
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
+- PR #832 Removed RMM ALLOC from db subtree
 - PR #833 Update graph functions to use new Graph class
 - PR #834 Updated local gpuci build
 - PR #845 Add .clang-format & format all files
@@ -32,7 +35,8 @@
 - PR #825 Fix outdated CONTRIBUTING.md
 - PR #827 Fix indexing CI errors due to cudf updates
 - PR #844 Fixing tests, converting __getitem__ calls to .iloc
-
+- PR #851 Removed RMM from tests
+- PR #852 Fix BFS Notebook
 
 # cuGraph 0.13.0 (Date TBD)
 

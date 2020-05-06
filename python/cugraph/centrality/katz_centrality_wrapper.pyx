@@ -72,8 +72,8 @@ def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=Non
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     
-    cdef GraphCSR[int,int,float] graph
-    graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    cdef GraphCSRView[int,int,float] graph
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     c_katz_centrality[int,int,float,double](graph, <double*> c_katz, alpha, max_iter, tol, has_guess, normalized)
 

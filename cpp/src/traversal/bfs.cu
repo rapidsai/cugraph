@@ -448,7 +448,7 @@ template class BFS<int>;
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
+void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
          const VT start_vertex,
@@ -474,7 +474,7 @@ void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int, int, float>(experimental::GraphCSR<int, int, float> const &graph,
+template void bfs<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
                                    int *distances,
                                    int *predecessors,
                                    const int source_vertex,

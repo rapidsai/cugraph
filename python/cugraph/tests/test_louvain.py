@@ -12,14 +12,12 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import time
 
 import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -73,19 +71,9 @@ DATASETS = ['../datasets/karate.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_louvain_with_edgevals(managed, pool, graph_file):
+def test_louvain_with_edgevals(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -110,19 +98,9 @@ DATASETS = ['../datasets/karate.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_louvain(managed, pool, graph_file):
+def test_louvain(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)

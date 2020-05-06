@@ -247,6 +247,11 @@ if (BUILD_MPI)
         "${CMAKE_CURRENT_SOURCE_DIR}/nccl/nccl_test.cu")
 
     ConfigureTest(NCCL_TEST "${NCCL_TEST_SRC}" "")
+
+    set(NCCL_DEGREE_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/nccl/degree_test.cu")
+
+    ConfigureTest(NCCL_DEGREE_TEST "${NCCL_DEGREE_TEST_SRC}" "")
 endif(BUILD_MPI)
 
 ###################################################################################################

@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import time
 
 import pytest
@@ -20,7 +19,6 @@ import scipy
 import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 import numpy as np
 
 
@@ -92,19 +90,10 @@ DATASETS = ['../datasets/dolphins.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_woverlap(managed, pool, graph_file):
+def test_woverlap(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx['0']), max(Mnx['1'])) + 1

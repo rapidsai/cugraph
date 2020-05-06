@@ -117,6 +117,7 @@ def get_traversed_path_list(df, id):
     # or edited.  Therefore we cannot assume that using the vertex ID
     # as an index will work
 
+    pred = -1
     answer = []
     answer.append(id)
 
@@ -126,7 +127,7 @@ def get_traversed_path_list(df, id):
 
     pred = ddf['predecessor']
 
-    while pred != -1:
+    while (pred != -1):
         answer.append(pred)
 
         ddf = df.loc[df['vertex'] == pred]
