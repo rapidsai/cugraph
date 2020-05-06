@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #pragma once
-
+#include <comms_mpi.hpp>
 namespace cugraph {
 namespace experimental {
 
@@ -47,6 +47,7 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphBase {
  public:
+  Comm comm;
   WT *edge_data;  ///< edge weight
 
   GraphProperties prop;
@@ -57,12 +58,16 @@ class GraphBase {
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
    *
-   * @param[out]    identifier      Pointer to device memory to store the vertex identifiers
+   * @param[out]    identifier      Pointer to device memory to store the vertex
+   * identifiers
    */
   void get_vertex_identifiers(VT *identifiers) const;
 
+  void set_communicator(Comm &comm_) { comm = comm_; }
+
   GraphBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
     : edge_data(edge_data_),
+      comm(),
       prop(),
       number_of_vertices(number_of_vertices_),
       number_of_edges(number_of_edges_)
@@ -102,8 +107,8 @@ class GraphCOO : public GraphBase<VT, ET, WT> {
   /**
    * @brief      Wrap existing arrays representing an edge list in a Graph.
    *
-   *             GraphCOO does not own the memory used to represent this graph. This
-   *             function does not allocate memory.
+   *             GraphCOO does not own the memory used to represent this graph.
+   * This function does not allocate memory.
    *
    * @param  source_indices        This array of size E (number of edges) contains the index of the
    * source for each edge. Indices must be in the range [0, V-1].
@@ -138,9 +143,11 @@ class GraphCompressedSparseBase : public GraphBase<VT, ET, WT> {
   VT *indices{nullptr};  ///< CSR indices
 
   /**
-   * @brief      Fill the identifiers in the array with the source vertex identifiers
+   * @brief      Fill the identifiers in the array with the source vertex
+   * identifiers
    *
-   * @param[out]    src_indices      Pointer to device memory to store the source vertex identifiers
+   * @param[out]    src_indices      Pointer to device memory to store the
+   * source vertex identifiers
    */
   void get_source_indices(VT *src_indices) const;
 
@@ -160,8 +167,8 @@ class GraphCompressedSparseBase : public GraphBase<VT, ET, WT> {
 
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
-   *             GraphCSR does not own the memory used to represent this graph. This
-   *             function does not allocate memory.
+   *             GraphCSR does not own the memory used to represent this graph.
+   * This function does not allocate memory.
    *
    * @param  offsets               This array of size V+1 (V is number of vertices) contains the
    * offset of adjacency lists of every vertex. Offsets must be in the range [0, E] (number of
@@ -199,8 +206,8 @@ class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
 
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
-   *             GraphCSR does not own the memory used to represent this graph. This
-   *             function does not allocate memory.
+   *             GraphCSR does not own the memory used to represent this graph.
+   * This function does not allocate memory.
    *
    * @param  offsets               This array of size V+1 (V is number of vertices) contains the
    * offset of adjacency lists of every vertex. Offsets must be in the range [0, E] (number of
@@ -235,9 +242,9 @@ class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
   GraphCSC() : GraphCompressedSparseBase<VT, ET, WT>(nullptr, nullptr, nullptr, 0, 0) {}
 
   /**
-   * @brief      Wrap existing arrays representing transposed adjacency lists in a Graph.
-   *             GraphCSC does not own the memory used to represent this graph. This
-   *             function does not allocate memory.
+   * @brief      Wrap existing arrays representing transposed adjacency lists in
+   * a Graph. GraphCSC does not own the memory used to represent this graph.
+   * This function does not allocate memory.
    *
    * @param  offsets               This array of size V+1 (V is number of vertices) contains the
    * offset of adjacency lists of every vertex. Offsets must be in the range [0, E] (number of
