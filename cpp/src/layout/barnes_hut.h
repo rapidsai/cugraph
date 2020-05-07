@@ -21,12 +21,9 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm_utils.h>
 #include <stdio.h>
+#include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
 #include <rmm/device_buffer.hpp>
-
-#include <thrust/functional.h>
-#include <thrust/iterator/constant_iterator.h>
-#include <thrust/transform.h>
 
 #include "bh_kernels.h"
 #include "fa2_kernels.h"
@@ -38,7 +35,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                 float *pos,
                 const int max_iter                            = 1000,
                 float *x_start                                = nullptr,
@@ -55,11 +52,8 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &gr
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback *callback = nullptr)
 {
-  const vertex_t *row = graph.src_indices;
-  const vertex_t *col = graph.dst_indices;
-  const weight_t *v   = graph.edge_data;
-  const edge_t e      = graph.number_of_edges;
-  const vertex_t n    = graph.number_of_vertices;
+  const edge_t e   = graph.number_of_edges;
+  const vertex_t n = graph.number_of_vertices;
 
   const int blocks  = getMultiProcessorCount();
   const float epssq = 0.0025;
@@ -149,12 +143,13 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &gr
   swinging   = d_swinging.data().get();
   traction   = d_traction.data().get();
 
-  vertex_t *srcs{nullptr};
-  vertex_t *dests{nullptr};
-  weight_t *weights{nullptr};
+  cudaStream_t stream = {nullptr};
+  sort(graph, stream);
+  graph.degree(massl, cugraph::experimental::DegreeDirection::OUT);
 
-  sort_coo<vertex_t, edge_t, weight_t>(row, col, v, &srcs, &dests, &weights, e);
-  init_mass<vertex_t, edge_t>(dests, massl, e, n);
+  const vertex_t *row = graph.src_indices;
+  const vertex_t *col = graph.dst_indices;
+  const weight_t *v   = graph.edge_data;
 
   float speed                     = 1.f;
   float speed_efficiency          = 1.f;
@@ -253,9 +248,9 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &gr
                             scaling_ratio,
                             n);
 
-    apply_attraction<vertex_t, edge_t, weight_t>(srcs,
-                                                 dests,
-                                                 weights,
+    apply_attraction<vertex_t, edge_t, weight_t>(row,
+                                                 col,
+                                                 v,
                                                  e,
                                                  nodes_pos,
                                                  nodes_pos + nnodes + 1,
@@ -311,10 +306,6 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &gr
   copy(n, nodes_pos + nnodes + 1, pos + n);
 
   if (callback) callback->on_epoch_end(nodes_pos);
-
-  ALLOC_FREE_TRY(srcs, nullptr);
-  ALLOC_FREE_TRY(dests, nullptr);
-  if (v) ALLOC_FREE_TRY(weights, nullptr);
 }
 
 }  // namespace detail

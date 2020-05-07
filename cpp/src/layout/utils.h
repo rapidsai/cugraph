@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <sys/time.h>
 #include <thrust/random.h>
 
 namespace cugraph {

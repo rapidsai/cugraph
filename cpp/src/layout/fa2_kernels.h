@@ -22,52 +22,6 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename edge_t>
-void init_mass(const vertex_t *dests, edge_t *mass, const edge_t e, const vertex_t n)
-{
-  dim3 nthreads, nblocks;
-  nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
-  nthreads.y = 1;
-  nthreads.z = 1;
-  nblocks.x  = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-  nblocks.y  = 1;
-  nblocks.z  = 1;
-  degree_coo<vertex_t, edge_t><<<nblocks, nthreads>>>(n, e, dests, mass);
-  CUDA_CHECK_LAST();
-}
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-void sort_coo(const vertex_t *row,
-              const vertex_t *col,
-              const weight_t *v,
-              vertex_t **srcs,
-              vertex_t **dests,
-              weight_t **weights,
-              const edge_t e)
-{
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY((void **)srcs, sizeof(vertex_t) * e, stream);
-  ALLOC_TRY((void **)dests, sizeof(vertex_t) * e, stream);
-
-  CUDA_TRY(cudaMemcpy(*srcs, row, sizeof(vertex_t) * e, cudaMemcpyDefault));
-  CUDA_TRY(cudaMemcpy(*dests, col, sizeof(vertex_t) * e, cudaMemcpyDefault));
-  if (!v) {
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), *dests, *dests + e, *srcs);
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream), *srcs, *srcs + e, *dests);
-  } else {
-    ALLOC_TRY((void **)weights, sizeof(weight_t) * e, stream);
-    CUDA_TRY(cudaMemcpy(*weights, v, sizeof(weight_t) * e, cudaMemcpyDefault));
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-                               *dests,
-                               *dests + e,
-                               thrust::make_zip_iterator(thrust::make_tuple(*srcs, *weights)));
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-                               *srcs,
-                               *srcs + e,
-                               thrust::make_zip_iterator(thrust::make_tuple(*dests, *weights)));
-  }
-}
-
 template <typename vertex_t, typename edge_t, typename weight_t>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
   attraction_kernel(const vertex_t *restrict row,

@@ -233,7 +233,7 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  *
  */
 template <typename VT, typename ET, typename WT>
-void force_atlas2(experimental::GraphCOOView<VT, ET, WT> const &graph,
+void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
                   float *pos,
                   const int max_iter                            = 500,
                   float *x_start                                = nullptr,

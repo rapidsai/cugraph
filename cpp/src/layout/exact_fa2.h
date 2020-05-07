@@ -21,9 +21,9 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm_utils.h>
 #include <stdio.h>
+#include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
 #include <rmm/device_buffer.hpp>
-
 #include "utilities/error_utils.h"
 
 #include "exact_repulsion.h"
@@ -34,7 +34,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                float *pos,
                const int max_iter                            = 500,
                float *x_start                                = nullptr,
@@ -50,11 +50,8 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &gra
                bool verbose                                  = false,
                internals::GraphBasedDimRedCallback *callback = nullptr)
 {
-  const vertex_t *row = graph.src_indices;
-  const vertex_t *col = graph.dst_indices;
-  const weight_t *v   = graph.edge_data;
-  const edge_t e      = graph.number_of_edges;
-  const vertex_t n    = graph.number_of_vertices;
+  const edge_t e   = graph.number_of_edges;
+  const vertex_t n = graph.number_of_vertices;
 
   float *d_repel{nullptr};
   float *d_attract{nullptr};
@@ -85,14 +82,15 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &gra
     copy(n, y_start, pos + n);
   }
 
-  vertex_t *srcs{nullptr};
-  vertex_t *dests{nullptr};
-  weight_t *weights{nullptr};
+  cudaStream_t stream = {nullptr};
+  sort(graph, stream);
+  CUDA_CHECK_LAST();
+  graph.degree(d_mass, cugraph::experimental::DegreeDirection::OUT);
+  CUDA_CHECK_LAST();
 
-  sort_coo<vertex_t, edge_t, weight_t>(row, col, v, &srcs, &dests, &weights, e);
-  CUDA_CHECK_LAST();
-  init_mass<vertex_t, edge_t>(dests, d_mass, e, n);
-  CUDA_CHECK_LAST();
+  const vertex_t *row = graph.src_indices;
+  const vertex_t *col = graph.dst_indices;
+  const weight_t *v   = graph.edge_data;
 
   float speed                     = 1.f;
   float speed_efficiency          = 1.f;
@@ -127,9 +125,9 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &gra
                             scaling_ratio,
                             n);
 
-    apply_attraction<vertex_t, edge_t, weight_t>(srcs,
-                                                 dests,
-                                                 weights,
+    apply_attraction<vertex_t, edge_t, weight_t>(row,
+                                                 col,
+                                                 v,
                                                  e,
                                                  pos,
                                                  pos + n,
@@ -179,10 +177,6 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &gra
   }
 
   if (callback) callback->on_train_end(pos);
-
-  ALLOC_FREE_TRY(srcs, nullptr);
-  ALLOC_FREE_TRY(dests, nullptr);
-  if (v) ALLOC_FREE_TRY(weights, nullptr);
 }
 
 }  // namespace detail

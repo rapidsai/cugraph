@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -120,8 +120,17 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
                                                                   << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    cugraph::experimental::GraphCOOView<int, int, T> G(
-      &cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
+    int* srcs  = nullptr;
+    int* dests = nullptr;
+    T* weights = nullptr;
+    ALLOC_TRY((void**)&srcs, sizeof(int) * nnz, nullptr);
+    ALLOC_TRY((void**)&dests, sizeof(int) * nnz, nullptr);
+    ALLOC_TRY((void**)&weights, sizeof(T) * nnz, nullptr);
+    CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
+
+    cugraph::experimental::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
 
     std::cout << m << " " << nnz << "\n";
 
@@ -135,7 +144,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     bool prevent_overlapping              = false;
     const float edge_weight_influence     = 1.0;
     const float jitter_tolerance          = 1.0;
-    bool optimize                         = false;
+    bool optimize                         = true;
     const float theta                     = 1.0;
     const float scaling_ratio             = 2.0;
     bool strong_gravity_mode              = false;
@@ -202,6 +211,10 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     double score_bh = trustworthiness_score(adj_matrix, C_contiguous_embedding, m, 2, 5);
     printf("score: %f\n", score_bh);
     ASSERT_GT(score_bh, param.score);
+
+    ALLOC_FREE_TRY(srcs, nullptr);
+    ALLOC_FREE_TRY(dests, nullptr);
+    ALLOC_FREE_TRY(weights, nullptr);
   }
 };
 
