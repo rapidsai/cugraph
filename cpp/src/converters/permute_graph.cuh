@@ -32,15 +32,18 @@ struct permutation_functor {
  * This function takes a graph and a permutation vector and permutes the
  * graph according to the permutation vector. So each vertex id i becomes
  * vertex id permutation[i] in the permuted graph.
+ *
  * @param graph The graph to permute.
  * @param permutation The permutation vector to use, must be a valid permutation
  * i.e. contains all values 0-n exactly once.
+ * @param result View of the resulting graph... note this should be pre allocated
+ *               and number_of_vertices and number_of_edges should be set
  * @return The permuted graph.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void permute_graph(experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
+void permute_graph(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t const *permutation,
-                   experimental::GraphCSR<vertex_t, edge_t, weight_t> &result)
+                   experimental::GraphCSRView<vertex_t, edge_t, weight_t> result)
 {
   //  Create a COO out of the CSR
   rmm::device_vector<vertex_t> src_vertices_v(graph.number_of_edges);
@@ -65,29 +68,14 @@ void permute_graph(experimental::GraphCSR<vertex_t, edge_t, weight_t> const &gra
   thrust::transform(
     rmm::exec_policy(nullptr)->on(nullptr), d_dst, d_dst + graph.number_of_edges, d_dst, pf);
 
-  if (graph.edge_data == nullptr) {
-    // Call COO2CSR to get the new adjacency
-    CSR_Result<vertex_t> new_csr;
-    ConvertCOOtoCSR(d_src, d_dst, (int64_t)graph.number_of_edges, new_csr);
+  cugraph::experimental::GraphCOOView<vertex_t, edge_t, weight_t> graph_coo;
 
-    // Construct the result graph
-    result.offsets   = new_csr.rowOffsets;
-    result.indices   = new_csr.colIndices;
-    result.edge_data = nullptr;
-  } else {
-    // Call COO2CSR to get the new adjacency
-    CSR_Result_Weighted<vertex_t, weight_t> new_csr;
-    ConvertCOOtoCSR_weighted(
-      d_src, d_dst, graph.edge_data, (int64_t)graph.number_of_edges, new_csr);
+  graph_coo.number_of_vertices = graph.number_of_vertices;
+  graph_coo.number_of_edges    = graph.number_of_edges;
+  graph_coo.src_indices        = d_src;
+  graph_coo.dst_indices        = d_dst;
 
-    // Construct the result graph
-    result.offsets   = new_csr.rowOffsets;
-    result.indices   = new_csr.colIndices;
-    result.edge_data = new_csr.edgeWeights;
-  }
-
-  result.number_of_vertices = graph.number_of_vertices;
-  result.number_of_edges    = graph.number_of_edges;
+  cugraph::coo_to_csr_inplace(graph_coo, result);
 }
 
 }  // namespace detail

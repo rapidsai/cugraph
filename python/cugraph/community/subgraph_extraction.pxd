@@ -17,13 +17,12 @@
 # cython: language_level = 3
 
 from cugraph.structure.graph_new cimport *
-from libcpp cimport bool
+from libcpp.memory cimport unique_ptr
 
 
 cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
-    cdef void extract_subgraph_vertex[VT,ET,WT](
-        const GraphCOO[VT,ET,WT] &graph,
+    cdef unique_ptr[GraphCOO[VT,ET,WT]] extract_subgraph_vertex[VT,ET,WT](
+        const GraphCOOView[VT,ET,WT] &graph,
         const VT *vertices,
-        ET num_vertices,
-        GraphCOO[VT,ET,WT] &result) except +
+        ET num_vertices) except +

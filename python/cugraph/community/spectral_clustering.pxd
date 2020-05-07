@@ -22,7 +22,7 @@ from cugraph.structure.graph_new cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
     cdef void balancedCutClustering[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         const int num_clusters,
         const int num_eigen_vects,
         const float evs_tolerance,
@@ -32,7 +32,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
         VT* clustering) except +
     
     cdef void spectralModularityMaximization[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         const int n_clusters,
         const int n_eig_vects,
         const float evs_tolerance,
@@ -42,19 +42,19 @@ cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
         VT* clustering) except +
     
     cdef void analyzeClustering_modularity[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         const int n_clusters,
         const VT* clustering,
         WT* score) except +
     
     cdef void analyzeClustering_edge_cut[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         const int n_clusters,
         const VT* clustering,
         WT* score) except +
     
     cdef void analyzeClustering_ratio_cut[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         const int n_clusters,
         const VT* clustering,
         WT* score) except +

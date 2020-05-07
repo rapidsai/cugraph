@@ -47,10 +47,10 @@ def subgraph(input_graph, vertices, subgraph):
         if weights.dtype == np.float64:
             use_float = False
         
-    cdef GraphCOO[int,int,float]  in_graph_float
-    cdef GraphCOO[int,int,double] in_graph_double
-    cdef GraphCOO[int,int,float]  out_graph_float
-    cdef GraphCOO[int,int,double] out_graph_double
+    cdef GraphCOOView[int,int,float]  in_graph_float
+    cdef GraphCOOView[int,int,double] in_graph_double
+    cdef unique_ptr[GraphCOO[int,int,float]]  out_graph_float
+    cdef unique_ptr[GraphCOO[int,int,double]] out_graph_double
 
     cdef uintptr_t c_src = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst = dst.__cuda_array_interface__['data'][0]
@@ -72,56 +72,26 @@ def subgraph(input_graph, vertices, subgraph):
     num_edges = len(src)
     num_input_vertices = len(vertices)
 
-    df = cudf.DataFrame()
-
     if use_float:
-        in_graph_float = GraphCOO[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges);
-        c_extract_subgraph_vertex(in_graph_float, <int*>c_vertices, <int>num_input_vertices, out_graph_float);
-
-        tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_float.src_indices,
-                                        nelem=out_graph_float.number_of_edges,
-                                        dtype=np.int32)
-        df['src'] = cudf.Series(tmp)
-
-        tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_float.dst_indices,
-                                        nelem=out_graph_float.number_of_edges,
-                                        dtype=np.int32)
-
-        df['dst'] = cudf.Series(tmp)
-        if weights is not None:
-            tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_float.edge_data,
-                                            nelem=out_graph_float.number_of_edges,
-                                            dtype=np.float32)
-            df['weights'] = cudf.Series(tmp)
+        in_graph_float = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges);
+        df = coo_to_df(move(c_extract_subgraph_vertex(in_graph_float, <int*>c_vertices, <int>num_input_vertices)));
     else:
-        in_graph_double = GraphCOO[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges);
-        c_extract_subgraph_vertex(in_graph_double, <int*>c_vertices, <int>num_input_vertices, out_graph_double);
-
-        tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_double.src_indices,
-                                        nelem=out_graph_double.number_of_edges,
-                                        dtype=np.int32)
-        df['src'] = cudf.Series(tmp)
-
-        tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_double.dst_indices,
-                                        nelem=out_graph_double.number_of_edges,
-                                        dtype=np.int32)
-
-        df['dst'] = cudf.Series(tmp)
-        if weights is not None:
-            tmp = rmm.device_array_from_ptr(<uintptr_t>out_graph_double.edge_data,
-                                            nelem=out_graph_double.number_of_edges,
-                                            dtype=np.float64)
-            df['weights'] = cudf.Series(tmp)
+        in_graph_double = GraphCOOView[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges);
+        df = coo_to_df(move(c_extract_subgraph_vertex(in_graph_double, <int*>c_vertices, <int>num_input_vertices)));
 
     # renumber vertices to match original input
-    df['src'] = vertices_renumbered[df['src']].reset_index(drop=True)
-    df['dst'] = vertices_renumbered[df['dst']].reset_index(drop=True)
+    vertices_df = cudf.DataFrame()
+    vertices_df['v'] = vertices_renumbered
+    vertices_df = vertices_df.reset_index(drop=True).reset_index()
 
+    df = df.merge(vertices_df, left_on='src', right_on='index', how='left').drop(['src', 'index']).rename({'v': 'src'})
+    df = df.merge(vertices_df, left_on='dst', right_on='index', how='left').drop(['dst', 'index']).rename({'v': 'dst'})
+    
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'src')
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
 
     if weights is not None:
-        subgraph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='weights')
+        subgraph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='weight')
     else:
         subgraph.from_cudf_edgelist(df, source='src', destination='dst')

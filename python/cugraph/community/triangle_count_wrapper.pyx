@@ -45,8 +45,8 @@ def triangles(input_graph):
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSR[int,int,float] graph
-    graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    cdef GraphCSRView[int,int,float] graph
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     result = c_triangle_count(graph)
     

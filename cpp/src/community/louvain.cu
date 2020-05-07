@@ -24,7 +24,7 @@ namespace cugraph {
 namespace nvgraph {
 
 template <typename VT, typename ET, typename WT>
-void louvain(experimental::GraphCSR<VT, ET, WT> const &graph,
+void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
              WT *final_modularity,
              VT *num_level,
              VT *louvain_parts,
@@ -61,12 +61,12 @@ void louvain(experimental::GraphCSR<VT, ET, WT> const &graph,
 }
 
 template void louvain(
-  experimental::GraphCSR<int32_t, int32_t, float> const &, float *, int32_t *, int32_t *, int);
-template void louvain(
-  experimental::GraphCSR<int32_t, int32_t, double> const &, double *, int32_t *, int32_t *, int);
-// template void louvain(experimental::GraphCSR<int64_t, int64_t, float> const &, float *, int64_t
-// *, int64_t *, int); template void louvain(experimental::GraphCSR<int64_t, int64_t, double> const
-// &, double *, int64_t *, int64_t *, int);
+  experimental::GraphCSRView<int32_t, int32_t, float> const &, float *, int32_t *, int32_t *, int);
+template void louvain(experimental::GraphCSRView<int32_t, int32_t, double> const &,
+                      double *,
+                      int32_t *,
+                      int32_t *,
+                      int);
 
 }  // namespace nvgraph
 }  // namespace cugraph

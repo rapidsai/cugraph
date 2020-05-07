@@ -305,17 +305,9 @@ VT sort(experimental::GraphCOOView<VT, ET, WT>& graph, cudaStream_t stream)
 }
 
 template <typename VT, typename ET>
-rmm::device_buffer create_offset(VT* source,
-                                 VT number_of_vertices,
-                                 ET number_of_edges,
-                                 cudaStream_t stream,
-                                 rmm::mr::device_memory_resource* mr)
+void fill_offset(
+  VT* source, ET* offsets, VT number_of_vertices, ET number_of_edges, cudaStream_t stream)
 {
-  // Offset array needs an extra element at the end to contain the ending offsets
-  // of the last vertex
-  rmm::device_buffer offsets_buffer(sizeof(ET) * (number_of_vertices + 1), stream, mr);
-  ET* offsets = static_cast<ET*>(offsets_buffer.data());
-
   thrust::fill(rmm::exec_policy(stream)->on(stream),
                offsets,
                offsets + number_of_vertices + 1,
@@ -335,6 +327,22 @@ rmm::device_buffer create_offset(VT* source,
                          iter + number_of_vertices + 1,
                          iter,
                          thrust::minimum<ET>());
+}
+
+template <typename VT, typename ET>
+rmm::device_buffer create_offset(VT* source,
+                                 VT number_of_vertices,
+                                 ET number_of_edges,
+                                 cudaStream_t stream,
+                                 rmm::mr::device_memory_resource* mr)
+{
+  // Offset array needs an extra element at the end to contain the ending offsets
+  // of the last vertex
+  rmm::device_buffer offsets_buffer(sizeof(ET) * (number_of_vertices + 1), stream, mr);
+  ET* offsets = static_cast<ET*>(offsets_buffer.data());
+
+  fill_offset(source, offsets, number_of_vertices, number_of_edges, stream);
+
   return offsets_buffer;
 }
 
@@ -363,6 +371,23 @@ std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
     std::move(coo_contents.edge_data)};
 
   return std::make_unique<experimental::GraphCSR<VT, ET, WT>>(std::move(csr_contents));
+}
+
+template <typename VT, typename ET, typename WT>
+void coo_to_csr_inplace(experimental::GraphCOOView<VT, ET, WT>& graph,
+                        experimental::GraphCSRView<VT, ET, WT>& result)
+{
+  cudaStream_t stream{nullptr};
+
+  detail::sort(graph, stream);
+  detail::fill_offset(
+    graph.src_indices, result.offsets, graph.number_of_vertices, graph.number_of_edges, stream);
+
+  CUDA_TRY(cudaMemcpy(
+    graph.dst_indices, result.indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDefault));
+  if (graph.has_data())
+    CUDA_TRY(cudaMemcpy(
+      graph.edge_data, result.edge_data, sizeof(WT) * graph.number_of_edges, cudaMemcpyDefault));
 }
 
 }  // namespace cugraph

@@ -178,7 +178,7 @@ cudaError_t scale_obs(IndexType_ m, IndexType_ n, ValueType_ *obs)
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 NVGRAPH_ERROR modularity_maximization(
-  cugraph::experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
+  cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   vertex_t nClusters,
   vertex_t nEigVecs,
   int maxIter_lanczos,
@@ -323,7 +323,7 @@ struct equal_to_i_op {
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 NVGRAPH_ERROR analyzeModularity(
-  cugraph::experimental::GraphCSR<vertex_t, edge_t, weight_t> const &graph,
+  cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   vertex_t nClusters,
   const vertex_t *__restrict__ parts,
   weight_t &modularity)
@@ -394,7 +394,7 @@ NVGRAPH_ERROR analyzeModularity(
 // Explicit instantiation
 // =========================================================
 template NVGRAPH_ERROR modularity_maximization<int, int, float>(
-  cugraph::experimental::GraphCSR<int, int, float> const &graph,
+  cugraph::experimental::GraphCSRView<int, int, float> const &graph,
   int nClusters,
   int nEigVecs,
   int maxIter_lanczos,
@@ -408,7 +408,7 @@ template NVGRAPH_ERROR modularity_maximization<int, int, float>(
   int &iters_lanczos,
   int &iters_kmeans);
 template NVGRAPH_ERROR modularity_maximization<int, int, double>(
-  cugraph::experimental::GraphCSR<int, int, double> const &graph,
+  cugraph::experimental::GraphCSRView<int, int, double> const &graph,
   int nClusters,
   int nEigVecs,
   int maxIter_lanczos,
@@ -422,12 +422,12 @@ template NVGRAPH_ERROR modularity_maximization<int, int, double>(
   int &iters_lanczos,
   int &iters_kmeans);
 template NVGRAPH_ERROR analyzeModularity<int, int, float>(
-  cugraph::experimental::GraphCSR<int, int, float> const &graph,
+  cugraph::experimental::GraphCSRView<int, int, float> const &graph,
   int nClusters,
   const int *__restrict__ parts,
   float &modularity);
 template NVGRAPH_ERROR analyzeModularity<int, int, double>(
-  cugraph::experimental::GraphCSR<int, int, double> const &graph,
+  cugraph::experimental::GraphCSRView<int, int, double> const &graph,
   int nClusters,
   const int *__restrict__ parts,
   double &modularity);

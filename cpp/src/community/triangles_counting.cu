@@ -837,7 +837,7 @@ namespace cugraph {
 namespace nvgraph {
 
 template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(experimental::GraphCSR<VT, ET, WT> const &graph)
+uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph)
 {
   ::nvgraph::TrianglesCount<VT> counter(
     graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices);
@@ -847,7 +847,7 @@ uint64_t triangle_count(experimental::GraphCSR<VT, ET, WT> const &graph)
 }
 
 template uint64_t triangle_count<int32_t, int32_t, float>(
-  experimental::GraphCSR<int32_t, int32_t, float> const &);
+  experimental::GraphCSRView<int32_t, int32_t, float> const &);
 
 }  // namespace nvgraph
 }  // namespace cugraph

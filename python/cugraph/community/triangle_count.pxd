@@ -23,4 +23,4 @@ from libc.stdint cimport uint64_t
 cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
     cdef uint64_t triangle_count[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph) except +
+        const GraphCSRView[VT,ET,WT] &graph) except +

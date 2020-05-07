@@ -52,16 +52,17 @@ TEST(triangle, dolphin)
   rmm::device_vector<int> indices_v(ind_h);
   rmm::device_vector<float> weights_v(w_h);
 
-  cugraph::experimental::GraphCSR<int, int, float> graph_csr(
+  cugraph::experimental::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   uint64_t count{0};
 
-  //ASSERT_NO_THROW((count = cugraph::nvgraph::triangle_count<int32_t, int32_t, float>(graph_csr)));
+  // ASSERT_NO_THROW((count = cugraph::nvgraph::triangle_count<int32_t, int32_t,
+  // float>(graph_csr)));
 
   try {
     count = cugraph::nvgraph::triangle_count<int32_t, int32_t, float>(graph_csr);
-  } catch (std::exception &e) {
+  } catch (std::exception& e) {
     std::cout << "Exception: " << e.what() << std::endl;
   }
 

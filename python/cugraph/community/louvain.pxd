@@ -22,7 +22,7 @@ from cugraph.structure.graph_new cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
     cdef void louvain[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         WT *final_modularity,
         VT *num_level,
         VT *louvain_parts,

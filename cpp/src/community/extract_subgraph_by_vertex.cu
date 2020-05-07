@@ -28,11 +28,11 @@
 namespace {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>
-void extract_subgraph_by_vertices(
-  cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t> const &graph,
+std::unique_ptr<cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t>>
+extract_subgraph_by_vertices(
+  cugraph::experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
   vertex_t const *vertices,
   vertex_t num_vertices,
-  cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t> &result,
   cudaStream_t stream)
 {
   edge_t graph_num_verts = graph.number_of_vertices;
@@ -75,28 +75,12 @@ void extract_subgraph_by_vertices(
     });
 
   if (count > 0) {
-#if 0
-      rmm::device_vector<vertex_t> new_src_v(count);
-      rmm::device_vector<vertex_t> new_dst_v(count);
-      rmm::device_vector<weight_t> new_weight_v;
+    auto result = std::make_unique<cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t>>(
+      num_vertices, count, has_weight);
 
-      vertex_t *d_new_src = new_src_v.data().get();
-      vertex_t *d_new_dst = new_dst_v.data().get();
-      weight_t *d_new_weight{nullptr};
-
-      if (has_weight) {
-        new_weight_v.resize(count);
-        d_new_weight = new_weight_v.data().get();
-      }
-#endif
-    vertex_t *d_new_src{nullptr};
-    vertex_t *d_new_dst{nullptr};
-    weight_t *d_new_weight{nullptr};
-
-    ALLOC_TRY(&d_new_src, count * sizeof(vertex_t), nullptr);
-    ALLOC_TRY(&d_new_dst, count * sizeof(vertex_t), nullptr);
-
-    if (has_weight) { ALLOC_TRY(&d_new_weight, count * sizeof(weight_t), nullptr); }
+    vertex_t *d_new_src    = result->src_indices();
+    vertex_t *d_new_dst    = result->dst_indices();
+    weight_t *d_new_weight = result->edge_data();
 
     //  reusing error_count as a vertex counter...
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
@@ -125,20 +109,10 @@ void extract_subgraph_by_vertices(
                        }
                      });
 
-#if 0
-      //
-      //  Need to return rmm::device_vectors
-      //
-#else
-    result.number_of_edges    = count;
-    result.number_of_vertices = num_vertices;
-    result.src_indices        = d_new_src;
-    result.dst_indices        = d_new_dst;
-    result.edge_data          = d_new_weight;
-#endif
-
+    return result;
   } else {
-    // return an empty graph
+    return std::make_unique<cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t>>(
+      0, 0, has_weight);
   }
 }
 }  // namespace
@@ -147,32 +121,26 @@ namespace cugraph {
 namespace nvgraph {
 
 template <typename VT, typename ET, typename WT>
-void extract_subgraph_vertex(experimental::GraphCOO<VT, ET, WT> const &graph,
-                             VT const *vertices,
-                             VT num_vertices,
-                             experimental::GraphCOO<VT, ET, WT> &result)
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices)
 {
   CUGRAPH_EXPECTS(vertices != nullptr, "API error, vertices must be non null");
 
   cudaStream_t stream{0};
 
   if (graph.edge_data == nullptr) {
-    extract_subgraph_by_vertices<VT, ET, WT, false>(graph, vertices, num_vertices, result, stream);
+    return extract_subgraph_by_vertices<VT, ET, WT, false>(graph, vertices, num_vertices, stream);
   } else {
-    extract_subgraph_by_vertices<VT, ET, WT, true>(graph, vertices, num_vertices, result, stream);
+    return extract_subgraph_by_vertices<VT, ET, WT, true>(graph, vertices, num_vertices, stream);
   }
 }
 
-template void extract_subgraph_vertex<int32_t, int32_t, float>(
-  experimental::GraphCOO<int32_t, int32_t, float> const &,
-  int32_t const *,
-  int32_t,
-  experimental::GraphCOO<int32_t, int32_t, float> &);
-template void extract_subgraph_vertex<int32_t, int32_t, double>(
-  experimental::GraphCOO<int32_t, int32_t, double> const &,
-  int32_t const *,
-  int32_t,
-  experimental::GraphCOO<int32_t, int32_t, double> &);
+template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, float>>
+extract_subgraph_vertex<int32_t, int32_t, float>(
+  experimental::GraphCOOView<int32_t, int32_t, float> const &, int32_t const *, int32_t);
+template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, double>>
+extract_subgraph_vertex<int32_t, int32_t, double>(
+  experimental::GraphCOOView<int32_t, int32_t, double> const &, int32_t const *, int32_t);
 
 }  // namespace nvgraph
 }  // namespace cugraph

@@ -74,11 +74,11 @@ def spectralBalancedCutClustering(input_graph,
     cdef uintptr_t c_cluster = df['cluster'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSR[int,int,float] graph_float
-    cdef GraphCSR[int,int,double] graph_double
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
 
     if weights.dtype == np.float32:
-        graph_float = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices,
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
                                               <float*>c_weights, num_verts, num_edges)
 
         graph_float.get_vertex_identifiers(<int*>c_identifier)
@@ -91,7 +91,7 @@ def spectralBalancedCutClustering(input_graph,
                                   kmean_max_iter,
                                   <int*>c_cluster)
     else:
-        graph_double = GraphCSR[int,int,double](<int*>c_offsets, <int*>c_indices,
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
                                                 <double*>c_weights, num_verts, num_edges)
 
         graph_double.get_vertex_identifiers(<int*>c_identifier)
@@ -145,11 +145,11 @@ def spectralModularityMaximizationClustering(input_graph,
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_cluster = df['cluster'].__cuda_array_interface__['data'][0]
 
-    cdef GraphCSR[int,int,float] graph_float
-    cdef GraphCSR[int,int,double] graph_double
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
 
     if weights.dtype == np.float32:
-        graph_float = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices,
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
                                               <float*>c_weights, num_verts, num_edges)
 
         graph_float.get_vertex_identifiers(<int*>c_identifier)
@@ -162,7 +162,7 @@ def spectralModularityMaximizationClustering(input_graph,
                                            kmean_max_iter,
                                            <int*>c_cluster)
     else:
-        graph_double = GraphCSR[int,int,double](<int*>c_offsets, <int*>c_indices,
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
                                                 <double*>c_weights, num_verts, num_edges)
 
         graph_double.get_vertex_identifiers(<int*>c_identifier)
@@ -209,13 +209,13 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
     cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_cluster = clustering.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSR[int,int,float] graph_float
-    cdef GraphCSR[int,int,double] graph_double
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
     cdef float score_float
     cdef double score_double
 
     if weights.dtype == np.float32:
-        graph_float = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices,
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
                                               <float*>c_weights, num_verts, num_edges)
 
         c_analyze_clustering_modularity(graph_float,
@@ -225,7 +225,7 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
 
         score = score_float
     else:
-        graph_double = GraphCSR[int,int,double](<int*>c_offsets, <int*>c_indices,
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
                                                 <double*>c_weights, num_verts, num_edges)
 
         c_analyze_clustering_modularity(graph_double,
@@ -262,13 +262,13 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
     cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_cluster = clustering.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSR[int,int,float] graph_float
-    cdef GraphCSR[int,int,double] graph_double
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
     cdef float score_float
     cdef double score_double
 
     if weights.dtype == np.float32:
-        graph_float = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices,
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
                                               <float*>c_weights, num_verts, num_edges)
 
         c_analyze_clustering_edge_cut(graph_float,
@@ -278,7 +278,7 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
 
         score = score_float
     else:
-        graph_double = GraphCSR[int,int,double](<int*>c_offsets, <int*>c_indices,
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
                                                 <double*>c_weights, num_verts, num_edges)
 
         c_analyze_clustering_edge_cut(graph_double,
@@ -315,13 +315,13 @@ def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
     cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_cluster = clustering.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSR[int,int,float] graph_float
-    cdef GraphCSR[int,int,double] graph_double
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
     cdef float score_float
     cdef double score_double
 
     if weights.dtype == np.float32:
-        graph_float = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices,
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
                                               <float*>c_weights, num_verts, num_edges)
 
         c_analyze_clustering_ratio_cut(graph_float,
@@ -331,7 +331,7 @@ def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
 
         score = score_float
     else:
-        graph_double = GraphCSR[int,int,double](<int*>c_offsets, <int*>c_indices,
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
                                                 <double*>c_weights, num_verts, num_edges)
 
         c_analyze_clustering_ratio_cut(graph_double,

@@ -485,7 +485,7 @@ namespace nvgraph {
  * @return                           The number of triangles
  */
 template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(experimental::GraphCSR<VT, ET, WT> const &graph);
+uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @brief             Extract subgraph by vertices
@@ -507,13 +507,9 @@ uint64_t triangle_count(experimental::GraphCSR<VT, ET, WT> const &graph);
  * @param[in]  num_vertices          number of vertices in the array vertices
  * @param[out] result                a graph in COO format containing the edges in the subgraph
  */
-
-//  FIXME:  After PR 799 is resolved, need to use the new return graph type
 template <typename VT, typename ET, typename WT>
-void extract_subgraph_vertex(experimental::GraphCOO<VT, ET, WT> const &graph,
-                             VT const *vertices,
-                             VT num_vertices,
-                             experimental::GraphCOO<VT, ET, WT> &result);
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices);
 
 /**
  * @brief     Wrapper function for Nvgraph balanced cut clustering
@@ -537,7 +533,7 @@ void extract_subgraph_vertex(experimental::GraphCOO<VT, ET, WT> const &graph,
  * stored
  */
 template <typename VT, typename ET, typename WT>
-void balancedCutClustering(experimental::GraphCSR<VT, ET, WT> const &graph,
+void balancedCutClustering(experimental::GraphCSRView<VT, ET, WT> const &graph,
                            VT num_clusters,
                            VT num_eigen_vects,
                            WT evs_tolerance,
@@ -568,7 +564,7 @@ void balancedCutClustering(experimental::GraphCSR<VT, ET, WT> const &graph,
  * stored
  */
 template <typename VT, typename ET, typename WT>
-void spectralModularityMaximization(experimental::GraphCSR<VT, ET, WT> const &graph,
+void spectralModularityMaximization(experimental::GraphCSRView<VT, ET, WT> const &graph,
                                     VT n_clusters,
                                     VT n_eig_vects,
                                     WT evs_tolerance,
@@ -594,7 +590,7 @@ void spectralModularityMaximization(experimental::GraphCSR<VT, ET, WT> const &gr
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_modularity(experimental::GraphCSR<VT, ET, WT> const &graph,
+void analyzeClustering_modularity(experimental::GraphCSRView<VT, ET, WT> const &graph,
                                   int n_clusters,
                                   VT const *clustering,
                                   WT *score);
@@ -616,7 +612,7 @@ void analyzeClustering_modularity(experimental::GraphCSR<VT, ET, WT> const &grap
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_edge_cut(experimental::GraphCSR<VT, ET, WT> const &graph,
+void analyzeClustering_edge_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
                                 int n_clusters,
                                 VT const *clustering,
                                 WT *score);
@@ -638,7 +634,7 @@ void analyzeClustering_edge_cut(experimental::GraphCSR<VT, ET, WT> const &graph,
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_ratio_cut(experimental::GraphCSR<VT, ET, WT> const &graph,
+void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
                                  int n_clusters,
                                  VT const *clustering,
                                  WT *score);
@@ -661,7 +657,7 @@ void analyzeClustering_ratio_cut(experimental::GraphCSR<VT, ET, WT> const &graph
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
  */
 template <typename VT, typename ET, typename WT>
-void louvain(experimental::GraphCSR<VT, ET, WT> const &graph,
+void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
              WT *final_modularity,
              VT *num_level,
              VT *louvain_parts,
@@ -692,7 +688,7 @@ void louvain(experimental::GraphCSR<VT, ET, WT> const &graph,
  * written
  */
 template <typename VT, typename ET, typename WT>
-void ecg(experimental::GraphCSR<VT, ET, WT> const &graph_csr,
+void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
          WT min_weight,
          VT ensemble_size,
          VT *ecg_parts);

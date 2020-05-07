@@ -109,7 +109,7 @@ namespace cugraph {
 namespace nvgraph {
 
 template <typename VT, typename ET, typename WT>
-void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
+void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
          WT min_weight,
          VT ensemble_size,
          VT *ecg_parts)
@@ -123,6 +123,9 @@ void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
   VT seed{0};
   // VT seed{1};  // Note... this seed won't work for the unit tests... retest after fixing Louvain.
 
+  auto permuted_graph = std::make_unique<experimental::GraphCSR<VT, ET, WT>>(
+    size, graph.number_of_edges, graph.has_data());
+
   // Iterate over each member of the ensemble
   for (VT i = 0; i < ensemble_size; i++) {
     // Take random permutation of the graph
@@ -132,9 +135,7 @@ void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
     get_permutation_vector(size, seed, d_permutation);
     seed += size;
 
-    experimental::GraphCSR<VT, ET, WT> permuted_graph;
-
-    detail::permute_graph(graph, d_permutation, permuted_graph);
+    detail::permute_graph<VT, ET, WT>(graph, d_permutation, permuted_graph->view());
 
     // Run Louvain clustering on the random permutation
     rmm::device_vector<VT> parts_v(size);
@@ -143,7 +144,7 @@ void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
     WT final_modularity;
     VT num_level;
 
-    cugraph::nvgraph::louvain(permuted_graph, &final_modularity, &num_level, d_parts, 1);
+    cugraph::nvgraph::louvain(permuted_graph->view(), &final_modularity, &num_level, d_parts, 1);
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
@@ -157,12 +158,6 @@ void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
                                                     permutation_v.data().get(),
                                                     d_parts,
                                                     ecg_weights_v.data().get());
-    // Clean up temporary allocations
-
-    // FIXME:  Address this when kaatish graph result PR is complete
-    ALLOC_FREE_TRY(permuted_graph.indices, nullptr);
-    ALLOC_FREE_TRY(permuted_graph.offsets, nullptr);
-    ALLOC_FREE_TRY(permuted_graph.edge_data, nullptr);
   }
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
@@ -174,7 +169,7 @@ void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
                     uf);
 
   // Run Louvain on the original graph using the computed weights
-  experimental::GraphCSR<VT, ET, WT> louvain_graph;
+  experimental::GraphCSRView<VT, ET, WT> louvain_graph;
   louvain_graph.indices            = graph.indices;
   louvain_graph.offsets            = graph.offsets;
   louvain_graph.edge_data          = ecg_weights_v.data().get();
@@ -188,12 +183,12 @@ void ecg(experimental::GraphCSR<VT, ET, WT> const &graph,
 
 // Explicit template instantiations.
 template void ecg<int32_t, int32_t, float>(
-  experimental::GraphCSR<int32_t, int32_t, float> const &graph,
+  experimental::GraphCSRView<int32_t, int32_t, float> const &graph,
   float min_weight,
   int32_t ensemble_size,
   int32_t *ecg_parts);
 template void ecg<int32_t, int32_t, double>(
-  experimental::GraphCSR<int32_t, int32_t, double> const &graph,
+  experimental::GraphCSRView<int32_t, int32_t, double> const &graph,
   double min_weight,
   int32_t ensemble_size,
   int32_t *ecg_parts);

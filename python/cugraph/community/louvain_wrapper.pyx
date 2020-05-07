@@ -58,16 +58,16 @@ def louvain(input_graph, max_iter=100):
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSR[int,int,float] graph_float
-    cdef GraphCSR[int,int,double] graph_double
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
 
     cdef float final_modularity_float = 1.0
     cdef double final_modularity_double = 1.0
     cdef int num_level = 0
 
     if weights.dtype == np.float32:
-        graph_float = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices,
-                                              <float*>c_weights, num_verts, num_edges)
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
+                                                  <float*>c_weights, num_verts, num_edges)
 
         graph_float.get_vertex_identifiers(<int*>c_identifier)
         c_louvain(graph_float,
@@ -78,8 +78,8 @@ def louvain(input_graph, max_iter=100):
 
         final_modularity = final_modularity_float
     else:
-        graph_double = GraphCSR[int,int,double](<int*>c_offsets, <int*>c_indices,
-                                                <double*>c_weights, num_verts, num_edges)
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
+                                                    <double*>c_weights, num_verts, num_edges)
 
         graph_double.get_vertex_identifiers(<int*>c_identifier)
         c_louvain(graph_double,
