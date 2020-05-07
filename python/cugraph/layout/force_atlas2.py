@@ -94,6 +94,9 @@ def force_atlas2(input_graph,
         if prevent_overlapping:
             raise Exception("Feature not supported")
 
+        if input_graph.is_directed():
+            input_graph = input_graph.to_undirected()
+
         pos = force_atlas2_wrapper.force_atlas2(input_graph,
                 max_iter=max_iter,
                 pos_list=pos_list,
