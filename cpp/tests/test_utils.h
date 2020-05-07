@@ -332,55 +332,50 @@ int mm_properties(FILE* f, int tg, MM_typecode* t, IndexType_* m, IndexType_* n,
  *  @return Zero if matrix was read successfully. Otherwise non-zero.
  */
 template <typename IndexType_, typename ValueType_>
-int mm_to_matrix(FILE *f, IndexType_ nnz,
-	      std::vector<std::vector<ValueType_>>& adj_matrix) {
-
+int mm_to_matrix(FILE* f, IndexType_ nnz, std::vector<std::vector<ValueType_>>& adj_matrix)
+{
   // Read matrix properties from file
   MM_typecode t;
   int m, n, nnzOld;
-  if(fseek(f,0,SEEK_SET)) {
+  if (fseek(f, 0, SEEK_SET)) {
     fprintf(stderr, "Error: could not set position in file\n");
     return -1;
   }
-  if(mm_read_banner(f,&t)) {
+  if (mm_read_banner(f, &t)) {
     fprintf(stderr, "Error: could not read Matrix Market file banner\n");
     return -1;
   }
-  if(!mm_is_matrix(t) || !mm_is_coordinate(t)) {
+  if (!mm_is_matrix(t) || !mm_is_coordinate(t)) {
     fprintf(stderr, "Error: file does not contain matrix in coordinate format\n");
     return -1;
   }
-  if(mm_read_mtx_crd_size(f,&m,&n,&nnzOld)) {
+  if (mm_read_mtx_crd_size(f, &m, &n, &nnzOld)) {
     fprintf(stderr, "Error: could not read matrix dimensions\n");
     return -1;
   }
-  if(!mm_is_pattern(t) && !mm_is_real(t) &&
-     !mm_is_integer(t) && !mm_is_complex(t)) {
+  if (!mm_is_pattern(t) && !mm_is_real(t) && !mm_is_integer(t) && !mm_is_complex(t)) {
     fprintf(stderr, "Error: matrix entries are not valid type\n");
     return -1;
   }
 
   // Add each matrix entry in file to COO format matrix
-  IndexType_ i;      // Entry index in Matrix Market file
-  for(i=0;i<nnzOld;++i) {
-
+  IndexType_ i;  // Entry index in Matrix Market file
+  for (i = 0; i < nnzOld; ++i) {
     // Read entry from file
     int row, col;
     double rval, ival;
     int st;
     if (mm_is_pattern(t)) {
-      st = fscanf(f, "%d %d\n", &row, &col);
+      st   = fscanf(f, "%d %d\n", &row, &col);
       rval = 1.0;
       ival = 0.0;
-    }
-    else if (mm_is_real(t) || mm_is_integer(t)) {
-      st = fscanf(f, "%d %d %lg\n", &row, &col, &rval);
+    } else if (mm_is_real(t) || mm_is_integer(t)) {
+      st   = fscanf(f, "%d %d %lg\n", &row, &col, &rval);
       ival = 0.0;
-    }
-    else // Complex matrix
+    } else  // Complex matrix
       st = fscanf(f, "%d %d %lg %lg\n", &row, &col, &rval, &ival);
-    if(ferror(f) || (st == EOF)) {
-        fprintf(stderr, "Error: error %d reading Matrix Market file (entry %d)\n", st, i+1);
+    if (ferror(f) || (st == EOF)) {
+      fprintf(stderr, "Error: error %d reading Matrix Market file (entry %d)\n", st, i + 1);
       return -1;
     }
 

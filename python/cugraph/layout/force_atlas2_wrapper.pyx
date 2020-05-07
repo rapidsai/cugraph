@@ -36,7 +36,7 @@ cdef extern from "internals.h" namespace "cugraph::internals":
             cdef cppclass GraphBasedDimRedCallback
 
 def force_atlas2(input_graph,
-                 max_iter=1000,
+                 max_iter=500,
                  pos_list=None,
                  outbound_attraction_distribution=True,
                  lin_log_mode=False,

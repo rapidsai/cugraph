@@ -16,46 +16,46 @@
 
 #pragma once
 
-#include <thrust/random.h>
 #include <sys/time.h>
+#include <thrust/random.h>
 
 namespace cugraph {
 namespace detail {
 
 struct prg {
-    __host__ __device__
-        float operator()(int n){
-            thrust::default_random_engine rng;
-            thrust::uniform_real_distribution<float> dist(-100.f, 100.f);
-            rng.discard(n);
-            return dist(rng);
-        }
+  __host__ __device__ float operator()(int n)
+  {
+    thrust::default_random_engine rng;
+    thrust::uniform_real_distribution<float> dist(-100.f, 100.f);
+    rng.discard(n);
+    return dist(rng);
+  }
 };
 
-void random_vector(float *vec, int n, int seed) {
-    thrust::counting_iterator<uint32_t> index(seed);
-    thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index,
-            index + n, vec, prg());
+void random_vector(float *vec, int n, int seed)
+{
+  thrust::counting_iterator<uint32_t> index(seed);
+  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index, index + n, vec, prg());
 }
 
 /** helper method to get multi-processor count parameter */
-inline int getMultiProcessorCount() {
-    int devId;
-    CUDA_TRY(cudaGetDevice(&devId));
-    int mpCount;
-    CUDA_TRY(
-            cudaDeviceGetAttribute(&mpCount, cudaDevAttrMultiProcessorCount, devId));
-    return mpCount;
+inline int getMultiProcessorCount()
+{
+  int devId;
+  CUDA_TRY(cudaGetDevice(&devId));
+  int mpCount;
+  CUDA_TRY(cudaDeviceGetAttribute(&mpCount, cudaDevAttrMultiProcessorCount, devId));
+  return mpCount;
 }
 
-inline int getMaxThreadsCount() {
-    int devId;
-    CUDA_TRY(cudaGetDevice(&devId));
-    int mpCount;
-    CUDA_TRY(
-            cudaDeviceGetAttribute(&mpCount, cudaDevAttrMaxThreadsPerBlock, devId));
-    return mpCount;
+inline int getMaxThreadsCount()
+{
+  int devId;
+  CUDA_TRY(cudaGetDevice(&devId));
+  int mpCount;
+  CUDA_TRY(cudaDeviceGetAttribute(&mpCount, cudaDevAttrMaxThreadsPerBlock, devId));
+  return mpCount;
 }
 
-} // namespace detail
-} // namespace cugraph
+}  // namespace detail
+}  // namespace cugraph

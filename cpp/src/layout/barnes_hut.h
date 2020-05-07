@@ -17,16 +17,16 @@
 #pragma once
 
 #include <cugraph.h>
-#include <graph.hpp>
 #include <internals.h>
-#include <rmm/device_buffer.hpp>
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm_utils.h>
 #include <stdio.h>
+#include <graph.hpp>
+#include <rmm/device_buffer.hpp>
 
-#include <thrust/transform.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/transform.h>
 
 #include "bh_kernels.h"
 #include "fa2_kernels.h"
@@ -38,241 +38,284 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void barnes_hut(const vertex_t *row, const vertex_t *col,
-        const weight_t *v, const edge_t e, const vertex_t n,
-        float *pos, const int max_iter=1000,
-        float *x_start=nullptr, float *y_start=nullptr,
-        bool outbounattraction_distribution=false,
-        bool lin_log_mode=false, bool prevent_overlapping=false,
-        const float edge_weight_influence=1.0,
-        const float jitter_tolerance=1.0, const float theta=0.5,
-        const float scaling_ratio=2.0, bool strong_gravity_mode=false,
-        const float gravity=1.0,
-        bool verbose=false,
-        internals::GraphBasedDimRedCallback* callback=nullptr) {
+void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                float *pos,
+                const int max_iter                            = 1000,
+                float *x_start                                = nullptr,
+                float *y_start                                = nullptr,
+                bool outbound_attraction_distribution         = true,
+                bool lin_log_mode                             = false,
+                bool prevent_overlapping                      = false,
+                const float edge_weight_influence             = 1.0,
+                const float jitter_tolerance                  = 1.0,
+                const float theta                             = 0.5,
+                const float scaling_ratio                     = 2.0,
+                bool strong_gravity_mode                      = false,
+                const float gravity                           = 1.0,
+                bool verbose                                  = false,
+                internals::GraphBasedDimRedCallback *callback = nullptr)
+{
+  const vertex_t *row = graph.src_indices;
+  const vertex_t *col = graph.dst_indices;
+  const weight_t *v   = graph.edge_data;
+  const edge_t e      = graph.number_of_edges;
+  const vertex_t n    = graph.number_of_vertices;
 
-    const int blocks = getMultiProcessorCount();
-    const float epssq = 0.0025;
-    int nnodes = n * 2;
-    if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
-    while ((nnodes & (32 - 1)) != 0) nnodes++;
-    nnodes--;
-    if (verbose) printf("N_nodes = %d blocks = %d\n", nnodes, blocks);
+  const int blocks  = getMultiProcessorCount();
+  const float epssq = 0.0025;
+  int nnodes        = n * 2;
+  if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
+  while ((nnodes & (32 - 1)) != 0) nnodes++;
+  nnodes--;
+  if (verbose) printf("N_nodes = %d blocks = %d\n", nnodes, blocks);
 
-    // Allocate more space
-    //---------------------------------------------------
-    rmm::device_vector<unsigned>d_limiter(1);
-    rmm::device_vector<int>d_maxdepthd(1);
-    rmm::device_vector<int>d_bottomd(1);
-    rmm::device_vector<float>d_radiusd(1);
+  // Allocate more space
+  //---------------------------------------------------
+  rmm::device_vector<unsigned> d_limiter(1);
+  rmm::device_vector<int> d_maxdepthd(1);
+  rmm::device_vector<int> d_bottomd(1);
+  rmm::device_vector<float> d_radiusd(1);
 
-    unsigned *limiter = d_limiter.data().get();
-    int *maxdepthd = d_maxdepthd.data().get();
-    int *bottomd = d_bottomd.data().get();
-    float *radiusd = d_radiusd.data().get();
+  unsigned *limiter = d_limiter.data().get();
+  int *maxdepthd    = d_maxdepthd.data().get();
+  int *bottomd      = d_bottomd.data().get();
+  float *radiusd    = d_radiusd.data().get();
 
-    InitializationKernel<<<1, 1>>>(limiter, maxdepthd,
-          radiusd);
+  InitializationKernel<<<1, 1>>>(limiter, maxdepthd, radiusd);
+  CUDA_CHECK_LAST();
+
+  const int FOUR_NNODES     = 4 * nnodes;
+  const int FOUR_N          = 4 * n;
+  const float theta_squared = theta * theta;
+  const int NNODES          = nnodes;
+
+  rmm::device_vector<int> d_startl(nnodes + 1, 0);
+  rmm::device_vector<int> d_childl((nnodes + 1) * 4, 0);
+  rmm::device_vector<int> d_massl(nnodes + 1, 1.f);
+
+  rmm::device_vector<float> d_maxxl(blocks * FACTOR1, 0);
+  rmm::device_vector<float> d_maxyl(blocks * FACTOR1, 0);
+  rmm::device_vector<float> d_minxl(blocks * FACTOR1, 0);
+  rmm::device_vector<float> d_minyl(blocks * FACTOR1, 0);
+
+  // Actual mallocs
+  int *startl = d_startl.data().get();
+  int *childl = d_childl.data().get();
+  int *massl  = d_massl.data().get();
+
+  float *maxxl = d_maxxl.data().get();
+  float *maxyl = d_maxyl.data().get();
+  float *minxl = d_minxl.data().get();
+  float *minyl = d_minyl.data().get();
+
+  // SummarizationKernel
+  rmm::device_vector<int> d_countl(nnodes + 1, 0);
+  int *countl = d_countl.data().get();
+
+  // SortKernel
+  rmm::device_vector<int> d_sortl(nnodes + 1, 0);
+  int *sortl = d_sortl.data().get();
+
+  // RepulsionKernel
+  rmm::device_vector<float> d_rep_forces((nnodes + 1) * 2, 0);
+  float *rep_forces = d_rep_forces.data().get();
+
+  rmm::device_vector<float> d_radius_squared(1, 0);
+  float *radiusd_squared = d_radius_squared.data().get();
+
+  rmm::device_vector<float> d_nodes_pos((nnodes + 1) * 2, 0);
+  float *nodes_pos = d_nodes_pos.data().get();
+
+  int random_state = -1;
+  random_vector(nodes_pos, (nnodes + 1) * 2, random_state);
+
+  if (x_start && y_start) {
+    copy(n, x_start, nodes_pos);
+    copy(n, y_start, nodes_pos + nnodes + 1);
+  }
+
+  float *attract{nullptr};
+  float *old_forces{nullptr};
+  float *swinging{nullptr};
+  float *traction{nullptr};
+
+  rmm::device_vector<float> d_attract(n * 2, 0);
+  rmm::device_vector<float> d_old_forces(n * 2, 0);
+  rmm::device_vector<float> d_swinging(n, 0);
+  rmm::device_vector<float> d_traction(n, 0);
+
+  attract    = d_attract.data().get();
+  old_forces = d_old_forces.data().get();
+  swinging   = d_swinging.data().get();
+  traction   = d_traction.data().get();
+
+  vertex_t *srcs{nullptr};
+  vertex_t *dests{nullptr};
+  weight_t *weights{nullptr};
+
+  sort_coo<vertex_t, edge_t, weight_t>(row, col, v, &srcs, &dests, &weights, e);
+  init_mass<vertex_t, edge_t>(dests, massl, e, n);
+
+  float speed                     = 1.f;
+  float speed_efficiency          = 1.f;
+  float outbound_att_compensation = 1.f;
+  float jt                        = 0.f;
+
+  if (outbound_attraction_distribution) {
+    int sum                   = thrust::reduce(d_massl.begin(), d_massl.begin() + n);
+    outbound_att_compensation = sum / (float)n;
+  }
+
+  //
+  // Set cache levels for faster algorithm execution
+  //---------------------------------------------------
+  cudaFuncSetCacheConfig(BoundingBoxKernel, cudaFuncCachePreferShared);
+  cudaFuncSetCacheConfig(TreeBuildingKernel, cudaFuncCachePreferL1);
+  cudaFuncSetCacheConfig(ClearKernel1, cudaFuncCachePreferL1);
+  cudaFuncSetCacheConfig(ClearKernel2, cudaFuncCachePreferL1);
+  cudaFuncSetCacheConfig(SummarizationKernel, cudaFuncCachePreferShared);
+  cudaFuncSetCacheConfig(SortKernel, cudaFuncCachePreferL1);
+  cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
+  cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
+
+  if (callback) {
+    callback->setup<float>(nnodes + 1, 2);
+    callback->on_preprocess_end(nodes_pos);
+  }
+
+  for (int iter = 0; iter < max_iter; ++iter) {
+    fill((nnodes + 1) * 2, rep_forces, 0.f);
+    fill(n * 2, attract, 0.f);
+    fill(n, swinging, 0.f);
+    fill(n, traction, 0.f);
+
+    ResetKernel<<<1, 1>>>(radiusd_squared, bottomd, NNODES, radiusd);
     CUDA_CHECK_LAST();
 
-    const int FOUR_NNODES = 4 * nnodes;
-    const int FOUR_N = 4 * n;
-    const float theta_squared = theta * theta;
-    const int NNODES = nnodes;
+    BoundingBoxKernel<<<blocks * FACTOR1, THREADS1>>>(startl,
+                                                      childl,
+                                                      massl,
+                                                      nodes_pos,
+                                                      nodes_pos + nnodes + 1,
+                                                      maxxl,
+                                                      maxyl,
+                                                      minxl,
+                                                      minyl,
+                                                      FOUR_NNODES,
+                                                      NNODES,
+                                                      n,
+                                                      limiter,
+                                                      radiusd);
+    CUDA_CHECK_LAST();
 
-    rmm::device_vector<int>d_startl(nnodes + 1, 0);
-    rmm::device_vector<int>d_childl((nnodes + 1) * 4, 0);
-    rmm::device_vector<int>d_massl(nnodes + 1, 1.f);
+    ClearKernel1<<<blocks, 1024>>>(childl, FOUR_NNODES, FOUR_N);
+    CUDA_CHECK_LAST();
 
-    rmm::device_vector<float>d_maxxl(blocks * FACTOR1, 0);
-    rmm::device_vector<float>d_maxyl(blocks * FACTOR1, 0);
-    rmm::device_vector<float>d_minxl(blocks * FACTOR1, 0);
-    rmm::device_vector<float>d_minyl(blocks * FACTOR1, 0);
+    TreeBuildingKernel<<<blocks * FACTOR2, THREADS2>>>(
+      childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, maxdepthd, bottomd, radiusd);
+    CUDA_CHECK_LAST();
 
+    ClearKernel2<<<blocks, 1024>>>(startl, massl, NNODES, bottomd);
+    CUDA_CHECK_LAST();
 
-    // Actual mallocs
-    int *startl = d_startl.data().get();
-    int *childl = d_childl.data().get();
-    int *massl = d_massl.data().get();
+    SummarizationKernel<<<blocks * FACTOR3, THREADS3>>>(
+      countl, childl, massl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, bottomd);
+    CUDA_CHECK_LAST();
 
-    float *maxxl = d_maxxl.data().get();
-    float *maxyl = d_maxyl.data().get();
-    float *minxl = d_minxl.data().get();
-    float *minyl = d_minyl.data().get();
+    SortKernel<<<blocks * FACTOR4, THREADS4>>>(sortl, countl, startl, childl, NNODES, n, bottomd);
+    CUDA_CHECK_LAST();
 
-    // SummarizationKernel
-    rmm::device_vector<int>d_countl(nnodes + 1, 0);
-    int *countl = d_countl.data().get();
+    RepulsionKernel<<<blocks * FACTOR5, THREADS5>>>(scaling_ratio,
+                                                    theta,
+                                                    epssq,
+                                                    sortl,
+                                                    childl,
+                                                    massl,
+                                                    nodes_pos,
+                                                    nodes_pos + nnodes + 1,
+                                                    rep_forces,
+                                                    rep_forces + nnodes + 1,
+                                                    theta_squared,
+                                                    NNODES,
+                                                    FOUR_NNODES,
+                                                    n,
+                                                    radiusd_squared,
+                                                    maxdepthd);
+    CUDA_CHECK_LAST();
 
-    // SortKernel
-    rmm::device_vector<int>d_sortl(nnodes + 1, 0);
-    int *sortl = d_sortl.data().get();
+    apply_gravity<vertex_t>(nodes_pos,
+                            nodes_pos + nnodes + 1,
+                            attract,
+                            attract + n,
+                            massl,
+                            gravity,
+                            strong_gravity_mode,
+                            scaling_ratio,
+                            n);
 
-    // RepulsionKernel
-    rmm::device_vector<float>d_rep_forces((nnodes + 1) * 2, 0);
-    float *rep_forces = d_rep_forces.data().get();
+    apply_attraction<vertex_t, edge_t, weight_t>(srcs,
+                                                 dests,
+                                                 weights,
+                                                 e,
+                                                 nodes_pos,
+                                                 nodes_pos + nnodes + 1,
+                                                 attract,
+                                                 attract + n,
+                                                 massl,
+                                                 outbound_attraction_distribution,
+                                                 lin_log_mode,
+                                                 edge_weight_influence,
+                                                 outbound_att_compensation);
 
-    rmm::device_vector<float>d_radius_squared(1, 0);
-    float *radiusd_squared = d_radius_squared.data().get();
+    compute_local_speed(rep_forces,
+                        rep_forces + nnodes + 1,
+                        attract,
+                        attract + n,
+                        old_forces,
+                        old_forces + n,
+                        massl,
+                        swinging,
+                        traction,
+                        n);
 
-    rmm::device_vector<float>d_nodes_pos((nnodes + 1) * 2, 0);
-    float *nodes_pos = d_nodes_pos.data().get();
+    const float s =
+      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), d_swinging.begin(), d_swinging.end());
 
-    int random_state = -1;
-    random_vector(nodes_pos, (nnodes + 1) * 2, random_state);
+    const float t =
+      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), d_traction.begin(), d_traction.end());
 
-    if (x_start && y_start) {
-        copy(n, x_start, nodes_pos);
-        copy(n, y_start, nodes_pos + nnodes + 1);
+    adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
+
+    apply_forces_bh<<<blocks * FACTOR6, THREADS6>>>(nodes_pos,
+                                                    nodes_pos + nnodes + 1,
+                                                    attract,
+                                                    attract + n,
+                                                    rep_forces,
+                                                    rep_forces + nnodes + 1,
+                                                    old_forces,
+                                                    old_forces + n,
+                                                    swinging,
+                                                    speed,
+                                                    n);
+
+    if (callback) callback->on_epoch_end(nodes_pos);
+
+    if (verbose) {
+      printf("iteration %i, speed: %f, speed_efficiency: %f, ", iter, speed, speed_efficiency);
+      printf("jt: %f, ", jt);
+      printf("swinging: %f, traction: %f\n", s, t);
     }
+  }
 
-    float *attract{nullptr};
-    float *old_forces{nullptr};
-    float *swinging{nullptr};
-    float *traction{nullptr};
+  copy(n, nodes_pos, pos);
+  copy(n, nodes_pos + nnodes + 1, pos + n);
 
-    rmm::device_vector<float> d_attract(n * 2, 0);
-    rmm::device_vector<float> d_old_forces(n * 2, 0);
-    rmm::device_vector<float> d_swinging(n, 0);
-    rmm::device_vector<float> d_traction(n, 0);
+  if (callback) callback->on_epoch_end(nodes_pos);
 
-    attract = d_attract.data().get();
-    old_forces = d_old_forces.data().get();
-    swinging = d_swinging.data().get();
-    traction = d_traction.data().get();
-
-    vertex_t* srcs{nullptr};
-    vertex_t* dests{nullptr};
-    weight_t* weights{nullptr};
-
-    sort_coo<vertex_t, edge_t, weight_t>(row,
-                        col, v, &srcs, &dests, &weights, e);
-    init_mass<vertex_t, edge_t, int>(dests, massl, e, n);
-
-    float speed = 1.f;
-    float speed_efficiency = 1.f;
-    float outbound_att_compensation = 1.f;
-    float jt = 0.f;
-
-    if (outbounattraction_distribution) {
-        int sum = thrust::reduce(d_massl.begin(), d_massl.begin() + n);
-        outbound_att_compensation = sum / (float)n;
-    }
-    //
-    // Set cache levels for faster algorithm execution
-    //---------------------------------------------------
-    cudaFuncSetCacheConfig(BoundingBoxKernel, cudaFuncCachePreferShared);
-    cudaFuncSetCacheConfig(TreeBuildingKernel, cudaFuncCachePreferL1);
-    cudaFuncSetCacheConfig(ClearKernel1, cudaFuncCachePreferL1);
-    cudaFuncSetCacheConfig(ClearKernel2, cudaFuncCachePreferL1);
-    cudaFuncSetCacheConfig(SummarizationKernel, cudaFuncCachePreferShared);
-    cudaFuncSetCacheConfig(SortKernel, cudaFuncCachePreferL1);
-    cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
-    cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
-
-    if(callback) {
-        callback->setup<float>(nnodes + 1, 2);
-        callback->on_preprocess_end(nodes_pos);
-    }
-
-    for (int iter = 0; iter < max_iter; ++iter) {
-        fill((nnodes + 1) * 2, rep_forces, 0.f);
-        fill(n * 2, attract, 0.f);
-        fill(n, swinging, 0.f);
-        fill(n, traction, 0.f);
-
-        ResetKernel<<<1, 1>>>(radiusd_squared,
-                bottomd, NNODES, radiusd);
-        CUDA_CHECK_LAST();
-
-        BoundingBoxKernel<<<blocks * FACTOR1, THREADS1>>>(
-                startl, childl, massl, nodes_pos, nodes_pos + nnodes + 1,
-                maxxl, maxyl, minxl, minyl,
-                FOUR_NNODES, NNODES, n, limiter, radiusd);
-        CUDA_CHECK_LAST();
-
-        ClearKernel1<<<blocks, 1024>>>(childl, FOUR_NNODES,
-                FOUR_N);
-        CUDA_CHECK_LAST();
-
-        TreeBuildingKernel<<<blocks * FACTOR2, THREADS2>>>(
-                childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n,
-                maxdepthd, bottomd, radiusd);
-        CUDA_CHECK_LAST();
-
-        ClearKernel2<<<blocks, 1024>>>(startl, massl, NNODES,
-                bottomd);
-        CUDA_CHECK_LAST();
-
-        SummarizationKernel<<<blocks * FACTOR3, THREADS3>>>(
-                countl, childl, massl, nodes_pos,
-                nodes_pos + nnodes + 1, NNODES, n, bottomd);
-        CUDA_CHECK_LAST();
-
-        SortKernel<<<blocks * FACTOR4, THREADS4>>>(
-                sortl, countl, startl, childl, NNODES, n, bottomd);
-        CUDA_CHECK_LAST();
-
-        RepulsionKernel<<<blocks * FACTOR5, THREADS5>>>(
-                scaling_ratio,
-                theta, epssq, sortl, childl, massl,
-                nodes_pos, nodes_pos + nnodes + 1,
-                rep_forces, rep_forces + nnodes + 1, theta_squared, NNODES,
-                FOUR_NNODES, n, radiusd_squared, maxdepthd);
-        CUDA_CHECK_LAST();
-
-        apply_gravity<vertex_t>(nodes_pos, nodes_pos + nnodes + 1,
-                attract, attract + n,
-                massl, gravity, strong_gravity_mode, scaling_ratio, n);
-
-        apply_attraction<vertex_t, edge_t, weight_t>(srcs,
-                dests, weights, e, nodes_pos, nodes_pos + nnodes + 1,
-                attract, attract + n, massl,
-                outbounattraction_distribution, lin_log_mode,
-                edge_weight_influence, outbound_att_compensation);
-
-        compute_local_speed(rep_forces, rep_forces + nnodes + 1,
-                attract, attract + n,
-                old_forces, old_forces + n,
-                massl, swinging, traction, n);
-
-        const float s = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr),
-                d_swinging.begin(), d_swinging.end());
-
-        const float t = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr),
-                d_traction.begin(), d_traction.end());
-
-        adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency,
-                s, t, n);
-
-        apply_forces_bh<<<blocks * FACTOR6, THREADS6>>>(
-                nodes_pos, nodes_pos + nnodes + 1, attract, attract + n,
-                rep_forces, rep_forces + nnodes + 1,
-                old_forces, old_forces + n,
-                swinging, speed, n);
-
-        if (callback)
-            callback->on_epoch_end(nodes_pos);
-
-        if (verbose) {
-            printf("iteration %i, speed: %f, speed_efficiency: %f, ",
-                    iter, speed, speed_efficiency);
-            printf("jt: %f, ", jt);
-            printf("swinging: %f, traction: %f\n", s, t);
-        }
-    }
-
-    copy(n, nodes_pos, pos);
-    copy(n, nodes_pos + nnodes + 1, pos + n);
-
-    if (callback)
-        callback->on_epoch_end(nodes_pos);
-
-    ALLOC_FREE_TRY(srcs, nullptr);
-    ALLOC_FREE_TRY(dests, nullptr);
-    if (v)
-        ALLOC_FREE_TRY(weights, nullptr);
+  ALLOC_FREE_TRY(srcs, nullptr);
+  ALLOC_FREE_TRY(dests, nullptr);
+  if (v) ALLOC_FREE_TRY(weights, nullptr);
 }
 
-} // namespace detail
-} // namespace cugraph
+}  // namespace detail
+}  // namespace cugraph

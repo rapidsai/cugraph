@@ -45,44 +45,53 @@ namespace detail {
  */
 __global__ void InitializationKernel(unsigned *restrict limiter,
                                      int *restrict maxdepthd,
-                                     float *restrict radiusd) {
+                                     float *restrict radiusd)
+{
   maxdepthd[0] = 1;
-  limiter[0] = 0;
-  radiusd[0] = 0.0f;
+  limiter[0]   = 0;
+  radiusd[0]   = 0.0f;
 }
 
 /**
  * Reset root.
  */
 __global__ void ResetKernel(float *restrict radiusd_squared,
-                                    int *restrict bottomd, const int NNODES,
-                                    const float *restrict radiusd) {
+                            int *restrict bottomd,
+                            const int NNODES,
+                            const float *restrict radiusd)
+{
   radiusd_squared[0] = radiusd[0] * radiusd[0];
   // create root node
   bottomd[0] = NNODES;
 }
 
-
-
 /**
  * Figures the bounding boxes for every point in the embedding.
  */
-__global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(
-  int *restrict startd, int *restrict childd, int *restrict massd,
-  float *restrict posxd, float *restrict posyd, float *restrict maxxd,
-  float *restrict maxyd, float *restrict minxd, float *restrict minyd,
-  const int FOUR_NNODES, const int NNODES, const int N,
-  unsigned *restrict limiter, float *restrict radiusd) {
+__global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(int *restrict startd,
+                                                                       int *restrict childd,
+                                                                       int *restrict massd,
+                                                                       float *restrict posxd,
+                                                                       float *restrict posyd,
+                                                                       float *restrict maxxd,
+                                                                       float *restrict maxyd,
+                                                                       float *restrict minxd,
+                                                                       float *restrict minyd,
+                                                                       const int FOUR_NNODES,
+                                                                       const int NNODES,
+                                                                       const int N,
+                                                                       unsigned *restrict limiter,
+                                                                       float *restrict radiusd)
+{
   float val, minx, maxx, miny, maxy;
-  __shared__ float sminx[THREADS1], smaxx[THREADS1], sminy[THREADS1],
-    smaxy[THREADS1];
+  __shared__ float sminx[THREADS1], smaxx[THREADS1], sminy[THREADS1], smaxy[THREADS1];
 
   // initialize with valid data (in case #bodies < #threads)
   minx = maxx = posxd[0];
   miny = maxy = posyd[0];
 
   // scan all bodies
-  const int i = threadIdx.x;
+  const int i   = threadIdx.x;
   const int inc = THREADS1 * gridDim.x;
   for (int j = i + blockIdx.x * THREADS1; j < N; j += inc) {
     val = posxd[j];
@@ -116,10 +125,10 @@ __global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(
   if (i == 0) {
     // write block result to global memory
     const int k = blockIdx.x;
-    minxd[k] = minx;
-    maxxd[k] = maxx;
-    minyd[k] = miny;
-    maxyd[k] = maxy;
+    minxd[k]    = minx;
+    maxxd[k]    = maxx;
+    minyd[k]    = miny;
+    maxyd[k]    = maxy;
     __threadfence();
 
     const int inc = gridDim.x - 1;
@@ -136,10 +145,10 @@ __global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(
     // compute 'radius'
     atomicExch(radiusd, fmaxf(maxx - minx, maxy - miny) * 0.5f + 1e-5f);
 
-    massd[NNODES] = -1;
+    massd[NNODES]  = -1;
     startd[NNODES] = 0;
-    posxd[NNODES] = (minx + maxx) * 0.5f;
-    posyd[NNODES] = (miny + maxy) * 0.5f;
+    posxd[NNODES]  = (minx + maxx) * 0.5f;
+    posyd[NNODES]  = (miny + maxy) * 0.5f;
 
 #pragma unroll
     for (int a = 0; a < 4; a++) childd[FOUR_NNODES + a] = -1;
@@ -151,9 +160,10 @@ __global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(
  */
 __global__ __launch_bounds__(1024, 1) void ClearKernel1(int *restrict childd,
                                                         const int FOUR_NNODES,
-                                                        const int FOUR_N) {
+                                                        const int FOUR_N)
+{
   const int inc = blockDim.x * gridDim.x;
-  int k = (FOUR_N & -32) + threadIdx.x + blockIdx.x * blockDim.x;
+  int k         = (FOUR_N & -32) + threadIdx.x + blockIdx.x * blockDim.x;
   if (k < FOUR_N) k += inc;
 
 // iterate over all cells assigned to thread
@@ -164,15 +174,17 @@ __global__ __launch_bounds__(1024, 1) void ClearKernel1(int *restrict childd,
 /**
  * Build the actual KD Tree.
  */
-__global__ __launch_bounds__(
-  THREADS2, FACTOR2) void TreeBuildingKernel(/* int *restrict errd, */
-                                             int *restrict childd,
-                                             const float *restrict posxd,
-                                             const float *restrict posyd,
-                                             const int NNODES, const int N,
-                                             int *restrict maxdepthd,
-                                             int *restrict bottomd,
-                                             const float *restrict radiusd) {
+__global__ __launch_bounds__(THREADS2,
+                             FACTOR2) void TreeBuildingKernel(/* int *restrict errd, */
+                                                              int *restrict childd,
+                                                              const float *restrict posxd,
+                                                              const float *restrict posyd,
+                                                              const int NNODES,
+                                                              const int N,
+                                                              int *restrict maxdepthd,
+                                                              int *restrict bottomd,
+                                                              const float *restrict radiusd)
+{
   int j, depth;
   float x, y, r;
   float px, py;
@@ -180,22 +192,22 @@ __global__ __launch_bounds__(
 
   // cache root data
   const float radius = radiusd[0];
-  const float rootx = posxd[NNODES];
-  const float rooty = posyd[NNODES];
+  const float rootx  = posxd[NNODES];
+  const float rooty  = posyd[NNODES];
 
   int localmaxdepth = 1;
-  int skip = 1;
-  const int inc = blockDim.x * gridDim.x;
-  int i = threadIdx.x + blockIdx.x * blockDim.x;
+  int skip          = 1;
+  const int inc     = blockDim.x * gridDim.x;
+  int i             = threadIdx.x + blockIdx.x * blockDim.x;
 
   // iterate over all bodies assigned to thread
   while (i < N) {
     if (skip != 0) {
       // new body, so start traversing at root
-      skip = 0;
-      n = NNODES;
+      skip  = 0;
+      n     = NNODES;
       depth = 1;
-      r = radius * 0.5f;
+      r     = radius * 0.5f;
 
       x = rootx + ((rootx < (px = posxd[i])) ? (j = 1, r) : (j = 0, -r));
 
@@ -235,8 +247,8 @@ __global__ __launch_bounds__(
 
             const int cell = atomicSub(bottomd, 1) - 1;
             if (cell <= N) {
-                // out of cell memory
-                atomicExch(bottomd, N);
+              // out of cell memory
+              atomicExch(bottomd, N);
             }
 
             if (patch != -1) childd[n * 4 + j] = cell;
@@ -247,7 +259,7 @@ __global__ __launch_bounds__(
             if (y < posyd[ch]) j |= 2;
 
             childd[cell * 4 + j] = ch;
-            n = cell;
+            n                    = cell;
             r *= 0.5f;
 
             x += ((x < px) ? (j = 1, r) : (j = 0, -r));
@@ -256,8 +268,7 @@ __global__ __launch_bounds__(
 
             ch = childd[n * 4 + j];
 
-            if (r <= 1e-10)
-                break;
+            if (r <= 1e-10) break;
           }
 
           childd[n * 4 + j] = i;
@@ -266,7 +277,7 @@ __global__ __launch_bounds__(
 
           i += inc;  // move on to next body
           skip = 2;
-       }
+        }
       }
     }
     __threadfence();
@@ -283,20 +294,20 @@ __global__ __launch_bounds__(
 /**
  * Clean more state vectors.
  */
-__global__ __launch_bounds__(1024,
-                             1) void ClearKernel2(int *restrict startd,
-                                                  int *restrict massd,
-                                                  const int NNODES,
-                                                  const int *restrict bottomd) {
+__global__ __launch_bounds__(1024, 1) void ClearKernel2(int *restrict startd,
+                                                        int *restrict massd,
+                                                        const int NNODES,
+                                                        const int *restrict bottomd)
+{
   const int bottom = bottomd[0];
-  const int inc = blockDim.x * gridDim.x;
-  int k = (bottom & -32) + threadIdx.x + blockIdx.x * blockDim.x;
+  const int inc    = blockDim.x * gridDim.x;
+  int k            = (bottom & -32) + threadIdx.x + blockIdx.x * blockDim.x;
   if (k < bottom) k += inc;
 
 // iterate over all cells assigned to thread
 #pragma unroll
   for (; k < NNODES; k += inc) {
-    massd[k] = -1;
+    massd[k]  = -1;
     startd[k] = -1;
   }
 }
@@ -304,18 +315,24 @@ __global__ __launch_bounds__(1024,
 /**
  * Summarize the KD Tree via cell gathering
  */
-__global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
-  int *restrict countd, const int *restrict childd,
-  volatile int *restrict massd, float *restrict posxd, float *restrict posyd,
-  const int NNODES, const int N, const int *restrict bottomd) {
+__global__ __launch_bounds__(THREADS3,
+                             FACTOR3) void SummarizationKernel(int *restrict countd,
+                                                               const int *restrict childd,
+                                                               volatile int *restrict massd,
+                                                               float *restrict posxd,
+                                                               float *restrict posyd,
+                                                               const int NNODES,
+                                                               const int N,
+                                                               const int *restrict bottomd)
+{
   bool flag = 0;
   float cm, px, py;
   __shared__ int child[THREADS3 * 4];
   __shared__ int mass[THREADS3 * 4];
 
   const int bottom = bottomd[0];
-  const int inc = blockDim.x * gridDim.x;
-  int k = (bottom & -32) + threadIdx.x + blockIdx.x * blockDim.x;
+  const int inc    = blockDim.x * gridDim.x;
+  int k            = (bottom & -32) + threadIdx.x + blockIdx.x * blockDim.x;
   if (k < bottom) k += inc;
 
   const int restart = k;
@@ -324,29 +341,27 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
   {
     // iterate over all cells assigned to thread
     while (k <= NNODES) {
-     if (massd[k] < 0) {
+      if (massd[k] < 0) {
         for (int i = 0; i < 4; i++) {
-          const int ch = childd[k * 4 + i];
+          const int ch                      = childd[k * 4 + i];
           child[i * THREADS3 + threadIdx.x] = ch;
 
-          if ((ch >= N) and
-              ((mass[i * THREADS3 + threadIdx.x] = massd[ch]) < 0))
+          if ((ch >= N) and ((mass[i * THREADS3 + threadIdx.x] = massd[ch]) < 0))
             goto CONTINUE_LOOP;
         }
 
         // all children are ready
-        cm = 0.0f;
-        px = 0.0f;
-        py = 0.0f;
+        cm      = 0.0f;
+        px      = 0.0f;
+        py      = 0.0f;
         int cnt = 0;
 
 #pragma unroll
         for (int i = 0; i < 4; i++) {
           const int ch = child[i * THREADS3 + threadIdx.x];
           if (ch >= 0) {
-            const float m =
-              (ch >= N) ? (cnt += countd[ch], mass[i * THREADS3 + threadIdx.x])
-                        : (cnt++, massd[ch]);
+            const float m = (ch >= N) ? (cnt += countd[ch], mass[i * THREADS3 + threadIdx.x])
+                                      : (cnt++, massd[ch]);
             // add child's contribution
             cm += m;
             px += posxd[ch] * m;
@@ -354,10 +369,10 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
           }
         }
 
-        countd[k] = cnt;
+        countd[k]     = cnt;
         const float m = 1.0f / cm;
-        posxd[k] = px * m;
-        posyd[k] = py * m;
+        posxd[k]      = px * m;
+        posyd[k]      = py * m;
         __threadfence();  // make sure data are visible before setting mass
         massd[k] = cm;
       }
@@ -382,25 +397,24 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
         const int ch = childd[k * 4 + i];
 
         child[i * THREADS3 + threadIdx.x] = ch;
-        if ((ch < N) or ((mass[i * THREADS3 + threadIdx.x] = massd[ch]) >= 0))
-          j--;
+        if ((ch < N) or ((mass[i * THREADS3 + threadIdx.x] = massd[ch]) >= 0)) j--;
       }
 
     } else {
       j = 4;
       for (int i = 0; i < 4; i++) {
         const int ch = child[i * THREADS3 + threadIdx.x];
-       if ((ch < N) or (mass[i * THREADS3 + threadIdx.x] >= 0) or
+        if ((ch < N) or (mass[i * THREADS3 + threadIdx.x] >= 0) or
             ((mass[i * THREADS3 + threadIdx.x] = massd[ch]) >= 0))
           j--;
-     }
+      }
     }
 
     if (j == 0) {
       // all children are ready
-      cm = 0.0f;
-      px = 0.0f;
-      py = 0.0f;
+      cm      = 0.0f;
+      px      = 0.0f;
+      py      = 0.0f;
       int cnt = 0;
 
 #pragma unroll
@@ -408,8 +422,7 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
         const int ch = child[i * THREADS3 + threadIdx.x];
         if (ch >= 0) {
           const float m =
-            (ch >= N) ? (cnt += countd[ch], mass[i * THREADS3 + threadIdx.x])
-                      : (cnt++, massd[ch]);
+            (ch >= N) ? (cnt += countd[ch], mass[i * THREADS3 + threadIdx.x]) : (cnt++, massd[ch]);
           // add child's contribution
           cm += m;
           px += posxd[ch] * m;
@@ -417,11 +430,11 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
         }
       }
 
-      countd[k] = cnt;
+      countd[k]     = cnt;
       const float m = 1.0f / cm;
-      posxd[k] = px * m;
-      posyd[k] = py * m;
-      flag = 1;
+      posxd[k]      = px * m;
+      posyd[k]      = py * m;
+      flag          = 1;
     }
 
   SKIP_LOOP:
@@ -437,13 +450,17 @@ __global__ __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
 /**
  * Sort the cells
  */
-__global__ __launch_bounds__(THREADS4, FACTOR4) void SortKernel(
-  int *restrict sortd, const int *restrict countd,
-  volatile int *restrict startd, int *restrict childd, const int NNODES,
-  const int N, const int *restrict bottomd) {
+__global__ __launch_bounds__(THREADS4, FACTOR4) void SortKernel(int *restrict sortd,
+                                                                const int *restrict countd,
+                                                                volatile int *restrict startd,
+                                                                int *restrict childd,
+                                                                const int NNODES,
+                                                                const int N,
+                                                                const int *restrict bottomd)
+{
   const int bottom = bottomd[0];
-  const int dec = blockDim.x * gridDim.x;
-  int k = NNODES + 1 - dec + threadIdx.x + blockIdx.x * blockDim.x;
+  const int dec    = blockDim.x * gridDim.x;
+  int k            = NNODES + 1 - dec + threadIdx.x + blockIdx.x * blockDim.x;
   int start;
   int limiter = 0;
 
@@ -483,28 +500,30 @@ __global__ __launch_bounds__(THREADS4, FACTOR4) void SortKernel(
  * Calculate the repulsive forces using the KD Tree
  */
 __global__ __launch_bounds__(
-  THREADS5,
-  FACTOR5) void RepulsionKernel(/* int *restrict errd, */
-                                const float scaling_ratio,
-                                const float theta,
-                                const float
-                                  epssqd,  // correction for zero distance
-                                const int *restrict sortd,
-                                const int *restrict childd,
-                                const int *restrict massd,
-                                const float *restrict posxd,
-                                const float *restrict posyd,
-                                float *restrict velxd, float *restrict velyd,
-                                const float theta_squared, const int NNODES,
-                                const int FOUR_NNODES, const int N,
-                                const float *restrict radiusd_squared,
-                                const int *restrict maxdepthd) {
-   __shared__ int pos[THREADS5], node[THREADS5];
+  THREADS5, FACTOR5) void RepulsionKernel(/* int *restrict errd, */
+                                          const float scaling_ratio,
+                                          const float theta,
+                                          const float epssqd,  // correction for zero distance
+                                          const int *restrict sortd,
+                                          const int *restrict childd,
+                                          const int *restrict massd,
+                                          const float *restrict posxd,
+                                          const float *restrict posyd,
+                                          float *restrict velxd,
+                                          float *restrict velyd,
+                                          const float theta_squared,
+                                          const int NNODES,
+                                          const int FOUR_NNODES,
+                                          const int N,
+                                          const float *restrict radiusd_squared,
+                                          const int *restrict maxdepthd)
+{
+  __shared__ int pos[THREADS5], node[THREADS5];
   __shared__ float dq[THREADS5];
 
   if (threadIdx.x == 0) {
     const int max_depth = maxdepthd[0];
-    dq[0] = __fdividef(radiusd_squared[0], theta_squared);
+    dq[0]               = __fdividef(radiusd_squared[0], theta_squared);
 
     for (int i = 1; i < max_depth; i++) {
       dq[i] = dq[i - 1] * 0.25f;
@@ -517,7 +536,7 @@ __global__ __launch_bounds__(
   // figure out first thread in each warp (lane 0)
   // const int base = threadIdx.x / 32;
   // const int sbase = base * 32;
-  const int sbase = (threadIdx.x / 32) * 32;
+  const int sbase            = (threadIdx.x / 32) * 32;
   const bool SBASE_EQ_THREAD = (sbase == threadIdx.x);
 
   const int diff = threadIdx.x - sbase;
@@ -530,8 +549,7 @@ __global__ __launch_bounds__(
   // iterate over all bodies assigned to thread
   const int MAX_SIZE = FOUR_NNODES + 4;
 
-  for (int k = threadIdx.x + blockIdx.x * blockDim.x; k < N;
-       k += blockDim.x * gridDim.x) {
+  for (int k = threadIdx.x + blockIdx.x * blockDim.x; k < N; k += blockDim.x * gridDim.x) {
     const int i = sortd[k];  // get permuted/sorted index
     // cache position info
     if (i < 0 or i >= MAX_SIZE) continue;
@@ -546,7 +564,7 @@ __global__ __launch_bounds__(
     int depth = sbase;
 
     if (SBASE_EQ_THREAD == true) {
-      pos[sbase] = 0;
+      pos[sbase]  = 0;
       node[sbase] = FOUR_NNODES;
     }
 
@@ -564,19 +582,18 @@ __global__ __launch_bounds__(
         // Non child
         if (n < 0 or n > NNODES) break;
 
-        const float dx = px - posxd[n];
-        const float dy = py - posyd[n];
+        const float dx   = px - posxd[n];
+        const float dy   = py - posyd[n];
         const float dxy1 = dx * dx + dy * dy + epssqd;
 
         if ((n < N) or __all_sync(__activemask(), dxy1 >= dq[depth])) {
-          const float tdist_2 = __fdividef(scaling_ratio * massd[i] * massd[n],  dxy1);
+          const float tdist_2 = __fdividef(scaling_ratio * massd[i] * massd[n], dxy1);
           vx += dx * tdist_2;
           vy += dy * tdist_2;
         } else {
           // push cell onto stack
           if (SBASE_EQ_THREAD == true) {
-
-            pos[depth] = pd;
+            pos[depth]  = pd;
             node[depth] = nd;
           }
           depth++;
@@ -592,27 +609,30 @@ __global__ __launch_bounds__(
   }
 }
 
-__global__ __launch_bounds__(THREADS6, FACTOR6)
-    void apply_forces_bh(
-            float *restrict Y_x, float *restrict Y_y,
-            const float *restrict attract_x, const float *restrict attract_y,
-            const float *restrict repel_x, const float *restrict repel_y,
-            float *restrict old_dx, float *restrict old_dy,
-            const float *restrict swinging, const float speed, const int n) {
+__global__ __launch_bounds__(THREADS6,
+                             FACTOR6) void apply_forces_bh(float *restrict Y_x,
+                                                           float *restrict Y_y,
+                                                           const float *restrict attract_x,
+                                                           const float *restrict attract_y,
+                                                           const float *restrict repel_x,
+                                                           const float *restrict repel_y,
+                                                           float *restrict old_dx,
+                                                           float *restrict old_dy,
+                                                           const float *restrict swinging,
+                                                           const float speed,
+                                                           const int n)
+{
+  for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
+    const float dx = (repel_x[i] + attract_x[i]);
+    const float dy = (repel_y[i] + attract_y[i]);
+    old_dx[i]      = dx;
+    old_dy[i]      = dy;
 
-        for (int i = threadIdx.x + blockIdx.x * blockDim.x;
-                i < n;
-                i += gridDim.x * blockDim.x) {
-            const float dx = (repel_x[i] + attract_x[i]);
-            const float dy = (repel_y[i] + attract_y[i]);
-            old_dx[i] = dx;
-            old_dy[i] = dy;
-
-            float factor = speed / (1.0 + sqrt(speed * swinging[i]));
-            Y_x[i] += dx * factor;
-            Y_y[i] += dy * factor;
-        }
-    }
+    float factor = speed / (1.0 + sqrt(speed * swinging[i]));
+    Y_x[i] += dx * factor;
+    Y_y[i] += dy * factor;
+  }
+}
 
 }  // namespace detail
 }  // namespace cugraph

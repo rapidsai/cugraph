@@ -15,7 +15,7 @@ from cugraph.layout import force_atlas2_wrapper
 from cugraph.structure.graph import Graph, null_check
 
 def force_atlas2(input_graph,
-        max_iter=1000,
+        max_iter=500,
         pos_list=None,
         outbound_attraction_distribution=True,
         lin_log_mode=False,
@@ -53,7 +53,7 @@ def force_atlas2(input_graph,
             'x' and 'y' positions.
         outbound_attraction_distribution: bool
             Distributes attraction along outbound edges.
-            Hubs attract less and thus are pushed to the borders. 
+            Hubs attract less and thus are pushed to the borders.
         lin_log_mode: bool
             Switch ForceAtlas model from lin-lin to lin-log. Makes clusters more tight.
         prevent_overlapping: bool
