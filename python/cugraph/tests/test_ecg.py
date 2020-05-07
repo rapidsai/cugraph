@@ -11,10 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-import pytest
+# import gc
+# import pytest
 import cugraph
-from cugraph.tests import utils
+# from cugraph.tests import utils
 
 
 def cugraph_call(G, min_weight, ensemble_size):
