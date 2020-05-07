@@ -321,7 +321,7 @@ void fill_offset(
                    });
   ET zero = 0;
   CUDA_TRY(cudaMemcpy(offsets, &zero, sizeof(ET), cudaMemcpyDefault));
-  auto iter = thrust::make_reverse_iterator(offsets + number_of_vertices);
+  auto iter = thrust::make_reverse_iterator(offsets + number_of_vertices + 1);
   thrust::inclusive_scan(rmm::exec_policy(stream)->on(stream),
                          iter,
                          iter + number_of_vertices + 1,
