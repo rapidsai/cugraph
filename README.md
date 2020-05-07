@@ -91,8 +91,8 @@ As a simple rule of thumb, the amount of GPU memory should be about twice the si
 
 |       Size        | Recomended GPU Memory |
 |-------------------|-----------------------|
-| 1 Billion edges	|  32GB    |
-| 500 million edges |	16 GB  |
+| 500 million edges	|  32GB    |
+| 250 million edges |	16 GB  |
 
 
 
