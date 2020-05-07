@@ -8,6 +8,11 @@ cuGraph, and all of RAPIDS in general, is an open-source project where we encour
 If you are ready to contribute, jump right to the [Contribute Code](#code) section.
 
 
+__Style Formating Tools:__
+* `clang-format`  version 8.01+
+* `flake8`        version 3.5.0
+
+
 <a name="issue"></a>
 ## 1) File an Issue for the RAPIDS cuGraph team to work
 To file an issue, go to the RAPIDS cuGraph [issue](https://github.com/rapidsai/cugraph/issues/new/choose) page an select the appropiate issue type.  Once an issue is filed the RAPIDS cuGraph team will evaluate and triage the issue.  If you believe the issue needs priority attention, please include that in the issue to notify the team.
@@ -49,10 +54,9 @@ We love when people want to get involved, and if you have a suggestion for a new
 
 If you need more context on a particular issue, please ask.
 
-
+----
 <a name="code"></a>
-
-# So You Want to Contribute Code
+# So you want to contribute code
 
 **TL;DR General Development Process**
 1. Read the documentation on [building from source](SOURCEBUILD.md) to learn how to setup, and validate, the development environment
