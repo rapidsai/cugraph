@@ -145,7 +145,9 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
 
   cudaStream_t stream = {nullptr};
   sort(graph, stream);
+  CUDA_CHECK_LAST();
   graph.degree(massl, cugraph::experimental::DegreeDirection::OUT);
+  CUDA_CHECK_LAST();
 
   const vertex_t *row = graph.src_indices;
   const vertex_t *col = graph.dst_indices;

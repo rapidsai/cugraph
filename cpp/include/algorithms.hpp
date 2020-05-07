@@ -200,8 +200,7 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  *
  * @param[in] graph                             cuGRAPH graph descriptor, should contain the
  * connectivity information as a COO
- * @param[out] x_pos                            Device array containing x-axis positions;
- * @param[out] y_pos                            Device array containing y-axis positions;
+ * @param[out] pos                              Device array (2, n) containing x-axis and y-axis positions;
  * @param[in] max_iter                          The maximum number of iterations Force Atlas 2
  * should run for.
  * @param[in] x_start                           Device array containing starting x-axis positions;
