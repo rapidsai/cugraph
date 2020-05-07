@@ -27,7 +27,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         NUM_CONNECTIVITY_TYPES "cugraph::cugraph_cc_t::NUM_CONNECTIVITY_TYPES"
 
     cdef void connected_components[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         cugraph_cc_t connect_type,
         VT *labels) except +
 

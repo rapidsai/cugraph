@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <graph.hpp>
+
 namespace cugraph {
 
 /**
@@ -74,5 +76,27 @@ vertex_t coo2csr_weighted(edge_t num_edges,
                           edge_t **offsets,
                           vertex_t **indices,
                           weight_t **csr_weights);
+
+/**
+ * @brief    Convert COO to CSR
+ *
+ * Takes a list of edges in COOrdinate format and generates a CSR format.
+ *
+ * @throws                    cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                 type of vertex index
+ * @tparam ET                 type of edge index
+ * @tparam WT                 type of the edge weight
+ *
+ * @param[in]  graph          cuGRAPH graph in coordinate format
+ * @param[in]  mr             Memory resource used to allocate the returned graph
+ *
+ * @return                    Unique pointer to generate Compressed Sparse Row graph
+ *
+ */
+template <typename VT, typename ET, typename WT>
+std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
+  experimental::GraphCOOView<VT, ET, WT> const &graph,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 }  // namespace cugraph

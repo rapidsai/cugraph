@@ -22,12 +22,12 @@ from cugraph.structure.graph_new cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void jaccard[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         const WT *weights,
         WT *result) except +
     
     cdef void jaccard_list[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         const WT *weights,
         ET num_pairs,
         const VT *first,

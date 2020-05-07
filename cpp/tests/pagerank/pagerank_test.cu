@@ -126,7 +126,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     CSR_Result_Weighted<int, T> result;
     ConvertCOOtoCSR_weighted(&cooColInd[0], &cooRowInd[0], &cooVal[0], nnz, result);
 
-    cugraph::experimental::GraphCSC<int, int, T> G(
+    cugraph::experimental::GraphCSCView<int, int, T> G(
       result.rowOffsets, result.colIndices, result.edgeWeights, m, nnz);
 
     cudaDeviceSynchronize();
