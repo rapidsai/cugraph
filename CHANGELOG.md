@@ -1,6 +1,7 @@
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
+- PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
 - PR #840 OPG degree
 
