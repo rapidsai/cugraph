@@ -189,6 +189,14 @@ set(ECG_TEST_SRC
 ConfigureTest(ECG_TEST "${ECG_TEST_SRC}" "")
 
 ###################################################################################################
+# - Balanced cut clustering tests ---------------------------------------------------------------------------------
+
+set(BALANCED_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/balanced_edge_test.cpp")
+
+ConfigureTest(BALANCED_TEST "${BALANCED_TEST_SRC}" "")
+
+###################################################################################################
 # - TRIANGLE tests ---------------------------------------------------------------------------------
 
 set(TRIANGLE_TEST_SRC
