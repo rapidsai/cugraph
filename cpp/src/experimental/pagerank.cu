@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-
-#include <patterns.hpp>
+#include <detail/copy_patterns.hpp>
+#include <detail/one_level_patterns.hpp>
+#include <detail/two_level_patterns.hpp>
 
 #include <rmm/rmm.h>
 
