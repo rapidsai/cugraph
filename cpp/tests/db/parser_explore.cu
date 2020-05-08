@@ -22,37 +22,37 @@
 #include "test_utils.h"
 #include "utilities/graph_utils.cuh"
 
-class Test_Parser: public ::testing::Test {
+class Test_Parser : public ::testing::Test {
 };
 
 TEST_F(Test_Parser, printOut)
 {
   std::string input =
-      "LOAD CSV WITH HEADERS FROM 'file:///persons.csv' AS csvLine\nCREATE (p:Person {id: "
-          "toInteger(csvLine.id), name: csvLine.name})";
+    "LOAD CSV WITH HEADERS FROM 'file:///persons.csv' AS csvLine\nCREATE (p:Person {id: "
+    "toInteger(csvLine.id), name: csvLine.name})";
   std::cout << input << "\n";
   cugraph::db::printOutAst(input);
   std::cout << "\n";
 
   input =
-      "LOAD CSV WITH HEADERS FROM 'file:///movies.csv' AS csvLine\nMERGE (country:Country {name: "
-          "csvLine.country})\nCREATE (movie:Movie {id: toInteger(csvLine.id), title: csvLine.title, "
-          "year:toInteger(csvLine.year)})\nCREATE (movie)-[:MADE_IN]->(country)";
+    "LOAD CSV WITH HEADERS FROM 'file:///movies.csv' AS csvLine\nMERGE (country:Country {name: "
+    "csvLine.country})\nCREATE (movie:Movie {id: toInteger(csvLine.id), title: csvLine.title, "
+    "year:toInteger(csvLine.year)})\nCREATE (movie)-[:MADE_IN]->(country)";
   std::cout << input << "\n";
   cugraph::db::printOutAst(input);
   std::cout << "\n";
 
   input =
-      "LOAD CSV WITH HEADERS FROM 'file:///roles.csv' AS csvLine\nMATCH (person:Person {id: "
-          "toInteger(csvLine.personId)}),(movie:Movie {id: toInteger(csvLine.movieId)})\nCREATE "
-          "(person)-[:PLAYED {role: csvLine.role}]->(movie)";
+    "LOAD CSV WITH HEADERS FROM 'file:///roles.csv' AS csvLine\nMATCH (person:Person {id: "
+    "toInteger(csvLine.personId)}),(movie:Movie {id: toInteger(csvLine.movieId)})\nCREATE "
+    "(person)-[:PLAYED {role: csvLine.role}]->(movie)";
   std::cout << input << "\n";
   cugraph::db::printOutAst(input);
   std::cout << "\n";
 
   input =
-      "LOAD CSV FROM 'file:///roles.csv' AS csvLine FIELDTERMINATOR ';'\nCREATE (person:Person "
-          "{name: csvLine[0]})";
+    "LOAD CSV FROM 'file:///roles.csv' AS csvLine FIELDTERMINATOR ';'\nCREATE (person:Person "
+    "{name: csvLine[0]})";
   std::cout << input << "\n";
   cugraph::db::printOutAst(input);
   std::cout << "\n";
@@ -82,14 +82,15 @@ TEST_F(Test_Parser, printOut)
   //  std::cout << "\n";
   //
   input =
-      "MATCH (p:Person)-[:FriendsWith]-(i:Person)-[:FriendsWith]-(q:Person)\nRETURN p.name, q.name";
+    "MATCH (p:Person)-[:FriendsWith]-(i:Person)-[:FriendsWith]-(q:Person)\nRETURN p.name, q.name";
   std::cout << input << "\n";
   cugraph::db::printOutAst(input);
   std::cout << "\n";
 
   input =
-      "MATCH (p:Person:Human)-[r:FriendsWith | AssociateOf {KnowsFrom:'School',KnowsFrom:'Work'}]->(q:Person)\n"
-          "RETURN p.name, q.name";
+    "MATCH (p:Person:Human)-[r:FriendsWith | AssociateOf "
+    "{KnowsFrom:'School',KnowsFrom:'Work'}]->(q:Person)\n"
+    "RETURN p.name, q.name";
   std::cout << input << "\n";
   cugraph::db::printOutAst(input);
   std::cout << "\n";

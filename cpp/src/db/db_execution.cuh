@@ -47,7 +47,7 @@ class string_table {
 template <typename idx_t>
 class execution_node {
  public:
-  virtual ~execution_node()            = default;
+  virtual ~execution_node()                 = default;
   virtual void execute()                    = 0;
   virtual string_table& getStringResult()   = 0;
   virtual db_result<idx_t>& getGPUResult()  = 0;
@@ -75,23 +75,21 @@ class load_csv_node : public execution_node<idx_t> {
   void execute() override;
 };
 
-enum class pattern_type {
-  Node,
-  Relationship
-};
+enum class pattern_type { Node, Relationship };
 
 class pattern_element {
-public:
-  virtual ~pattern_element() = default;
+ public:
+  virtual ~pattern_element()          = default;
   virtual std::string getIdentifier() = 0;
-  virtual pattern_type type() = 0;
+  virtual pattern_type type()         = 0;
 };
 
-class node_pattern: public pattern_element {
+class node_pattern : public pattern_element {
   std::string identifier;
   std::vector<std::string> labels;
   std::map<std::string, std::string> properties;
-public:
+
+ public:
   node_pattern() = default;
   node_pattern(std::string id);
   ~node_pattern() = default;
@@ -104,14 +102,15 @@ public:
   std::map<std::string, std::string>& getProperties();
 };
 
-class relationship_pattern: public pattern_element {
+class relationship_pattern : public pattern_element {
   std::string identifier;
   uint32_t direction;
   std::string startId;
   std::string endId;
   std::vector<std::string> relationshipTypes;
   std::map<std::string, std::string> properties;
-public:
+
+ public:
   relationship_pattern();
   relationship_pattern(const cypher_astnode_t* astNode);
   void addProperty(std::string name, std::string value);
@@ -130,14 +129,15 @@ public:
 
 class pattern_path {
   std::vector<pattern_element*> path;
-public:
+
+ public:
   pattern_path() = default;
   pattern_path(const cypher_astnode_t* astNode);
   pattern_path(const pattern_path& other) = delete;
   pattern_path(pattern_path&& other);
   ~pattern_path();
   pattern_path& operator=(const pattern_path& other) = delete;
-  pattern_path& operator=(pattern_path&& other);
+  pattern_path& operator                             =(pattern_path&& other);
   std::vector<pattern_element*>& getPathNodes();
 };
 
@@ -148,7 +148,8 @@ template <typename idx_t>
 class match_node : public execution_node<idx_t> {
   std::vector<pattern_path> paths;
   db_result<idx_t> result;
-public:
+
+ public:
   match_node() = default;
   match_node(const cypher_astnode_t* astNode);
   string_table& getStringResult() override;
@@ -169,7 +170,6 @@ class create_node : public execution_node<idx_t> {
  */
 template <typename idx_t>
 class merge_node : public execution_node<idx_t> {
-
 };
 
 /**
@@ -182,7 +182,6 @@ class return_node : public execution_node<idx_t> {
 
 template <typename IdxT>
 class query_plan {
-
  public:
   query_plan();
   query_plan(const cypher_parse_result_t* parseResult);
