@@ -10,7 +10,7 @@ If you are ready to contribute, jump right to the [Contribute Code](#code) secti
 
 __Style Formating Tools:__
 * `clang-format`  version 8.01+
-* `flake8`        version 3.5.0
+* `flake8`        version 3.5.0+
 
 
 <a name="issue"></a>
@@ -154,7 +154,6 @@ All C++ code must pass clang style checking
 
 ### Tests
 All code must have associate test cases.  Code without test will not be accepted
-
 
 
 
