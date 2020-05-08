@@ -37,6 +37,7 @@
 - PR #851 Removed RMM from tests
 - PR #852 Fix BFS Notebook
 - PR #855 Missed a file in the original SNMG PR
+- PR #860 Fix all Notebooks
 
 # cuGraph 0.13.0 (Date TBD)
 
