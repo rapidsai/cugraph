@@ -24,6 +24,7 @@ from cugraph.tests import utils
 import rmm
 from random import randint
 from sklearn.manifold import trustworthiness
+from scipy.sparse import coo_matrix
 import scipy.io
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -38,7 +39,7 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
                  scaling_ratio, strong_gravity_mode, gravity):
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=False)
 
     # cugraph Force Atlas 2 Call
     t1 = time.time()
@@ -59,14 +60,17 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
     print('Cugraph Time : ' + str(t2))
     return pos
 
-DATASETS = ['../datasets/karate.csv', '../datasets/polbooks.csv', '../datasets/dolphins.csv']
+DATASETS = [('../datasets/karate.csv', 0.74),
+            ('../datasets/polbooks.csv', 0.76),
+            ('../datasets/dolphins.csv', 0.69),
+            ('../datasets/netscience.csv', 0.68)]
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE= [False, True]
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file, score', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('barnes_hut_optimize', BARNES_HUT_OPTIMIZE)
-def test_force_atlas2(graph_file, max_iter,
+def test_force_atlas2(graph_file, score, max_iter,
         barnes_hut_optimize):
     cu_M = utils.read_csv_file(graph_file)
     cu_pos = cugraph_call(cu_M,
@@ -82,9 +86,20 @@ def test_force_atlas2(graph_file, max_iter,
                           scaling_ratio=2.0,
                           strong_gravity_mode=False,
                           gravity=1.0)
+    '''
+        Trustworthiness score can be used for Force Atlas 2 as the algorithm
+        optimizes modularity. The final layout will result in
+        different communities being drawn out. We consider here the n x n
+        adjacency matrix of the graph as an embedding of the nodes in high
+        dimension. The results of force atlas 2 corresponds to the layout in
+        a 2d space. Here we check that nodes belonging to the same community
+        or neighbors are close to each other in the final embedding.
+        Threshold are based on the best score that is achived after x iterations
+        on a given graph.
+    '''
 
     matrix_file = graph_file[:-4] + '.mtx'
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
     cu_trust = trustworthiness(M, cu_pos[['x', 'y']].to_pandas())
-    assert cu_trust > 0.69
+    assert cu_trust > score

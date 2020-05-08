@@ -34,20 +34,19 @@ def force_atlas2(input_graph,
         ForceAtlas2 is a continuous graph layout algorithm for handy network
         visualization.
 
+        NOTE: Peak memory allocation occurs at 17*V.
         Parameters
         ----------
         input_graph : cugraph.Graph
-            cuGraph graph descriptor, should contain the connectivity information
-            as an edge list.
-            The adjacency list will be computed if not already present. The graph
-            should be undirected where an undirected edge is represented by a
-            directed edge in both direction.
-
+            cuGraph graph descriptor with connectivity information. Edge weights,
+            if present, should be single or double precision floating point values.
         max_iter : integer
             This controls the maximum number of levels/iterations of the Force Atlas
             algorithm. When specified the algorithm will terminate after no more
             than the specified number of iterations. No error occurs when the
             algorithm terminates early in this manner.
+            Good short-term quality can be achieved with 50-100 iterations.
+            Above 1000 iterations is discouraged.
         pos_list: cudf.DataFrame
             Data frame with initial positions containing two columns:
             'x' and 'y' positions.
@@ -66,6 +65,7 @@ def force_atlas2(input_graph,
         barnes_hut_theta: float
         scaling_ratio: float
             How much repulsion you want. More makes a more sparse graph.
+            Switching from regular mode to LinLog mode needs a readjustment of the scaling parameter.
         gravity : float
             Attracts nodes to the center. Prevents islands from drifting away.
     	callback: An instance of GraphBasedDimRedCallback class to intercept

@@ -189,6 +189,11 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
 
 /**
  *
+ * @brief                                       ForceAtlas2 is a continuous graph layout algorithm for handy network
+ *                                              visualization.
+ *
+ *                                              NOTE: Peak memory allocation occurs at 17*V.
+ *
  * @throws                                      cugraph::logic_error when an error occurs.
  *
  * @tparam VT                                   Type of vertex identifiers. Supported value : int
@@ -199,7 +204,8 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * double.
  *
  * @param[in] graph                             cuGRAPH graph descriptor, should contain the
- * connectivity information as a COO
+ * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this algorithm
+ * and set to 1 by default.
  * @param[out] pos                              Device array (2, n) containing x-axis and y-axis positions;
  * @param[in] max_iter                          The maximum number of iterations Force Atlas 2
  * should run for.
@@ -218,8 +224,8 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * exact version.
  * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs
  * accuracy (0) for Barnes Hut only.
- * @params[in] scaling_ratio                    How much repulsion you want. More makes a more
- * sparse graph.
+ * @params[in] scaling_ratio                    Float strictly positive. How much repulsion you want. More makes a more
+ * sparse graph. Switching from regular mode to LinLog mode needs a readjustment of the scaling parameter.
  * @params[in] strong_gravity_mode                      The “Strong gravity” option sets a force
  * that attracts the nodes that are distant from the center more ( is this distance). This force has
  * the drawback of being so strong that it is sometimes stronger than the other forces. It may
