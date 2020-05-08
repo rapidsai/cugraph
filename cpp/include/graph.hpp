@@ -51,6 +51,10 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphViewBase {
  public:
+  using vertex_type = VT;
+  using edge_type = ET;
+  using weight_type = WT;
+
   Comm comm;
   WT *edge_data;  ///< edge weight
 
@@ -308,6 +312,10 @@ class GraphCOO {
   rmm::device_buffer edge_data_{};    ///< CSR data
 
  public:
+  using vertex_type = VT;
+  using edge_type = ET;
+  using weight_type = WT;
+
   /**
    * @brief      Take ownership of the provided graph arrays in COO format
    *
@@ -404,6 +412,10 @@ class GraphCompressedSparseBase {
   bool has_data_{false};
 
  public:
+  using vertex_type = VT;
+  using edge_type = ET;
+  using weight_type = WT;
+
   /**
    * @brief      Take ownership of the provided graph arrays in CSR/CSC format
    *
