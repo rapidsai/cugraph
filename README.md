@@ -87,7 +87,7 @@ cuGraph provides an auto-renumbering feature, enabled by default, during Graph c
 cuGraph is constantly being updatred and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) if errors are encountered with newer versions
 
 ## Graph Sizes and GPU Memory Size
-As a simple rule of thumb, the amount of GPU memory should be about twice the size of the data size.  That gives overhead for the CSV reader and other transform functions.  There are ways around the rule but using smaller data chunks.  
+The amount of memory required is dependent on the graph structure and the analytic being executed.  As a simple rule of thumb, the amount of GPU memory should be about twice the size of the data size.  That gives overhead for the CSV reader and other transform functions.  There are ways around the rule but using smaller data chunks.  
 
 |       Size        | Recomended GPU Memory |
 |-------------------|-----------------------|
