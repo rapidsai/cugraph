@@ -28,9 +28,9 @@ template <typename HandleType, typename GraphType,
           typename VertexValueOutputIterator,
           typename EdgeOp, typename T>
 void transform_v_transform_reduce_e(
-    HandelType handle, GraphType graph,
-    AdjMatrixRowValueIterator adj_matrix_row_value_input_first,
-    AdjMatrixColValueIterator adj_matrix_col_value_input_first,
+    HandleType handle, GraphType graph,
+    AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
     VertexValueInputIterator vertex_value_input_first,
     VertexValueOutputIterator vertex_value_output_first,
     EdgeOp e_op, T init);
@@ -43,7 +43,7 @@ template <typename HandleType, typename GraphType,
           typename RowFrontierType,
           typename EdgeOp, typename ReduceOp, typename VertexOp>
 void expand_and_transform_if_v_push_if_e(
-    HandelType handle, GraphType graph,
+    HandleType handle, GraphType graph,
     RowIterator row_first, RowIterator row_last,
     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
     AdjMatrixColValueInputIterator adj_matrix_row_value_input_last,
