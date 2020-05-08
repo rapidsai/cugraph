@@ -151,6 +151,7 @@ implementation of the issue, ask them in the issue instead of the PR.
 ### Style Guild
 All Python code most pass flake8 style checking
 All C++ code must pass clang style checking
+All code must adhere to the [RAPIDS Style Guide](https://docs.rapids.ai/resources/style/)
 
 ### Tests
 All code must have associate test cases.  Code without test will not be accepted

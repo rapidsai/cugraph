@@ -120,7 +120,7 @@ Note that the libraries will be installed to the location set in `$PREFIX` if se
 
 
 ## Building each section independently
-#### Build and Install the C/CUDA `libcugraph` Library
+#### Build and Install the C++/CUDA `libcugraph` Library
 CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
 
 This project uses cmake for building the C/C++ library. To configure cmake, run:
