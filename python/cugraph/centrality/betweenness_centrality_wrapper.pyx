@@ -65,9 +65,9 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k, vertic
     if k is not None:
         c_k = k
 
-    cdef GraphCSR[int,int,float] graph
+    cdef GraphCSRView[int,int,float] graph
     
-    graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     c_betweenness_centrality[int,int,float,float](graph, <float*> c_betweenness, normalized, endpoints, <float*> c_weight, c_k, <int*>c_vertices)
 

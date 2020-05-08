@@ -38,8 +38,8 @@ def sssp(input_graph, source):
     Call sssp
     """
     # Step 1: Declare the different variables
-    cdef GraphCSR[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
-    cdef GraphCSR[int, int, double] graph_double    # For weighted double graph (SSSP)
+    cdef GraphCSRView[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
+    cdef GraphCSRView[int, int, double] graph_double    # For weighted double graph (SSSP)
 
     # Pointers required for CSR Graph
     cdef uintptr_t c_offsets_ptr        = <uintptr_t> NULL # Pointer to the CSR offsets
@@ -100,7 +100,7 @@ def sssp(input_graph, source):
     #         - weights is None: BFS
     if weights is not None:
         if data_type == np.float32:
-            graph_float = GraphCSR[int, int, float](<int*> c_offsets_ptr,
+            graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                                      <int*> c_indices_ptr,
                                                      <float*> c_weights_ptr,
                                                      num_verts,
@@ -111,7 +111,7 @@ def sssp(input_graph, source):
                                          <int*> c_predecessor_ptr,
                                          <int> source)
         elif data_type == np.float64:
-            graph_double = GraphCSR[int, int, double](<int*> c_offsets_ptr,
+            graph_double = GraphCSRView[int, int, double](<int*> c_offsets_ptr,
                                                       <int*> c_indices_ptr,
                                                       <double*> c_weights_ptr,
                                                       num_verts,
@@ -125,7 +125,7 @@ def sssp(input_graph, source):
             raise NotImplementedError
     else:
         # TODO: Something might be done here considering WT = float
-        graph_float = GraphCSR[int, int, float](<int*> c_offsets_ptr,
+        graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                                 <int*> c_indices_ptr,
                                                 <float*> NULL,
                                                 num_verts,

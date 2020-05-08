@@ -21,6 +21,6 @@ from cugraph.structure.graph_new cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void core_number[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         VT *core_number) except +
 

@@ -41,7 +41,7 @@ TEST_F(BetweennessCentralityTest, SimpleGraph)
 
   std::vector<float> result(num_verts);
 
-  cugraph::experimental::GraphCSR<int, int, float> G(
+  cugraph::experimental::GraphCSRView<int, int, float> G(
     d_graph_offsets.data().get(), d_graph_indices.data().get(), nullptr, num_verts, num_edges);
 
   cugraph::betweenness_centrality(G, d_result.data().get());

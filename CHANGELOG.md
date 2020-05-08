@@ -18,6 +18,7 @@
 - PR #804 Cythonize in parallel
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
+- PR #799 Refactored graph class with RAII
 - PR #829 Updated README and CONTRIBUTIOIN docs
 - PR #836 Remove SNMG code
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
@@ -35,6 +36,7 @@
 - PR #844 Fixing tests, converting __getitem__ calls to .iloc
 - PR #851 Removed RMM from tests
 - PR #852 Fix BFS Notebook
+- PR #855 Missed a file in the original SNMG PR
 - PR #860 Fix all Notebooks
 
 # cuGraph 0.13.0 (Date TBD)

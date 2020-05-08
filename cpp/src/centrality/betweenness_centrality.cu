@@ -31,7 +31,7 @@ namespace cugraph {
 namespace gunrock {
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             VT const *sample_seeds    = nullptr,
@@ -108,7 +108,7 @@ void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
 }  // namespace gunrock
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -129,7 +129,7 @@ void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
 }
 
 template void betweenness_centrality<int, int, float, float>(
-  experimental::GraphCSR<int, int, float> const &,
+  experimental::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   bool,
