@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 #pragma once
+
 #include <comms_mpi.hpp>
-#include <iostream>
-#include <memory>
+
 #include <rmm/device_buffer.hpp>
+
+#include <iostream>
+#include <limits>
+#include <memory>
 
 namespace cugraph {
 namespace experimental {
@@ -579,6 +583,32 @@ class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
                                     GraphCompressedSparseBase<VT, ET, WT>::number_of_edges());
   }
 };
+
+template <typename VT, typename Enable = void>
+struct invalid_vertex_id;
+
+template <typename VT>
+struct invalid_vertex_id<
+  VT, typename std::enable_if_t<std::is_integral<VT>::value && std::is_signed<VT>::value>
+> : std::integral_constant<VT, -1> {};
+
+template <typename VT>
+struct invalid_vertex_id<
+  VT, typename std::enable_if_t<std::is_integral<VT>::value && std::is_unsigned<VT>::value>
+> : std::integral_constant<VT, std::numeric_limits<VT>::max()> {};
+
+template <typename ET, typename Enable = void>
+struct invalid_edge_id;
+
+template <typename ET>
+struct invalid_edge_id<
+  ET, typename std::enable_if_t<std::is_integral<ET>::value && std::is_signed<ET>::value>
+> : std::integral_constant<ET, -1> {};
+
+template <typename ET>
+struct invalid_edge_id<
+  ET, typename std::enable_if_t<std::is_integral<ET>::value && std::is_unsigned<ET>::value>
+> : std::integral_constant<ET, std::numeric_limits<ET>::max()> {};
 
 }  // namespace experimental
 }  // namespace cugraph
