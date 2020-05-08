@@ -58,6 +58,7 @@ def force_atlas2(input_graph,
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
+    print(input_graph.edgelist.renumber_map)
     num_verts = input_graph.number_of_vertices()
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
 
@@ -66,6 +67,7 @@ def force_atlas2(input_graph,
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
+
     cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t> NULL
@@ -78,8 +80,23 @@ def force_atlas2(input_graph,
     cdef uintptr_t pos_ptr = <uintptr_t>NULL
 
     if pos_list is not None:
-        x_start = pos_list['x'].__cuda_array_interface__['data'][0]
-        y_start = pos_list['y'].__cuda_array_interface__['data'][0]
+        if len(pos_list) != num_verts:
+            raise ValueError('pos_list must have initial positions for all vertices')
+        if input_graph.renumbered is True:
+            renumber_df = cudf.DataFrame()
+            renumber_df['map'] = input_graph.edgelist.renumber_map
+            renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
+            start_pos = pos_list.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
+            # Remap pos and vertices
+            df['vertex'][start_pos['id']] = start_pos['vertex']
+            start_pos['x'][start_pos['id']] = start_pos['x']
+            start_pos['y'][start_pos['id']] = start_pos['y']
+            x_start = start_pos['x'].__cuda_array_interface__['data'][0]
+            y_start = start_pos['y'].__cuda_array_interface__['data'][0]
+        else:
+            df['vertex'] = pos_list['vertex']
+            x_start = pos_list['x'].__cuda_array_interface__['data'][0]
+            y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
     cdef uintptr_t callback_ptr = 0
     if callback:
@@ -87,10 +104,11 @@ def force_atlas2(input_graph,
 
     if input_graph.edgelist.weights \
         and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
+
         pos = rmm.device_array(
-            (num_verts, 2),
-            order="F",
-            dtype=np.float64)
+                (num_verts, 2),
+                order="F",
+                dtype=np.float64)
 
         pos_ptr = pos.device_ctypes_pointer.value
 
@@ -98,31 +116,31 @@ def force_atlas2(input_graph,
                 <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
 
         c_force_atlas2[int, int, double](graph_double,
-                    <float*>pos_ptr,
-                    <int>max_iter,
-                    <float*>x_start,
-                    <float*>y_start,
-                    <bool>outbound_attraction_distribution,
-                    <bool>lin_log_mode,
-                    <bool>prevent_overlapping,
-                    <float>edge_weight_influence,
-                    <float>jitter_tolerance,
-                    <bool>barnes_hut_optimize,
-                    <float>barnes_hut_theta,
-                    <float>scaling_ratio,
-                    <bool> strong_gravity_mode,
-                    <float>gravity,
-                    <bool> verbose,
-                    <GraphBasedDimRedCallback*>callback_ptr)
+                <float*>pos_ptr,
+                <int>max_iter,
+                <float*>x_start,
+                <float*>y_start,
+                <bool>outbound_attraction_distribution,
+                <bool>lin_log_mode,
+                <bool>prevent_overlapping,
+                <float>edge_weight_influence,
+                <float>jitter_tolerance,
+                <bool>barnes_hut_optimize,
+                <float>barnes_hut_theta,
+                <float>scaling_ratio,
+                <bool> strong_gravity_mode,
+                <float>gravity,
+                <bool> verbose,
+                <GraphBasedDimRedCallback*>callback_ptr)
 
         pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
     else:
         pos = rmm.device_array(
-            (num_verts, 2),
-            order="F",
-            dtype=np.float32)
+                (num_verts, 2),
+                order="F",
+                dtype=np.float32)
 
         pos_ptr = pos.device_ctypes_pointer.value
 
@@ -130,29 +148,28 @@ def force_atlas2(input_graph,
                 <int*>c_dst_indices, <float*>c_weights, num_verts,
                 num_edges)
         c_force_atlas2[int, int, float](graph_float,
-                    <float*>pos_ptr,
-                    <int>max_iter,
-                    <float*>x_start,
-                    <float*>y_start,
-                    <bool>outbound_attraction_distribution,
-                    <bool>lin_log_mode,
-                    <bool>prevent_overlapping,
-                    <float>edge_weight_influence,
-                    <float>jitter_tolerance,
-                    <bool>barnes_hut_optimize,
-                    <float>barnes_hut_theta,
-                    <float>scaling_ratio,
-                    <bool> strong_gravity_mode,
-                    <float>gravity,
-                    <bool> verbose,
-                    <GraphBasedDimRedCallback*>callback_ptr)
+                <float*>pos_ptr,
+                <int>max_iter,
+                <float*>x_start,
+                <float*>y_start,
+                <bool>outbound_attraction_distribution,
+                <bool>lin_log_mode,
+                <bool>prevent_overlapping,
+                <float>edge_weight_influence,
+                <float>jitter_tolerance,
+                <bool>barnes_hut_optimize,
+                <float>barnes_hut_theta,
+                <float>scaling_ratio,
+                <bool> strong_gravity_mode,
+                <float>gravity,
+                <bool> verbose,
+                <GraphBasedDimRedCallback*>callback_ptr)
 
         pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
 
-    if input_graph.renumbered:
+    if pos_list is None and input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df
-

@@ -48,7 +48,7 @@ def force_atlas2(input_graph,
             Good short-term quality can be achieved with 50-100 iterations.
             Above 1000 iterations is discouraged.
         pos_list: cudf.DataFrame
-            Data frame with initial positions containing two columns:
+            Data frame with initial vertex positions containing two columns:
             'x' and 'y' positions.
         outbound_attraction_distribution: bool
             Distributes attraction along outbound edges.
@@ -88,6 +88,7 @@ def force_atlas2(input_graph,
         """
 
         if pos_list is not None:
+            null_check(pos_list['vertex'])
             null_check(pos_list['x'])
             null_check(pos_list['y'])
 
