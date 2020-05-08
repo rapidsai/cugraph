@@ -19,6 +19,9 @@
 #include <memory>
 #include <rmm/device_buffer.hpp>
 
+#include <cstddef>
+#include <cstdint>
+
 namespace cugraph {
 namespace experimental {
 

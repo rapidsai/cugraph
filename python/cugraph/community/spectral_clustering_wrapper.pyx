@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,15 +16,18 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.spectral_clustering cimport *
-from cugraph.structure.graph cimport *
-from cugraph.structure import graph_wrapper
+from cugraph.community.spectral_clustering cimport balancedCutClustering as c_balanced_cut_clustering
+from cugraph.community.spectral_clustering cimport spectralModularityMaximization as c_spectral_modularity_maximization
+from cugraph.community.spectral_clustering cimport analyzeClustering_modularity as c_analyze_clustering_modularity
+from cugraph.community.spectral_clustering cimport analyzeClustering_edge_cut as c_analyze_clustering_edge_cut
+from cugraph.community.spectral_clustering cimport analyzeClustering_ratio_cut as c_analyze_clustering_ratio_cut
+from cugraph.structure.graph_new cimport *
+from cugraph.structure import graph_new_wrapper
 from cugraph.utilities.column_utils cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
-from libc.float cimport FLT_MAX_EXP
 
 import cugraph
 import cudf
@@ -33,58 +36,73 @@ import numpy as np
 
 
 def spectralBalancedCutClustering(input_graph,
-                                    num_clusters,
-                                    num_eigen_vects=2,
-                                    evs_tolerance=.00001,
-                                    evs_max_iter=100,
-                                    kmean_tolerance=.00001,
-                                    kmean_max_iter=100):
+                                  num_clusters,
+                                  num_eigen_vects=2,
+                                  evs_tolerance=.00001,
+                                  evs_max_iter=100,
+                                  kmean_tolerance=.00001,
+                                  kmean_max_iter=100):
     """
     Call balancedCutClustering_nvgraph
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
-
     if isinstance(input_graph, cugraph.DiGraph):
         raise TypeError("DiGraph objects are not supported")
 
-    if input_graph.adjlist:
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
-        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
-    else:
-        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
-        if input_graph.edgelist.weights:
-            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-            graph_wrapper.add_edge_list(graph, src, dst, weights)
-        else:
-            graph_wrapper.add_edge_list(graph, src, dst)
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
 
-    # we should add get_number_of_vertices() to Graph (and this should be
-    # used instead of g.adjList.offsets.size - 1)
-    num_verts = g.adjList.offsets.size - 1
+    weights = None
+
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
+
+    if input_graph.adjlist.weights is not None:
+        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    else:
+        weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
     # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['cluster'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
 
-    # Set the vertex identifiers
-    g.adjList.get_vertex_identifiers(&c_identifier_col)
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_cluster = df['cluster'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
 
-    balancedCutClustering_nvgraph(g,
-                                            num_clusters,
-                                            num_eigen_vects,
-                                            evs_tolerance,
-                                            evs_max_iter,
-                                            kmean_tolerance,
-                                            kmean_max_iter,
-                                            &c_cluster_col)
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
+
+    if weights.dtype == np.float32:
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
+                                              <float*>c_weights, num_verts, num_edges)
+
+        graph_float.get_vertex_identifiers(<int*>c_identifier)
+        c_balanced_cut_clustering(graph_float,
+                                  num_clusters,
+                                  num_eigen_vects,
+                                  evs_tolerance,
+                                  evs_max_iter,
+                                  kmean_tolerance,
+                                  kmean_max_iter,
+                                  <int*>c_cluster)
+    else:
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
+                                                <double*>c_weights, num_verts, num_edges)
+
+        graph_double.get_vertex_identifiers(<int*>c_identifier)
+        c_balanced_cut_clustering(graph_double,
+                                  num_clusters,
+                                  num_eigen_vects,
+                                  evs_tolerance,
+                                  evs_max_iter,
+                                  kmean_tolerance,
+                                  kmean_max_iter,
+                                  <int*>c_cluster)
 
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
@@ -92,56 +110,70 @@ def spectralBalancedCutClustering(input_graph,
     return df
 
 def spectralModularityMaximizationClustering(input_graph,
-                                               num_clusters,
-                                               num_eigen_vects=2,
-                                               evs_tolerance=.00001,
-                                               evs_max_iter=100,
-                                               kmean_tolerance=.00001,
-                                               kmean_max_iter=100):
+                                             num_clusters,
+                                             num_eigen_vects=2,
+                                             evs_tolerance=.00001,
+                                             evs_max_iter=100,
+                                             kmean_tolerance=.00001,
+                                             kmean_max_iter=100):
     """
     Call spectralModularityMaximization_nvgraph
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
-
     if isinstance(input_graph, cugraph.DiGraph):
         raise TypeError("DiGraph objects are not supported")
 
-    if input_graph.adjlist:
-        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
-    else:
-        if input_graph.edgelist.weights:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
-        else:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
 
-    # we should add get_number_of_vertices() to Graph (and this should be
-    # used instead of g.adjList.offsets.size - 1)
-    num_verts = g.adjList.offsets.size - 1
+    if input_graph.adjlist.weights is None:
+        raise Exception("spectral modularity maximization must be called on a graph with weights")
+
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
 
     # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_identifier_col = get_gdf_column_view(df['vertex'])
     df['cluster'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_cluster_col = get_gdf_column_view(df['cluster'])
 
-    # Set the vertex identifiers
-    g.adjList.get_vertex_identifiers(&c_identifier_col)
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_cluster = df['cluster'].__cuda_array_interface__['data'][0]
 
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
 
-    spectralModularityMaximization_nvgraph(g,
-                                                     num_clusters,
-                                                     num_eigen_vects,
-                                                     evs_tolerance,
-                                                     evs_max_iter,
-                                                     kmean_tolerance,
-                                                     kmean_max_iter,
-                                                     &c_cluster_col)
+    if weights.dtype == np.float32:
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
+                                              <float*>c_weights, num_verts, num_edges)
 
+        graph_float.get_vertex_identifiers(<int*>c_identifier)
+        c_spectral_modularity_maximization(graph_float,
+                                           num_clusters,
+                                           num_eigen_vects,
+                                           evs_tolerance,
+                                           evs_max_iter,
+                                           kmean_tolerance,
+                                           kmean_max_iter,
+                                           <int*>c_cluster)
+    else:
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
+                                                <double*>c_weights, num_verts, num_edges)
+
+        graph_double.get_vertex_identifiers(<int*>c_identifier)
+        c_spectral_modularity_maximization(graph_double,
+                                           num_clusters,
+                                           num_eigen_vects,
+                                           evs_tolerance,
+                                           evs_max_iter,
+                                           kmean_tolerance,
+                                           kmean_max_iter,
+                                           <int*>c_cluster)
 
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
@@ -152,23 +184,55 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_modularity_nvgraph
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    if isinstance(input_graph, cugraph.DiGraph):
+        raise TypeError("DiGraph objects are not supported")
 
-    if input_graph.adjlist:
-        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
+
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+
+    score = None
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
+
+    if input_graph.adjlist.weights is None:
+        raise Exception("analyze clustering modularity must be called on a graph with weights")
+    if input_graph.adjlist.weights is not None:
+        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
-        if input_graph.edgelist.weights:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
-        else:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+        weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
-    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
-    cdef float score
-    analyzeClustering_modularity_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_cluster = clustering.__cuda_array_interface__['data'][0]
+
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
+    cdef float score_float
+    cdef double score_double
+
+    if weights.dtype == np.float32:
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
+                                              <float*>c_weights, num_verts, num_edges)
+
+        c_analyze_clustering_modularity(graph_float,
+                                        n_clusters,
+                                        <int*> c_cluster,
+                                        &score_float)
+
+        score = score_float
+    else:
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
+                                                <double*>c_weights, num_verts, num_edges)
+
+        c_analyze_clustering_modularity(graph_double,
+                                        n_clusters,
+                                        <int*> c_cluster,
+                                        &score_double)
+        score = score_double
 
     return score
 
@@ -176,23 +240,52 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_edge_cut_nvgraph
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    if isinstance(input_graph, cugraph.DiGraph):
+        raise TypeError("DiGraph objects are not supported")
 
-    if input_graph.adjlist:
-        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
+
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+
+    score = None
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
+
+    if input_graph.adjlist.weights is not None:
+        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
-        if input_graph.edgelist.weights:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
-        else:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+        weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
-    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
-    cdef float score
-    analyzeClustering_edge_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_cluster = clustering.__cuda_array_interface__['data'][0]
+
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
+    cdef float score_float
+    cdef double score_double
+
+    if weights.dtype == np.float32:
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
+                                              <float*>c_weights, num_verts, num_edges)
+
+        c_analyze_clustering_edge_cut(graph_float,
+                                      n_clusters,
+                                      <int*> c_cluster,
+                                      &score_float)
+
+        score = score_float
+    else:
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
+                                                <double*>c_weights, num_verts, num_edges)
+
+        c_analyze_clustering_edge_cut(graph_double,
+                                      n_clusters,
+                                      <int*> c_cluster,
+                                      &score_double)
+        score = score_double
 
     return score
 
@@ -200,22 +293,51 @@ def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_ratio_cut_nvgraph
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    if isinstance(input_graph, cugraph.DiGraph):
+        raise TypeError("DiGraph objects are not supported")
 
-    if input_graph.adjlist:
-        graph_wrapper.add_adj_list(graph, input_graph.adjlist.offsets, input_graph.adjlist.indices, input_graph.adjlist.weights)
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
+
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+
+    score = None
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
+
+    if input_graph.adjlist.weights is not None:
+        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
-        if input_graph.edgelist.weights:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'], input_graph.edgelist.edgelist_df['weights'])
-        else:
-            graph_wrapper.add_edge_list(graph, input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst'])
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+        weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
-    cdef gdf_column c_clustering_col = get_gdf_column_view(clustering)
-    cdef float score
-    analyzeClustering_ratio_cut_nvgraph(g, n_clusters, &c_clustering_col, &score)
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_cluster = clustering.__cuda_array_interface__['data'][0]
+
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
+    cdef float score_float
+    cdef double score_double
+
+    if weights.dtype == np.float32:
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
+                                              <float*>c_weights, num_verts, num_edges)
+
+        c_analyze_clustering_ratio_cut(graph_float,
+                                       n_clusters,
+                                       <int*> c_cluster,
+                                       &score_float)
+
+        score = score_float
+    else:
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
+                                                <double*>c_weights, num_verts, num_edges)
+
+        c_analyze_clustering_ratio_cut(graph_double,
+                                       n_clusters,
+                                       <int*> c_cluster,
+                                       &score_double)
+        score = score_double
 
     return score

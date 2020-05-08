@@ -16,6 +16,7 @@
 - PR #798 Edit return graph type in algorithms return graphs
 - PR #803 Enable Ninja build
 - PR #804 Cythonize in parallel
+- PR #823 Remove gdf column from nvgraph
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
 - PR #799 Refactored graph class with RAII

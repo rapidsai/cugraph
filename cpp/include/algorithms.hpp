@@ -466,4 +466,232 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          VT *predecessors,
          const VT start_vertex,
          bool directed = true);
+
+namespace nvgraph {
+
+/**
+ * @brief             Count the number of triangles in the graph
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ *
+ * @return                           The number of triangles
+ */
+template <typename VT, typename ET, typename WT>
+uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph);
+
+/**
+ * @brief             Extract subgraph by vertices
+ *
+ * This function will identify all edges that connect pairs of vertices
+ * that are both contained in the vertices list and return a COO containing
+ * these edges.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (COO)
+ * @param[in]  vertices              device pointer to an array of vertex ids
+ * @param[in]  num_vertices          number of vertices in the array vertices
+ * @param[out] result                a graph in COO format containing the edges in the subgraph
+ */
+template <typename VT, typename ET, typename WT>
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices);
+
+/**
+ * @brief     Wrapper function for Nvgraph balanced cut clustering
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  num_clusters          The desired number of clusters
+ * @param[in]  num_eigen_vects       The number of eigenvectors to use
+ * @param[in]  evs_tolerance         The tolerance to use for the eigenvalue solver
+ * @param[in]  evs_max_iter          The maximum number of iterations of the eigenvalue solver
+ * @param[in]  kmean_tolerance       The tolerance to use for the kmeans solver
+ * @param[in]  kmean_max_iter        The maximum number of iteration of the k-means solver
+ * @param[out] clustering            Pointer to device memory where the resulting clustering will be
+ * stored
+ */
+template <typename VT, typename ET, typename WT>
+void balancedCutClustering(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                           VT num_clusters,
+                           VT num_eigen_vects,
+                           WT evs_tolerance,
+                           int evs_max_iter,
+                           WT kmean_tolerance,
+                           int kmean_max_iter,
+                           VT *clustering);
+
+/**
+ * @brief      Wrapper function for Nvgraph spectral modularity maximization algorithm
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  num_clusters          The desired number of clusters
+ * @param[in]  num_eigen_vects       The number of eigenvectors to use
+ * @param[in]  evs_tolerance         The tolerance to use for the eigenvalue solver
+ * @param[in]  evs_max_iter          The maximum number of iterations of the eigenvalue solver
+ * @param[in]  kmean_tolerance       The tolerance to use for the kmeans solver
+ * @param[in]  kmean_max_iter        The maximum number of iteration of the k-means solver
+ * @param[out] clustering            Pointer to device memory where the resulting clustering will be
+ * stored
+ */
+template <typename VT, typename ET, typename WT>
+void spectralModularityMaximization(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                    VT n_clusters,
+                                    VT n_eig_vects,
+                                    WT evs_tolerance,
+                                    int evs_max_iter,
+                                    WT kmean_tolerance,
+                                    int kmean_max_iter,
+                                    VT *clustering);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering modularity metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_modularity(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                  int n_clusters,
+                                  VT const *clustering,
+                                  WT *score);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering edge cut metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_edge_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                int n_clusters,
+                                VT const *clustering,
+                                WT *score);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering ratio cut metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                 int n_clusters,
+                                 VT const *clustering,
+                                 WT *score);
+
+/**
+ * @brief      Wrapper function for Nvgraph louvain implementation
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[out] final_modularity      modularity of the returned clustering
+ * @param[out] num_level             number of levels of the returned clustering
+ * @param[out] clustering            Pointer to device array where the clustering should be stored
+ * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ */
+template <typename VT, typename ET, typename WT>
+void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
+             WT *final_modularity,
+             VT *num_level,
+             VT *louvain_parts,
+             int max_iter = 100);
+
+/**
+ * @brief Computes the ecg clustering of the given graph.
+ *
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph_coo             input graph object (COO)
+ * @param[in]  graph_csr             input graph object (CSR)
+ * @param[in]  min_weight            The minimum weight parameter
+ * @param[in]  ensemble_size         The ensemble size parameter
+ * @param[out] ecg_parts             A device pointer to array where the partitioning should be
+ * written
+ */
+template <typename VT, typename ET, typename WT>
+void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
+         WT min_weight,
+         VT ensemble_size,
+         VT *ecg_parts);
+
+}  // namespace nvgraph
 }  // namespace cugraph
