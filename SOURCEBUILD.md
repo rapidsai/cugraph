@@ -9,7 +9,7 @@ The cuGraph package include both a C/C++ CUDA portion and a python portion.  Bot
 __Compiler__:
 * `gcc`         version 5.4+
 * `nvcc`        version 10.0+
-* `cmake`       version 3.12
+* `cmake`       version 3.12+
 
 __CUDA:__
 * CUDA 10.0+
@@ -112,7 +112,7 @@ $ ./build.sh libcugraph -v                # compile and install libcugraph with 
 $ ./build.sh libcugraph -g                # compile and install libcugraph for debug
 $ ./build.sh libcugraph -n                # compile libcugraph but do not install
 
-# make parallelism options can also be defined: Example build jobs to 4 (make -j4)
+# make parallelism options can also be defined: Example build jobs using 4 threads (make -j4)
 $ PARALLEL_LEVEL=4 ./build.sh libcugraph
 
 Note that the libraries will be installed to the location set in `$PREFIX` if set (i.e. `export PREFIX=/install/path`), otherwise to `$CONDA_PREFIX`.
