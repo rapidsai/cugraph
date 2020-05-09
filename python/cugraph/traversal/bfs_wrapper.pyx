@@ -88,7 +88,7 @@ def bfs(input_graph, start, directed=True,
         c_sp_counter_ptr = df['sp_counter'].__cuda_array_interface__['data'][0]
 
     # Step 8: Proceed to BFS
-    # TODO: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
+    # FIXME: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
     graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                             <int*> c_indices_ptr,
                                             <float*> NULL,

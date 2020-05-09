@@ -58,10 +58,15 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness,
   edge_weights_ptr  = _weights;
 
   // --- Working data allocation ---
-  ALLOC_TRY(&distances, number_of_vertices * sizeof(VT), nullptr);
-  ALLOC_TRY(&predecessors, number_of_vertices * sizeof(VT), nullptr);
-  ALLOC_TRY(&sp_counters, number_of_vertices * sizeof(double), nullptr);
-  ALLOC_TRY(&deltas, number_of_vertices * sizeof(result_t), nullptr);
+  distances_vec.resize(number_of_vertices);
+  predecessors_vec.resize(number_of_vertices);
+  sp_counters_vec.resize(number_of_vertices);
+  deltas_vec.resize(number_of_vertices);
+
+  distances    = distances_vec.data().get();
+  predecessors = predecessors_vec.data().get();
+  sp_counters  = sp_counters_vec.data().get();
+  deltas       = deltas_vec.data().get();
 
   // --- Get Device Information ---
   CUDA_TRY(cudaGetDevice(&device_id));
@@ -70,14 +75,6 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness,
 
   // --- Confirm that configuration went through ---
   configured = true;
-}
-template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::clean()
-{
-  ALLOC_FREE_TRY(distances, nullptr);
-  ALLOC_FREE_TRY(predecessors, nullptr);
-  ALLOC_FREE_TRY(sp_counters, nullptr);
-  ALLOC_FREE_TRY(deltas, nullptr);
 }
 
 // Dependecy Accumulation: McLaughlin and Bader, 2018
@@ -94,7 +91,7 @@ __global__ void accumulation_kernel(result_t *betweenness,
                                     ET const *offsets,
                                     VT *distances,
                                     double *sp_counters,
-                                    result_t *deltas,
+                                    double *deltas,
                                     VT source,
                                     VT depth)
 {
@@ -110,12 +107,11 @@ __global__ void accumulation_kernel(result_t *betweenness,
       for (ET edge_idx = 0; edge_idx < edge_count; ++edge_idx) {  // Visit neighbors
         VT v = indices[edge_start + edge_idx];
         if (distances[v] == distances[w] + 1) {
-          double factor =
-            (static_cast<double>(1) + static_cast<double>(deltas[v])) / sp_counters[v];
+          double factor = (static_cast<double>(1) + deltas[v]) / sp_counters[v];
           dsw += sw * factor;
         }
       }
-      deltas[w] = static_cast<result_t>(dsw);
+      deltas[w] = dsw;
     }
   }
 }
@@ -124,7 +120,7 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness,
                                           VT *distances,
                                           double *sp_counters,
-                                          result_t *deltas,
+                                          double *deltas,
                                           VT source,
                                           VT max_depth)
 {
@@ -147,7 +143,6 @@ void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness,
                                                                           deltas,
                                                                           source,
                                                                           depth);
-    cudaDeviceSynchronize();
   }
 
   thrust::transform(rmm::exec_policy(stream)->on(stream),
@@ -168,13 +163,14 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
 {
   // Step 1) Singe-source shortest-path problem
   cugraph::bfs(graph, distances, predecessors, sp_counters, source_vertex, graph.prop.directed);
-  cudaDeviceSynchronize();
 
-  // TODO: Remove that with a BC specific class to gather
-  //             information during traversal
-  // TODO: This could be extracted from the BFS(lvl)
-  // NOTE: REPLACE INFINITY BY -1 otherwise the max depth will be maximal
-  //       value!
+  // FIXME: Remove that with a BC specific class to gather
+  //        information during traversal
+
+  // Numeric max value is replaced by -1 as we look for the maximal depth of
+  // the traversal, this value is avalaible within the bfs implementation and
+  // there could be a way to access it directly and avoid both replace and the
+  // max
   thrust::replace(rmm::exec_policy(stream)->on(stream),
                   distances,
                   distances + number_of_vertices,
@@ -184,7 +180,6 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
     rmm::exec_policy(stream)->on(stream), distances, distances + number_of_vertices);
   VT max_depth = 0;
   cudaMemcpy(&max_depth, current_max_depth, sizeof(VT), cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
   // Step 2) Dependency accumulation
   accumulate(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
 }
@@ -205,7 +200,7 @@ void BC<VT, ET, WT, result_t>::compute()
       compute_single_source(source_vertex);
     }
   } else {  // Otherwise process every vertices
-    // TODO: Maybe we could still use number of sources and set it to number_of_vertices?
+    // NOTE: Maybe we could still use number of sources and set it to number_of_vertices?
     //       It woudl imply having a host vector of size |V|
     //       But no need for the if/ else statement
     for (VT source_vertex = 0; source_vertex < number_of_vertices; ++source_vertex) {
@@ -213,7 +208,6 @@ void BC<VT, ET, WT, result_t>::compute()
     }
   }
   rescale();
-  cudaDeviceSynchronize();
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -293,7 +287,7 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
 {
   // Current Implementation relies on BFS
   // FIXME: For SSSP version
-  // Brandes Algorithm excpets non negative weights for the accumulation
+  // Brandes Algorithm expects non negative weights for the accumulation
   verify_input<VT, ET, WT, result_t>(
     result, normalize, endpoints, weight, number_of_sources, sources);
   cugraph::detail::BC<VT, ET, WT, result_t> bc(graph);
@@ -406,8 +400,6 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             VT const *vertices,
                             cugraph_bc_implem_t implem)
 {
-  // NOTE: If the result_t is expected in double, switch implementation to
-  //       the default one
   // FIXME: Gunrock call returns float and not result_t hence the implementation
   //       switch
   if ((typeid(result_t) == typeid(double)) && (implem == cugraph_bc_implem_t::CUGRAPH_GUNROCK)) {

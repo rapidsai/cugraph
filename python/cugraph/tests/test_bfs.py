@@ -91,7 +91,7 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
         Path to COO Graph representation in .csv format
 
     directed : bool, optional, default=True
-        Indicated wheter the graph is directed or not
+        Indicated whether the graph is directed or not
 
     return_sp_counter : bool, optional, default=False
         Retrun shortest path counters from traversal if True
@@ -103,7 +103,9 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
     -------
     """
     G, Gnx = build_graphs(graph_file, directed)
-    # Seed for reproductiblity
+    print("DBG: Done Bulding Graph:", graph_file)
+    print("DBG: Seed:", seed)
+    # Seed for reproducibility
     if isinstance(seed, int):
         random.seed(seed)
         start_vertex = random.sample(Gnx.nodes(), 1)[0]
@@ -111,8 +113,8 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
         # Test for  shortest_path_counter
         compare_func = _compare_bfs_spc if return_sp_counter else _compare_bfs
 
-        # NOTE: We need to take 2 differnt path for verification as the nx
-        #       functions used as reference return dictionnaries that might
+        # NOTE: We need to take 2 different path for verification as the nx
+        #       functions used as reference return dictionaries that might
         #       not contain all the vertices while the cugraph version return
         #       a cudf.DataFrame with all the vertices, also some verification
         #       become slow with the data transfer
@@ -157,7 +159,7 @@ def _compare_bfs(G,  Gnx, source):
 
     missing_vertex_error = 0
     distance_mismatch_error = 0
-    invalid_predrecessor_error = 0
+    invalid_predecessor_error = 0
     for vertex in nx_distances:
         if vertex in cu_distances:
             result = cu_distances[vertex]
@@ -173,19 +175,19 @@ def _compare_bfs(G,  Gnx, source):
             else:
                 pred = cu_predecessors[vertex]
                 if vertex != source and pred not in nx_distances:
-                    invalid_predrecessor_error += 1
+                    invalid_predecessor_error += 1
                 else:
-                    # The graph is unwehigted thus, predecessors are 1 away
+                    # The graph is unweighted thus, predecessors are 1 away
                     if (vertex != source and ((nx_distances[pred] + 1 !=
                                               cu_distances[vertex]))):
                         print("[ERR] Invalid on predecessors: "
                               "vid = {}, cugraph = {}".format(vertex, pred))
-                        invalid_predrecessor_error += 1
+                        invalid_predecessor_error += 1
         else:
             missing_vertex_error += 1
     assert missing_vertex_error == 0, "There are missing vertices"
     assert distance_mismatch_error == 0, "There are invalid distances"
-    assert invalid_predrecessor_error == 0, "There are invalid predecessors"
+    assert invalid_predecessor_error == 0, "There are invalid predecessors"
 
 
 def _compare_bfs_spc(G, Gnx, source):
@@ -225,7 +227,6 @@ def _compare_bfs_spc(G, Gnx, source):
 # =============================================================================
 # Tests
 # =============================================================================
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('seed', SUBSET_SEED_OPTIONS)

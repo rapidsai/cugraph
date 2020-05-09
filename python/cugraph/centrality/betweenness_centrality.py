@@ -53,10 +53,11 @@ def betweenness_centrality(G, k=None, normalized=True,
         this normalization scales fo the highest possible value where one
         node is crossed by every single shortest path.
 
-    weight : dict, optional, default=None
+    weight : cudf.Dataframe, optional, default=None
         Specifies the weights to be used for each edge.
-        Currently not supported. Should contain a mapping between
+        Should contain a mapping between
         edges and weights.
+        (Not Supported)
 
     endpoints : bool, optional, default=False
         If true, include the endpoints in the shortest path counts.
@@ -70,12 +71,13 @@ def betweenness_centrality(G, k=None, normalized=True,
         only return float results and consider all the vertices as sources.
 
     seed : optional
-        if k is specified, use seed to initialize the
+        if k is specified and k is an integer, use seed to initialize the
         random number generator.
         Using None as seed relies on random.seed() behavior: using current
         system time
+        If k is either None or list: seed parameter is ignored
 
-    result_dtype : np.float32 or np.float64, optional, default=np.float32
+    result_dtype : np.float32 or np.float64, optional, default=np.float64
         Indicate the data type of the betweenness centrality scores
         Using double automatically switch implementation to "default"
 
@@ -135,7 +137,8 @@ def betweenness_centrality(G, k=None, normalized=True,
         # Example:
         # - vertex '2' is missing
         # - vertices '0' '1' '3' '4' exist
-        # - There is a vertex at index 2 (there is not guarantee that 3 )
+        # - There is a vertex at index 2 (there is not guarantee that it is
+        #   vertice '3' )
         if isinstance(k, int):
             random.seed(seed)
             vertices = random.sample(range(G.number_of_vertices()), k)
@@ -145,7 +148,7 @@ def betweenness_centrality(G, k=None, normalized=True,
             vertices = k
             k = len(vertices)
             # We assume that the list that was provided is not the indices
-            # in the graph structure but the vertices indentifiers in the grap
+            # in the graph structure but the vertices identifiers in the graph
             # hence: [1, 2, 10] should proceed to sampling on vertices that
             # have 1, 2 and 10 as their identifiers
             # FIXME: There might be a cleaner way to obtain the inverse mapping
@@ -162,7 +165,7 @@ def betweenness_centrality(G, k=None, normalized=True,
         raise NotImplementedError("weighted implementation of betweenness "
                                   "centrality not currently supported")
     if result_dtype not in [np.float32, np.float64]:
-        raise TypeError("result type can only be float or double")
+        raise TypeError("result type can only be np.float32 or np.float64")
 
     df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
                                                                endpoints,

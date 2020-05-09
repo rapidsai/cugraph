@@ -443,7 +443,9 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
           VT *predecessors,
           const VT source_vertex);
 
-// TODO: Either distances is in VT or in WT, even if there should be no weights
+// FIXME: Internally distances is of int (signed 32-bit) data type, but current
+// template uses data from VT, ET, WT from he GraphCSR View even if weights
+// are not considered
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
  *
@@ -458,7 +460,7 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a CSR
  *
- * @param[out] distances             If set to a valid poiner, this is populated by distance of
+ * @param[out] distances             If set to a valid pointer, this is populated by distance of
  * every vertex in the graph from the starting vertex
  *
  * @param[out] predecessors          If set to a valid pointer, this is populated by bfs traversal

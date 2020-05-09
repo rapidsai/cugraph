@@ -33,7 +33,7 @@ class BC {
   // --- Information from configuration ---
   bool configured = false;  // Flag to ensure configuration was called
   bool normalized = false;  // If True normalize the betweenness
-  // TODO: For weighted version
+  // FIXME: For weighted version
   WT const *edge_weights_ptr = nullptr;  // Pointer to the weights
   bool endpoints             = false;    // If True normalize the betweenness
   VT const *sources          = nullptr;  // Subset of vertices to gather information from
@@ -44,11 +44,16 @@ class BC {
   result_t *betweenness = nullptr;
 
   // --- Data required to perform computation ----
+  rmm::device_vector<VT> distances_vec;
+  rmm::device_vector<VT> predecessors_vec;
+  rmm::device_vector<double> sp_counters_vec;
+  rmm::device_vector<double> deltas_vec;
+
   VT *distances    = nullptr;  // array<VT>(|V|) stores the distances gathered by the latest SSSP
   VT *predecessors = nullptr;  // array<WT>(|V|) stores the predecessors of the latest SSSP
   double *sp_counters =
-    nullptr;  // array<VT>(|V|) stores the shortest path counter for the latest SSSP
-  result_t *deltas = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
+    nullptr;                 // array<VT>(|V|) stores the shortest path counter for the latest SSSP
+  double *deltas = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
 
   // FIXME: This should be replaced using RAFT handle
   int device_id        = 0;
@@ -57,20 +62,19 @@ class BC {
   cudaStream_t stream;
 
   // -----------------------------------------------------------------------
-  void setup();
-  void clean();
+  void setup();  // Saves information related to the graph itself
 
   void accumulate(result_t *betweenness,
                   VT *distances,
                   double *sp_counters,
-                  result_t *deltas,
+                  double *deltas,
                   VT source,
                   VT max_depth);
   void compute_single_source(VT source_vertex);
   void rescale();
 
  public:
-  virtual ~BC(void) { clean(); }
+  virtual ~BC(void) {}
   BC(experimental::GraphCSRView<VT, ET, WT> const &_graph, cudaStream_t _stream = 0)
     : graph(_graph), stream(_stream)
   {

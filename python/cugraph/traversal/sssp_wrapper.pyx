@@ -124,7 +124,7 @@ def sssp(input_graph, source):
         else: # This case should not happen
             raise NotImplementedError
     else:
-        # TODO: Something might be done here considering WT = float
+        # FIXME: Something might be done here considering WT = float
         graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                                 <int*> c_indices_ptr,
                                                 <float*> NULL,

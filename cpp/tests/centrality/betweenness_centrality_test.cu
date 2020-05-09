@@ -59,7 +59,7 @@ void populate_neighbors(VT *indices, ET *offsets, VT w, std::vector<VT> &neighbo
   }
 }
 
-// TODO: This should be moved to BFS testing on the c++ side (#778)
+// FIXME: This should be moved to BFS testing on the c++ side (#778)
 // This implements the BFS from (Brandes, 2001) with shortest path counting
 template <typename VT, typename ET, typename WT, typename result_t>
 void ref_bfs(VT *indices,
@@ -110,7 +110,7 @@ void ref_accumulation(result_t *result,
                       std::stack<VT> &S,
                       std::vector<std::vector<VT>> &pred,
                       std::vector<double> &sigmas,
-                      std::vector<result_t> &deltas,
+                      std::vector<double> &deltas,
                       VT source)
 {
   for (VT v = 0; v < number_of_vertices; ++v) { deltas[v] = 0; }
@@ -137,7 +137,7 @@ void reference_betweenness_centrality_impl(VT *indices,
   std::vector<VT> dist(number_of_vertices);
   std::vector<std::vector<VT>> pred(number_of_vertices);
   std::vector<double> sigmas(number_of_vertices);
-  std::vector<result_t> deltas(number_of_vertices);
+  std::vector<double> deltas(number_of_vertices);
 
   std::vector<VT> neighbors;
 
@@ -242,7 +242,7 @@ template void reference_betweenness_centrality<int, int, double, double>(
 // =============================================================================
 // Utility functions
 // =============================================================================
-// TODO: This could be useful in other testsuite (SSSP, BFS, ...)
+// FIXME: This could be useful in other testsuite (SSSP, BFS, ...)
 template <typename VT, typename ET, typename WT>
 void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result,
                         VT &m,
@@ -293,7 +293,7 @@ bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_
 // Defines Betweenness Centrality UseCase
 // SSSP's test suite code uses type of Graph parameter that could be used
 // (MTX / RMAT)
-// TODO: Use VT for number_of_sources?
+// FIXME: Use VT for number_of_sources?
 typedef struct BC_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
@@ -366,7 +366,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                      expected.data(),
                                      normalize,
                                      endpoints,
-                                     // TODO: weights
+                                     // FIXME: weights
                                      configuration.number_of_sources_,
                                      sources_ptr);
 
@@ -374,7 +374,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
     thrust::device_vector<result_t> d_result(G.number_of_vertices);
-    // TODO: Remove this once endpoints in handled
+    // FIXME: Remove this once endpoints in handled
     if (endpoints) {
       ASSERT_THROW(cugraph::betweenness_centrality(G,
                                                    d_result.data().get(),
@@ -411,7 +411,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 
 // BFS: Checking for shortest_path counting correctness
 // -----------------------------------------------------------------------------
-// TODO: This BFS testing is kept here as it only focus on the shortest path
+// FIXME: This BFS testing is kept here as it only focus on the shortest path
 // counting problem that is a core component of Betweennees Centrality,
 // This should be moved to a separate file in for #778 dedicated to BFS,
 // results verification.
@@ -531,7 +531,7 @@ TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS)
   run_current_test<int, int, double, double, false, false>(GetParam());
 }
 
-// TODO: Currently endpoints throws and exception as it is not supported
+// FIXME: Currently endpoints throws and exception as it is not supported
 TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_ENDPOINTS)
 {
   run_current_test<int, int, float, float, false, true>(GetParam());
@@ -553,7 +553,7 @@ TEST_P(Tests_BC, CheckFP64_NORMALIZE_NO_ENPOINTS)
   run_current_test<int, int, double, double, true, false>(GetParam());
 }
 
-// TODO: Currently endpoints throws and exception as it is not supported
+// FIXME: Currently endpoints throws and exception as it is not supported
 TEST_P(Tests_BC, CheckFP32_NORMALIZE_ENDPOINTS)
 {
   run_current_test<int, int, float, float, true, true>(GetParam());
@@ -574,7 +574,7 @@ INSTANTIATE_TEST_CASE_P(simple_test,
 
 // BFS
 // -----------------------------------------------------------------------------
-// TODO: Issue #778
+// FIXME: This could be reused by Issue #778
 TEST_P(Tests_BFS, CheckFP32) { run_current_test<int, int, float, float>(GetParam()); }
 
 TEST_P(Tests_BFS, CheckFP64) { run_current_test<int, int, double, double>(GetParam()); }
