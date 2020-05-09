@@ -103,8 +103,6 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
     -------
     """
     G, Gnx = build_graphs(graph_file, directed)
-    print("DBG: Done Bulding Graph:", graph_file)
-    print("DBG: Seed:", seed)
     # Seed for reproducibility
     if isinstance(seed, int):
         random.seed(seed)
