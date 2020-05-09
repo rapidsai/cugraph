@@ -127,6 +127,15 @@ Core Number
     :members:
     :undoc-members:
 
+Layout
+======
+
+Force Atlas 2
+-------------
+
+.. automodule:: cugraph.layout.force_atlas_2
+    :members:
+    :undoc-members:
 
 Link Analysis
 =============

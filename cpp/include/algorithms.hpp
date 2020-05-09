@@ -233,6 +233,7 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * layout, which may be useful for certain purposes.
  * @params[in] gravity                          Attracts nodes to the center. Prevents islands from
  * drifting away.
+ * @params[in] verbose                          Output convergence info at each interation.
  * @params[in] callback                         An instance of GraphBasedDimRedCallback class to
  * intercept the internal state of positions while they are being trained.
  *

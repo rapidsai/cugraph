@@ -298,7 +298,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     if (callback) callback->on_epoch_end(nodes_pos);
 
     if (verbose) {
-      printf("iteration %i, speed: %f, speed_efficiency: %f, ", iter, speed, speed_efficiency);
+      printf("iteration %i, speed: %f, speed_efficiency: %f, ", iter + 1, speed, speed_efficiency);
       printf("jt: %f, ", jt);
       printf("swinging: %f, traction: %f\n", s, t);
     }
