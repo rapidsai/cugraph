@@ -13,13 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// FIXME: better move this file to include/utilities (following cuDF) and rename to error.hpp
+#include <utilities/error_utils.h>
+
+#include <detail/adj_matrix_row_frontier.cuh>
 #include <detail/copy_patterns.hpp>
 #include <detail/one_level_patterns.hpp>
+#include <detail/reduce_op.cuh>
 #include <detail/two_level_patterns.hpp>
+#include <utilities/traits.hpp>
 
 #include <rmm/rmm.h>
 
 #include <thrust/fill.h>
+#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
@@ -28,26 +35,29 @@
 #include <limits>
 
 
+namespace raft {  // FIXME: should be replaced with the real raft Handle class
+  class Handle {};
+}
+
 namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename ResultIterator, typename vertex_t>:w
+template <typename GraphType, typename VertexIterator>
 void bfs_this_partition(
     raft::Handle handle, GraphType const& csr_graph,
-    VertexIteraotr distance_first, VertexIteraotr predecessor_first,
-    vertex_t starting_vertex,
+    VertexIterator distance_first, VertexIterator predecessor_first,
+    typename GraphType::vertex_type starting_vertex,
     bool direction_optimizing = false, size_t depth_limit = std::numeric_limits<size_t>::max(),
     bool do_expensive_check = false) {
-  static_assert(
-    std::is_same<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>::value,
-    "VertexIterator should point to a vertex_t value.");
+  using vertex_t = typename GraphType::vertex_type;
+  
   static_assert(
     std::is_integral<vertex_t>::value,
     "VertexIterator should point to an integral value.");
   static_assert(is_csr<GraphType>::value, "GraphType should be CSR.");
 
-  auto const num_vertices = csr_graph.get_number_of_vertices();
+  auto const num_vertices = csr_graph.number_of_vertices();
   vertex_t this_partition_vertex_first{};
   vertex_t this_partition_vertex_last{};
   std::tie(this_partition_vertex_first, this_partition_vertex_last) =
@@ -99,7 +109,7 @@ void bfs_this_partition(
   // 3. initialize BFS frontier
 
   enum class Bucket { cur, num_buckets };
-  AdjMatrixRowFrontier row_vertex_froniter(csr_graph, Bucket::num_buckets);
+  AdjMatrixRowFrontier<GraphType> adj_matrix_row_frontier(csr_graph, Bucket::num_buckets);
 
   if ((starting_vertex >= this_partition_adj_matrix_row_vertex_first) &&
       (starting_vertex < this_partition_adj_matrix_row_vertex_last)) {
@@ -125,10 +135,10 @@ void bfs_this_partition(
         handle, csr_graph,
         cur_adj_matrix_row_frontier_first, cur_adj_matrix_row_frontier_last,
         thrust::make_counting_iterator(this_partition_adj_matrix_row_vertex_first),
-        thrust::make_constant_iteraotr(this_partition_adj_matrix_col_vertex_first),
+        thrust::make_constant_iterator(this_partition_adj_matrix_col_vertex_first),
         distance_first,
         thrust::make_zip_iterator(distance_first, predecessor_first),
-        row_frontier_queue,
+        adj_matrix_row_frontier,
         [distance_first, this_partition_vertex_first] __device__ (auto src_val, auto dst_val) {
           auto push = true;
           // FIXME: this check is unnecessary if not OPG, instead of taking opg as a template
@@ -136,7 +146,7 @@ void bfs_this_partition(
           // and implement check_local() which becomes a constexpr function always returning true
           // if not OPG.
           bool local =
-            (dst_val >= this_partition_vertex_first) && (dst_val < this_partition_vertetx_last);
+            (dst_val >= this_partition_vertex_first) && (dst_val < this_partition_vertex_last);
           if (local) {
             auto distance = *(distance_first + (dst_val - this_partition_vertex_first));
             if (distance != std::numeric_limits<vertex_t>::max()) {
@@ -146,9 +156,9 @@ void bfs_this_partition(
           return thrust::make_tuple(push, src_val);
         },
         reduce_op::any<vertex_t>(),
-        [] __device__ (auto v_val, auto pushed_val) {
+        [depth] __device__ (auto v_val, auto pushed_val) {
           auto new_val = thrust::make_tuple(depth + 1, pushed_val);
-          auto idx = AdjMatrixRowFrontier::invalid_bucket_idx;
+          auto idx = AdjMatrixRowFrontier<GraphType>::invalid_bucket_idx;
           if (v_val == std::numeric_limits<vertex_t>::max()) {
             idx = Bucket::cur;
           }
@@ -163,7 +173,7 @@ void bfs_this_partition(
       }
 
       cur_adj_matrix_row_frontier_first = cur_adj_matrix_row_frontier_last;
-      cur_adj_matrix_row_frontier_aggregate_size += new_frontier_aggregate_size;
+      cur_adj_matrix_row_frontier_aggregate_size += new_adj_matrix_row_frontier_aggregate_size;
     }
 
     depth++;
@@ -178,7 +188,7 @@ void bfs_this_partition(
 // explicit instantiation
 
 template void bfs_this_partition(
-    raft::Handle handle, GraphCSR<uint32_t, uint32_t, float> const& csr_graph,
+    raft::Handle handle, GraphCSRView<uint32_t, uint32_t, float> const& csr_graph,
     uint32_t* distance_first, uint32_t* predecessor_first, uint32_t starting_vertex,
     bool direction_optimizing, size_t depth_limit, bool do_expensive_check);
 
