@@ -28,6 +28,3 @@
 
 // analytics features
 #include "algorithms.h"
-
-// nvgraph wrappers
-#include "nvgraph_gdf.h"

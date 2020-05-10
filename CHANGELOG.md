@@ -16,6 +16,7 @@
 - PR #798 Edit return graph type in algorithms return graphs
 - PR #803 Enable Ninja build
 - PR #804 Cythonize in parallel
+- PR #823 Remove gdf column from nvgraph
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
 - PR #799 Refactored graph class with RAII
@@ -26,6 +27,7 @@
 - PR #833 Update graph functions to use new Graph class
 - PR #834 Updated local gpuci build
 - PR #845 Add .clang-format & format all files
+- PR #859 Updated main docs
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
@@ -37,6 +39,7 @@
 - PR #851 Removed RMM from tests
 - PR #852 Fix BFS Notebook
 - PR #855 Missed a file in the original SNMG PR
+- PR #860 Fix all Notebooks
 
 # cuGraph 0.13.0 (Date TBD)
 

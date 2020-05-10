@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,8 +69,6 @@ class Size2Selector {
     m_weight_formula                    = 0;
   }
 
-  //    NVGRAPH_ERROR setAggregates(const CsrGraph<IndexType, ValueType> &A, Vector<IndexType>
-  //    &aggregates, int &num_aggregates);
   NVGRAPH_ERROR setAggregates(cusparseHandle_t,
                               const IndexType n_vertex,
                               const IndexType n_edges,
@@ -81,8 +79,6 @@ class Size2Selector {
                               int &num_aggregates);
 
  protected:
-  //    NVGRAPH_ERROR setAggregates_common_sqblocks(const CsrGraph<IndexType, ValueType> &A,
-  //    Vector<IndexType> &aggregates, int &num_aggregates);
   NVGRAPH_ERROR setAggregates_common_sqblocks(cusparseHandle_t,
                                               const IndexType n_vertex,
                                               const IndexType n_edges,

@@ -22,14 +22,10 @@
 
 #include <stdio.h>
 #include <time.h>
+#include <vector>
 
 #include <cuda.h>
-
-#define USE_CURAND 1
-
-#ifdef USE_CURAND
 #include <curand.h>
-#endif
 
 #include "include/debug_macros.h"
 #include "include/nvgraph_cublas.hxx"
@@ -43,67 +39,6 @@
 
 // Get index of matrix entry
 #define IDX(i, j, lda) ((i) + (j) * (lda))
-
-// =========================================================
-// Macros and functions for cuRAND
-// =========================================================
-//#ifdef USE_CURAND
-// namespace {
-//
-//  /// Get message string from cuRAND status code
-//  //static
-//  //const char* curandGetErrorString(curandStatus_t e) {
-//  //  switch(e) {
-//  //  case CURAND_STATUS_SUCCESS:
-//  //    return "CURAND_STATUS_SUCCESS";
-//  //  case CURAND_STATUS_VERSION_MISMATCH:
-//  //    return "CURAND_STATUS_VERSION_MISMATCH";
-//  //  case CURAND_STATUS_NOT_INITIALIZED:
-//  //    return "CURAND_STATUS_NOT_INITIALIZED";
-//  //  case CURAND_STATUS_ALLOCATION_FAILED:
-//  //    return "CURAND_STATUS_ALLOCATION_FAILED";
-//  //  case CURAND_STATUS_TYPE_ERROR:
-//  //    return "CURAND_STATUS_TYPE_ERROR";
-//  //  case CURAND_STATUS_OUT_OF_RANGE:
-//  //    return "CURAND_STATUS_OUT_OF_RANGE";
-//  //  case CURAND_STATUS_LENGTH_NOT_MULTIPLE:
-//  //    return "CURAND_STATUS_LENGTH_NOT_MULTIPLE";
-//  //  case CURAND_STATUS_DOUBLE_PRECISION_REQUIRED:
-//  //    return "CURAND_STATUS_DOUBLE_PRECISION_REQUIRED";
-//  //  case CURAND_STATUS_LAUNCH_FAILURE:
-//  //    return "CURAND_STATUS_LAUNCH_FAILURE";
-//  //  case CURAND_STATUS_PREEXISTING_FAILURE:
-//  //    return "CURAND_STATUS_PREEXISTING_FAILURE";
-//  //  case CURAND_STATUS_INITIALIZATION_FAILED:
-//  //    return "CURAND_STATUS_INITIALIZATION_FAILED";
-//  //  case CURAND_STATUS_ARCH_MISMATCH:
-//  //    return "CURAND_STATUS_ARCH_MISMATCH";
-//  //  case CURAND_STATUS_INTERNAL_ERROR:
-//  //    return "CURAND_STATUS_INTERNAL_ERROR";
-//  //  default:
-//  //    return "unknown cuRAND error";
-//  //  }
-//  //}
-//
-//  // curandGeneratorNormalX
-//  inline static
-//  curandStatus_t
-//  curandGenerateNormalX(curandGenerator_t generator,
-//      float * outputPtr, size_t n,
-//      float mean, float stddev) {
-//    return curandGenerateNormal(generator, outputPtr, n, mean, stddev);
-//  }
-//  inline static
-//  curandStatus_t
-//  curandGenerateNormalX(curandGenerator_t generator,
-//      double * outputPtr, size_t n,
-//      double mean, double stddev) {
-//    return curandGenerateNormalDouble(generator, outputPtr,
-//              n, mean, stddev);
-//  }
-//
-//}
-//#endif
 
 namespace nvgraph {
 
@@ -799,10 +734,11 @@ NVGRAPH_ERROR computeSmallestEigenvectors(const Matrix<IndexType_, ValueType_> *
   *totalIter = 0;
 
   // Allocate host memory
-  Z_host = (ValueType_ *)malloc(restartIter * restartIter * sizeof(ValueType_));
-  if (Z_host == NULL) WARNING("could not allocate host memory");
-  work_host = (ValueType_ *)malloc(4 * restartIter * sizeof(ValueType_));
-  if (work_host == NULL) WARNING("could not allocate host memory");
+  std::vector<ValueType_> Z_host_v(restartIter * restartIter);
+  std::vector<ValueType_> work_host_v(4 * restartIter);
+
+  Z_host    = Z_host_v.data();
+  work_host = work_host_v.data();
 
   // Initialize cuBLAS
   Cublas::set_pointer_mode_host();
@@ -811,19 +747,20 @@ NVGRAPH_ERROR computeSmallestEigenvectors(const Matrix<IndexType_, ValueType_> *
   // Compute largest eigenvalue to determine shift
   // -------------------------------------------------------
 
-#ifdef USE_CURAND
   // Random number generator
   curandGenerator_t randGen;
   // Initialize random number generator
   CHECK_CURAND(curandCreateGenerator(&randGen, CURAND_RNG_PSEUDO_PHILOX4_32_10));
-  CHECK_CURAND(curandSetPseudoRandomGeneratorSeed(randGen, 123456 /*time(NULL)*/));
+
+  // FIXME: This is hard coded, which is good for unit testing...
+  //        but should really be a parameter so it could be
+  //        "random" for real runs and "fixed" for tests
+  CHECK_CURAND(curandSetPseudoRandomGeneratorSeed(randGen, 1234567 /*time(NULL)*/));
+  // CHECK_CURAND(curandSetPseudoRandomGeneratorSeed(randGen, time(NULL)));
   // Initialize initial Lanczos vector
   CHECK_CURAND(curandGenerateNormalX(randGen, lanczosVecs_dev, n + n % 2, zero, one));
   ValueType_ normQ1 = Cublas::nrm2(n, lanczosVecs_dev, 1);
   Cublas::scal(n, 1 / normQ1, lanczosVecs_dev, 1);
-#else
-  fill_raw_vec(lanczosVecs_dev, n, (ValueType_)1.0 / n);  // doesn't work
-#endif
 
   // Estimate number of Lanczos iterations
   //   See bounds in Kuczynski and Wozniakowski (1992).
@@ -967,11 +904,7 @@ NVGRAPH_ERROR computeSmallestEigenvectors(const Matrix<IndexType_, ValueType_> *
                n);
 
   // Clean up and exit
-  free(Z_host);
-  free(work_host);
-#ifdef USE_CURAND
   CHECK_CURAND(curandDestroyGenerator(randGen));
-#endif
   return NVGRAPH_OK;
 }
 
@@ -1060,8 +993,12 @@ NVGRAPH_ERROR computeSmallestEigenvectors(const Matrix<IndexType_, ValueType_> &
   }
 
   // Allocate memory
-  ValueType_ *alpha_host = (ValueType_ *)malloc(restartIter * sizeof(ValueType_));
-  ValueType_ *beta_host  = (ValueType_ *)malloc(restartIter * sizeof(ValueType_));
+  std::vector<ValueType_> alpha_host_v(restartIter);
+  std::vector<ValueType_> beta_host_v(restartIter);
+
+  ValueType_ *alpha_host = alpha_host_v.data();
+  ValueType_ *beta_host  = beta_host_v.data();
+
   Vector<ValueType_> lanczosVecs_dev(n * (restartIter + 1), stream);
   Vector<ValueType_> work_dev((n + restartIter) * restartIter, stream);
 
@@ -1085,8 +1022,6 @@ NVGRAPH_ERROR computeSmallestEigenvectors(const Matrix<IndexType_, ValueType_> &
                                                      eigVecs_dev);
 
   // Clean up and return
-  free(alpha_host);
-  free(beta_host);
   return status;
 }
 
@@ -1220,10 +1155,11 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> *A
   *totalIter = 0;
 
   // Allocate host memory
-  Z_host = (ValueType_ *)malloc(restartIter * restartIter * sizeof(ValueType_));
-  if (Z_host == NULL) WARNING("could not allocate host memory");
-  work_host = (ValueType_ *)malloc(4 * restartIter * sizeof(ValueType_));
-  if (work_host == NULL) WARNING("could not allocate host memory");
+  std::vector<ValueType_> Z_host_v(restartIter * restartIter);
+  std::vector<ValueType_> work_host_v(4 * restartIter);
+
+  Z_host    = Z_host_v.data();
+  work_host = work_host_v.data();
 
   // Initialize cuBLAS
   Cublas::set_pointer_mode_host();
@@ -1232,7 +1168,6 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> *A
   // Compute largest eigenvalue
   // -------------------------------------------------------
 
-#ifdef USE_CURAND
   // Random number generator
   curandGenerator_t randGen;
   // Initialize random number generator
@@ -1242,9 +1177,6 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> *A
   CHECK_CURAND(curandGenerateNormalX(randGen, lanczosVecs_dev, n + n % 2, zero, one));
   ValueType_ normQ1 = Cublas::nrm2(n, lanczosVecs_dev, 1);
   Cublas::scal(n, 1 / normQ1, lanczosVecs_dev, 1);
-#else
-  fill_raw_vec(lanczosVecs_dev, n, (ValueType_)1.0 / n);  // doesn't work
-#endif
 
   // Estimate number of Lanczos iterations
   //   See bounds in Kuczynski and Wozniakowski (1992).
@@ -1391,11 +1323,7 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> *A
                n);
 
   // Clean up and exit
-  free(Z_host);
-  free(work_host);
-#ifdef USE_CURAND
   CHECK_CURAND(curandDestroyGenerator(randGen));
-#endif
   return NVGRAPH_OK;
 }
 
@@ -1484,8 +1412,12 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> &A
   }
 
   // Allocate memory
-  ValueType_ *alpha_host = (ValueType_ *)malloc(restartIter * sizeof(ValueType_));
-  ValueType_ *beta_host  = (ValueType_ *)malloc(restartIter * sizeof(ValueType_));
+  std::vector<ValueType_> alpha_host_v(restartIter);
+  std::vector<ValueType_> beta_host_v(restartIter);
+
+  ValueType_ *alpha_host = alpha_host_v.data();
+  ValueType_ *beta_host  = beta_host_v.data();
+
   Vector<ValueType_> lanczosVecs_dev(n * (restartIter + 1), stream);
   Vector<ValueType_> work_dev((n + restartIter) * restartIter, stream);
 
@@ -1507,8 +1439,6 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> &A
                                                     eigVecs_dev);
 
   // Clean up and return
-  free(alpha_host);
-  free(beta_host);
   return status;
 }
 
@@ -1516,37 +1446,6 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> &A
 // Explicit instantiation
 // =========================================================
 
-template NVGRAPH_ERROR computeSmallestEigenvectors<int, float>(const Matrix<int, float> *A,
-                                                               int nEigVecs,
-                                                               int maxIter,
-                                                               int restartIter,
-                                                               float tol,
-                                                               bool reorthogonalize,
-                                                               int *iter,
-                                                               int *totalIter,
-                                                               float *shift,
-                                                               float *__restrict__ alpha_host,
-                                                               float *__restrict__ beta_host,
-                                                               float *__restrict__ lanczosVecs_dev,
-                                                               float *__restrict__ work_dev,
-                                                               float *__restrict__ eigVals_dev,
-                                                               float *__restrict__ eigVecs_dev);
-template NVGRAPH_ERROR computeSmallestEigenvectors<int, double>(
-  const Matrix<int, double> *A,
-  int nEigVecs,
-  int maxIter,
-  int restartIter,
-  double tol,
-  bool reorthogonalize,
-  int *iter,
-  int *totalIter,
-  double *shift,
-  double *__restrict__ alpha_host,
-  double *__restrict__ beta_host,
-  double *__restrict__ lanczosVecs_dev,
-  double *__restrict__ work_dev,
-  double *__restrict__ eigVals_dev,
-  double *__restrict__ eigVecs_dev);
 template NVGRAPH_ERROR computeSmallestEigenvectors<int, float>(const Matrix<int, float> &A,
                                                                int nEigVecs,
                                                                int maxIter,
@@ -1566,34 +1465,6 @@ template NVGRAPH_ERROR computeSmallestEigenvectors<int, double>(const Matrix<int
                                                                 double *__restrict__ eigVals_dev,
                                                                 double *__restrict__ eigVecs_dev);
 
-template NVGRAPH_ERROR computeLargestEigenvectors<int, float>(const Matrix<int, float> *A,
-                                                              int nEigVecs,
-                                                              int maxIter,
-                                                              int restartIter,
-                                                              float tol,
-                                                              bool reorthogonalize,
-                                                              int *iter,
-                                                              int *totalIter,
-                                                              float *__restrict__ alpha_host,
-                                                              float *__restrict__ beta_host,
-                                                              float *__restrict__ lanczosVecs_dev,
-                                                              float *__restrict__ work_dev,
-                                                              float *__restrict__ eigVals_dev,
-                                                              float *__restrict__ eigVecs_dev);
-template NVGRAPH_ERROR computeLargestEigenvectors<int, double>(const Matrix<int, double> *A,
-                                                               int nEigVecs,
-                                                               int maxIter,
-                                                               int restartIter,
-                                                               double tol,
-                                                               bool reorthogonalize,
-                                                               int *iter,
-                                                               int *totalIter,
-                                                               double *__restrict__ alpha_host,
-                                                               double *__restrict__ beta_host,
-                                                               double *__restrict__ lanczosVecs_dev,
-                                                               double *__restrict__ work_dev,
-                                                               double *__restrict__ eigVals_dev,
-                                                               double *__restrict__ eigVecs_dev);
 template NVGRAPH_ERROR computeLargestEigenvectors<int, float>(const Matrix<int, float> &A,
                                                               int nEigVecs,
                                                               int maxIter,
@@ -1614,4 +1485,3 @@ template NVGRAPH_ERROR computeLargestEigenvectors<int, double>(const Matrix<int,
                                                                double *__restrict__ eigVecs_dev);
 
 }  // namespace nvgraph
-//#endif //NVGRAPH_PARTITION

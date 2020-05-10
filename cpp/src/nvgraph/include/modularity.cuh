@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -257,7 +257,7 @@ __global__ void generate_cluster_inv_ptr(const int n_vertex,
 
   if (tid < n_vertex) {
     ci = *(cluster_iter + tid);
-    atomicAdd(cluster_inv_ptr + ci, 1);
+    atomicAdd(cluster_inv_ptr + ci, IdxType{1});
   }
 }
 

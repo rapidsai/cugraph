@@ -23,6 +23,9 @@
 #include <limits>
 #include <memory>
 
+#include <cstddef>
+#include <cstdint>
+
 namespace cugraph {
 namespace experimental {
 

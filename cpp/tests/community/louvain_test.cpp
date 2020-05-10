@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -8,18 +8,19 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <cugraph.h>
 #include <gtest/gtest.h>
-#include <nvgraph/nvgraph.h>
-#include <algorithm>
-#include "test_utils.h"
 
-#include <rmm_utils.h>
+#include <algorithms.hpp>
+#include <graph.hpp>
+
+#include <thrust/extrema.h>
+
+#include <rmm/thrust_rmm_allocator.h>
+
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 
 TEST(nvgraph_louvain, success)
 {
-  cugraph::Graph G;
-
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
                             67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
                             98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
@@ -42,55 +43,34 @@ TEST(nvgraph_louvain, success)
     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
-  gdf_column col_off, col_ind, col_w;
+  int num_verts = off_h.size() - 1;
+  int num_edges = ind_h.size();
 
-  create_gdf_column(off_h, &col_off);
-  create_gdf_column(ind_h, &col_ind);
-  create_gdf_column(w_h, &col_w);
+  std::vector<int> cluster_id(num_verts, -1);
 
-  cugraph::adj_list_view(&G, &col_off, &col_ind, &col_w);
+  rmm::device_vector<int> offsets_v(off_h);
+  rmm::device_vector<int> indices_v(ind_h);
+  rmm::device_vector<float> weights_v(w_h);
+  rmm::device_vector<int> result_v(cluster_id);
 
-  if (!(G.adjList)) cugraph::add_adj_list(&G);
+  cugraph::experimental::GraphCSRView<int, int, float> G(
+    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
-  int no_vertex         = off_h.size() - 1;
-  int weighted          = 0;  // false
-  int has_init_cluster  = 0;  // false
-  float modularity      = 0.0;
-  int num_level         = 40;
-  int* best_cluster_vec = NULL;
+  float modularity{0.0};
+  int num_level = 40;
 
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&best_cluster_vec, sizeof(int) * no_vertex, stream);
+  cugraph::nvgraph::louvain(G, &modularity, &num_level, result_v.data().get());
 
-  ASSERT_EQ(NVGRAPH_STATUS_SUCCESS,
-            nvgraphLouvain(CUDA_R_32I,
-                           CUDA_R_32F,
-                           no_vertex,
-                           ind_h.size(),
-                           G.adjList->offsets->data,
-                           G.adjList->indices->data,
-                           G.adjList->edge_data->data,
-                           weighted,
-                           has_init_cluster,
-                           nullptr,
-                           (void*)&modularity,
-                           (void*)best_cluster_vec,
-                           (void*)(&num_level),
-                           100));
-
-  std::vector<int> cluster_id(34, -1);
-  cudaMemcpy((void*)&(cluster_id[0]), best_cluster_vec, sizeof(int) * 34, cudaMemcpyDeviceToHost);
-  int max = *max_element(cluster_id.begin(), cluster_id.end());
+  cudaMemcpy((void*)&(cluster_id[0]),
+             result_v.data().get(),
+             sizeof(int) * num_verts,
+             cudaMemcpyDeviceToHost);
   int min = *min_element(cluster_id.begin(), cluster_id.end());
-  ASSERT_EQ((min >= 0), 1);
-  ASSERT_EQ((modularity >= 0.402777), 1);
 
-  // printf ("max is %d and min is %d \n", max, min);
-
-  // printf ("Modularity is %f \n", modularity);
-
-  ALLOC_FREE_TRY(best_cluster_vec, stream);
+  ASSERT_TRUE(min >= 0);
+  ASSERT_TRUE(modularity >= 0.402777);
 }
+
 /*
 //TODO: revive the test(s) below, once
 //      Gunrock GRMAT is back and stable again;
@@ -158,9 +138,9 @@ cudaMemcpyDeviceToHost); int max = *max_element (cluster_id.begin(), cluster_id.
 */
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

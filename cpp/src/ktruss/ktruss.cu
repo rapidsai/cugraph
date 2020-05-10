@@ -22,7 +22,6 @@
  * --------------------------------------------------------------------------*/
 
 #include <cugraph.h>
-#include <nvgraph_gdf.h>
 #include <rmm_utils.h>
 #include <Hornet.hpp>
 #include <StandardAPI.hpp>

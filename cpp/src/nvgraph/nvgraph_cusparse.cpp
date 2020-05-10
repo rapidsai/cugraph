@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -139,44 +139,6 @@ void Cusparse::csrmv(const bool transposed,
   CHECK_CUSPARSE(cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO));
   CHECK_CUSPARSE(cusparse_csrmv(
     handle, trans, m, n, nnz, alpha, descr, csrVal, csrRowPtr, csrColInd, x, beta, y));
-  CHECK_CUSPARSE(cusparseDestroyMatDescr(descr));  // we should move that somewhere else
-}
-
-template <typename IndexType_, typename ValueType_>
-void Cusparse::csrmv(const bool transposed,
-                     const bool sym,
-                     const ValueType_* alpha,
-                     const ValuedCsrGraph<IndexType_, ValueType_>& G,
-                     const Vector<ValueType_>& x,
-                     const ValueType_* beta,
-                     Vector<ValueType_>& y)
-{
-  cusparseHandle_t handle = Cusparse::get_handle();
-  cusparseOperation_t trans =
-    transposed ? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
-  cusparseMatDescr_t descr = 0;
-  CHECK_CUSPARSE(cusparseCreateMatDescr(&descr));  // we should move that somewhere else
-  if (sym) {
-    CHECK_CUSPARSE(cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_SYMMETRIC));
-  } else {
-    CHECK_CUSPARSE(cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL));
-  }
-  int n   = G.get_num_vertices();
-  int nnz = G.get_num_edges();
-  CHECK_CUSPARSE(cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO));
-  CHECK_CUSPARSE(cusparse_csrmv(handle,
-                                trans,
-                                n,
-                                n,
-                                nnz,
-                                alpha,
-                                descr,
-                                (ValueType_*)G.get_raw_values(),
-                                (IndexType_*)G.get_raw_row_offsets(),
-                                (IndexType_*)G.get_raw_column_indices(),
-                                (ValueType_*)x.raw(),
-                                beta,
-                                (ValueType_*)y.raw()));
   CHECK_CUSPARSE(cusparseDestroyMatDescr(descr));  // we should move that somewhere else
 }
 
