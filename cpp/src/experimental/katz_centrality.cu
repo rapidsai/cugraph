@@ -36,8 +36,12 @@ void katz_centrality_this_partition(
     ResultIteraotr beta_first, ResultIteraotr katz_centrality_first,
     double alpha = 0.1, double epsilon = 1e-5, size_t max_iterations = 500,
     bool has_initial_guess = false, normalize = true, bool do_expensive_check = false) {
-  using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
+  using vertex_t = typename GraphType::vertex_type;
   using result_t = typename std::iterator_traits<ResultIterator>::value_type;
+
+  static_assert(
+    std::is_same<vertex_t, typename std::iteraitor_traits<VertexIterator>::value_type>::value,
+    "VertexIterator should point to a GraphType::vertex_type value.");
   static_assert(
     std::is_integral<vertex_t>::value,
     "VertexIterator should point to an integral value.");
@@ -157,7 +161,7 @@ void katz_centrality_this_partition(
 // explicit instantiation
 
 template void katz_centrality_this_partition(
-    raft::Handle handle, GraphCSC<uint32_t, uint32_t, float> const& csc_graph,
+    raft::Handle handle, GraphCSCView<uint32_t, uint32_t, float> const& csc_graph,
     float* beta_first, float* katz_centrality_first,
     double alpha, double epsilon, size_t max_iterations,
     bool has_initial_guess, normalize, bool do_expensive_check);

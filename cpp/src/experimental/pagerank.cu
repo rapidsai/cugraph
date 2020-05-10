@@ -41,8 +41,12 @@ void pagerank_this_partition(
     ResultIteraotr pagerank_first,
     double alpha = 0.85, double epsilon = 1e-5, size_t max_iterations = 500,
     bool has_initial_guess = false, bool personalize = false, bool do_expensive_check = false) {
-  using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
+  using vertex_t = typename GraphType::vertex_type;
   using result_t = typename std::iterator_traits<ResultIterator>::value_type;
+
+  static_assert(
+    std::is_same<vertex_t, typename std::iteraitor_traits<VertexIterator>::value_type>::value,
+    "VertexIterator should point to a GraphType::vertex_type value.");
   static_assert(
     std::is_integral<vertex_t>::value,
     "VertexIterator should point to an integral value.");
@@ -233,7 +237,7 @@ void pagerank_this_partition(
 // explicit instantiation
 
 template void pagerank_this_partition(
-    raft::Handle handle, GraphCSC<uint32_t, uint32_t, float> const& csc_graph,
+    raft::Handle handle, GraphCSCView<uint32_t, uint32_t, float> const& csc_graph,
     float* adj_matrix_col_out_weight_sum_first,
     uint32_t* personalization_vertex_first, uint32_t* personalization_vertex_last,
     float* personalization_value_first,

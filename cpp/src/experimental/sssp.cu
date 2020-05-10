@@ -16,6 +16,7 @@
 #include <detail/copy_patterns.hpp>
 #include <detail/one_level_patterns.hpp>
 #include <detail/two_level_patterns.hpp>
+#include <utilities/traits.hpp>
 
 #include <rmm/rmm.h>
 
@@ -32,15 +33,14 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename WeightIterator, typename vertex_t>
+template <typename GraphType, typename VertexIterator, typename WeightIterator>
 void sssp_this_partition(
     raft::Handle handle, GraphType const& csr_graph,
     WeightIteraotr distance_first, VertexIteraotr predecessor_first,
-    vertex_t starting_vertex,
+    typename GraphType::vertex_type starting_vertex,
     size_t depth_limit = std::numeric_limits<size_t>::max(), bool do_expensive_check = false) {
-  static_assert(
-    std::is_same<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>::value,
-    "VertexIterator should point to a vertex_t value.");
+  using vertex_t = typename GraphType::vertex_type;
+  
   static_assert(
     std::is_integral<vertex_t>::value,
     "VertexIterator should point to an integral value.");
@@ -230,7 +230,7 @@ void sssp_this_partition(
 // explicit instantiation
 
 template void sssp_this_partition(
-    raft::Handle handle, GraphCSR<uint32_t, uint32_t, float> const& csr_graph,
+    raft::Handle handle, GraphCSRView<uint32_t, uint32_t, float> const& csr_graph,
     float* distance_first, uint32_t predecessor_first, uint32_t starting_vertex,
     size_t depth_limit, bool do_expensive_check);
 
