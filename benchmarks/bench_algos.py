@@ -89,9 +89,6 @@ def edgelistCreated(request):
     Returns a new edgelist created from a CSV, which is specified as part of
     the parameterization for this fixture.
     """
-    #request.keywords.setdefault("fixture_param_names",
-    #                            dict())[request.fixturename] = ["dataset"]
-
     # Since parameterized fixtures do not assign param names to param values,
     # manually call the helper to do so. Ensure the order of the name list
     # passed to it matches.
