@@ -52,7 +52,7 @@ def getGraphFromEdgelist(edgelistGdf, createDiGraph=False,
 # FIXME: write and use mechanism described here for specifying datasets:
 #        https://docs.rapids.ai/maintainers/datasets
 # FIXME: rlr: soc-twitter-2010.csv crashes with OOM error on my HP-Z8!
-datasets = [
+DATASETS = [
     "../datasets/csv/undirected/hollywood.csv",
     "../datasets/csv/undirected/europe_osm.csv",
 #    "../datasets/csv/undirected/soc-twitter-2010.csv",
@@ -69,12 +69,15 @@ datasets = [
 # For benchmarks, the operations performed in fixtures are not measured as part
 # of the benchmark.
 @pytest.fixture(scope="module",
-                params=datasets)
+                params=DATASETS)
 def edgelistCreated(request):
     """
     Returns a new edgelist created from a CSV, which is specified as part of
     the parameterization for this fixture.
     """
+    # FIXME: make a helper to do this and explain why it needs to be done
+    # FIXME: this works here but needs to be updated to automatically create and append
+    request.keywords.setdefault("fixture_param_names", dict())[request.fixturename] = ["dataset"]
     return getEdgelistFromCsv(request.param)
 
 
@@ -89,66 +92,63 @@ def graphCreated(edgelistCreated):
 
 ###############################################################################
 # Benchmarks
-@pytest.mark.ETL
 @pytest.mark.benchmark(group="ETL")
-@pytest.mark.parametrize("csvFileName", datasets)
-def bench_create_edgelist(benchmark, csvFileName):
-    benchmark(getEdgelistFromCsv, csvFileName)
+@pytest.mark.parametrize("csvFileName", DATASETS)
+def bench_create_edgelist(gpubenchmark, csvFileName):
+    gpubenchmark(getEdgelistFromCsv, csvFileName)
 
 
-@pytest.mark.ETL
 @pytest.mark.benchmark(group="ETL")
-def bench_create_graph(benchmark, edgelistCreated):
-    benchmark(getGraphFromEdgelist, edgelistCreated, False, False, False)
+def bench_create_graph(gpubenchmark, edgelistCreated):
+    gpubenchmark(getGraphFromEdgelist, edgelistCreated, False, False, False)
 
 
-# def bench_pagerank(benchmark, graphCreated):
-#     benchmark(cugraph.pagerank, graphCreated, damping_factor=0.85, None, max_iter=100, tolerance=1e-5)
+# def bench_pagerank(gpubenchmark, graphCreated):
+#     gpubenchmark(cugraph.pagerank, graphCreated, damping_factor=0.85, None, max_iter=100, tolerance=1e-5)
+
+def bench_bfs(gpubenchmark, graphCreated):
+    gpubenchmark(cugraph.bfs, graphCreated, 0)
 
 
-def bench_bfs(benchmark, graphCreated):
-    benchmark(cugraph.bfs, graphCreated, 0, True)
+def bench_sssp(gpubenchmark, graphCreated):
+    gpubenchmark(cugraph.sssp, graphCreated, 0)
 
 
-def bench_sssp(benchmark, graphCreated):
-    benchmark(cugraph.sssp, graphCreated, 0)
+def bench_jaccard(gpubenchmark, graphCreated):
+    gpubenchmark(cugraph.jaccard, graphCreated)
 
 
-def bench_jaccard(benchmark, graphCreated):
-    benchmark(cugraph.jaccard, graphCreated)
+def bench_louvain(gpubenchmark, graphCreated):
+    gpubenchmark(cugraph.louvain, graphCreated)
 
 
-def bench_louvain(benchmark, graphCreated):
-    benchmark(cugraph.louvain, graphCreated)
+def bench_weakly_connected_components(gpubenchmark, graphCreated):
+    gpubenchmark(cugraph.weakly_connected_components, graphCreated)
 
 
-def bench_weakly_connected_components(benchmark, graphCreated):
-    benchmark(cugraph.weakly_connected_components, graphCreated)
+def bench_overlap(gpubenchmark, graphCreated):
+    gpubenchmark(cugraph.overlap, graphCreated)
 
 
-def bench_overlap(benchmark, graphCreated):
-    benchmark(cugraph.overlap, graphCreated)
+def bench_triangles(gpubenchmark, graphCreated):
+    gpubenchmark(cugraph.triangles, graphCreated)
 
 
-def bench_triangles(benchmark, graphCreated):
-    benchmark(cugraph.triangles, graphCreated)
+def bench_spectralBalancedCutClustering(gpubenchmark, graphCreated):
+    gpubenchmark(cugraph.spectralBalancedCutClustering, graphCreated, 2)
 
 
-def bench_spectralBalancedCutClustering(benchmark, graphCreated):
-    benchmark(cugraph.spectralBalancedCutClustering, graphCreated, 2)
+# def bench_spectralModularityMaximizationClustering(gpubenchmark, graphCreated):
+#     gpubenchmark(cugraph.spectralModularityMaximizationClustering, graphCreated, 2)
 
 
-def bench_spectralModularityMaximizationClustering(benchmark, graphCreated):
-    benchmark(cugraph.spectralModularityMaximizationClustering, graphCreated, 2)
+# def bench_renumber(gpubenchmark, edgelistCreated):
+#     gpubenchmark(cugraph.renumber, edgelistCreated["src"], edgelistCreated["dst"])
 
 
-# def bench_renumber(benchmark, edgelistCreated):
-#     benchmark(cugraph.renumber, edgelistCreated["src"], edgelistCreated["dst"])
+def bench_graph_degree(gpubenchmark, graphCreated):
+    gpubenchmark(graphCreated.degree)
 
 
-def bench_graph_degree(benchmark, graphCreated):
-    benchmark(graphCreated.degree)
-
-
-def bench_graph_degrees(benchmark, graphCreated):
-    benchmark(graphCreated.degrees)
+def bench_graph_degrees(gpubenchmark, graphCreated):
+    gpubenchmark(graphCreated.degrees)
