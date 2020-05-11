@@ -33,7 +33,8 @@ import numpy as np
 import numpy.ctypeslib as ctypeslib
 
 cdef extern from "internals.h" namespace "cugraph::internals":
-            cdef cppclass GraphBasedDimRedCallback
+    cdef cppclass GraphBasedDimRedCallback
+
 
 def force_atlas2(input_graph,
                  max_iter=500,
@@ -102,12 +103,12 @@ def force_atlas2(input_graph,
         callback_ptr = callback.get_native_callback()
 
     if input_graph.edgelist.weights \
-        and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
+            and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
 
         pos = rmm.device_array(
-                (num_verts, 2),
-                order="F",
-                dtype=np.float64)
+                        (num_verts, 2),
+                        order="F",
+                        dtype=np.float64)
 
         pos_ptr = pos.device_ctypes_pointer.value
 

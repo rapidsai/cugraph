@@ -11,20 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-from itertools import product
 import time
-import numpy as np
 
 import pytest
 
-import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
-from random import randint
 from sklearn.manifold import trustworthiness
-from scipy.sparse import coo_matrix
 import scipy.io
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -33,45 +26,49 @@ import scipy.io
 # python 3.7.  Also, these import fa2 and import networkx need to be
 # relocated in the third-party group once this gets fixed.
 
+
 def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
                  lin_log_mode, prevent_overlapping, edge_weight_influence,
                  jitter_tolerance, barnes_hut_theta, barnes_hut_optimize,
                  scaling_ratio, strong_gravity_mode, gravity):
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=False)
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2',
+                         renumber=False)
 
     # cugraph Force Atlas 2 Call
     t1 = time.time()
-    pos = cugraph.force_atlas2(G,
-                               max_iter=max_iter,
-                               pos_list=pos_list,
-                               outbound_attraction_distribution=outbound_attraction_distribution,
-                               lin_log_mode=lin_log_mode,
-                               prevent_overlapping=prevent_overlapping,
-                               edge_weight_influence=edge_weight_influence,
-                               jitter_tolerance=jitter_tolerance,
-                               barnes_hut_optimize=barnes_hut_optimize,
-                               barnes_hut_theta=barnes_hut_theta,
-                               scaling_ratio=scaling_ratio,
-                               strong_gravity_mode=strong_gravity_mode,
-                               gravity=gravity)
+    pos = cugraph.force_atlas2(
+            G,
+            max_iter=max_iter,
+            pos_list=pos_list,
+            outbound_attraction_distribution=outbound_attraction_distribution,
+            lin_log_mode=lin_log_mode,
+            prevent_overlapping=prevent_overlapping,
+            edge_weight_influence=edge_weight_influence,
+            jitter_tolerance=jitter_tolerance,
+            barnes_hut_optimize=barnes_hut_optimize,
+            barnes_hut_theta=barnes_hut_theta,
+            scaling_ratio=scaling_ratio,
+            strong_gravity_mode=strong_gravity_mode,
+            gravity=gravity)
     t2 = time.time() - t1
     print('Cugraph Time : ' + str(t2))
     return pos
 
 DATASETS = [('../datasets/karate.csv', 0.74),
             ('../datasets/polbooks.csv', 0.76),
-            ('../datasets/dolphins.csv', 0.69),
-            ('../datasets/netscience.csv', 0.68)]
+            ('../datasets/dolphins.csv', 0.67),
+            ('../datasets/netscience.csv', 0.67)]
 MAX_ITERATIONS = [500]
-BARNES_HUT_OPTIMIZE= [False, True]
+BARNES_HUT_OPTIMIZE = [False, True]
+
 
 @pytest.mark.parametrize('graph_file, score', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('barnes_hut_optimize', BARNES_HUT_OPTIMIZE)
 def test_force_atlas2(graph_file, score, max_iter,
-        barnes_hut_optimize):
+                      barnes_hut_optimize):
     cu_M = utils.read_csv_file(graph_file)
     cu_pos = cugraph_call(cu_M,
                           max_iter=max_iter,
@@ -94,8 +91,8 @@ def test_force_atlas2(graph_file, score, max_iter,
         dimension. The results of force atlas 2 corresponds to the layout in
         a 2d space. Here we check that nodes belonging to the same community
         or neighbors are close to each other in the final embedding.
-        Thresholds are based on the best score that is achived after x iterations
-        on a given graph.
+        Thresholds are based on the best score that is achived after 500
+        iterations on a given graph.
     '''
 
     matrix_file = graph_file[:-4] + '.mtx'
