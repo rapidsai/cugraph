@@ -42,10 +42,8 @@ void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
   using HornetInit    = hornet::HornetInit<VT>;
   using Katz          = hornets_nest::KatzCentralityStatic;
 
-  //Ask hornet to calculate alpha
-  if (alpha == 0) {
-    alpha = std::numeric_limits<double>::max();
-  }
+  // Ask hornet to calculate alpha
+  if (alpha == 0) { alpha = std::numeric_limits<double>::max(); }
 
   HornetInit init(graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices);
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
