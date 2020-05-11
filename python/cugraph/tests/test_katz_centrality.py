@@ -47,7 +47,7 @@ def calc_katz(graph_file):
     largest_out_degree = largest_out_degree['out_degree'].iloc[0]
     katz_alpha = 1/(largest_out_degree + 1)
 
-    k_df = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
+    k_df = cugraph.katz_centrality(G, None, max_iter=1000)
 
     NM = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(NM, create_using=nx.DiGraph(),

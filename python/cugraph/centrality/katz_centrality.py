@@ -15,7 +15,7 @@ from cugraph.centrality import katz_centrality_wrapper
 
 
 def katz_centrality(G,
-                    alpha=0.1,
+                    alpha=None,
                     max_iter=100,
                     tol=1.0e-6,
                     nstart=None,
@@ -37,9 +37,9 @@ def katz_centrality(G,
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed (DiGraph) or undirected edges (Graph).
     alpha : float
-        Attenuation factor with a default value of 0.1.  If alpha is not less
-        than 1/(lambda_max) where lambda_max is the maximum degree
-        GDF_CUDA_ERROR is returned
+        Attenuation factor defaulted to None. If alpha is not specified then
+        it is internally calculated as 1/(lambda_max) where lambda_max is the
+        maximum degree
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the

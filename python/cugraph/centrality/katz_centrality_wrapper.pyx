@@ -56,7 +56,7 @@ def get_output_df(input_graph, nstart):
     return df
 
 
-def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
+def katz_centrality(input_graph, alpha=None, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     """
     Call katz_centrality
     """
@@ -64,6 +64,8 @@ def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=Non
     df = get_output_df(input_graph, nstart)
     if nstart is not None:
         has_guess = True
+    if alpha is None:
+        alpha = 0
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_katz = df['katz_centrality'].__cuda_array_interface__['data'][0]
