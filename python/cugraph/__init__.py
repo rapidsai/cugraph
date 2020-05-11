@@ -44,8 +44,6 @@ from cugraph.traversal import bfs, sssp, filter_unreachable
 from cugraph.utilities import device_of_gpu_pointer
 from cugraph.utilities import utils
 
-from cugraph.snmg.link_analysis.mg_pagerank import mg_pagerank
-
 from cugraph.bsp.traversal import bfs_df_pregel
 
 from cugraph.proto.components import strong_connected_component

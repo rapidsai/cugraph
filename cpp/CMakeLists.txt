@@ -172,46 +172,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - NVStrings -------------------------------------------------------------------------------------
-
-find_path(NVSTRINGS_INCLUDE "nvstrings"
-          HINTS "$ENV{NVSTRINGS_ROOT}/include"
-                "$ENV{CONDA_PREFIX}/include/nvstrings"
-                "$ENV{CONDA_PREFIX}/include")
-
-find_library(NVSTRINGS_LIBRARY "NVStrings"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-find_library(NVCATEGORY_LIBRARY "NVCategory"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-find_library(NVTEXT_LIBRARY "NVText"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "NVSTRINGS: NVSTRINGS_INCLUDE set to ${NVSTRINGS_INCLUDE}")
-message(STATUS "NVSTRINGS: NVSTRINGS_LIBRARY set to ${NVSTRINGS_LIBRARY}")
-message(STATUS "NVSTRINGS: NVCATEGORY_LIBRARY set to ${NVCATEGORY_LIBRARY}")
-message(STATUS "NVSTRINGS: NVTEXT_LIBRARY set to ${NVTEXT_LIBRARY}")
-
-add_library(NVStrings SHARED IMPORTED ${NVSTRINGS_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
-    set_target_properties(NVStrings PROPERTIES IMPORTED_LOCATION ${NVSTRINGS_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
-
-add_library(NVCategory SHARED IMPORTED ${NVCATEGORY_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
-    set_target_properties(NVCategory PROPERTIES IMPORTED_LOCATION ${NVCATEGORY_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
-
-add_library(NVText SHARED IMPORTED ${NVTEXT_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
-    set_target_properties(NVText PROPERTIES IMPORTED_LOCATION ${NVTEXT_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
-
-###################################################################################################
 # - cudf ------------------------------------------------------------------------------------------
 
 find_path(CUDF_INCLUDE "cudf"
@@ -343,53 +303,29 @@ add_library(cugraph SHARED
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
-    src/converters/nvgraph.cu
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
-    src/community/nvgraph_gdf.cu
+    src/community/spectral_clustering.cu
+    src/community/louvain.cu
     src/community/ECG.cu
+    src/community/triangles_counting.cu
+    src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
-    src/snmg/blas/spmv.cu
-    src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
     src/utilities/graph_utils.cu
-    src/snmg/utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/snmg/degree/degree.cu
-    src/snmg/COO2CSR/COO2CSR.cu
-    src/nvgraph/arnoldi.cu
-    src/nvgraph/bfs.cu
-    src/nvgraph/bfs2d.cu
-    src/nvgraph/bfs_kernels.cu
-    src/nvgraph/convert.cu
-    src/nvgraph/csrmv.cu
-    src/nvgraph/csrmv_cub.cu
-    src/nvgraph/csr_graph.cpp
-    src/nvgraph/graph_extractor.cu
-    src/nvgraph/jaccard_gpu.cu
     src/nvgraph/kmeans.cu
     src/nvgraph/lanczos.cu
-    src/nvgraph/lobpcg.cu
-    src/nvgraph/matrix.cu
+    src/nvgraph/spectral_matrix.cu
     src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph.cu
     src/nvgraph/nvgraph_cusparse.cpp
     src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_error.cu
     src/nvgraph/nvgraph_lapack.cu
     src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/pagerank.cu
-    src/nvgraph/pagerank_kernels.cu
     src/nvgraph/partition.cu
-    src/nvgraph/size2_selector.cu
-    src/nvgraph/sssp.cu
-    src/nvgraph/triangles_counting.cpp
-    src/nvgraph/triangles_counting_kernels.cu
-    src/nvgraph/valued_csr_graph.cpp
-    src/nvgraph/widest_path.cu
 )
 
 #
@@ -399,8 +335,8 @@ add_library(cugraph SHARED
 add_dependencies(cugraph cugunrock)
 
 if (BUILD_MPI)
-     add_compile_definitions(ENABLE_OPG=1)
- endif (BUILD_MPI)
+    add_compile_definitions(ENABLE_OPG=1)
+endif (BUILD_MPI)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------

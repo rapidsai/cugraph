@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import numpy as np
 import pytest
@@ -20,7 +19,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -33,13 +31,13 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-def compare_edges(cg, nxg, verts):
+def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
     assert cg.edgelist.weights is False
     assert len(edgelist_df) == nxg.size()
     for i in range(len(edgelist_df)):
-        assert nxg.has_edge(verts[edgelist_df['src'][i]],
-                            verts[edgelist_df['dst'][i]])
+        assert nxg.has_edge(edgelist_df['src'].iloc[i],
+                            edgelist_df['dst'].iloc[i])
     return True
 
 
@@ -75,19 +73,9 @@ DATASETS = ['../datasets/karate.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_subgraph_extraction_DiGraph(managed, pool, graph_file):
+def test_subgraph_extraction_DiGraph(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     verts = np.zeros(3, dtype=np.int32)
@@ -96,23 +84,14 @@ def test_subgraph_extraction_DiGraph(managed, pool, graph_file):
     verts[2] = 17
     cu_sg = cugraph_call(M, verts)
     nx_sg = nx_call(M, verts)
-    assert compare_edges(cu_sg, nx_sg, verts)
+    assert compare_edges(cu_sg, nx_sg)
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_subgraph_extraction_Graph(managed, pool, graph_file):
+def test_subgraph_extraction_Graph(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     verts = np.zeros(3, dtype=np.int32)
@@ -121,4 +100,4 @@ def test_subgraph_extraction_Graph(managed, pool, graph_file):
     verts[2] = 17
     cu_sg = cugraph_call(M, verts, False)
     nx_sg = nx_call(M, verts, False)
-    assert compare_edges(cu_sg, nx_sg, verts)
+    assert compare_edges(cu_sg, nx_sg)

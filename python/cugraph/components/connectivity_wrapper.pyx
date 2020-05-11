@@ -66,9 +66,9 @@ def weakly_connected_components(input_graph):
     cdef uintptr_t c_identifier = df['vertices'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0];
 
-    cdef GraphCSR[int,int,float] g
+    cdef GraphCSRView[int,int,float] g
 
-    g = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    g = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     cdef cugraph_cc_t connect_type=CUGRAPH_WEAK
     connected_components(g, <cugraph_cc_t>connect_type, <int *>c_labels_val)
@@ -102,9 +102,9 @@ def strongly_connected_components(input_graph):
     cdef uintptr_t c_identifier = df['vertices'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0];
 
-    cdef GraphCSR[int,int,float] g
+    cdef GraphCSRView[int,int,float] g
 
-    g = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    g = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     cdef cugraph_cc_t connect_type=CUGRAPH_STRONG
     connected_components(g, <cugraph_cc_t>connect_type, <int *>c_labels_val)

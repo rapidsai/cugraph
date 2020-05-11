@@ -17,7 +17,8 @@
 #include <cypher-parser.h>
 #include <string>
 
-namespace cugraph { 
+namespace cugraph {
 namespace db {
-  std::string getParserVersion();
-} } //namespace
+std::string getParserVersion();
+}
+}  // namespace cugraph

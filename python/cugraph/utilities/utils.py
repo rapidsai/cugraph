@@ -58,6 +58,7 @@ def get_traversed_path(df, id):
     # There is no guarantee that the dataframe has not been filtered
     # or edited.  Therefore we cannot assume that using the vertex ID
     # as an index will work
+
     ddf = df[df['vertex'] == id]
     if len(ddf) == 0:
         raise ValueError("The vertex (", id, " is not in the result set")
@@ -115,6 +116,7 @@ def get_traversed_path_list(df, id):
     # or edited.  Therefore we cannot assume that using the vertex ID
     # as an index will work
 
+    pred = -1
     answer = []
     answer.append(id)
 
@@ -124,7 +126,7 @@ def get_traversed_path_list(df, id):
 
     pred = ddf['predecessor']
 
-    while pred != -1:
+    while (pred != -1):
         answer.append(pred)
 
         ddf = df.loc[df['vertex'] == pred]

@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure import graph_wrapper
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
@@ -161,7 +160,6 @@ class Graph:
                                  renumber=False)
 
         """
-
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
 
@@ -253,7 +251,8 @@ class Graph:
             containing the weight value for each edge.
         """
         if self.edgelist is None:
-            graph_wrapper.view_edge_list(self)
+            src, dst, weights = graph_new_wrapper.view_edge_list(self)
+            self.edgelist = self.EdgeList(src, dst, weights)
         if type(self) is Graph:
             edgelist_df = self.edgelist.edgelist_df[self.edgelist.edgelist_df[
                           'src'] <= self.edgelist.edgelist_df['dst']].\
@@ -375,7 +374,8 @@ class Graph:
             number.
         """
         if self.adjlist is None:
-            graph_wrapper.view_adj_list(self)
+            offsets, indices, weights = graph_new_wrapper.view_adj_list(self)
+            self.adjlist = self.AdjList(offsets, indices, weights)
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
     def view_transposed_adj_list(self):
@@ -404,7 +404,8 @@ class Graph:
 
         """
         if self.transposedadjlist is None:
-            graph_wrapper.view_transposed_adj_list(self)
+            off, ind, vals = graph_new_wrapper.view_transposed_adj_list(self)
+            self.transposedadjlist = self.transposedAdjList(off, ind, vals)
 
         return (self.transposedadjlist.offsets,
                 self.transposedadjlist.indices,
@@ -456,13 +457,18 @@ class Graph:
         return df
 
     def number_of_vertices(self):
+        """
+        Get the number of nodes in the graph.
+
+        """
         if self.node_count is None:
             if self.adjlist is not None:
                 self.node_count = len(self.adjlist.offsets)-1
             elif self.transposedadjlist is not None:
                 self.node_count = len(self.transposedadjlist.offsets)-1
-            else:
-                self.node_count = graph_wrapper.number_of_vertices(self)
+            elif self.edgelist is not None:
+                df = self.edgelist.edgelist_df[['src', 'dst']]
+                self.node_count = df.max().max() + 1
         return self.node_count
 
     def number_of_nodes(self):
@@ -837,6 +843,22 @@ class Graph:
             return self.edgelist.renumber_map[n]
         else:
             return n
+
+    def neighbors(self, n):
+
+        if self.renumbered:
+            node = self.edgelist.renumber_map.index[self.edgelist.
+                                                    renumber_map == n]
+            if len(node) == 0:
+                return cudf.Series(dtype='int')
+            n = node[0]
+
+        df = self.edgelist.edgelist_df
+        neighbors = df[df['src'] == n]['dst'].reset_index(drop=True)
+        if self.renumbered:
+            return self.edgelist.renumber_map[neighbors]
+        else:
+            return neighbors
 
 
 class DiGraph(Graph):

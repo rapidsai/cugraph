@@ -58,7 +58,14 @@ cpp/thirdparty/googletest/
 *.ipr
 *.iws
 
+## Datasets
 datasets/*
+!datasets/cyber.csv
+!datasets/karate-data.csv
+!datasets/karate_undirected.csv
+!datasets/netscience.csv
+
+
 .pydevproject
 
 # Jupyter Notebooks
