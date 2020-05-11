@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import random
 
 import pytest
@@ -20,7 +19,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 
 def cugraph_call(G, partitions):
@@ -48,20 +46,10 @@ PARTITIONS = [2, 4, 8]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
-def test_modularity_clustering(managed, pool, graph_file, partitions):
+def test_modularity_clustering(graph_file, partitions):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
@@ -80,18 +68,9 @@ def test_modularity_clustering(managed, pool, graph_file, partitions):
 
 # Test to ensure DiGraph objs are not accepted
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-def test_digraph_rejected(managed, pool):
+
+def test_digraph_rejected():
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     df = cudf.DataFrame()
     df['src'] = cudf.Series(range(10))

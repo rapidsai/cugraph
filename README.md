@@ -2,7 +2,7 @@
 
 [![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, user familiar with NetworkX will quickly reconnize the NetworkX-like API provided in cuGraph, with the goal being to allow existing code to be ported with minimal effort into RAPIDS.  For users familar with C/CUDA and graph structures, a C++ API is also provided.  However, there is less type and structure checking at the C layer.  
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, user familiar with NetworkX will quickly reconnize the NetworkX-like API provided in cuGraph, with the goal being to allow existing code to be ported with minimal effort into RAPIDS.  For users familiar with C++/CUDA and graph structures, a C++ API is also provided.  However, there is less type and structure checking at the C++ layer.
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
@@ -85,6 +85,16 @@ cuGraph provides the renumber function to mitigate this problem. Input vertex ID
 cuGraph provides an auto-renumbering feature, enabled by default, during Graph creating.  Renumbered vertices are automaticaly un-renumbered.
 
 cuGraph is constantly being updatred and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) if errors are encountered with newer versions
+
+## Graph Sizes and GPU Memory Size
+The amount of memory required is dependent on the graph structure and the analytics being executed.  As a simple rule of thumb, the amount of GPU memory should be about twice the size of the data size.  That gives overhead for the CSV reader and other transform functions.  There are ways around the rule but using smaller data chunks.  
+
+
+|       Size        | Recomended GPU Memory |
+|-------------------|-----------------------|
+| 500 million edges	|  32GB    |
+| 250 million edges |	16 GB  |
+
 
 
 

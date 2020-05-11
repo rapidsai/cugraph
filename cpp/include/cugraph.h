@@ -15,9 +15,8 @@
  */
 #pragma once
 
-
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 
 #include <cudf/cudf.h>
 
@@ -29,6 +28,3 @@
 
 // analytics features
 #include "algorithms.h"
-
-// nvgraph wrappers
-#include "nvgraph_gdf.h"

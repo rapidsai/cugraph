@@ -50,8 +50,8 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSR[int,int,float] graph_float
-    cdef GraphCSR[int,int,double] graph_double
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
 
     weight_type = np.float32
 
@@ -87,7 +87,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
             c_second_col = second.__cuda_array_interface__['data'][0]
 
         if weight_type == np.float32:
-            graph_float = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices,
+            graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
                                                   <float*>c_weights, num_verts, num_edges)
             c_overlap_list[int,int,float](graph_float,
                                           <float*>c_weights,
@@ -96,7 +96,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
                                           <int*>c_second_col,
                                           <float*>c_result_col)
         else:
-            graph_double = GraphCSR[int,int,double](<int*>c_offsets, <int*>c_indices,
+            graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
                                                     <double*>c_weights, num_verts, num_edges)
             c_overlap_list[int,int,double](graph_double,
                                            <double*>c_weights,
@@ -122,7 +122,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
                                               nan_as_null=False)
             c_result_col = df['overlap_coeff'].__cuda_array_interface__['data'][0]
 
-            graph_float = GraphCSR[int,int,float](<int*>c_offsets,
+            graph_float = GraphCSRView[int,int,float](<int*>c_offsets,
                                                   <int*>c_indices,
                                                   <float*>c_weights,
                                                   num_verts,
@@ -137,7 +137,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
                                               nan_as_null=False)
             c_result_col = df['overlap_coeff'].__cuda_array_interface__['data'][0]
 
-            graph_double = GraphCSR[int,int,double](<int*>c_offsets,
+            graph_double = GraphCSRView[int,int,double](<int*>c_offsets,
                                                     <int*>c_indices,
                                                     <double*>c_weights,
                                                     num_verts,

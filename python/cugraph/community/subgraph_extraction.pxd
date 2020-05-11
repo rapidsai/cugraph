@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,13 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
-from libcpp cimport bool
+from cugraph.structure.graph_new cimport *
+from libcpp.memory cimport unique_ptr
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
 
-    cdef void extract_subgraph_vertex_nvgraph(
-        Graph* gdf_G,
-        gdf_column* vertices,
-        Graph* result) except +
+    cdef unique_ptr[GraphCOO[VT,ET,WT]] extract_subgraph_vertex[VT,ET,WT](
+        const GraphCOOView[VT,ET,WT] &graph,
+        const VT *vertices,
+        ET num_vertices) except +

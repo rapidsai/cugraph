@@ -16,10 +16,12 @@
 
 #include <db/db_parser_integration_test.cuh>
 
-namespace cugraph { 
+namespace cugraph {
 namespace db {
-  std::string getParserVersion() {
-    std::string version = libcypher_parser_version();
-    return version;
-	}
-} } //namespace
+std::string getParserVersion()
+{
+  std::string version = libcypher_parser_version();
+  return version;
+}
+}  // namespace db
+}  // namespace cugraph

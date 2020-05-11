@@ -16,61 +16,60 @@
 
 // snmg pagerank
 // Author: Alex Fender afender@nvidia.com
- 
+
 #pragma once
-#include "cub/cub.cuh"
 #include <omp.h>
-#include "utilities/graph_utils.cuh"
+#include "cub/cub.cuh"
 #include "snmg/utils.cuh"
+#include "utilities/graph_utils.cuh"
 //#define SNMG_DEBUG
 
-namespace cugraph { 
+namespace cugraph {
 namespace snmg {
 
 template <typename IndexType, typename ValueType>
-class SNMGpagerank 
-{ 
-  private:
-    size_t v_glob; //global number of vertices
-    size_t v_loc;  //local number of vertices
-    size_t e_loc;  //local number of edges
-    int id; // thread id
-    int nt; // number of threads
-    ValueType alpha; // damping factor
-    SNMGinfo env;  //info about the snmg env setup
-    cudaStream_t stream;  
-    
-    //Vertex offsets for each partition. 
-    //This information should be available on all threads/devices
-    //part_offsets[device_id] contains the global ID 
-    //of the first vertex of the partion owned by device_id. 
-    //part_offsets[num_devices] contains the global number of vertices
-    size_t* part_off; 
-    
-    // local CSR matrix
-    IndexType * off;
-    IndexType * ind;
-    ValueType * val;
+class SNMGpagerank {
+ private:
+  size_t v_glob;    // global number of vertices
+  size_t v_loc;     // local number of vertices
+  size_t e_loc;     // local number of edges
+  int id;           // thread id
+  int nt;           // number of threads
+  ValueType alpha;  // damping factor
+  SNMGinfo env;     // info about the snmg env setup
+  cudaStream_t stream;
 
-    // vectors of size v_glob 
-    ValueType * bookmark; // constant vector with dangling node info
+  // Vertex offsets for each partition.
+  // This information should be available on all threads/devices
+  // part_offsets[device_id] contains the global ID
+  // of the first vertex of the partion owned by device_id.
+  // part_offsets[num_devices] contains the global number of vertices
+  size_t* part_off;
 
-    bool is_setup;
+  // local CSR matrix
+  IndexType* off;
+  IndexType* ind;
+  ValueType* val;
 
-  public: 
-    SNMGpagerank(SNMGinfo & env_, size_t* part_off_, 
-                 IndexType * off_, IndexType * ind_);
-    ~SNMGpagerank();
+  // vectors of size v_glob
+  ValueType* bookmark;  // constant vector with dangling node info
 
-    void transition_vals(const IndexType *degree);
+  bool is_setup;
 
-    void flag_leafs(const IndexType *degree);
+ public:
+  SNMGpagerank(SNMGinfo& env_, size_t* part_off_, IndexType* off_, IndexType* ind_);
+  ~SNMGpagerank();
 
-    // Artificially create the google matrix by setting val and bookmark
-    void setup(ValueType _alpha, IndexType** degree);
+  void transition_vals(const IndexType* degree);
 
-    // run the power iteration on the google matrix
-    void solve (int max_iter, ValueType ** pagerank);
+  void flag_leafs(const IndexType* degree);
+
+  // Artificially create the google matrix by setting val and bookmark
+  void setup(ValueType _alpha, IndexType** degree);
+
+  // run the power iteration on the google matrix
+  void solve(int max_iter, ValueType** pagerank);
 };
 
-} } //namespace
+}  // namespace snmg
+}  // namespace cugraph
