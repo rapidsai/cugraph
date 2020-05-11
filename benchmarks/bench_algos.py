@@ -4,6 +4,21 @@ import pytest
 import cudf
 import cugraph
 
+import pytest_benchmark
+# FIXME: Remove this when rapids_pytest_benchmark.gpubenchmark is available
+# everywhere
+try:
+    from rapids_pytest_benchmark import setFixtureParamNames
+except ImportError:
+    print("\n\nWARNING: rapids_pytest_benchmark is not installed, "
+          "falling back to pytest_benchmark fixtures.\n")
+
+    # if rapids_pytest_benchmark is not available, just perfrom time-only
+    # benchmarking and replace utils with nops
+    gpubenchmark = pytest_benchmark.plugin.benchmark
+    def setFixtureParamNames(*args, **kwargs):
+        pass
+
 ###############################################################################
 # Utilities
 #
@@ -58,7 +73,6 @@ DATASETS = [
 #    "../datasets/csv/undirected/soc-twitter-2010.csv",
 ]
 
-
 ###############################################################################
 # Fixtures
 #
@@ -75,9 +89,13 @@ def edgelistCreated(request):
     Returns a new edgelist created from a CSV, which is specified as part of
     the parameterization for this fixture.
     """
-    # FIXME: make a helper to do this and explain why it needs to be done
-    # FIXME: this works here but needs to be updated to automatically create and append
-    request.keywords.setdefault("fixture_param_names", dict())[request.fixturename] = ["dataset"]
+    #request.keywords.setdefault("fixture_param_names",
+    #                            dict())[request.fixturename] = ["dataset"]
+
+    # Since parameterized fixtures do not assign param names to param values,
+    # manually call the helper to do so. Ensure the order of the name list
+    # passed to it matches.
+    setFixtureParamNames(request, ["dataset"])
     return getEdgelistFromCsv(request.param)
 
 
