@@ -63,6 +63,7 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   rmm::device_vector<float> repel(n * 2, 0);
   rmm::device_vector<float> attract(n * 2, 0);
   rmm::device_vector<float> old_forces(n * 2, 0);
+  // FA2 requires degree + 1.
   rmm::device_vector<edge_t> mass(n, 1);
   rmm::device_vector<float> swinging(n, 0);
   rmm::device_vector<float> traction(n, 0);
@@ -82,6 +83,7 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     copy(n, y_start, pos + n);
   }
 
+  // Sort COO for coalesced memory access.
   cudaStream_t stream = {nullptr};
   sort(graph, stream);
   CUDA_CHECK_LAST();
@@ -108,11 +110,13 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   }
 
   for (int iter = 0; iter < max_iter; ++iter) {
+      // Reset force arrays
     fill(n * 2, d_repel, 0.f);
     fill(n * 2, d_attract, 0.f);
     fill(n, d_swinging, 0.f);
     fill(n, d_traction, 0.f);
 
+    // Exact repulsion
     apply_repulsion<vertex_t>(pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n);
 
     apply_gravity<vertex_t>(pos,
@@ -150,6 +154,7 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                         d_traction,
                         n);
 
+    // Compute global swinging and traction values.
     const float s = thrust::reduce(swinging.begin(), swinging.end());
     const float t = thrust::reduce(traction.begin(), traction.end());
 

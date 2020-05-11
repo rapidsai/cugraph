@@ -47,14 +47,5 @@ inline int getMultiProcessorCount()
   return mpCount;
 }
 
-inline int getMaxThreadsCount()
-{
-  int devId;
-  CUDA_TRY(cudaGetDevice(&devId));
-  int mpCount;
-  CUDA_TRY(cudaDeviceGetAttribute(&mpCount, cudaDevAttrMaxThreadsPerBlock, devId));
-  return mpCount;
-}
-
 }  // namespace detail
 }  // namespace cugraph

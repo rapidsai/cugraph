@@ -175,8 +175,7 @@ __global__ __launch_bounds__(1024, 1) void ClearKernel1(int *restrict childd,
  * Build the actual KD Tree.
  */
 __global__ __launch_bounds__(THREADS2,
-                             FACTOR2) void TreeBuildingKernel(/* int *restrict errd, */
-                                                              int *restrict childd,
+                             FACTOR2) void TreeBuildingKernel(int *restrict childd,
                                                               const float *restrict posxd,
                                                               const float *restrict posyd,
                                                               const int NNODES,
@@ -245,6 +244,7 @@ __global__ __launch_bounds__(THREADS2,
           while (ch >= 0) {
             depth++;
 
+            // Add new cell
             const int cell = atomicSub(bottomd, 1) - 1;
             if (cell <= N) {
               // out of cell memory
@@ -271,6 +271,7 @@ __global__ __launch_bounds__(THREADS2,
             if (r <= 1e-10) break;
           }
 
+          // Add new body
           childd[n * 4 + j] = i;
 
           if (depth > localmaxdepth) localmaxdepth = depth;
@@ -437,6 +438,7 @@ __global__ __launch_bounds__(THREADS3,
       flag          = 1;
     }
 
+    // All children mass are computed we can update the current one
   SKIP_LOOP:
     __threadfence();
     if (flag != 0) {
@@ -622,12 +624,15 @@ __global__ __launch_bounds__(THREADS6,
                                                            const float speed,
                                                            const int n)
 {
+    // For evrery vertex
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
+      // Store displacement needed for next iteration.
     const float dx = (repel_x[i] + attract_x[i]);
     const float dy = (repel_y[i] + attract_y[i]);
     old_dx[i]      = dx;
     old_dy[i]      = dy;
 
+    // Update positions
     float factor = speed / (1.0 + sqrt(speed * swinging[i]));
     Y_x[i] += dx * factor;
     Y_y[i] += dy * factor;

@@ -40,10 +40,12 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 {
   vertex_t i, src, dst;
   weight_t weight = 1;
+    // For every edge
   for (i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x) {
     src = row[i];
     dst = col[i];
 
+    // We only need the lower triangular part
     if (dst <= src) return;
 
     if (v) { weight = v[i]; }
@@ -59,6 +61,7 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
     if (lin_log_mode) factor *= log(1 + distance) / distance;
     if (outbound_attraction_distribution) factor /= mass[src];
 
+    // Force computation
     atomicAdd(&attract_x[src], x_dist * factor);
     atomicAdd(&attract_y[src], y_dist * factor);
     atomicAdd(&attract_x[dst], -x_dist * factor);
@@ -117,6 +120,7 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
                         const float gravity,
                         const vertex_t n)
 {
+    // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     float x_dist   = x_pos[i];
     float y_dist   = y_pos[i];
@@ -138,6 +142,7 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
                         const float scaling_ratio,
                         const vertex_t n)
 {
+    // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     float x_dist = x_pos[i];
     float y_dist = y_pos[i];
@@ -189,6 +194,7 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
                      float *restrict traction,
                      const vertex_t n)
 {
+    // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     const float dx      = repel_x[i] + attract_x[i];
     const float dy      = repel_y[i] + attract_y[i];
@@ -274,6 +280,7 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
                           const float speed,
                           const vertex_t n)
 {
+    // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     const float factor = speed / (1.0 + sqrt(speed * swinging[i]));
     const float dx     = (repel_x[i] + attract_x[i]);

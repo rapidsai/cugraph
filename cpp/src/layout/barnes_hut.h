@@ -56,12 +56,13 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   const vertex_t n = graph.number_of_vertices;
 
   const int blocks  = getMultiProcessorCount();
+  // A tiny jitter to promote numerical stability/
   const float epssq = 0.0025;
+  // We use the same array for nodes and cells.
   int nnodes        = n * 2;
   if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
   while ((nnodes & (32 - 1)) != 0) nnodes++;
   nnodes--;
-  if (verbose) printf("N_nodes = %d blocks = %d\n", nnodes, blocks);
 
   // Allocate more space
   //---------------------------------------------------
@@ -85,6 +86,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
 
   rmm::device_vector<int> d_startl(nnodes + 1, 0);
   rmm::device_vector<int> d_childl((nnodes + 1) * 4, 0);
+  // FA2 requires degree + 1
   rmm::device_vector<int> d_massl(nnodes + 1, 1.f);
 
   rmm::device_vector<float> d_maxxl(blocks * FACTOR1, 0);
@@ -120,14 +122,17 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   rmm::device_vector<float> d_nodes_pos((nnodes + 1) * 2, 0);
   float *nodes_pos = d_nodes_pos.data().get();
 
+  // Initialize positions with random values
   int random_state = -1;
   random_vector(nodes_pos, (nnodes + 1) * 2, random_state);
 
+  // Copy start x and y positions.
   if (x_start && y_start) {
     copy(n, x_start, nodes_pos);
     copy(n, y_start, nodes_pos + nnodes + 1);
   }
 
+  // Allocate arrays for force computation
   float *attract{nullptr};
   float *old_forces{nullptr};
   float *swinging{nullptr};
@@ -143,6 +148,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   swinging   = d_swinging.data().get();
   traction   = d_traction.data().get();
 
+  // Sort COO for coalesced memory access.
   cudaStream_t stream = {nullptr};
   sort(graph, stream);
   CUDA_CHECK_LAST();
@@ -153,11 +159,13 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   const vertex_t *col = graph.dst_indices;
   const weight_t *v   = graph.edge_data;
 
+  // Scalars used to adapt global speed.
   float speed                     = 1.f;
   float speed_efficiency          = 1.f;
   float outbound_att_compensation = 1.f;
   float jt                        = 0.f;
 
+  // If outboundAttractionDistribution active, compensate.
   if (outbound_attraction_distribution) {
     int sum                   = thrust::reduce(d_massl.begin(), d_massl.begin() + n);
     outbound_att_compensation = sum / (float)n;
@@ -181,6 +189,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   }
 
   for (int iter = 0; iter < max_iter; ++iter) {
+      // Reset force values
     fill((nnodes + 1) * 2, rep_forces, 0.f);
     fill(n * 2, attract, 0.f);
     fill(n, swinging, 0.f);
@@ -189,6 +198,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     ResetKernel<<<1, 1>>>(radiusd_squared, bottomd, NNODES, radiusd);
     CUDA_CHECK_LAST();
 
+    // Compute bounding box arround all bodies
     BoundingBoxKernel<<<blocks * FACTOR1, THREADS1>>>(startl,
                                                       childl,
                                                       massl,
@@ -208,6 +218,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     ClearKernel1<<<blocks, 1024>>>(childl, FOUR_NNODES, FOUR_N);
     CUDA_CHECK_LAST();
 
+    // Build quadtree
     TreeBuildingKernel<<<blocks * FACTOR2, THREADS2>>>(
       childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, maxdepthd, bottomd, radiusd);
     CUDA_CHECK_LAST();
@@ -215,13 +226,16 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     ClearKernel2<<<blocks, 1024>>>(startl, massl, NNODES, bottomd);
     CUDA_CHECK_LAST();
 
+    // Summarizes mass and position for each cell, bottom up approach
     SummarizationKernel<<<blocks * FACTOR3, THREADS3>>>(
       countl, childl, massl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, bottomd);
     CUDA_CHECK_LAST();
 
+    // Group closed bodies together, used to speed up Repulsion kernel
     SortKernel<<<blocks * FACTOR4, THREADS4>>>(sortl, countl, startl, childl, NNODES, n, bottomd);
     CUDA_CHECK_LAST();
 
+    // Force computation O(n . log(n))
     RepulsionKernel<<<blocks * FACTOR5, THREADS5>>>(scaling_ratio,
                                                     theta,
                                                     epssq,
@@ -275,14 +289,17 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                         traction,
                         n);
 
+    // Compute global swinging and traction values
     const float s =
       thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), d_swinging.begin(), d_swinging.end());
 
     const float t =
       thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), d_traction.begin(), d_traction.end());
 
+    // Compute global speed based on gloab and local swinging and traction.
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 
+    // Update positions
     apply_forces_bh<<<blocks * FACTOR6, THREADS6>>>(nodes_pos,
                                                     nodes_pos + nnodes + 1,
                                                     attract,
@@ -304,6 +321,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     }
   }
 
+  // Copy nodes positions into final output pos
   copy(n, nodes_pos, pos);
   copy(n, nodes_pos + nnodes + 1, pos + n);
 
