@@ -55,11 +55,11 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   const edge_t e   = graph.number_of_edges;
   const vertex_t n = graph.number_of_vertices;
 
-  const int blocks  = getMultiProcessorCount();
+  const int blocks = getMultiProcessorCount();
   // A tiny jitter to promote numerical stability/
   const float epssq = 0.0025;
   // We use the same array for nodes and cells.
-  int nnodes        = n * 2;
+  int nnodes = n * 2;
   if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
   while ((nnodes & (32 - 1)) != 0) nnodes++;
   nnodes--;
@@ -189,7 +189,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   }
 
   for (int iter = 0; iter < max_iter; ++iter) {
-      // Reset force values
+    // Reset force values
     fill((nnodes + 1) * 2, rep_forces, 0.f);
     fill(n * 2, attract, 0.f);
     fill(n, swinging, 0.f);

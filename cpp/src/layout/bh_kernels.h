@@ -624,9 +624,9 @@ __global__ __launch_bounds__(THREADS6,
                                                            const float speed,
                                                            const int n)
 {
-    // For evrery vertex
+  // For evrery vertex
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
-      // Store displacement needed for next iteration.
+    // Store displacement needed for next iteration.
     const float dx = (repel_x[i] + attract_x[i]);
     const float dy = (repel_y[i] + attract_y[i]);
     old_dx[i]      = dx;

@@ -110,7 +110,7 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   }
 
   for (int iter = 0; iter < max_iter; ++iter) {
-      // Reset force arrays
+    // Reset force arrays
     fill(n * 2, d_repel, 0.f);
     fill(n * 2, d_attract, 0.f);
     fill(n, d_swinging, 0.f);

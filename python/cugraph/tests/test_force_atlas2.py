@@ -94,7 +94,7 @@ def test_force_atlas2(graph_file, score, max_iter,
         dimension. The results of force atlas 2 corresponds to the layout in
         a 2d space. Here we check that nodes belonging to the same community
         or neighbors are close to each other in the final embedding.
-        Threshold are based on the best score that is achived after x iterations
+        Thresholds are based on the best score that is achived after x iterations
         on a given graph.
     '''
 

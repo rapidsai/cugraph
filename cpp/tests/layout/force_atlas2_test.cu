@@ -115,11 +115,14 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    fpin = fopen(param.matrix_file.c_str(), "r");
-    ASSERT_EQ((mm_to_matrix<int, int>(fpin, nnz, adj_matrix)), 0) << "could not read matrix data"
-                                                                  << "\n";
-    ASSERT_EQ(fclose(fpin), 0);
+    // Build Adjacency Matrix
+    for (int i = 0; i < nnz; ++i) {
+      auto row             = cooRowInd[i];
+      auto col             = cooColInd[i];
+      adj_matrix[row][col] = 1;
+    }
 
+    // Allocate COO on device
     int* srcs  = nullptr;
     int* dests = nullptr;
     T* weights = nullptr;
@@ -129,12 +132,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
-
     cugraph::experimental::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
-
-    std::cout << m << " " << nnz << "\n";
-
-    cudaDeviceSynchronize();
 
     const int max_iter                    = 500;
     float* x_start                        = nullptr;
