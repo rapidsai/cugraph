@@ -149,7 +149,6 @@ class Graph:
                                  renumber=False)
 
         """
-
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
         if self.multi:

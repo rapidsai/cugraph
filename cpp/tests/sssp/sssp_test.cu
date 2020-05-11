@@ -12,7 +12,6 @@
 #include <cugraph.h>
 #include <gtest/gtest.h>
 #include <nvgraph/nvgraph.h>
-#include <nvgraph_gdf.h>
 #include <thrust/device_vector.h>
 #include <thrust/fill.h>
 #include <algorithm>
