@@ -171,4 +171,4 @@ ctypedef fused GraphViewType:
 
 cdef coo_to_df(GraphCOOPtrType graph)
 cdef csr_to_series(GraphCSRPtrType graph)
-cdef GraphViewType get_graph_view(input_graph, GraphViewType* dummy=*)
+cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType* dummy=*)
