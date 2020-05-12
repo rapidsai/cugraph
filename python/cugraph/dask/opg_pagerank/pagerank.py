@@ -26,11 +26,68 @@ def common_func(sID, data):
     mg_pagerank.mg_pagerank(data[0], sessionstate['comm'])
     return 1
 
+'''
+    def sort_values_binned(self, by):
+        """Sorty by the given column and ensure that the same key
+        doesn't spread across multiple partitions.
+        """
+        # Get sorted partitions
+        parts = self.sort_values(by=by).to_delayed()
+
+        # Get unique keys in each partition
+        @delayed
+        def get_unique(p):
+            return set(p[by].unique())
+
+        uniques = list(compute(*map(get_unique, parts)))
+
+        joiner = {}
+        for i in range(len(uniques)):
+            joiner[i] = to_join = {}
+            for j in range(i + 1, len(uniques)):
+                intersect = uniques[i] & uniques[j]
+                # If the keys intersect
+                if intersect:
+                    # Remove keys
+                    uniques[j] -= intersect
+                    to_join[j] = frozenset(intersect)
+                else:
+                    break
+
+        @delayed
+        def join(df, other, keys):
+            others = [
+                other.query("{by}==@k".format(by=by)) for k in sorted(keys)
+            ]
+            return cudf.concat([df] + others)
+
+        @delayed
+        def drop(df, keep_keys):
+            locvars = locals()
+            for i, k in enumerate(keep_keys):
+                locvars["k{}".format(i)] = k
+
+            conds = [
+                "{by}==@k{i}".format(by=by, i=i) for i in range(len(keep_keys))
+            ]
+            expr = " or ".join(conds)
+            return df.query(expr)
+
+        for i in range(len(parts)):
+            if uniques[i]:
+                parts[i] = drop(parts[i], uniques[i])
+                for joinee, intersect in joiner[i].items():
+                    parts[i] = join(parts[i], parts[joinee], intersect)
+
+        results = [p for i, p in enumerate(parts) if uniques[i]]
+        return from_delayed(results, meta=self._meta).reset_index()
+'''
+
 def pagerank(input_graph):
     print("INSIDE DASK PAGERANK")
     client = default_client()
-    ddf = input_graph.edgelist.edgelist_df
-
+    _ddf = input_graph.edgelist.edgelist_df
+    ddf = _ddf.sort_values(by='dst')
     data = DistributedDataHandler.create(data=ddf)
 
     comms = CommsContext(comms_p2p=False)

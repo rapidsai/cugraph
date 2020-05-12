@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-from .opg_pagerank import pagerank
+from .pagerank import pagerank, get_chunksize

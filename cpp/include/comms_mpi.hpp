@@ -50,9 +50,9 @@ class Comm {
  public:
   Comm(){};
   Comm(int p);
-//#if ENABLE_OPG
+#if ENABLE_OPG
   Comm(ncclComm_t comm, int size, int rank);
-//#endif
+#endif
   ~Comm();
   int get_rank() const { return _rank; }
   int get_p() const { return _p; }
@@ -69,6 +69,25 @@ class Comm {
   template <typename value_t>
   void allreduce(size_t size, value_t *sendbuff, value_t *recvbuff, ReduceOp reduce_op) const;
 };
+
+/**
+ * @brief Stores the given character array on the given ncclUniqueId struct.
+ * @param id the ncclUniqueId struct instance to store the given character array
+ * @param uniqueId the unique id char array to store on the ncclUniqueId
+ * @param size id size
+ */
+void ncclUniqueIdFromChar(ncclUniqueId *id, char *uniqueId, int size);
+
+/**
+ * @brief Returns a NCCL unique ID as a character array. PyTorch
+ * uses this same approach, so that it can be more easily
+ * converted to a native Python string by Cython and further
+ * serialized to be sent across process & node boundaries.
+ *
+ * @param uid nccl unique id for establishing a new clique.
+ * @param size uid size
+ */
+void get_unique_id(char *uid, int size);
 
 }  // namespace experimental
 }  // namespace cugraph

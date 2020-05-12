@@ -195,7 +195,7 @@ Comm::Comm(int p) : _p{p}
 #endif
 }
 
-//#if ENABLE_OPG
+#if ENABLE_OPG
 Comm::Comm(ncclComm_t comm, int size, int rank) : _nccl_comm(comm), _p(size), _rank(rank)
 {
   // CUDA
@@ -212,7 +212,7 @@ Comm::Comm(ncclComm_t comm, int size, int rank) : _nccl_comm(comm), _p(size), _r
   CUDA_TRY(cudaDeviceGetAttribute(
     &_shared_memory_size_per_sm, cudaDevAttrMaxSharedMemoryPerMultiprocessor, _device_id));
 }
-//#endif
+#endif
 
 Comm::~Comm()
 {
@@ -274,6 +274,18 @@ template void Comm::allreduce<double>(size_t size,
                                       double *sendbuff,
                                       double *recvbuff,
                                       ReduceOp reduce_op) const;
+
+
+void ncclUniqueIdFromChar(ncclUniqueId *id, char *uniqueId, int size) {
+  memcpy(id->internal, uniqueId, size);
+}
+
+void get_unique_id(char *uid, int size) {
+  ncclUniqueId id;
+  ncclGetUniqueId(&id);
+
+  memcpy(uid, id.internal, size);
+}
 
 }  // namespace experimental
 }  // namespace cugraph
