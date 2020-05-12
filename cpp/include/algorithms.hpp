@@ -286,13 +286,14 @@ void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a COO
  * @param[in] k                      The order of the truss
- * @param[out] output_graph          cuGRAPH graph descriptor with the k-truss subgraph as a COO
+ * @param[in] mr                     Memory resource used to allocate the returned graph
+ * @param[out] out_graph             Unique pointer to K Truss subgraph in COO format
  *
  */
 template <typename VT, typename ET, typename WT>
-void k_truss_subgraph(experimental::GraphCOOView<VT, ET, WT> const &graph,
-                      int k,
-                      experimental::GraphCOOView<VT, ET, WT> &output_graph);
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
+    experimental::GraphCOOView<VT, ET, WT> const &graph, int k,
+    rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 /**
  * @brief        Compute the Katz centrality for the nodes of the graph G
@@ -366,7 +367,7 @@ void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_n
  * @param[in]  num_vertex_ids        Number of elements in vertex_id/core_number arrays
  * @param[in]  mr                    Memory resource used to allocate the returned graph
  *
- * @param[out] out_graph             Unique pointer to K Core subgraph in COO formate
+ * @param[out] out_graph             Unique pointer to K Core subgraph in COO format
  */
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(

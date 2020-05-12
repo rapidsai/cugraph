@@ -75,7 +75,9 @@ def ktruss_subgraph(G, k, use_weights=True):
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
     """
 
-    KTrussSubgraph = type(G)()
+    KTrussSubgraph = Graph()
+    if type(G) is not Graph:
+        raise Exception("input graph must be undirected")
 
     ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights,
                                             KTrussSubgraph)

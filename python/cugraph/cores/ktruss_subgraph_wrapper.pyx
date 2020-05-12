@@ -65,6 +65,7 @@ def ktruss_subgraph_double(input_graph, k, use_weights, subgraph_truss):
     df['src'] = cudf.Series(src_array)
     df['dst'] = cudf.Series(dst_array)
 
+    #TODO : Remove unrenumbering. Not necessary.
     if input_graph.renumbered:
         unrenumber(input_graph.edgelist.renumber_map, df, 'src')
         unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
@@ -77,6 +78,9 @@ def ktruss_subgraph_double(input_graph, k, use_weights, subgraph_truss):
         subgraph_truss.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='weights', renumber=False)
     else:
         subgraph_truss.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
+    #Graph.EdgeList(src, dst)
+    #subgraph_truss renumber flag is set to true if input is renumbered
+    #Graph.EdgeList.renumber_map = input_graph.EdgeList.renumber_map
 
 def ktruss_subgraph_float(input_graph, k, use_weights, subgraph_truss):
     """
