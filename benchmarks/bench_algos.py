@@ -14,10 +14,12 @@ except ImportError:
           "falling back to pytest_benchmark fixtures.\n")
 
     # if rapids_pytest_benchmark is not available, just perfrom time-only
-    # benchmarking and replace utils with nops
+    # benchmarking and replace the util functions with nops
     gpubenchmark = pytest_benchmark.plugin.benchmark
+
     def setFixtureParamNames(*args, **kwargs):
         pass
+
 
 ###############################################################################
 # Utilities
@@ -67,10 +69,19 @@ def getGraphFromEdgelist(edgelistGdf, createDiGraph=False,
 # FIXME: write and use mechanism described here for specifying datasets:
 #        https://docs.rapids.ai/maintainers/datasets
 # FIXME: rlr: soc-twitter-2010.csv crashes with OOM error on my HP-Z8!
-DATASETS = [
-    "../datasets/csv/undirected/hollywood.csv",
-    "../datasets/csv/undirected/europe_osm.csv",
-#    "../datasets/csv/undirected/soc-twitter-2010.csv",
+UNDIRECTED_DATASETS = [
+    pytest.param("../datasets/csv/undirected/hollywood.csv",
+                 marks=[pytest.mark.small, pytest.mark.undirected]),
+    pytest.param("../datasets/csv/undirected/europe_osm.csv",
+                 marks=[pytest.mark.undirected]),
+    # pytest.param("../datasets/csv/undirected/soc-twitter-2010.csv",
+    #              marks=[pytest.mark.undirected]),
+]
+DIRECTED_DATASETS = [
+    pytest.param("../datasets/csv/directed/cit-Patents.csv",
+                 marks=[pytest.mark.small, pytest.mark.directed]),
+    pytest.param("../datasets/csv/directed/soc-LiveJournal1.csv",
+                 marks=[pytest.mark.directed]),
 ]
 
 ###############################################################################
@@ -78,12 +89,12 @@ DATASETS = [
 #
 # Executed automatically when specified on a test/benchmark, and the return
 # value is made available to the test/benchmark for use. Fixtures can use other
-# fixtures to effectively chain their execution.
+# fixtures to chain their execution.
 #
 # For benchmarks, the operations performed in fixtures are not measured as part
 # of the benchmark.
 @pytest.fixture(scope="module",
-                params=DATASETS)
+                params=UNDIRECTED_DATASETS + DIRECTED_DATASETS)
 def edgelistCreated(request):
     """
     Returns a new edgelist created from a CSV, which is specified as part of
@@ -91,42 +102,102 @@ def edgelistCreated(request):
     """
     # Since parameterized fixtures do not assign param names to param values,
     # manually call the helper to do so. Ensure the order of the name list
-    # passed to it matches.
+    # passed to it matches if there are >1 params.
     setFixtureParamNames(request, ["dataset"])
     return getEdgelistFromCsv(request.param)
 
 
-@pytest.fixture(scope="module")
-def graphCreated(edgelistCreated):
+@pytest.fixture(scope="module",
+                params=UNDIRECTED_DATASETS)
+def graphCreated(request):
     """
     Returns a new Graph object created from the return value of the
     edgelistCreated fixture.
     """
-    return getGraphFromEdgelist(edgelistCreated)
+    setFixtureParamNames(request, ["dataset"])
+
+    return getGraphFromEdgelist(getEdgelistFromCsv(request.param),
+                                createDiGraph=False,
+                                renumber=True,
+                                symmetrized=False)
+
+@pytest.fixture(scope="module",
+                params=DIRECTED_DATASETS)
+def diGraphCreated(request):
+    """
+    Returns a new DiGraph object created from the return value of the
+    edgelistCreated fixture.
+    """
+    setFixtureParamNames(request, ["dataset"])
+
+    return getGraphFromEdgelist(getEdgelistFromCsv(request.param),
+                                createDiGraph=True,
+                                renumber=True,
+                                symmetrized=False)
+
+
+@pytest.fixture(scope="module",
+                params=UNDIRECTED_DATASETS + DIRECTED_DATASETS)
+def anyGraphCreated(request):
+    """
+    Returns a new DiGraph object created from the return value of the
+    edgelistCreated fixture.
+    """
+    setFixtureParamNames(request, ["dataset"])
+
+    isDiGraph = "/directed/" in request.param
+    return getGraphFromEdgelist(getEdgelistFromCsv(request.param),
+                                createDiGraph=isDiGraph,
+                                renumber=True,
+                                symmetrized=False)
+
+
+@pytest.fixture(scope="module")
+def computeAdjList(graphCreated):
+    """
+    Compute the adjacency list on the graph obj.
+    """
+    graphCreated.view_adj_list()
+    return graphCreated
+
+
+@pytest.fixture(scope="module")
+def computeTransposedAdjList(graphCreated):
+    """
+    Compute the transposed adjacency list on the graph obj.
+    """
+    graphCreated.view_transposed_adj_list()
+    return graphCreated
 
 
 ###############################################################################
 # Benchmarks
+@pytest.mark.ETL
 @pytest.mark.benchmark(group="ETL")
-@pytest.mark.parametrize("csvFileName", DATASETS)
-def bench_create_edgelist(gpubenchmark, csvFileName):
-    gpubenchmark(getEdgelistFromCsv, csvFileName)
+@pytest.mark.parametrize("dataset", UNDIRECTED_DATASETS + DIRECTED_DATASETS)
+def bench_create_edgelist(gpubenchmark, dataset):
+    gpubenchmark(getEdgelistFromCsv, dataset)
 
 
+@pytest.mark.ETL
 @pytest.mark.benchmark(group="ETL")
 def bench_create_graph(gpubenchmark, edgelistCreated):
-    gpubenchmark(getGraphFromEdgelist, edgelistCreated, False, False, False)
+    gpubenchmark(getGraphFromEdgelist, edgelistCreated,
+                 createDiGraph=False,
+                 renumber=False,
+                 symmetrized=False)
 
 
-# def bench_pagerank(gpubenchmark, graphCreated):
-#     gpubenchmark(cugraph.pagerank, graphCreated, damping_factor=0.85, None, max_iter=100, tolerance=1e-5)
-
-def bench_bfs(gpubenchmark, graphCreated):
-    gpubenchmark(cugraph.bfs, graphCreated, 0)
+def bench_pagerank(gpubenchmark, anyGraphCreated):
+    gpubenchmark(cugraph.pagerank, anyGraphCreated)
 
 
-def bench_sssp(gpubenchmark, graphCreated):
-    gpubenchmark(cugraph.sssp, graphCreated, 0)
+def bench_bfs(gpubenchmark, anyGraphCreated):
+    gpubenchmark(cugraph.bfs, anyGraphCreated, 0)
+
+
+def bench_sssp(gpubenchmark, anyGraphCreated):
+    gpubenchmark(cugraph.sssp, anyGraphCreated, 0)
 
 
 def bench_jaccard(gpubenchmark, graphCreated):
@@ -137,12 +208,12 @@ def bench_louvain(gpubenchmark, graphCreated):
     gpubenchmark(cugraph.louvain, graphCreated)
 
 
-def bench_weakly_connected_components(gpubenchmark, graphCreated):
-    gpubenchmark(cugraph.weakly_connected_components, graphCreated)
+def bench_weakly_connected_components(gpubenchmark, anyGraphCreated):
+    gpubenchmark(cugraph.weakly_connected_components, anyGraphCreated)
 
 
-def bench_overlap(gpubenchmark, graphCreated):
-    gpubenchmark(cugraph.overlap, graphCreated)
+def bench_overlap(gpubenchmark, anyGraphCreated):
+    gpubenchmark(cugraph.overlap, anyGraphCreated)
 
 
 def bench_triangles(gpubenchmark, graphCreated):
@@ -153,17 +224,20 @@ def bench_spectralBalancedCutClustering(gpubenchmark, graphCreated):
     gpubenchmark(cugraph.spectralBalancedCutClustering, graphCreated, 2)
 
 
-# def bench_spectralModularityMaximizationClustering(gpubenchmark, graphCreated):
-#     gpubenchmark(cugraph.spectralModularityMaximizationClustering, graphCreated, 2)
+# def bench_spectralModularityMaximizationClustering(gpubenchmark,
+#                                                    anyGraphCreated):
+#     gpubenchmark(cugraph.spectralModularityMaximizationClustering,
+#                  anyGraphCreated, 2)
 
 
 # def bench_renumber(gpubenchmark, edgelistCreated):
-#     gpubenchmark(cugraph.renumber, edgelistCreated["src"], edgelistCreated["dst"])
+#     gpubenchmark(cugraph.renumber, edgelistCreated["src"],
+#                  edgelistCreated["dst"])
 
 
-def bench_graph_degree(gpubenchmark, graphCreated):
-    gpubenchmark(graphCreated.degree)
+def bench_graph_degree(gpubenchmark, anyGraphCreated):
+    gpubenchmark(anyGraphCreated.degree)
 
 
-def bench_graph_degrees(gpubenchmark, graphCreated):
-    gpubenchmark(graphCreated.degrees)
+def bench_graph_degrees(gpubenchmark, anyGraphCreated):
+    gpubenchmark(anyGraphCreated.degrees)
