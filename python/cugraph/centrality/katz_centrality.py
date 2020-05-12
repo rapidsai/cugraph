@@ -38,8 +38,16 @@ def katz_centrality(G,
         contain either directed (DiGraph) or undirected edges (Graph).
     alpha : float
         Attenuation factor defaulted to None. If alpha is not specified then
-        it is internally calculated as 1/(lambda_max) where lambda_max is the
-        maximum degree
+        it is internally calculated as 1/(degree_max) where degree_max is the
+        maximum out degree.
+        NOTE : The maximum acceptable value of alpha for convergence
+        alpha_max = 1/(lambda_max) where lambda_max is the largest eigenvalue
+        of the graph.
+        Since lambda_max is always lesser than or equal to degree_max for a
+        graph, alpha_max will always be greater than or equal to
+        (1/degree_max). Therefore, setting alpha to (1/degree_max) will
+        guarantee that it will never exceed alpha_max thus in turn fulfilling
+        the requirement for convergence.
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
