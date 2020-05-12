@@ -66,7 +66,7 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
 
         void get_source_indices(VT *) const
         void degree(ET *,DegreeDirection) const
-        
+
         GraphCompressedSparseBaseView(const VT *, const ET *, const WT *, size_t, size_t)
 
     cdef cppclass GraphCSRView[VT,ET,WT](GraphCompressedSparseBaseView[VT,ET,WT]):
@@ -136,27 +136,39 @@ cdef extern from "<utility>" namespace "std" nogil:
     cdef GraphSparseContents[int,int,float] move(GraphSparseContents[int,int,float])
     cdef GraphSparseContents[int,int,double] move(GraphSparseContents[int,int,double])
 
-ctypedef unique_ptr[GraphCOO[int,int,float]] GraphCOOPtrFloat 
+ctypedef unique_ptr[GraphCOO[int,int,float]] GraphCOOPtrFloat
 ctypedef unique_ptr[GraphCOO[int,int,double]] GraphCOOPtrDouble
 
 ctypedef fused GraphCOOPtrType:
     GraphCOOPtrFloat
     GraphCOOPtrDouble
 
-ctypedef unique_ptr[GraphCSR[int,int,float]] GraphCSRPtrFloat 
+ctypedef unique_ptr[GraphCSR[int,int,float]] GraphCSRPtrFloat
 ctypedef unique_ptr[GraphCSR[int,int,double]] GraphCSRPtrDouble
 
 ctypedef fused GraphCSRPtrType:
     GraphCSRPtrFloat
     GraphCSRPtrDouble
 
-ctypedef GraphCOOView[int,int,float] GraphCOOViewFloat 
+ctypedef GraphCOOView[int,int,float] GraphCOOViewFloat
 ctypedef GraphCOOView[int,int,double] GraphCOOViewDouble
+ctypedef GraphCSRView[int,int,float] GraphCSRViewFloat
+ctypedef GraphCSRView[int,int,double] GraphCSRViewDouble
 
 ctypedef fused GraphCOOViewType:
     GraphCOOViewFloat
     GraphCOOViewDouble
 
+ctypedef fused GraphCSRViewType:
+    GraphCSRViewFloat
+    GraphCSRViewDouble
+
+ctypedef fused GraphViewType:
+    GraphCOOViewFloat
+    GraphCOOViewDouble
+    GraphCSRViewFloat
+    GraphCSRViewDouble
+
 cdef coo_to_df(GraphCOOPtrType graph)
 cdef csr_to_series(GraphCSRPtrType graph)
-cdef GraphCOOViewType get_graph_view(input_graph, GraphCOOViewType* dummy=*)
+cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType* dummy=*)

@@ -54,8 +54,8 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphViewBase {
  public:
-  Comm comm;
   WT *edge_data;  ///< edge weight
+  Comm comm;
 
   GraphProperties prop;
 
