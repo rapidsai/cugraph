@@ -441,6 +441,8 @@ install(DIRECTORY include/
 
 ###################################################################################################
 # - make documentation ----------------------------------------------------------------------------
+# requires doxygen and graphviz to be installed
+# from build directory, run make docs_cugraph
 
 # doc targets for cuGraph
 add_custom_command(OUTPUT CUGRAPH_DOXYGEN
