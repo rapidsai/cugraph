@@ -195,7 +195,7 @@ Comm::Comm(int p) : _p{p}
 #endif
 }
 
-#if ENABLE_OPG
+//#if ENABLE_OPG
 Comm::Comm(ncclComm_t comm, int size, int rank) : _nccl_comm(comm), _p(size), _rank(rank)
 {
   // CUDA
@@ -212,7 +212,7 @@ Comm::Comm(ncclComm_t comm, int size, int rank) : _nccl_comm(comm), _p(size), _r
   CUDA_TRY(cudaDeviceGetAttribute(
     &_shared_memory_size_per_sm, cudaDevAttrMaxSharedMemoryPerMultiprocessor, _device_id));
 }
-#endif
+//#endif
 
 Comm::~Comm()
 {

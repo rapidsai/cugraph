@@ -50,9 +50,9 @@ class Comm {
  public:
   Comm(){};
   Comm(int p);
-#if ENABLE_OPG
+//#if ENABLE_OPG
   Comm(ncclComm_t comm, int size, int rank);
-#endif
+//#endif
   ~Comm();
   int get_rank() const { return _rank; }
   int get_p() const { return _p; }
