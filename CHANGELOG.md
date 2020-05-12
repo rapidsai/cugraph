@@ -28,6 +28,7 @@
 - PR #834 Updated local gpuci build
 - PR #845 Add .clang-format & format all files
 - PR #859 Updated main docs
+- PR #862 Katz Centrality : Auto calculation of alpha parameter if set to none
 - PR #818 Initial version of new "benchmarks" folder
 
 ## Bug Fixes

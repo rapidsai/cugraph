@@ -68,17 +68,36 @@ cdef csr_to_series(GraphCSRPtrType graph):
     return (csr_offsets, csr_indices, csr_weights)
 
 
-cdef GraphCOOViewType get_graph_view(input_graph, GraphCOOViewType* dummy=NULL):
+cdef GraphCSRViewType get_csr_graph_view(input_graph, bool weightless=False, GraphCSRViewType* dummy=NULL):
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
+
+    cdef uintptr_t c_off = input_graph.adjlist.offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_ind = input_graph.adjlist.indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = <uintptr_t>NULL
+
+    if input_graph.adjlist.weights and not weightless:
+        c_weights = input_graph.adjlist.weights.__cuda_array_interface__['data'][0]
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(input_graph.adjlist.indices)
+    cdef GraphCSRViewType in_graph
+    if GraphCSRViewType is GraphCSRViewFloat:
+        in_graph = GraphCSRViewFloat(<int*>c_off, <int*>c_ind, <float*>c_weights, num_verts, num_edges)
+    elif GraphCSRViewType is GraphCSRViewDouble:
+        in_graph = GraphCSRViewDouble(<int*>c_off, <int*>c_ind, <double*>c_weights, num_verts, num_edges)
+    return in_graph
+
+
+cdef GraphCOOViewType get_coo_graph_view(input_graph, bool weightless=False, GraphCOOViewType* dummy=NULL):
     if not input_graph.edgelist:
         input_graph.view_edge_list()
-
-    weights = None
 
     cdef uintptr_t c_src = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
-    if input_graph.edgelist.weights:
+    if input_graph.edgelist.weights and not weightless:
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 
     num_verts = input_graph.number_of_vertices()
@@ -89,3 +108,14 @@ cdef GraphCOOViewType get_graph_view(input_graph, GraphCOOViewType* dummy=NULL):
     elif GraphCOOViewType is GraphCOOViewDouble:
         in_graph = GraphCOOViewDouble(<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
     return in_graph
+
+
+cdef GraphViewType get_graph_view(input_graph, bool weightless = False, GraphViewType* dummy=NULL):
+    if GraphViewType is GraphCOOViewFloat:
+        return get_coo_graph_view[GraphCOOViewFloat](input_graph, weightless, dummy)
+    elif GraphViewType is GraphCOOViewDouble:
+        return get_coo_graph_view[GraphCOOViewDouble](input_graph, weightless, dummy)
+    elif GraphViewType is GraphCSRViewFloat:
+        return get_csr_graph_view[GraphCSRViewFloat](input_graph, weightless, dummy)
+    elif GraphViewType is GraphCSRViewDouble:
+        return get_csr_graph_view[GraphCSRViewDouble](input_graph, weightless, dummy)

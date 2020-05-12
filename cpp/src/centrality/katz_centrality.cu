@@ -42,14 +42,13 @@ void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
   using HornetInit    = hornet::HornetInit<VT>;
   using Katz          = hornets_nest::KatzCentralityStatic;
 
+  // Ask hornet to calculate alpha
+  if (alpha == 0) { alpha = std::numeric_limits<double>::max(); }
+
   HornetInit init(graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices);
   HornetGraph hnt(init, hornet::DeviceType::DEVICE);
   Katz katz(hnt, alpha, max_iter, tol, normalized, isStatic, result);
-  if (katz.getAlpha() < alpha) {
-    CUGRAPH_FAIL("Error : alpha is not small enough for convergence");
-  }
   katz.run();
-  if (!katz.hasConverged()) { CUGRAPH_FAIL("Error : Convergence not reached"); }
 }
 
 template void katz_centrality<int, int, float, double>(
