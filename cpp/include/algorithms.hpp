@@ -470,7 +470,7 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
 
 /////////////////////////////////////////////////////////
 template <typename VT, typename ET, typename WT>
-void mg_pagerank_temp(experimental::GraphCSC<VT,ET,WT> const &graph,
+void mg_pagerank_temp(experimental::GraphCSCView<VT,ET,WT> const &graph,
               WT* pagerank);
 //////////////////////////////////////////////////////////
 

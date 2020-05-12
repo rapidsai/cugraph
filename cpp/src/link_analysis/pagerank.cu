@@ -394,7 +394,7 @@ template void pagerank<int, int, double>(experimental::GraphCSCView<int, int, do
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-void mg_pagerank_temp(experimental::GraphCSC<VT,ET,WT> const &graph, WT* pagerank){
+void mg_pagerank_temp(experimental::GraphCSCView<VT,ET,WT> const &graph, WT* pagerank){
 
 std::cout<<"\nINSIDE CPP\n";
 std::cout<<graph.comm.get_rank()<<"\n";
@@ -402,8 +402,8 @@ std::cout<<graph.comm.get_p()<<"\n";
 }
 
 // explicit instantiation
-template void mg_pagerank_temp<int, int, float>(experimental::GraphCSC<int,int,float> const &graph, float* pagerank);
-template void mg_pagerank_temp<int, int, double>(experimental::GraphCSC<int,int,double> const &graph, double* pagerank);
+template void mg_pagerank_temp<int, int, float>(experimental::GraphCSCView<int,int,float> const &graph, float* pagerank);
+template void mg_pagerank_temp<int, int, double>(experimental::GraphCSCView<int,int,double> const &graph, double* pagerank);
 } //namespace cugraph
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
