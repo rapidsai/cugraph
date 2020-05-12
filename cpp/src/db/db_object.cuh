@@ -96,36 +96,6 @@ class db_column_index {
 };
 
 /**
- * Class which encapsulates a result set binding
- */
-template <typename idx_t>
-class db_result {
-  std::vector<rmm::device_buffer> columns;
-  std::vector<std::string> names;
-  bool dataValid;
-  idx_t columnSize;
-
- public:
-  db_result();
-  db_result(db_result&& other);
-  db_result(db_result& other)       = delete;
-  db_result(const db_result& other) = delete;
-  ~db_result()                      = default;
-  db_result& operator               =(db_result&& other);
-  db_result& operator=(db_result& other) = delete;
-  db_result& operator=(const db_result& other) = delete;
-  idx_t getSize();
-  idx_t* getData(std::string idx);
-  void addColumn(std::string columnName);
-  void allocateColumns(idx_t size);
-  /**
-   * For debugging purposes
-   * @return Human readable representation
-   */
-  std::string toString();
-};
-
-/**
  * Class which glues an arbitrary number of columns together to form a table
  */
 template <typename idx_t>
