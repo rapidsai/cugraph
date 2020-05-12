@@ -438,3 +438,14 @@ install(TARGETS cugraph LIBRARY
 
 install(DIRECTORY include/
     DESTINATION include/cugraph)
+
+###################################################################################################
+# - make documentation ----------------------------------------------------------------------------
+
+# doc targets for cuGraph
+add_custom_command(OUTPUT CUGRAPH_DOXYGEN
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
+                   COMMAND doxygen Doxyfile
+                   VERBATIM)
+
+add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)
