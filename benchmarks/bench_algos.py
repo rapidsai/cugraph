@@ -1,8 +1,7 @@
-from collections import OrderedDict
 import pytest
 
-import cudf
 import cugraph
+from cugraph.tests import utils
 
 import pytest_benchmark
 # FIXME: Remove this when rapids_pytest_benchmark.gpubenchmark is available
@@ -19,51 +18,6 @@ except ImportError:
 
     def setFixtureParamNames(*args, **kwargs):
         pass
-
-
-###############################################################################
-# Utilities
-#
-# FIXME: move utilities to a more reusable location/module
-def getEdgelistFromCsv(csvFileName, delim=' '):
-    """
-    Returns a cuDF DataFrame containing the columns read in from
-    csvFileName. Optional delim string defaults to ' ' (space) for CSV reading.
-    """
-    cols = ["src", "dst", "val"]
-    dtypes = OrderedDict([
-            ("src", "int32"),
-            ("dst", "int32"),
-            ("val", "float32"),
-            ])
-
-    gdf = cudf.read_csv(csvFileName, names=cols, delimiter=delim,
-                        dtype=list(dtypes.values()))
-
-    if gdf['src'].null_count > 0:
-        raise RuntimeError("The reader failed to parse the input")
-    if gdf['dst'].null_count > 0:
-        raise RuntimeError("The reader failed to parse the input")
-    # Assume an edge weight of 1.0 if dataset does not provide it
-    if gdf['val'].null_count > 0:
-        gdf['val'] = 1.0
-    return gdf
-
-
-def getGraphFromEdgelist(edgelistGdf, createDiGraph=False,
-                         renumber=False, symmetrized=False):
-    """
-    Returns a cugraph Graph or DiGraph object from edgelistGdf. renumber and
-    symmetrized can be set to True to perform those operation on construction.
-    """
-    if createDiGraph:
-        G = cugraph.DiGraph()
-    else:
-        G = cugraph.Graph(symmetrized=symmetrized)
-    G.from_cudf_edgelist(edgelistGdf, source="src",
-                         destination="dst", edge_attr="val",
-                         renumber=renumber)
-    return G
 
 
 # FIXME: write and use mechanism described here for specifying datasets:
@@ -83,6 +37,7 @@ DIRECTED_DATASETS = [
     pytest.param("../datasets/csv/directed/soc-LiveJournal1.csv",
                  marks=[pytest.mark.directed]),
 ]
+
 
 ###############################################################################
 # Fixtures
@@ -104,7 +59,7 @@ def edgelistCreated(request):
     # manually call the helper to do so. Ensure the order of the name list
     # passed to it matches if there are >1 params.
     setFixtureParamNames(request, ["dataset"])
-    return getEdgelistFromCsv(request.param)
+    return utils.read_csv_file(request.param)
 
 
 @pytest.fixture(scope="module",
@@ -116,10 +71,12 @@ def graphCreated(request):
     """
     setFixtureParamNames(request, ["dataset"])
 
-    return getGraphFromEdgelist(getEdgelistFromCsv(request.param),
-                                createDiGraph=False,
-                                renumber=True,
-                                symmetrized=False)
+    return cugraph.from_cudf_edgelist(
+        utils.read_csv_file(request.param),
+        source="0", destination="1",
+        create_using=cugraph.structure.graph.Graph,
+        renumber=True)
+
 
 @pytest.fixture(scope="module",
                 params=DIRECTED_DATASETS)
@@ -130,10 +87,11 @@ def diGraphCreated(request):
     """
     setFixtureParamNames(request, ["dataset"])
 
-    return getGraphFromEdgelist(getEdgelistFromCsv(request.param),
-                                createDiGraph=True,
-                                renumber=True,
-                                symmetrized=False)
+    return cugraph.from_cudf_edgelist(
+        utils.read_csv_file(request.param),
+        source="0", destination="1",
+        create_using=cugraph.structure.graph.DiGraph,
+        renumber=True)
 
 
 @pytest.fixture(scope="module",
@@ -145,11 +103,16 @@ def anyGraphCreated(request):
     """
     setFixtureParamNames(request, ["dataset"])
 
-    isDiGraph = "/directed/" in request.param
-    return getGraphFromEdgelist(getEdgelistFromCsv(request.param),
-                                createDiGraph=isDiGraph,
-                                renumber=True,
-                                symmetrized=False)
+    if "/directed/" in request.param:
+        graphClass = cugraph.structure.graph.DiGraph
+    else:
+        graphClass = cugraph.structure.graph.Graph
+
+    return cugraph.from_cudf_edgelist(
+        utils.read_csv_file(request.param),
+        source="0", destination="1",
+        create_using=graphClass,
+        renumber=True)
 
 
 @pytest.fixture(scope="module")
@@ -176,16 +139,17 @@ def computeTransposedAdjList(graphCreated):
 @pytest.mark.benchmark(group="ETL")
 @pytest.mark.parametrize("dataset", UNDIRECTED_DATASETS + DIRECTED_DATASETS)
 def bench_create_edgelist(gpubenchmark, dataset):
-    gpubenchmark(getEdgelistFromCsv, dataset)
+    gpubenchmark(utils.read_csv_file, dataset)
 
 
 @pytest.mark.ETL
 @pytest.mark.benchmark(group="ETL")
 def bench_create_graph(gpubenchmark, edgelistCreated):
-    gpubenchmark(getGraphFromEdgelist, edgelistCreated,
-                 createDiGraph=False,
-                 renumber=False,
-                 symmetrized=False)
+    gpubenchmark(cugraph.from_cudf_edgelist,
+                 edgelistCreated,
+                 source="0", destination="1",
+                 create_using=cugraph.structure.graph.Graph,
+                 renumber=False)
 
 
 def bench_pagerank(gpubenchmark, anyGraphCreated):
