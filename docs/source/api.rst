@@ -124,7 +124,7 @@ Core Number
 K-Truss
 -------
 
-.. automodule:: cugraph.core.ktruss_subgraph
+.. automodule:: cugraph.cores.ktruss_subgraph
     :members:
     :undoc-members:
 
