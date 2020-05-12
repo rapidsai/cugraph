@@ -17,10 +17,18 @@ def mg_pagerank(input_df, comm):
     [src, dst] = graph_new_wrapper.datatype_cast([input_df['src'], input_df['dst']], [np.int32])
     [weights] = graph_new_wrapper.datatype_cast([input_df['value']], [np.float32, np.float64])
 
-    offsets, indices, weights = coo2csr(dst, src, weights)
 
     num_verts = 34 #FIXME Get global number of vertices
-    num_edges = len(indices)
+    num_edges = 156 #FIXME Get global number of edges
+    num_local_edges = len(input_df)
+    local_offset = dst.min()
+    dst = dst - local_offset
+    num_local_verts = dst.max() + 1
+
+    _offsets, indices, weights = coo2csr(dst, src, weights)
+    offsets = _offsets[:num_local_verts + 1]
+    del _offsets
+    print(offsets, indices)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -36,17 +44,19 @@ def mg_pagerank(input_df, comm):
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSC[int,int,float] graph_float
-    cdef GraphCSC[int,int,double] graph_double
+    cdef GraphCSCView[int,int,float] graph_float
+    cdef GraphCSCView[int,int,double] graph_double
 
     if (df['pagerank'].dtype == np.float32): 
-        graph_float = GraphCSC[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
+        graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
         graph_float.set_communicator(deref(c_comm))
+        graph_float.set_local_data(num_local_verts, num_local_edges, local_offset)
         c_pagerank.mg_pagerank_temp[int,int,float](graph_float, <float*> c_pagerank_val)
 
     else: 
-        graph_double = GraphCSC[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
+        graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
         graph_double.set_communicator(deref(c_comm))
+        graph_double.set_local_data(num_local_verts, num_local_edges, local_offset)
         c_pagerank.mg_pagerank_temp[int,int,double](graph_double, <double*> c_pagerank_val)
 
     return df

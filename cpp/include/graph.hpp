@@ -62,6 +62,10 @@ class GraphViewBase {
   VT number_of_vertices;
   ET number_of_edges;
 
+  VT number_of_local_vertices;
+  ET number_of_local_edges;
+  VT local_offset;
+
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
    *
@@ -70,13 +74,22 @@ class GraphViewBase {
    */
   void get_vertex_identifiers(VT *identifiers) const;
   void set_communicator(Comm &comm_) { comm = comm_; }
+  void set_local_data(VT number_of_local_vertices_, ET number_of_local_edges_, VT local_offset_)
+  {
+      number_of_local_vertices = number_of_local_vertices_;
+      number_of_local_edges = number_of_local_edges_;
+      local_offset = local_offset_;
+  }
 
   GraphViewBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
     : edge_data(edge_data_),
       comm(),
       prop(),
       number_of_vertices(number_of_vertices_),
-      number_of_edges(number_of_edges_)
+      number_of_edges(number_of_edges_),
+      number_of_local_vertices(number_of_vertices_),
+      number_of_local_edges(number_of_edges_),
+      local_offset(0)
   {
   }
   bool has_data(void) const { return edge_data != nullptr; }

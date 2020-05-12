@@ -50,9 +50,13 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
         GraphProperties prop
         VT number_of_vertices
         ET number_of_edges
+        VT number_of_local_vertices
+        ET number_of_local_edges
+        VT local_offset
 
         void get_vertex_identifiers(VT *) const
         void set_communicator(Comm &comm_)
+        void set_local_data(VT number_of_local_vertices_, ET number_of_local_edges_, VT local_offset_)
 
         GraphViewBase(WT*,VT,ET)
 
