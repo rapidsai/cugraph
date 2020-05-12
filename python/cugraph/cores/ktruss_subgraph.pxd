@@ -22,6 +22,6 @@ from cugraph.structure.graph_new cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void k_truss_subgraph[VT,ET,WT](
-        const GraphCOO[VT,ET,WT] &graph,
+        const GraphCOOView[VT,ET,WT] &graph,
         int k,
-        GraphCOO[VT,ET,WT] &output_graph) except +
+        GraphCOOView[VT,ET,WT] &output_graph) except +

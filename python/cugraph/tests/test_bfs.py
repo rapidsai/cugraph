@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import queue
 import time
 
@@ -21,7 +20,6 @@ import pytest
 import scipy
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 
 def cugraph_call(cu_M, start_vertex):
@@ -76,19 +74,9 @@ DATASETS = ['../datasets/dolphins.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_bfs(managed, pool, graph_file):
+def test_bfs(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)

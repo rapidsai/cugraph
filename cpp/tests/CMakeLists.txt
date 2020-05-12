@@ -44,6 +44,12 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
         gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS} cudart cuda)
+    if (BUILD_MPI)
+        include_directories(include ${MPI_CXX_INCLUDE_PATH} ${NCCL_INCLUDE_DIRS})
+        target_link_libraries(${CMAKE_TEST_NAME} PRIVATE ${MPI_C_LIBRARIES} ${NCCL_LIBRARIES} )
+        target_compile_options(${CMAKE_TEST_NAME} PUBLIC ${MPI_C_COMPILE_FLAGS})
+    endif(BUILD_MPI)
+
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
 ###################################################################################################
@@ -170,27 +176,33 @@ ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
 
 set(LOUVAIN_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_louvain.cpp")
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cpp")
 
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
-
-###################################################################################################
-# - JACCARD tests ---------------------------------------------------------------------------------
-
-set(JACCARD_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/nvgraph_plugin/nvgraph_gdf_jaccard.cpp")
-
-ConfigureTest(JACCARD_TEST "${JACCARD_TEST_SRC}" "")
 
 ###################################################################################################
 # - ECG tests ---------------------------------------------------------------------------------
 
 set(ECG_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/ecg_test.cu")
 
 ConfigureTest(ECG_TEST "${ECG_TEST_SRC}" "")
+
+###################################################################################################
+# - Balanced cut clustering tests ---------------------------------------------------------------------------------
+
+set(BALANCED_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/balanced_edge_test.cpp")
+
+ConfigureTest(BALANCED_TEST "${BALANCED_TEST_SRC}" "")
+
+###################################################################################################
+# - TRIANGLE tests ---------------------------------------------------------------------------------
+
+set(TRIANGLE_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/triangle_test.cu")
+
+ConfigureTest(TRIANGLE_TEST "${TRIANGLE_TEST_SRC}" "")
 
 ###################################################################################################
 # - RENUMBERING tests -----------------------------------------------------------------------------
@@ -200,42 +212,6 @@ set(RENUMBERING_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
 ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "${NVSTRINGS_LIBRARY}")
-
-###################################################################################################
-# - SNMG SpMV tests -------------------------------------------------------------------------------
-
-set(SNMG_SPMV_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/snmg_spmv/snmg_spmv_test.cu")
-
-ConfigureTest(SNMG_SPMV_TEST "${SNMG_SPMV_TEST_SRC}" "")
-
-###################################################################################################
-#-SNMG_DEGREE  tests ------------------------------------------------------------------------------
-
-set(SNMG_DEGREE_TEST_SRC
-        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_degree/snmg_degree_test.cu")
-
-ConfigureTest(SNMG_DEGREE_TEST "${SNMG_DEGREE_TEST_SRC}" "")
-
-###################################################################################################
-#-SNMG_COO2CSR  tests ------------------------------------------------------------------------------
-
-set(SNMG_COO2CSR_TEST_SRC
-        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/snmg_coo2csr/snmg_coo2csr_test.cu")
-
-ConfigureTest(SNMG_COO2CSR_TEST "${SNMG_COO2CSR_TEST_SRC}" "")
-
-###################################################################################################
-#-SNMG_PAGERANK  tests ------------------------------------------------------------------------------
-
-set(SNMG_PAGERANK_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/snmg_pagerank/snmg_pagerank_test.cu")
-
-ConfigureTest(SNMG_PAGERANK_TEST "${SNMG_PAGERANK_TEST_SRC}" "")
 
 ###################################################################################################
 #-CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
@@ -270,6 +246,21 @@ set(FIND_MATCHES_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/db/find_matches_test.cu")
 
 ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
+
+###################################################################################################
+#-NCCL tests ---------------------------------------------------------------------
+
+if (BUILD_MPI)
+    set(NCCL_TEST_SRC
+        "${CMAKE_CURRENT_SOURCE_DIR}/nccl/nccl_test.cu")
+
+    ConfigureTest(NCCL_TEST "${NCCL_TEST_SRC}" "")
+
+    set(NCCL_DEGREE_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/nccl/degree_test.cu")
+
+    ConfigureTest(NCCL_DEGREE_TEST "${NCCL_DEGREE_TEST_SRC}" "")
+endif(BUILD_MPI)
 
 ###################################################################################################
 ### enable testing ################################################################################

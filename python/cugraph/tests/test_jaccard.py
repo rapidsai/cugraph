@@ -12,14 +12,12 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import time
 
 import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -90,19 +88,9 @@ DATASETS = ['../datasets/dolphins.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_jaccard(managed, pool, graph_file):
+def test_jaccard(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -124,19 +112,9 @@ def test_jaccard(managed, pool, graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
-def test_jaccard_edgevals(managed, pool, graph_file):
+def test_jaccard_edgevals(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -157,19 +135,9 @@ def test_jaccard_edgevals(managed, pool, graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_jaccard_two_hop(managed, pool, graph_file):
+def test_jaccard_two_hop(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -179,9 +147,10 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
     pairs = G.get_two_hop_neighbors()
+    print(pairs)
     nx_pairs = []
     for i in range(len(pairs)):
-        nx_pairs.append((pairs['first'][i], pairs['second'][i]))
+        nx_pairs.append((pairs['first'].iloc[i], pairs['second'].iloc[i]))
     preds = nx.jaccard_coefficient(Gnx, nx_pairs)
     nx_coeff = []
     for u, v, p in preds:
@@ -190,24 +159,14 @@ def test_jaccard_two_hop(managed, pool, graph_file):
     df = df.sort_values(by=['source', 'destination'])
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
-        diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
+        diff = abs(nx_coeff[i] - df['jaccard_coeff'].iloc[i])
         assert diff < 1.0e-6
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
+def test_jaccard_two_hop_edge_vals(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -219,7 +178,7 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     pairs = G.get_two_hop_neighbors()
     nx_pairs = []
     for i in range(len(pairs)):
-        nx_pairs.append((pairs['first'][i], pairs['second'][i]))
+        nx_pairs.append((pairs['first'].iloc[i], pairs['second'].iloc[i]))
     preds = nx.jaccard_coefficient(Gnx, nx_pairs)
     nx_coeff = []
     for u, v, p in preds:
@@ -228,5 +187,5 @@ def test_jaccard_two_hop_edge_vals(managed, pool, graph_file):
     df = df.sort_values(by=['source', 'destination'])
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
-        diff = abs(nx_coeff[i] - df['jaccard_coeff'][i])
+        diff = abs(nx_coeff[i] - df['jaccard_coeff'].iloc[i])
         assert diff < 1.0e-6

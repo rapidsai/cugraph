@@ -104,6 +104,13 @@ set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
 
+option(BUILD_MPI "Build with MPI" OFF)
+if (BUILD_MPI)
+    find_package(MPI REQUIRED)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
+endif(BUILD_MPI)
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
@@ -163,46 +170,6 @@ if(BUILD_TESTS)
             "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
-
-###################################################################################################
-# - NVStrings -------------------------------------------------------------------------------------
-
-find_path(NVSTRINGS_INCLUDE "nvstrings"
-          HINTS "$ENV{NVSTRINGS_ROOT}/include"
-                "$ENV{CONDA_PREFIX}/include/nvstrings"
-                "$ENV{CONDA_PREFIX}/include")
-
-find_library(NVSTRINGS_LIBRARY "NVStrings"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-find_library(NVCATEGORY_LIBRARY "NVCategory"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-find_library(NVTEXT_LIBRARY "NVText"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "NVSTRINGS: NVSTRINGS_INCLUDE set to ${NVSTRINGS_INCLUDE}")
-message(STATUS "NVSTRINGS: NVSTRINGS_LIBRARY set to ${NVSTRINGS_LIBRARY}")
-message(STATUS "NVSTRINGS: NVCATEGORY_LIBRARY set to ${NVCATEGORY_LIBRARY}")
-message(STATUS "NVSTRINGS: NVTEXT_LIBRARY set to ${NVTEXT_LIBRARY}")
-
-add_library(NVStrings SHARED IMPORTED ${NVSTRINGS_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
-    set_target_properties(NVStrings PROPERTIES IMPORTED_LOCATION ${NVSTRINGS_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
-
-add_library(NVCategory SHARED IMPORTED ${NVCATEGORY_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
-    set_target_properties(NVCategory PROPERTIES IMPORTED_LOCATION ${NVCATEGORY_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
-
-add_library(NVText SHARED IMPORTED ${NVTEXT_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
-    set_target_properties(NVText PROPERTIES IMPORTED_LOCATION ${NVTEXT_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
 
 ###################################################################################################
 # - cudf ------------------------------------------------------------------------------------------
@@ -302,6 +269,15 @@ add_dependencies(gunrock cugunrock)
 
 set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${CUGUNROCK_DIR}/lib/libgunrock.a)
 
+# - NCCL
+if(NOT NCCL_PATH)
+    find_package(NCCL REQUIRED)
+else()
+    message("-- Manually set NCCL PATH to ${NCCL_PATH}")
+    set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
+    set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
+endif(NOT NCCL_PATH)
+
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 
@@ -314,6 +290,7 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
+    src/comms/mpi/comms_mpi.cpp
     src/ktruss/ktruss.cu
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
@@ -326,53 +303,29 @@ add_library(cugraph SHARED
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
-    src/converters/nvgraph.cu
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
-    src/community/nvgraph_gdf.cu
+    src/community/spectral_clustering.cu
+    src/community/louvain.cu
     src/community/ECG.cu
+    src/community/triangles_counting.cu
+    src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
-    src/snmg/blas/spmv.cu
-    src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
     src/utilities/graph_utils.cu
-    src/snmg/utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/snmg/degree/degree.cu
-    src/snmg/COO2CSR/COO2CSR.cu
-    src/nvgraph/arnoldi.cu
-    src/nvgraph/bfs.cu
-    src/nvgraph/bfs2d.cu
-    src/nvgraph/bfs_kernels.cu
-    src/nvgraph/convert.cu
-    src/nvgraph/csrmv.cu
-    src/nvgraph/csrmv_cub.cu
-    src/nvgraph/csr_graph.cpp
-    src/nvgraph/graph_extractor.cu
-    src/nvgraph/jaccard_gpu.cu
     src/nvgraph/kmeans.cu
     src/nvgraph/lanczos.cu
-    src/nvgraph/lobpcg.cu
-    src/nvgraph/matrix.cu
+    src/nvgraph/spectral_matrix.cu
     src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph.cu
     src/nvgraph/nvgraph_cusparse.cpp
     src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_error.cu
     src/nvgraph/nvgraph_lapack.cu
     src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/pagerank.cu
-    src/nvgraph/pagerank_kernels.cu
     src/nvgraph/partition.cu
-    src/nvgraph/size2_selector.cu
-    src/nvgraph/sssp.cu
-    src/nvgraph/triangles_counting.cpp
-    src/nvgraph/triangles_counting_kernels.cu
-    src/nvgraph/valued_csr_graph.cpp
-    src/nvgraph/widest_path.cu
 )
 
 #
@@ -381,9 +334,12 @@ add_library(cugraph SHARED
 #
 add_dependencies(cugraph cugunrock)
 
+if (BUILD_MPI)
+    add_compile_definitions(ENABLE_OPG=1)
+endif (BUILD_MPI)
+
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
-
 target_include_directories(cugraph
     PRIVATE
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
@@ -399,6 +355,8 @@ target_include_directories(cugraph
     "${CUHORNET_INCLUDE_DIR}/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUGUNROCK_DIR}/include"
+    "${NCCL_INCLUDE_DIRS}"
+    "${MPI_CXX_INCLUDE_PATH}"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -407,7 +365,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
+    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
