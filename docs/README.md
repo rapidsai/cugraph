@@ -1,7 +1,7 @@
 # Building Documentation
 
 A basic python environment with packages listed in `./requirement.txt` is
-enough to build the docs.
+enough to build the docs.  Doc generation does not get run by default
 
 ## Get additional dependency
 
