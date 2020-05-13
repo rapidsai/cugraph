@@ -57,7 +57,7 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
     return pos
 
 
-DATASETS = [('../datasets/karate.csv', 0.74),
+DATASETS = [('../datasets/karate.csv', 0.71),
             ('../datasets/polbooks.csv', 0.76),
             ('../datasets/dolphins.csv', 0.67),
             ('../datasets/netscience.csv', 0.67)]
