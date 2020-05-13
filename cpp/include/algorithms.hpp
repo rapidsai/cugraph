@@ -287,7 +287,7 @@ void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * information as a COO
  * @param[in] k                      The order of the truss
  * @param[in] mr                     Memory resource used to allocate the returned graph
- * @param[out] out_graph             Unique pointer to K Truss subgraph in COO format
+ * @return                           Unique pointer to K Truss subgraph in COO format
  *
  */
 template <typename VT, typename ET, typename WT>
