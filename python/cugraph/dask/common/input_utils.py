@@ -110,7 +110,6 @@ class DistributedDataHandler:
         '''
 
         gpu_futures = client.sync(_extract_partitions, data, client)
-
         workers = tuple(set(map(lambda x: x[0], gpu_futures)))
 
         return DistributedDataHandler(gpu_futures=gpu_futures, workers=workers,
@@ -121,7 +120,7 @@ class DistributedDataHandler:
 
     def calculate_worker_and_rank_info(self, comms):
 
-        self.worker_info = comms.worker_info(comms.worker_addresses)
+        self.worker_info = comms.worker_info(comms.worker_keys)
         self.ranks = dict()
 
         for w, futures in self.worker_to_parts.items():

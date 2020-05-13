@@ -149,9 +149,7 @@ def _extract_partitions(dask_obj, client=None):
         parts = client.compute([p for p in zip(*raveled)])
 
     yield wait(parts)
-
     key_to_part = [(str(part.key), part) for part in parts]
     who_has = yield client.who_has(parts)
-
     raise gen.Return([(first(who_has[key]), part)
                       for key, part in key_to_part])

@@ -283,11 +283,11 @@ def _func_ucp_ports(client, workers):
                       workers=workers)
 '''
 
-def _func_worker_ranks(workers):
+def _func_worker_ranks(worker_keys):
     """
     Builds a dictionary of { (worker_address, worker_port) : worker_rank }
     """
-    return dict(list(zip(workers, range(len(workers)))))
+    return dict([(w[0], w[1]) for w in worker_keys])
 
 
 class CommsContext:
@@ -334,12 +334,12 @@ class CommsContext:
             self.destroy()
 
 
-    def worker_info(self, workers):
+    def worker_info(self, workers_keys):
         """
         Builds a dictionary of { (worker_address, worker_port) :
                                 (worker_rank, worker_port ) }
         """
-        ranks = _func_worker_ranks(workers)
+        ranks = _func_worker_ranks(workers_keys)
         #ports = _func_ucp_ports(self.client, workers) \
         #    if self.comms_p2p else None
 
@@ -351,20 +351,24 @@ class CommsContext:
         return output
 
 
-    def init(self, workers=None):
+    def init(self, gpu_futures=None):
         """
         Initializes the underlying comms. NCCL is required but
         UCX is only initialized if `comms_p2p == True`
         """
 
+        workers = None if gpu_futures is None else tuple(set(map(lambda x: x[0], gpu_futures)))
         self.worker_addresses = list(set((self.client.has_what().keys()
                                           if workers is None else workers)))
+
+        self.worker_keys = None if gpu_futures is None else tuple(set(map(lambda x: (x[0], x[1].key[1]), gpu_futures)))
 
         if self.nccl_initialized:
             warnings.warn("CommsContext has already been initialized.")
             return
 
-        worker_info = self.worker_info(self.worker_addresses)
+        worker_info = self.worker_info(self.worker_keys)
+
         worker_info = {w: worker_info[w] for w in self.worker_addresses}
 
         self.uniqueId = nccl.get_unique_id()
