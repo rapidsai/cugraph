@@ -133,7 +133,7 @@ Layout
 Force Atlas 2
 -------------
 
-.. automodule:: cugraph.layout.force_atlas_2
+.. automodule:: cugraph.layout.force_atlas2
     :members:
     :undoc-members:
 
