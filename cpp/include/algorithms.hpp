@@ -467,6 +467,32 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          const VT start_vertex,
          bool directed = true);
 
+/**
+ * @brief      Louvain implementation
+ *
+ * Compute a clustering of the graph by minimizing modularity
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[out] final_modularity      modularity of the returned clustering
+ * @param[out] num_level             number of levels of the returned clustering
+ * @param[out] clustering            Pointer to device array where the clustering should be stored
+ * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ */
+template <typename VT, typename ET, typename WT>
+void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
+             WT *final_modularity,
+             int *num_level,
+             VT *louvain_parts,
+             int max_iter = 100);
+
 namespace nvgraph {
 
 /**
@@ -638,30 +664,6 @@ void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &g
                                  int n_clusters,
                                  VT const *clustering,
                                  WT *score);
-
-/**
- * @brief      Wrapper function for Nvgraph louvain implementation
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in]  graph                 input graph object (CSR)
- * @param[out] final_modularity      modularity of the returned clustering
- * @param[out] num_level             number of levels of the returned clustering
- * @param[out] clustering            Pointer to device array where the clustering should be stored
- * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
- */
-template <typename VT, typename ET, typename WT>
-void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
-             WT *final_modularity,
-             VT *num_level,
-             VT *louvain_parts,
-             int max_iter = 100);
 
 /**
  * @brief Computes the ecg clustering of the given graph.

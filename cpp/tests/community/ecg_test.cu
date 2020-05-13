@@ -18,6 +18,7 @@
 
 #include "rmm_utils.h"
 
+#if 0
 TEST(ecg, success)
 {
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
@@ -76,6 +77,7 @@ TEST(ecg, success)
 
   ASSERT_GT(modularity, 0.399);
 }
+#endif
 
 #if 0
 //  This test currently fails... leaving it in since once louvain is fixed
