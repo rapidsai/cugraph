@@ -74,9 +74,14 @@ uint32_t value::getArrayIndex()
   return array_index;
 }
 
-node_pattern::node_pattern(std::string id) { identifier = id; }
+template <typename idx_t>
+node_pattern<idx_t>::node_pattern(std::string id)
+{
+  identifier = id;
+}
 
-node_pattern::node_pattern(const cypher_astnode_t* astNode)
+template <typename idx_t>
+node_pattern<idx_t>::node_pattern(const cypher_astnode_t* astNode, context<idx_t> ctx)
 {
   // Check that the given astnode is the right type:
   cypher_astnode_type_t astNodeType = cypher_astnode_type(astNode);
@@ -84,23 +89,57 @@ node_pattern::node_pattern(const cypher_astnode_t* astNode)
   CUGRAPH_EXPECTS(typeStr == "node pattern", "Wrong type of astnode supplied");
 }
 
-void node_pattern::setIdentifier(std::string id) { identifier = id; }
+template <typename idx_t>
+void node_pattern<idx_t>::setIdentifier(std::string id)
+{
+  identifier = id;
+}
 
-void node_pattern::addLabel(value label) { labels.push_back(label); }
+template <typename idx_t>
+void node_pattern<idx_t>::addLabel(value label)
+{
+  labels.push_back(label);
+}
 
-void node_pattern::addProperty(std::string name, value val) { properties[name] = val; }
+template <typename idx_t>
+void node_pattern<idx_t>::addProperty(std::string name, value val)
+{
+  properties[name] = val;
+}
 
-std::string node_pattern::getIdentifier() { return identifier; }
+template <typename idx_t>
+std::string node_pattern<idx_t>::getIdentifier()
+{
+  return identifier;
+}
 
-pattern_type node_pattern::type() { return pattern_type::Node; }
+template <typename idx_t>
+pattern_type node_pattern<idx_t>::type()
+{
+  return pattern_type::Node;
+}
 
-std::vector<value>& node_pattern::getLabels() { return labels; }
+template <typename idx_t>
+std::vector<value>& node_pattern<idx_t>::getLabels()
+{
+  return labels;
+}
 
-std::map<std::string, value>& node_pattern::getProperties() { return properties; }
+template <typename idx_t>
+std::map<std::string, value>& node_pattern<idx_t>::getProperties()
+{
+  return properties;
+}
 
-relationship_pattern::relationship_pattern() { direction = 1; }
+template <typename idx_t>
+relationship_pattern<idx_t>::relationship_pattern()
+{
+  direction = 1;
+}
 
-relationship_pattern::relationship_pattern(const cypher_astnode_t* astNode)
+template <typename idx_t>
+relationship_pattern<idx_t>::relationship_pattern(const cypher_astnode_t* astNode,
+                                                  context<idx_t> ctx)
 {
   // Check that the given astnode is the right type:
   cypher_astnode_type_t astNodeType = cypher_astnode_type(astNode);
@@ -117,29 +156,74 @@ relationship_pattern::relationship_pattern(const cypher_astnode_t* astNode)
   }
 }
 
-void relationship_pattern::addProperty(std::string name, value val) { properties[name] = val; }
+template <typename idx_t>
+void relationship_pattern<idx_t>::addProperty(std::string name, value val)
+{
+  properties[name] = val;
+}
 
-void relationship_pattern::setStart(std::string start) { startId = start; }
+template <typename idx_t>
+void relationship_pattern<idx_t>::setStart(std::string start)
+{
+  startId = start;
+}
 
-void relationship_pattern::setEnd(std::string end) { endId = end; }
+template <typename idx_t>
+void relationship_pattern<idx_t>::setEnd(std::string end)
+{
+  endId = end;
+}
 
-void relationship_pattern::addType(value type) { relationshipTypes.push_back(type); }
+template <typename idx_t>
+void relationship_pattern<idx_t>::addType(value type)
+{
+  relationshipTypes.push_back(type);
+}
 
-void relationship_pattern::setDirection(uint32_t dir) { direction = dir; }
+template <typename idx_t>
+void relationship_pattern<idx_t>::setDirection(uint32_t dir)
+{
+  direction = dir;
+}
 
-std::string relationship_pattern::getStart() { return startId; }
+template <typename idx_t>
+std::string relationship_pattern<idx_t>::getStart()
+{
+  return startId;
+}
 
-std::string relationship_pattern::getEnd() { return endId; }
+template <typename idx_t>
+std::string relationship_pattern<idx_t>::getEnd()
+{
+  return endId;
+}
 
-std::vector<value>& relationship_pattern::getTypes() { return relationshipTypes; }
+template <typename idx_t>
+std::vector<value>& relationship_pattern<idx_t>::getTypes()
+{
+  return relationshipTypes;
+}
 
-std::map<std::string, value>& relationship_pattern::getProperties() { return properties; }
+template <typename idx_t>
+std::map<std::string, value>& relationship_pattern<idx_t>::getProperties()
+{
+  return properties;
+}
 
-std::string relationship_pattern::getIdentifier() { return identifier; }
+template <typename idx_t>
+std::string relationship_pattern<idx_t>::getIdentifier()
+{
+  return identifier;
+}
 
-pattern_type relationship_pattern::type() { return pattern_type::Relationship; }
+template <typename idx_t>
+pattern_type relationship_pattern<idx_t>::type()
+{
+  return pattern_type::Relationship;
+}
 
-pattern_path::pattern_path(const cypher_astnode_t* astNode)
+template <typename idx_t>
+pattern_path<idx_t>::pattern_path(const cypher_astnode_t* astNode, context<idx_t> ctx)
 {
   // Check that the given astnode is the right type:
   cypher_astnode_type_t astNodeType = cypher_astnode_type(astNode);
@@ -147,18 +231,21 @@ pattern_path::pattern_path(const cypher_astnode_t* astNode)
   CUGRAPH_EXPECTS(typeStr == "pattern path", "Wrong type of astnode supplied");
 }
 
-pattern_path::pattern_path(pattern_path&& other)
+template <typename idx_t>
+pattern_path<idx_t>::pattern_path(pattern_path<idx_t>&& other)
 {
   path = std::move(other.path);
   other.path.clear();
 }
 
-pattern_path::~pattern_path()
+template <typename idx_t>
+pattern_path<idx_t>::~pattern_path()
 {
   for (size_t i = 0; i < path.size(); i++) delete path[i];
 }
 
-pattern_path& pattern_path::operator=(pattern_path&& other)
+template <typename idx_t>
+pattern_path<idx_t>& pattern_path<idx_t>::operator=(pattern_path<idx_t>&& other)
 {
   if (this != &other) {
     path = std::move(other.path);

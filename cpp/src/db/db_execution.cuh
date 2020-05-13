@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <cypher-parser.h>
 #include <db/db_pattern.cuh>
 #include <db/db_results.cuh>
@@ -63,7 +65,7 @@ class load_csv_node : public execution_node<idx_t> {
  */
 template <typename idx_t>
 class match_node : public execution_node<idx_t> {
-  std::vector<pattern_path> paths;
+  std::vector<pattern_path<idx_t>> paths;
   db_result<idx_t> result;
 
  public:

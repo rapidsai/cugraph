@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <cypher-parser.h>
+#include <db/db_context.cuh>
 #include <map>
 #include <string>
 #include <vector>
@@ -47,6 +50,7 @@ class value {
 
 enum class pattern_type { Node, Relationship };
 
+template <typename idx_t>
 class pattern_element {
  public:
   virtual ~pattern_element()          = default;
@@ -54,7 +58,8 @@ class pattern_element {
   virtual pattern_type type()         = 0;
 };
 
-class node_pattern : public pattern_element {
+template <typename idx_t>
+class node_pattern : public pattern_element<idx_t> {
   std::string identifier;
   std::vector<value> labels;
   std::map<std::string, value> properties;
@@ -62,7 +67,7 @@ class node_pattern : public pattern_element {
  public:
   node_pattern() = default;
   node_pattern(std::string id);
-  node_pattern(const cypher_astnode_t* astNode);
+  node_pattern(const cypher_astnode_t* astNode, context<idx_t> ctx);
   ~node_pattern() = default;
   void setIdentifier(std::string id);
   void addLabel(value label);
@@ -73,7 +78,8 @@ class node_pattern : public pattern_element {
   std::map<std::string, value>& getProperties();
 };
 
-class relationship_pattern : public pattern_element {
+template <typename idx_t>
+class relationship_pattern : public pattern_element<idx_t> {
   std::string identifier;
   uint32_t direction;
   std::string startId;
@@ -83,7 +89,7 @@ class relationship_pattern : public pattern_element {
 
  public:
   relationship_pattern();
-  relationship_pattern(const cypher_astnode_t* astNode);
+  relationship_pattern(const cypher_astnode_t* astNode, context<idx_t> ctx);
   void addProperty(std::string name, value value);
   void setStart(std::string start);
   void setEnd(std::string end);
@@ -98,18 +104,19 @@ class relationship_pattern : public pattern_element {
   pattern_type type() override;
 };
 
+template <typename idx_t>
 class pattern_path {
-  std::vector<pattern_element*> path;
+  std::vector<pattern_element<idx_t>*> path;
 
  public:
   pattern_path() = default;
-  pattern_path(const cypher_astnode_t* astNode);
+  pattern_path(const cypher_astnode_t* astNode, context<idx_t> ctx);
   pattern_path(const pattern_path& other) = delete;
   pattern_path(pattern_path&& other);
   ~pattern_path();
   pattern_path& operator=(const pattern_path& other) = delete;
   pattern_path& operator                             =(pattern_path&& other);
-  std::vector<pattern_element*>& getPathNodes();
+  std::vector<pattern_element<idx_t>*>& getPathNodes();
 };
 
 }  // namespace db
