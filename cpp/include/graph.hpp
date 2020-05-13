@@ -32,6 +32,8 @@ namespace experimental {
 enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
 
 struct GraphProperties {
+  // FIXME: isn't this a misnomer? In CSR, CSC, & COO, all graphs are represented as directed, but
+  // some graphs are symmetric.
   bool directed{false};
   bool weighted{false};
   bool multigraph{multigraph};
@@ -61,6 +63,7 @@ class GraphViewBase {
   using vertex_type = VT;
   using edge_type = ET;
   using weight_type = WT;
+  static bool constexpr is_opg = false;
 
   Comm comm;
   WT *edge_data;  ///< edge weight
@@ -87,6 +90,7 @@ class GraphViewBase {
       number_of_edges(number_of_edges_)
   {
   }
+
   bool has_data(void) const { return edge_data != nullptr; }
 };
 
@@ -322,6 +326,7 @@ class GraphCOO {
   using vertex_type = VT;
   using edge_type = ET;
   using weight_type = WT;
+  static bool constexpr is_opg = false;
 
   /**
    * @brief      Take ownership of the provided graph arrays in COO format
@@ -422,6 +427,7 @@ class GraphCompressedSparseBase {
   using vertex_type = VT;
   using edge_type = ET;
   using weight_type = WT;
+  static bool constexpr is_opg = false;
 
   /**
    * @brief      Take ownership of the provided graph arrays in CSR/CSC format
