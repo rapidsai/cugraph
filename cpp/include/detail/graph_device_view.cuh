@@ -1,0 +1,278 @@
+/*
+ * Copyright (c) 2020, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#pragma once
+
+// FIXME: better move this file to include/utilities (following cuDF) and rename to error.hpp
+#include <utilities/error_utils.h>
+
+#include <utilities/traits.hpp>
+#include <graph.hpp>
+
+#include <rmm/rmm.h>
+
+#include <thrust/iterator/counting_iterator.h>
+
+#include <functional>
+#include <memory>
+#include <type_traits>
+
+
+namespace cugraph {
+namespace experimental {
+
+template<typename GraphType, typename Enable = void>
+class graph_compressed_sparse_base_device_view_t;
+
+// Common for both OPG and single-GPU versions
+template<typename GraphType>
+class graph_compressed_sparse_base_device_view_t<
+  GraphType, std::enable_if_t<is_csr<GraphType>::value || is_csc<GraphType>::value>
+> {
+ public:
+  using vertex_t = typename GraphType::vertex_type;
+  using edge_t = typename GraphType::edge_type;
+
+  static bool constexpr is_csr = GraphType::is_csr;
+
+  graph_compressed_sparse_base_device_view_t() = delete;
+  ~graph_compressed_sparse_base_device_view_t() = default;
+  graph_compressed_sparse_base_device_view_t(
+    graph_compressed_sparse_base_device_view_t const&) = default;
+  graph_compressed_sparse_base_device_view_t(
+    graph_compressed_sparse_base_device_view_t&&) = default;
+  graph_compressed_sparse_base_device_view_t& operator=(
+    graph_compressed_sparse_base_device_view_t const&) = default;
+  graph_compressed_sparse_base_device_view_t& operator=(
+    graph_compressed_sparse_base_device_view_t&&) = default;
+
+  __host__ __device__
+  bool is_symmetric() const noexcept {
+    return is_symmetric_;
+  }
+
+  __host__ __device__
+  vertex_t get_number_of_vertices() const noexcept {
+    return number_of_vertices_;
+  }
+
+  __host__ __device__
+  constexpr bool in_vertex_range(vertex_t v) const noexcept {
+    // FIXME: need to check
+    return true;
+  }
+
+ protected:
+  bool is_symmetric_{false};
+  vertex_t number_of_vertices_{0};
+
+  edge_t const* p_offsets_{nullptr};
+  vertex_t const* p_indices_{nullptr};
+
+  graph_compressed_sparse_base_device_view_t(GraphType const& graph) {
+    // FIXME: better not directly access graph member variables, and directed is a misnomer.
+    is_symmetric_ = !graph.prop.directed;
+    number_of_vertices_ = graph.number_of_vertices;
+    // FIXME: better not directly access graph member variables
+    p_offsets_ = graph.offsets;
+    p_indices_ = graph.indices;
+  }
+};
+
+template<typename GraphType, typename Enable = void>
+class graph_compressed_sparse_device_view_t;
+
+// OPG version
+template<typename GraphType>
+class graph_compressed_sparse_device_view_t<
+  GraphType,
+  std::enable_if_t<GraphType::is_opg && (is_csr<GraphType>::value || is_csc<GraphType>::value)>
+> : public graph_compressed_sparse_base_device_view_t<GraphType> {
+ public:
+  using vertex_t = typename GraphType::vertex_type;
+  using edge_t = typename GraphType::edge_type;
+
+  graph_compressed_sparse_device_view_t() = delete;
+  ~graph_compressed_sparse_device_view_t() = default;
+  graph_compressed_sparse_device_view_t(
+    graph_compressed_sparse_device_view_t const&) = default;
+  graph_compressed_sparse_device_view_t(
+    graph_compressed_sparse_device_view_t&&) = default;
+  graph_compressed_sparse_device_view_t& operator=(
+    graph_compressed_sparse_device_view_t const&) = default;
+  graph_compressed_sparse_device_view_t& operator=(
+    graph_compressed_sparse_device_view_t&&) = default;
+
+  graph_compressed_sparse_device_view_t(GraphType const& graph, void* d_ptr)
+    : graph_compressed_sparse_base_device_view_t<GraphType>(graph) {
+    CUGRAPH_FAIL("unimplemented.");
+  }
+
+  void destroy() {  // only for the create() function
+    delete this;
+  }
+
+  static std::unique_ptr<
+    graph_compressed_sparse_device_view_t,
+    std::function<void(graph_compressed_sparse_device_view_t*)>
+  > create(GraphType const& graph) {
+    // FIXME: If we partition a graph with a graph partitioning algorithm, block-diagonal parts
+    // of an adjacency matrix have more non-zeros. For load balancing, we need to evenly distribute
+    // block-diagonal parts to GPUs. Over-partitioning adjacency matrix rows is necessary for this
+    // purpose.
+    // See E. Boman, K. Devine, and S. Rajamanickam, "Scalable matrix computation on large
+    // scale-free graphs using 2D graph partitioning," 2013.
+    auto num_this_partition_adj_matrix_row_ranges = 1;
+    rmm::device_buffer* p_buffer =
+      new rmm::device_buffer(num_this_partition_adj_matrix_row_ranges * sizeof(vertex_t) * 2);
+    auto deleter =
+      [p_buffer] (graph_compressed_sparse_device_view_t* graph_device_view) {
+        graph_device_view->destroy();
+        delete p_buffer;
+      };
+    std::unique_ptr<graph_compressed_sparse_device_view_t, decltype(deleter)>
+    p_graph_device_view(
+      new graph_compressed_sparse_device_view_t(graph, p_buffer->data()), deleter);
+
+    return p_graph_device_view;
+  }
+
+  __host__ __device__
+  constexpr bool in_this_partition_vertex_range_nocheck(vertex_t v) const noexcept {
+    CUGRAPH_FAIL("unimplemented.");
+    return true;
+  }
+
+  __host__ __device__
+  constexpr bool in_this_partition_adj_matrix_row_range_nocheck(vertex_t v) const noexcept {
+    CUGRAPH_FAIL("unimplemented.");
+    return true;
+  }
+
+  __host__ __device__
+  constexpr bool in_this_partition_adj_matrxi_col_range_nocheck(vertex_t v) const noexcept {
+    CUGRAPH_FAIL("unimplemented.");
+    return true;
+  }
+
+  __host__ __device__
+  vertex_t get_vertex_from_this_partition_vertex_offset_nocheck(vertex_t offset) const noexcept {
+    CUGRAPH_FAIL("unimplemented.");
+    return offset;
+  }
+
+private:
+  vertex_t const* p_this_partition_adj_matrix_row_firsts_{nullptr};
+  vertex_t const* p_this_partition_adj_matrix_row_lasts_{nullptr};
+  size_t num_this_partition_adj_matrix_row_ranges_{0};
+};
+
+// single GPU version
+template<typename GraphType>
+class graph_compressed_sparse_device_view_t<
+  GraphType,
+  std::enable_if_t<!GraphType::is_opg && (is_csr<GraphType>::value || is_csc<GraphType>::value)>
+> : public graph_compressed_sparse_base_device_view_t<GraphType> {
+public:
+  using vertex_t = typename GraphType::vertex_type;
+  using edge_t = typename GraphType::edge_type;
+
+  graph_compressed_sparse_device_view_t() = delete;
+  ~graph_compressed_sparse_device_view_t() = default;
+  graph_compressed_sparse_device_view_t(
+    graph_compressed_sparse_device_view_t const&) = default;
+  graph_compressed_sparse_device_view_t(
+    graph_compressed_sparse_device_view_t&&) = default;
+  graph_compressed_sparse_device_view_t& operator=(
+    graph_compressed_sparse_device_view_t const&) = default;
+  graph_compressed_sparse_device_view_t& operator=(
+    graph_compressed_sparse_device_view_t&&) = default;
+
+  graph_compressed_sparse_device_view_t(GraphType const& graph)
+    : graph_compressed_sparse_base_device_view_t<GraphType>(graph) {}
+
+  static std::unique_ptr<
+    graph_compressed_sparse_device_view_t,
+    std::function<void(graph_compressed_sparse_device_view_t*)>
+  > create(GraphType const& graph) {
+    return std::make_unique<graph_compressed_sparse_device_view_t>(graph);
+  }
+
+  __host__ __device__
+  vertex_t get_number_of_this_partition_vertices() const noexcept {
+    return this->number_of_vertices_;
+  }
+
+  __host__ __device__
+  vertex_t get_number_of_this_partition_adj_matrix_rows() const noexcept {
+    return this->number_of_vertices_;
+  }
+
+  __host__ __device__
+  vertex_t get_number_of_this_partition_adj_matrix_cols() const noexcept {
+    return this->number_of_vertices_;
+  }
+
+  __host__ __device__
+  constexpr bool in_this_partition_vertex_range_nocheck(vertex_t v) const noexcept {
+    return true;
+  }
+
+  __host__ __device__
+  constexpr bool in_this_partition_adj_matrix_row_range_nocheck(vertex_t v) const noexcept {
+    return true;
+  }
+
+  __host__ __device__
+  constexpr bool in_this_partition_adj_matrxi_col_range_nocheck(vertex_t v) const noexcept {
+    return true;
+  }
+
+  __host__ __device__
+  vertex_t get_vertex_from_this_partition_vertex_offset_nocheck(vertex_t offset) const noexcept {
+    return offset;
+  }
+
+  __host__ __device__
+  vertex_t get_this_partition_vertex_offset_from_vertex_nocheck(vertex_t v) const noexcept {
+    return v;
+  }
+
+  auto this_partition_vertex_begin() const {
+    return thrust::make_counting_iterator(static_cast<vertex_t>(0));
+  }
+
+  auto this_partition_vertex_end() const {
+    return thrust::make_counting_iterator(this->number_of_vertices_);
+  }
+  auto this_partition_adj_matrix_row_begin() const {
+    return thrust::make_counting_iterator(static_cast<vertex_t>(0));
+  }
+
+  auto this_partition_adj_matrix_row_end() const {
+    return thrust::make_counting_iterator(this->number_of_vertices_);
+  }
+
+  auto this_partition_adj_matrix_col_begin() const {
+    return thrust::make_counting_iterator(static_cast<vertex_t>(0));
+  }
+
+  auto this_partition_adj_matrix_col_end() const {
+    return thrust::make_counting_iterator(this->number_of_vertices_);
+  }
+};
+
+}  // namespace experimental
+}  // namespace cugraph
