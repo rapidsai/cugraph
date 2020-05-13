@@ -44,8 +44,6 @@ ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
   using HornetGraph = hornet::gpu::Hornet<VT>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::EMPTY, hornet::DeviceType::DEVICE>;
   using Update      = hornet::gpu::BatchUpdate<VT>;
-  VT *src           = const_cast<VT *>(graph.src_indices);
-  VT *dst           = const_cast<VT *>(graph.dst_indices);
   cudaStream_t stream{nullptr};
   UpdatePtr ptr(graph.number_of_edges, graph.src_indices, graph.dst_indices);
   Update batch(ptr);
@@ -142,7 +140,7 @@ weighted_ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &grap
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<experimental::GraphCOO<VT, ET, WT>>
 k_truss_subgraph(experimental::GraphCOOView<VT, ET, WT> const &graph, int k,
-    rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
+    rmm::mr::device_memory_resource *mr)
 {
   CUGRAPH_EXPECTS(graph.src_indices != nullptr, "Graph source indices cannot be a nullptr");
   CUGRAPH_EXPECTS(graph.dst_indices != nullptr, "Graph destination indices cannot be a nullptr");
