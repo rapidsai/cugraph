@@ -292,8 +292,9 @@ void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
  */
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
-    experimental::GraphCOOView<VT, ET, WT> const &graph, int k,
-    rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
+  experimental::GraphCOOView<VT, ET, WT> const &graph,
+  int k,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 /**
  * @brief        Compute the Katz centrality for the nodes of the graph G

@@ -36,10 +36,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>>
-ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
-                     int k,
-                     rmm::mr::device_memory_resource *mr)
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   using HornetGraph = hornet::gpu::Hornet<VT>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::EMPTY, hornet::DeviceType::DEVICE>;
@@ -71,11 +69,7 @@ ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
   auto out_graph = std::make_unique<experimental::GraphCOO<VT, ET, WT>>(
-    graph.number_of_vertices,
-    kt.getGraphEdgeCount(),
-    graph.has_data(),
-    stream,
-    mr);
+    graph.number_of_vertices, kt.getGraphEdgeCount(), graph.has_data(), stream, mr);
 
   kt.copyGraph(out_graph->src_indices(), out_graph->dst_indices());
 
@@ -84,12 +78,9 @@ ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
 
   return out_graph;
 }
-//TODO Move ktruss to community
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>>
-weighted_ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
-                              int k,
-                              rmm::mr::device_memory_resource *mr)
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   using HornetGraph = hornet::gpu::Hornet<VT, hornet::EMPTY, hornet::TypeList<WT>>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::TypeList<WT>, hornet::DeviceType::DEVICE>;
@@ -121,11 +112,7 @@ weighted_ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &grap
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
   auto out_graph = std::make_unique<experimental::GraphCOO<VT, ET, WT>>(
-    graph.number_of_vertices,
-    kt.getGraphEdgeCount(),
-    graph.has_data(),
-    stream,
-    mr);
+    graph.number_of_vertices, kt.getGraphEdgeCount(), graph.has_data(), stream, mr);
 
   kt.copyGraph(out_graph->src_indices(), out_graph->dst_indices(), out_graph->edge_data());
 
@@ -138,9 +125,8 @@ weighted_ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &grap
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>>
-k_truss_subgraph(experimental::GraphCOOView<VT, ET, WT> const &graph, int k,
-    rmm::mr::device_memory_resource *mr)
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   CUGRAPH_EXPECTS(graph.src_indices != nullptr, "Graph source indices cannot be a nullptr");
   CUGRAPH_EXPECTS(graph.dst_indices != nullptr, "Graph destination indices cannot be a nullptr");
@@ -153,15 +139,13 @@ k_truss_subgraph(experimental::GraphCOOView<VT, ET, WT> const &graph, int k,
 }
 
 template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, float>>
-k_truss_subgraph<int, int, float>(
-  experimental::GraphCOOView<int, int, float> const &,
-  int,
-  rmm::mr::device_memory_resource *);
+k_truss_subgraph<int, int, float>(experimental::GraphCOOView<int, int, float> const &,
+                                  int,
+                                  rmm::mr::device_memory_resource *);
 
 template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, double>>
-k_truss_subgraph<int, int, double>(
-  experimental::GraphCOOView<int, int, double> const &,
-  int,
-  rmm::mr::device_memory_resource *);
+k_truss_subgraph<int, int, double>(experimental::GraphCOOView<int, int, double> const &,
+                                   int,
+                                   rmm::mr::device_memory_resource *);
 
 }  // namespace cugraph
