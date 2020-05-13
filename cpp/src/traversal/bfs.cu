@@ -37,7 +37,7 @@ void BFS<IndexType>::setup()
   vertices_bmap_size = (number_of_vertices / (8 * sizeof(int)) + 1);
 
   exclusive_sum_frontier_vertex_buckets_offsets_size =
-    ((number_of_edges / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType),
+    ((number_of_edges / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2);
 
   d_counters_pad_size = 4;
 
