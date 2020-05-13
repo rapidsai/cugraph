@@ -96,7 +96,6 @@ def test_louvain_with_edgevals(graph_file):
 DATASETS = ['../datasets/karate.csv',
             '../datasets/dolphins.csv']
 
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('graph_file', DATASETS)
 def test_louvain(graph_file):
@@ -114,6 +113,7 @@ def test_louvain(graph_file):
     for i in range(len(cu_parts)):
         cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
     assert set(nx_parts.keys()) == set(cu_map.keys())
+
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
     assert len(cu_parts) == len(nx_parts)

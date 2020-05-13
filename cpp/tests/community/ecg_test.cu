@@ -18,7 +18,6 @@
 
 #include "rmm_utils.h"
 
-#if 0
 TEST(ecg, success)
 {
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
@@ -32,16 +31,8 @@ TEST(ecg, success)
     33, 25, 27, 29, 32, 33, 25, 27, 31, 23, 24, 31, 29, 33, 2,  23, 24, 33, 2,  31, 33, 23, 26,
     32, 33, 1,  8,  32, 33, 0,  24, 25, 28, 32, 33, 2,  8,  14, 15, 18, 20, 22, 23, 29, 30, 31,
     33, 8,  9,  13, 14, 15, 18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32};
-  std::vector<float> w_h = {
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+  std::vector<float> w_h(ind_h.size(), float{1.0});
 
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
@@ -56,8 +47,7 @@ TEST(ecg, success)
   cugraph::experimental::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
-  ASSERT_NO_THROW(
-    (cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get())));
+  cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get());
 
   cluster_id = result_v;
   int max    = *max_element(cluster_id.begin(), cluster_id.end());
@@ -72,14 +62,12 @@ TEST(ecg, success)
 
   float modularity{0.0};
 
-  ASSERT_NO_THROW(cugraph::nvgraph::analyzeClustering_modularity(
-    graph_csr, max + 1, result_v.data().get(), &modularity));
+  cugraph::nvgraph::analyzeClustering_modularity(
+    graph_csr, max + 1, result_v.data().get(), &modularity);
 
   ASSERT_GT(modularity, 0.399);
 }
-#endif
 
-#if 0
 //  This test currently fails... leaving it in since once louvain is fixed
 //   it should pass
 TEST(ecg, dolphin)
@@ -120,8 +108,7 @@ TEST(ecg, dolphin)
   cugraph::experimental::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
-  ASSERT_NO_THROW(
-    (cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get())));
+  cugraph::nvgraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get());
 
   cluster_id = result_v;
   int max    = *max_element(cluster_id.begin(), cluster_id.end());
@@ -136,14 +123,13 @@ TEST(ecg, dolphin)
 
   float modularity{0.0};
 
-  ASSERT_NO_THROW(cugraph::nvgraph::analyzeClustering_modularity(
-    graph_csr, max + 1, result_v.data().get(), &modularity));
+  cugraph::nvgraph::analyzeClustering_modularity(
+    graph_csr, max + 1, result_v.data().get(), &modularity);
 
   float random_modularity{0.95 * 0.4962422251701355};
 
   ASSERT_GT(modularity, random_modularity);
 }
-#endif
 
 int main(int argc, char** argv)
 {

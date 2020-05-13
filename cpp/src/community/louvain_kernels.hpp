@@ -25,7 +25,8 @@ void louvain(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph
              weight_t *final_modularity,
              int *num_level,
              vertex_t *cluster_vec,
-             int max_iter);
+             int max_iter,
+             cudaStream_t stream = 0);
 
 }  // namespace detail
 }  // namespace cugraph

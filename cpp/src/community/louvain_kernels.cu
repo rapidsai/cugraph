@@ -103,8 +103,7 @@ __global__  // __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
                                              weight_t const *weights,
                                              weight_t const *vertex_weights,
                                              weight_t volatile *cluster_weights,
-                                             vertex_t volatile *cluster,
-                                             vertex_t volatile *vertex_ready)
+                                             vertex_t volatile *cluster)
 {
   unsigned int tid = threadIdx.x;  // 0 ~ 31
 
@@ -156,20 +155,6 @@ __global__  // __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 
           if (j != src) {
             vertex_t cluster_j = cluster[j];
-
-#ifdef DEBUG
-            if (src == 3)
-              printf(
-                "---- src = %d, j = %d, old_cluster = %d, new_cluster = %d, cluster_j = %d, "
-                "weights = %g\n",
-                src,
-                j,
-                old_cluster,
-                new_cluster,
-                cluster_j,
-                weights[i]);
-#endif
-
             if (cluster_j == new_cluster) {
               new_cluster_sum += weights[i];
             } else if (cluster_j == old_cluster) {
@@ -181,23 +166,6 @@ __global__  // __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
         delta_mod =
           new_cluster_sum - degc_totw * cluster_weights[new_cluster] -
           (old_cluster_sum - (degc_totw * (cluster_weights[old_cluster] - vertex_weights[src])));
-
-#ifdef DEBUG
-        if (src == 3)
-          printf(
-            "*** src = %d, dst = %d, loc = %d, (%g - (%g * %g)) - (%g - (%g * (%g - %g))) = %g\n",
-            src,
-            dst,
-            loc,
-            new_cluster_sum,
-            degc_totw,
-            cluster_weights[new_cluster],
-            old_cluster_sum,
-            degc_totw,
-            cluster_weights[old_cluster],
-            vertex_weights[src],
-            delta_mod);
-#endif
 
         if (delta_mod > local_max[tid]) {
           local_max[tid]     = delta_mod;
@@ -236,18 +204,7 @@ __global__  // __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
         cluster_weights[cluster[src]] -= vertex_weights[src];
         cluster[src] = cluster[indices[local_max_loc[0]]];
         cluster_weights[cluster[src]] += vertex_weights[src];
-
-#ifdef DEBUG
-        printf("assigning vertex %d to cluster %d, score = %g, cluster_weights[%d] = %g\n",
-               src,
-               cluster[src],
-               local_max[0],
-               cluster[src],
-               cluster_weights[cluster[src]]);
-#endif
       }
-
-      vertex_ready[src] = 1;
     }
   }
 }
@@ -256,10 +213,9 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void generate_superverticies_graph(
   cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> &current_graph,
   vertex_t new_number_of_vertices,
-  rmm::device_vector<vertex_t> &cluster_v)
+  rmm::device_vector<vertex_t> &cluster_v,
+  cudaStream_t stream)
 {
-  cudaStream_t stream{0};
-
   rmm::device_vector<vertex_t> tmp_src_v(current_graph.number_of_edges);
   rmm::device_vector<vertex_t> new_src_v(current_graph.number_of_edges);
   rmm::device_vector<vertex_t> new_dst_v(current_graph.number_of_edges);
@@ -344,29 +300,30 @@ void compute_vertex_sums(experimental::GraphCSRView<vertex_t, edge_t, weight_t> 
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t modularity(weight_t m2,
                     experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                    rmm::device_vector<vertex_t> const &cluster,
-                    rmm::device_vector<weight_t> const &vertex_sums,
-                    rmm::device_vector<weight_t> const &cluster_sums,
-                    rmm::device_vector<weight_t> &Q_arr)
+                    vertex_t const *d_cluster,
+                    weight_t const *d_vertex_sums,
+                    weight_t const *d_cluster_sums,
+                    weight_t *d_temp_Q_array)
 {
   int nthreads = min(graph.number_of_vertices, CUDA_MAX_KERNEL_THREADS);
   int nblocks  = min((graph.number_of_vertices + nthreads - 1) / nthreads, CUDA_MAX_BLOCKS);
+
   kernel_modularity_no_matrix<vertex_t, edge_t, weight_t>
     <<<nblocks, nthreads>>>(graph.number_of_vertices,
-                            cluster.size(),
+                            graph.number_of_vertices,
                             m2,
                             graph.offsets,
                             graph.indices,
                             graph.edge_data,
-                            cluster.data().get(),
-                            vertex_sums.data().get(),
-                            cluster_sums.data().get(),
-                            Q_arr.data().get());
+                            d_cluster,
+                            d_vertex_sums,
+                            d_cluster_sums,
+                            d_temp_Q_array);
 
   CUDA_CALL(cudaDeviceSynchronize());
 
   weight_t Q = thrust::reduce(
-    thrust::cuda::par, Q_arr.begin(), Q_arr.begin() + graph.number_of_vertices, weight_t{0.0});
+    thrust::cuda::par, d_temp_Q_array, d_temp_Q_array + graph.number_of_vertices, weight_t{0.0});
 
   return -Q;
 }
@@ -377,11 +334,8 @@ void update_each_assignment_by_delta_modularity(
   experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::device_vector<weight_t> const &vertex_weights,
   rmm::device_vector<weight_t> &cluster_weights,
-  rmm::device_vector<vertex_t> &cluster,
-  rmm::device_vector<vertex_t> &vertex_ready)
+  rmm::device_vector<vertex_t> &cluster)
 {
-  thrust::fill(vertex_ready.begin(), vertex_ready.end(), vertex_t{0});
-
   // dim3 block_size_1d = dim3((graph.number_of_vertices + WARP_SIZE - 1) / WARP_SIZE, 1, 1);
   dim3 block_size_1d = dim3(graph.number_of_vertices, 1, 1);
   dim3 grid_size_1d  = dim3(WARP_SIZE, 1, 1);
@@ -395,10 +349,99 @@ void update_each_assignment_by_delta_modularity(
                                       graph.edge_data,
                                       vertex_weights.data().get(),
                                       cluster_weights.data().get(),
-                                      cluster.data().get(),
-                                      vertex_ready.data().get());
+                                      cluster.data().get());
 
   CUDA_CALL(cudaDeviceSynchronize());
+}
+
+template <typename vertex_t>
+vertex_t renumber_clusters(vertex_t graph_num_vertices,
+                           rmm::device_vector<vertex_t> &cluster,
+                           rmm::device_vector<vertex_t> &temp_array,
+                           rmm::device_vector<vertex_t> &cluster_inverse,
+                           vertex_t *cluster_vec,
+                           cudaStream_t stream)
+{
+  //
+  //  Now we're going to renumber the clusters from 0 to (k-1), where k is the number of
+  //  clusters in this level of the dendogram.
+  //
+  thrust::copy(cluster.begin(), cluster.end(), temp_array.begin());
+  thrust::sort(temp_array.begin(), temp_array.end());
+  auto tmp_end = thrust::unique(temp_array.begin(), temp_array.end());
+
+  vertex_t old_num_clusters = cluster.size();
+  vertex_t new_num_clusters = thrust::distance(temp_array.begin(), tmp_end);
+
+  cluster.resize(new_num_clusters);
+  temp_array.resize(new_num_clusters);
+
+  thrust::fill(cluster_inverse.begin(), cluster_inverse.end(), vertex_t{-1});
+
+  vertex_t *d_tmp_array       = temp_array.data().get();
+  vertex_t *d_cluster_inverse = cluster_inverse.data().get();
+  vertex_t *d_cluster         = cluster.data().get();
+
+  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                   thrust::make_counting_iterator<vertex_t>(0),
+                   thrust::make_counting_iterator<vertex_t>(new_num_clusters),
+                   [d_tmp_array, d_cluster_inverse] __device__(vertex_t i) {
+                     d_cluster_inverse[d_tmp_array[i]] = i;
+                   });
+
+  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                   thrust::make_counting_iterator<vertex_t>(0),
+                   thrust::make_counting_iterator<vertex_t>(old_num_clusters),
+                   [d_cluster, d_cluster_inverse] __device__(vertex_t i) {
+                     d_cluster[i] = d_cluster_inverse[d_cluster[i]];
+                   });
+
+  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                   thrust::make_counting_iterator<vertex_t>(0),
+                   thrust::make_counting_iterator<vertex_t>(graph_num_vertices),
+                   [cluster_vec, d_cluster] __device__(vertex_t i) {
+                     cluster_vec[i] = d_cluster[cluster_vec[i]];
+                   });
+
+  return new_num_clusters;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+weight_t update_clustering_by_delta_modularity(
+  weight_t m2,
+  experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::device_vector<weight_t> const &vertex_weights,
+  rmm::device_vector<weight_t> &cluster_weights,
+  rmm::device_vector<vertex_t> &cluster,
+  rmm::device_vector<weight_t> &temp_array)
+{
+  // TODO:  Make a version of update_each_assignment_by_delta_modularity that
+  //        runs the entire loop.  For small graphs (which we will get in later stages of louvain)
+  //        there's no point calling so many kernels
+
+  weight_t new_Q = modularity<vertex_t, edge_t, weight_t>(m2,
+                                                          graph,
+                                                          cluster.data().get(),
+                                                          vertex_weights.data().get(),
+                                                          cluster_weights.data().get(),
+                                                          temp_array.data().get());
+  weight_t cur_Q = new_Q - 1;
+
+  while (new_Q > (cur_Q + 0.0001)) {
+    cur_Q = new_Q;
+
+    // Compute delta modularity for each edges
+    update_each_assignment_by_delta_modularity(m2, graph, vertex_weights, cluster_weights, cluster);
+
+    new_Q = modularity<vertex_t, edge_t, weight_t>(m2,
+                                                   graph,
+                                                   cluster.data().get(),
+                                                   vertex_weights.data().get(),
+                                                   cluster_weights.data().get(),
+                                                   temp_array.data().get());
+  }
+
+  return new_Q;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -406,264 +449,112 @@ void louvain(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph
              weight_t *final_modularity,
              int *num_level,
              vertex_t *cluster_vec,
-             int max_iter)
+             int max_iter,
+             cudaStream_t stream)
 {
   *num_level = 0;
 
-  vertex_t n_vertex = graph.number_of_vertices;
-  vertex_t n_edges  = graph.number_of_edges;
+  //
+  //  Vectors to create a copy of the graph
+  //
+  rmm::device_vector<edge_t> offsets_v(graph.offsets, graph.offsets + graph.number_of_vertices + 1);
+  rmm::device_vector<vertex_t> indices_v(graph.indices, graph.indices + graph.number_of_edges);
+  rmm::device_vector<weight_t> weights_v(graph.edge_data, graph.edge_data + graph.number_of_edges);
 
   //
-  //  We create a copy of the graph.  We're going to reuse
-  //  this memory to edit the graph during the algorithm.
+  //  Weights and clustering across iterations of algorithm
   //
-  rmm::device_vector<edge_t> offsets_v(graph.offsets, graph.offsets + n_vertex + 1);
-  rmm::device_vector<vertex_t> indices_v(graph.indices, graph.indices + n_edges);
-  rmm::device_vector<weight_t> weights_v(graph.edge_data, graph.edge_data + n_edges);
+  rmm::device_vector<weight_t> vertex_weights_v(graph.number_of_vertices);
+  rmm::device_vector<weight_t> cluster_weights_v(graph.number_of_vertices);
+  rmm::device_vector<vertex_t> cluster_v(graph.number_of_vertices);
 
   //
-  //  The cluster graph will have n_vertex edges and at most n_vertex
-  //  vertices
+  //  Temporaries used within kernels.  Each iteration uses less
+  //  of this memory
   //
-  rmm::device_vector<vertex_t> cluster_offsets_v(n_vertex + 1);
-  rmm::device_vector<vertex_t> cluster_indices_v(n_vertex);
+  rmm::device_vector<weight_t> Q_arr_v(graph.number_of_vertices);
+  rmm::device_vector<vertex_t> tmp_arr_v(graph.number_of_vertices);
+  rmm::device_vector<vertex_t> cluster_inverse_v(graph.number_of_vertices);
 
-  //
-  //  We need to store to sum the weights for each vertex and cluster
-  //
-  rmm::device_vector<weight_t> vertex_weights_v(n_vertex);
-  rmm::device_vector<weight_t> cluster_weights_v(n_vertex);
-
-  //
-  //  TODO:  Can I use cluster_vec directly
-  //
-  rmm::device_vector<vertex_t> cluster_v(n_vertex);
-  rmm::device_vector<weight_t> Q_arr_v(n_vertex);  // really a temp space
-  rmm::device_vector<vertex_t> tmp_arr_v(n_vertex);
-  rmm::device_vector<vertex_t> cluster_inverse_v(n_vertex);  // really a temp space
-
-  //  TODO:  not needed in current version... for one of the parallel variations
-  rmm::device_vector<vertex_t> vertex_ready_v(n_vertex);
-
-  HighResClock hr_clock;
-  double timed, diff_time;
-
-  weight_t new_Q;
-  weight_t cur_Q;
-
-  // TODO:  Would like this to be a cpp file... need to move some things like this into the kernels
-  // file...
-  weight_t m2              = thrust::reduce(thrust::cuda::par, weights_v.begin(), weights_v.end());
+  weight_t m2 =
+    thrust::reduce(rmm::exec_policy(stream)->on(stream), weights_v.begin(), weights_v.end());
   weight_t best_modularity = -1;
 
   //
   //  Initialize every cluster to reference each vertex to itself
   //
-  thrust::sequence(thrust::cuda::par, cluster_v.begin(), cluster_v.end());
-  thrust::sequence(thrust::cuda::par, cluster_offsets_v.begin(), cluster_offsets_v.end());
-  thrust::sequence(thrust::cuda::par, cluster_indices_v.begin(), cluster_indices_v.end());
-
-  //
-  //  Start with the base clustering (every vertex in its own cluster)
-  //
+  thrust::sequence(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end());
   thrust::copy(cluster_v.begin(), cluster_v.end(), cluster_vec);
 
+  //
+  //  Our copy of the graph.  Each iteration of the outer loop will
+  //  shrink this copy of the graph.
+  //
   cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> current_graph(
-    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), n_vertex, n_edges);
+    offsets_v.data().get(),
+    indices_v.data().get(),
+    weights_v.data().get(),
+    graph.number_of_vertices,
+    graph.number_of_edges);
 
-  cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> cluster_graph(
-    cluster_offsets_v.data().get(), cluster_indices_v.data().get(), nullptr, n_vertex, n_vertex);
+  while (true) {
+    //
+    //  Sum the weights of all edges departing a vertex.  This is
+    //  loop invariant, so we'll compute it here.
+    //
+    //  Cluster weights are equivalent to vertex weights with this initial
+    //  graph
+    //
+    cugraph::detail::compute_vertex_sums(current_graph, vertex_weights_v);
+    thrust::copy(vertex_weights_v.begin(), vertex_weights_v.end(), cluster_weights_v.begin());
 
-  //
-  //  Sum the weights of all edges departing a vertex.  This is
-  //  loop invariant, so we'll compute it here.
-  //
-  cugraph::detail::compute_vertex_sums(graph, vertex_weights_v);
+    weight_t new_Q = update_clustering_by_delta_modularity(
+      m2, current_graph, vertex_weights_v, cluster_weights_v, cluster_v, Q_arr_v);
 
-  //
-  //  Cluster weights are equivalent to vertex weights with this initial
-  //  graph
-  //
-  thrust::copy(vertex_weights_v.begin(), vertex_weights_v.end(), cluster_weights_v.begin());
-
-  hr_clock.start();
-
-  //
-  //  Compute modularity of initial clustering
-  //
-  new_Q = modularity<vertex_t, edge_t, weight_t>(
-    m2, current_graph, cluster_v, vertex_weights_v, cluster_weights_v, Q_arr_v);
-
-  hr_clock.stop(&timed);
-  diff_time = timed;
-
-  std::cout << "Initial modularity value: " << new_Q << " runtime: " << (diff_time / 1000)
-            << std::endl;
-
-  weight_t delta_Q = 1;
-
-  do {
-    cur_Q = new_Q;
-    weight_t inner_cur_Q;
-
-    while (delta_Q > 0.0001) {
-      inner_cur_Q = new_Q;
-
-      hr_clock.start();
-
-      // Compute delta modularity for each edges
-      update_each_assignment_by_delta_modularity(
-        m2, current_graph, vertex_weights_v, cluster_weights_v, cluster_v, vertex_ready_v);
-
-      hr_clock.stop(&timed);
-      diff_time = timed;
-      std::cout << "Complete update_cluster_by_delta_modularity  runtime: " << (diff_time / 1000)
-                << std::endl;
-
-#ifdef DEBUG
-      std::cout << "clustering = (";
-      for (int i = 0; i < current_graph.number_of_vertices; ++i) {
-        std::cout << (i == 0 ? "" : ", ") << " " << i << ": " << cluster_v[i];
-      }
-      std::cout << ")" << std::endl;
-#endif
-
-      // FIXME:  make a cluster graph object and pass it around
-      new_Q = modularity<vertex_t, edge_t, weight_t>(
-        m2, current_graph, cluster_v, vertex_weights_v, cluster_weights_v, Q_arr_v);
-
-      delta_Q = new_Q - inner_cur_Q;
-
-      std::cout << "new_Q = " << new_Q << ", delta_Q = " << delta_Q << std::endl;
-    }
-
-    if (new_Q > cur_Q) {
-      //
-      //  Now we're going to renumber the clusters from 0 to (k-1), where k is the number of
-      //  clusters in this level of the dendogram.
-      //
-
-      // TODO:  move this into a function for better scoping
-      //
-      thrust::copy(cluster_v.begin(), cluster_v.end(), tmp_arr_v.begin());
-      thrust::sort(tmp_arr_v.begin(), tmp_arr_v.end());
-      auto tmp_end = thrust::unique(tmp_arr_v.begin(), tmp_arr_v.end());
-
-      vertex_t num_clusters = thrust::distance(tmp_arr_v.begin(), tmp_end);
-
-      cluster_v.resize(num_clusters);
-      tmp_arr_v.resize(num_clusters);
-      cluster_weights_v.resize(num_clusters);
-
-      vertex_t *d_tmp_arr         = tmp_arr_v.data().get();
-      vertex_t *d_cluster_inverse = cluster_inverse_v.data().get();
-      vertex_t *d_cluster         = cluster_v.data().get();
-
-      cudaStream_t stream{0};
-
-      thrust::fill(cluster_inverse_v.begin(), cluster_inverse_v.end(), vertex_t{-1});
-
-      thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                       thrust::make_counting_iterator<vertex_t>(0),
-                       thrust::make_counting_iterator<vertex_t>(num_clusters),
-                       [d_tmp_arr, d_cluster_inverse] __device__(vertex_t i) {
-                         d_cluster_inverse[d_tmp_arr[i]] = i;
-                       });
-
-      thrust::for_each(rmm::exec_policy(stream)->on(stream),
+    //
+    //  If no cluster assignment changed then we're done
+    //
+    vertex_t *d_cluster = cluster_v.data().get();
+    vertex_t count =
+      thrust::count_if(rmm::exec_policy(stream)->on(stream),
                        thrust::make_counting_iterator<vertex_t>(0),
                        thrust::make_counting_iterator<vertex_t>(current_graph.number_of_vertices),
-                       [d_cluster, d_cluster_inverse] __device__(vertex_t i) {
-                         d_cluster[i] = d_cluster_inverse[d_cluster[i]];
-                       });
+                       [d_cluster] __device__(vertex_t v) { return (d_cluster[v] == v); });
 
-      thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                       thrust::make_counting_iterator<vertex_t>(0),
-                       thrust::make_counting_iterator<vertex_t>(current_graph.number_of_vertices),
-                       [cluster_vec, d_cluster] __device__(vertex_t i) {
-                         cluster_vec[i] = d_cluster[cluster_vec[i]];
-                       });
-
-#ifdef DEBUG
-      std::cout << "clustering = (";
-      for (int i = 0; i < current_graph.number_of_vertices; ++i) {
-        std::cout << (i == 0 ? "" : ", ") << " " << i << ": " << cluster_v[i];
-      }
-      std::cout << ")" << std::endl;
-#endif
-
-      // generate super vertices graph
-      generate_superverticies_graph(current_graph, num_clusters, cluster_v);
-
-      //
-      //  Sum the weights of all edges departing a vertex.  This is
-      //  loop invariant, so we'll compute it here.
-      //
-      cugraph::detail::compute_vertex_sums(current_graph, vertex_weights_v);
-
-      //
-      //  Cluster weights are equivalent to vertex weights with this initial
-      //  graph
-      //
-      thrust::copy(vertex_weights_v.begin(), vertex_weights_v.end(), cluster_weights_v.begin());
-
-      thrust::sequence(
-        thrust::cuda::par, cluster_v.begin(), cluster_v.begin() + current_graph.number_of_vertices);
-
-      //
-      //  Check... modularity should not have changed
-      //
-      new_Q = modularity<vertex_t, edge_t, weight_t>(
-        m2, current_graph, cluster_v, vertex_weights_v, cluster_weights_v, Q_arr_v);
-
-      delta_Q = new_Q - cur_Q;
-
-#ifdef DEBUG
-      std::cout << "after creating super vertices, new_Q = " << new_Q << ", delta_Q = " << delta_Q
-                << std::endl;
-
-      std::cout << "new offsets = (";
-      for (int i = 0; i < current_graph.number_of_vertices + 1; ++i) {
-        std::cout << (i == 0 ? "" : ", ") << " " << offsets_v[i];
-      }
-      std::cout << ")" << std::endl;
-
-      std::cout << "new indices = (";
-      for (int i = 0; i < current_graph.number_of_edges; ++i) {
-        std::cout << (i == 0 ? "" : ", ") << " " << indices_v[i];
-      }
-      std::cout << ")" << std::endl;
-
-      std::cout << "new weights = (";
-      for (int i = 0; i < current_graph.number_of_edges; ++i) {
-        std::cout << (i == 0 ? "" : ", ") << " " << weights_v[i];
-      }
-      std::cout << ")" << std::endl;
-
-      std::cout << "vertex weights = (";
-      for (int i = 0; i < current_graph.number_of_vertices; ++i) {
-        std::cout << (i == 0 ? "" : ", ") << " " << vertex_weights_v[i];
-      }
-      std::cout << ")" << std::endl;
-
-      std::cout << "cluster map = (";
-      for (int i = 0; i < current_graph.number_of_vertices; ++i) {
-        std::cout << (i == 0 ? "" : ", ") << " " << cluster_v[i];
-      }
-      std::cout << ")" << std::endl;
-#endif
-
-      best_modularity = new_Q;
+    if (count == current_graph.number_of_vertices) {
+      //  We're no longer improving modularity, exit
+      break;
     }
-  } while (delta_Q > 0.001);
+
+    best_modularity = new_Q;
+
+    // renumber the clusters to the range 0..(num_clusters-1)
+    vertex_t num_clusters = renumber_clusters(
+      graph.number_of_vertices, cluster_v, tmp_arr_v, cluster_inverse_v, cluster_vec, stream);
+    cluster_weights_v.resize(num_clusters);
+
+    // shrink our graph to represent the graph of supervertices
+    generate_superverticies_graph(current_graph, num_clusters, cluster_v, stream);
+
+    // assign each new vertex to its own cluster
+    thrust::sequence(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end());
+  }
 
   *final_modularity = best_modularity;
 }
 
-template void louvain(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int);
-template void louvain(
-  experimental::GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int);
+template void louvain(experimental::GraphCSRView<int32_t, int32_t, float> const &,
+                      float *,
+                      int *,
+                      int32_t *,
+                      int,
+                      cudaStream_t);
+template void louvain(experimental::GraphCSRView<int32_t, int32_t, double> const &,
+                      double *,
+                      int *,
+                      int32_t *,
+                      int,
+                      cudaStream_t);
 
 }  // namespace detail
 }  // namespace cugraph
