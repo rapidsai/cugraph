@@ -51,14 +51,16 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
     if (v) { weight = v[i]; }
     weight = pow(weight, edge_weight_influence);
 
-    float x_dist   = x_pos[src] - x_pos[dst];
-    float y_dist   = y_pos[src] - y_pos[dst];
-    float distance = pow(x_dist, 2) + pow(y_dist, 2);
-    distance += FLT_EPSILON;
-    distance     = sqrt(distance);
+    float x_dist = x_pos[src] - x_pos[dst];
+    float y_dist = y_pos[src] - y_pos[dst];
     float factor = -coef * weight;
 
-    if (lin_log_mode) factor *= log(1 + distance) / distance;
+    if (lin_log_mode) {
+      float distance = pow(x_dist, 2) + pow(y_dist, 2);
+      distance += FLT_EPSILON;
+      distance = sqrt(distance);
+      factor *= log(1 + distance) / distance;
+    }
     if (outbound_attraction_distribution) factor /= mass[src];
 
     // Force computation
