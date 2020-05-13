@@ -75,7 +75,7 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   d_swinging   = swinging.data().get();
   d_traction   = traction.data().get();
 
-  int random_state = -1;
+  int random_state = 0;
   random_vector(pos, n * 2, random_state);
 
   if (x_start && y_start) {

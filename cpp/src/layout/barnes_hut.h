@@ -123,7 +123,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   float *nodes_pos = d_nodes_pos.data().get();
 
   // Initialize positions with random values
-  int random_state = -1;
+  int random_state = 0;
   random_vector(nodes_pos, (nnodes + 1) * 2, random_state);
 
   // Copy start x and y positions.
