@@ -30,6 +30,7 @@
 - PR #859 Updated main docs
 - PR #862 Katz Centrality : Auto calculation of alpha parameter if set to none
 - PR #865 Added C++ docs
+- PR #866 Use RAII graph class in KTruss
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
