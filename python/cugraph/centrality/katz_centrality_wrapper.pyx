@@ -29,32 +29,19 @@ import rmm
 import numpy as np
 
 
-def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
-    """
-    Call katz_centrality
-    """
-    if not input_graph.adjlist:
-        input_graph.view_adj_list()
-
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-
+def get_output_df(input_graph, nstart):
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
-
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-
-    has_guess = False
 
     if nstart is None:
         df['katz_centrality'] = cudf.Series(np.zeros(num_verts, dtype=np.float64))
     else:
-        has_guess = True
         if len(nstart) != num_verts:
             raise ValueError('nstart must have initial guess for all vertices')
 
         nstart = graph_wrapper.datatype_cast([nstart], [np.float64])
-        
+
         if input_graph.renumbered is True:
             renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
                                           index=input_graph.edgelist.renumber_map)
@@ -66,14 +53,24 @@ def katz_centrality(input_graph, alpha=0.1, max_iter=100, tol=1.0e-5, nstart=Non
             df['katz_centrality'] = cudf.Series(cudf._lib.copying.scatter(nstart['values']._column,
                                                 nstart['vertex']._column,
                                                 df['katz_centrality']._column))
+    return df
+
+
+def katz_centrality(input_graph, alpha=None, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
+    """
+    Call katz_centrality
+    """
+
+    df = get_output_df(input_graph, nstart)
+    if nstart is not None:
+        has_guess = True
+    if alpha is None:
+        alpha = 0
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_katz = df['katz_centrality'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
-    
-    cdef GraphCSRView[int,int,float] graph
-    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+
+    cdef GraphCSRViewFloat graph = get_graph_view[GraphCSRViewFloat](input_graph, True)
 
     c_katz_centrality[int,int,float,double](graph, <double*> c_katz, alpha, max_iter, tol, has_guess, normalized)
 
