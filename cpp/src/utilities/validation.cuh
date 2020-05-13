@@ -23,7 +23,6 @@
 
 #include <cudf/types.h>
 #include <thrust/sort.h>
-#include "nvgraph_error_utils.h"
 
 namespace cugraph {
 namespace detail {

@@ -23,8 +23,6 @@
 
 #include <rmm/rmm.h>
 
-#include "nvgraph_error_utils.h"
-
 #include <cudf/types.h>
 
 namespace cugraph {

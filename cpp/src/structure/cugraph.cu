@@ -15,7 +15,6 @@
 
 #include <cugraph.h>
 #include <library_types.h>
-#include <nvgraph/nvgraph.h>
 #include <rmm_utils.h>
 #include <thrust/device_vector.h>
 #include <utilities/validation.cuh>

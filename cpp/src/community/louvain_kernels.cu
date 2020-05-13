@@ -18,7 +18,6 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <nvgraph/include/high_res_clock.h>
 #include <nvgraph/include/util.cuh>
 #include <utilities/cuda_utils.cuh>
 #include <utilities/graph_utils.cuh>

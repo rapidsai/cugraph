@@ -27,7 +27,6 @@
 #include <rmm_utils.h>
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
-#include <utilities/nvgraph_error_utils.h>
 #include <ctime>
 #include <nvgraph/include/nvgraph_error.hxx>
 
