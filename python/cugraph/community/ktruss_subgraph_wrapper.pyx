@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.cores.ktruss_subgraph cimport *
+from cugraph.community.ktruss_subgraph cimport *
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
 from cugraph.utilities.column_utils cimport *

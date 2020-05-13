@@ -64,6 +64,13 @@ Louvain
     :members:
     :undoc-members:
 
+K-Truss
+-------
+
+.. automodule:: cugraph.community.ktruss_subgraph
+    :members:
+    :undoc-members:
+
 ECG
 ---
 
@@ -117,14 +124,6 @@ Core Number
 -----------
 
 .. automodule:: cugraph.cores.core_number
-    :members:
-    :undoc-members:
-
-
-K-Truss
--------
-
-.. automodule:: cugraph.cores.ktruss_subgraph
     :members:
     :undoc-members:
 

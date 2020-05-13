@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.cores import ktruss_subgraph_wrapper
+from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.utilities.unrenumber import unrenumber
 from cugraph.structure.graph import Graph
 
