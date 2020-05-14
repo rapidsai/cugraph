@@ -17,18 +17,18 @@
 #pragma once
 
 #include <cugraph.h>
-#include <internals.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm_utils.h>
 #include <stdio.h>
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
+#include <internals.hpp>
 #include <rmm/device_buffer.hpp>
 #include "utilities/error_utils.h"
 
-#include "exact_repulsion.h"
-#include "fa2_kernels.h"
-#include "utils.h"
+#include "exact_repulsion.hpp"
+#include "fa2_kernels.hpp"
+#include "utils.hpp"
 
 namespace cugraph {
 namespace detail {
@@ -100,7 +100,7 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   float jt                        = 0.f;
 
   if (outbound_attraction_distribution) {
-    int sum                   = thrust::reduce(mass.begin(), mass.end());
+    int sum = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), mass.begin(), mass.end());
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -155,8 +155,10 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                         n);
 
     // Compute global swinging and traction values.
-    const float s = thrust::reduce(swinging.begin(), swinging.end());
-    const float t = thrust::reduce(traction.begin(), traction.end());
+    const float s =
+      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), swinging.begin(), swinging.end());
+    const float t =
+      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), traction.begin(), traction.end());
 
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 

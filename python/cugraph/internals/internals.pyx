@@ -29,7 +29,7 @@ cdef extern from "Python.h":
     cdef cppclass PyObject
 
 
-cdef extern from "callbacks_implems.h" namespace "cugraph::internals":
+cdef extern from "callbacks_implems.hpp" namespace "cugraph::internals":
     cdef cppclass Callback:
         pass
 

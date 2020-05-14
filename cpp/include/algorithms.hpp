@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <internals.h>
 #include <graph.hpp>
+#include <internals.hpp>
 
 namespace cugraph {
 

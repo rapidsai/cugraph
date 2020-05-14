@@ -17,19 +17,19 @@
 #pragma once
 
 #include <cugraph.h>
-#include <internals.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm_utils.h>
 #include <stdio.h>
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
+#include <internals.hpp>
 #include <rmm/device_buffer.hpp>
 
-#include "bh_kernels.h"
-#include "fa2_kernels.h"
+#include "bh_kernels.hpp"
+#include "fa2_kernels.hpp"
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
-#include "utils.h"
+#include "utils.hpp"
 
 namespace cugraph {
 namespace detail {
@@ -167,7 +167,8 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
 
   // If outboundAttractionDistribution active, compensate.
   if (outbound_attraction_distribution) {
-    int sum                   = thrust::reduce(d_massl.begin(), d_massl.begin() + n);
+    int sum =
+      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), d_massl.begin(), d_massl.begin() + n);
     outbound_att_compensation = sum / (float)n;
   }
 

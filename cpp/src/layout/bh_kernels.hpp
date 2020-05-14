@@ -35,7 +35,6 @@
 
 #include <float.h>
 #include <math.h>
-#include "utils.h"
 
 namespace cugraph {
 namespace detail {

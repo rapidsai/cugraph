@@ -32,7 +32,7 @@ import rmm
 import numpy as np
 import numpy.ctypeslib as ctypeslib
 
-cdef extern from "internals.h" namespace "cugraph::internals":
+cdef extern from "internals.hpp" namespace "cugraph::internals":
     cdef cppclass GraphBasedDimRedCallback
 
 

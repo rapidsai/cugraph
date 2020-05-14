@@ -86,10 +86,8 @@ void apply_attraction(const vertex_t *restrict row,
                       const float edge_weight_influence,
                       const float coef)
 {
-
-// 0 edge graph.
- if (!e)
-     return;
+  // 0 edge graph.
+  if (!e) return;
 
   dim3 nthreads, nblocks;
   nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);

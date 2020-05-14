@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "barnes_hut.h"
-#include "exact_fa2.h"
+#include "barnes_hut.hpp"
+#include "exact_fa2.hpp"
 
 namespace cugraph {
 
