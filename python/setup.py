@@ -78,6 +78,7 @@ class CleanCommand(Command):
         os.system('find . -name "*.cpp" -type f -delete')
         os.system('find . -name "*.cpython*.so" -type f -delete')
 
+
 cmdclass = dict()
 cmdclass.update(versioneer.get_cmdclass())
 cmdclass["build_ext"] = build_ext
