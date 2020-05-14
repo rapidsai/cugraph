@@ -150,14 +150,14 @@ def _filter_list(vert_list, drop_list):
     return df
 
 
-def _compress_array(a, l):
+def _compress_array(a, length):
 
     tmp = cudf.DataFrame()
 
-    if l > 0:
-        tmp_a = [None] * l
+    if length > 0:
+        tmp_a = [None] * length
 
-        for i in range(l):
+        for i in range(length):
             tmp_a[i] = a[i]
 
         tmp = cudf.concat(tmp_a)
