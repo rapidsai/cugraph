@@ -29,41 +29,36 @@ enum BFS_ALGO_STATE { TOPDOWN, BOTTOMUP };
 template <typename IndexType>
 void BFS<IndexType>::setup()
 {
-  // --- Initialize some of the parameters ---
   // Determinism flag, false by default
-  deterministic = false;  // FIXME: It is currently not used
+  deterministic = false;
   // Working data
   // Each vertex can be in the frontier at most once
-  frontier_vec.resize(number_of_vertices);
-  frontier = frontier_vec.data().get();
+  ALLOC_TRY(&frontier, n * sizeof(IndexType), nullptr);
+
   // We will update frontier during the execution
   // We need the orig to reset frontier, or ALLOC_FREE_TRY
   original_frontier = frontier;
 
   // size of bitmaps for vertices
-  vertices_bmap_size = (number_of_vertices / (8 * sizeof(int)) + 1);
+  vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
   // ith bit of visited_bmap is set <=> ith vertex is visited
-  visited_bmap_vec.resize(vertices_bmap_size);
-  visited_bmap = visited_bmap_vec.data().get();
+
+  ALLOC_TRY(&visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
   // ith bit of isolated_bmap is set <=> degree of ith vertex = 0
-  isolated_bmap_vec.resize(vertices_bmap_size);
-  isolated_bmap = isolated_bmap_vec.data().get();
+  ALLOC_TRY(&isolated_bmap, sizeof(int) * vertices_bmap_size, nullptr);
+
   // vertices_degree[i] = degree of vertex i
-  vertex_degree_vec.resize(number_of_vertices);
-  vertex_degree = vertex_degree_vec.data().get();
+  ALLOC_TRY(&vertex_degree, sizeof(IndexType) * n, nullptr);
 
   // Cub working data
-  // NOTE: This operates a memory allocation, that we need to free in `clean`
   traversal::cub_exclusive_sum_alloc(
-    number_of_vertices + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
+    n + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
 
   // We will need (n+1) ints buffer for two differents things (bottom up or top down) - sharing it
   // since those uses are mutually exclusive
-  buffer_np1_1_vec.resize(number_of_vertices + 1);
-  buffer_np1_1 = buffer_np1_1_vec.data().get();
-  buffer_np1_2_vec.resize(number_of_vertices + 1);
-  buffer_np1_2 = buffer_np1_2_vec.data().get();
+  ALLOC_TRY(&buffer_np1_1, (n + 1) * sizeof(IndexType), nullptr);
+  ALLOC_TRY(&buffer_np1_2, (n + 1) * sizeof(IndexType), nullptr);
 
   // Using buffers : top down
 
@@ -84,21 +79,18 @@ void BFS<IndexType>::setup()
   // here
   left_unvisited_queue = buffer_np1_2;
 
-  // We use buckets of edges (32 edges per bucket for now, see exact macro in
-  // bfs_kernels). frontier_vertex_degree_buckets_offsets[i] is the index k such
-  // as frontier[k] is the source of the first edge of the bucket See top down
-  // kernels for more details
-  exclusive_sum_frontier_vertex_buckets_offsets_vec.resize(
-    ((number_of_edges / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2));
-  exclusive_sum_frontier_vertex_buckets_offsets =
-    exclusive_sum_frontier_vertex_buckets_offsets_vec.data().get();
+  // We use buckets of edges (32 edges per bucket for now, see exact macro in bfs_kernels).
+  // frontier_vertex_degree_buckets_offsets[i] is the index k such as frontier[k] is the source of
+  // the first edge of the bucket See top down kernels for more details
+  ALLOC_TRY(&exclusive_sum_frontier_vertex_buckets_offsets,
+            ((nnz / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType),
+            nullptr);
 
   // Init device-side counters
   // Those counters must be/can be reset at each bfs iteration
   // Keeping them adjacent in memory allow use call only one cudaMemset - launch latency is the
   // current bottleneck
-  d_counters_pad_vec.resize(4);
-  d_counters_pad = d_counters_pad_vec.data().get();
+  ALLOC_TRY(&d_counters_pad, 4 * sizeof(IndexType), nullptr);
 
   d_new_frontier_cnt   = &d_counters_pad[0];
   d_mu                 = &d_counters_pad[1];
@@ -109,17 +101,16 @@ void BFS<IndexType>::setup()
   // Its dereferenced value is not initialized - so we dont care about what we
   // put in it
   IndexType *d_nisolated = d_new_frontier_cnt;
-  CUDA_TRY(cudaMemsetAsync(d_nisolated, 0, sizeof(IndexType), stream));
+  cudaMemsetAsync(d_nisolated, 0, sizeof(IndexType), stream);
 
-  // --- Computing isolated_bmap ---
+  // Computing isolated_bmap
   // Only dependent on graph - not source vertex - done once
   traversal::flag_isolated_vertices(
-    number_of_vertices, isolated_bmap, row_offsets, vertex_degree, d_nisolated, stream);
-  CUDA_TRY(
-    cudaMemcpyAsync(&nisolated, d_nisolated, sizeof(IndexType), cudaMemcpyDeviceToHost, stream));
+    n, isolated_bmap, row_offsets, vertex_degree, d_nisolated, stream);
+  cudaMemcpyAsync(&nisolated, d_nisolated, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
 
   // We need nisolated to be ready to use
-  CUDA_TRY(cudaStreamSynchronize(stream));
+  cudaStreamSynchronize(stream);
 }
 
 template <typename IndexType>
@@ -138,16 +129,10 @@ void BFS<IndexType>::configure(IndexType *_distances,
   computePredecessors = (predecessors != NULL);
 
   // We need distances to use bottom up
-  if (directed && !computeDistances) {
-    distances_vec.resize(number_of_vertices);
-    distances = distances_vec.data().get();
-  }
+  if (directed && !computeDistances) ALLOC_TRY(&distances, n * sizeof(IndexType), nullptr);
 
   // In case the shortest path counters is required, previous_bmap has to be allocated
-  if (sp_counters) {
-    previous_visited_bmap_vec.resize(vertices_bmap_size);
-    previous_visited_bmap = previous_visited_bmap_vec.data().get();
-  }
+  if (sp_counters) { ALLOC_TRY(&previous_visited_bmap, sizeof(int) * vertices_bmap_size, nullptr); }
 }
 
 template <typename IndexType>
@@ -161,34 +146,28 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   // more than that for wiki and twitter graphs
 
   if (directed) {
-    CUDA_TRY(cudaMemsetAsync(visited_bmap, 0, vertices_bmap_size * sizeof(int), stream));
+    cudaMemsetAsync(visited_bmap, 0, vertices_bmap_size * sizeof(int), stream);
   } else {
-    CUDA_TRY(cudaMemcpyAsync(visited_bmap,
-                             isolated_bmap,
-                             vertices_bmap_size * sizeof(int),
-                             cudaMemcpyDeviceToDevice,
-                             stream));
+    cudaMemcpyAsync(visited_bmap,
+                    isolated_bmap,
+                    vertices_bmap_size * sizeof(int),
+                    cudaMemcpyDeviceToDevice,
+                    stream);
   }
 
   // If needed, setting all vertices as undiscovered (inf distance)
   // We dont use computeDistances here
   // if the graph is undirected, we may need distances even if
   // computeDistances is false
-  if (distances) {
-    traversal::fill_vec(distances, number_of_vertices, traversal::vec_t<IndexType>::max, stream);
-    CUDA_CHECK_LAST();
-  }
+  if (distances) traversal::fill_vec(distances, n, traversal::vec_t<IndexType>::max, stream);
 
   // If needed, setting all predecessors to non-existent (-1)
-  if (computePredecessors) {
-    CUDA_TRY(cudaMemsetAsync(predecessors, -1, number_of_vertices * sizeof(IndexType), stream));
-  }
+  if (computePredecessors) { cudaMemsetAsync(predecessors, -1, n * sizeof(IndexType), stream); }
 
   if (sp_counters) {
-    CUDA_TRY(cudaMemsetAsync(sp_counters, 0, number_of_vertices * sizeof(double), stream));
+    cudaMemsetAsync(sp_counters, 0, n * sizeof(double), stream);
     double value = 1;
-    CUDA_TRY(
-      cudaMemcpyAsync(sp_counters + source_vertex, &value, sizeof(double), cudaMemcpyHostToDevice));
+    cudaMemcpyAsync(sp_counters + source_vertex, &value, sizeof(double), cudaMemcpyHostToDevice);
   }
 
   //
@@ -197,9 +176,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
 
   frontier = original_frontier;
 
-  if (distances) {
-    CUDA_TRY(cudaMemsetAsync(&distances[source_vertex], 0, sizeof(IndexType), stream));
-  }
+  if (distances) { cudaMemsetAsync(&distances[source_vertex], 0, sizeof(IndexType), stream); }
 
   // Setting source_vertex as visited
   // There may be bit already set on that bmap (isolated vertices) - if the
@@ -207,12 +184,12 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   int current_visited_bmap_source_vert = 0;
 
   if (!directed) {
-    CUDA_TRY(cudaMemcpyAsync(&current_visited_bmap_source_vert,
-                             &visited_bmap[source_vertex / INT_SIZE],
-                             sizeof(int),
-                             cudaMemcpyDeviceToHost));
+    cudaMemcpyAsync(&current_visited_bmap_source_vert,
+                    &visited_bmap[source_vertex / INT_SIZE],
+                    sizeof(int),
+                    cudaMemcpyDeviceToHost);
     // We need current_visited_bmap_source_vert
-    CUDA_TRY(cudaStreamSynchronize(stream));
+    cudaStreamSynchronize(stream);
   }
 
   int m = (1 << (source_vertex % INT_SIZE));
@@ -225,12 +202,11 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
 
   m |= current_visited_bmap_source_vert;
 
-  CUDA_TRY(cudaMemcpyAsync(
-    &visited_bmap[source_vertex / INT_SIZE], &m, sizeof(int), cudaMemcpyHostToDevice, stream));
+  cudaMemcpyAsync(
+    &visited_bmap[source_vertex / INT_SIZE], &m, sizeof(int), cudaMemcpyHostToDevice, stream);
 
   // Adding source_vertex to init frontier
-  CUDA_TRY(cudaMemcpyAsync(
-    &frontier[0], &source_vertex, sizeof(IndexType), cudaMemcpyHostToDevice, stream));
+  cudaMemcpyAsync(&frontier[0], &source_vertex, sizeof(IndexType), cudaMemcpyHostToDevice, stream);
 
   // mf : edges in frontier
   // nf : vertices in frontier
@@ -245,37 +221,35 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   nf = 1;
 
   // all edges are undiscovered (by def isolated vertices have 0 edges)
-  mu = number_of_edges;
+  mu = nnz;
 
   // all non isolated vertices are undiscovered (excepted source vertex, which is in frontier)
   // That number is wrong if source_vertex is also isolated - but it's not important
-  nu = number_of_vertices - nisolated - nf;
+  nu = n - nisolated - nf;
 
   // Last frontier was 0, now it is 1
   growing = true;
 
-  IndexType size_last_left_unvisited_queue = number_of_vertices;  // we just need value > 0
-  IndexType size_last_unvisited_queue      = 0;                   // queue empty
+  IndexType size_last_left_unvisited_queue = n;  // we just need value > 0
+  IndexType size_last_unvisited_queue      = 0;  // queue empty
 
   // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
   traversal::set_frontier_degree(frontier_vertex_degree, frontier, vertex_degree, nf, stream);
-  CUDA_CHECK_LAST();
   traversal::exclusive_sum(d_cub_exclusive_sum_storage,
                            cub_exclusive_sum_storage_bytes,
                            frontier_vertex_degree,
                            exclusive_sum_frontier_vertex_degree,
                            nf + 1,
                            stream);
-  CUDA_CHECK_LAST();
 
-  CUDA_TRY(cudaMemcpyAsync(&mf,
-                           &exclusive_sum_frontier_vertex_degree[nf],
-                           sizeof(IndexType),
-                           cudaMemcpyDeviceToHost,
-                           stream));
+  cudaMemcpyAsync(&mf,
+                  &exclusive_sum_frontier_vertex_degree[nf],
+                  sizeof(IndexType),
+                  cudaMemcpyDeviceToHost,
+                  stream);
 
   // We need mf
-  CUDA_TRY(cudaStreamSynchronize(stream));
+  cudaStreamSynchronize(stream);
 
   // At first we know we have to use top down
   BFS_ALGO_STATE algo_state = TOPDOWN;
@@ -301,7 +275,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
           if (mf > mu / alpha) algo_state = BOTTOMUP;
           break;
         case BOTTOMUP:
-          if (!growing && nf < number_of_vertices / beta) {
+          if (!growing && nf < n / beta) {
             // We need to prepare the switch back to top down
             // We couldnt keep track of mu during bottom up - because we dont know what mf is.
             // Computing mu here
@@ -311,30 +285,27 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                                vertex_degree,
                                                d_mu,
                                                stream);
-            CUDA_CHECK_LAST();
 
             // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
             traversal::set_frontier_degree(
               frontier_vertex_degree, frontier, vertex_degree, nf, stream);
-            CUDA_CHECK_LAST();
             traversal::exclusive_sum(d_cub_exclusive_sum_storage,
                                      cub_exclusive_sum_storage_bytes,
                                      frontier_vertex_degree,
                                      exclusive_sum_frontier_vertex_degree,
                                      nf + 1,
                                      stream);
-            CUDA_CHECK_LAST();
 
-            CUDA_TRY(cudaMemcpyAsync(&mf,
-                                     &exclusive_sum_frontier_vertex_degree[nf],
-                                     sizeof(IndexType),
-                                     cudaMemcpyDeviceToHost,
-                                     stream));
+            cudaMemcpyAsync(&mf,
+                            &exclusive_sum_frontier_vertex_degree[nf],
+                            sizeof(IndexType),
+                            cudaMemcpyDeviceToHost,
+                            stream);
 
-            CUDA_TRY(cudaMemcpyAsync(&mu, d_mu, sizeof(IndexType), cudaMemcpyDeviceToHost, stream));
+            cudaMemcpyAsync(&mu, d_mu, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
 
             // We will need mf and mu
-            CUDA_TRY(cudaStreamSynchronize(stream));
+            cudaStreamSynchronize(stream);
             algo_state = TOPDOWN;
           }
           break;
@@ -347,20 +318,19 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
       case TOPDOWN:
         // This step is only required if sp_counters is not nullptr
         if (sp_counters) {
-          CUDA_TRY(cudaMemcpyAsync(previous_visited_bmap,
-                                   visited_bmap,
-                                   vertices_bmap_size * sizeof(int),
-                                   cudaMemcpyDeviceToDevice,
-                                   stream));
+          cudaMemcpyAsync(previous_visited_bmap,
+                          visited_bmap,
+                          vertices_bmap_size * sizeof(int),
+                          cudaMemcpyDeviceToDevice,
+                          stream);
           // We need to copy the visited_bmap before doing the traversal
-          CUDA_TRY(cudaStreamSynchronize(stream));
+          cudaStreamSynchronize(stream);
         }
         traversal::compute_bucket_offsets(exclusive_sum_frontier_vertex_degree,
                                           exclusive_sum_frontier_vertex_buckets_offsets,
                                           nf,
                                           mf,
                                           stream);
-        CUDA_CHECK_LAST();
         bfs_kernels::frontier_expand(row_offsets,
                                      col_indices,
                                      frontier,
@@ -381,48 +351,44 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                      directed,
                                      stream,
                                      deterministic);
-        CUDA_CHECK_LAST();
 
         mu -= mf;
 
-        CUDA_TRY(cudaMemcpyAsync(
-          &nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream));
+        cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
+        CUDA_CHECK_LAST();
 
         // We need nf
-        CUDA_TRY(cudaStreamSynchronize(stream));
+        cudaStreamSynchronize(stream);
 
         if (nf) {
           // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
           traversal::set_frontier_degree(
             frontier_vertex_degree, new_frontier, vertex_degree, nf, stream);
-          CUDA_CHECK_LAST();
           traversal::exclusive_sum(d_cub_exclusive_sum_storage,
                                    cub_exclusive_sum_storage_bytes,
                                    frontier_vertex_degree,
                                    exclusive_sum_frontier_vertex_degree,
                                    nf + 1,
                                    stream);
-          CUDA_CHECK_LAST();
-          CUDA_TRY(cudaMemcpyAsync(&mf,
-                                   &exclusive_sum_frontier_vertex_degree[nf],
-                                   sizeof(IndexType),
-                                   cudaMemcpyDeviceToHost,
-                                   stream));
+          cudaMemcpyAsync(&mf,
+                          &exclusive_sum_frontier_vertex_degree[nf],
+                          sizeof(IndexType),
+                          cudaMemcpyDeviceToHost,
+                          stream);
 
           // We need mf
-          CUDA_TRY(cudaStreamSynchronize(stream));
+          cudaStreamSynchronize(stream);
         }
         break;
 
       case BOTTOMUP:
         bfs_kernels::fill_unvisited_queue(visited_bmap,
                                           vertices_bmap_size,
-                                          number_of_vertices,
+                                          n,
                                           unvisited_queue,
                                           d_unvisited_cnt,
                                           stream,
                                           deterministic);
-        CUDA_CHECK_LAST();
 
         size_last_unvisited_queue = nu;
 
@@ -441,18 +407,18 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                     edge_mask,
                                     stream,
                                     deterministic);
-        CUDA_CHECK_LAST();
 
         // The number of vertices left unvisited decreases
         // If it wasnt necessary last time, it wont be this time
         if (size_last_left_unvisited_queue) {
-          CUDA_TRY(cudaMemcpyAsync(&size_last_left_unvisited_queue,
-                                   d_left_unvisited_cnt,
-                                   sizeof(IndexType),
-                                   cudaMemcpyDeviceToHost,
-                                   stream));
+          cudaMemcpyAsync(&size_last_left_unvisited_queue,
+                          d_left_unvisited_cnt,
+                          sizeof(IndexType),
+                          cudaMemcpyDeviceToHost,
+                          stream);
+          CUDA_CHECK_LAST()
           // We need last_left_unvisited_size
-          CUDA_TRY(cudaStreamSynchronize(stream));
+          cudaStreamSynchronize(stream);
           bfs_kernels::bottom_up_large(left_unvisited_queue,
                                        size_last_left_unvisited_queue,
                                        visited_bmap,
@@ -466,13 +432,12 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                        edge_mask,
                                        stream,
                                        deterministic);
-          CUDA_CHECK_LAST();
         }
-        CUDA_TRY(cudaMemcpyAsync(
-          &nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream));
+        cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
+        CUDA_CHECK_LAST()
 
         // We will need nf
-        CUDA_TRY(cudaStreamSynchronize(stream));
+        cudaStreamSynchronize(stream);
         break;
     }
 
@@ -490,15 +455,28 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
 template <typename IndexType>
 void BFS<IndexType>::resetDevicePointers()
 {
-  CUDA_TRY(cudaMemsetAsync(d_counters_pad, 0, 4 * sizeof(IndexType), stream));
+  cudaMemsetAsync(d_counters_pad, 0, 4 * sizeof(IndexType), stream);
 }
 
 template <typename IndexType>
 void BFS<IndexType>::clean()
 {
   // the vectors have a destructor that takes care of cleaning
-  // But we still need to deallocate what cub allocated
+  ALLOC_FREE_TRY(original_frontier, nullptr);
+  ALLOC_FREE_TRY(visited_bmap, nullptr);
+  ALLOC_FREE_TRY(isolated_bmap, nullptr);
+  ALLOC_FREE_TRY(vertex_degree, nullptr);
   ALLOC_FREE_TRY(d_cub_exclusive_sum_storage, nullptr);
+  ALLOC_FREE_TRY(buffer_np1_1, nullptr);
+  ALLOC_FREE_TRY(buffer_np1_2, nullptr);
+  ALLOC_FREE_TRY(exclusive_sum_frontier_vertex_buckets_offsets, nullptr);
+  ALLOC_FREE_TRY(d_counters_pad, nullptr);
+
+  // In that case, distances is a working data
+  if (directed && !computeDistances) ALLOC_FREE_TRY(distances, nullptr);
+
+  // In that  case, previous_visited_bmap has been allocated
+  if (sp_counters) { ALLOC_FREE_TRY(previous_visited_bmap, nullptr); }
 }
 
 template class BFS<int>;
