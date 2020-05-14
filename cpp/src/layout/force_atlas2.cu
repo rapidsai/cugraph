@@ -38,7 +38,8 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
                   bool verbose,
                   internals::GraphBasedDimRedCallback *callback)
 {
-  CUGRAPH_EXPECTS(pos != nullptr, "Invid API parameter: pos array should be of size 2 * V");
+  CUGRAPH_EXPECTS(pos != nullptr, "Invalid API parameter: pos array should be of size 2 * V");
+  CUGRAPH_EXPECTS(graph.number_of_vertices != 0, "Invalid input: Graph is empty");
 
   if (!barnes_hut_optimize) {
     cugraph::detail::exact_fa2<VT, ET, WT>(graph,
