@@ -32,94 +32,86 @@ void BFS<IndexType>::setup()
   // --- Initialize some of the parameters ---
   // Determinism flag, false by default
   deterministic = false;  // FIXME: It is currently not used
-
-  // size of bitmaps for vertices
-  vertices_bmap_size = (number_of_vertices / (8 * sizeof(int)) + 1);
-
-  exclusive_sum_frontier_vertex_buckets_offsets_size =
-    ((number_of_edges / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2);
-
-  d_counters_pad_size = 4;
-
-  // --- Resize device vectors before computation ---
   // Working data
   // Each vertex can be in the frontier at most once
   frontier_vec.resize(number_of_vertices);
+  frontier = frontier_vec.data().get();
+  // We will update frontier during the execution
+  // We need the orig to reset frontier, or ALLOC_FREE_TRY
+  original_frontier = frontier;
 
+  // size of bitmaps for vertices
+  vertices_bmap_size = (number_of_vertices / (8 * sizeof(int)) + 1);
   // ith bit of visited_bmap is set <=> ith vertex is visited
   visited_bmap_vec.resize(vertices_bmap_size);
+  visited_bmap = visited_bmap_vec.data().get();
 
   // ith bit of isolated_bmap is set <=> degree of ith vertex = 0
   isolated_bmap_vec.resize(vertices_bmap_size);
-
+  isolated_bmap = isolated_bmap_vec.data().get();
   // vertices_degree[i] = degree of vertex i
   vertex_degree_vec.resize(number_of_vertices);
+  vertex_degree = vertex_degree_vec.data().get();
+
+  // Cub working data
+  // NOTE: This operates a memory allocation, that we need to free in `clean`
+  traversal::cub_exclusive_sum_alloc(
+    number_of_vertices + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
 
   // We will need (n+1) ints buffer for two differents things (bottom up or top down) - sharing it
   // since those uses are mutually exclusive
   buffer_np1_1_vec.resize(number_of_vertices + 1);
+  buffer_np1_1 = buffer_np1_1_vec.data().get();
   buffer_np1_2_vec.resize(number_of_vertices + 1);
+  buffer_np1_2 = buffer_np1_2_vec.data().get();
 
-  // We use buckets of edges (32 edges per bucket for now, see exact macro in bfs_kernels).
-  // frontier_vertex_degree_buckets_offsets[i] is the index k such as frontier[k] is the source of
-  // the first edge of the bucket See top down kernels for more details
+  // Using buffers : top down
+
+  // frontier_vertex_degree[i] is the degree of vertex frontier[i]
+  frontier_vertex_degree = buffer_np1_1;
+  // exclusive sum of frontier_vertex_degree
+  exclusive_sum_frontier_vertex_degree = buffer_np1_2;
+
+  // Using buffers : bottom up
+  // contains list of unvisited vertices
+  unvisited_queue = buffer_np1_1;
+  // size of the "last" unvisited queue : size_last_unvisited_queue
+  // refers to the size of unvisited_queue
+  // which may not be up to date (the queue may contains vertices that are now
+  // visited)
+
+  // We may leave vertices unvisited after bottom up main kernels - storing them
+  // here
+  left_unvisited_queue = buffer_np1_2;
+
+  // We use buckets of edges (32 edges per bucket for now, see exact macro in
+  // bfs_kernels). frontier_vertex_degree_buckets_offsets[i] is the index k such
+  // as frontier[k] is the source of the first edge of the bucket See top down
+  // kernels for more details
   exclusive_sum_frontier_vertex_buckets_offsets_vec.resize(
-    exclusive_sum_frontier_vertex_buckets_offsets_size);
+    ((number_of_edges / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2));
+  exclusive_sum_frontier_vertex_buckets_offsets =
+    exclusive_sum_frontier_vertex_buckets_offsets_vec.data().get();
 
   // Init device-side counters
   // Those counters must be/can be reset at each bfs iteration
   // Keeping them adjacent in memory allow use call only one cudaMemset - launch latency is the
   // current bottleneck
-  d_counters_pad_vec.resize(d_counters_pad_size);
-
-  // --- Cub related work ---
-  // NOTE: This operates a memory allocation, that we need to free in `clean`
-  traversal::cub_exclusive_sum_alloc(
-    number_of_vertices + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
-
-  // --- Associate pointers to vectors ---
-  frontier       = frontier_vec.data().get();
-  visited_bmap   = visited_bmap_vec.data().get();
-  isolated_bmap  = isolated_bmap_vec.data().get();
-  vertex_degree  = vertex_degree_vec.data().get();
+  d_counters_pad_vec.resize(4);
   d_counters_pad = d_counters_pad_vec.data().get();
-  buffer_np1_1   = buffer_np1_1_vec.data().get();
-  buffer_np1_2   = buffer_np1_2_vec.data().get();
-  exclusive_sum_frontier_vertex_buckets_offsets =
-    exclusive_sum_frontier_vertex_buckets_offsets_vec.data().get();
-
-  // --- Associate pointers ---
-  // We will update frontier during the execution
-  // We need the orig to reset frontier, or ALLOC_FREE_TRY
-  original_frontier = frontier;
 
   d_new_frontier_cnt   = &d_counters_pad[0];
   d_mu                 = &d_counters_pad[1];
   d_unvisited_cnt      = &d_counters_pad[2];
   d_left_unvisited_cnt = &d_counters_pad[3];
 
-  // --- Using buffer:  top down ---
-  // frontier_vertex_degree[i] is the degree of vertex frontier[i]
-  frontier_vertex_degree = buffer_np1_1;
-  // exclusive sum of frontier_vertex_degree
-  exclusive_sum_frontier_vertex_degree = buffer_np1_2;
-
-  // --- Using buffers : bottom up ---
-  // contains list of unvisited vertices
-  unvisited_queue = buffer_np1_1;
-  // size of the "last" unvisited queue : size_last_unvisited_queue
-  // refers to the size of unvisited_queue
-  // which may not be up to date (the queue may contains vertices that are now visited)
-
-  // We may leave vertices unvisited after bottom up main kernels - storing them here
-  left_unvisited_queue = buffer_np1_2;
-
-  // --- Computing isolated_bmap ---
   // Lets use this int* for the next 3 lines
-  // Its dereferenced value is not initialized - so we dont care about what we put in it
+  // Its dereferenced value is not initialized - so we dont care about what we
+  // put in it
   IndexType *d_nisolated = d_new_frontier_cnt;
   CUDA_TRY(cudaMemsetAsync(d_nisolated, 0, sizeof(IndexType), stream));
 
+  // --- Computing isolated_bmap ---
   // Only dependent on graph - not source vertex - done once
   traversal::flag_isolated_vertices(
     number_of_vertices, isolated_bmap, row_offsets, vertex_degree, d_nisolated, stream);
@@ -210,7 +202,8 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   }
 
   // Setting source_vertex as visited
-  // There may be bit already set on that bmap (isolated vertices) - if the graph is undirected
+  // There may be bit already set on that bmap (isolated vertices) - if the
+  // graph is undirected
   int current_visited_bmap_source_vert = 0;
 
   if (!directed) {
