@@ -291,7 +291,6 @@ link_directories(
 
 add_library(cugraph SHARED
     src/comms/mpi/comms_mpi.cpp
-    src/ktruss/ktruss.cu
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
@@ -306,6 +305,7 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
+    src/community/ktruss.cu
     src/community/louvain.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu

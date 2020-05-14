@@ -36,17 +36,14 @@ namespace cugraph {
 namespace detail {
 
 template <typename VT, typename ET, typename WT>
-void ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
-                          int k,
-                          experimental::GraphCOOView<VT, ET, WT> &output_graph)
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   using HornetGraph = hornet::gpu::Hornet<VT>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::EMPTY, hornet::DeviceType::DEVICE>;
   using Update      = hornet::gpu::BatchUpdate<VT>;
-  VT *src           = const_cast<VT *>(graph.src_indices);
-  VT *dst           = const_cast<VT *>(graph.dst_indices);
   cudaStream_t stream{nullptr};
-  UpdatePtr ptr(graph.number_of_edges, src, dst);
+  UpdatePtr ptr(graph.number_of_edges, graph.src_indices, graph.dst_indices);
   Update batch(ptr);
 
   HornetGraph hnt(graph.number_of_vertices + 1);
@@ -71,37 +68,25 @@ void ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
   kt.runForK(k);
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
-  ET subgraph_edge_count = kt.getGraphEdgeCount();
+  auto out_graph = std::make_unique<experimental::GraphCOO<VT, ET, WT>>(
+    graph.number_of_vertices, kt.getGraphEdgeCount(), graph.has_data(), stream, mr);
 
-  VT *out_src;
-  VT *out_dst;
-  ALLOC_TRY((void **)&out_src, sizeof(VT) * subgraph_edge_count, stream);
-  ALLOC_TRY((void **)&out_dst, sizeof(VT) * subgraph_edge_count, stream);
+  kt.copyGraph(out_graph->src_indices(), out_graph->dst_indices());
 
-  kt.copyGraph(out_src, out_dst);
-
-  experimental::GraphCOOView<VT, ET, WT> subgraph(
-    out_src, out_dst, nullptr, graph.number_of_vertices, subgraph_edge_count);
-
-  output_graph               = subgraph;
-  output_graph.prop.directed = true;
   kt.release();
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
-}
 
+  return out_graph;
+}
 template <typename VT, typename ET, typename WT>
-void weighted_ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const &graph,
-                                   int k,
-                                   experimental::GraphCOOView<VT, ET, WT> &output_graph)
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   using HornetGraph = hornet::gpu::Hornet<VT, hornet::EMPTY, hornet::TypeList<WT>>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::TypeList<WT>, hornet::DeviceType::DEVICE>;
   using Update      = hornet::gpu::BatchUpdate<VT, hornet::TypeList<WT>>;
-  VT *src           = const_cast<VT *>(graph.src_indices);
-  VT *dst           = const_cast<VT *>(graph.dst_indices);
-  WT *wgt           = const_cast<WT *>(graph.edge_data);
   cudaStream_t stream{nullptr};
-  UpdatePtr ptr(graph.number_of_edges, src, dst, wgt);
+  UpdatePtr ptr(graph.number_of_edges, graph.src_indices, graph.dst_indices, graph.edge_data);
   Update batch(ptr);
 
   HornetGraph hnt(graph.number_of_vertices + 1);
@@ -126,50 +111,41 @@ void weighted_ktruss_subgraph_impl(experimental::GraphCOOView<VT, ET, WT> const 
   kt.runForK(k);
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
-  ET subgraph_edge_count = kt.getGraphEdgeCount();
+  auto out_graph = std::make_unique<experimental::GraphCOO<VT, ET, WT>>(
+    graph.number_of_vertices, kt.getGraphEdgeCount(), graph.has_data(), stream, mr);
 
-  VT *out_src;
-  VT *out_dst;
-  WT *out_wgt;
-  ALLOC_TRY((void **)&out_src, sizeof(VT) * subgraph_edge_count, stream);
-  ALLOC_TRY((void **)&out_dst, sizeof(VT) * subgraph_edge_count, stream);
-  ALLOC_TRY((void **)&out_wgt, sizeof(WT) * subgraph_edge_count, stream);
+  kt.copyGraph(out_graph->src_indices(), out_graph->dst_indices(), out_graph->edge_data());
 
-  kt.copyGraph(out_src, out_dst, out_wgt);
-
-  experimental::GraphCOOView<VT, ET, WT> subgraph(
-    out_src, out_dst, out_wgt, graph.number_of_vertices, subgraph_edge_count);
-
-  output_graph               = subgraph;
-  output_graph.prop.directed = true;
   kt.release();
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to release");
+
+  return out_graph;
 }
 
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void k_truss_subgraph(experimental::GraphCOOView<VT, ET, WT> const &graph,
-                      int k,
-                      experimental::GraphCOOView<VT, ET, WT> &output_graph)
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   CUGRAPH_EXPECTS(graph.src_indices != nullptr, "Graph source indices cannot be a nullptr");
   CUGRAPH_EXPECTS(graph.dst_indices != nullptr, "Graph destination indices cannot be a nullptr");
 
   if (graph.edge_data == nullptr) {
-    detail::ktruss_subgraph_impl(graph, k, output_graph);
+    return detail::ktruss_subgraph_impl(graph, k, mr);
   } else {
-    detail::weighted_ktruss_subgraph_impl(graph, k, output_graph);
+    return detail::weighted_ktruss_subgraph_impl(graph, k, mr);
   }
 }
 
-template void k_truss_subgraph<int, int, float>(
-  experimental::GraphCOOView<int, int, float> const &graph,
-  int k,
-  experimental::GraphCOOView<int, int, float> &output_graph);
-template void k_truss_subgraph<int, int, double>(
-  experimental::GraphCOOView<int, int, double> const &graph,
-  int k,
-  experimental::GraphCOOView<int, int, double> &output_graph);
+template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, float>>
+k_truss_subgraph<int, int, float>(experimental::GraphCOOView<int, int, float> const &,
+                                  int,
+                                  rmm::mr::device_memory_resource *);
+
+template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, double>>
+k_truss_subgraph<int, int, double>(experimental::GraphCOOView<int, int, double> const &,
+                                   int,
+                                   rmm::mr::device_memory_resource *);
 
 }  // namespace cugraph
