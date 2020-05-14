@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-
 import pytest
 
 import cudf
@@ -56,16 +54,9 @@ def networkx_call(M):
     return count
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/netscience.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_triangles(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     cu_count = cugraph_call(M)
@@ -75,9 +66,8 @@ def test_triangles(graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_triangles_edge_vals(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     cu_count = cugraph_call(M, edgevals=True)

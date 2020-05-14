@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 import random
 
 import pytest
@@ -39,17 +38,13 @@ def random_call(G, partitions):
     return score
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
 PARTITIONS = [2, 4, 8]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):
-    gc.collect()
 
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
@@ -70,7 +65,6 @@ def test_modularity_clustering(graph_file, partitions):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
 def test_digraph_rejected():
-    gc.collect()
 
     df = cudf.DataFrame()
     df['src'] = cudf.Series(range(10))

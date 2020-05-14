@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 import time
 from collections import defaultdict
 import pytest
@@ -116,9 +115,8 @@ STRONGDATASETS = ['../datasets/dolphins.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_weak_cc(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     netx_labels = networkx_weak_call(M)
@@ -155,9 +153,8 @@ def test_weak_cc(graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', STRONGDATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_5)
 def test_strong_cc(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     netx_labels = networkx_strong_call(M)

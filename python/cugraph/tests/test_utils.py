@@ -11,22 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 import pytest
 
 import cugraph
 from cugraph.tests import utils
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/polbooks.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
-
 
 def test_bfs_paths():
     with pytest.raises(ValueError) as ErrorMsg:
-        gc.collect()
 
         graph_file = '../datasets/karate.csv'
 
@@ -51,7 +43,6 @@ def test_bfs_paths():
 
 def test_bfs_paths_array():
     with pytest.raises(ValueError) as ErrorMsg:
-        gc.collect()
 
         graph_file = '../datasets/karate.csv'
 

@@ -13,24 +13,17 @@
 
 # This file test the Renumbering features
 
-import gc
-
 import pytest
 
 import cudf
 import cugraph
 from cugraph.tests import utils
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_multi_column_unrenumbering(graph_file):
-    gc.collect()
 
     translate = 100
     cu_M = utils.read_csv_file(graph_file)

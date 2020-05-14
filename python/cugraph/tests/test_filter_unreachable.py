@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 import time
 
 import pytest
@@ -36,10 +35,9 @@ print('Networkx version : {} '.format(nx.__version__))
 SOURCES = [1]
 
 
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 @pytest.mark.parametrize('source', SOURCES)
 def test_filter_unreachable(graph_file, source):
-    gc.collect()
 
     cu_M = utils.read_csv_file(graph_file)
 

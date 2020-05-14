@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-
 import pytest
 
 import pandas as pd
@@ -22,12 +20,7 @@ from cugraph.tests import utils
 
 
 def test_version():
-    gc.collect()
     cugraph.__version__
-
-
-DATASETS = ['../datasets/karate',
-            '../datasets/email-Eu-core']
 
 
 def compare(src1, dst1, val1, src2, dst2, val2):
@@ -154,9 +147,8 @@ def compare(src1, dst1, val1, src2, dst2, val2):
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2B)
 def test_symmetrize_unweighted(graph_file):
-    gc.collect()
 
     cu_M = utils.read_csv_file(graph_file+'.csv')
 
@@ -189,9 +181,8 @@ def test_symmetrize_unweighted(graph_file):
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2B)
 def test_symmetrize_weighted(graph_file):
-    gc.collect()
 
     cu_M = utils.read_csv_file(graph_file+'.csv')
 
@@ -207,9 +198,8 @@ def test_symmetrize_weighted(graph_file):
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2B)
 def test_symmetrize_df(graph_file):
-    gc.collect()
 
     cu_M = utils.read_csv_file(graph_file+'.csv')
     sym_df = cugraph.symmetrize_df(cu_M, '0', '1')

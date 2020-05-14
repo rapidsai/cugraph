@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 import pytest
 
 import cugraph
@@ -23,7 +22,6 @@ import cugraph
 # ...and (TODO): remove this line below:
 @pytest.mark.skip(reason="GRMAT undergoing changes in Gunrock")
 def test_grmat_gen():
-    gc.collect()
 
     vertices, edges, sources, destinations = cugraph.grmat_gen(
         'grmat --rmat_scale=2 --rmat_edgefactor=2 --device=0 --normalized'

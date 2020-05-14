@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-
 import pytest
 
 import cugraph
@@ -79,21 +77,13 @@ def compare_k_truss(graph_file, k, ground_truth_file, directed=True):
     return True
 
 
-DATASETS = [('../datasets/polbooks.csv',
-             '../datasets/ref/ktruss/polbooks.csv'),
-            ('../datasets/netscience.csv',
-             '../datasets/ref/ktruss/netscience.csv')]
-
-
-@pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
+@pytest.mark.parametrize('graph_file, nx_ground_truth', utils.DATASETS_4K)
 def test_ktruss_subgraph_DiGraph(graph_file, nx_ground_truth):
-    gc.collect()
 
     compare_k_truss(graph_file, 5, nx_ground_truth)
 
 
-@pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
+@pytest.mark.parametrize('graph_file, nx_ground_truth', utils.DATASETS_4K)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
-    gc.collect()
 
     compare_k_truss(graph_file, 5, nx_ground_truth, False)

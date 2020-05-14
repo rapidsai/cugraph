@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 import time
 
 import pytest
@@ -82,18 +81,14 @@ def cpu_call(M, first, second):
     return result
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/netscience.csv']
 #  Too slow to run on CPU
 #            '../datasets/email-Eu-core.csv']
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_woverlap(graph_file):
-    gc.collect()
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx['0']), max(Mnx['1'])) + 1

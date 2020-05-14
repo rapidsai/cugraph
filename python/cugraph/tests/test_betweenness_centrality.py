@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-
 import pytest
 
 import cugraph
@@ -49,13 +47,8 @@ def calc_betweenness_centrality(graph_file, normalized=True):
     return df
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_betweenness_centrality(graph_file):
-    gc.collect()
 
     scores = calc_betweenness_centrality(graph_file)
 
@@ -72,9 +65,8 @@ def test_betweenness_centrality(graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_betweenness_centrality_unnormalized(graph_file):
-    gc.collect()
 
     scores = calc_betweenness_centrality(graph_file, False)
 

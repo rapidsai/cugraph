@@ -11,10 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# import gc
-# import pytest
+import pytest
 import cugraph
-# from cugraph.tests import utils
+from cugraph.tests import utils
 
 
 def cugraph_call(G, min_weight, ensemble_size):
@@ -33,27 +32,20 @@ def golden_call(graph_file):
         return 0.9279554486274719
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
 MIN_WEIGHTS = [.05, .10, .15]
 
 ENSEMBLE_SIZES = [16, 32]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-
-# FIXME:
-# Disable all of the ECG tests... Louvain is broken
-'''
-@pytest.mark.parametrize('graph_file', DATASETS)
+# FIXME
+@pytest.mark.skip(reason="ECG skipped waiting on new version of Louvain")
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 @pytest.mark.parametrize('min_weight', MIN_WEIGHTS)
 @pytest.mark.parametrize('ensemble_size', ENSEMBLE_SIZES)
 def test_ecg_clustering(graph_file,
                         min_weight,
                         ensemble_size):
-    gc.collect()
 
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
@@ -67,4 +59,3 @@ def test_ecg_clustering(graph_file,
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score > (.95 * golden_score)
-'''

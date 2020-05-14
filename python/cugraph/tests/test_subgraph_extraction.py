@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-
 import numpy as np
 import pytest
 
@@ -73,9 +71,8 @@ DATASETS = ['../datasets/karate.csv',
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_4)
 def test_subgraph_extraction_DiGraph(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     verts = np.zeros(3, dtype=np.int32)
@@ -89,9 +86,8 @@ def test_subgraph_extraction_DiGraph(graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_4)
 def test_subgraph_extraction_Graph(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     verts = np.zeros(3, dtype=np.int32)
