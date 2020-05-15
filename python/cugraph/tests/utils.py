@@ -38,18 +38,18 @@ DATASETS_5 = ['../datasets/karate.csv',
               '../datasets/email-Eu-core.csv']
 
 STRONGDATASETS = ['../datasets/dolphins.csv',
-                 '../datasets/netscience.csv',
-                 '../datasets/email-Eu-core.csv']
+                  '../datasets/netscience.csv',
+                  '../datasets/email-Eu-core.csv']
 
 DATASETS_KTRUSS = [('../datasets/polbooks.csv',
                     '../datasets/ref/ktruss/polbooks.csv'),
-                    ('../datasets/netscience.csv',
+                   ('../datasets/netscience.csv',
                     '../datasets/ref/ktruss/netscience.csv')]
 
 TINY_DATASETS = ['../datasets/karate.csv',
                  '../datasets/dolphins.csv',
                  '../datasets/polbooks.csv']
-                 
+
 SMALL_DATASETS = ['../datasets/netscience.csv',
                   '../datasets/email-Eu-core.csv']
 

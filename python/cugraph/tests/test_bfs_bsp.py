@@ -38,6 +38,7 @@ def cugraph_call(cu_M, start_vertex):
     # Return distances as np.array()
     return df['vertex'].to_array(), df['distance'].to_array()
 
+
 # FIXME - this needs to be updated to use NetworkX
 def base_call(M, start_vertex):
 
