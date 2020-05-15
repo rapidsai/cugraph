@@ -186,13 +186,18 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
                   VT const *second,
                   WT *result);
 
+enum class cugraph_bc_implem_t {
+  CUGRAPH_DEFAULT = 0,  ///> Native cugraph implementation
+  CUGRAPH_GUNROCK       ///> Gunrock implementation
+};
+
 /**
  * @brief     Compute betweenness centrality for a graph
  *
  * Betweenness centrality for a vertex is the sum of the fraction of
  * all pairs shortest paths that pass through the vertex.
  *
- * Note that gunrock (current implementation) does not support a weighted graph.
+ * Note that both the native and the gunrock implementations do not support a weighted graph.
  *
  * @throws                           cugraph::logic_error with a custom message when an error
  * occurs.
@@ -202,7 +207,8 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
- * @tparam result_t                  Type of computed result.  Supported values :  float
+ * @tparam result_t                  Type of computed result.  Supported values :  float or double
+ * (double only supported in default implementation)
  *
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a CSR
@@ -212,19 +218,23 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
  * @param[in] weight                 If specified, device array of weights for each edge
  * @param[in] k                      If specified, number of vertex samples defined in the vertices
- * array
- * @param[in] vertices               If specified, device array of sampled vertex ids to estimate
- * betweenness centrality.
+ * array.
+ * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
+ * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
+ * shortest path counters.
+ * @param[in] implem                 Cugraph currently supports 2 implementations: native and
+ * gunrock
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
-                            bool normalized    = true,
-                            bool endpoints     = false,
-                            WT const *weight   = nullptr,
-                            VT k               = 0,
-                            VT const *vertices = nullptr);
+                            bool normalized            = true,
+                            bool endpoints             = false,
+                            WT const *weight           = nullptr,
+                            VT k                       = 0,
+                            VT const *vertices         = nullptr,
+                            cugraph_bc_implem_t implem = cugraph_bc_implem_t::CUGRAPH_DEFAULT);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
@@ -435,7 +445,9 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
           VT *predecessors,
           const VT source_vertex);
 
-// TODO: Either distances is in VT or in WT, even if there should be no weights
+// FIXME: Internally distances is of int (signed 32-bit) data type, but current
+// template uses data from VT, ET, WT from he GraphCSR View even if weights
+// are not considered
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
  *
@@ -450,11 +462,14 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a CSR
  *
- * @param[out] distances            If set to a valid column, this is populated by distance of every
- * vertex in the graph from the starting vertex
+ * @param[out] distances             If set to a valid pointer, this is populated by distance of
+ * every vertex in the graph from the starting vertex
  *
- * @param[out] predecessors         If set to a valid column, this is populated by bfs traversal
+ * @param[out] predecessors          If set to a valid pointer, this is populated by bfs traversal
  * predecessor of every vertex
+ *
+ * @param[out] sp_counters           If set to a valid pointer, this is populated by bfs traversal
+ * shortest_path counter of every vertex
  *
  * @param[in] start_vertex           The starting vertex for breadth first search traversal
  *
@@ -466,6 +481,7 @@ template <typename VT, typename ET, typename WT>
 void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
+         double *sp_counters,
          const VT start_vertex,
          bool directed = true);
 

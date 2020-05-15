@@ -282,7 +282,7 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
   if (!graph.edge_data) {
     // Generate unit weights
 
-    // TODO: This should fallback to BFS, but for now it'll go through the
+    // FIXME: This should fallback to BFS, but for now it'll go through the
     // SSSP path since BFS needs the directed flag, which should not be
     // necessary for the SSSP API. We can pass directed to the BFS call, but
     // BFS also does only integer distances right now whereas we need float or
