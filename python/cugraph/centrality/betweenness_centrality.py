@@ -53,7 +53,7 @@ def betweenness_centrality(G, k=None, normalized=True,
         this normalization scales fo the highest possible value where one
         node is crossed by every single shortest path.
 
-    weight : cudf.Dataframe, optional, default=None
+    weight : cudf.DataFrame, optional, default=None
         Specifies the weights to be used for each edge.
         Should contain a mapping between
         edges and weights.
