@@ -78,12 +78,6 @@ def compare_k_truss(graph_file, k, ground_truth_file, directed=True):
 
 
 @pytest.mark.parametrize('graph_file, nx_ground_truth', utils.DATASETS_KTRUSS)
-def test_ktruss_subgraph_DiGraph(graph_file, nx_ground_truth):
-
-    compare_k_truss(graph_file, 5, nx_ground_truth)
-
-
-@pytest.mark.parametrize('graph_file, nx_ground_truth', utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
 
     compare_k_truss(graph_file, 5, nx_ground_truth, False)
