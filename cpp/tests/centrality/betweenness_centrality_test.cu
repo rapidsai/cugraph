@@ -242,42 +242,6 @@ template void reference_betweenness_centrality<int, int, double, double>(
 // =============================================================================
 // Utility functions
 // =============================================================================
-// FIXME: This could be useful in other testsuite (SSSP, BFS, ...)
-template <typename VT, typename ET, typename WT>
-void generate_graph_csr(CSR_Result_Weighted<VT, WT> &csr_result,
-                        VT &m,
-                        VT &nnz,
-                        bool &is_directed,
-                        std::string matrix_file)
-{
-  FILE *fpin = fopen(matrix_file.c_str(), "r");
-  ASSERT_NE(fpin, nullptr) << "fopen (" << matrix_file << ") failure.";
-
-  VT k;
-  MM_typecode mc;
-  ASSERT_EQ(mm_properties<VT>(fpin, 1, &mc, &m, &k, &nnz), 0)
-    << "could not read Matrix Market file properties"
-    << "\n";
-  ASSERT_TRUE(mm_is_matrix(mc));
-  ASSERT_TRUE(mm_is_coordinate(mc));
-  ASSERT_FALSE(mm_is_complex(mc));
-  ASSERT_FALSE(mm_is_skew(mc));
-  is_directed = !mm_is_symmetric(mc);
-
-  // Allocate memory on host
-  std::vector<VT> cooRowInd(nnz), cooColInd(nnz);
-  std::vector<WT> cooVal(nnz);
-
-  // Read
-  ASSERT_EQ((mm_to_coo<VT, WT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)), 0)
-    << "could not read matrix data"
-    << "\n";
-  ASSERT_EQ(fclose(fpin), 0);
-
-  ConvertCOOtoCSR_weighted(&cooRowInd[0], &cooColInd[0], &cooVal[0], nnz, csr_result);
-  CUDA_CHECK_LAST();
-}
-
 // Compare while allowing relatie error of epsilon
 // zero_threshold indicates when  we should drop comparison for small numbers
 template <typename T, typename precision_t>
@@ -340,7 +304,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     ET nnz;
     CSR_Result_Weighted<VT, WT> csr_result;
     bool is_directed = false;
-    generate_graph_csr<VT, ET, WT>(csr_result, m, nnz, is_directed, configuration.file_path_);
+    generate_graph_csr_from_mtx<VT, ET, WT>(
+      csr_result, m, nnz, is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G(
       csr_result.rowOffsets, csr_result.colIndices, csr_result.edgeWeights, m, nnz);
@@ -446,7 +411,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     ET nnz;
     CSR_Result_Weighted<VT, WT> csr_result;
     bool is_directed = false;
-    generate_graph_csr<VT, ET, WT>(csr_result, m, nnz, is_directed, configuration.file_path_);
+    generate_graph_csr_from_mtx<VT, ET, WT>(
+      csr_result, m, nnz, is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G(
       csr_result.rowOffsets, csr_result.colIndices, csr_result.edgeWeights, m, nnz);
@@ -517,8 +483,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 //==============================================================================
 // Tests
 //==============================================================================
-// BC
-// -----------------------------------------------------------------------------
 // Verifiy Un-Normalized results
 // Endpoint parameter is currently not usefull, is for later use
 TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS)
@@ -571,22 +535,6 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           BC_Usecase("test/datasets/netscience.mtx", 4),
                                           BC_Usecase("test/datasets/wiki2003.mtx", 4),
                                           BC_Usecase("test/datasets/wiki-Talk.mtx", 4)));
-
-// BFS
-// -----------------------------------------------------------------------------
-// FIXME: This could be reused by Issue #778
-TEST_P(Tests_BFS, CheckFP32) { run_current_test<int, int, float, float>(GetParam()); }
-
-TEST_P(Tests_BFS, CheckFP64) { run_current_test<int, int, double, double>(GetParam()); }
-
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_BFS,
-                        ::testing::Values(BFS_Usecase("test/datasets/karate.mtx", 0),
-                                          BFS_Usecase("test/datasets/polbooks.mtx", 0),
-                                          BFS_Usecase("test/datasets/netscience.mtx", 0),
-                                          BFS_Usecase("test/datasets/netscience.mtx", 100),
-                                          BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
-                                          BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000)));
 
 int main(int argc, char **argv)
 {
