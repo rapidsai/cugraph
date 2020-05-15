@@ -47,7 +47,7 @@ def calc_betweenness_centrality(graph_file, normalized=True):
     return df
 
 
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_3)
 def test_betweenness_centrality(graph_file):
 
     scores = calc_betweenness_centrality(graph_file)
@@ -65,7 +65,7 @@ def test_betweenness_centrality(graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_3)
 def test_betweenness_centrality_unnormalized(graph_file):
 
     scores = calc_betweenness_centrality(graph_file, False)

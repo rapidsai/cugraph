@@ -66,7 +66,7 @@ def base_call(M, start_vertex):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_5)
 def test_bfs(graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
