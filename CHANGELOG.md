@@ -5,6 +5,7 @@
 - PR #840 OPG degree
 
 ## Improvements
+- PR #817 Add native Betweenness Centrality with sources subset
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #780 Remove gdf_column from cuhornet features
@@ -30,7 +31,10 @@
 - PR #859 Updated main docs
 - PR #862 Katz Centrality : Auto calculation of alpha parameter if set to none
 - PR #865 Added C++ docs
+- PR #866 Use RAII graph class in KTruss
+- PR #867 Updates to support the latest flake8 version
 - PR #871 Updated tests and build script
+- PR #874 Update setup.py to use custom clean command
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14

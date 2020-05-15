@@ -22,9 +22,6 @@ DATASETS_1 = ['../datasets/netscience.csv']
 DATASETS_2 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv']
 
-# DATASETS_2_ALT = ['../datasets/karate',
-#               '../datasets/email-Eu-core']
-
 DATASETS_3 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv',
               '../datasets/netscience.csv']
@@ -48,6 +45,14 @@ DATASETS_KTRUSS = [('../datasets/polbooks.csv',
                     '../datasets/ref/ktruss/polbooks.csv'),
                     ('../datasets/netscience.csv',
                     '../datasets/ref/ktruss/netscience.csv')]
+
+TINY_DATASETS = ['../datasets/karate.csv',
+                 '../datasets/dolphins.csv',
+                 '../datasets/polbooks.csv']
+                 
+SMALL_DATASETS = ['../datasets/netscience.csv',
+                  '../datasets/email-Eu-core.csv']
+
 
 # define the base for tests to use
 DATASETS = DATASETS_3
