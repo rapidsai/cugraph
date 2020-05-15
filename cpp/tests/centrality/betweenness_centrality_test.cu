@@ -244,7 +244,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     ET nnz;
     CSR_Result_Weighted<VT, WT> csr_result;
     bool is_directed = false;
-    generate_graph_csr_from_mtx<VT, ET, WT>(
+    generate_graph_csr_from_mm<VT, ET, WT>(
       csr_result, m, nnz, is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G(

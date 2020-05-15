@@ -843,7 +843,7 @@ bool gdf_csr_equal(gdf_column* a_off, gdf_column* a_ind, gdf_column* b_off, gdf_
 }
 
 // ============================================================================
-// Generate data from an MTX, that can be used to obtain a GraphCSRVIew
+// Generate data for a GraphCSRView from an Matrix Market file
 // ============================================================================
 // FIXME: A similar function could be useful for CSC format
 //        There are functions above that operate coo -> csr and coo->csc
@@ -851,14 +851,14 @@ bool gdf_csr_equal(gdf_column* a_off, gdf_column* a_ind, gdf_column* b_off, gdf_
  * @tparam
  */
 template <typename VT, typename ET, typename WT>
-void generate_graph_csr_from_mtx(CSR_Result_Weighted<VT, WT>& csr_result,
-                                 VT& number_of_vertices,
-                                 VT& number_of_edges,
-                                 bool& directed,
-                                 std::string mtx_matrix_file)
+void generate_graph_csr_from_mm(CSR_Result_Weighted<VT, WT>& csr_result,
+                                VT& number_of_vertices,
+                                VT& number_of_edges,
+                                bool& directed,
+                                std::string mm_file)
 {
-  FILE* fpin = fopen(mtx_matrix_file.c_str(), "r");
-  ASSERT_NE(fpin, nullptr) << "fopen (" << mtx_matrix_file << ") failure.";
+  FILE* fpin = fopen(mm_file.c_str(), "r");
+  ASSERT_NE(fpin, nullptr) << "fopen (" << mm_file << ") failure.";
 
   VT number_of_columns = 0;
   MM_typecode mm_typecode{0};

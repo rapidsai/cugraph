@@ -89,7 +89,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     ET number_of_edges;
     CSR_Result_Weighted<VT, WT> csr_result;
     bool directed = false;
-    generate_graph_csr_from_mtx<VT, ET, WT>(
+    generate_graph_csr_from_mm<VT, ET, WT>(
       csr_result, number_of_vertices, number_of_edges, directed, configuration.file_path_);
     CUDA_CHECK_LAST();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G(csr_result.rowOffsets,
