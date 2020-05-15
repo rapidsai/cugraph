@@ -299,6 +299,7 @@ add_library(cugraph SHARED
     src/db/db_pattern.cu
     src/db/db_context.cu
     src/db/db_table.cu
+    src/db/parser_helpers.cu
     src/utilities/cusparse_helper.cu
     src/structure/cugraph.cu
     src/structure/graph.cu

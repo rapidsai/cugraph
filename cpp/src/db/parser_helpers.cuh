@@ -16,36 +16,11 @@
 
 #pragma once
 
-#include "db/db_context.cuh"
-#include "db/db_table.cuh"
+#include <cypher-parser.h>
+#include <string>
 
 namespace cugraph {
 namespace db {
-
-/**
- * The main database object. It stores the needed tables and provides a method hook to run
- * a query on the data.
- */
-template <typename idx_t>
-class db_object {
-  encoder<idx_t> idEncoder;
-
-  // The relationship table
-  db_table<idx_t> relationshipsTable;
-
-  // The node labels table
-  db_table<idx_t> nodeLabelsTable;
-
-  // The node properties table
-  db_table<idx_t> nodePropertiesTable;
-
-  // The relationship property table
-  db_table<idx_t> relationshipPropertiesTable;
-
- public:
-  db_object();
-  std::string query(std::string query);
-};
-
+std::string getTypeString(const cypher_astnode_t* node);
 }  // namespace db
 }  // namespace cugraph

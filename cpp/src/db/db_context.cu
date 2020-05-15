@@ -58,6 +58,9 @@ idx_t encoder<idx_t>::getId()
   return myId;
 }
 
+template class encoder<int32_t>;
+template class encoder<int64_t>;
+
 template <typename idx_t>
 context<idx_t>::context()
 {
@@ -112,6 +115,9 @@ std::string context<idx_t>::getUniqueId()
   ss << "UniqueIdentifier_" << nextId++;
   return ss.str();
 }
+
+template class context<int32_t>;
+template class context<int64_t>;
 
 }  // namespace db
 }  // namespace cugraph

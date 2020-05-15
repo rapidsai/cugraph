@@ -25,7 +25,6 @@ namespace db {
 template <typename idx_t>
 db_object<idx_t>::db_object()
 {
-  next_id = 0;
   relationshipsTable.addColumn("begin");
   relationshipsTable.addColumn("end");
   relationshipsTable.addColumn("type");
