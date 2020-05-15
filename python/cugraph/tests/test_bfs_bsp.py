@@ -15,6 +15,7 @@ import queue
 import time
 
 import numpy as np
+import scipy
 import pytest
 
 import cugraph
@@ -37,13 +38,13 @@ def cugraph_call(cu_M, start_vertex):
     # Return distances as np.array()
     return df['vertex'].to_array(), df['distance'].to_array()
 
-
+# FIXME - this needs to be updated to use NetworkX
 def base_call(M, start_vertex):
 
-    M = M.tocsr()
+    csr = scipy.sparse.csr_matrix(M.values.T)
 
-    offsets = M.indptr
-    indices = M.indices
+    offsets = csr.indptr
+    indices = csr.indices
     num_verts = len(offsets) - 1
     dist = np.zeros(num_verts, dtype=np.int32)
     vertex = list(range(num_verts))
@@ -68,7 +69,7 @@ def base_call(M, start_vertex):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.skip(reason="SG BFS is not yet formally supported")
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
-def test_bfs(managed, pool, graph_file):
+def test_bfs(graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)

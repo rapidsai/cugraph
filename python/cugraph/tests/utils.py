@@ -22,7 +22,7 @@ DATASETS_2 = ['../datasets/dolphins.csv',
 
 DATASETS_2A = ['../datasets/karate.csv',
                '../datasets/dolphins.csv']
-               
+
 DATASETS_2B = ['../datasets/karate',
                '../datasets/email-Eu-core']
 
@@ -30,8 +30,8 @@ DATASETS_3 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv',
               '../datasets/netscience.csv']
 
-DATASETS_4 = ['../datasets/dolphins.csv',
-              '../datasets/karate.csv',
+DATASETS_4 = ['../datasets/karate.csv',
+              '../datasets/dolphins.csv',
               '../datasets/netscience.csv',
               '../datasets/email-Eu-core.csv']
 
@@ -46,9 +46,9 @@ DATASETS_5 = ['../datasets/karate.csv',
               '../datasets/netscience.csv',
               '../datasets/email-Eu-core.csv']
 
-# STRONGDATASETS = ['../datasets/dolphins.csv',
-#                  '../datasets/netscience.csv',
-#                  '../datasets/email-Eu-core.csv']
+STRONGDATASETS = ['../datasets/dolphins.csv',
+                 '../datasets/netscience.csv',
+                 '../datasets/email-Eu-core.csv']
 
 # define the base for tests to use
 DATASETS = DATASETS_3
