@@ -86,12 +86,8 @@ def test_louvain_with_edgevals(graph_file):
     assert abs(cu_mod - cu_mod_nx) < .0001
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2A)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_louvain(graph_file):
 
     M = utils.read_csv_for_nx(graph_file)

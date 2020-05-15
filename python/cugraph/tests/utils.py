@@ -14,17 +14,16 @@
 import cudf
 import pandas as pd
 
-
+#
+# Datasets are numbered based on the number of elements in the array
+#
 DATASETS_1 = ['../datasets/netscience.csv']
 
-DATASETS_2 = ['../datasets/dolphins.csv',
-              '../datasets/netscience.csv']
+DATASETS_2 = ['../datasets/karate.csv',
+              '../datasets/dolphins.csv']
 
-DATASETS_2A = ['../datasets/karate.csv',
-               '../datasets/dolphins.csv']
-
-DATASETS_2B = ['../datasets/karate',
-               '../datasets/email-Eu-core']
+# DATASETS_2_ALT = ['../datasets/karate',
+#               '../datasets/email-Eu-core']
 
 DATASETS_3 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv',
@@ -35,11 +34,6 @@ DATASETS_4 = ['../datasets/karate.csv',
               '../datasets/netscience.csv',
               '../datasets/email-Eu-core.csv']
 
-DATASETS_4K = [('../datasets/polbooks.csv',
-               '../datasets/ref/ktruss/polbooks.csv'),
-               ('../datasets/netscience.csv',
-               '../datasets/ref/ktruss/netscience.csv')]
-
 DATASETS_5 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv',
               '../datasets/polbooks.csv',
@@ -49,6 +43,11 @@ DATASETS_5 = ['../datasets/karate.csv',
 STRONGDATASETS = ['../datasets/dolphins.csv',
                  '../datasets/netscience.csv',
                  '../datasets/email-Eu-core.csv']
+
+DATASETS_KTRUSS = [('../datasets/polbooks.csv',
+                    '../datasets/ref/ktruss/polbooks.csv'),
+                    ('../datasets/netscience.csv',
+                    '../datasets/ref/ktruss/netscience.csv')]
 
 # define the base for tests to use
 DATASETS = DATASETS_3

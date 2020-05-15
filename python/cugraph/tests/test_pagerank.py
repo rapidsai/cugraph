@@ -134,7 +134,7 @@ HAS_GUESS = [0, 1]
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2A)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('tol', TOLERANCE)
 @pytest.mark.parametrize('alpha', ALPHA)

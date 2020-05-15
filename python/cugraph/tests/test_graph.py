@@ -365,7 +365,7 @@ def test_networkx_compatibility(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2A)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_two_hop_neighbors(graph_file):
 
     cu_M = utils.read_csv_file(graph_file)
@@ -471,7 +471,7 @@ def test_number_of_vertices(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2A)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_to_directed(graph_file):
 
     cu_M = utils.read_csv_file(graph_file)
@@ -499,7 +499,7 @@ def test_to_directed(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2A)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_to_undirected(graph_file):
 
     cu_M = utils.read_csv_file(graph_file)
@@ -528,7 +528,7 @@ def test_to_undirected(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2A)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_has_edge(graph_file):
 
     cu_M = utils.read_csv_file(graph_file)
@@ -544,7 +544,7 @@ def test_has_edge(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2A)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_has_node(graph_file):
 
     cu_M = utils.read_csv_file(graph_file)
