@@ -843,7 +843,7 @@ bool gdf_csr_equal(gdf_column* a_off, gdf_column* a_ind, gdf_column* b_off, gdf_
 }
 
 // ============================================================================
-// Generate data from an MTX, that can be used to Obtain a GraphCSRVIew
+// Generate data from an MTX, that can be used to obtain a GraphCSRVIew
 // ============================================================================
 // FIXME: A similar function could be useful for CSC format
 //        There are functions above that operate coo -> csr and coo->csc

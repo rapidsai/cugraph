@@ -24,11 +24,12 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <queue>  // C++ Reference Algorithm
-#include <stack>  // C++ Reference Algorithm
+#include <queue>
+#include <stack>
 
-#include <converters/COOtoCSR.cuh>  // Loads GraphCSR from .mtx
 #include <fstream>
+
+#include "traversal/bfs_ref.h"
 
 #ifndef TEST_EPSILON
 #define TEST_EPSILON 0.0001
@@ -42,68 +43,9 @@
 #define TEST_ZERO_THRESHOLD 1e-10
 #endif
 
-// =============================================================================
+// ============================================================================
 // C++ Reference Implementation
-// =============================================================================
-template <typename VT, typename ET>
-void populate_neighbors(VT *indices, ET *offsets, VT w, std::vector<VT> &neighbors)
-{
-  ET edge_start = offsets[w];
-  ET edge_end   = offsets[w + 1];
-  ET edge_count = edge_end - edge_start;
-
-  neighbors.clear();  // Reset neighbors vector's size
-  for (ET edge_idx = 0; edge_idx < edge_count; ++edge_idx) {
-    VT dst = indices[edge_start + edge_idx];
-    neighbors.push_back(dst);
-  }
-}
-
-// FIXME: This should be moved to BFS testing on the c++ side (#778)
-// This implements the BFS from (Brandes, 2001) with shortest path counting
-template <typename VT, typename ET, typename WT, typename result_t>
-void ref_bfs(VT *indices,
-             ET *offsets,
-             VT const number_of_vertices,
-             std::queue<VT> &Q,
-             std::stack<VT> &S,
-             std::vector<VT> &dist,
-             std::vector<std::vector<VT>> &pred,
-             std::vector<double> &sigmas,
-             VT source)
-{
-  std::vector<VT> neighbors;
-  for (VT w = 0; w < number_of_vertices; ++w) {
-    pred[w].clear();
-    dist[w]   = std::numeric_limits<VT>::max();
-    sigmas[w] = 0;
-  }
-  dist[source]   = 0;
-  sigmas[source] = 1;
-  Q.push(source);
-  //   b. Traversal
-  while (!Q.empty()) {
-    VT v = Q.front();
-    Q.pop();
-    S.push(v);
-    populate_neighbors<VT, ET>(indices, offsets, v, neighbors);
-    for (VT w : neighbors) {
-      // Path Discovery:
-      // Found for the first time?
-      if (dist[w] == std::numeric_limits<VT>::max()) {
-        dist[w] = dist[v] + 1;
-        Q.push(w);
-      }
-      // Path counting
-      // Edge(v, w) on  a shortest path?
-      if (dist[w] == dist[v] + 1) {
-        sigmas[w] += sigmas[v];
-        pred[w].push_back(v);
-      }
-    }
-  }
-}
-
+// ============================================================================
 template <typename VT, typename ET, typename WT, typename result_t>
 void ref_accumulation(result_t *result,
                       VT const number_of_vertices,
@@ -146,8 +88,7 @@ void reference_betweenness_centrality_impl(VT *indices,
       VT s = sources[source_idx];
       // Step 1: Single-source shortest-paths problem
       //   a. Initialization
-      ref_bfs<VT, ET, WT, result_t>(
-        indices, offsets, number_of_vertices, Q, S, dist, pred, sigmas, s);
+      ref_bfs<VT, ET>(indices, offsets, number_of_vertices, Q, S, dist, pred, sigmas, s);
       //  Step 2: Accumulation
       //          Back propagation of dependencies
       ref_accumulation<VT, ET, WT, result_t>(
@@ -157,8 +98,7 @@ void reference_betweenness_centrality_impl(VT *indices,
     for (VT s = 0; s < number_of_vertices; ++s) {
       // Step 1: Single-source shortest-paths problem
       //   a. Initialization
-      ref_bfs<VT, ET, WT, result_t>(
-        indices, offsets, number_of_vertices, Q, S, dist, pred, sigmas, s);
+      ref_bfs<VT, ET>(indices, offsets, number_of_vertices, Q, S, dist, pred, sigmas, s);
       //  Step 2: Accumulation
       //          Back propagation of dependencies
       ref_accumulation<VT, ET, WT, result_t>(
@@ -374,115 +314,9 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
   }
 };
 
-// BFS: Checking for shortest_path counting correctness
-// -----------------------------------------------------------------------------
-// FIXME: This BFS testing is kept here as it only focus on the shortest path
-// counting problem that is a core component of Betweennees Centrality,
-// This should be moved to a separate file in for #778 dedicated to BFS,
-// results verification.
-typedef struct BFS_Usecase_t {
-  std::string config_;     // Path to graph file
-  std::string file_path_;  // Complete path to graph using dataset_root_dir
-  int source_;             // Starting point from the traversal
-  BFS_Usecase_t(const std::string &config, int source) : config_(config), source_(source)
-  {
-    const std::string &rapidsDatasetRootDir = get_rapids_dataset_root_dir();
-    if ((config_ != "") && (config_[0] != '/')) {
-      file_path_ = rapidsDatasetRootDir + "/" + config_;
-    } else {
-      file_path_ = config_;
-    }
-  };
-} BFS_Usecase;
-
-class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
- public:
-  Tests_BFS() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
-
-  virtual void SetUp() {}
-  virtual void TearDown() {}
-  template <typename VT, typename ET, typename WT, typename result_t>
-  void run_current_test(const BFS_Usecase &configuration)
-  {
-    // Step 1: Construction of the graph based on configuration
-    VT m;
-    ET nnz;
-    CSR_Result_Weighted<VT, WT> csr_result;
-    bool is_directed = false;
-    generate_graph_csr_from_mtx<VT, ET, WT>(
-      csr_result, m, nnz, is_directed, configuration.file_path_);
-    cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSRView<VT, ET, WT> G(
-      csr_result.rowOffsets, csr_result.colIndices, csr_result.edgeWeights, m, nnz);
-    G.prop.directed = is_directed;
-
-    CUDA_CHECK_LAST();
-    std::vector<result_t> result(G.number_of_vertices, 0);
-    std::vector<result_t> expected(G.number_of_vertices, 0);
-
-    ASSERT_TRUE(configuration.source_ >= 0 && configuration.source_ <= G.number_of_vertices)
-      << "Starting sources should be >= 0 and"
-      << " less than the number of vertices in the graph";
-
-    VT source = configuration.source_;
-
-    VT number_of_vertices = G.number_of_vertices;
-    ET number_of_edges    = G.number_of_edges;
-    std::vector<VT> indices(number_of_edges);
-    std::vector<ET> offsets(number_of_vertices + 1);
-
-    CUDA_TRY(
-      cudaMemcpy(indices.data(), G.indices, sizeof(VT) * indices.size(), cudaMemcpyDeviceToHost));
-    CUDA_TRY(
-      cudaMemcpy(offsets.data(), G.offsets, sizeof(ET) * offsets.size(), cudaMemcpyDeviceToHost));
-    cudaDeviceSynchronize();
-    std::queue<VT> Q;
-    std::stack<VT> S;
-    std::vector<VT> ref_bfs_dist(number_of_vertices);
-    std::vector<std::vector<VT>> ref_bfs_pred(number_of_vertices);
-    std::vector<double> ref_bfs_sigmas(number_of_vertices);
-
-    ref_bfs<VT, ET, WT, result_t>(indices.data(),
-                                  offsets.data(),
-                                  number_of_vertices,
-                                  Q,
-                                  S,
-                                  ref_bfs_dist,
-                                  ref_bfs_pred,
-                                  ref_bfs_sigmas,
-                                  source);
-
-    // Device data for cugraph_bfs
-    thrust::device_vector<VT> d_cugraph_dist(number_of_vertices);
-    thrust::device_vector<VT> d_cugraph_pred(number_of_vertices);
-    thrust::device_vector<double> d_cugraph_sigmas(number_of_vertices);
-
-    // This test only checks for sigmas equality
-    std::vector<double> cugraph_sigmas(number_of_vertices);
-
-    cugraph::bfs<VT, ET, WT>(G,
-                             d_cugraph_dist.data().get(),
-                             d_cugraph_pred.data().get(),
-                             d_cugraph_sigmas.data().get(),
-                             source,
-                             G.prop.directed);
-    CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
-                        d_cugraph_sigmas.data().get(),
-                        sizeof(double) * d_cugraph_sigmas.size(),
-                        cudaMemcpyDeviceToHost));
-    for (int i = 0; i < number_of_vertices; ++i) {
-      EXPECT_TRUE(
-        compare_close(cugraph_sigmas[i], ref_bfs_sigmas[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
-        << "[MISMATCH] vaid = " << i << ", cugraph = " << cugraph_sigmas[i]
-        << " c++ ref = " << ref_bfs_sigmas[i];
-    }
-  }
-};
-//==============================================================================
+// ============================================================================
 // Tests
-//==============================================================================
+// ============================================================================
 // Verifiy Un-Normalized results
 // Endpoint parameter is currently not usefull, is for later use
 TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS)

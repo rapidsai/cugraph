@@ -25,6 +25,8 @@
 #include "gtest/gtest.h"
 #include "test_utils.h"
 
+#include "bfs_ref.h"
+
 // NOTE: This could be common to other files but we might not want the same precision
 // depending on the algorithm
 #ifndef TEST_EPSILON  // It is currently use for relative error
@@ -46,63 +48,6 @@ bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_
 {
   return ((zero_threshold > a && zero_threshold > b)) ||
          (a >= b * (1.0 - epsilon)) && (a <= b * (1.0 + epsilon));
-}
-template <typename VT, typename ET>
-void populate_neighbors(VT *indices, ET *offsets, VT w, std::vector<VT> &neighbors)
-{
-  ET edge_start = offsets[w];
-  ET edge_end   = offsets[w + 1];
-  ET edge_count = edge_end - edge_start;
-
-  neighbors.clear();  // Reset neighbors vector's size
-  for (ET edge_idx = 0; edge_idx < edge_count; ++edge_idx) {
-    VT dst = indices[edge_start + edge_idx];
-    neighbors.push_back(dst);
-  }
-}
-
-// This implements the BFS from (Brandes, 2001) with shortest path counting
-template <typename VT, typename ET, typename WT>
-void ref_bfs(VT *indices,
-             ET *offsets,
-             VT const number_of_vertices,
-             std::queue<VT> &Q,
-             std::stack<VT> &S,
-             std::vector<VT> &dist,
-             std::vector<std::vector<VT>> &pred,
-             std::vector<double> &sigmas,
-             VT source)
-{
-  std::vector<VT> neighbors;
-  for (VT w = 0; w < number_of_vertices; ++w) {
-    pred[w].clear();
-    dist[w]   = std::numeric_limits<VT>::max();
-    sigmas[w] = 0;
-  }
-  dist[source]   = 0;
-  sigmas[source] = 1;
-  Q.push(source);
-  //   b. Traversal
-  while (!Q.empty()) {
-    VT v = Q.front();
-    Q.pop();
-    S.push(v);
-    populate_neighbors<VT, ET>(indices, offsets, v, neighbors);
-    for (VT w : neighbors) {
-      // Path Discovery:
-      // Found for the first time?
-      if (dist[w] == std::numeric_limits<VT>::max()) {
-        dist[w] = dist[v] + 1;
-        Q.push(w);
-      }
-      // Path counting
-      // Edge(v, w) on  a shortest path?
-      if (dist[w] == dist[v] + 1) {
-        sigmas[w] += sigmas[v];
-        pred[w].push_back(v);
-      }
-    }
-  }
 }
 
 // ============================================================================
@@ -131,6 +76,11 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
   virtual void SetUp() {}
   virtual void TearDown() {}
+
+  // VT                 vertex identifier data type
+  // ET                 edge identifier data type
+  // WT                 edge weight data type
+  // return_sp_counter  should BFS return shortest path countner
   template <typename VT, typename ET, typename WT, bool return_sp_counter>
   void run_current_test(const BFS_Usecase &configuration)
   {
@@ -173,15 +123,15 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     std::vector<std::vector<VT>> ref_bfs_pred(number_of_vertices);
     std::vector<double> ref_bfs_sigmas(number_of_vertices);
 
-    ref_bfs<VT, ET, WT>(indices.data(),
-                        offsets.data(),
-                        number_of_vertices,
-                        Q,
-                        S,
-                        ref_bfs_dist,
-                        ref_bfs_pred,
-                        ref_bfs_sigmas,
-                        source);
+    ref_bfs<VT, ET>(indices.data(),
+                    offsets.data(),
+                    number_of_vertices,
+                    Q,
+                    S,
+                    ref_bfs_dist,
+                    ref_bfs_pred,
+                    ref_bfs_sigmas,
+                    source);
 
     // Device data for cugraph_bfs
     rmm::device_vector<VT> d_cugraph_dist(number_of_vertices);
@@ -225,13 +175,13 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph had not predecessor,"
           << "while c++ ref found at least one.";
       } else {
-        /* TODO(xcadet): Fix the following
-      std::vector<VT>::iterator it =
-        std::find(ref_bfs_pred[i].begin(), ref_bfs_pred[i].end(), pred);
-      EXPECT_TRUE(*it != ref_bfs_pred[i].end())
-        << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph = " << cugraph_sigmas[i]
-        << " , c++ ref did not consider it as a predecessor.";
-        */
+        // This can get expensive to check, we could have simply verified that based
+        // on the the distance from the source to the predecessor, but this ensures that there
+        // are no misassignations
+        auto it = std::find(ref_bfs_pred[i].begin(), ref_bfs_pred[i].end(), pred);
+        EXPECT_TRUE(it != ref_bfs_pred[i].end())
+          << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph = " << cugraph_sigmas[i]
+          << " , c++ ref did not consider it as a predecessor.";
       }
       EXPECT_TRUE(
         compare_close(cugraph_sigmas[i], ref_bfs_sigmas[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
@@ -248,9 +198,9 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   }
 };
 
-//==============================================================================
+// ============================================================================
 // Tests
-//==============================================================================
+// ============================================================================
 TEST_P(Tests_BFS, CheckFP32_NO_SP_COUNTER) { run_current_test<int, int, float, false>(GetParam()); }
 
 TEST_P(Tests_BFS, CheckFP64_NO_SP_COUNTER)
@@ -258,9 +208,9 @@ TEST_P(Tests_BFS, CheckFP64_NO_SP_COUNTER)
   run_current_test<int, int, double, false>(GetParam());
 }
 
-TEST_P(Tests_BFS, CheckFP32_SP_COUNTER) { run_current_test<int, int, float, false>(GetParam()); }
+TEST_P(Tests_BFS, CheckFP32_SP_COUNTER) { run_current_test<int, int, float, true>(GetParam()); }
 
-TEST_P(Tests_BFS, CheckFP64_SP_COUNTER) { run_current_test<int, int, double, false>(GetParam()); }
+TEST_P(Tests_BFS, CheckFP64_SP_COUNTER) { run_current_test<int, int, double, true>(GetParam()); }
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_BFS,
