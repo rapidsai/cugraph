@@ -3,6 +3,7 @@
 ## New Features
 - PR #822 Added new functions in python graph class, similar to networkx
 - PR #840 OPG degree
+- PR #875 UVM notebook 
 
 ## Improvements
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
