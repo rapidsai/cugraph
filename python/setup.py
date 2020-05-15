@@ -70,6 +70,8 @@ class CleanCommand(Command):
         pass
 
     def run(self):
+        setupFileDir = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(setupFileDir)
         os.system('rm -rf build')
         os.system('rm -rf dist')
         os.system('rm -rf dask-worker-space')
