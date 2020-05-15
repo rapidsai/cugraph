@@ -33,7 +33,7 @@
 - PR #865 Added C++ docs
 - PR #866 Use RAII graph class in KTruss
 - PR #867 Updates to support the latest flake8 version
-- PR #871 Updated tests and build script
+- PR #871 Updated tests to common datasets
 - PR #874 Update setup.py to use custom clean command
 
 ## Bug Fixes
