@@ -81,56 +81,6 @@ def compare_single_sp_counter(result, expected, epsilon=DEFAULT_EPSILON):
     return np.isclose(result, expected, rtol=epsilon)
 
 
-def compare_bfs(graph_file, directed=True, return_sp_counter=False,
-                seed=42):
-    """ Genereate both cugraph and reference bfs traversal
-
-    Parameters
-    -----------
-    graph_file : string
-        Path to COO Graph representation in .csv format
-
-    directed : bool, optional, default=True
-        Indicated whether the graph is directed or not
-
-    return_sp_counter : bool, optional, default=False
-        Retrun shortest path counters from traversal if True
-
-    seed : int, optional, default=42
-        Value for random seed to obtain starting vertex
-
-    Returns
-    -------
-    """
-    G, Gnx = build_graphs(graph_file, directed)
-    # Seed for reproducibility
-    if isinstance(seed, int):
-        random.seed(seed)
-        start_vertex = random.sample(Gnx.nodes(), 1)[0]
-
-        # Test for  shortest_path_counter
-        compare_func = _compare_bfs_spc if return_sp_counter else _compare_bfs
-
-        # NOTE: We need to take 2 different path for verification as the nx
-        #       functions used as reference return dictionaries that might
-        #       not contain all the vertices while the cugraph version return
-        #       a cudf.DataFrame with all the vertices, also some verification
-        #       become slow with the data transfer
-        compare_func(G, Gnx, start_vertex)
-    elif isinstance(seed, list):  # For other Verifications
-        for start_vertex in seed:
-            compare_func = _compare_bfs_spc if return_sp_counter else \
-                           _compare_bfs
-            compare_func(G, Gnx, start_vertex)
-    elif seed is None:  # Same here, it is only to run full checks
-        for start_vertex in Gnx:
-            compare_func = _compare_bfs_spc if return_sp_counter else \
-                           _compare_bfs
-            compare_func(G, Gnx, start_vertex)
-    else:  # Unknown type given to seed
-        raise NotImplementedError("Invalid type for seed")
-
-
 def _compare_bfs(G,  Gnx, source):
     df = cugraph.bfs(G, source, return_sp_counter=False)
     # This call should only contain 3 columns:
@@ -220,6 +170,56 @@ def _compare_bfs_spc(G, Gnx, source):
     assert missing_vertex_error == 0, "There are missing vertices"
     assert shortest_path_counter_errors == 0, "Shortest path counters are " \
                                               "too different"
+
+
+def compare_bfs(graph_file, directed=True, return_sp_counter=False,
+                seed=42):
+    """ Genereate both cugraph and reference bfs traversal
+
+    Parameters
+    -----------
+    graph_file : string
+        Path to COO Graph representation in .csv format
+
+    directed : bool, optional, default=True
+        Indicated whether the graph is directed or not
+
+    return_sp_counter : bool, optional, default=False
+        Retrun shortest path counters from traversal if True
+
+    seed : int, optional, default=42
+        Value for random seed to obtain starting vertex
+
+    Returns
+    -------
+    """
+    G, Gnx = build_graphs(graph_file, directed)
+    # Seed for reproducibility
+    if isinstance(seed, int):
+        random.seed(seed)
+        start_vertex = random.sample(Gnx.nodes(), 1)[0]
+
+        # Test for  shortest_path_counter
+        compare_func = _compare_bfs_spc if return_sp_counter else _compare_bfs
+
+        # NOTE: We need to take 2 different path for verification as the nx
+        #       functions used as reference return dictionaries that might
+        #       not contain all the vertices while the cugraph version return
+        #       a cudf.DataFrame with all the vertices, also some verification
+        #       become slow with the data transfer
+        compare_func(G, Gnx, start_vertex)
+    elif isinstance(seed, list):  # For other Verifications
+        for start_vertex in seed:
+            compare_func = _compare_bfs_spc if return_sp_counter else \
+                           _compare_bfs
+            compare_func(G, Gnx, start_vertex)
+    elif seed is None:  # Same here, it is only to run full checks
+        for start_vertex in Gnx:
+            compare_func = _compare_bfs_spc if return_sp_counter else \
+                           _compare_bfs
+            compare_func(G, Gnx, start_vertex)
+    else:  # Unknown type given to seed
+        raise NotImplementedError("Invalid type for seed")
 
 
 # =============================================================================
