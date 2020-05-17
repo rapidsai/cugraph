@@ -1,6 +1,7 @@
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
+- PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
 - PR #840 OPG degree
 
@@ -33,7 +34,7 @@
 - PR #865 Added C++ docs
 - PR #866 Use RAII graph class in KTruss
 - PR #867 Updates to support the latest flake8 version
-- PR #871 Updated tests to common datasets
+- PR #871 Updates tests
 - PR #874 Update setup.py to use custom clean command
 
 ## Bug Fixes
