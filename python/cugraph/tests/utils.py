@@ -53,6 +53,8 @@ TINY_DATASETS = ['../datasets/karate.csv',
 SMALL_DATASETS = ['../datasets/netscience.csv',
                   '../datasets/email-Eu-core.csv']
 
+UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
+
 
 # define the base for tests to use
 DATASETS = DATASETS_3
