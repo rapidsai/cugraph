@@ -4,6 +4,7 @@
 - PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
 - PR #840 OPG degree
+- PR #875 UVM notebook 
 
 ## Improvements
 - PR #817 Add native Betweenness Centrality with sources subset
