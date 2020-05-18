@@ -36,6 +36,7 @@
 - PR #867 Updates to support the latest flake8 version
 - PR #874 Update setup.py to use custom clean command
 - PR #878 Updated build script
+- PR #879 Add docs build script to repository
 - PR #818 Initial version of new "benchmarks" folder
 
 ## Bug Fixes
