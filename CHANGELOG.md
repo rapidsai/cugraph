@@ -1,10 +1,12 @@
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
+- PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
 - PR #840 OPG degree
 
 ## Improvements
+- PR #817 Add native Betweenness Centrality with sources subset
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #780 Remove gdf_column from cuhornet features
@@ -30,7 +32,10 @@
 - PR #859 Updated main docs
 - PR #862 Katz Centrality : Auto calculation of alpha parameter if set to none
 - PR #865 Added C++ docs
+- PR #866 Use RAII graph class in KTruss
 - PR #867 Updates to support the latest flake8 version
+- PR #874 Update setup.py to use custom clean command
+- PR #878 Updated build script
 - PR #818 Initial version of new "benchmarks" folder
 
 ## Bug Fixes

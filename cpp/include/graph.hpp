@@ -30,7 +30,7 @@ enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
 struct GraphProperties {
   bool directed{false};
   bool weighted{false};
-  bool multigraph{multigraph};
+  bool multigraph{false};
   bool bipartite{false};
   bool tree{false};
   PropType has_negative_edges{PropType::PROP_UNDEF};

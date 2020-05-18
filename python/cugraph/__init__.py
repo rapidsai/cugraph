@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 from cugraph.community import (
     ecg,
+    ktruss_subgraph,
     louvain,
     spectralBalancedCutClustering,
     spectralModularityMaximizationClustering,
@@ -34,7 +35,7 @@ from cugraph.structure import (
 )
 
 from cugraph.centrality import katz_centrality, betweenness_centrality
-from cugraph.cores import core_number, k_core, ktruss_subgraph
+from cugraph.cores import core_number, k_core
 from cugraph.components import weakly_connected_components, strongly_connected_components
 from cugraph.link_analysis import pagerank
 
@@ -48,6 +49,8 @@ from cugraph.bsp.traversal import bfs_df_pregel
 
 from cugraph.proto.components import strong_connected_component
 from cugraph.proto.structure import find_bicliques
+
+from cugraph.layout import force_atlas2
 
 # Versioneer
 from ._version import get_versions

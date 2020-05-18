@@ -52,6 +52,8 @@ for i in range(len(gdf_page)):
 |              | K-Core                                 | Single-GPU   |                     |
 |              | Core Number                            | Single-GPU   |                     |
 |              | K-Truss                                | Single-GPU   |                     |
+| Layout       |                                        |              |                     |
+|              | Force Atlas 2                          | Single-GPU   |                     |
 | Link Analysis|                                        |              |                     |
 |              | Pagerank                               | Single-GPU   |  Multi-GPU on DGX avaible  |
 |              | Personal Pagerank                      | Single-GPU   |                     |
