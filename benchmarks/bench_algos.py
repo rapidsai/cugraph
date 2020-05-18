@@ -1,8 +1,5 @@
 import pytest
 
-import cugraph
-from cugraph.tests import utils
-
 import pytest_benchmark
 # FIXME: Remove this when rapids_pytest_benchmark.gpubenchmark is available
 # everywhere
@@ -19,24 +16,43 @@ except ImportError:
     def setFixtureParamNames(*args, **kwargs):
         pass
 
+import cugraph
+from cugraph.tests import utils
+import rmm
 
-# FIXME: write and use mechanism described here for specifying datasets:
-#        https://docs.rapids.ai/maintainers/datasets
-# FIXME: rlr: soc-twitter-2010.csv crashes with OOM error on my HP-Z8!
-UNDIRECTED_DATASETS = [
-    pytest.param("../datasets/csv/undirected/hollywood.csv",
-                 marks=[pytest.mark.small, pytest.mark.undirected]),
-    pytest.param("../datasets/csv/undirected/europe_osm.csv",
-                 marks=[pytest.mark.undirected]),
-    # pytest.param("../datasets/csv/undirected/soc-twitter-2010.csv",
-    #              marks=[pytest.mark.undirected]),
-]
-DIRECTED_DATASETS = [
-    pytest.param("../datasets/csv/directed/cit-Patents.csv",
-                 marks=[pytest.mark.small, pytest.mark.directed]),
-    pytest.param("../datasets/csv/directed/soc-LiveJournal1.csv",
-                 marks=[pytest.mark.directed]),
-]
+from .params import FIXTURE_PARAMS
+
+
+###############################################################################
+# Helpers
+def createGraph(csvFileName, graphType=None):
+    """
+    Helper function to create a Graph or DiGraph based on csvFileName.
+    """
+    if graphType is None:
+        # There's potential value in verifying that a DiGraph can be created
+        # from a undirected dataset, and a Graph from a directed. (For now?) do
+        # not include those combinations to keep benchmark runtime and
+        # complexity lower, and assume tests have coverage to verify
+        # correctness for those combinations.
+        if "/directed/" in csvFileName:
+            graphType = cugraph.structure.graph.DiGraph
+        else:
+            graphType = cugraph.structure.graph.Graph
+
+    return cugraph.from_cudf_edgelist(
+        utils.read_csv_file(csvFileName),
+        source="0", destination="1",
+        create_using=graphType,
+        renumber=True)
+
+
+def reinitRMM(managed_mem, pool_alloc):
+    rmm.reinitialize(
+        managed_memory=managed_mem,
+        pool_allocator=pool_alloc,
+        initial_pool_size=2 << 27
+    )
 
 
 ###############################################################################
@@ -49,7 +65,7 @@ DIRECTED_DATASETS = [
 # For benchmarks, the operations performed in fixtures are not measured as part
 # of the benchmark.
 @pytest.fixture(scope="module",
-                params=UNDIRECTED_DATASETS + DIRECTED_DATASETS)
+                params=FIXTURE_PARAMS)
 def edgelistCreated(request):
     """
     Returns a new edgelist created from a CSV, which is specified as part of
@@ -58,92 +74,69 @@ def edgelistCreated(request):
     # Since parameterized fixtures do not assign param names to param values,
     # manually call the helper to do so. Ensure the order of the name list
     # passed to it matches if there are >1 params.
-    setFixtureParamNames(request, ["dataset"])
-    return utils.read_csv_file(request.param)
+    # If the request only contains n params, only the first n names are set.
+    setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
+
+    csvFileName = request.param[0]
+    if len(request.param) > 1:
+        reinitRMM(request.param[1], request.param[2])
+    return utils.read_csv_file(csvFileName)
 
 
 @pytest.fixture(scope="module",
-                params=UNDIRECTED_DATASETS)
-def graphCreated(request):
+                params=FIXTURE_PARAMS)
+def graphWithAdjListComputed(request):
     """
-    Returns a new Graph object created from the return value of the
-    edgelistCreated fixture.
+    Create a Graph obj from the CSV file in param, compute the adjacency list
+    and return it.
     """
-    setFixtureParamNames(request, ["dataset"])
+    setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
+    csvFileName = request.param[0]
+    if len(request.param) > 1:
+        reinitRMM(request.param[1], request.param[2])
 
-    return cugraph.from_cudf_edgelist(
-        utils.read_csv_file(request.param),
-        source="0", destination="1",
-        create_using=cugraph.structure.graph.Graph,
-        renumber=True)
+    G = createGraph(csvFileName, cugraph.structure.graph.Graph)
+    G.view_adj_list()
+    return G
 
 
 @pytest.fixture(scope="module",
-                params=DIRECTED_DATASETS)
-def diGraphCreated(request):
+                params=FIXTURE_PARAMS)
+def anyGraphWithAdjListComputed(request):
     """
-    Returns a new DiGraph object created from the return value of the
-    edgelistCreated fixture.
+    Create a Graph (or DiGraph) obj based on the param, compute the adjacency
+    list and return it.
     """
-    setFixtureParamNames(request, ["dataset"])
+    setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
+    csvFileName = request.param[0]
+    if len(request.param) > 1:
+        reinitRMM(request.param[1], request.param[2])
 
-    return cugraph.from_cudf_edgelist(
-        utils.read_csv_file(request.param),
-        source="0", destination="1",
-        create_using=cugraph.structure.graph.DiGraph,
-        renumber=True)
+    G = createGraph(csvFileName)
+    G.view_adj_list()
+    return G
 
 
 @pytest.fixture(scope="module",
-                params=UNDIRECTED_DATASETS + DIRECTED_DATASETS)
-def anyGraphCreated(request):
+                params=FIXTURE_PARAMS)
+def anyGraphWithTransposedAdjListComputed(request):
     """
-    Returns a new DiGraph object created from the return value of the
-    edgelistCreated fixture.
+    Create a Graph (or DiGraph) obj based on the param, compute the transposed
+    adjacency list and return it.
     """
-    setFixtureParamNames(request, ["dataset"])
+    setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
+    csvFileName = request.param[0]
+    if len(request.param) > 1:
+        reinitRMM(request.param[1], request.param[2])
 
-    if "/directed/" in request.param:
-        graphClass = cugraph.structure.graph.DiGraph
-    else:
-        graphClass = cugraph.structure.graph.Graph
-
-    return cugraph.from_cudf_edgelist(
-        utils.read_csv_file(request.param),
-        source="0", destination="1",
-        create_using=graphClass,
-        renumber=True)
-
-
-@pytest.fixture(scope="module")
-def computeAdjList(graphCreated):
-    """
-    Compute the adjacency list on the graph obj.
-    """
-    graphCreated.view_adj_list()
-    return graphCreated
-
-
-@pytest.fixture(scope="module")
-def computeTransposedAdjList(graphCreated):
-    """
-    Compute the transposed adjacency list on the graph obj.
-    """
-    graphCreated.view_transposed_adj_list()
-    return graphCreated
+    G = createGraph(csvFileName)
+    G.view_transposed_adj_list()
+    return G
 
 
 ###############################################################################
 # Benchmarks
 @pytest.mark.ETL
-@pytest.mark.benchmark(group="ETL")
-@pytest.mark.parametrize("dataset", UNDIRECTED_DATASETS + DIRECTED_DATASETS)
-def bench_create_edgelist(gpubenchmark, dataset):
-    gpubenchmark(utils.read_csv_file, dataset)
-
-
-@pytest.mark.ETL
-@pytest.mark.benchmark(group="ETL")
 def bench_create_graph(gpubenchmark, edgelistCreated):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelistCreated,
@@ -152,56 +145,81 @@ def bench_create_graph(gpubenchmark, edgelistCreated):
                  renumber=False)
 
 
-def bench_pagerank(gpubenchmark, anyGraphCreated):
-    gpubenchmark(cugraph.pagerank, anyGraphCreated)
+# Creating DiGraphs on small datasets runs in micro-seconds, which results in
+# thousands of rounds before the default threshold is met, so lower the
+# max_time for this benchmark.
+@pytest.mark.ETL
+@pytest.mark.benchmark(
+    warmup=True,
+    warmup_iterations=10,
+    max_time=0.005
+)
+def bench_create_digraph(gpubenchmark, edgelistCreated):
+    gpubenchmark(cugraph.from_cudf_edgelist,
+                 edgelistCreated,
+                 source="0", destination="1",
+                 create_using=cugraph.structure.graph.DiGraph,
+                 renumber=False)
 
 
-def bench_bfs(gpubenchmark, anyGraphCreated):
-    gpubenchmark(cugraph.bfs, anyGraphCreated, 0)
+@pytest.mark.ETL
+def bench_renumber(gpubenchmark, edgelistCreated):
+    gpubenchmark(cugraph.renumber,
+                 edgelistCreated["0"],  # src
+                 edgelistCreated["1"])  # dst
 
 
-def bench_sssp(gpubenchmark, anyGraphCreated):
-    gpubenchmark(cugraph.sssp, anyGraphCreated, 0)
+def bench_pagerank(gpubenchmark, anyGraphWithTransposedAdjListComputed):
+    gpubenchmark(cugraph.pagerank, anyGraphWithTransposedAdjListComputed)
 
 
-def bench_jaccard(gpubenchmark, graphCreated):
-    gpubenchmark(cugraph.jaccard, graphCreated)
+def bench_bfs(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, 0)
 
 
-def bench_louvain(gpubenchmark, graphCreated):
-    gpubenchmark(cugraph.louvain, graphCreated)
+def bench_sssp(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, 0)
 
 
-def bench_weakly_connected_components(gpubenchmark, anyGraphCreated):
-    gpubenchmark(cugraph.weakly_connected_components, anyGraphCreated)
+def bench_jaccard(gpubenchmark, graphWithAdjListComputed):
+    gpubenchmark(cugraph.jaccard, graphWithAdjListComputed)
 
 
-def bench_overlap(gpubenchmark, anyGraphCreated):
-    gpubenchmark(cugraph.overlap, anyGraphCreated)
+def bench_louvain(gpubenchmark, graphWithAdjListComputed):
+    gpubenchmark(cugraph.louvain, graphWithAdjListComputed)
 
 
-def bench_triangles(gpubenchmark, graphCreated):
-    gpubenchmark(cugraph.triangles, graphCreated)
+def bench_weakly_connected_components(gpubenchmark,
+                                      anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.weakly_connected_components,
+                 anyGraphWithAdjListComputed)
 
 
-def bench_spectralBalancedCutClustering(gpubenchmark, graphCreated):
-    gpubenchmark(cugraph.spectralBalancedCutClustering, graphCreated, 2)
+def bench_overlap(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.overlap, anyGraphWithAdjListComputed)
 
 
-# def bench_spectralModularityMaximizationClustering(gpubenchmark,
-#                                                    anyGraphCreated):
-#     gpubenchmark(cugraph.spectralModularityMaximizationClustering,
-#                  anyGraphCreated, 2)
+def bench_triangles(gpubenchmark, graphWithAdjListComputed):
+    gpubenchmark(cugraph.triangles, graphWithAdjListComputed)
 
 
-# def bench_renumber(gpubenchmark, edgelistCreated):
-#     gpubenchmark(cugraph.renumber, edgelistCreated["src"],
-#                  edgelistCreated["dst"])
+def bench_spectralBalancedCutClustering(gpubenchmark,
+                                        graphWithAdjListComputed):
+    gpubenchmark(cugraph.spectralBalancedCutClustering,
+                 graphWithAdjListComputed, 2)
 
 
-def bench_graph_degree(gpubenchmark, anyGraphCreated):
-    gpubenchmark(anyGraphCreated.degree)
+@pytest.mark.skip(reason="Need to guarantee graph has weights, "
+                         "not doing that yet")
+def bench_spectralModularityMaximizationClustering(
+        gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.spectralModularityMaximizationClustering,
+                 anyGraphWithAdjListComputed, 2)
 
 
-def bench_graph_degrees(gpubenchmark, anyGraphCreated):
-    gpubenchmark(anyGraphCreated.degrees)
+def bench_graph_degree(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(anyGraphWithAdjListComputed.degree)
+
+
+def bench_graph_degrees(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(anyGraphWithAdjListComputed.degrees)
