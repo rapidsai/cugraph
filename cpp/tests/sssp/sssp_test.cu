@@ -193,7 +193,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     ASSERT_TRUE((typeid(DistType) == typeid(float)) || (typeid(DistType) == typeid(double)));
     if (param.type_ == RMAT) {
       // This is size_t due to grmat_gen which should be fixed there
-      // TODO rmat is disabled
+      // FIXME: rmat is disabled
       return;
     } else if (param.type_ == MTX) {
       MaxVType m, k;
@@ -257,7 +257,12 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_TRUE(0);
     }
 
-    cugraph::experimental::GraphCOOView<MaxVType, MaxEType, DistType> G_coo(&cooRowInd[0], &cooColInd[0], (DoRandomWeights ? &cooVal[0] : nullptr), num_vertices, num_edges);
+    cugraph::experimental::GraphCOOView<MaxVType, MaxEType, DistType> G_coo(
+      &cooRowInd[0],
+      &cooColInd[0],
+      (DoRandomWeights ? &cooVal[0] : nullptr),
+      num_vertices,
+      num_edges);
     auto G_unique = cugraph::coo_to_csr(G_coo);
     cugraph::experimental::GraphCSRView<MaxVType, MaxEType, DistType> G = G_unique->view();
     cudaDeviceSynchronize();
@@ -394,7 +399,7 @@ TEST_P(Tests_SSSP, CheckFP64_NO_RANDOM_DIST_PREDS)
   run_current_test<int, int, double, false, true, true>(GetParam());
 }
 
-// TODO: There might be some tests that are done twice (MTX that are not patterns)
+// FIXME: There might be some tests that are done twice (MTX that are not patterns)
 TEST_P(Tests_SSSP, CheckFP32_RANDOM_DIST_NO_PREDS)
 {
   run_current_test<int, int, float, true, true, false>(GetParam());

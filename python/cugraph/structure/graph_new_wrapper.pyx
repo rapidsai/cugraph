@@ -260,3 +260,10 @@ def get_two_hop_neighbors(input_graph):
                                              dtype=np.int32)
 
     return df
+
+
+def weight_type(input_graph):
+    weights_type = None
+    if input_graph.edgelist.weights:
+        weights_type = input_graph.edgelist.edgelist_df['weights'].dtype
+    return weights_type

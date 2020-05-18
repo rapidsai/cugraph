@@ -79,7 +79,7 @@ class HashFunctionObjectInt {
  * = oldId
  *
  */
-template <typename T_size,typename T_in, typename T_out, typename Hash_t, typename Compare_t>
+template <typename T_size, typename T_in, typename T_out, typename Hash_t, typename Compare_t>
 std::unique_ptr<rmm::device_buffer> renumber_vertices(T_size size,
                                                       const T_in *src,
                                                       const T_in *dst,
@@ -106,12 +106,13 @@ std::unique_ptr<rmm::device_buffer> renumber_vertices(T_size size,
   renumber::hash_type hash_size = hash.getHashSize();
 
   rmm::device_vector<T_in> hash_data_v(2 * size);
-  rmm::device_vector<renumber::index_type> hash_bins_start_v(1+hash_size, renumber::index_type{0});
-  rmm::device_vector<renumber::index_type> hash_bins_end_v(1+hash_size);
-  
-  T_in *hash_data = hash_data_v.data().get();
+  rmm::device_vector<renumber::index_type> hash_bins_start_v(1 + hash_size,
+                                                             renumber::index_type{0});
+  rmm::device_vector<renumber::index_type> hash_bins_end_v(1 + hash_size);
+
+  T_in *hash_data                       = hash_data_v.data().get();
   renumber::index_type *hash_bins_start = hash_bins_start_v.data().get();
-  renumber::index_type *hash_bins_end = hash_bins_end_v.data().get();
+  renumber::index_type *hash_bins_end   = hash_bins_end_v.data().get();
 
   //
   //  Pass 1: count how many vertex ids end up in each hash bin
@@ -232,7 +233,7 @@ std::unique_ptr<rmm::device_buffer> renumber_vertices(T_size size,
   *map_size = temp;
 
   rmm::device_buffer numbering_map(temp * sizeof(T_in), stream, mr);
-  T_in *local_numbering_map = static_cast<T_in*>(numbering_map.data());
+  T_in *local_numbering_map = static_cast<T_in *>(numbering_map.data());
 
   //
   //  Pass 4: Populate hash_data with data from the hash bins after deduping

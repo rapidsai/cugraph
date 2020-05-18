@@ -118,19 +118,21 @@ std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
  * @param[in]  dst            Pointer to device memory containing destination vertex ids
  * @param[out] src_renumbered Pointer to device memory containing the output source vertices.
  * @param[out] dst_renumbered Pointer to device memory containing the output destination vertices.
- * @param[out] map_size       Pointer to local memory containing the number of elements in the renumbering map
+ * @param[out] map_size       Pointer to local memory containing the number of elements in the
+ * renumbering map
  * @param[in]  mr             Memory resource used to allocate the returned graph
  *
  * @return                    Unique pointer to renumbering map
  *
  */
 template <typename VT, typename ET>
-std::unique_ptr<rmm::device_buffer> renumber_vertices(ET number_of_edges,
-                                                      VT const *src,
-                                                      VT const *dst,
-                                                      VT *src_renumbered,
-                                                      VT *dst_renumbered,
-                                                      ET *map_size,
-                                                      rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
-  
+std::unique_ptr<rmm::device_buffer> renumber_vertices(
+  ET number_of_edges,
+  VT const *src,
+  VT const *dst,
+  VT *src_renumbered,
+  VT *dst_renumbered,
+  ET *map_size,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
+
 }  // namespace cugraph

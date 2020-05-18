@@ -64,6 +64,13 @@ Louvain
     :members:
     :undoc-members:
 
+K-Truss
+-------
+
+.. automodule:: cugraph.community.ktruss_subgraph
+    :members:
+    :undoc-members:
+
 ECG
 ---
 
@@ -120,14 +127,15 @@ Core Number
     :members:
     :undoc-members:
 
+Layout
+======
 
-K-Truss
--------
+Force Atlas 2
+-------------
 
-.. automodule:: cugraph.cores.ktruss_subgraph
+.. automodule:: cugraph.layout.force_atlas2
     :members:
     :undoc-members:
-
 
 Link Analysis
 =============

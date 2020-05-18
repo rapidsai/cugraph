@@ -123,7 +123,7 @@ def sssp(input_graph, source):
         else: # This case should not happen
             raise NotImplementedError
     else:
-        # TODO: Something might be done here considering WT = float
+        # FIXME: Something might be done here considering WT = float
         graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                                 <int*> c_indices_ptr,
                                                 <float*> NULL,
@@ -133,6 +133,7 @@ def sssp(input_graph, source):
         c_bfs.bfs[int, int, float](graph_float,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
+                                   <double*> NULL,
                                    <int> source)
 
     #FIXME: Update with multiple column renumbering

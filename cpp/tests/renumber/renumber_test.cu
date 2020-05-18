@@ -115,9 +115,9 @@ TEST_F(RenumberingTest, SmallFixedVertexList)
                                                        thrust::less<uint32_t>(),
                                                        rmm::mr::get_default_resource());
 
-  EXPECT_EQ(
-    cudaMemcpy(tmp_map, number_map->data(), sizeof(uint32_t) * unique_verts, cudaMemcpyDeviceToHost),
-    cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(
+              tmp_map, number_map->data(), sizeof(uint32_t) * unique_verts, cudaMemcpyDeviceToHost),
+            cudaSuccess);
   EXPECT_EQ(cudaMemcpy(tmp_results, src_d, sizeof(uint32_t) * length, cudaMemcpyDeviceToHost),
             cudaSuccess);
 
@@ -235,9 +235,9 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
                                                        thrust::less<uint64_t>(),
                                                        rmm::mr::get_default_resource());
 
-  EXPECT_EQ(
-    cudaMemcpy(tmp_map, number_map->data(), sizeof(uint64_t) * unique_verts, cudaMemcpyDeviceToHost),
-    cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(
+              tmp_map, number_map->data(), sizeof(uint64_t) * unique_verts, cudaMemcpyDeviceToHost),
+            cudaSuccess);
   EXPECT_EQ(cudaMemcpy(tmp_results, src_d, sizeof(uint64_t) * length, cudaMemcpyDeviceToHost),
             cudaSuccess);
 
@@ -299,9 +299,9 @@ TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
                                                        thrust::less<uint64_t>(),
                                                        rmm::mr::get_default_resource());
 
-  EXPECT_EQ(
-    cudaMemcpy(tmp_map, number_map->data(), sizeof(uint64_t) * unique_verts, cudaMemcpyDeviceToHost),
-    cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(
+              tmp_map, number_map->data(), sizeof(uint64_t) * unique_verts, cudaMemcpyDeviceToHost),
+            cudaSuccess);
   EXPECT_EQ(
     cudaMemcpy(tmp_results, src_renumbered_d, sizeof(uint32_t) * length, cudaMemcpyDeviceToHost),
     cudaSuccess);
@@ -377,9 +377,9 @@ TEST_F(RenumberingTest, Random100KVertexSet)
 
   std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count() * 1000 << std::endl;
 
-  EXPECT_EQ(
-    cudaMemcpy(tmp_map, number_map->data(), sizeof(uint64_t) * unique_verts, cudaMemcpyDeviceToHost),
-    cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(
+              tmp_map, number_map->data(), sizeof(uint64_t) * unique_verts, cudaMemcpyDeviceToHost),
+            cudaSuccess);
   EXPECT_EQ(cudaMemcpy(tmp_results, src_d, sizeof(uint64_t) * num_verts, cudaMemcpyDeviceToHost),
             cudaSuccess);
 
@@ -455,16 +455,17 @@ TEST_F(RenumberingTest, Random10MVertexSet)
   size_t unique_verts = 0;
   size_t n_verts{num_verts};
 
-  auto start          = std::chrono::system_clock::now();
-  auto number_map = cugraph::detail::renumber_vertices(n_verts,
-                                                       src_d,
-                                                       dst_d,
-                                                       src_d,
-                                                       dst_d,
-                                                       &unique_verts,
-                                                       cugraph::detail::HashFunctionObjectInt(hash_size),
-                                                       thrust::less<uint64_t>(),
-                                                       rmm::mr::get_default_resource());
+  auto start = std::chrono::system_clock::now();
+  auto number_map =
+    cugraph::detail::renumber_vertices(n_verts,
+                                       src_d,
+                                       dst_d,
+                                       src_d,
+                                       dst_d,
+                                       &unique_verts,
+                                       cugraph::detail::HashFunctionObjectInt(hash_size),
+                                       thrust::less<uint64_t>(),
+                                       rmm::mr::get_default_resource());
   auto end                                      = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
 
@@ -515,16 +516,17 @@ TEST_F(RenumberingTest, Random100MVertexSet)
   size_t unique_verts = 0;
   size_t n_verts{num_verts};
 
-  auto start          = std::chrono::system_clock::now();
-  auto number_map = cugraph::detail::renumber_vertices(n_verts,
-                                                       src_d,
-                                                       dst_d,
-                                                       src_d,
-                                                       dst_d,
-                                                       &unique_verts,
-                                                       cugraph::detail::HashFunctionObjectInt(hash_size),
-                                                       thrust::less<uint64_t>(),
-                                                       rmm::mr::get_default_resource());
+  auto start = std::chrono::system_clock::now();
+  auto number_map =
+    cugraph::detail::renumber_vertices(n_verts,
+                                       src_d,
+                                       dst_d,
+                                       src_d,
+                                       dst_d,
+                                       &unique_verts,
+                                       cugraph::detail::HashFunctionObjectInt(hash_size),
+                                       thrust::less<uint64_t>(),
+                                       rmm::mr::get_default_resource());
   auto end                                      = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
 
@@ -575,16 +577,17 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   size_t unique_verts = 0;
   size_t n_verts{num_verts};
 
-  auto start          = std::chrono::system_clock::now();
-  auto number_map = cugraph::detail::renumber_vertices(n_verts,
-                                                       src_d,
-                                                       dst_d,
-                                                       src_d,
-                                                       dst_d,
-                                                       &unique_verts,
-                                                       cugraph::detail::HashFunctionObjectInt(hash_size),
-                                                       thrust::less<uint64_t>(),
-                                                       rmm::mr::get_default_resource());
+  auto start = std::chrono::system_clock::now();
+  auto number_map =
+    cugraph::detail::renumber_vertices(n_verts,
+                                       src_d,
+                                       dst_d,
+                                       src_d,
+                                       dst_d,
+                                       &unique_verts,
+                                       cugraph::detail::HashFunctionObjectInt(hash_size),
+                                       thrust::less<uint64_t>(),
+                                       rmm::mr::get_default_resource());
   auto end                                      = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
 

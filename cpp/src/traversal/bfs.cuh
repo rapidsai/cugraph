@@ -36,6 +36,7 @@ class BFS {
   bool computePredecessors;
   IndexType *distances;
   IndexType *predecessors;
+  double *sp_counters = nullptr;
   int *edge_mask;
 
   // Working data
@@ -44,7 +45,7 @@ class BFS {
   IndexType *frontier, *new_frontier;
   IndexType *original_frontier;
   IndexType vertices_bmap_size;
-  int *visited_bmap, *isolated_bmap;
+  int *visited_bmap, *isolated_bmap, *previous_visited_bmap;
   IndexType *vertex_degree;
   IndexType *buffer_np1_1, *buffer_np1_2;
   IndexType *frontier_vertex_degree;
@@ -92,7 +93,10 @@ class BFS {
     setup();
   }
 
-  void configure(IndexType *distances, IndexType *predecessors, int *edge_mask);
+  void configure(IndexType *distances,
+                 IndexType *predecessors,
+                 double *sp_counters,
+                 int *edge_mask);
 
   void traverse(IndexType source_vertex);
 };

@@ -32,13 +32,6 @@ import numpy as np
 #### FIXME:  Should return data frame instead of passing in k_core_graph...
 ####         Ripple down through implementation (algorithms.hpp, core_number.cu)
 
-def weight_type(input_graph):
-    weights_type = None
-    if input_graph.edgelist.weights:
-        weights_type = input_graph.edgelist.edgelist_df['weights'].dtype
-    return weights_type
-
-
 cdef (uintptr_t, uintptr_t) core_number_params(core_number):
     [core_number['vertex'], core_number['values']] = graph_new_wrapper.datatype_cast([core_number['vertex'], core_number['values']], [np.int32])
     cdef uintptr_t c_vertex = core_number['vertex'].__cuda_array_interface__['data'][0]
@@ -63,7 +56,7 @@ def k_core(input_graph, k, core_number):
     Call k_core
     """
 
-    if weight_type(input_graph) == np.float64:
+    if graph_new_wrapper.weight_type(input_graph) == np.float64:
         return k_core_double(input_graph, k, core_number)
     else:
         return k_core_float(input_graph, k, core_number)

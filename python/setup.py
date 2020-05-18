@@ -15,7 +15,7 @@ import os
 import sys
 import shutil
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Command
 from setuptools.extension import Extension
 
 try:
@@ -48,7 +48,7 @@ if not CUDA_HOME:
 
 if not os.path.isdir(CUDA_HOME):
     raise OSError(
-        f"Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}"
+        "Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}"
     )
 
 cuda_include_dir = os.path.join(CUDA_HOME, "include")
@@ -58,9 +58,33 @@ if (os.environ.get('CONDA_PREFIX', None)):
     conda_include_dir = conda_prefix + '/include'
     conda_lib_dir = conda_prefix + '/lib'
 
+
+class CleanCommand(Command):
+    """Custom clean command to tidy up the project root."""
+    user_options = [('all', None, None), ]
+
+    def initialize_options(self):
+        self.all = None
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        setupFileDir = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(setupFileDir)
+        os.system('rm -rf build')
+        os.system('rm -rf dist')
+        os.system('rm -rf dask-worker-space')
+        os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
+        os.system('rm -rf *.egg-info')
+        os.system('find . -name "*.cpp" -type f -delete')
+        os.system('find . -name "*.cpython*.so" -type f -delete')
+
+
 cmdclass = dict()
 cmdclass.update(versioneer.get_cmdclass())
 cmdclass["build_ext"] = build_ext
+cmdclass["clean"] = CleanCommand
 
 EXTENSIONS = [
     Extension("*",
