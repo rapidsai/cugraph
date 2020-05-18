@@ -440,7 +440,7 @@ void segmented_sort(IndexT num_segments,
   rmm::device_vector<IndexT> lrb_v(lrb_size + 1);
   rmm::device_vector<IndexT> grouped_bins_v(num_segments + 1);
 
-  IndexT *d_lrb = lrb_v.data().get();
+  IndexT *d_lrb          = lrb_v.data().get();
   IndexT *d_grouped_bins = grouped_bins_v.data().get();
 
   CUDA_TRY(cudaMemset(d_lrb, 0, (lrb_size + 1) * sizeof(IndexT)));
