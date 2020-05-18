@@ -14,6 +14,49 @@
 import cudf
 import pandas as pd
 
+#
+# Datasets are numbered based on the number of elements in the array
+#
+DATASETS_1 = ['../datasets/netscience.csv']
+
+DATASETS_2 = ['../datasets/karate.csv',
+              '../datasets/dolphins.csv']
+
+DATASETS_3 = ['../datasets/karate.csv',
+              '../datasets/dolphins.csv',
+              '../datasets/netscience.csv']
+
+DATASETS_4 = ['../datasets/karate.csv',
+              '../datasets/dolphins.csv',
+              '../datasets/netscience.csv',
+              '../datasets/email-Eu-core.csv']
+
+DATASETS_5 = ['../datasets/karate.csv',
+              '../datasets/dolphins.csv',
+              '../datasets/polbooks.csv',
+              '../datasets/netscience.csv',
+              '../datasets/email-Eu-core.csv']
+
+STRONGDATASETS = ['../datasets/dolphins.csv',
+                  '../datasets/netscience.csv',
+                  '../datasets/email-Eu-core.csv']
+
+DATASETS_KTRUSS = [('../datasets/polbooks.csv',
+                    '../datasets/ref/ktruss/polbooks.csv'),
+                   ('../datasets/netscience.csv',
+                    '../datasets/ref/ktruss/netscience.csv')]
+
+TINY_DATASETS = ['../datasets/karate.csv',
+                 '../datasets/dolphins.csv',
+                 '../datasets/polbooks.csv']
+
+SMALL_DATASETS = ['../datasets/netscience.csv',
+                  '../datasets/email-Eu-core.csv']
+
+
+# define the base for tests to use
+DATASETS = DATASETS_3
+
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):
     print('Reading ' + str(csv_file) + '...')
