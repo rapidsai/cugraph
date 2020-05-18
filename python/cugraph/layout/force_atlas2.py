@@ -36,6 +36,7 @@ def force_atlas2(input_graph,
         visualization.
 
         NOTE: Peak memory allocation occurs at 17*V.
+
         Parameters
         ----------
         input_graph : cugraph.Graph
@@ -56,7 +57,7 @@ def force_atlas2(input_graph,
             Distributes attraction along outbound edges.
             Hubs attract less and thus are pushed to the borders.
         lin_log_mode: bool
-            Switch ForceAtlas model from lin-lin to lin-log.
+            Switch Force Atlas model from lin-lin to lin-log.
             Makes clusters more tight.
         prevent_overlapping: bool
             Prevent nodes to overlap.
@@ -65,8 +66,10 @@ def force_atlas2(input_graph,
             0 is “no influence” and 1 is “normal”.
         jitter_tolerance: float
             How much swinging you allow. Above 1 discouraged.
-            Lower gives less speed and more precision
+            Lower gives less speed and more precision.
         barnes_hut_theta: float
+            Float between 0 and 1. Tradeoff for speed (1) vs
+            accuracy (0) for Barnes Hut only.
         scaling_ratio: float
             How much repulsion you want. More makes a more sparse graph.
             Switching from regular mode to LinLog mode needs a readjustment
@@ -75,17 +78,18 @@ def force_atlas2(input_graph,
             Attracts nodes to the center. Prevents islands from drifting away.
         verbose: bool
             Output convergence info at each interation.
-        callback: An instance of GraphBasedDimRedCallback class to intercept
-              the internal state of positions while they are being trained.
-              Example of callback usage:
-                  from cugraph.layout import GraphBasedDimRedCallback
-                  class CustomCallback(GraphBasedDimRedCallback):
-                    def on_preprocess_end(self, positions):
-                        print(positions.copy_to_host())
-                    def on_train_end(self, positions):
-                        print(positions.copy_to_host())
-                    def on_train_end(self, positions):
-                        print(positions.copy_to_host())
+        callback: GraphBasedDimRedCallback
+            An instance of GraphBasedDimRedCallback class to intercept
+            the internal state of positions while they are being trained.
+            Example of callback usage:
+                from cugraph.layout import GraphBasedDimRedCallback
+                    class CustomCallback(GraphBasedDimRedCallback):
+                        def on_preprocess_end(self, positions):
+                            print(positions.copy_to_host())
+                        def on_train_end(self, positions):
+                            print(positions.copy_to_host())
+                        def on_train_end(self, positions):
+                            print(positions.copy_to_host())
 
         Returns
         -------
