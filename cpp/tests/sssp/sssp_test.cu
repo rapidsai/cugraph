@@ -256,11 +256,10 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     } else {
       ASSERT_TRUE(0);
     }
-    CSR_Result_Weighted<MaxVType, DistType> result;
-    ConvertCOOtoCSR_weighted(&cooRowInd[0], &cooColInd[0], &cooVal[0], num_edges, result);
-    cugraph::experimental::GraphCSRView<MaxVType, MaxEType, DistType> G(
-      result.rowOffsets, result.colIndices, (DistType*)nullptr, result.size, result.nnz);
-    if (DoRandomWeights) { G.edge_data = result.edgeWeights; }
+
+    cugraph::experimental::GraphCOOView<MaxVType, MaxEType, DistType> G_coo(&cooRowInd[0], &cooColInd[0], (DoRandomWeights ? &cooVal[0] : nullptr), num_vertices, num_edges);
+    auto G_unique = cugraph::coo_to_csr(G_coo);
+    cugraph::experimental::GraphCSRView<MaxVType, MaxEType, DistType> G = G_unique->view();
     cudaDeviceSynchronize();
 
     std::vector<DistType> dist_vec;

@@ -102,6 +102,7 @@ TEST(gdf_edge_list, success_no_weights)
 }
 */
 
+#if 0
 TEST(gdf_edge_list, size_mismatch)
 {
   Graph_ptr G{new cugraph::Graph, Graph_deleter};
@@ -826,6 +827,7 @@ TEST(Graph, gdf_column_overhead)
   gdf_col_delete(col_src);
   gdf_col_delete(col_dest);
 }
+#endif
 
 int main(int argc, char **argv)
 {

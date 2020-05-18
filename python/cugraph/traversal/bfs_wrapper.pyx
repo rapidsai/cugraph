@@ -18,8 +18,7 @@
 
 cimport cugraph.traversal.bfs as c_bfs
 from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_wrapper
-from cugraph.utilities.column_utils cimport *
+from cugraph.structure import graph_new_wrapper
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -54,7 +53,7 @@ def bfs(input_graph, start, directed=True):
     # Step 3: Extract CSR offsets, indices, weights are not expected
     #         - offsets: int (signed, 32-bit)
     #         - indices: int (signed, 32-bit)
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
     c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
     c_indices_ptr = indices.__cuda_array_interface__['data'][0]
 

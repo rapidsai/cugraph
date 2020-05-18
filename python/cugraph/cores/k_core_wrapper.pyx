@@ -19,7 +19,6 @@
 from cugraph.cores.k_core cimport k_core as c_k_core
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.column_utils cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free

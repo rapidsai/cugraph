@@ -1,5 +1,3 @@
-// -*-c++-*-
-
 /*
  * Copyright (c) 2019, NVIDIA CORPORATION.
  *
@@ -16,11 +14,7 @@
  * limitations under the License.
  */
 
-// Renumber vertices
-// Author: Chuck Hastings charlesh@nvidia.com
-
-#ifndef RENUMBER_H
-#define RENUMBER_H
+#pragma once
 
 #define CUB_STDERR
 
@@ -30,11 +24,11 @@
 
 #include <cuda_runtime_api.h>
 #include <cudf/cudf.h>
-#include <nvstrings/NVStrings.h>
 #include <thrust/binary_search.h>
 #include <thrust/scan.h>
 
-#include "rmm_utils.h"
+#include <rmm/device_buffer.hpp>
+
 #include "sort/bitonic.cuh"
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
@@ -55,64 +49,6 @@ class HashFunctionObjectInt {
   __device__ __inline__ renumber::hash_type operator()(const VertexIdType &vertex_id) const
   {
     return ((vertex_id % hash_size_) + hash_size_) % hash_size_;
-  }
-
-  renumber::hash_type getHashSize() const { return hash_size_; }
-
- private:
-  renumber::hash_type hash_size_;
-};
-
-struct CompareString {
-  __device__ __inline__ bool operator()(const thrust::pair<const char *, size_t> &a,
-                                        const thrust::pair<const char *, size_t> &b) const
-  {
-    // return true if a < b
-    const char *ptr1 = a.first;
-    if (!ptr1) return false;
-
-    const char *ptr2 = b.first;
-    if (!ptr2) return false;
-
-    size_t len1   = a.second;
-    size_t len2   = b.second;
-    size_t minlen = thrust::min(len1, len2);
-    size_t idx;
-
-    for (idx = 0; idx < minlen; ++idx) {
-      if (*ptr1 < *ptr2) {
-        return true;
-      } else if (*ptr1 > *ptr2) {
-        return false;
-      }
-
-      ptr1++;
-      ptr2++;
-    }
-
-    return (idx < len1);
-  }
-};
-
-class HashFunctionObjectString {
- public:
-  HashFunctionObjectString(renumber::hash_type hash_size) : hash_size_(hash_size) {}
-
-  __device__ __inline__ renumber::hash_type operator()(
-    const thrust::pair<const char *, size_t> &str) const
-  {
-    //
-    //  Lifted/adapted from custring_view.inl in custrings
-    //
-    size_t sz        = str.second;
-    const char *sptr = str.first;
-
-    renumber::hash_type seed = 31;  // prime number
-    renumber::hash_type hash = 0;
-
-    for (size_t i = 0; i < sz; i++) hash = hash * seed + sptr[i];
-
-    return (hash % hash_size_);
   }
 
   renumber::hash_type getHashSize() const { return hash_size_; }
@@ -143,19 +79,17 @@ class HashFunctionObjectString {
  * = oldId
  *
  */
-template <typename T_in, typename T_out, typename Hash_t, typename Compare_t>
-void renumber_vertices(size_t size,
-                       const T_in *src,
-                       const T_in *dst,
-                       T_out *src_renumbered,
-                       T_out *dst_renumbered,
-                       size_t *new_size,
-                       T_in **numbering_map,
-                       Hash_t hash,
-                       Compare_t compare)
+template <typename T_size,typename T_in, typename T_out, typename Hash_t, typename Compare_t>
+std::unique_ptr<rmm::device_buffer> renumber_vertices(T_size size,
+                                                      const T_in *src,
+                                                      const T_in *dst,
+                                                      T_out *src_renumbered,
+                                                      T_out *dst_renumbered,
+                                                      T_size *map_size,
+                                                      Hash_t hash,
+                                                      Compare_t compare,
+                                                      rmm::mr::device_memory_resource *mr)
 {
-  //
-  // Assume - src/dst/src_renumbered/dst_renumbered are all pre-allocated.
   //
   // This function will allocate numbering_map to be the exact size needed
   // (user doesn't know a priori how many unique vertices there are.
@@ -171,20 +105,17 @@ void renumber_vertices(size_t size,
 
   renumber::hash_type hash_size = hash.getHashSize();
 
-  T_in *hash_data;
-
-  renumber::index_type *hash_bins_start;
-  renumber::index_type *hash_bins_end;
-
-  ALLOC_TRY(&hash_data, 2 * size * sizeof(T_in), stream);
-  ALLOC_TRY(&hash_bins_start, (1 + hash_size) * sizeof(renumber::index_type), stream);
-  ALLOC_TRY(&hash_bins_end, (1 + hash_size) * sizeof(renumber::index_type), stream);
+  rmm::device_vector<T_in> hash_data_v(2 * size);
+  rmm::device_vector<renumber::index_type> hash_bins_start_v(1+hash_size, renumber::index_type{0});
+  rmm::device_vector<renumber::index_type> hash_bins_end_v(1+hash_size);
+  
+  T_in *hash_data = hash_data_v.data().get();
+  renumber::index_type *hash_bins_start = hash_bins_start_v.data().get();
+  renumber::index_type *hash_bins_end = hash_bins_end_v.data().get();
 
   //
   //  Pass 1: count how many vertex ids end up in each hash bin
   //
-  CUDA_TRY(cudaMemset(hash_bins_start, 0, (1 + hash_size) * sizeof(renumber::index_type)));
-
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
                    src,
                    src + size,
@@ -298,10 +229,10 @@ void renumber_vertices(size_t size,
   renumber::index_type temp = 0;
   CUDA_TRY(cudaMemcpy(
     &temp, hash_bins_end + hash_size, sizeof(renumber::index_type), cudaMemcpyDeviceToHost));
-  *new_size = temp;
+  *map_size = temp;
 
-  ALLOC_TRY(numbering_map, temp * sizeof(T_in), nullptr);
-  T_in *local_numbering_map = *numbering_map;
+  rmm::device_buffer numbering_map(temp * sizeof(T_in), stream, mr);
+  T_in *local_numbering_map = static_cast<T_in*>(numbering_map.data());
 
   //
   //  Pass 4: Populate hash_data with data from the hash bins after deduping
@@ -381,12 +312,8 @@ void renumber_vertices(size_t size,
                      dst_renumbered[idx] = id - local_numbering_map;
                    });
 
-  ALLOC_FREE_TRY(hash_data, nullptr);
-  ALLOC_FREE_TRY(hash_bins_start, nullptr);
-  ALLOC_FREE_TRY(hash_bins_end, nullptr);
+  return std::make_unique<rmm::device_buffer>(std::move(numbering_map));
 }
 
 }  // namespace detail
 }  // namespace cugraph
-
-#endif
