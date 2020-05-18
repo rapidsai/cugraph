@@ -39,6 +39,7 @@
 - PR #878 Updated build script
 - PR #879 Add docs build script to repository
 - PR #818 Initial version of new "benchmarks" folder
+- PR #880 Remove remaining gdf_column references
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
