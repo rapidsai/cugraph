@@ -13,7 +13,8 @@
 
 import gc
 
-import numpy as np
+import cupy
+#import numpy as np
 import pytest
 import cugraph
 from cugraph.tests import utils
@@ -190,36 +191,50 @@ def _compare_bfs(G,  Gnx, source):
 
 def _compare_bfs_spc(G, Gnx, source):
     df = cugraph.bfs(G, source, return_sp_counter=True)
-    cu_sp_counter = {vertex: dist for vertex, dist in
-                     zip(df['vertex'].to_array(), df['sp_counter'].to_array())}
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor', 'sp_counter'
     assert len(df.columns) == 4, "The result of the BFS has an invalid " \
                                  "number of columns"
     _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(Gnx,
                                                                    source)
+    sorted_nx = [nx_sp_counter[key] for key in sorted(nx_sp_counter.keys())]
     # We are not checking for distances / predecessors here as we assume
     # that these have been checked  in the _compare_bfs tests
     # We focus solely on shortest path counting
-    # NOTE:(as 04/29/2020) The networkx implementation generates a dict with
-    # all the vertices thus we check for all of them
-    missing_vertex_error = 0
-    shortest_path_counter_errors = 0
-    for vertex in nx_sp_counter:
-        if vertex in cu_sp_counter:
-            result = cu_sp_counter[vertex]
-            expected = cu_sp_counter[vertex]
-            if not compare_single_sp_counter(result, expected):
-                print("[ERR] Mismatch on shortest paths: "
-                      "vid = {}, cugraph = {}, nx = {}".format(vertex,
-                                                               result,
-                                                               expected))
-                shortest_path_counter_errors += 1
-        else:
-            missing_vertex_error += 1
-    assert missing_vertex_error == 0, "There are missing vertices"
-    assert shortest_path_counter_errors == 0, "Shortest path counters are " \
-                                              "too different"
+
+    # cugraph return a dataframe that should contain exactly one time each
+    # vertex
+    # We could us isin to filter only vertices that are common to both
+    # But it would slow down the comparison, and in this specific case
+    # nxacb._single_source_shortest_path_basic is a dictionary containing all
+    # the vertices.
+    # There is no guarantee when we get `df` that the vertices are sorted
+    # thus we enforce the order so that we can leverage faster comparison after
+    sorted_df = df.sort_values('vertex').rename({"sp_counter": "cu_spc"})
+
+    # This will allows to detect vertices identifier that could have been
+    # wrongly present multiple times
+    cu_vertices = set(sorted_df['vertex'])
+    nx_vertices = nx_sp_counter.keys()
+    assert len(cu_vertices.intersection(nx_vertices)) == len(nx_vertices), \
+        "There are missing vertices"
+
+    # We add the nx shortest path counter in the cudf.DataFrame, both the
+    # the DataFrame and `sorted_nx` are sorted base on vertices identifiers
+    sorted_df["nx_spc"] = sorted_nx
+
+    # We could use numpy.isclose or cupy.isclose, we can then get the entries
+    # in the cudf.DataFrame where there are is a mismatch.
+    # numpy / cupy allclose would get only a boolean and we might want the
+    # extra information about the discrepancies
+    shortest_path_counter_errors = sorted_df[~cupy.isclose(sorted_df['cu_spc'],
+                                             sorted_df['nx_spc'],
+                                             rtol=DEFAULT_EPSILON)
+                                             ]
+    if len(shortest_path_counter_errors) > 0:
+        print(shortest_path_counter_errors)
+    assert len(shortest_path_counter_errors) == 0, "Shortest path counters " \
+                                                   "are too different"
 
 
 # =============================================================================

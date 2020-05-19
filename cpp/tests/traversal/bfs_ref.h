@@ -41,11 +41,10 @@ void ref_bfs(VT *indices,
              VT source)
 {
   std::vector<VT> neighbors;
-  for (VT w = 0; w < number_of_vertices; ++w) {
-    pred[w].clear();
-    dist[w]   = std::numeric_limits<VT>::max();
-    sigmas[w] = 0;
-  }
+  pred.clear();
+  pred.resize(number_of_vertices);
+  dist.assign(number_of_vertices, std::numeric_limits<VT>::max());
+  sigmas.assign(number_of_vertices, 0);
   dist[source]   = 0;
   sigmas[source] = 1;
   Q.push(source);
