@@ -17,7 +17,7 @@ import shutil
 
 from setuptools import setup, find_packages, Command
 from setuptools.extension import Extension
-from setuputils import *
+from setuputils import use_raft_package, get_environment_option
 
 try:
     from Cython.Distutils.build_ext import new_build_ext as build_ext
