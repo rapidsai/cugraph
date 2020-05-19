@@ -80,7 +80,12 @@ def use_raft_package(raft_path, cpp_build_path,
     -Otherwise it will clone RAFT into _external_repositories.
         - Branch/git tag cloned is located in git_info_file in this case.
 
+    Returns
+     -------
+     raft_include_path: Str
+         Path to the C++ include folder of RAFT
     """
+
     if not raft_path:
         raft_path, raft_cloned = \
             clone_repo_if_needed('raft', cpp_build_path,
@@ -98,6 +103,8 @@ def use_raft_package(raft_path, cpp_build_path,
     except FileExistsError:
         os.remove('cugraph/raft')
         os.symlink(raft_path + 'python/raft', 'cugraph/raft')
+
+    return raft_path + '/cpp/include'
 
 
 def clone_repo_if_needed(name, cpp_build_path,

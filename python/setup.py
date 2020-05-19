@@ -64,7 +64,9 @@ libcugraph_path = get_environment_option('CUGRAPH_BUILD_PATH')
 # Optional location of RAFT that can be confugred by the user
 raft_path = get_environment_option('RAFT_PATH')
 
-use_raft_package(raft_path, libcugraph_path, git_info_file='../cpp/CMakeLists.txt')
+raft_include_dir = use_raft_package(raft_path, libcugraph_path,
+                                    git_info_file='../cpp/CMakeLists.txt')
+
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -99,6 +101,7 @@ EXTENSIONS = [
               include_dirs=[conda_include_dir,
                             '../cpp/include',
                             "../thirdparty/cub",
+                            raft_include_dir,
                             os.path.join(
                                 conda_include_dir, "libcudf", "libcudacxx"),
                             cuda_include_dir],
