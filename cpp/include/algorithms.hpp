@@ -16,6 +16,7 @@
 #pragma once
 
 #include <graph.hpp>
+#include <internals.hpp>
 
 namespace cugraph {
 
@@ -190,6 +191,78 @@ enum class cugraph_bc_implem_t {
   CUGRAPH_DEFAULT = 0,  ///> Native cugraph implementation
   CUGRAPH_GUNROCK       ///> Gunrock implementation
 };
+
+/**
+ *
+ * @brief                                       ForceAtlas2 is a continuous graph layout algorithm
+ * for handy network visualization.
+ *
+ *                                              NOTE: Peak memory allocation occurs at 17*V.
+ *
+ * @throws                                      cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                                   Type of vertex identifiers. Supported value : int
+ * (signed, 32-bit)
+ * @tparam ET                                   Type of edge identifiers.  Supported value : int
+ * (signed, 32-bit)
+ * @tparam WT                                   Type of edge weights. Supported values : float or
+ * double.
+ *
+ * @param[in] graph                             cuGRAPH graph descriptor, should contain the
+ * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
+ * algorithm and set to 1 by default.
+ * @param[out] pos                              Device array (2, n) containing x-axis and y-axis
+ * positions;
+ * @param[in] max_iter                          The maximum number of iterations Force Atlas 2
+ * should run for.
+ * @param[in] x_start                           Device array containing starting x-axis positions;
+ * @param[in] y_start                           Device array containing starting y-axis positions;
+ * @param[in] outbound_attraction_distribution  Distributes attraction along outbound edges. Hubs
+ * attract less and thus are pushed to the borders.
+ * @param[in] lin_log_mode                      Switch ForceAtlas’ model from lin-lin to lin-log
+ * (tribute to Andreas Noack). Makes clusters more tight.
+ * @param[in] prevent_overlapping               Prevent nodes from overlapping.
+ * @param[in] edge_weight_influence             How much influence you give to the edges weight. 0
+ * is “no influence” and 1 is “normal”.
+ * @param[in] jitter_tolerance                  How much swinging you allow. Above 1 discouraged.
+ * Lower gives less speed and more precision.
+ * @param[in] barnes_hut_optimize:              Whether to use the fast Barnes Hut or use the slower
+ * exact version.
+ * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs
+ * accuracy (0) for Barnes Hut only.
+ * @params[in] scaling_ratio                    Float strictly positive. How much repulsion you
+ * want. More makes a more sparse graph. Switching from regular mode to LinLog mode needs a
+ * readjustment of the scaling parameter.
+ * @params[in] strong_gravity_mode                      The “Strong gravity” option sets a force
+ * that attracts the nodes that are distant from the center more ( is this distance). This force has
+ * the drawback of being so strong that it is sometimes stronger than the other forces. It may
+ * result in a biased placement of the nodes. However, its advantage is to force a very compact
+ * layout, which may be useful for certain purposes.
+ * @params[in] gravity                          Attracts nodes to the center. Prevents islands from
+ * drifting away.
+ * @params[in] verbose                          Output convergence info at each interation.
+ * @params[in] callback                         An instance of GraphBasedDimRedCallback class to
+ * intercept the internal state of positions while they are being trained.
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
+                  float *pos,
+                  const int max_iter                            = 500,
+                  float *x_start                                = nullptr,
+                  float *y_start                                = nullptr,
+                  bool outbound_attraction_distribution         = true,
+                  bool lin_log_mode                             = false,
+                  bool prevent_overlapping                      = false,
+                  const float edge_weight_influence             = 1.0,
+                  const float jitter_tolerance                  = 1.0,
+                  bool barnes_hut_optimize                      = true,
+                  const float barnes_hut_theta                  = 0.5,
+                  const float scaling_ratio                     = 2.0,
+                  bool strong_gravity_mode                      = false,
+                  const float gravity                           = 1.0,
+                  bool verbose                                  = false,
+                  internals::GraphBasedDimRedCallback *callback = nullptr);
 
 /**
  * @brief     Compute betweenness centrality for a graph
