@@ -177,6 +177,11 @@ def bench_bfs(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, 0)
 
 
+def bench_force_atlas2(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.force_atlas2, anyGraphWithAdjListComputed,
+                 max_iter=50)
+
+
 def bench_sssp(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, 0)
 
