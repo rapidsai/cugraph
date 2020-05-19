@@ -7,7 +7,7 @@
 - PR #875 UVM notebook 
 
 ## Improvements
-- PR #876 Update BFS with rmm::device_vector and add c++ tests
+- PR #876 Add BFS C++ tests
 - PR #817 Add native Betweenness Centrality with sources subset
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components

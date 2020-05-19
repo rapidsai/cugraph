@@ -14,7 +14,7 @@
 import gc
 
 import cupy
-#import numpy as np
+import numpy as np
 import pytest
 import cugraph
 from cugraph.tests import utils
