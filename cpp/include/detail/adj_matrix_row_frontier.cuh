@@ -21,6 +21,7 @@
 
 #include <graph.hpp>
 
+#include <rmm/device_scalar.hpp>
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/iterator/zip_iterator.h>
@@ -81,7 +82,7 @@ struct make_buffer_zip_iterator {
   auto make(std::vector<void*> buffer_ptrs, size_t offset) {
     CUGRAPH_FAIL("unimplemented.");
     return thrust::make_zip_iterator(
-      thrust::make_tuple(static_cast<vertex_t>(buffer_ptrs[0]) + offset));
+      thrust::make_tuple(reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset));
   }
 };
 
@@ -89,7 +90,7 @@ template <typename TupleType, typename vertex_t>
 struct make_buffer_zip_iterator<TupleType, vertex_t, 0> {
   auto make(std::vector<void*> buffer_ptrs, size_t offset) {
     return thrust::make_zip_iterator(
-      thrust::make_tuple(static_cast<vertex_t>(buffer_ptrs[0]) + offset));
+      thrust::make_tuple(reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset));
   }
 };
 
@@ -98,8 +99,9 @@ struct make_buffer_zip_iterator<TupleType, vertex_t, 1> {
   auto make(std::vector<void*> buffer_ptrs, size_t offset) {
     return thrust::make_zip_iterator(
       thrust::make_tuple(
-        static_cast<vertex_t>(buffer_ptrs[0]) + offset,
-        static_cast<typename thrust::tuple_element<0, TupleType>::type>(buffer_ptrs[1]) + offset));
+        reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset,
+        reinterpret_cast<typename thrust::tuple_element<0, TupleType>::type*>(
+          buffer_ptrs[1]) + offset));
   }
 };
 
@@ -108,9 +110,11 @@ struct make_buffer_zip_iterator<TupleType, vertex_t, 2> {
   auto make(std::vector<void*> buffer_ptrs, size_t offset) {
     return thrust::make_zip_iterator(
       thrust::make_tuple(
-        static_cast<vertex_t>(buffer_ptrs[0]) + offset,
-        static_cast<typename thrust::tuple_element<0, TupleType>::type>(buffer_ptrs[1]) + offset,
-        static_cast<typename thrust::tuple_element<1, TupleType>::type>(buffer_ptrs[2]) + offset));
+        reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset,
+        reinterpret_cast<typename thrust::tuple_element<0, TupleType>::type*>(
+          buffer_ptrs[1]) + offset,
+        reinterpret_cast<typename thrust::tuple_element<1, TupleType>::type*>(
+          buffer_ptrs[2]) + offset));
   }
 };
 
@@ -175,10 +179,12 @@ class AdjMatrixRowFrontier {
 
   AdjMatrixRowFrontier(HandleType const& handle, std::vector<size_t> bucket_capacities)
     : p_handle_(&handle),
-      buffer_ptrs_(kReduceInputTupleSize + 1/* to store destination column number */, nullptr) {
+      buffer_ptrs_(kReduceInputTupleSize + 1/* to store destination column number */, nullptr),
+      buffer_idx_(0, p_handle_->get_default_stream()) {
     for (size_t i = 0; i < bucket_capacities.size(); ++i) {
       buckets_.emplace_back(handle, bucket_capacities[i]);
     }
+    buffer_.set_stream(p_handle_->get_default_stream());
   }
 
   Bucket<HandleType, vertex_t>& get_bucket(size_t bucket_idx) {
@@ -190,6 +196,8 @@ class AdjMatrixRowFrontier {
   }
 
   void resize_buffer(size_t size) {
+    // FIXME: rmm::device_buffer resize incurs copy if memory is reallocated, which is unnecessary
+    // in this case.
     buffer_.resize(
       compute_aggregate_buffer_size_in_bytes(size), p_handle_->get_default_stream());
     if (size > buffer_capacity_) {
@@ -205,6 +213,8 @@ class AdjMatrixRowFrontier {
 
   void shrink_to_fit_buffer() {
     if (buffer_size_ != buffer_capacity_) {
+      // FIXME: rmm::device_buffer shrink_to_fit incurs copy if memory is reallocated, which is
+      // unnecessary in this case.
       buffer_.shrink_to_fit(p_handle_->get_default_stream());
       update_buffer_ptrs();
       buffer_capacity_ = buffer_size_;
@@ -221,6 +231,14 @@ class AdjMatrixRowFrontier {
       buffer_ptrs_, buffer_size_);
   }
 
+  auto get_buffer_idx_ptr() {
+    return buffer_idx_.data();
+  }
+
+  void set_buffer_idx_value(size_t value) {
+    buffer_idx_.set_value(value, p_handle_->get_default_stream());
+  }
+
  private:
   static size_t constexpr kReduceInputTupleSize = thrust::tuple_size<ReduceInputTupleType>::value;
   static size_t constexpr kBufferAlignment = 128;
@@ -234,6 +252,7 @@ class AdjMatrixRowFrontier {
   rmm::device_buffer buffer_{};
   size_t buffer_size_{0};
   size_t buffer_capacity_{0};
+  rmm::device_scalar<size_t> buffer_idx_{};
 
   size_t compute_aggregate_buffer_size_in_bytes(size_t size) {
     size_t aggregate_buffer_size_in_bytes = round_up_safe(sizeof(vertex_t) * size, kBufferAlignment);
