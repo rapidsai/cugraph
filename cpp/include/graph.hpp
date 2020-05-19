@@ -60,9 +60,6 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphViewBase {
  public:
-  using vertex_type = VT;
-  using edge_type = ET;
-  using weight_type = WT;
   static bool constexpr is_opg = false;
 
   Comm comm;
@@ -104,6 +101,10 @@ class GraphViewBase {
 template <typename VT, typename ET, typename WT>
 class GraphCOOView : public GraphViewBase<VT, ET, WT> {
  public:
+  using vertex_type = VT;
+  using edge_type = ET;
+  using weight_type = WT;
+
   VT *src_indices{nullptr};  ///< rowInd
   VT *dst_indices{nullptr};  ///< colInd
 
@@ -218,6 +219,10 @@ class GraphCompressedSparseBaseView : public GraphViewBase<VT, ET, WT> {
 template <typename VT, typename ET, typename WT>
 class GraphCSRView : public GraphCompressedSparseBaseView<VT, ET, WT> {
  public:
+  using vertex_type = VT;
+  using edge_type = ET;
+  using weight_type = WT;
+
   /**
    * @brief      Default constructor
    */
@@ -256,6 +261,10 @@ class GraphCSRView : public GraphCompressedSparseBaseView<VT, ET, WT> {
 template <typename VT, typename ET, typename WT>
 class GraphCSCView : public GraphCompressedSparseBaseView<VT, ET, WT> {
  public:
+  using vertex_type = VT;
+  using edge_type = ET;
+  using weight_type = WT;
+
   /**
    * @brief      Default constructor
    */
@@ -424,9 +433,6 @@ class GraphCompressedSparseBase {
   bool has_data_{false};
 
  public:
-  using vertex_type = VT;
-  using edge_type = ET;
-  using weight_type = WT;
   static bool constexpr is_opg = false;
 
   /**
@@ -497,6 +503,10 @@ class GraphCompressedSparseBase {
 template <typename VT, typename ET, typename WT>
 class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
  public:
+  using vertex_type = VT;
+  using edge_type = ET;
+  using weight_type = WT;
+
   /**
    * @brief      Default constructor
    */
@@ -550,6 +560,10 @@ class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
 template <typename VT, typename ET, typename WT>
 class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
  public:
+  using vertex_type = VT;
+  using edge_type = ET;
+  using weight_type = WT;
+
   /**
    * @brief      Default constructor
    */

@@ -42,8 +42,8 @@ class graph_compressed_sparse_base_device_view_t<
   GraphType, std::enable_if_t<is_csr<GraphType>::value || is_csc<GraphType>::value>
 > {
  public:
-  using vertex_t = typename GraphType::vertex_type;
-  using edge_t = typename GraphType::edge_type;
+  using vertex_type = typename GraphType::vertex_type;
+  using edge_type = typename GraphType::edge_type;
 
   static bool constexpr is_csr = GraphType::is_csr;
 
@@ -59,27 +59,37 @@ class graph_compressed_sparse_base_device_view_t<
     graph_compressed_sparse_base_device_view_t&&) = default;
 
   __host__ __device__
+  edge_type const* offset_data() const noexcept {
+    return p_offsets_;
+  }
+
+  __host__ __device__
+  vertex_type const* index_data() const noexcept {
+    return p_indices_;
+  }
+
+  __host__ __device__
   bool is_symmetric() const noexcept {
     return is_symmetric_;
   }
 
   __host__ __device__
-  vertex_t get_number_of_vertices() const noexcept {
+  vertex_type get_number_of_vertices() const noexcept {
     return number_of_vertices_;
   }
 
   __host__ __device__
-  constexpr bool in_vertex_range(vertex_t v) const noexcept {
+  constexpr bool in_vertex_range(vertex_type v) const noexcept {
     // FIXME: need to check
     return true;
   }
 
  protected:
   bool is_symmetric_{false};
-  vertex_t number_of_vertices_{0};
+  vertex_type number_of_vertices_{0};
 
-  edge_t const* p_offsets_{nullptr};
-  vertex_t const* p_indices_{nullptr};
+  edge_type const* p_offsets_{nullptr};
+  vertex_type const* p_indices_{nullptr};
 
   graph_compressed_sparse_base_device_view_t(GraphType const& graph) {
     // FIXME: better not directly access graph member variables, and directed is a misnomer.
@@ -101,8 +111,8 @@ class graph_compressed_sparse_device_view_t<
   std::enable_if_t<GraphType::is_opg && (is_csr<GraphType>::value || is_csc<GraphType>::value)>
 > : public graph_compressed_sparse_base_device_view_t<GraphType> {
  public:
-  using vertex_t = typename GraphType::vertex_type;
-  using edge_t = typename GraphType::edge_type;
+  using vertex_type = typename GraphType::vertex_type;
+  using edge_type = typename GraphType::edge_type;
 
   graph_compressed_sparse_device_view_t() = delete;
   ~graph_compressed_sparse_device_view_t() = default;
@@ -136,7 +146,7 @@ class graph_compressed_sparse_device_view_t<
     // scale-free graphs using 2D graph partitioning," 2013.
     auto num_this_partition_adj_matrix_row_ranges = 1;
     rmm::device_buffer* p_buffer =
-      new rmm::device_buffer(num_this_partition_adj_matrix_row_ranges * sizeof(vertex_t) * 2);
+      new rmm::device_buffer(num_this_partition_adj_matrix_row_ranges * sizeof(vertex_type) * 2);
     auto deleter =
       [p_buffer] (graph_compressed_sparse_device_view_t* graph_device_view) {
         graph_device_view->destroy();
@@ -149,33 +159,9 @@ class graph_compressed_sparse_device_view_t<
     return p_graph_device_view;
   }
 
-  __host__ __device__
-  constexpr bool in_this_partition_vertex_range_nocheck(vertex_t v) const noexcept {
-    CUGRAPH_FAIL("unimplemented.");
-    return true;
-  }
-
-  __host__ __device__
-  constexpr bool in_this_partition_adj_matrix_row_range_nocheck(vertex_t v) const noexcept {
-    CUGRAPH_FAIL("unimplemented.");
-    return true;
-  }
-
-  __host__ __device__
-  constexpr bool in_this_partition_adj_matrxi_col_range_nocheck(vertex_t v) const noexcept {
-    CUGRAPH_FAIL("unimplemented.");
-    return true;
-  }
-
-  __host__ __device__
-  vertex_t get_vertex_from_this_partition_vertex_offset_nocheck(vertex_t offset) const noexcept {
-    CUGRAPH_FAIL("unimplemented.");
-    return offset;
-  }
-
 private:
-  vertex_t const* p_this_partition_adj_matrix_row_firsts_{nullptr};
-  vertex_t const* p_this_partition_adj_matrix_row_lasts_{nullptr};
+  vertex_type const* p_this_partition_adj_matrix_row_firsts_{nullptr};
+  vertex_type const* p_this_partition_adj_matrix_row_lasts_{nullptr};
   size_t num_this_partition_adj_matrix_row_ranges_{0};
 };
 
@@ -186,8 +172,8 @@ class graph_compressed_sparse_device_view_t<
   std::enable_if_t<!GraphType::is_opg && (is_csr<GraphType>::value || is_csc<GraphType>::value)>
 > : public graph_compressed_sparse_base_device_view_t<GraphType> {
 public:
-  using vertex_t = typename GraphType::vertex_type;
-  using edge_t = typename GraphType::edge_type;
+  using vertex_type = typename GraphType::vertex_type;
+  using edge_type = typename GraphType::edge_type;
 
   graph_compressed_sparse_device_view_t() = delete;
   ~graph_compressed_sparse_device_view_t() = default;
@@ -211,54 +197,64 @@ public:
   }
 
   __host__ __device__
-  vertex_t get_number_of_this_partition_vertices() const noexcept {
+  vertex_type get_number_of_this_partition_vertices() const noexcept {
     return this->number_of_vertices_;
   }
 
   __host__ __device__
-  vertex_t get_number_of_this_partition_adj_matrix_rows() const noexcept {
+  vertex_type get_number_of_this_partition_adj_matrix_rows() const noexcept {
     return this->number_of_vertices_;
   }
 
   __host__ __device__
-  vertex_t get_number_of_this_partition_adj_matrix_cols() const noexcept {
+  vertex_type get_number_of_this_partition_adj_matrix_cols() const noexcept {
     return this->number_of_vertices_;
   }
 
   __host__ __device__
-  constexpr bool in_this_partition_vertex_range_nocheck(vertex_t v) const noexcept {
+  constexpr bool in_this_partition_vertex_range_nocheck(vertex_type v) const noexcept {
     return true;
   }
 
   __host__ __device__
-  constexpr bool in_this_partition_adj_matrix_row_range_nocheck(vertex_t v) const noexcept {
+  constexpr bool in_this_partition_adj_matrix_row_range_nocheck(vertex_type v) const noexcept {
     return true;
   }
 
   __host__ __device__
-  constexpr bool in_this_partition_adj_matrxi_col_range_nocheck(vertex_t v) const noexcept {
+  constexpr bool in_this_partition_adj_matrxi_col_range_nocheck(vertex_type v) const noexcept {
     return true;
   }
 
   __host__ __device__
-  vertex_t get_vertex_from_this_partition_vertex_offset_nocheck(vertex_t offset) const noexcept {
+  vertex_type get_vertex_from_this_partition_vertex_offset_nocheck(vertex_type offset) const noexcept {
     return offset;
   }
 
   __host__ __device__
-  vertex_t get_this_partition_vertex_offset_from_vertex_nocheck(vertex_t v) const noexcept {
+  vertex_type get_this_partition_vertex_offset_from_vertex_nocheck(vertex_type v) const noexcept {
     return v;
   }
 
+  __host__ __device__
+  vertex_type get_this_partition_row_offset_from_row_nocheck(vertex_type row) const noexcept {
+    return row;
+  }
+
+  __host__ __device__
+  vertex_type get_this_partition_col_offset_from_col_nocheck(vertex_type col) const noexcept {
+    return col;
+  }
+
   auto this_partition_vertex_begin() const {
-    return thrust::make_counting_iterator(static_cast<vertex_t>(0));
+    return thrust::make_counting_iterator(static_cast<vertex_type>(0));
   }
 
   auto this_partition_vertex_end() const {
     return thrust::make_counting_iterator(this->number_of_vertices_);
   }
   auto this_partition_adj_matrix_row_begin() const {
-    return thrust::make_counting_iterator(static_cast<vertex_t>(0));
+    return thrust::make_counting_iterator(static_cast<vertex_type>(0));
   }
 
   auto this_partition_adj_matrix_row_end() const {
@@ -266,7 +262,7 @@ public:
   }
 
   auto this_partition_adj_matrix_col_begin() const {
-    return thrust::make_counting_iterator(static_cast<vertex_t>(0));
+    return thrust::make_counting_iterator(static_cast<vertex_type>(0));
   }
 
   auto this_partition_adj_matrix_col_end() const {
