@@ -243,7 +243,7 @@ def get_repo_cmake_info(names, file_path):
         specified by cmake.
 
     """
-    with open(file_path) as f:
+    with open(file_path, encoding='utf-8') as f:
         s = f.read()
 
     results = {}
