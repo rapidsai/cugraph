@@ -51,6 +51,7 @@ from cugraph.proto.components import strong_connected_component
 from cugraph.proto.structure import find_bicliques
 
 from cugraph.layout import force_atlas2
+from cugraph.raft import raft_include_test
 
 # Versioneer
 from ._version import get_versions

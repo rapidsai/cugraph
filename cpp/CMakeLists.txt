@@ -278,6 +278,39 @@ else()
     set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
 endif(NOT NCCL_PATH)
 
+# - raft - (header only) -----------------------------------------------------
+
+# Only cloned if RAFT_PATH env variable is not defined
+
+if(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable detected.")
+  message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
+  set(RAFT_DIR ENV{RAFT_PATH})
+
+  ExternalProject_Add(raft
+    DOWNLOAD_COMMAND  ""
+    SOURCE_DIR        ${RAFT_DIR}
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND     ""
+    INSTALL_COMMAND   "")
+
+else(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable NOT detected, cloning RAFT")
+  set(RAFT_DIR ${CMAKE_CURRENT_BINARY_DIR}/raft CACHE STRING "Path to RAFT repo")
+
+  ExternalProject_Add(raft
+    GIT_REPOSITORY    https://github.com/rapidsai/raft.git
+    GIT_TAG           e003de27fc4e4a096337f184dddbd7942a68bb5c
+    PREFIX            ${RAFT_DIR}
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND     ""
+    INSTALL_COMMAND   "")
+
+  # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
+  set(RAFT_DIR ${RAFT_DIR}/src/raft/ CACHE STRING "Path to RAFT repo")
+endif(DEFINED ENV{RAFT_PATH})
+
+
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 
@@ -332,6 +365,7 @@ add_library(cugraph SHARED
 #        wait until after cugunrock is constructed.
 #
 add_dependencies(cugraph cugunrock)
+add_dependencies(cugraph raft)
 
 if (BUILD_MPI)
     add_compile_definitions(ENABLE_OPG=1)
@@ -356,6 +390,7 @@ target_include_directories(cugraph
     "${CUGUNROCK_DIR}/include"
     "${NCCL_INCLUDE_DIRS}"
     "${MPI_CXX_INCLUDE_PATH}"
+    "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )

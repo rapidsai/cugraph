@@ -227,7 +227,7 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0.70),
                                           Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0.77),
                                           Force_Atlas2_Usecase("test/datasets/netscience.mtx",
-                                                               0.82)));
+                                                               0.81)));
 
 int main(int argc, char** argv)
 {

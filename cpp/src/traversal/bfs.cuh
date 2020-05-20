@@ -23,9 +23,9 @@ namespace detail {
 template <typename IndexType>
 class BFS {
  private:
-  IndexType n, nnz;
-  const IndexType *row_offsets;
-  const IndexType *col_indices;
+  IndexType number_of_vertices, number_of_edges;
+  const IndexType *row_offsets = nullptr;
+  const IndexType *col_indices = nullptr;
 
   bool directed;
   bool deterministic;
@@ -34,31 +34,36 @@ class BFS {
   bool useEdgeMask;
   bool computeDistances;
   bool computePredecessors;
-  IndexType *distances;
-  IndexType *predecessors;
-  double *sp_counters = nullptr;
-  int *edge_mask;
+  IndexType *distances    = nullptr;
+  IndexType *predecessors = nullptr;
+  double *sp_counters     = nullptr;
+  int *edge_mask          = nullptr;
 
   // Working data
   // For complete description of each, go to bfs.cu
   IndexType nisolated;
-  IndexType *frontier, *new_frontier;
-  IndexType *original_frontier;
+  IndexType *frontier                                      = nullptr;
+  IndexType *new_frontier                                  = nullptr;
+  IndexType *original_frontier                             = nullptr;
+  int *visited_bmap                                        = nullptr;
+  int *isolated_bmap                                       = nullptr;
+  int *previous_visited_bmap                               = nullptr;
+  IndexType *vertex_degree                                 = nullptr;
+  IndexType *buffer_np1_1                                  = nullptr;
+  IndexType *buffer_np1_2                                  = nullptr;
+  IndexType *frontier_vertex_degree                        = nullptr;
+  IndexType *exclusive_sum_frontier_vertex_degree          = nullptr;
+  IndexType *unvisited_queue                               = nullptr;
+  IndexType *left_unvisited_queue                          = nullptr;
+  IndexType *exclusive_sum_frontier_vertex_buckets_offsets = nullptr;
+  IndexType *d_counters_pad                                = nullptr;
+  IndexType *d_new_frontier_cnt                            = nullptr;
+  IndexType *d_mu                                          = nullptr;
+  IndexType *d_unvisited_cnt                               = nullptr;
+  IndexType *d_left_unvisited_cnt                          = nullptr;
+  void *d_cub_exclusive_sum_storage                        = nullptr;
+
   IndexType vertices_bmap_size;
-  int *visited_bmap, *isolated_bmap, *previous_visited_bmap;
-  IndexType *vertex_degree;
-  IndexType *buffer_np1_1, *buffer_np1_2;
-  IndexType *frontier_vertex_degree;
-  IndexType *exclusive_sum_frontier_vertex_degree;
-  IndexType *unvisited_queue;
-  IndexType *left_unvisited_queue;
-  IndexType *exclusive_sum_frontier_vertex_buckets_offsets;
-  IndexType *d_counters_pad;
-  IndexType *d_new_frontier_cnt;
-  IndexType *d_mu;
-  IndexType *d_unvisited_cnt;
-  IndexType *d_left_unvisited_cnt;
-  void *d_cub_exclusive_sum_storage;
   size_t cub_exclusive_sum_storage_bytes;
 
   // Parameters for direction optimizing
@@ -73,16 +78,16 @@ class BFS {
  public:
   virtual ~BFS(void) { clean(); }
 
-  BFS(IndexType _n,
-      IndexType _nnz,
+  BFS(IndexType _number_of_vertices,
+      IndexType _number_of_edges,
       const IndexType *_row_offsets,
       const IndexType *_col_indices,
       bool _directed,
       IndexType _alpha,
       IndexType _beta,
       cudaStream_t _stream = 0)
-    : n(_n),
-      nnz(_nnz),
+    : number_of_vertices(_number_of_vertices),
+      number_of_edges(_number_of_edges),
       row_offsets(_row_offsets),
       col_indices(_col_indices),
       directed(_directed),

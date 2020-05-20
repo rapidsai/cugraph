@@ -177,6 +177,11 @@ def bench_bfs(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, 0)
 
 
+def bench_force_atlas2(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.force_atlas2, anyGraphWithAdjListComputed,
+                 max_iter=50)
+
+
 def bench_sssp(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, 0)
 
@@ -223,3 +228,8 @@ def bench_graph_degree(gpubenchmark, anyGraphWithAdjListComputed):
 
 def bench_graph_degrees(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(anyGraphWithAdjListComputed.degrees)
+
+
+def bench_betweenness_centrality(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.betweenness_centrality,
+                 anyGraphWithAdjListComputed, k=10, seed=123)
