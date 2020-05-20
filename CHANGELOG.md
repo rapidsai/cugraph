@@ -17,6 +17,7 @@
 
 
 ## Improvements
+- PR #882 Add Force Atlas 2 to benchmarks
 - PR #876 Add BFS C++ tests
 - PR #817 Add native Betweenness Centrality with sources subset
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
