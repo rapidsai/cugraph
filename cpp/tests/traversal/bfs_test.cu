@@ -88,7 +88,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     VT number_of_vertices;
     ET number_of_edges;
     bool directed = false;
-    auto csr = generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
+    auto csr      = generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = directed;

@@ -630,18 +630,19 @@ int read_binary_vector(FILE* fpin, int n, std::vector<double>& val)
  * @tparam
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<cugraph::experimental::GraphCSR<VT, ET, WT>> generate_graph_csr_from_mm(bool& directed, std::string mm_file)
+std::unique_ptr<cugraph::experimental::GraphCSR<VT, ET, WT>> generate_graph_csr_from_mm(
+  bool& directed, std::string mm_file)
 {
   VT number_of_vertices;
   ET number_of_edges;
-  
+
   FILE* fpin = fopen(mm_file.c_str(), "r");
   EXPECT_NE(fpin, nullptr);
 
   VT number_of_columns = 0;
   MM_typecode mm_typecode{0};
   EXPECT_EQ(mm_properties<VT>(
-                              fpin, 1, &mm_typecode, &number_of_vertices, &number_of_columns, &number_of_edges),
+              fpin, 1, &mm_typecode, &number_of_vertices, &number_of_columns, &number_of_edges),
             0);
   EXPECT_TRUE(mm_is_matrix(mm_typecode));
   EXPECT_TRUE(mm_is_coordinate(mm_typecode));
@@ -657,7 +658,7 @@ std::unique_ptr<cugraph::experimental::GraphCSR<VT, ET, WT>> generate_graph_csr_
 
   // Read
   EXPECT_EQ((mm_to_coo<VT, WT>(
-                               fpin, 1, number_of_edges, &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], NULL)),
+              fpin, 1, number_of_edges, &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], NULL)),
             0);
   EXPECT_EQ(fclose(fpin), 0);
 
