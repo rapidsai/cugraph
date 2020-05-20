@@ -153,13 +153,8 @@ def test_version():
     cugraph.__version__
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_add_edge_list_to_adj_list(graph_file):
     gc.collect()
 
@@ -182,7 +177,7 @@ def test_add_edge_list_to_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
     gc.collect()
 
@@ -209,7 +204,7 @@ def test_add_adj_list_to_edge_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_view_edge_list_from_adj_list(graph_file):
     gc.collect()
 
@@ -231,7 +226,7 @@ def test_view_edge_list_from_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_delete_edge_list_delete_adj_list(graph_file):
     gc.collect()
 
@@ -260,7 +255,7 @@ def test_delete_edge_list_delete_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     gc.collect()
 
@@ -300,7 +295,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_view_edge_list_for_Graph(graph_file):
     gc.collect()
 
@@ -339,7 +334,7 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_networkx_compatibility(graph_file):
     gc.collect()
 
@@ -378,12 +373,8 @@ def test_networkx_compatibility(graph_file):
     G.clear()
 
 
-DATASETS2 = ['../datasets/karate.csv',
-             '../datasets/dolphins.csv']
-
-
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_two_hop_neighbors(graph_file):
     gc.collect()
 
@@ -403,7 +394,7 @@ def test_two_hop_neighbors(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_degree_functionality(graph_file):
     gc.collect()
 
@@ -442,7 +433,7 @@ def test_degree_functionality(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_degrees_functionality(graph_file):
     gc.collect()
 
@@ -474,7 +465,7 @@ def test_degrees_functionality(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_number_of_vertices(graph_file):
     gc.collect()
 
@@ -493,7 +484,7 @@ def test_number_of_vertices(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_to_directed(graph_file):
     gc.collect()
 
@@ -522,7 +513,7 @@ def test_to_directed(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_to_undirected(graph_file):
     gc.collect()
 
@@ -552,7 +543,7 @@ def test_to_undirected(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_has_edge(graph_file):
     gc.collect()
 
@@ -569,7 +560,7 @@ def test_has_edge(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_has_node(graph_file):
     gc.collect()
 
@@ -585,7 +576,7 @@ def test_has_node(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_neighbors(graph_file):
     gc.collect()
 
