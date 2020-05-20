@@ -82,11 +82,6 @@ def cpu_call(M, first, second):
     return result
 
 
-
-#  Too slow to run on CPU
-#            '../datasets/email-Eu-core.csv']
-
-
 # Test
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_overlap(graph_file):

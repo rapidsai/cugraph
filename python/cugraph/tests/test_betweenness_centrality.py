@@ -39,11 +39,11 @@ DIRECTED_GRAPH_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 IMPLEMENTATION_OPTIONS = ['default', 'gunrock']
 
-#TINY_DATASETS = ['../datasets/karate.csv']
+# TINY_DATASETS = ['../datasets/karate.csv']
 
-#UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
+# UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
 
-#SMALL_DATASETS = ['../datasets/netscience.csv']
+# SMALL_DATASETS = ['../datasets/netscience.csv']
 
 SUBSET_SIZE_OPTIONS = [4]
 SUBSET_SEED_OPTIONS = [42]
