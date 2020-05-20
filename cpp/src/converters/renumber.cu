@@ -18,13 +18,13 @@
 
 namespace cugraph {
 
-template <typename VT, typename ET>
+template <typename VT_IN, typename VT_OUT, typename ET>
 std::unique_ptr<rmm::device_buffer> renumber_vertices(
   ET number_of_edges,
-  VT const *src,
-  VT const *dst,
-  VT *src_renumbered,
-  VT *dst_renumbered,
+  VT_IN const *src,
+  VT_IN const *dst,
+  VT_OUT *src_renumbered,
+  VT_OUT *dst_renumbered,
   ET *map_size,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
 
@@ -50,6 +50,13 @@ std::unique_ptr<rmm::device_buffer> renumber_vertices(
                                             mr);
 }
 
+template std::unique_ptr<rmm::device_buffer> renumber_vertices(int32_t,
+                                                               int64_t const *,
+                                                               int64_t const *,
+                                                               int32_t *,
+                                                               int32_t *,
+                                                               int32_t *,
+                                                               rmm::mr::device_memory_resource *);
 template std::unique_ptr<rmm::device_buffer> renumber_vertices(int32_t,
                                                                int32_t const *,
                                                                int32_t const *,

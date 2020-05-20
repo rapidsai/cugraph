@@ -109,9 +109,9 @@ std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
  *
  * @throws                    cugraph::logic_error when an error occurs.
  *
- * @tparam VT                 type of vertex index
+ * @tparam VT_IN              type of vertex index input
+ * @tparam VT_OUT             type of vertex index output
  * @tparam ET                 type of edge index
- * @tparam WT                 type of the edge weight
  *
  * @param[in]  number_of_edges number of edges in the graph
  * @param[in]  src            Pointer to device memory containing source vertex ids
@@ -125,13 +125,13 @@ std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
  * @return                    Unique pointer to renumbering map
  *
  */
-template <typename VT, typename ET>
+template <typename VT_IN, typename VT_OUT, typename ET>
 std::unique_ptr<rmm::device_buffer> renumber_vertices(
   ET number_of_edges,
-  VT const *src,
-  VT const *dst,
-  VT *src_renumbered,
-  VT *dst_renumbered,
+  VT_IN const *src,
+  VT_IN const *dst,
+  VT_OUT *src_renumbered,
+  VT_OUT *dst_renumbered,
   ET *map_size,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 

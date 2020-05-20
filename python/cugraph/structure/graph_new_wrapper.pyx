@@ -53,12 +53,24 @@ def renumber(source_col, dest_col):
     cdef int map_size = 0
     cdef int n_edges = num_edges
 
-    cdef unique_ptr[device_buffer] numbering_map = move(c_renumber_vertices[int,int](n_edges,
-                                                                                     <int*>c_src,
-                                                                                     <int*>c_dst,
-                                                                                     <int*>c_src_renumbered,
-                                                                                     <int*>c_dst_renumbered,
-                                                                                     &map_size))
+    cdef unique_ptr[device_buffer] numbering_map
+
+    if (source_col.dtype == np.int32):
+        numbering_map = move(c_renumber_vertices[int,int,int](n_edges,
+                                                              <int*>c_src,
+                                                              <int*>c_dst,
+                                                              <int*>c_src_renumbered,
+                                                              <int*>c_dst_renumbered,
+                                                              &map_size))
+    else:
+        numbering_map = move(c_renumber_vertices[long,int,int](n_edges,
+                                                               <long*>c_src,
+                                                               <long*>c_dst,
+                                                               <int*>c_src_renumbered,
+                                                               <int*>c_dst_renumbered,
+                                                               &map_size))
+        
+        
     map = DeviceBuffer.c_from_unique_ptr(move(numbering_map))
     map = Buffer(map)
     

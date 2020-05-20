@@ -62,8 +62,8 @@ def renumber(source_col, dest_col):
     csg.null_check(source_col)
     csg.null_check(dest_col)
 
-    source_col, dest_col,
-    numbering_map = graph_new_wrapper.renumber(source_col, dest_col)
+    (source_col, dest_col,
+     numbering_map) = graph_new_wrapper.renumber(source_col, dest_col)
 
     return source_col, dest_col, numbering_map
 

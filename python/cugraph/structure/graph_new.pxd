@@ -126,12 +126,12 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
 
 cdef extern from "functions.hpp" namespace "cugraph":
 
-    cdef unique_ptr[device_buffer] renumber_vertices[VT,ET](
+    cdef unique_ptr[device_buffer] renumber_vertices[VT_IN,VT_OUT,ET](
         ET number_of_edges,
-        const VT *src,
-        const VT *dst,
-        VT *src_renumbered,
-        VT *dst_renumbered,
+        const VT_IN *src,
+        const VT_IN *dst,
+        VT_OUT *src_renumbered,
+        VT_OUT *dst_renumbered,
         ET *map_size) except +
 
 
