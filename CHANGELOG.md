@@ -42,8 +42,8 @@
 - PR #874 Update setup.py to use custom clean command
 - PR #878 Updated build script
 - PR #879 Add docs build script to repository
-- PR #887 Updated test to use common datasets
 - PR #818 Initial version of new "benchmarks" folder
+- PR #887 Updated test to use common datasets
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
