@@ -167,12 +167,6 @@ def test_renumber_files(graph_file):
 
     src, dst, numbering = cugraph.renumber(source_translated, dest_translated)
 
-    print('source_translated = ', source_translated)
-    print('dest_translated = ', dest_translated)
-    print('src = ', src)
-    print('dst = ', dst)
-    print('numbering = ', numbering)
-
     for i in range(len(sources)):
         assert sources[i] == (numbering[src[i]] - translate)
         assert destinations[i] == (numbering[dst[i]] - translate)
@@ -194,8 +188,6 @@ def test_renumber_files_col(graph_file):
     gdf['dst'] = cudf.Series([x + translate for x in destinations])
 
     src, dst, numbering = cugraph.renumber_from_cudf(gdf, ['src'], ['dst'])
-
-    print('numbering = ', numbering)
 
     for i in range(len(gdf)):
         assert sources[i] == (numbering['0'].iloc[src[i]] - translate)
