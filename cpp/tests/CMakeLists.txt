@@ -139,23 +139,6 @@ set(BETWEENNESS_TEST_SRC
   ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}" "")
 
 ###################################################################################################
-# - gdfgraph tests --------------------------------------------------------------------------------
-
-set(GDFGRAPH_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/Graph/Graph.cu")
-
-ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
-
-###################################################################################################
-# - grmat tests -----------------------------------------------------------------------------------
-
-#set(GRMAT_TEST_SRC
-#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/grmat/grmat_test.cu")
-
-#ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC} " "")
-
-###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
 
 set(PAGERANK_TEST_SRC
