@@ -168,9 +168,17 @@ ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 # - SSSP tests ------------------------------------------------------------------------------------
 set(SSSP_TEST_SRCS
 	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
+	"${CMAKE_CURRENT_SOURCE_DIR}/traversal/sssp_test.cu")
 
 ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
+
+###################################################################################################
+# - BFS tests ------------------------------------------------------------------------------------
+set(BFS_TEST_SRCS
+	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/traversal/bfs_test.cu")
+
+ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}" "")
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
