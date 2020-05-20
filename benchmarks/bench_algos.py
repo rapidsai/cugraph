@@ -223,3 +223,8 @@ def bench_graph_degree(gpubenchmark, anyGraphWithAdjListComputed):
 
 def bench_graph_degrees(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(anyGraphWithAdjListComputed.degrees)
+
+
+def bench_betweenness_centrality(gpubenchmark, anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.betweenness_centrality,
+                 anyGraphWithAdjListComputed, k=10, seed=123)
