@@ -17,6 +17,7 @@ import shutil
 
 from setuptools import setup, find_packages, Command
 from setuptools.extension import Extension
+from setuputils import use_raft_package, get_environment_option
 
 try:
     from Cython.Distutils.build_ext import new_build_ext as build_ext
@@ -58,6 +59,14 @@ if (os.environ.get('CONDA_PREFIX', None)):
     conda_include_dir = conda_prefix + '/include'
     conda_lib_dir = conda_prefix + '/lib'
 
+# Optional location of C++ build folder that can be configured by the user
+libcugraph_path = get_environment_option('CUGRAPH_BUILD_PATH')
+# Optional location of RAFT that can be confugred by the user
+raft_path = get_environment_option('RAFT_PATH')
+
+raft_include_dir = use_raft_package(raft_path, libcugraph_path,
+                                    git_info_file='../cpp/CMakeLists.txt')
+
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -92,6 +101,7 @@ EXTENSIONS = [
               include_dirs=[conda_include_dir,
                             '../cpp/include',
                             "../thirdparty/cub",
+                            raft_include_dir,
                             os.path.join(
                                 conda_include_dir, "libcudf", "libcudacxx"),
                             cuda_include_dir],
