@@ -16,56 +16,43 @@
 #pragma once
 
 #include <graph.hpp>
+#include <detail/reduce_op.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <thrust/type_traits/integer_sequence.h>
+#include <cub/cub.cuh>
 #include <thrust/distance.h>
+#include <thrust/functional.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
+#include <thrust/type_traits/integer_sequence.h>
 
 #include <type_traits>
+#include <utility>
 
 
 namespace {
 
-template <typename TupleType, typename vertex_t, size_t tuple_size>
-struct make_buffer_item {
-  __device__ auto make(TupleType e_op_result, vertex_t col_offset) {
-    assert(false);  // unimplemented.
-    return thrust::make_tuple(col_offset);
-  }
-};
+// FIXME: block size requires tuning
+int32_t constexpr expand_low_out_degree_block_size = 128;
+int32_t constexpr update_block_size = 128;
 
-template <typename TupleType, typename vertex_t>
-struct make_buffer_item<TupleType, vertex_t, 1> {
-  __device__ auto make(TupleType e_op_result, vertex_t col_offset) {
-    // skip thrust::get<0>(e_op_result) as it is a push indicator
-    return thrust::make_tuple(col_offset);
-  }
-};
+template <typename TupleType, size_t... Is>
+__device__ auto remove_first_tuple_element_impl(
+    TupleType const& tuple, std::index_sequence<Is...>) {
+  return thrust::make_tuple(thrust::get<1 + Is>(tuple)...);
+}
 
-template <typename TupleType, typename vertex_t>
-struct make_buffer_item<TupleType, vertex_t, 2> {
-  __device__ auto make(TupleType e_op_result, vertex_t col_offset) {
-    // skip thrust::get<0>(e_op_result) as it is a push indicator
-    return thrust::make_tuple(col_offset, thrust::get<1>(e_op_result));
-  }
-};
-
-template <typename TupleType, typename vertex_t>
-struct make_buffer_item<TupleType, vertex_t, 3> {
-  __device__ auto make(TupleType e_op_result, vertex_t col_offset) {
-    // skip thrust::get<0>(e_op_result) as it is a push indicator
-    return thrust::make_tuple(
-      col_offset, thrust::get<1>(e_op_result), thrust::get<2>(e_op_result));
-  }
-};
+template <typename TupleType>
+__device__ auto remove_first_tuple_element(TupleType const& tuple) {
+  size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
+  return remove_first_tuple_element_impl(tuple, std::make_index_sequence<tuple_size - 1>());
+}
 
 template <typename GraphType,
           typename RowIterator,
           typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
-          typename BufferOutputIterator,
+          typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__
 void for_all_v_in_frontier_for_all_nbr_of_v_low_out_degree(
@@ -73,7 +60,9 @@ void for_all_v_in_frontier_for_all_nbr_of_v_low_out_degree(
     RowIterator row_first, RowIterator row_last,
     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
     AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-    BufferOutputIterator buffer_output_first, size_t* buffer_idx_ptr,
+    BufferKeyOutputIterator buffer_key_output_first,
+    BufferPayloadOutputIterator buffer_payload_output_first,
+    size_t* buffer_idx_ptr,
     EdgeOp e_op) {
   auto num_rows = static_cast<size_t>(thrust::distance(row_first, row_last));
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -103,14 +92,145 @@ void for_all_v_in_frontier_for_all_nbr_of_v_low_out_degree(
           atomicAdd(
             reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
             static_cast<unsigned long long int>(1));
-        *(buffer_output_first + buffer_idx) =
-          make_buffer_item<
-            decltype(e_op_result), decltype(col_offset), thrust::tuple_size<decltype(e_op_result)>::value
-          >{}.make(e_op_result, col_offset);
+        *(buffer_key_output_first + buffer_idx) = col_offset;
+        *(buffer_payload_output_first + buffer_idx) = remove_first_tuple_element(e_op_result);
       }
     }
 
     idx += gridDim.x * blockDim.x;
+  }
+}
+
+template <typename HandleType,
+          typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator,
+          typename ReduceOp>
+size_t reduce_buffer_elements(
+    HandleType handle,
+    BufferKeyOutputIterator buffer_key_output_first,
+    BufferPayloadOutputIterator buffer_payload_output_first,
+    size_t num_buffer_elements,
+    ReduceOp reduce_op) {
+  thrust::sort_by_key(
+    thrust::cuda::par.on(handle.get_default_stream()),
+    buffer_key_output_first, buffer_key_output_first + num_buffer_elements,
+    buffer_payload_output_first);
+
+  if (std::is_same<
+        ReduceOp, cugraph::experimental::detail::reduce_op::any<typename ReduceOp::type>>::value) {
+    // FIXME: if ReducOp is any, we may have a cheaper alternative than sort & uique (i.e. discard
+    // non-first elements)
+    auto it =
+      thrust::unique_by_key(
+        thrust::cuda::par.on(handle.get_default_stream()),
+        buffer_key_output_first, buffer_key_output_first + num_buffer_elements,
+        buffer_payload_output_first);
+    return static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
+  }
+  else {
+    using key_t = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
+    using payload_t = typename std::iterator_traits<BufferPayloadOutputIterator>::value_type;
+    // FIXME: better avoid temporary buffer or at least limit the maximum buffer size (if we adopt
+    // CUDA cooperative group https://devblogs.nvidia.com/cooperative-groups and global sync(), we
+    // can use aggregate shared memory as a temporary buffer, or we can limit the buffer size, and
+    // split one thrust::reduce_by_key call to multiple thrust::reduce_by_key calls if the
+    // temporary buffer size exceeds the maximum buffer size (may be definied as percentage of the
+    // system HBM size or a function of the maximum number of threads in the system))
+    rmm::device_vector<key_t> keys(num_buffer_elements);
+    rmm::device_vector<payload_t> values(num_buffer_elements);
+    auto it =
+      thrust::reduce_by_key(
+        thrust::cuda::par.on(handle.get_default_stream()),
+        buffer_key_output_first, buffer_key_output_first + num_buffer_elements,
+        buffer_payload_output_first,
+        keys.begin(), values.begin(),
+        thrust::equal_to<key_t>(), reduce_op);
+    auto num_reduced_buffer_elements =
+      static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
+    thrust::copy(
+      keys.begin(), keys.begin() + num_reduced_buffer_elements, buffer_key_output_first);
+    thrust::copy(
+      values.begin(), values.begin() + num_reduced_buffer_elements, buffer_payload_output_first);
+    return num_reduced_buffer_elements;
+  }
+}
+
+template <size_t num_buckets,
+          typename BufferKeyInputIterator, typename BufferPayloadInputIterator,
+          typename VertexValueInputIterator, typename VertexValueOutputIterator,
+          typename vertex_t, typename VertexOp>
+__global__
+void update_frontier_and_vertex_output_values(
+    BufferKeyInputIterator buffer_key_input_first,
+    BufferPayloadInputIterator buffer_payload_input_first,
+    size_t num_buffer_elements,
+    VertexValueInputIterator vertex_value_input_first,
+    VertexValueOutputIterator vertex_value_output_first,
+    vertex_t** bucket_ptrs, size_t* bucket_size_ptrs,
+    size_t invalid_bucket_idx, VertexOp v_op) {
+  static_assert(
+    std::is_same<
+      typename std::iterator_traits<BufferKeyInputIterator>::value_type, vertex_t>::value);
+  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
+  size_t idx = tid;
+  size_t block_idx = blockIdx.x;
+  // FIXME: it might be more performant to process more than one element per thread
+  auto num_blocks = (num_buffer_elements + blockDim.x - 1) / blockDim.x;
+
+  using BlockScan = cub::BlockScan<size_t, update_block_size>;
+  __shared__ typename BlockScan::TempStorage temp_storage;
+
+  __shared__ size_t bucket_block_start_offsets[num_buckets];
+
+  size_t bucket_block_local_offsets[num_buckets];
+  size_t bucket_block_aggregate_sizes[num_buckets];
+
+  while (block_idx < num_blocks) {
+    for (size_t i = 0; i < num_buckets; ++i) {
+      bucket_block_local_offsets[i] = 0;
+    }
+
+    size_t selected_bucket_idx{invalid_bucket_idx};
+    vertex_t key{cugraph::experimental::invalid_vertex_id<vertex_t>::value};
+
+    if (idx < num_buffer_elements) {
+      key = *(buffer_key_input_first + idx);
+      auto v_val = *(vertex_value_input_first + key);
+      auto payload = *(buffer_payload_input_first + idx);
+      auto v_op_result = v_op(v_val, payload);
+      selected_bucket_idx = thrust::get<0>(v_op_result);
+      if (selected_bucket_idx != invalid_bucket_idx) {
+        *(vertex_value_output_first + key) = remove_first_tuple_element(v_op_result);
+        bucket_block_local_offsets[selected_bucket_idx] = 1;
+      }
+    }
+
+    for (size_t i = 0; i < num_buckets; ++i) {
+      BlockScan(temp_storage).ExclusiveSum(
+        bucket_block_local_offsets[i], bucket_block_local_offsets[i],
+        bucket_block_aggregate_sizes[i]);
+    }
+
+    if (threadIdx.x == 0) {
+      for (size_t i = 0; i < num_buckets; ++i) {
+        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+        bucket_block_start_offsets[i] =
+          atomicAdd(
+            reinterpret_cast<unsigned long long int*>(bucket_size_ptrs + i),
+            static_cast<unsigned long long int>(bucket_block_aggregate_sizes[i]));
+      }
+    }
+
+    __syncthreads();
+
+    // FIXME: better use shared memory buffer to aggreaget global memory writes
+    if (selected_bucket_idx != invalid_bucket_idx) {
+      for (size_t i = 0; i < num_buckets; ++i) {
+        bucket_ptrs[i][bucket_block_start_offsets[i] + bucket_block_local_offsets[i]] = key;
+      }
+    }
+
+    idx += gridDim.x * blockDim.x;
+    block_idx += gridDim.x;
   }
 }
 
@@ -187,82 +307,61 @@ void expand_and_transform_if_v_push_if_e(
   // start with a smaller buffer size (especially when the frontier size is large).
   row_frontier.resize_buffer(max_pushes);
   row_frontier.set_buffer_idx_value(0);
-
-  // FIXME: block size requires later tuning
-  auto constexpr block_size{256};
-  // FIXME: better add a utility function to compute this similar to cuDF
-  auto num_blocks =
+  auto buffer_first = row_frontier.buffer_begin();
+  auto buffer_key_first = std::get<0>(buffer_first);
+  auto buffer_payload_first = std::get<1>(buffer_first);
+  
+  auto expand_low_out_degree_num_blocks =
     static_cast<int>(
       std::min<size_t>(
-        (thrust::distance(row_first, row_last) + block_size - 1) / block_size,
+        (thrust::distance(row_first, row_last) + expand_low_out_degree_block_size - 1) /
+        expand_low_out_degree_block_size,
         handle.get_max_num_blocks_1D()));
 
   // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
   // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
   // order, we will apply this kernel only to low out-degree vertices.
   for_all_v_in_frontier_for_all_nbr_of_v_low_out_degree<<<
-    num_blocks, block_size, 0, handle.get_default_stream()
+    expand_low_out_degree_num_blocks, expand_low_out_degree_block_size, 0,
+    handle.get_default_stream()
   >>>(
     graph_device_view,
     row_first, row_last,
     adj_matrix_row_value_input_first,
     adj_matrix_col_value_input_first,
-    row_frontier.buffer_begin(), row_frontier.get_buffer_idx_ptr(), e_op);
+    buffer_key_first, buffer_payload_first, row_frontier.get_buffer_idx_ptr(),
+    e_op);
 
-#if 0
-  if (std::is_same<reduce_op, reduce_op::any<reduce_op_input_t>>::value) {
-    thrust::sort();
-    thrust::unique();
+  auto num_buffer_elements =
+    reduce_buffer_elements(
+      handle, buffer_key_first, buffer_payload_first,
+      row_frontier.get_buffer_idx_value(), reduce_op);
+
+  if (HandleType::is_opg) {
+    // need to exchange buffer elements (and may reduce again)
+    CUGRAPH_FAIL("unimplemented.");
   }
-  else if () {
-    thrust::sort();
-    thrust::unique();
-  }
-
-  for () {
-    *(vertex_value_output_first + ) = v_op;
-    row_froniter.insert();
-  }
-
-
-  //rmm::device_buffer buffer{};
-  //rmm::device_vector<void*> buffer_ptrs{};
-
-  get_zip_iterator<reduce_op_input_t>();
+    
+  auto update_num_blocks =
+    static_cast<int>(
+      std::min<size_t>(
+        (thrust::distance(row_first, row_last) + update_block_size - 1) / update_block_size,
+        handle.get_max_num_blocks_1D()));
   
-  // FIXME: this memory alloation is highly pessimistic (if we have a mechanism to suspend and
-  // resume if a number of pushes exceeds the buffer size, we can start with a smaller buffer size)
-  // FIXME: better not avoid reallocation in every iteration (in particular with the new CUDA
-  // feature to reserve virtual address space without actually allocating physical memory)
-  //rmm::device_vector<reduce_op_input_t> buffer_elements(max_pushes);
+  auto bucket_and_bucket_size_device_ptrs =
+    row_frontier.get_bucket_and_bucket_size_device_pointers();
+  update_frontier_and_vertex_output_values<RowFrontierType::kNumBuckets><<<
+    update_num_blocks, update_block_size, 0, handle.get_default_stream()
+  >>>(
+    buffer_key_first, buffer_payload_first, num_buffer_elements,
+    vertex_value_input_first, vertex_value_output_first,
+    std::get<0>(bucket_and_bucket_size_device_ptrs), std::get<1>(bucket_and_bucket_size_device_ptrs),
+    RowFrontierType::kInvalidBucketIdx, v_op);
 
-  
-  
-
-
-  //e_op_return_type test_type{true, static_cast<uint32_t>(1)};
-  //static_assert(std::is_same<e_op_return_type, thrust::tuple<__nv_bool, unsigned int, thrust::null_type, thrust::null_type, thrust::null_type, thrust::null_type, thrust::null_type, thrust::null_type, thrust::null_type, thrust::null_type>>::value);
-  //e_op_return_type test{false, 3};
-    //size_t constexpr i = thrust::tuple_size<e_op_return_type>::value;
-  //using test_type = typename std::result_of<thrust::make_tuple(bool, int)>::type;
-  //size_t constexpr i = thrust::tuple_size<test_type>::value - 1;
-  //std::cout << i << "\n";
-  //e_op_return_type ret{3, 5, 7};
-  //static_assert(std::is_same<e_op_return_type, thrust::tuple<bool, unsigned int>>::value);
-  // static_assert(thrust::tuple_size<typename e_op_return_type::tail_type>::value == 1);
-
-auto constexpr num_tuple_elements = static_cast<size_t>(thrust::tuple_size<e_op_return_type>::value - 1)/* exclude bool push */;
-  std::array<size_t, num_tuple_elements> sizes{}; 
-  sizes[0] = compute_tuple_element_size<e_op_return_type, 1>().compute();
-  //thrust::transform_reduce(row_first, row_last, [] __device__ {})
-
-  rmm::device_vector<thrust::tuple<vertex_t*, size_t*>> frontier_buckets;
-  for (size_t i = 0; i < row_frontier.get_num_buckets(); ++i) {
-    frontier_buckets.emplace_back(
-      thrust::raw_pointer_cast<row_frontier.get_bucket(i).end(), row_frontier.get_bucket(i).);
+  if (HandleType::is_opg) {
+    // need to merge row_frontier
+    CUGRAPH_FAIL("unimplemented.");
   }
-#endif
-  return;
 }
 
 /*
