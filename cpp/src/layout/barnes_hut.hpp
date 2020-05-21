@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cugraph.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm_utils.h>
 #include <stdio.h>

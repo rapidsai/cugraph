@@ -24,7 +24,6 @@
 
 #include <rmm_utils.h>
 
-#include <cugraph.h>
 #include <graph.hpp>
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"

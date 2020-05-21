@@ -21,7 +21,6 @@
  * @file ktruss.cu
  * --------------------------------------------------------------------------*/
 
-#include <cugraph.h>
 #include <rmm_utils.h>
 #include <Hornet.hpp>
 #include <StandardAPI.hpp>
