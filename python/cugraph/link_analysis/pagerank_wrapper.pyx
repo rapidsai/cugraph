@@ -19,12 +19,11 @@
 #cimport cugraph.link_analysis.pagerank as c_pagerank
 from cugraph.link_analysis.pagerank cimport pagerank as c_pagerank
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.column_utils cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
-from cugraph.structure import graph_wrapper
+from cugraph.structure import graph_new_wrapper
 import cudf
 import rmm
 import numpy as np
@@ -39,8 +38,8 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     if not input_graph.transposedadjlist:
         input_graph.view_transposed_adj_list()
 
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices], [np.int32])
-    [weights] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.weights], [np.float32, np.float64])
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices], [np.int32])
+    [weights] = graph_new_wrapper.datatype_cast([input_graph.transposedadjlist.weights], [np.float32, np.float64])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)

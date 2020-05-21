@@ -123,12 +123,14 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     }
 
     // Allocate COO on device
-    int* srcs  = nullptr;
-    int* dests = nullptr;
-    T* weights = nullptr;
-    ALLOC_TRY((void**)&srcs, sizeof(int) * nnz, nullptr);
-    ALLOC_TRY((void**)&dests, sizeof(int) * nnz, nullptr);
-    ALLOC_TRY((void**)&weights, sizeof(T) * nnz, nullptr);
+    rmm::device_vector<int> srcs_v(nnz);
+    rmm::device_vector<int> dests_v(nnz);
+    rmm::device_vector<T> weights_v(nnz);
+
+    int* srcs  = srcs_v.data().get();
+    int* dests = dests_v.data().get();
+    T* weights = weights_v.data().get();
+
     CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
@@ -209,10 +211,6 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     double score_bh = trustworthiness_score(adj_matrix, C_contiguous_embedding, m, 2, 5);
     printf("score: %f\n", score_bh);
     ASSERT_GT(score_bh, param.score);
-
-    ALLOC_FREE_TRY(srcs, nullptr);
-    ALLOC_FREE_TRY(dests, nullptr);
-    ALLOC_FREE_TRY(weights, nullptr);
   }
 };
 

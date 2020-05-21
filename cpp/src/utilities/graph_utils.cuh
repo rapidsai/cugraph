@@ -563,8 +563,5 @@ bool has_negative_val(DistType *arr, size_t n)
 #endif
 }
 
-// Initialize a gdf_column with default (0 / null) values
-void gdf_col_set_defaults(gdf_column *col);
-
 }  // namespace detail
 }  // namespace cugraph

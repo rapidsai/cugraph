@@ -19,13 +19,12 @@
 from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
 from cugraph.centrality.betweenness_centrality cimport cugraph_bc_implem_t
 from cugraph.structure.graph_new cimport *
-import cugraph.structure.graph
-from cugraph.utilities.column_utils cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
-from cugraph.structure import graph_wrapper
+from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph import DiGraph
 import cudf
 import rmm
 import numpy as np
@@ -53,7 +52,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
@@ -90,7 +89,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         graph_float = GraphCSRView[int, int, float](<int*> c_offsets, <int*> c_indices,
                                                 <float*> NULL, num_verts, num_edges)
         # FIXME: There might be a way to avoid manually setting the Graph property
-        graph_float.prop.directed = type(input_graph) is cugraph.structure.graph.DiGraph
+        graph_float.prop.directed = type(input_graph) is DiGraph
 
         c_betweenness_centrality[int, int, float, float](graph_float,
                                                          <float*> c_betweenness,
@@ -103,7 +102,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         graph_double = GraphCSRView[int, int, double](<int*>c_offsets, <int*>c_indices,
                                                   <double*> NULL, num_verts, num_edges)
         # FIXME: There might be a way to avoid manually setting the Graph property
-        graph_double.prop.directed = type(input_graph) is cugraph.structure.graph.DiGraph
+        graph_double.prop.directed = type(input_graph) is DiGraph
 
         c_betweenness_centrality[int, int, double, double](graph_double,
                                                            <double*> c_betweenness,

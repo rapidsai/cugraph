@@ -436,11 +436,12 @@ void segmented_sort(IndexT num_segments,
   //
   int lrb_size = 32;
   IndexT lrb[lrb_size + 1];
-  IndexT *d_lrb;
-  IndexT *d_grouped_bins;
 
-  ALLOC_TRY(&d_lrb, (lrb_size + 1) * sizeof(IndexT), stream);
-  ALLOC_TRY(&d_grouped_bins, (num_segments + 1) * sizeof(IndexT), stream);
+  rmm::device_vector<IndexT> lrb_v(lrb_size + 1);
+  rmm::device_vector<IndexT> grouped_bins_v(num_segments + 1);
+
+  IndexT *d_lrb          = lrb_v.data().get();
+  IndexT *d_grouped_bins = grouped_bins_v.data().get();
 
   CUDA_TRY(cudaMemset(d_lrb, 0, (lrb_size + 1) * sizeof(IndexT)));
 
@@ -535,9 +536,6 @@ void segmented_sort(IndexT num_segments,
       }
     }
   }
-
-  ALLOC_FREE_TRY(d_grouped_bins, stream);
-  ALLOC_FREE_TRY(d_lrb, stream);
 }
 
 }  // namespace bitonic

@@ -19,7 +19,7 @@
 from cugraph.link_prediction.overlap cimport overlap as c_overlap
 from cugraph.link_prediction.overlap cimport overlap_list as c_overlap_list
 from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_wrapper
+from cugraph.structure import graph_new_wrapper
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from cython cimport floating
@@ -36,7 +36,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
@@ -56,7 +56,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
     weight_type = np.float32
 
     if weights_arr is not None:
-        [weights] = graph_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
+        [weights] = graph_new_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
         c_weights = weights.__cuda_array_interface__['data'][0]
         weight_type = weights.dtype
 
