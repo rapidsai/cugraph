@@ -137,7 +137,7 @@ class Bucket {
   }
 
   auto data() {
-    return thrust::raw_pointer_cast(elements_.data());
+    return elements_.data().get();
   }
 
   auto const begin() const {
@@ -186,9 +186,7 @@ class AdjMatrixRowFrontier {
   }
 
   auto get_bucket_and_bucket_size_device_pointers() {
-    return std::make_tuple(
-      thrust::raw_pointer_cast(bucket_ptrs_.data()),
-      thrust::raw_pointer_cast(bucket_sizes_.data()));
+    return std::make_tuple(bucket_ptrs_.data().get(), bucket_sizes_.data().get());
   }
 
   void resize_buffer(size_t size) {
