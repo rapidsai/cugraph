@@ -24,10 +24,12 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
+#include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 
 #include <cinttypes>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -52,71 +54,47 @@ inline S round_up_safe(S number_to_round, S modulus) {
   return rounded_up;
 }
 
-template <typename TupleType, size_t tuple_size>
-struct compute_tuple_element_sizes {
-  auto compute() {
-    CUGRAPH_FAIL("unimplemented.");
-    return std::array<size_t, 0>{};
+template <typename TupleType, size_t I, size_t N>
+struct compute_tuple_element_sizes_impl {
+  void compute(
+    std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) {
+    arr[I] = sizeof(typename thrust::tuple_element<I, TupleType>::type);
+    compute_tuple_element_sizes_impl<TupleType, I + 1, N>().compute(arr);
   }
+};
+
+template <typename TupleType, size_t I>
+struct compute_tuple_element_sizes_impl<TupleType, I, I> {
+  void compute(
+    std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) {}
 };
 
 template <typename TupleType>
-struct compute_tuple_element_sizes<TupleType, 1> {
-  auto compute() {
-    return std::array<size_t, 1>{sizeof(typename thrust::tuple_element<0, TupleType>::type)};
-  }
-};
+auto compute_tuple_element_sizes() {
+  size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
+  std::array<size_t, tuple_size> ret;
+  compute_tuple_element_sizes_impl<TupleType, static_cast<size_t>(0), tuple_size>().compute(ret);
+  return ret;
+}
 
-template <typename TupleType>
-struct compute_tuple_element_sizes<TupleType, 2> {
-  auto compute() {
-    return std::array<size_t, 2>{
-      sizeof(typename thrust::tuple_element<0, TupleType>::type),
-      sizeof(typename thrust::tuple_element<1, TupleType>::type)
-    };
-  }
-};
-
-template <typename TupleType, typename vertex_t, size_t tuple_size>
-struct make_buffer_zip_iterator {
-  auto make(std::vector<void*> buffer_ptrs, size_t offset) {
-    CUGRAPH_FAIL("unimplemented.");
-    return thrust::make_zip_iterator(
-      thrust::make_tuple(reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset));
-  }
-};
-
-template <typename TupleType, typename vertex_t>
-struct make_buffer_zip_iterator<TupleType, vertex_t, 0> {
-  auto make(std::vector<void*> buffer_ptrs, size_t offset) {
-    return thrust::make_zip_iterator(
-      thrust::make_tuple(reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset));
-  }
-};
-
-template <typename TupleType, typename vertex_t>
-struct make_buffer_zip_iterator<TupleType, vertex_t, 1> {
-  auto make(std::vector<void*> buffer_ptrs, size_t offset) {
-    return thrust::make_zip_iterator(
+template <typename TupleType, typename vertex_t, size_t... Is>
+auto make_buffer_zip_iterator_impl(
+    std::vector<void*>& buffer_ptrs, size_t offset, std::index_sequence<Is...>) {
+  auto key_ptr = reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset;
+  auto payload_it =
+    thrust::make_zip_iterator(
       thrust::make_tuple(
-        reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset,
-        reinterpret_cast<typename thrust::tuple_element<0, TupleType>::type*>(
-          buffer_ptrs[1]) + offset));
-  }
-};
+        reinterpret_cast<typename thrust::tuple_element<Is, TupleType>::type*>(
+          buffer_ptrs[1 + Is])...));
+  return std::make_tuple(key_ptr, payload_it);
+}
 
 template <typename TupleType, typename vertex_t>
-struct make_buffer_zip_iterator<TupleType, vertex_t, 2> {
-  auto make(std::vector<void*> buffer_ptrs, size_t offset) {
-    return thrust::make_zip_iterator(
-      thrust::make_tuple(
-        reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset,
-        reinterpret_cast<typename thrust::tuple_element<0, TupleType>::type*>(
-          buffer_ptrs[1]) + offset,
-        reinterpret_cast<typename thrust::tuple_element<1, TupleType>::type*>(
-          buffer_ptrs[2]) + offset));
-  }
-};
+auto make_buffer_zip_iterator(std::vector<void*>& buffer_ptrs, size_t offset) {
+  size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
+  return make_buffer_zip_iterator_impl<TupleType, vertex_t>(
+    buffer_ptrs, offset, std::make_index_sequence<tuple_size>());
+}
 
 }
 
@@ -158,6 +136,10 @@ class Bucket {
     return elements_.size();
   }
 
+  auto data() {
+    return thrust::raw_pointer_cast(elements_.data());
+  }
+
   auto const begin() const {
     return elements_.begin();
   }
@@ -172,17 +154,25 @@ class Bucket {
   size_t size_{0};
 };
 
-template <typename HandleType, typename ReduceInputTupleType, typename vertex_t>
+template <typename HandleType, typename ReduceInputTupleType, typename vertex_t,
+          size_t num_buckets = 1>
 class AdjMatrixRowFrontier {
  public:
+  static size_t constexpr kNumBuckets = num_buckets;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
   AdjMatrixRowFrontier(HandleType const& handle, std::vector<size_t> bucket_capacities)
     : p_handle_(&handle),
+      bucket_ptrs_(num_buckets, nullptr),
+      bucket_sizes_(num_buckets, 0),
       buffer_ptrs_(kReduceInputTupleSize + 1/* to store destination column number */, nullptr),
       buffer_idx_(0, p_handle_->get_default_stream()) {
-    for (size_t i = 0; i < bucket_capacities.size(); ++i) {
+    CUGRAPH_EXPECTS(
+      bucket_capacities.size() == num_buckets,
+      "invalid input argument bucket_capacities (size mismatch)");
+    for (size_t i = 0; i < num_buckets; ++i) {
       buckets_.emplace_back(handle, bucket_capacities[i]);
+      bucket_ptrs_[i] = buckets_[i].data();
     }
     buffer_.set_stream(p_handle_->get_default_stream());
   }
@@ -193,6 +183,12 @@ class AdjMatrixRowFrontier {
 
   Bucket<HandleType, vertex_t> const& get_bucket(size_t bucket_idx) const {
     return buckets_[bucket_idx];
+  }
+
+  auto get_bucket_and_bucket_size_device_pointers() {
+    return std::make_tuple(
+      thrust::raw_pointer_cast(bucket_ptrs_.data()),
+      thrust::raw_pointer_cast(bucket_sizes_.data()));
   }
 
   void resize_buffer(size_t size) {
@@ -222,17 +218,19 @@ class AdjMatrixRowFrontier {
   }
 
   auto buffer_begin() {
-    return make_buffer_zip_iterator<ReduceInputTupleType, vertex_t, kReduceInputTupleSize>{}.make(
-      buffer_ptrs_, 0);
+    return make_buffer_zip_iterator<ReduceInputTupleType, vertex_t>(buffer_ptrs_, 0);
   }
 
   auto buffer_end() {
-    return make_buffer_zip_iterator<ReduceInputTupleType, vertex_t, kReduceInputTupleSize>{}.make(
-      buffer_ptrs_, buffer_size_);
+    return make_buffer_zip_iterator<ReduceInputTupleType, vertex_t>(buffer_ptrs_, buffer_size_);
   }
 
   auto get_buffer_idx_ptr() {
     return buffer_idx_.data();
+  }
+
+  size_t get_buffer_idx_value() {
+    return buffer_idx_.value(p_handle_->get_default_stream());
   }
 
   void set_buffer_idx_value(size_t value) {
@@ -245,9 +243,11 @@ class AdjMatrixRowFrontier {
 
   HandleType const* p_handle_{nullptr};
   std::vector<Bucket<HandleType, vertex_t>> buckets_{};
+  thrust::device_vector<vertex_t*> bucket_ptrs_{};
+  thrust::device_vector<size_t> bucket_sizes_{};
 
   std::array<size_t, kReduceInputTupleSize> tuple_element_sizes_ =
-    compute_tuple_element_sizes<ReduceInputTupleType, kReduceInputTupleSize>{}.compute();
+    compute_tuple_element_sizes<ReduceInputTupleType>();
   std::vector<void*> buffer_ptrs_{};
   rmm::device_buffer buffer_{};
   size_t buffer_size_{0};
