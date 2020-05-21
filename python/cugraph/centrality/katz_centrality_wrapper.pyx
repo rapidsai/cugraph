@@ -18,8 +18,7 @@
 
 from cugraph.centrality.katz_centrality cimport katz_centrality as c_katz_centrality
 from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_wrapper
-from cugraph.utilities.column_utils cimport *
+from cugraph.structure import graph_new_wrapper
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -40,7 +39,7 @@ def get_output_df(input_graph, nstart):
         if len(nstart) != num_verts:
             raise ValueError('nstart must have initial guess for all vertices')
 
-        nstart = graph_wrapper.datatype_cast([nstart], [np.float64])
+        nstart = graph_new_wrapper.datatype_cast([nstart], [np.float64])
 
         if input_graph.renumbered is True:
             renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,

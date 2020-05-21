@@ -124,6 +124,17 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         VT **first,
         VT **second) except +
 
+cdef extern from "functions.hpp" namespace "cugraph":
+
+    cdef unique_ptr[device_buffer] renumber_vertices[VT_IN,VT_OUT,ET](
+        ET number_of_edges,
+        const VT_IN *src,
+        const VT_IN *dst,
+        VT_OUT *src_renumbered,
+        VT_OUT *dst_renumbered,
+        ET *map_size) except +
+
+
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[GraphCOO[int,int,float]] move(unique_ptr[GraphCOO[int,int,float]])
     cdef unique_ptr[GraphCOO[int,int,double]] move(unique_ptr[GraphCOO[int,int,double]])

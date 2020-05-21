@@ -17,10 +17,9 @@
 # cython: language_level = 3
 
 from cugraph.layout.force_atlas2 cimport force_atlas2 as c_force_atlas2
-from cugraph.structure import graph_wrapper
+from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import utils_wrapper
-from cugraph.utilities.column_utils cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t

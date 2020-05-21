@@ -172,28 +172,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - cudf ------------------------------------------------------------------------------------------
-
-find_path(CUDF_INCLUDE "cudf"
-    HINTS
-    "$ENV{CUDF_ROOT}/include"
-    "$ENV{CONDA_PREFIX}/include/cudf"
-    "$ENV{CONDA_PREFIX}/include")
-
-find_library(CUDF_LIBRARY "cudf"
-    HINTS
-    "$ENV{CUDF_ROOT}/lib"
-    "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "CUDF: CUDF_LIBRARY set to ${CUDF_LIBRARY}")
-message(STATUS "CUDF: CUDF_INCLUDE set to ${CUDF_INCLUDE}")
-
-add_library(cudf SHARED IMPORTED ${CUDF_LIBRARY})
-if (CUDF_INCLUDE AND CUDF_LIBRARY)
-    set_target_properties(cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
-endif (CUDF_INCLUDE AND CUDF_LIBRARY)
-
-###################################################################################################
 # - RMM -------------------------------------------------------------------------------------------
 
 find_path(RMM_INCLUDE "rmm"
@@ -328,7 +306,6 @@ add_library(cugraph SHARED
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/cusparse_helper.cu
-    src/structure/cugraph.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
@@ -347,7 +324,6 @@ add_library(cugraph SHARED
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/utilities/cusparse_helper.cu
-    src/utilities/graph_utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
@@ -381,7 +357,6 @@ target_include_directories(cugraph
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
-    "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
     "${CUB_INCLUDE_DIR}"
     "${CUHORNET_INCLUDE_DIR}/hornet/include"
@@ -401,7 +376,8 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
@@ -413,7 +389,7 @@ target_link_libraries(cugraph PRIVATE
 ###   ...
 ###
 ###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY} and ${RMM_LIBRARY}), cmake
+###   environment. If a full file path is provided (e.g ${RMM_LIBRARY}), cmake
 ###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
 ###   disabled).
 ###
@@ -426,7 +402,7 @@ target_link_libraries(cugraph PRIVATE
 ###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
 ###   checks whether there is any other libgomp.so with the different full path (after resolving
 ###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${CUDF_LIBRARY} and ${RMM_LIBRARY} are added; this one can
+###   path included in BUILD_RPATH when ${RMM_LIBRARY} are added; this one can
 ###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
 ###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
 ###   overlaps with implicit directories).

@@ -23,20 +23,6 @@ from libcpp.memory cimport unique_ptr
 
 cdef extern from "functions.hpp" namespace "cugraph":
 
-    cdef vertex_t coo2csr[vertex_t, edge_t](edge_t num_edges,
-                                            const vertex_t *src,
-                                            const vertex_t *dst,
-                                            edge_t **offsets,
-                                            vertex_t **indices)
-
-    cdef vertex_t coo2csr_weighted[vertex_t, edge_t, weight_t](edge_t num_edges,
-                                                               const vertex_t *src,
-                                                               const vertex_t *dst,
-                                                               const weight_t *weight,
-                                                               edge_t **offsets,
-                                                               vertex_t **indices,
-                                                               weight_t **csr_weights)
-
     cdef unique_ptr[GraphCSR[VT,ET,WT]] coo_to_csr[VT,ET,WT](
             const GraphCOOView[VT,ET,WT] &graph) except +
 

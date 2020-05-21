@@ -240,16 +240,11 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
   void run_current_test(const BC_Usecase &configuration)
   {
     // Step 1: Construction of the graph based on configuration
-    VT m;
-    ET nnz;
-    CSR_Result_Weighted<VT, WT> csr_result;
     bool is_directed = false;
-    generate_graph_csr_from_mm<VT, ET, WT>(
-      csr_result, m, nnz, is_directed, configuration.file_path_);
+    auto csr = generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSRView<VT, ET, WT> G(
-      csr_result.rowOffsets, csr_result.colIndices, csr_result.edgeWeights, m, nnz);
-    G.prop.directed = is_directed;
+    cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
+    G.prop.directed                                   = is_directed;
     CUDA_CHECK_LAST();
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);
