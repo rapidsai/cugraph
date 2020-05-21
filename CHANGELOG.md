@@ -59,6 +59,7 @@
 - PR #855 Missed a file in the original SNMG PR
 - PR #860 Fix all Notebooks
 - PR #889 Added missing conftest.py file to benchmarks dir
+- PR #896 opg dask infrastructure fixes
 
 # cuGraph 0.13.0 (Date TBD)
 
