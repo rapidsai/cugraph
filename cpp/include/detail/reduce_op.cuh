@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,14 @@ template <typename T>
 struct any {
   using type = T;
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs; }
+};
+
+template <typename T>
+struct min {
+  using type = T;
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const {
+    return lhs < rhs ? lhs : rhs;
+  }
 };
 
 }  // namespace reduce_op
