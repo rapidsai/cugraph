@@ -1,4 +1,3 @@
-#include <cugraph.h>
 #include <mpi.h>
 #include <nccl.h>
 #include <string.h>
