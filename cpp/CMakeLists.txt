@@ -327,6 +327,7 @@ add_library(cugraph SHARED
     src/nvgraph/nvgraph_vector_kernels.cu
     src/nvgraph/partition.cu
     src/experimental/bfs.cu
+    src/experimental/sssp.cu
 )
 
 #
