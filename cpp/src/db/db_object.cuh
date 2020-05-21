@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cugraph.h>
 #include <map>
 #include <vector>
 #include "rmm/device_buffer.hpp"

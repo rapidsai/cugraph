@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <cugraph.h>
 #include "db/db_operators.cuh"
 #include "gtest/gtest.h"
 #include "high_res_clock.h"

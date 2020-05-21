@@ -1,8 +1,6 @@
 #ifndef NVGRAPH_ERRORUTILS_H
 #define NVGRAPH_ERRORUTILS_H
 
-#include <nvgraph/nvgraph.h>
-
 #define NVG_TRY(call)                                                                            \
   {                                                                                              \
     nvgraphStatus_t err_code = (call);                                                           \
