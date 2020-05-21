@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cugraph.h>
 #include <rmm_utils.h>
 #include <db/db_object.cuh>
 #include "rmm/device_buffer.hpp"

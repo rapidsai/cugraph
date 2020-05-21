@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <cugraph.h>
 #include <rmm_utils.h>
 #include <thrust/binary_search.h>
 #include <cub/device/device_run_length_encode.cuh>

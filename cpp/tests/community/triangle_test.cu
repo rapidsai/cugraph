@@ -8,7 +8,6 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <cugraph.h>
 #include <gtest/gtest.h>
 
 #include <algorithms.hpp>

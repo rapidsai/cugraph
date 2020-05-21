@@ -16,7 +16,6 @@
 
 // Author: Prasun Gera pgera@nvidia.com
 
-#include <cugraph.h>
 #include <rmm_utils.h>
 #include <algorithm>
 
