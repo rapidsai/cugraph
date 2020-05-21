@@ -22,15 +22,15 @@
 #include <detail/one_level_patterns.cuh>
 #include <detail/reduce_op.cuh>
 #include <detail/two_level_patterns.cuh>
-#include <utilities/traits.hpp>
 #include <graph.hpp>
+#include <utilities/traits.hpp>
 
 #include <rmm/rmm.h>
 
+#include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/fill.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -126,7 +126,7 @@ void bfs_this_partition(
   std::vector<size_t> bucket_sizes(
     static_cast<size_t>(Bucket::num_buckets),
     graph_device_view.get_number_of_this_partition_adj_matrix_rows());
-  AdjMatrixRowFrontier<raft::Handle, thrust::tuple<vertex_t>, vertex_t> adj_matrix_row_frontier(
+  AdjMatrixRowFrontier<raft::Handle, thrust::tuple<vertex_t>, vertex_t, 1> adj_matrix_row_frontier(
     handle, bucket_sizes);
 
   if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(starting_vertex)) {
@@ -135,7 +135,7 @@ void bfs_this_partition(
 
   // 4. BFS iteration
 
-  size_t depth{0};
+  vertex_t depth{0};
   auto cur_adj_matrix_row_frontier_first =
     adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();
   auto cur_adj_matrix_row_frontier_aggregate_size =
@@ -174,7 +174,7 @@ void bfs_this_partition(
           if (v_val == invalid_distance) {
             idx = static_cast<size_t>(Bucket::cur);
           }
-          return thrust::make_tuple(idx, depth + 1, pushed_val);
+          return thrust::make_tuple(idx, depth + 1, thrust::get<0>(pushed_val));
         });
 
       auto new_adj_matrix_row_frontier_aggregate_size =
@@ -189,7 +189,7 @@ void bfs_this_partition(
     }
 
     depth++;
-    if (depth >= depth_limit) {
+    if (depth >= static_cast<vertex_t>(depth_limit)) {
       break;
     }
   }
