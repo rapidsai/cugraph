@@ -19,6 +19,7 @@
 from libc.stdint cimport uintptr_t
 
 
+'''
 cdef extern from "cugraph.h" namespace "cugraph":
     cdef int get_device(void *ptr)
 
@@ -26,4 +27,4 @@ cdef extern from "cugraph.h" namespace "cugraph":
 def device_of_gpu_pointer(g):
     cdef uintptr_t cptr = g.device_ctypes_pointer.value
     return get_device(<void*> cptr)
-
+'''

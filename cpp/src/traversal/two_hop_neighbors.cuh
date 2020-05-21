@@ -19,7 +19,6 @@
  * @file two_hop_neighbors.cuh
  * ---------------------------------------------------------------------------**/
 
-#include <cugraph.h>
 #include <thrust/tuple.h>
 
 #define MAXBLOCKS 65535

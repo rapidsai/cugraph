@@ -18,8 +18,7 @@
 
 cimport cugraph.traversal.bfs as c_bfs
 from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_wrapper
-from cugraph.utilities.column_utils cimport *
+from cugraph.structure import graph_new_wrapper
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -30,7 +29,8 @@ import cudf
 import rmm
 import numpy as np
 
-def bfs(input_graph, start, directed=True):
+def bfs(input_graph, start, directed=True,
+        return_sp_counter=False):
     """
     Call bfs
     """
@@ -46,6 +46,7 @@ def bfs(input_graph, start, directed=True):
     cdef uintptr_t c_identifier_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
     cdef uintptr_t c_distance_ptr       = <uintptr_t> NULL # Pointer to the DataFrame 'distance' Series
     cdef uintptr_t c_predecessor_ptr    = <uintptr_t> NULL # Pointer to the DataFrame 'predecessor' Series
+    cdef uintptr_t c_sp_counter_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'sp_counter' Series
 
     # Step 2: Verifiy input_graph has the expected format
     if input_graph.adjlist is None:
@@ -54,7 +55,7 @@ def bfs(input_graph, start, directed=True):
     # Step 3: Extract CSR offsets, indices, weights are not expected
     #         - offsets: int (signed, 32-bit)
     #         - indices: int (signed, 32-bit)
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
     c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
     c_indices_ptr = indices.__cuda_array_interface__['data'][0]
 
@@ -75,23 +76,29 @@ def bfs(input_graph, start, directed=True):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    if (return_sp_counter):
+        df['sp_counter'] = cudf.Series(np.zeros(num_verts, dtype=np.double))
 
     # Step 7: Associate <uintptr_t> to cudf Series
     c_identifier_ptr = df['vertex'].__cuda_array_interface__['data'][0]
     c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
     c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
+    if return_sp_counter:
+        c_sp_counter_ptr = df['sp_counter'].__cuda_array_interface__['data'][0]
 
     # Step 8: Proceed to BFS
-    # TODO: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
+    # FIXME: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
     graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                             <int*> c_indices_ptr,
                                             <float*> NULL,
                                             num_verts,
                                             num_edges)
     graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
+    # Different pathing wether shortest_path_counting is required or not
     c_bfs.bfs[int, int, float](graph_float,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
+                               <double*> c_sp_counter_ptr,
                                <int> start,
                                directed)
     #FIXME: Update with multicolumn renumbering

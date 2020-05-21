@@ -36,7 +36,7 @@ struct GraphProperties {
   // some graphs are symmetric.
   bool directed{false};
   bool weighted{false};
-  bool multigraph{multigraph};
+  bool multigraph{false};
   bool bipartite{false};
   bool tree{false};
   PropType has_negative_edges{PropType::PROP_UNDEF};
@@ -64,6 +64,7 @@ class GraphViewBase {
 
   Comm comm;
   WT *edge_data;  ///< edge weight
+  Comm comm;
 
   GraphProperties prop;
 

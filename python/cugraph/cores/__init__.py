@@ -13,4 +13,3 @@
 
 from cugraph.cores.core_number import core_number
 from cugraph.cores.k_core import k_core
-from cugraph.cores.ktruss_subgraph import ktruss_subgraph

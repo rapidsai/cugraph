@@ -9,7 +9,6 @@
  *
  */
 
-#include <cugraph.h>
 #include <algorithm>
 #include <iomanip>
 #include <limits>
@@ -33,31 +32,32 @@ void BFS<IndexType>::setup()
   deterministic = false;
   // Working data
   // Each vertex can be in the frontier at most once
-  ALLOC_TRY(&frontier, n * sizeof(IndexType), nullptr);
+  ALLOC_TRY(&frontier, number_of_vertices * sizeof(IndexType), nullptr);
 
   // We will update frontier during the execution
   // We need the orig to reset frontier, or ALLOC_FREE_TRY
   original_frontier = frontier;
 
   // size of bitmaps for vertices
-  vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
+  vertices_bmap_size = (number_of_vertices / (8 * sizeof(int)) + 1);
   // ith bit of visited_bmap is set <=> ith vertex is visited
+
   ALLOC_TRY(&visited_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
   // ith bit of isolated_bmap is set <=> degree of ith vertex = 0
   ALLOC_TRY(&isolated_bmap, sizeof(int) * vertices_bmap_size, nullptr);
 
   // vertices_degree[i] = degree of vertex i
-  ALLOC_TRY(&vertex_degree, sizeof(IndexType) * n, nullptr);
+  ALLOC_TRY(&vertex_degree, sizeof(IndexType) * number_of_vertices, nullptr);
 
   // Cub working data
   traversal::cub_exclusive_sum_alloc(
-    n + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
+    number_of_vertices + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
 
   // We will need (n+1) ints buffer for two differents things (bottom up or top down) - sharing it
   // since those uses are mutually exclusive
-  ALLOC_TRY(&buffer_np1_1, (n + 1) * sizeof(IndexType), nullptr);
-  ALLOC_TRY(&buffer_np1_2, (n + 1) * sizeof(IndexType), nullptr);
+  ALLOC_TRY(&buffer_np1_1, (number_of_vertices + 1) * sizeof(IndexType), nullptr);
+  ALLOC_TRY(&buffer_np1_2, (number_of_vertices + 1) * sizeof(IndexType), nullptr);
 
   // Using buffers : top down
 
@@ -71,17 +71,20 @@ void BFS<IndexType>::setup()
   unvisited_queue = buffer_np1_1;
   // size of the "last" unvisited queue : size_last_unvisited_queue
   // refers to the size of unvisited_queue
-  // which may not be up to date (the queue may contains vertices that are now visited)
+  // which may not be up to date (the queue may contains vertices that are now
+  // visited)
 
-  // We may leave vertices unvisited after bottom up main kernels - storing them here
+  // We may leave vertices unvisited after bottom up main kernels - storing them
+  // here
   left_unvisited_queue = buffer_np1_2;
 
   // We use buckets of edges (32 edges per bucket for now, see exact macro in bfs_kernels).
   // frontier_vertex_degree_buckets_offsets[i] is the index k such as frontier[k] is the source of
   // the first edge of the bucket See top down kernels for more details
-  ALLOC_TRY(&exclusive_sum_frontier_vertex_buckets_offsets,
-            ((nnz / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType),
-            nullptr);
+  ALLOC_TRY(
+    &exclusive_sum_frontier_vertex_buckets_offsets,
+    ((number_of_edges / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType),
+    nullptr);
 
   // Init device-side counters
   // Those counters must be/can be reset at each bfs iteration
@@ -95,14 +98,15 @@ void BFS<IndexType>::setup()
   d_left_unvisited_cnt = &d_counters_pad[3];
 
   // Lets use this int* for the next 3 lines
-  // Its dereferenced value is not initialized - so we dont care about what we put in it
+  // Its dereferenced value is not initialized - so we dont care about what we
+  // put in it
   IndexType *d_nisolated = d_new_frontier_cnt;
   cudaMemsetAsync(d_nisolated, 0, sizeof(IndexType), stream);
 
   // Computing isolated_bmap
   // Only dependent on graph - not source vertex - done once
   traversal::flag_isolated_vertices(
-    n, isolated_bmap, row_offsets, vertex_degree, d_nisolated, stream);
+    number_of_vertices, isolated_bmap, row_offsets, vertex_degree, d_nisolated, stream);
   cudaMemcpyAsync(&nisolated, d_nisolated, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
 
   // We need nisolated to be ready to use
@@ -110,18 +114,26 @@ void BFS<IndexType>::setup()
 }
 
 template <typename IndexType>
-void BFS<IndexType>::configure(IndexType *_distances, IndexType *_predecessors, int *_edge_mask)
+void BFS<IndexType>::configure(IndexType *_distances,
+                               IndexType *_predecessors,
+                               double *_sp_counters,
+                               int *_edge_mask)
 {
   distances    = _distances;
   predecessors = _predecessors;
   edge_mask    = _edge_mask;
+  sp_counters  = _sp_counters;
 
   useEdgeMask         = (edge_mask != NULL);
   computeDistances    = (distances != NULL);
   computePredecessors = (predecessors != NULL);
 
   // We need distances to use bottom up
-  if (directed && !computeDistances) ALLOC_TRY(&distances, n * sizeof(IndexType), nullptr);
+  if (directed && !computeDistances)
+    ALLOC_TRY(&distances, number_of_vertices * sizeof(IndexType), nullptr);
+
+  // In case the shortest path counters is required, previous_bmap has to be allocated
+  if (sp_counters) { ALLOC_TRY(&previous_visited_bmap, sizeof(int) * vertices_bmap_size, nullptr); }
 }
 
 template <typename IndexType>
@@ -148,10 +160,19 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   // We dont use computeDistances here
   // if the graph is undirected, we may need distances even if
   // computeDistances is false
-  if (distances) traversal::fill_vec(distances, n, traversal::vec_t<IndexType>::max, stream);
+  if (distances)
+    traversal::fill_vec(distances, number_of_vertices, traversal::vec_t<IndexType>::max, stream);
 
   // If needed, setting all predecessors to non-existent (-1)
-  if (computePredecessors) { cudaMemsetAsync(predecessors, -1, n * sizeof(IndexType), stream); }
+  if (computePredecessors) {
+    cudaMemsetAsync(predecessors, -1, number_of_vertices * sizeof(IndexType), stream);
+  }
+
+  if (sp_counters) {
+    cudaMemsetAsync(sp_counters, 0, number_of_vertices * sizeof(double), stream);
+    double value = 1;
+    cudaMemcpyAsync(sp_counters + source_vertex, &value, sizeof(double), cudaMemcpyHostToDevice);
+  }
 
   //
   // Initial frontier
@@ -162,7 +183,8 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   if (distances) { cudaMemsetAsync(&distances[source_vertex], 0, sizeof(IndexType), stream); }
 
   // Setting source_vertex as visited
-  // There may be bit already set on that bmap (isolated vertices) - if the graph is undirected
+  // There may be bit already set on that bmap (isolated vertices) - if the
+  // graph is undirected
   int current_visited_bmap_source_vert = 0;
 
   if (!directed) {
@@ -203,17 +225,17 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   nf = 1;
 
   // all edges are undiscovered (by def isolated vertices have 0 edges)
-  mu = nnz;
+  mu = number_of_edges;
 
   // all non isolated vertices are undiscovered (excepted source vertex, which is in frontier)
   // That number is wrong if source_vertex is also isolated - but it's not important
-  nu = n - nisolated - nf;
+  nu = number_of_vertices - nisolated - nf;
 
   // Last frontier was 0, now it is 1
   growing = true;
 
-  IndexType size_last_left_unvisited_queue = n;  // we just need value > 0
-  IndexType size_last_unvisited_queue      = 0;  // queue empty
+  IndexType size_last_left_unvisited_queue = number_of_vertices;  // we just need value > 0
+  IndexType size_last_unvisited_queue      = 0;                   // queue empty
 
   // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
   traversal::set_frontier_degree(frontier_vertex_degree, frontier, vertex_degree, nf, stream);
@@ -238,7 +260,9 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
 
   // useDistances : we check if a vertex is a parent using distances in bottom up - distances become
   // working data undirected g : need parents to be in children's neighbors
-  bool can_use_bottom_up = !directed && distances;
+
+  // In case the shortest path counters need to be computeed, the bottom_up approach cannot be used
+  bool can_use_bottom_up = (!sp_counters && !directed && distances);
 
   while (nf > 0 && nu > 0) {
     // Each vertices can appear only once in the frontierer array - we know it will fit
@@ -255,7 +279,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
           if (mf > mu / alpha) algo_state = BOTTOMUP;
           break;
         case BOTTOMUP:
-          if (!growing && nf < n / beta) {
+          if (!growing && nf < number_of_vertices / beta) {
             // We need to prepare the switch back to top down
             // We couldnt keep track of mu during bottom up - because we dont know what mf is.
             // Computing mu here
@@ -296,6 +320,16 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
 
     switch (algo_state) {
       case TOPDOWN:
+        // This step is only required if sp_counters is not nullptr
+        if (sp_counters) {
+          cudaMemcpyAsync(previous_visited_bmap,
+                          visited_bmap,
+                          vertices_bmap_size * sizeof(int),
+                          cudaMemcpyDeviceToDevice,
+                          stream);
+          // We need to copy the visited_bmap before doing the traversal
+          cudaStreamSynchronize(stream);
+        }
         traversal::compute_bucket_offsets(exclusive_sum_frontier_vertex_degree,
                                           exclusive_sum_frontier_vertex_buckets_offsets,
                                           nf,
@@ -311,9 +345,11 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                      d_new_frontier_cnt,
                                      exclusive_sum_frontier_vertex_degree,
                                      exclusive_sum_frontier_vertex_buckets_offsets,
+                                     previous_visited_bmap,
                                      visited_bmap,
                                      distances,
                                      predecessors,
+                                     sp_counters,
                                      edge_mask,
                                      isolated_bmap,
                                      directed,
@@ -352,7 +388,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
       case BOTTOMUP:
         bfs_kernels::fill_unvisited_queue(visited_bmap,
                                           vertices_bmap_size,
-                                          n,
+                                          number_of_vertices,
                                           unvisited_queue,
                                           d_unvisited_cnt,
                                           stream,
@@ -442,15 +478,21 @@ void BFS<IndexType>::clean()
 
   // In that case, distances is a working data
   if (directed && !computeDistances) ALLOC_FREE_TRY(distances, nullptr);
+
+  // In that  case, previous_visited_bmap has been allocated
+  if (sp_counters) { ALLOC_FREE_TRY(previous_visited_bmap, nullptr); }
 }
 
 template class BFS<int>;
 }  // namespace detail
 
+// NOTE: SP counter increase extremely fast on large graph
+//       It can easily reach 1e40~1e70 on GAP-road.mtx
 template <typename VT, typename ET, typename WT>
 void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
+         double *sp_counters,
          const VT start_vertex,
          bool directed)
 {
@@ -470,14 +512,21 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
   // FIXME: Use VT and ET in the BFS detail
   cugraph::detail::BFS<VT> bfs(
     number_of_vertices, number_of_edges, offsets_ptr, indices_ptr, directed, alpha, beta);
-  bfs.configure(distances, predecessors, nullptr);
+  bfs.configure(distances, predecessors, sp_counters, nullptr);
   bfs.traverse(start_vertex);
 }
 
 template void bfs<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
                                    int *distances,
                                    int *predecessors,
+                                   double *sp_counters,
                                    const int source_vertex,
                                    bool directed);
+template void bfs<int, int, double>(experimental::GraphCSRView<int, int, double> const &graph,
+                                    int *distances,
+                                    int *predecessors,
+                                    double *sp_counters,
+                                    const int source_vertex,
+                                    bool directed);
 
 }  // namespace cugraph
