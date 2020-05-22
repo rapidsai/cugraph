@@ -71,12 +71,6 @@ __global__ void generate_destinations(curandState *state,
   state[first] = local_state;
 }
 
-cudaError_t test_free(void *ptr)
-{
-  ALLOC_FREE_TRY(ptr, nullptr);
-  return cudaSuccess;
-}
-
 TEST_F(RenumberingTest, SmallFixedVertexList)
 {
   uint32_t src_data[] = {4U, 6U, 8U, 20U, 1U};

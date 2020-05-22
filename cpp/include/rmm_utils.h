@@ -33,23 +33,3 @@
 
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
-
-#define ALLOC_TRY(ptr, sz, stream)            \
-  {                                           \
-    RMM_TRY(RMM_ALLOC((ptr), (sz), (stream))) \
-  }
-
-#define REALLOC_TRY(ptr, new_sz, stream)        \
-  {                                             \
-    RMM_TRY(RMM_REALLOC((ptr), (sz), (stream))) \
-  }
-
-// TODO: temporarily wrapping RMM_FREE in a rmmIsInitialized() check to work
-// around the RMM session being finalized prior to this call. A larger
-// refactoring will need to be done to eliminate the need to do this, and
-// calling RMM APIs directly should likely also be removed in favor of working
-// with a higher-level abstraction that manages RMM properly (eg. cuDF?)
-#define ALLOC_FREE_TRY(ptr, stream)                                                   \
-  {                                                                                   \
-    if (rmmIsInitialized((rmmOptions_t*)NULL)) { RMM_TRY(RMM_FREE((ptr), (stream))) } \
-  }

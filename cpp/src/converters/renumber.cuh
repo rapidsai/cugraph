@@ -23,7 +23,6 @@
 #include <cub/cub.cuh>
 
 #include <cuda_runtime_api.h>
-#include <cudf/cudf.h>
 #include <thrust/binary_search.h>
 #include <thrust/scan.h>
 

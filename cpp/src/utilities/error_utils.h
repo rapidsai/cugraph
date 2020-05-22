@@ -25,8 +25,6 @@
 
 #include "nvgraph_error_utils.h"
 
-#include <cudf/types.h>
-
 namespace cugraph {
 /**---------------------------------------------------------------------------*
  * @brief Exception thrown when logical precondition is violated.
