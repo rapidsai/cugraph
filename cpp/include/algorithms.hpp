@@ -309,6 +309,44 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             VT const *vertices         = nullptr,
                             cugraph_bc_implem_t implem = cugraph_bc_implem_t::CUGRAPH_DEFAULT);
 
+/**
+ * @brief     Compute edge betweenness centrality for a graph
+ *
+ * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
+ * pass through this edge. The weight parameter is currenlty not supported
+ *
+ * @throws                           cugraph::logic_error with a custom message when an error
+ * occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ * @tparam result_t                  Type of computed result.  Supported values :  float or double
+ * (double only supported in default implementation)
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * information as a CSR
+ * @param[out] result                Device array of centrality scores
+ * @param[in] normalized             If true, return normalized scores, if false return unnormalized
+ * scores.
+ * @param[in] weight                 If specified, device array of weights for each edge
+ * @param[in] k                      If specified, number of vertex samples defined in the vertices
+ * array.
+ * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
+ * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
+ * shortest path counters.
+ *
+ */
+template <typename VT, typename ET, typename WT, typename result_t>
+void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                 result_t *result,
+                                 bool normalized    = true,
+                                 WT const *weight   = nullptr,
+                                 VT k               = 0,
+                                 VT const *vertices = nullptr);
+
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
   CUGRAPH_STRONG,    ///> Strongly Connected Components
