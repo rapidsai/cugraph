@@ -9,7 +9,6 @@
  *
  */
 
-#include <cugraph.h>
 #include <algorithm>
 #include <iomanip>
 #include <limits>

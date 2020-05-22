@@ -5,7 +5,7 @@
 - PR #822 Added new functions in python graph class, similar to networkx
 - PR #840 OPG degree
 - PR #881 Raft integration infrastructure
-- PR #875 UVM notebook 
+- PR #875 UVM notebook
 
 
 ## Improvements
@@ -45,6 +45,8 @@
 - PR #879 Add docs build script to repository
 - PR #818 Initial version of new "benchmarks" folder
 - PR #880 Remove remaining gdf_column references
+- PR #891 A few gdf_column stragglers
+- PR #893 Add external_repositories dir and raft symlink to .gitignore
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
@@ -57,6 +59,7 @@
 - PR #852 Fix BFS Notebook
 - PR #855 Missed a file in the original SNMG PR
 - PR #860 Fix all Notebooks
+- PR #889 Added missing conftest.py file to benchmarks dir
 
 # cuGraph 0.13.0 (Date TBD)
 

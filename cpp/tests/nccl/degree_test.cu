@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <cugraph.h>
 #include <string.h>
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>

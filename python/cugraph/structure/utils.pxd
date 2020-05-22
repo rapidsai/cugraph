@@ -16,7 +16,6 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cudf._lib.legacy.cudf cimport *
 from cugraph.structure.graph_new cimport *
 from libcpp.memory cimport unique_ptr
 
