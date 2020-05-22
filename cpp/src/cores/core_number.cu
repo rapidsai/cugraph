@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/error_utils.h>
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <utilities/error_utils.h>
 #include <Hornet.hpp>
 #include <Static/CoreNumber/CoreNumber.cuh>
 #include <graph.hpp>

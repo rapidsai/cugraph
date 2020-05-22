@@ -13,8 +13,8 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
 
 TEST(ecg, success)
 {

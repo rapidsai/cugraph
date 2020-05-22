@@ -16,10 +16,10 @@
 
 #include "graph.hpp"
 
+#include <utilities/error_utils.h>
 #include "bfs_kernels.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
-#include <utilities/error_utils.h>
 
 namespace cugraph {
 namespace detail {

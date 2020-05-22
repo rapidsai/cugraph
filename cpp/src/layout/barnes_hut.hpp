@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <utilities/error_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <utilities/error_utils.h>
 
 #include <stdio.h>
 #include <converters/COOtoCSR.cuh>

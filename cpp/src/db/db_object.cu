@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include <utilities/error_utils.h>
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/binary_search.h>
+#include <utilities/error_utils.h>
 #include <cub/device/device_run_length_encode.cuh>
 #include <db/db_object.cuh>
 #include <sstream>

@@ -21,9 +21,9 @@
 
 #include "cuda_profiler_api.h"
 
-#include "converters/renumber.cuh"
-#include <rmm/thrust_rmm_allocator.h>
 #include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+#include "converters/renumber.cuh"
 
 #include <chrono>
 

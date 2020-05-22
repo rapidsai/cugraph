@@ -25,9 +25,9 @@
 #include <iostream>
 #include <type_traits>
 
+#include <rmm/thrust_rmm_allocator.h>
 #include "utilities/cuda_utils.cuh"
 #include "utils.h"
-#include <rmm/thrust_rmm_allocator.h>
 
 namespace MLCommon {
 

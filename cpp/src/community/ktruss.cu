@@ -21,8 +21,8 @@
  * @file ktruss.cu
  * --------------------------------------------------------------------------*/
 
-#include <utilities/error_utils.h>
 #include <rmm/rmm.h>
+#include <utilities/error_utils.h>
 
 #include <Hornet.hpp>
 #include <StandardAPI.hpp>

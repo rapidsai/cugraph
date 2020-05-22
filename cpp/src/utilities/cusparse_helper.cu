@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 #include <cusparse.h>
-#include "cusparse_helper.h"
 #include <utilities/error_utils.h>
+#include "cusparse_helper.h"
 
 namespace cugraph {
 namespace detail {

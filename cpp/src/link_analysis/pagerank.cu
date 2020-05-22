@@ -22,9 +22,9 @@
 #include <string>
 #include "cub/cub.cuh"
 
-#include <utilities/error_utils.h>
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <utilities/error_utils.h>
 
 #include <graph.hpp>
 #include "utilities/graph_utils.cuh"

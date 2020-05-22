@@ -33,8 +33,8 @@
 #include <thrust/for_each.h>
 #include <thrust/scan.h>
 
-#include <utilities/error_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <utilities/error_utils.h>
 
 namespace cugraph {
 namespace sort {
