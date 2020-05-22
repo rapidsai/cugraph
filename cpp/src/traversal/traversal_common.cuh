@@ -404,6 +404,19 @@ void exclusive_sum(void* d_temp_storage,
     d_temp_storage, temp_storage_bytes, d_in, d_out, num_items, m_stream);
 }
 
+template <typename IndexType>
+void exclusive_sum(IndexType* d_in,
+                   IndexType* d_out,
+                   IndexType num_items,
+                   cudaStream_t m_stream)
+{
+  if (num_items <= 1) return;  // DeviceScan fails if n==1
+  thrust::exclusive_scan(
+    rmm::exec_policy(m_stream)->on(m_stream),
+    d_in, d_in + num_items,
+    d_out);
+}
+
 //
 // compute_bucket_offsets_kernel
 // simply compute the position in the frontier corresponding all valid edges

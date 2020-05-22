@@ -39,7 +39,6 @@ CusparseCsrMV<ValueType>::CusparseCsrMV()
 template <typename ValueType>
 CusparseCsrMV<ValueType>::~CusparseCsrMV()
 {
-  ALLOC_FREE_TRY(spmv_d_temp_storage, stream);
 }
 
 template <typename ValueType>
@@ -75,7 +74,8 @@ void CusparseCsrMV<ValueType>::setup(int m,
                                             cuda_type,
                                             cuda_type,
                                             &spmv_temp_storage_bytes));
-  ALLOC_TRY((void**)&spmv_d_temp_storage, spmv_temp_storage_bytes, stream);
+  spmv_temp_storage.resize(spmv_temp_storage_bytes, stream);
+  spmv_d_temp_storage = spmv_temp_storage.data();
 }
 template <typename ValueType>
 void CusparseCsrMV<ValueType>::run(int m,

@@ -360,10 +360,8 @@ void HT_matrix_csc_coo(const IndexType n,
                        ValueType *val,
                        ValueType *bookmark)
 {
-  IndexType *degree;
   cudaStream_t stream{nullptr};
-  ALLOC_TRY((void **)&degree, sizeof(IndexType) * n, stream);
-  cudaMemset(degree, 0, sizeof(IndexType) * n);
+  rmm::device_vector<IndexType> degree(n, 0);
 
   dim3 nthreads, nblocks;
   nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
@@ -372,7 +370,7 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.x  = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
   nblocks.y  = 1;
   nblocks.z  = 1;
-  degree_coo<IndexType, IndexType><<<nblocks, nthreads>>>(n, e, csrInd, degree);
+  degree_coo<IndexType, IndexType><<<nblocks, nthreads, 0, stream>>>(n, e, csrInd, degree.data().get());
   CUDA_CHECK_LAST();
 
   int y      = 4;
@@ -382,7 +380,7 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.x  = 1;
   nblocks.y  = 1;
   nblocks.z  = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS);  // 1;
-  equi_prob3<IndexType, ValueType><<<nblocks, nthreads>>>(n, e, csrPtr, csrInd, val, degree);
+  equi_prob3<IndexType, ValueType><<<nblocks, nthreads, 0, stream>>>(n, e, csrPtr, csrInd, val, degree.data().get());
   CUDA_CHECK_LAST();
 
   ValueType a = 0.0;
@@ -395,9 +393,8 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.x  = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
   nblocks.y  = 1;
   nblocks.z  = 1;
-  flag_leafs_kernel<IndexType, ValueType><<<nblocks, nthreads>>>(n, degree, bookmark);
+  flag_leafs_kernel<IndexType, ValueType><<<nblocks, nthreads, 0, stream>>>(n, degree.data().get(), bookmark);
   CUDA_CHECK_LAST();
-  ALLOC_FREE_TRY(degree, stream);
 }
 
 template <typename IndexType, typename ValueType>
@@ -409,19 +406,18 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 }
 
 template <typename IndexType, typename ValueType>
-void permute_vals(const IndexType e, IndexType *perm, ValueType *in, ValueType *out)
+void permute_vals(const IndexType e, IndexType *perm, ValueType *in, ValueType *out, cudaStream_t stream = nullptr)
 {
   int nthreads = min(e, CUDA_MAX_KERNEL_THREADS);
   int nblocks  = min((e + nthreads - 1) / nthreads, CUDA_MAX_BLOCKS);
-  permute_vals_kernel<<<nblocks, nthreads>>>(e, perm, in, out);
+  permute_vals_kernel<<<nblocks, nthreads, 0, stream>>>(e, perm, in, out);
 }
 
 // This will remove duplicate along with sorting
 // This will sort the COO Matrix, row will be sorted and each column of same row will be sorted.
 template <typename IndexType, typename ValueType, typename SizeT>
-void remove_duplicate(IndexType *src, IndexType *dest, ValueType *val, SizeT &nnz)
+void remove_duplicate(IndexType *src, IndexType *dest, ValueType *val, SizeT &nnz, cudaStream_t stream = nullptr)
 {
-  cudaStream_t stream{nullptr};
   if (val != NULL) {
     thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
                                thrust::raw_pointer_cast(val),
@@ -507,9 +503,10 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 template <typename IndexType>
 void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indices)
 {
+  cudaStream_t stream{nullptr};
   IndexType nthreads = min(v, (IndexType)CUDA_MAX_KERNEL_THREADS);
   IndexType nblocks  = min((v + nthreads - 1) / nthreads, (IndexType)CUDA_MAX_BLOCKS);
-  offsets_to_indices_kernel<<<nblocks, nthreads>>>(offsets, v, indices);
+  offsets_to_indices_kernel<<<nblocks, nthreads, 0, stream>>>(offsets, v, indices);
   CUDA_CHECK_LAST();
 }
 

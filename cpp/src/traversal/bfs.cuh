@@ -12,6 +12,7 @@
 #pragma once
 
 #include <climits>
+#include <rmm/thrust_rmm_allocator.h>
 
 #define TRAVERSAL_DEFAULT_ALPHA 15
 
@@ -34,37 +35,36 @@ class BFS {
   bool useEdgeMask;
   bool computeDistances;
   bool computePredecessors;
+  rmm::device_vector<IndexType> distances_vals;
   IndexType *distances    = nullptr;
   IndexType *predecessors = nullptr;
   double *sp_counters     = nullptr;
   int *edge_mask          = nullptr;
 
+  rmm::device_vector<IndexType> original_frontier;
+  rmm::device_vector<int> visited_bmap;
+  rmm::device_vector<int> isolated_bmap;
+  rmm::device_vector<int> previous_visited_bmap;
+  rmm::device_vector<IndexType> vertex_degree;
+  rmm::device_vector<IndexType> buffer_np1_1;
+  rmm::device_vector<IndexType> buffer_np1_2;
+  rmm::device_vector<IndexType> exclusive_sum_frontier_vertex_buckets_offsets;
+  rmm::device_vector<IndexType> d_counters_pad;
   // Working data
   // For complete description of each, go to bfs.cu
   IndexType nisolated;
   IndexType *frontier                                      = nullptr;
   IndexType *new_frontier                                  = nullptr;
-  IndexType *original_frontier                             = nullptr;
-  int *visited_bmap                                        = nullptr;
-  int *isolated_bmap                                       = nullptr;
-  int *previous_visited_bmap                               = nullptr;
-  IndexType *vertex_degree                                 = nullptr;
-  IndexType *buffer_np1_1                                  = nullptr;
-  IndexType *buffer_np1_2                                  = nullptr;
   IndexType *frontier_vertex_degree                        = nullptr;
   IndexType *exclusive_sum_frontier_vertex_degree          = nullptr;
   IndexType *unvisited_queue                               = nullptr;
   IndexType *left_unvisited_queue                          = nullptr;
-  IndexType *exclusive_sum_frontier_vertex_buckets_offsets = nullptr;
-  IndexType *d_counters_pad                                = nullptr;
   IndexType *d_new_frontier_cnt                            = nullptr;
   IndexType *d_mu                                          = nullptr;
   IndexType *d_unvisited_cnt                               = nullptr;
   IndexType *d_left_unvisited_cnt                          = nullptr;
-  void *d_cub_exclusive_sum_storage                        = nullptr;
 
   IndexType vertices_bmap_size;
-  size_t cub_exclusive_sum_storage_bytes;
 
   // Parameters for direction optimizing
   IndexType alpha, beta;

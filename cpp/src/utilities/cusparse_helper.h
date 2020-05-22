@@ -17,6 +17,7 @@
 #include <cusparse.h>
 #include "rmm_utils.h"
 #include "utilities/graph_utils.cuh"
+#include <rmm/device_buffer.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -56,6 +57,7 @@ class CusparseCsrMV {
   cusparseMatDescr_t descrA;
   cudaDataType cuda_type;
   cusparseAlgMode_t alg;
+  rmm::device_buffer spmv_temp_storage;
   void* spmv_d_temp_storage;
   size_t spmv_temp_storage_bytes;
   cudaStream_t stream;

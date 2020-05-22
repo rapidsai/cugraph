@@ -33,9 +33,8 @@
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-ET get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph,
-                         VT **first,
-                         VT **second)
+std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>>
+get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph)
 {
   cudaStream_t stream{nullptr};
 
@@ -111,20 +110,21 @@ ET get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph,
   // Get things ready to return
   ET outputSize = tuple_end - tuple_start;
 
-  ALLOC_TRY(first, sizeof(VT) * outputSize, nullptr);
-  ALLOC_TRY(second, sizeof(VT) * outputSize, nullptr);
-  cudaMemcpy(*first, d_first_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
-  cudaMemcpy(*second, d_second_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
+  auto result = std::make_unique<cugraph::experimental::GraphCOO<VT, ET, WT>>(
+    graph.number_of_vertices, outputSize, false);
 
-  return outputSize;
+  cudaMemcpy(result->src_indices(), d_first_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
+  cudaMemcpy(result->dst_indices(), d_second_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
+
+  return result;
 }
 
-template int get_two_hop_neighbors(experimental::GraphCSRView<int, int, float> const &,
-                                   int **,
-                                   int **);
+template
+std::unique_ptr<cugraph::experimental::GraphCOO<int, int, float>>
+get_two_hop_neighbors(experimental::GraphCSRView<int, int, float> const &);
 
-template int64_t get_two_hop_neighbors(experimental::GraphCSRView<int32_t, int64_t, float> const &,
-                                       int32_t **,
-                                       int32_t **);
+template
+std::unique_ptr<cugraph::experimental::GraphCOO<int, int, double>>
+get_two_hop_neighbors(experimental::GraphCSRView<int, int, double> const &);
 
 }  // namespace cugraph
