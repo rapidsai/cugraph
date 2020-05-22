@@ -13,6 +13,7 @@
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <rmm/mr/device/cnmem_memory_resource.hpp>
 #include <algorithms.hpp>
 #include <fstream>
 #include <graph.hpp>
@@ -231,9 +232,9 @@ INSTANTIATE_TEST_CASE_P(simple_test,
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

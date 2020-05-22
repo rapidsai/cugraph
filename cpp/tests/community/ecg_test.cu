@@ -15,6 +15,7 @@
 
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <rmm/mr/device/cnmem_memory_resource.hpp>
 
 TEST(ecg, success)
 {
@@ -143,9 +144,9 @@ TEST(ecg, dolphin)
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

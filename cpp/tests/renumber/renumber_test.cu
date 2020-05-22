@@ -23,6 +23,7 @@
 
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <rmm/mr/device/cnmem_memory_resource.hpp>
 #include "converters/renumber.cuh"
 
 #include <chrono>
@@ -576,11 +577,11 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   std::cout << "  hash size = " << hash_size << std::endl;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

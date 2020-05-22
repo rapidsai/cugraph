@@ -29,6 +29,7 @@
 
 #include "components/scc_matrix.cuh"
 #include "topology/topology.cuh"
+#include <rmm/mr/device/cnmem_memory_resource.hpp>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -209,9 +210,9 @@ INSTANTIATE_TEST_CASE_P(
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }
