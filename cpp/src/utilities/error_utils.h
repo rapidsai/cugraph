@@ -108,14 +108,6 @@ struct cuda_error : public std::runtime_error {
 namespace cugraph {
 namespace detail {
 
-inline void throw_rmm_error(rmmError_t error, const char* file, unsigned int line)
-{
-  // todo: throw cuda_error if the error is from cuda
-  throw cugraph::logic_error(std::string{"RMM error encountered at: " + std::string{file} + ":" +
-                                         std::to_string(line) + ": " + std::to_string(error) + " " +
-                                         rmmGetErrorString(error)});
-}
-
 inline void throw_cuda_error(cudaError_t error, const char* file, unsigned int line)
 {
   throw cugraph::cuda_error(std::string{"CUDA error encountered at: " + std::string{file} + ":" +

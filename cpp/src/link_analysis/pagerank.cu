@@ -215,11 +215,6 @@ int pagerankSolver(IndexType n,
   std::cout << " --------------------------------------------" << std::endl;
 #endif
 
-#if 1 /* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
-  CUDA_TRY(cudaFree(tmp_d));
-#endif
-  // ALLOC_FREE_TRY(cub_d_temp_storage, stream);
-
   return converged ? 0 : 1;
 }
 

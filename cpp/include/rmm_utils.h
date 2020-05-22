@@ -20,16 +20,5 @@
 
 #include "utilities/error_utils.h"
 
-#ifndef RMM_TRY
-#define RMM_TRY(call)                                                                            \
-  do {                                                                                           \
-    rmmError_t const status = (call);                                                            \
-    if (RMM_SUCCESS != status) { cugraph::detail::throw_rmm_error(status, __FILE__, __LINE__); } \
-  } while (0);
-#endif
-
-#define RMM_TRY_CUDAERROR(x) \
-  if ((x) != RMM_SUCCESS) CUDA_TRY(cudaPeekAtLastError());
-
 #include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
