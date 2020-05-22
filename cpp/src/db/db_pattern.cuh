@@ -61,20 +61,20 @@ class pattern_element {
 template <typename idx_t>
 class node_pattern : public pattern_element<idx_t> {
   std::string identifier;
-  std::vector<value> labels;
+  std::vector<std::string> labels;
   std::map<std::string, value> properties;
 
  public:
   node_pattern() = default;
   node_pattern(std::string id);
-  node_pattern(const cypher_astnode_t* astNode, context<idx_t> ctx);
+  node_pattern(const cypher_astnode_t* astNode, context<idx_t>& ctx);
   ~node_pattern() = default;
   void setIdentifier(std::string id);
-  void addLabel(value label);
+  void addLabel(std::string label);
   void addProperty(std::string name, value val);
   std::string getIdentifier() override;
   pattern_type type() override;
-  std::vector<value>& getLabels();
+  std::vector<std::string>& getLabels();
   std::map<std::string, value>& getProperties();
 };
 
@@ -89,7 +89,7 @@ class relationship_pattern : public pattern_element<idx_t> {
 
  public:
   relationship_pattern();
-  relationship_pattern(const cypher_astnode_t* astNode, context<idx_t> ctx);
+  relationship_pattern(const cypher_astnode_t* astNode, context<idx_t>& ctx);
   void addProperty(std::string name, value value);
   void setStart(std::string start);
   void setEnd(std::string end);
@@ -110,7 +110,7 @@ class pattern_path {
 
  public:
   pattern_path() = default;
-  pattern_path(const cypher_astnode_t* astNode, context<idx_t> ctx);
+  pattern_path(const cypher_astnode_t* astNode, context<idx_t>& ctx);
   pattern_path(const pattern_path& other) = delete;
   pattern_path(pattern_path&& other);
   ~pattern_path();

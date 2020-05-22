@@ -86,6 +86,23 @@ void db_result<idx_t>::allocateColumns(idx_t size)
 }
 
 template <typename idx_t>
+std::string db_result<idx_t>::getIdentifier()
+{
+  std::stringstream ss;
+  for (size_t i = 0; i < names.size() - 1; i++) ss << names[i] << ",";
+  ss << names[names.size() - 1];
+  return ss.str();
+}
+
+template <typename idx_t>
+bool db_result<idx_t>::hasVariable(std::string name)
+{
+  for (size_t i = 0; i < names.size(); i++)
+    if (names[i] == name) return true;
+  return false;
+}
+
+template <typename idx_t>
 std::string db_result<idx_t>::toString()
 {
   std::stringstream ss;

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cypher-parser.h>
+#include <db/db_context.cuh>
 #include <db/db_pattern.cuh>
 #include <db/db_results.cuh>
 #include <map>
@@ -25,6 +26,7 @@
 
 namespace cugraph {
 namespace db {
+enum class execution_type { LoadCsv, Match, Create, Merge, Return };
 
 /**
  * Super class from which all execution node sub-types inherit
@@ -37,6 +39,7 @@ class execution_node {
   virtual string_table& getStringResult()   = 0;
   virtual db_result<idx_t>& getGPUResult()  = 0;
   virtual std::string getResultIdentifier() = 0;
+  virtual execution_type type()             = 0;
 };
 
 /**
@@ -44,11 +47,12 @@ class execution_node {
  */
 template <typename idx_t>
 class load_csv_node : public execution_node<idx_t> {
-  bool with_headers;
+  bool with_headers = false;
   std::string filename;
   std::string identifier;
   std::string delimiter;
   string_table result;
+  bool executed = false;
 
  public:
   load_csv_node() = default;
@@ -58,6 +62,7 @@ class load_csv_node : public execution_node<idx_t> {
   db_result<idx_t>& getGPUResult() override;
   std::string getResultIdentifier() override;
   void execute() override;
+  execution_type type() override;
 };
 
 /**
@@ -67,14 +72,20 @@ template <typename idx_t>
 class match_node : public execution_node<idx_t> {
   std::vector<pattern_path<idx_t>> paths;
   db_result<idx_t> result;
+  bool executed = false;
 
  public:
   match_node() = default;
-  match_node(const cypher_astnode_t* astNode);
+  match_node(const cypher_astnode_t* astNode, context<idx_t>& ctx);
+  match_node(const match_node& other) = delete;
+  match_node(match_node&& other)      = default;
+  match_node& operator=(const match_node& other) = delete;
+  match_node& operator=(match_node&& other) = default;
   string_table& getStringResult() override;
   db_result<idx_t>& getGPUResult() override;
   std::string getResultIdentifier() override;
   void execute() override;
+  execution_type type() override;
 };
 
 /**
@@ -82,6 +93,21 @@ class match_node : public execution_node<idx_t> {
  */
 template <typename idx_t>
 class create_node : public execution_node<idx_t> {
+  std::vector<pattern_path<idx_t>> paths;
+  bool executed = false;
+
+ public:
+  create_node() = default;
+  create_node(const cypher_astnode_t* astNode, context<idx_t>& ctx);
+  create_node(const create_node& other) = delete;
+  create_node(create_node&& other)      = default;
+  create_node& operator=(const create_node& other) = delete;
+  create_node& operator=(create_node&& other) = default;
+  string_table& getStringResult() override;
+  db_result<idx_t>& getGPUResult() override;
+  std::string getResultIdentifier() override;
+  void execute() override;
+  execution_type type() override;
 };
 
 /**
@@ -99,11 +125,23 @@ template <typename idx_t>
 class return_node : public execution_node<idx_t> {
 };
 
-template <typename IdxT>
+/**
+ * Class which represents a full query plan
+ */
+template <typename idx_t>
 class query_plan {
+  std::vector<execution_node<idx_t>*> plan_nodes;
+  context<idx_t> ctx;
+
  public:
-  query_plan();
-  query_plan(const cypher_parse_result_t* parseResult);
+  query_plan() = default;
+  query_plan(const cypher_parse_result_t* parseResult, context<idx_t> ctx);
+  query_plan(const query_plan& other) = delete;
+  query_plan(query_plan&& other);
+  ~query_plan();
+  query_plan& operator=(const query_plan& other) = delete;
+  query_plan& operator                           =(query_plan&& other);
+  std::string execute();
 };
 
 }  // namespace db

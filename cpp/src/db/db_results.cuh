@@ -40,12 +40,13 @@ class db_result {
   db_result(const db_result& other) = delete;
   ~db_result()                      = default;
   db_result& operator               =(db_result&& other);
-  db_result& operator=(db_result& other) = delete;
   db_result& operator=(const db_result& other) = delete;
   idx_t getSize();
   idx_t* getData(std::string idx);
   void addColumn(std::string columnName);
   void allocateColumns(idx_t size);
+  std::string getIdentifier();
+  bool hasVariable(std::string name);
   /**
    * For debugging purposes
    * @return Human readable representation

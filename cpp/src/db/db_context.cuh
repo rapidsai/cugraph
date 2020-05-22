@@ -16,9 +16,11 @@
 
 #pragma once
 
+#include <db/db_results.cuh>
 #include <db/db_table.cuh>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace cugraph {
 namespace db {
@@ -38,20 +40,37 @@ class encoder {
 
 template <typename idx_t>
 class context {
+  encoder<idx_t>* coder;
   db_table<idx_t>* relationshipsTable;
   db_table<idx_t>* nodeLabelsTable;
   db_table<idx_t>* nodePropertiesTable;
   db_table<idx_t>* relationshipPropertiesTable;
   idx_t nextId;
+  std::vector<string_table> namedResults;
+  std::vector<std::string> resultNames;
+  std::vector<db_result<idx_t>> variables;
 
  public:
   context();
-  context(db_table<idx_t>* rt, db_table<idx_t>* nlt, db_table<idx_t>* npt, db_table<idx_t>* rpt);
+  context(encoder<idx_t>* e,
+          db_table<idx_t>* rt,
+          db_table<idx_t>* nlt,
+          db_table<idx_t>* npt,
+          db_table<idx_t>* rpt);
+  context(const context& other) = delete;
+  context(context&& other);
+  context& operator=(const context& other) = delete;
+  context& operator                        =(context&& other);
   std::string getUniqueId();
   db_table<idx_t>* getRelationshipsTable();
   db_table<idx_t>* getNodeLabelsTable();
   db_table<idx_t>* getNodePropertiesTable();
   db_table<idx_t>* getRelationshipPropertiesTable();
+  encoder<idx_t>* getEncoder();
+  void registerNamedResult(std::string name, string_table&& result);
+  void registerVariables(db_result<idx_t>&& result);
+  std::string getNamedEntry(std::string name, std::string colname, idx_t row);
+  std::string getNamedEntry(std::string name, idx_t colId, idx_t row);
 };
 
 }  // namespace db
