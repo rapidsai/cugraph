@@ -139,23 +139,6 @@ set(BETWEENNESS_TEST_SRC
   ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}" "")
 
 ###################################################################################################
-# - gdfgraph tests --------------------------------------------------------------------------------
-
-set(GDFGRAPH_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/Graph/Graph.cu")
-
-ConfigureTest(GDFGRAPH_TEST "${GDFGRAPH_TEST_SRC}" "")
-
-###################################################################################################
-# - grmat tests -----------------------------------------------------------------------------------
-
-#set(GRMAT_TEST_SRC
-#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/grmat/grmat_test.cu")
-
-#ConfigureTest(GRMAT_TEST "${GRMAT_TEST_SRC} " "")
-
-###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
 
 set(PAGERANK_TEST_SRC
@@ -168,9 +151,17 @@ ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 # - SSSP tests ------------------------------------------------------------------------------------
 set(SSSP_TEST_SRCS
 	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-	"${CMAKE_CURRENT_SOURCE_DIR}/sssp/sssp_test.cu")
+	"${CMAKE_CURRENT_SOURCE_DIR}/traversal/sssp_test.cu")
 
 ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
+
+###################################################################################################
+# - BFS tests ------------------------------------------------------------------------------------
+set(BFS_TEST_SRCS
+	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/traversal/bfs_test.cu")
+
+ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}" "")
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
@@ -240,14 +231,6 @@ set(SCC_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/components/scc_test.cu")
 
 ConfigureTest(SCC_TEST "${SCC_TEST_SRC}" "")
-
-###################################################################################################
-#-SORT tests ---------------------------------------------------------------------
-
-set(SORT_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/sort/sort_test.cu")
-
-ConfigureTest(SORT_TEST "${SORT_TEST_SRC}" "")
 
 ###################################################################################################
 #-FIND_MATCHES tests ---------------------------------------------------------------------

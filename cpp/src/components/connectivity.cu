@@ -36,7 +36,6 @@ namespace detail {
  * @tparam IndexT the numeric type of non-floating point elements
  * @tparam TPB_X the threads to use per block when configuring the kernel
  * @param graph input graph; assumed undirected for weakly CC [in]
- * @param table of 2 gdf_columns: output labels and vertex indices [out]
  * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
  * @param stream the cuda stream [in]
  */

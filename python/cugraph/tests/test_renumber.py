@@ -81,6 +81,7 @@ def test_renumber_ips_cols():
         assert number_df['0'][dst[i]] == gdf['dest_as_int'][i]
 
 
+@pytest.mark.skip(reason='temporarily dropped string support')
 def test_renumber_ips_str_cols():
 
     source_list = ['192.168.1.1',

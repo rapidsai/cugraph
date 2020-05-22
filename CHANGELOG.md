@@ -4,8 +4,13 @@
 - PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
 - PR #840 OPG degree
+- PR #881 Raft integration infrastructure
+- PR #875 UVM notebook
+
 
 ## Improvements
+- PR #882 Add Force Atlas 2 to benchmarks
+- PR #876 Add BFS C++ tests
 - PR #817 Add native Betweenness Centrality with sources subset
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
@@ -22,6 +27,7 @@
 - PR #807 Updating the Python docs
 - PR #820 OPG infra and all-gather smoke test
 - PR #799 Refactored graph class with RAII
+- PR #818 Initial version of new "benchmarks" folder
 - PR #829 Updated README and CONTRIBUTIOIN docs
 - PR #836 Remove SNMG code
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
@@ -37,6 +43,11 @@
 - PR #874 Update setup.py to use custom clean command
 - PR #878 Updated build script
 - PR #887 Updates test to common datasets
+- PR #879 Add docs build script to repository
+- PR #818 Initial version of new "benchmarks" folder
+- PR #880 Remove remaining gdf_column references
+- PR #891 A few gdf_column stragglers
+- PR #893 Add external_repositories dir and raft symlink to .gitignore
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
@@ -49,6 +60,7 @@
 - PR #852 Fix BFS Notebook
 - PR #855 Missed a file in the original SNMG PR
 - PR #860 Fix all Notebooks
+- PR #889 Added missing conftest.py file to benchmarks dir
 
 # cuGraph 0.13.0 (Date TBD)
 
