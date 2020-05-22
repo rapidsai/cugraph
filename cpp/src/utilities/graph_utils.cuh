@@ -523,32 +523,6 @@ bool has_negative_val(DistType *arr, size_t n)
 {
   // custom kernel with boolean bitwise reduce may be
   // faster.
-#if 0
-		    // cub throws errors with double in cuda-memcheck
-		    // switch to thrust until resolved
-
-		    void* d_temp_storage = nullptr;
-		    size_t   temp_storage_bytes = 0;
-		    float * d_min_weight = nullptr;
-		    float h_min_weight;
-		    cudaStream_t stream{nullptr};
-		    ALLOC_TRY(&d_min_weight, sizeof(float), stream);
-		    cub::DeviceReduce::Min(d_temp_storage, temp_storage_bytes, arr, d_min_weight, n);
-		    ALLOC_TRY(&d_temp_storage, temp_storage_bytes, stream);
-		    cub::DeviceReduce::Min(d_temp_storage, temp_storage_bytes, arr, d_min_weight, n);
-
-		    cudaMemcpyAsync(&h_min_weight,
-				    d_min_weight,
-				    sizeof(DistType),
-				    cudaMemcpyDeviceToHost,
-				    stream);
-		    cudaStreamSynchronize(stream);
-
-		    ALLOC_FREE_TRY(d_min_weight, nullptr);
-		    ALLOC_FREE_TRY(d_temp_storage, nullptr);
-
-		    return (h_min_weight < 0);
-#else
   cudaStream_t stream{nullptr};
   DistType result = *thrust::min_element(rmm::exec_policy(stream)->on(stream),
                                          thrust::device_pointer_cast(arr),
@@ -557,7 +531,6 @@ bool has_negative_val(DistType *arr, size_t n)
   CUDA_CHECK_LAST();
 
   return (result < 0);
-#endif
 }
 
 }  // namespace detail

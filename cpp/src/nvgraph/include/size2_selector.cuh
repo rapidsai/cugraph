@@ -26,6 +26,7 @@
 #include "common_selector.cuh"
 #include "graph_utils.cuh"
 #include "valued_csr_graph.cuh"
+#include <memory>
 
 // This should be enabled
 #define EXPERIMENTAL_ITERATIVE_MATCHING
@@ -279,7 +280,7 @@ NVGRAPH_ERROR Size2Selector<IndexType, ValueType>::setAggregates_common_sqblocks
 
 #ifdef EXPERIMENTAL_ITERATIVE_MATCHING
   // TODO (from amgx): allocate host pinned memory
-  AsyncEvent *throttle_event = new AsyncEvent;
+  std::unique_ptr<AsyncEvent> throttle_event(new AsyncEvent);
   throttle_event->create();
   std::vector<IndexType> h_unagg_vec(1);
   Vector<IndexType> d_unagg_vec(1);
@@ -383,10 +384,6 @@ NVGRAPH_ERROR Size2Selector<IndexType, ValueType>::setAggregates_common_sqblocks
   // print
   // printf("icount=%i, numUnassiged=%d, numUnassigned_tol=%f\n", icount, numUnassigned,
   // this->m_numUnassigned_tol);
-
-#ifdef EXPERIMENTAL_ITERATIVE_MATCHING
-  delete throttle_event;
-#endif
 
   if (this->m_merge_singletons) {
     // Merge remaining vertices with current aggregates

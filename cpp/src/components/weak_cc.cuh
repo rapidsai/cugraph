@@ -26,7 +26,6 @@
 #include <iostream>
 #include <type_traits>
 
-#include "rmmAllocatorAdapter.hpp"
 #include "utilities/cuda_utils.cuh"
 #include "utils.h"
 
@@ -277,7 +276,6 @@ void weak_cc(vertex_t *labels,
              vertex_t const *indices,
              edge_t nnz,
              vertex_t N,
-             std::shared_ptr<deviceAllocator> d_alloc,
              cudaStream_t stream,
              Lambda filter_op)
 {
@@ -320,11 +318,10 @@ void weak_cc_entry(vertex_t *labels,
                    vertex_t const *indices,
                    edge_t nnz,
                    vertex_t N,
-                   std::shared_ptr<deviceAllocator> d_alloc,
                    cudaStream_t stream)
 {
   weak_cc(
-    labels, offsets, indices, nnz, N, d_alloc, stream, [] __device__(vertex_t) { return true; });
+    labels, offsets, indices, nnz, N, stream, [] __device__(vertex_t) { return true; });
 }
 
 }  // namespace Sparse

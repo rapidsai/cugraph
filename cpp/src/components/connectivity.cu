@@ -54,15 +54,12 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
   VT nrows = graph.number_of_vertices;
 
   if (connectivity_type == cugraph_cc_t::CUGRAPH_WEAK) {
-    auto d_alloc =
-      std::shared_ptr<MLCommon::deviceAllocator>{new MLCommon::defaultDeviceAllocator()};
 
     MLCommon::Sparse::weak_cc_entry<VT, ET, TPB_X>(labels,
                                                    graph.offsets,
                                                    graph.indices,
                                                    graph.number_of_edges,
                                                    graph.number_of_vertices,
-                                                   d_alloc,
                                                    stream);
   } else {
     SCC_Data<ByteT, VT> sccd(nrows, graph.offsets, graph.indices);

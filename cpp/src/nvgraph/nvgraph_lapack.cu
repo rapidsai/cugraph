@@ -421,17 +421,15 @@ template <typename T>
 void lapack_geev(T *A, T *eigenvalues, int dim, int lda)
 {
   char job      = 'N';
-  T *WI         = new T[dim];
+  std::vector<T> WI(dim);
   int ldv       = 1;
   T *vl         = 0;
   int work_size = 6 * dim;
-  T *work       = new T[work_size];
+  std::vector<T> work(work_size);
   int info;
   lapack_geev_dispatch(
-    &job, &job, &dim, A, &lda, eigenvalues, WI, vl, &ldv, vl, &ldv, work, &work_size, &info);
+    &job, &job, &dim, A, &lda, eigenvalues, WI.data(), vl, &ldv, vl, &ldv, work.data(), &work_size, &info);
   lapackCheckError(info);
-  delete[] WI;
-  delete[] work;
 }
 // real eigenpairs
 template <typename T>
@@ -439,11 +437,11 @@ void lapack_geev(T *A, T *eigenvalues, T *eigenvectors, int dim, int lda, int ld
 {
   char jobvl    = 'N';
   char jobvr    = 'V';
-  T *WI         = new T[dim];
+  std::vector<T> WI(dim);
   int work_size = 6 * dim;
   T *vl         = 0;
   int ldvl      = 1;
-  T *work       = new T[work_size];
+  std::vector<T> work(work_size);
   int info;
   lapack_geev_dispatch(&jobvl,
                        &jobvr,
@@ -451,17 +449,15 @@ void lapack_geev(T *A, T *eigenvalues, T *eigenvectors, int dim, int lda, int ld
                        A,
                        &lda,
                        eigenvalues,
-                       WI,
+                       WI.data(),
                        vl,
                        &ldvl,
                        eigenvectors,
                        &ldvr,
-                       work,
+                       work.data(),
                        &work_size,
                        &info);
   lapackCheckError(info);
-  delete[] WI;
-  delete[] work;
 }
 // complex eigenpairs
 template <typename T>
@@ -478,7 +474,7 @@ void lapack_geev(T *A,
   char jobvr    = 'V';
   int work_size = 8 * dim;
   int ldvl      = 1;
-  T *work       = new T[work_size];
+  std::vector<T> work(work_size);
   int info;
   lapack_geev_dispatch(&jobvl,
                        &jobvr,
@@ -491,11 +487,10 @@ void lapack_geev(T *A,
                        &ldvl,
                        eigenvectors_r,
                        &ldvr,
-                       work,
+                       work.data(),
                        &work_size,
                        &info);
   lapackCheckError(info);
-  delete[] work;
 }
 
 // template <typename T>

@@ -234,20 +234,6 @@ __device__ static __forceinline__ double atomicMin(double* address, double val)
   return __longlong_as_double(old);
 }
 
-// Creates CUB data for graph size n
-template <typename IndexType>
-void cub_exclusive_sum_alloc(IndexType n, void*& d_temp_storage, size_t& temp_storage_bytes)
-{
-  // Determine temporary device storage requirements for exclusive prefix scan
-  d_temp_storage     = NULL;
-  temp_storage_bytes = 0;
-  IndexType *d_in = NULL, *d_out = NULL;
-  cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out, n);
-  // Allocate temporary storage for exclusive prefix scan
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY(&d_temp_storage, temp_storage_bytes, stream);
-}
-
 template <typename IndexType>
 __global__ void flag_isolated_vertices_kernel(IndexType n,
                                               int* isolated_bmap,
