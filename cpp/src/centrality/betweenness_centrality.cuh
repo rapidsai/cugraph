@@ -21,6 +21,29 @@ namespace cugraph {
 namespace detail {
 template <typename VT, typename ET, typename WT, typename result_t>
 class BC {
+ public:
+  virtual ~BC(void) {}
+  BC(experimental::GraphCSRView<VT, ET, WT> const &_graph, cudaStream_t _stream = 0)
+    : graph(_graph), stream(_stream)
+  {
+    setup();
+  }
+  void configure(result_t *betweenness,
+                 bool is_edge_betweenness,
+                 bool normalize,
+                 bool endpoints,
+                 WT const *weigth,
+                 VT const *sources,
+                 VT const number_of_sources);
+  // TODO(xcadet) This should probably be merged in a single function
+  void configure_edge(result_t *betweenness,
+                      bool normalize,
+                      WT const *weigth,
+                      VT const *sources,
+                      VT const number_of_sources);
+  void compute();
+  // void compute_edge();
+
  private:
   // --- Information concerning the graph ---
   const experimental::GraphCSRView<VT, ET, WT> &graph;
@@ -70,23 +93,22 @@ class BC {
                   double *deltas,
                   VT source,
                   VT max_depth);
-  void compute_single_source(VT source_vertex);
-  void rescale();
 
- public:
-  virtual ~BC(void) {}
-  BC(experimental::GraphCSRView<VT, ET, WT> const &_graph, cudaStream_t _stream = 0)
-    : graph(_graph), stream(_stream)
-  {
-    setup();
-  }
-  void configure(result_t *betweenness,
-                 bool normalize,
-                 bool endpoints,
-                 WT const *weigth,
-                 VT const *sources,
-                 VT const number_of_sources);
-  void compute();
+  void accumulate_edges(result_t *betweenness,
+                        VT *distances,
+                        double *sp_counters,
+                        double *deltas,
+                        VT source,
+                        VT max_depth);
+
+  void compute_single_source(VT source_vertex);
+
+  void initialize_work_sizes(bool is_edge_betweenness);
+  void initialize_pointers_to_vectors();
+
+  void initialize_device_information();
+
+  void rescale();
 };
 }  // namespace detail
 }  // namespace cugraph
