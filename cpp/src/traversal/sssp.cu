@@ -50,9 +50,9 @@ void SSSP<IndexType, DistType>::setup()
   iter_buffer_size = sizeof(int) * (edges_bmap_size + vertices_bmap_size) + sizeof(IndexType);
   iter_buffer.resize(iter_buffer_size);
   // ith bit of relaxed_edges_bmap <=> ith edge was relaxed
-  relaxed_edges_bmap = static_cast<int*>(iter_buffer.data());
+  relaxed_edges_bmap = static_cast<int *>(iter_buffer.data());
   // ith bit of next_frontier_bmap <=> vertex is active in the next frontier
-  next_frontier_bmap = static_cast<int*>(iter_buffer.data()) + edges_bmap_size;
+  next_frontier_bmap = static_cast<int *>(iter_buffer.data()) + edges_bmap_size;
   // num vertices in the next frontier
   d_new_frontier_cnt = next_frontier_bmap + vertices_bmap_size;
 
@@ -63,7 +63,7 @@ void SSSP<IndexType, DistType>::setup()
   frontier_vertex_degree.resize(n);
 
   // exclusive sum of frontier_vertex_degree
-  exclusive_sum_frontier_vertex_degree.resize(n+1);
+  exclusive_sum_frontier_vertex_degree.resize(n + 1);
 
   // We use buckets of edges (32 edges per bucket for now, see exact macro in
   // sssp_kernels). frontier_vertex_degree_buckets_offsets[i] is the index k
@@ -147,7 +147,8 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
   }
 
   // Adding source_vertex to init frontier
-  cudaMemcpyAsync(frontier.data().get(), &source_vertex, sizeof(IndexType), cudaMemcpyHostToDevice, stream);
+  cudaMemcpyAsync(
+    frontier.data().get(), &source_vertex, sizeof(IndexType), cudaMemcpyHostToDevice, stream);
 
   // Number of vertices in the frontier and number of out-edges from the
   // frontier
@@ -157,7 +158,11 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
 
   while (nf > 0) {
     // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-    traversal::set_frontier_degree(frontier_vertex_degree.data().get(), frontier.data().get(), vertex_degree.data().get(), nf, stream);
+    traversal::set_frontier_degree(frontier_vertex_degree.data().get(),
+                                   frontier.data().get(),
+                                   vertex_degree.data().get(),
+                                   nf,
+                                   stream);
 
     traversal::exclusive_sum(frontier_vertex_degree.data().get(),
                              exclusive_sum_frontier_vertex_degree.data().get(),
@@ -213,9 +218,9 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
     cudaStreamSynchronize(stream);
 
     // Swap frontiers
-    //IndexType *tmp = frontier;
-    //frontier       = new_frontier;
-    //new_frontier   = tmp;
+    // IndexType *tmp = frontier;
+    // frontier       = new_frontier;
+    // new_frontier   = tmp;
     new_frontier.swap(frontier);
     iters++;
 

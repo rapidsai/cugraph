@@ -54,7 +54,6 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
   VT nrows = graph.number_of_vertices;
 
   if (connectivity_type == cugraph_cc_t::CUGRAPH_WEAK) {
-
     MLCommon::Sparse::weak_cc_entry<VT, ET, TPB_X>(labels,
                                                    graph.offsets,
                                                    graph.indices,

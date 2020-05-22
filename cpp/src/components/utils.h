@@ -20,10 +20,10 @@
 #include <execinfo.h>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <memory>
 
 #include "rmm_utils.h"
 
@@ -64,8 +64,7 @@ class Exception : public std::exception {
     auto depth = backtrace(stack, MaxStackDepth);
     std::ostringstream oss;
     oss << std::endl << "Obtained " << depth << " stack frames" << std::endl;
-    std::unique_ptr<char *, decltype(&::free)> strings(backtrace_symbols(stack, depth),
-                                                          &::free);
+    std::unique_ptr<char*, decltype(&::free)> strings(backtrace_symbols(stack, depth), &::free);
     if (strings.get() == nullptr) {
       oss << "But no stack trace could be found!" << std::endl;
       msg += oss.str();
@@ -215,7 +214,8 @@ void myPrintDevVector(const char* variableName,
                       OutStream& out)
 {
   std::vector<T> hostMem(componentsCount);
-  CUDA_CHECK(cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
+  CUDA_CHECK(
+    cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
   myPrintHostVector(variableName, hostMem.data(), componentsCount, out);
 }
 

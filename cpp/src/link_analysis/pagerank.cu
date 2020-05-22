@@ -336,7 +336,6 @@ void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
   }
 
   copy<WT>(m, d_pr, (WT *)pagerank);
-
 }
 }  // namespace detail
 

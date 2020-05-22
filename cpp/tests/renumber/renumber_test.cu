@@ -132,7 +132,6 @@ TEST_F(RenumberingTest, SmallFixedVertexList)
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
-
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexListNegative)
@@ -190,7 +189,6 @@ TEST_F(RenumberingTest, SmallFixedVertexListNegative)
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
-
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
@@ -248,7 +246,6 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
-
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
@@ -314,7 +311,6 @@ TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
-
 }
 
 TEST_F(RenumberingTest, Random100KVertexSet)
@@ -465,7 +461,6 @@ TEST_F(RenumberingTest, Random10MVertexSet)
   std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count() * 1000 << std::endl;
   std::cout << "  unique verts = " << unique_verts << std::endl;
   std::cout << "  hash size = " << hash_size << std::endl;
-
 }
 
 TEST_F(RenumberingTest, Random100MVertexSet)
@@ -525,7 +520,6 @@ TEST_F(RenumberingTest, Random100MVertexSet)
   std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count() * 1000 << std::endl;
   std::cout << "  unique verts = " << unique_verts << std::endl;
   std::cout << "  hash size = " << hash_size << std::endl;
-
 }
 
 TEST_F(RenumberingTest, Random500MVertexSet)
@@ -585,7 +579,6 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count() * 1000 << std::endl;
   std::cout << "  unique verts = " << unique_verts << std::endl;
   std::cout << "  hash size = " << hash_size << std::endl;
-
 }
 
 int main(int argc, char **argv)

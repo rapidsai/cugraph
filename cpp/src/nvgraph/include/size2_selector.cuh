@@ -22,11 +22,11 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>    //sort
 #include <thrust/unique.h>  //unique
+#include <memory>
 #include "async_event.cuh"
 #include "common_selector.cuh"
 #include "graph_utils.cuh"
 #include "valued_csr_graph.cuh"
-#include <memory>
 
 // This should be enabled
 #define EXPERIMENTAL_ITERATIVE_MATCHING

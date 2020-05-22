@@ -480,8 +480,8 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
  * @return                  Graph in COO format
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>>
-get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph);
+std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  experimental::GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.

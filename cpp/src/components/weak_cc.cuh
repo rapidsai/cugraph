@@ -320,8 +320,7 @@ void weak_cc_entry(vertex_t *labels,
                    vertex_t N,
                    cudaStream_t stream)
 {
-  weak_cc(
-    labels, offsets, indices, nnz, N, stream, [] __device__(vertex_t) { return true; });
+  weak_cc(labels, offsets, indices, nnz, N, stream, [] __device__(vertex_t) { return true; });
 }
 
 }  // namespace Sparse

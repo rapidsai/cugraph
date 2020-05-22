@@ -391,16 +391,10 @@ void exclusive_sum(void* d_temp_storage,
 }
 
 template <typename IndexType>
-void exclusive_sum(IndexType* d_in,
-                   IndexType* d_out,
-                   IndexType num_items,
-                   cudaStream_t m_stream)
+void exclusive_sum(IndexType* d_in, IndexType* d_out, IndexType num_items, cudaStream_t m_stream)
 {
   if (num_items <= 1) return;  // DeviceScan fails if n==1
-  thrust::exclusive_scan(
-    rmm::exec_policy(m_stream)->on(m_stream),
-    d_in, d_in + num_items,
-    d_out);
+  thrust::exclusive_scan(rmm::exec_policy(m_stream)->on(m_stream), d_in, d_in + num_items, d_out);
 }
 
 //

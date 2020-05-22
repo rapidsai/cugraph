@@ -420,23 +420,35 @@ int lapack_geev_dispatch(char *jobvl,
 template <typename T>
 void lapack_geev(T *A, T *eigenvalues, int dim, int lda)
 {
-  char job      = 'N';
+  char job = 'N';
   std::vector<T> WI(dim);
   int ldv       = 1;
   T *vl         = 0;
   int work_size = 6 * dim;
   std::vector<T> work(work_size);
   int info;
-  lapack_geev_dispatch(
-    &job, &job, &dim, A, &lda, eigenvalues, WI.data(), vl, &ldv, vl, &ldv, work.data(), &work_size, &info);
+  lapack_geev_dispatch(&job,
+                       &job,
+                       &dim,
+                       A,
+                       &lda,
+                       eigenvalues,
+                       WI.data(),
+                       vl,
+                       &ldv,
+                       vl,
+                       &ldv,
+                       work.data(),
+                       &work_size,
+                       &info);
   lapackCheckError(info);
 }
 // real eigenpairs
 template <typename T>
 void lapack_geev(T *A, T *eigenvalues, T *eigenvectors, int dim, int lda, int ldvr)
 {
-  char jobvl    = 'N';
-  char jobvr    = 'V';
+  char jobvl = 'N';
+  char jobvr = 'V';
   std::vector<T> WI(dim);
   int work_size = 6 * dim;
   T *vl         = 0;

@@ -11,8 +11,8 @@
 
 #pragma once
 
-#include <climits>
 #include <rmm/thrust_rmm_allocator.h>
+#include <climits>
 
 #define TRAVERSAL_DEFAULT_ALPHA 15
 
@@ -53,16 +53,16 @@ class BFS {
   // Working data
   // For complete description of each, go to bfs.cu
   IndexType nisolated;
-  IndexType *frontier                                      = nullptr;
-  IndexType *new_frontier                                  = nullptr;
-  IndexType *frontier_vertex_degree                        = nullptr;
-  IndexType *exclusive_sum_frontier_vertex_degree          = nullptr;
-  IndexType *unvisited_queue                               = nullptr;
-  IndexType *left_unvisited_queue                          = nullptr;
-  IndexType *d_new_frontier_cnt                            = nullptr;
-  IndexType *d_mu                                          = nullptr;
-  IndexType *d_unvisited_cnt                               = nullptr;
-  IndexType *d_left_unvisited_cnt                          = nullptr;
+  IndexType *frontier                             = nullptr;
+  IndexType *new_frontier                         = nullptr;
+  IndexType *frontier_vertex_degree               = nullptr;
+  IndexType *exclusive_sum_frontier_vertex_degree = nullptr;
+  IndexType *unvisited_queue                      = nullptr;
+  IndexType *left_unvisited_queue                 = nullptr;
+  IndexType *d_new_frontier_cnt                   = nullptr;
+  IndexType *d_mu                                 = nullptr;
+  IndexType *d_unvisited_cnt                      = nullptr;
+  IndexType *d_left_unvisited_cnt                 = nullptr;
 
   IndexType vertices_bmap_size;
 
