@@ -54,8 +54,10 @@ class BC {
   VT const *indices_ptr;  // Pointers to the indices
 
   // --- Information from configuration ---
-  bool configured = false;  // Flag to ensure configuration was called
-  bool normalized = false;  // If True normalize the betweenness
+  bool configured          = false;  // Flag to ensure configuration was called
+  bool normalized          = false;  // If True normalize the betweenness
+  bool is_edge_betweenness = false;  // If True compute edge_betweeness
+
   // FIXME: For weighted version
   WT const *edge_weights_ptr = nullptr;  // Pointer to the weights
   bool endpoints             = false;    // If True normalize the betweenness
@@ -103,9 +105,8 @@ class BC {
 
   void compute_single_source(VT source_vertex);
 
-  void initialize_work_sizes(bool is_edge_betweenness);
+  void initialize_work_sizes();
   void initialize_pointers_to_vectors();
-
   void initialize_device_information();
 
   void rescale();

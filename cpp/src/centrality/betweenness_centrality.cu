@@ -42,17 +42,12 @@ void BC<VT, ET, WT, result_t>::setup()
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::initialize_work_sizes(bool _is_edge_betweenness)
+void BC<VT, ET, WT, result_t>::initialize_work_sizes()
 {
   distances_vec.resize(number_of_vertices);
   predecessors_vec.resize(number_of_vertices);
   sp_counters_vec.resize(number_of_vertices);
-
-  if (_is_edge_betweenness) {
-    deltas_vec.resize(number_of_edges);
-  } else {
-    deltas_vec.resize(number_of_vertices);
-  }
+  deltas_vec.resize(number_of_vertices);
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -82,15 +77,16 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness,
                                          VT _number_of_sources)
 {
   // --- Bind betweenness output vector to internal ---
-  betweenness       = _betweenness;
-  normalized        = _normalized;
-  endpoints         = _endpoints;
-  sources           = _sources;
-  number_of_sources = _number_of_sources;
-  edge_weights_ptr  = _weights;
+  betweenness         = _betweenness;
+  normalized          = _normalized;
+  endpoints           = _endpoints;
+  sources             = _sources;
+  number_of_sources   = _number_of_sources;
+  edge_weights_ptr    = _weights;
+  is_edge_betweenness = _is_edge_betweenness;
 
   // --- Working data allocation ---
-  initialize_work_sizes(_is_edge_betweenness);
+  initialize_work_sizes();
   initialize_pointers_to_vectors();
 
   // --- Get Device Information ---
@@ -195,15 +191,17 @@ __global__ void edges_accumulation_kernel(result_t *betweenness,
     if (distances[w] == depth) {  // Process nodes at this depth
       ET edge_start = offsets[w];
       ET edge_end   = offsets[w + 1];
-      ET edge_count = edge_end - edge_start;
       for (ET edge_idx = edge_start; edge_idx < edge_end; ++edge_idx) {  // Visit neighbors
         VT v = indices[edge_idx];
         if (distances[v] == distances[w] + 1) {
           double factor = (static_cast<double>(1) + deltas[v]) / sp_counters[v];
-          dsw += sw * factor;
-          deltas[edge_idx] = dsw;
+          double c      = sw * factor;
+
+          dsw += c;
+          betweenness[edge_idx] += c;
         }
       }
+      deltas[w] = dsw;
     }
   }
 }
@@ -237,12 +235,14 @@ void BC<VT, ET, WT, result_t>::accumulate_edges(result_t *betweenness,
                                                                                 depth);
   }
 
+  /*
   thrust::transform(rmm::exec_policy(stream)->on(stream),
                     deltas,
                     deltas + number_of_vertices,
                     betweenness,
                     betweenness,
                     thrust::plus<result_t>());
+                    */
 }
 
 // We do not verifiy the graph structure as the new graph structure
@@ -273,7 +273,12 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
   VT max_depth = 0;
   cudaMemcpy(&max_depth, current_max_depth, sizeof(VT), cudaMemcpyDeviceToHost);
   // Step 2) Dependency accumulation
-  accumulate(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
+  if (is_edge_betweenness) {
+    printf("[DBG] EDGE_ACCUMULATION\n");
+    accumulate_edges(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
+  } else {
+    accumulate(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
+  }
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -572,6 +577,7 @@ void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &g
                                  VT k,
                                  VT const *vertices)
 {
+  printf("[DBG] ENTERING EDGE_BC\n");
   detail::edge_betweenness_centrality(graph, result, normalize, weight, k, vertices);
 }
 
