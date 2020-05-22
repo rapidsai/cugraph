@@ -19,12 +19,11 @@
  * @file two_hop_neighbors.cu
  * ---------------------------------------------------------------------------**/
 
+#include <utilities/error_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
-#include <rmm_utils.h>
 #include <algorithms.hpp>
 #include <graph.hpp>
 #include "two_hop_neighbors.cuh"
-#include "utilities/error_utils.h"
 
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>

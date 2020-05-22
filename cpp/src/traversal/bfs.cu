@@ -13,13 +13,13 @@
 #include <iomanip>
 #include <limits>
 #include "bfs.cuh"
-#include "rmm_utils.h"
 
 #include "graph.hpp"
 
 #include "bfs_kernels.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
+#include <utilities/error_utils.h>
 
 namespace cugraph {
 namespace detail {

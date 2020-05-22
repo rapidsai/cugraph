@@ -22,14 +22,12 @@
 #include <string>
 #include "cub/cub.cuh"
 
-#include <rmm_utils.h>
+#include <utilities/error_utils.h>
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <graph.hpp>
-#include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
-
-#include <rmm/thrust_rmm_allocator.h>
-#include <rmm/device_buffer.hpp>
 
 namespace cugraph {
 namespace detail {

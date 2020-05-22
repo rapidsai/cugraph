@@ -25,7 +25,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "rmm_utils.h"
+#include <utilities/error_utils.h>
 
 namespace MLCommon {
 

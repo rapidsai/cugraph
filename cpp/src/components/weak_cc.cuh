@@ -16,7 +16,6 @@
 #pragma once
 
 #include <thrust/device_ptr.h>
-#include <thrust/device_vector.h>
 #include <thrust/scan.h>
 
 #include <cuda_runtime.h>
@@ -28,6 +27,7 @@
 
 #include "utilities/cuda_utils.cuh"
 #include "utils.h"
+#include <rmm/thrust_rmm_allocator.h>
 
 namespace MLCommon {
 

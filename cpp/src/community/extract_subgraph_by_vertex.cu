@@ -17,13 +17,10 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
-
-#include <utilities/error_utils.h>
 #include <utilities/cuda_utils.cuh>
 
-// FIXME: Update with new graph return object
-#include <rmm_utils.h>
+#include <utilities/error_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
 
 namespace {
 

@@ -20,7 +20,8 @@
 
 #include <algorithms.hpp>
 
-#include "rmm_utils.h"
+#include <rmm/thrust_rmm_allocator.h>
+#include <utilities/error_utils.h>
 
 #include "gtest/gtest.h"
 #include "test_utils.h"

@@ -16,7 +16,7 @@
 #pragma once
 #include <cusparse.h>
 #include <rmm/device_buffer.hpp>
-#include "rmm_utils.h"
+#include <utilities/error_utils.h>
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {

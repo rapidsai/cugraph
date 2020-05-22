@@ -21,12 +21,13 @@
  * @file ktruss.cu
  * --------------------------------------------------------------------------*/
 
-#include <rmm_utils.h>
+#include <utilities/error_utils.h>
+#include <rmm/rmm.h>
+
 #include <Hornet.hpp>
 #include <StandardAPI.hpp>
 #include <algorithms.hpp>
 #include "Static/KTruss/KTruss.cuh"
-#include "utilities/error_utils.h"
 
 using namespace hornets_nest;
 

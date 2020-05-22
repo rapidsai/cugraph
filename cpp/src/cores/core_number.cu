@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-#include <rmm_utils.h>
+#include <utilities/error_utils.h>
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
 #include <Hornet.hpp>
 #include <Static/CoreNumber/CoreNumber.cuh>
 #include <graph.hpp>
-#include "utilities/error_utils.h"
 //#include <nvgraph_gdf.h>
 
 namespace cugraph {

@@ -14,8 +14,7 @@
 #include <graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-
-#include "rmm_utils.h"
+#include <rmm/rmm.h>
 
 TEST(ecg, success)
 {

@@ -17,15 +17,14 @@
 #include <cuda_runtime.h>
 //#include <library_types.h>
 //#include <cuda_fp16.h>
-#include <thrust/device_vector.h>
 #include <thrust/functional.h>
 #include <thrust/inner_product.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
-#include <rmm_utils.h>
-#include "utilities/error_utils.h"
+#include <utilities/error_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
 
 namespace cugraph {
 namespace detail {

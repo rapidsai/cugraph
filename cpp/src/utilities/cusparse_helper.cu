@@ -15,7 +15,7 @@
  */
 #include <cusparse.h>
 #include "cusparse_helper.h"
-#include "rmm_utils.h"
+#include <utilities/error_utils.h>
 
 namespace cugraph {
 namespace detail {

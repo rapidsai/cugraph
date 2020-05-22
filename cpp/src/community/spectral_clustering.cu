@@ -24,8 +24,8 @@
 #include <graph.hpp>
 
 #include <nvgraph/include/sm_utils.h>
-#include <rmm_utils.h>
-#include <thrust/device_vector.h>
+#include <utilities/error_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
 #include <thrust/transform.h>
 #include <utilities/nvgraph_error_utils.h>
 #include <ctime>

@@ -16,7 +16,7 @@
 
 // Author: Prasun Gera pgera@nvidia.com
 
-#include <rmm_utils.h>
+#include <utilities/error_utils.h>
 #include <algorithm>
 
 #include "graph.hpp"
@@ -24,7 +24,6 @@
 #include "sssp.cuh"
 #include "sssp_kernels.cuh"
 #include "traversal_common.cuh"
-#include "utilities/error_utils.h"
 
 namespace cugraph {
 namespace detail {
@@ -275,7 +274,7 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
     // BFS also does only integer distances right now whereas we need float or
     // double
 
-    thrust::device_vector<WT> d_edge_weights(num_edges, static_cast<WT>(1));
+    rmm::device_vector<WT> d_edge_weights(num_edges, static_cast<WT>(1));
     edge_weights_ptr = thrust::raw_pointer_cast(&d_edge_weights.front());
     cugraph::detail::SSSP<VT, WT> sssp(
       num_vertices, num_edges, offsets_ptr, indices_ptr, edge_weights_ptr);

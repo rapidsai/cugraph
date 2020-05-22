@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#include <utilities/error_utils.h>
 #include <cub/device/device_select.cuh>
 #include <db/db_operators.cuh>
+#include <utilities/error_utils.h>
+#include <rmm/rmm.h>
 
 namespace cugraph {
 namespace db {
