@@ -25,7 +25,7 @@
 
 #include "nvgraph_error_utils.h"
 
-#include <cudf/types.h>
+#include <cudf/types.hpp>
 
 namespace cugraph {
 /**---------------------------------------------------------------------------*
