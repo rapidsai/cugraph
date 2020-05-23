@@ -29,8 +29,8 @@
 
 #include <fstream>
 
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "traversal/bfs_ref.h"
-#include <rmm/mr/device/cnmem_memory_resource.hpp>
 
 #ifndef TEST_EPSILON
 #define TEST_EPSILON 0.0001
@@ -366,10 +366,10 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           BC_Usecase("test/datasets/wiki2003.mtx", 4),
                                           BC_Usecase("test/datasets/wiki-Talk.mtx", 4)));
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
   testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
   rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
   return rc;

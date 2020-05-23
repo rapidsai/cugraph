@@ -26,8 +26,8 @@
 #include "gtest/gtest.h"
 #include "test_utils.h"
 
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "bfs_ref.h"
-#include <rmm/mr/device/cnmem_memory_resource.hpp>
 
 // NOTE: This could be common to other files but we might not want the same precision
 // depending on the algorithm
@@ -217,10 +217,10 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
                                           BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000)));
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
   testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
   rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
   return rc;

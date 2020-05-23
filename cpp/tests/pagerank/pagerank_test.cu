@@ -13,10 +13,10 @@
 // Author: Alex Fender afender@nvidia.com
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <rmm/mr/device/cnmem_memory_resource.hpp>
 #include <algorithms.hpp>
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "cuda_profiler_api.h"
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
@@ -198,7 +198,7 @@ INSTANTIATE_TEST_CASE_P(
 int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
   rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
   return rc;

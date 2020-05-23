@@ -3,13 +3,13 @@
 #include <converters/COOtoCSR.cuh>
 #include <fstream>
 #include <graph.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "cuda_profiler_api.h"
 #include "gmock/gmock-generated-matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 #include "test_utils.h"
-#include <rmm/mr/device/cnmem_memory_resource.hpp>
 
 std::vector<int> getGoldenTopKIds(std::ifstream& fs_result, int k = 10)
 {
@@ -151,7 +151,7 @@ TEST_P(Tests_Katz, Check) { run_current_test(GetParam()); }
 int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
   rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
   return rc;
