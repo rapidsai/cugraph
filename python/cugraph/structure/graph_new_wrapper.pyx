@@ -253,23 +253,17 @@ def get_two_hop_neighbors(input_graph):
 
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_first = <uintptr_t> NULL
-    cdef uintptr_t c_second = <uintptr_t> NULL
 
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
 
     graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*> c_indices, <float*>NULL, num_verts, num_edges)
 
-    count = c_get_two_hop_neighbors(graph, <int**> &c_first, <int**> &c_second)
-    
-    df = cudf.DataFrame()
-    df['first'] = rmm.device_array_from_ptr(c_first,
-                                            nelem=count,
-                                            dtype=np.int32)
-    df['second'] = rmm.device_array_from_ptr(c_second,
-                                             nelem=count,
-                                             dtype=np.int32)
+    df = coo_to_df(move(c_get_two_hop_neighbors(graph)))
+    if not transposed:
+        df.rename(columns={'src':'first', 'dst':'second'}, inplace=True)
+    else:
+        df.rename(columns={'dst':'first', 'src':'second'}, inplace=True)
 
     return df
 

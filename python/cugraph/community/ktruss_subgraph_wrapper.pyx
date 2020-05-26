@@ -22,7 +22,6 @@ from cugraph.structure import graph_new_wrapper
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
@@ -31,12 +30,12 @@ import numpy as np
 
 
 def ktruss_subgraph_float(input_graph, k, use_weights):
-    cdef GraphCOOViewFloat in_graph = get_graph_view[GraphCOOViewFloat](input_graph, not use_weights)
+    cdef GraphCOOViewFloat in_graph = get_graph_view[GraphCOOViewFloat](input_graph, use_weights)
     return coo_to_df(move(k_truss_subgraph[int,int,float](in_graph, k)))
 
 
 def ktruss_subgraph_double(input_graph, k, use_weights):
-    cdef GraphCOOViewDouble in_graph = get_graph_view[GraphCOOViewDouble](input_graph, not use_weights)
+    cdef GraphCOOViewDouble in_graph = get_graph_view[GraphCOOViewDouble](input_graph, use_weights)
     return coo_to_df(move(k_truss_subgraph[int,int,double](in_graph, k)))
 
 

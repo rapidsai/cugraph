@@ -119,10 +119,8 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef ET get_two_hop_neighbors[VT,ET,WT](
-        const GraphCSRView[VT, ET, WT] &graph,
-        VT **first,
-        VT **second) except +
+    cdef unique_ptr[GraphCOO[VT, ET, WT]] get_two_hop_neighbors[VT,ET,WT](
+        const GraphCSRView[VT, ET, WT] &graph) except +
 
 cdef extern from "functions.hpp" namespace "cugraph":
 

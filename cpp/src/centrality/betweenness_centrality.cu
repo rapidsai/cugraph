@@ -20,7 +20,6 @@
 
 #include <algorithms.hpp>
 #include <graph.hpp>
-#include "rmm_utils.h"
 
 #include <utilities/error_utils.h>
 

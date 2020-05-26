@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <rmm/rmm.h>
 #include <utilities/error_utils.h>
 #include <cub/device/device_select.cuh>
 #include <db/db_operators.cuh>

@@ -47,6 +47,7 @@
 - PR #880 Remove remaining gdf_column references
 - PR #891 A few gdf_column stragglers
 - PR #893 Add external_repositories dir and raft symlink to .gitignore
+- PR #897 Remove RMM ALLOC calls
 - PR #899 Update include paths to remove deleted cudf headers
 
 ## Bug Fixes
