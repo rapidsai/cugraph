@@ -97,7 +97,7 @@ void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness,
 }
 
 // Dependecy Accumulation: McLaughlin and Bader, 2018
-// NOTE: Accumulation kernel might not scale well, as each thread is handling
+// FIXME: Accumulation kernel might not scale well, as each thread is handling
 //        all the edges for each node, an approach similar to the traversal
 //        bucket (i.e. BFS / SSSP) system might enable speed up
 // NOTE: Shortest Path counter can increase extremely fast, thus double are used
@@ -172,6 +172,7 @@ void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness,
                     thrust::plus<result_t>());
 }
 
+// FIXME: Load is balanced over vertices, should use forAllEdges primitive
 template <typename VT, typename ET, typename WT, typename result_t>
 __global__ void edges_accumulation_kernel(result_t *betweenness,
                                           VT number_vertices,
@@ -234,15 +235,6 @@ void BC<VT, ET, WT, result_t>::accumulate_edges(result_t *betweenness,
                                                                                 source,
                                                                                 depth);
   }
-
-  /*
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
-                    deltas,
-                    deltas + number_of_vertices,
-                    betweenness,
-                    betweenness,
-                    thrust::plus<result_t>());
-                    */
 }
 
 // We do not verifiy the graph structure as the new graph structure
@@ -310,15 +302,20 @@ void BC<VT, ET, WT, result_t>::compute()
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::rescale()
 {
-  thrust::device_vector<result_t> normalizer(number_of_vertices);
+  size_t result_size = number_of_vertices;
+  if (is_edge_betweenness) result_size = number_of_edges;
+  // TODO(xcadet) There might be a way to avoid the |E| or |V| allocation
+  // The multiplication is operated via constant
+  thrust::device_vector<result_t> normalizer(result_size);
   bool modified                      = false;
   result_t rescale_factor            = static_cast<result_t>(1);
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
   result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
   if (normalized) {
-    if (number_of_vertices > 2) {
-      rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
-      modified = true;
+    if (is_edge_betweenness) {
+      rescale_edges_betweenness_centrality(rescale_factor, modified);
+    } else {
+      rescale_vertices_betweenness_centrality(rescale_factor, modified);
     }
   } else {
     if (!graph.prop.directed) {
@@ -334,10 +331,32 @@ void BC<VT, ET, WT, result_t>::rescale()
   thrust::fill(normalizer.begin(), normalizer.end(), rescale_factor);
   thrust::transform(rmm::exec_policy(stream)->on(stream),
                     betweenness,
-                    betweenness + number_of_vertices,
+                    betweenness + result_size,
                     normalizer.begin(),
                     betweenness,
                     thrust::multiplies<result_t>());
+}  // namespace detail
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::rescale_vertices_betweenness_centrality(result_t &rescale_factor,
+                                                                       bool &modified)
+{
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  if (number_of_vertices > 2) {
+    rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
+    modified = true;
+  }
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::rescale_edges_betweenness_centrality(result_t &rescale_factor,
+                                                                    bool &modified)
+{
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  if (number_of_vertices > 1) {
+    rescale_factor /= ((casted_number_of_vertices) * (casted_number_of_vertices - 1));
+    modified = true;
+  }
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
