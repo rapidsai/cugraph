@@ -477,16 +477,11 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
  * @param[in]  graph        The input graph object
- * @param[out] first        Upon return will be a device pointer pointing to an array containing
- *                          the first entry of each result pair.
- * @param[out] second       Upon return will be a device pointer pointing to an array containing
- *                          the second entry of each result pair.
- * @return    The number of pairs
+ * @return                  Graph in COO format
  */
 template <typename VT, typename ET, typename WT>
-ET get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph,
-                         VT **first,
-                         VT **second);
+std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  experimental::GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.

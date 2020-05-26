@@ -17,13 +17,12 @@
 #pragma once
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <rmm_utils.h>
+#include <utilities/error_utils.h>
+
 #include <stdio.h>
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
 #include <internals.hpp>
-#include <rmm/device_buffer.hpp>
-#include "utilities/error_utils.h"
 
 #include "exact_repulsion.hpp"
 #include "fa2_kernels.hpp"

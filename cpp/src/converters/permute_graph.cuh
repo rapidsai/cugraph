@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <rmm_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
+#include <utilities/error_utils.h>
 #include <graph.hpp>
 #include "converters/COOtoCSR.cuh"
 #include "utilities/graph_utils.cuh"
