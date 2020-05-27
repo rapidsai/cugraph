@@ -16,8 +16,7 @@
 
 // Author: Prasun Gera pgera@nvidia.com
 
-#include <cugraph.h>
-#include <rmm_utils.h>
+#include <utilities/error_utils.h>
 #include <algorithm>
 
 #include "graph.hpp"
@@ -25,7 +24,6 @@
 #include "sssp.cuh"
 #include "sssp_kernels.cuh"
 #include "traversal_common.cuh"
-#include "utilities/error_utils.h"
 
 namespace cugraph {
 namespace detail {
@@ -35,8 +33,8 @@ void SSSP<IndexType, DistType>::setup()
 {
   // Working data
   // Each vertex can be in the frontier at most once
-  ALLOC_TRY(&frontier, n * sizeof(IndexType), nullptr);
-  ALLOC_TRY(&new_frontier, n * sizeof(IndexType), nullptr);
+  frontier.resize(n);
+  new_frontier.resize(n);
 
   // size of bitmaps for vertices
   vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
@@ -45,30 +43,26 @@ void SSSP<IndexType, DistType>::setup()
   edges_bmap_size = (nnz / (8 * sizeof(int)) + 1);
 
   // ith bit of isolated_bmap is set <=> degree of ith vertex = 0
-  ALLOC_TRY(&isolated_bmap, sizeof(int) * vertices_bmap_size, nullptr);
+  isolated_bmap.resize(vertices_bmap_size);
 
   // Allocate buffer for data that need to be reset every iteration
   iter_buffer_size = sizeof(int) * (edges_bmap_size + vertices_bmap_size) + sizeof(IndexType);
-  ALLOC_TRY(&iter_buffer, iter_buffer_size, nullptr);
+  iter_buffer.resize(iter_buffer_size);
   // ith bit of relaxed_edges_bmap <=> ith edge was relaxed
-  relaxed_edges_bmap = (int *)iter_buffer;
+  relaxed_edges_bmap = static_cast<int *>(iter_buffer.data());
   // ith bit of next_frontier_bmap <=> vertex is active in the next frontier
-  next_frontier_bmap = (int *)iter_buffer + edges_bmap_size;
+  next_frontier_bmap = static_cast<int *>(iter_buffer.data()) + edges_bmap_size;
   // num vertices in the next frontier
   d_new_frontier_cnt = next_frontier_bmap + vertices_bmap_size;
 
   // vertices_degree[i] = degree of vertex i
-  ALLOC_TRY(&vertex_degree, sizeof(IndexType) * n, nullptr);
-
-  // Cub working data
-  traversal::cub_exclusive_sum_alloc(
-    n + 1, d_cub_exclusive_sum_storage, cub_exclusive_sum_storage_bytes);
+  vertex_degree.resize(n);
 
   // frontier_vertex_degree[i] is the degree of vertex frontier[i]
-  ALLOC_TRY(&frontier_vertex_degree, n * sizeof(IndexType), nullptr);
+  frontier_vertex_degree.resize(n);
 
   // exclusive sum of frontier_vertex_degree
-  ALLOC_TRY(&exclusive_sum_frontier_vertex_degree, (n + 1) * sizeof(IndexType), nullptr);
+  exclusive_sum_frontier_vertex_degree.resize(n + 1);
 
   // We use buckets of edges (32 edges per bucket for now, see exact macro in
   // sssp_kernels). frontier_vertex_degree_buckets_offsets[i] is the index k
@@ -76,7 +70,7 @@ void SSSP<IndexType, DistType>::setup()
   // See top down kernels for more details
   size_t bucket_off_size =
     ((nnz / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType);
-  ALLOC_TRY(&exclusive_sum_frontier_vertex_buckets_offsets, bucket_off_size, nullptr);
+  exclusive_sum_frontier_vertex_buckets_offsets.resize(bucket_off_size);
 
   // Repurpose d_new_frontier_cnt temporarily
   IndexType *d_nisolated = d_new_frontier_cnt;
@@ -85,7 +79,7 @@ void SSSP<IndexType, DistType>::setup()
   // Computing isolated_bmap
   // Only dependent on graph - not source vertex - done once
   traversal::flag_isolated_vertices(
-    n, isolated_bmap, row_offsets, vertex_degree, d_nisolated, stream);
+    n, isolated_bmap.data().get(), row_offsets, vertex_degree.data().get(), d_nisolated, stream);
 
   cudaMemcpyAsync(&nisolated, d_nisolated, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
 
@@ -108,9 +102,13 @@ void SSSP<IndexType, DistType>::configure(DistType *_distances,
   computePredecessors = (predecessors != NULL);
 
   // We need distances for SSSP even if the caller doesn't need them
-  if (!computeDistances) ALLOC_TRY(&distances, n * sizeof(DistType), nullptr);
+  if (!computeDistances) {
+    distances_vals.resize(n);
+    distances = distances_vals.data().get();
+  }
   // Need next_distances in either case
-  ALLOC_TRY(&next_distances, n * sizeof(DistType), nullptr);
+  next_distances_vals.resize(n);
+  next_distances = next_distances_vals.data().get();
 }
 
 template <typename IndexType, typename DistType>
@@ -133,7 +131,7 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
   int current_isolated_bmap_source_vert = 0;
 
   cudaMemcpyAsync(&current_isolated_bmap_source_vert,
-                  &isolated_bmap[source_vertex / INT_SIZE],
+                  isolated_bmap.data().get() + (source_vertex / INT_SIZE),
                   sizeof(int),
                   cudaMemcpyDeviceToHost);
 
@@ -148,7 +146,8 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
   }
 
   // Adding source_vertex to init frontier
-  cudaMemcpyAsync(&frontier[0], &source_vertex, sizeof(IndexType), cudaMemcpyHostToDevice, stream);
+  cudaMemcpyAsync(
+    frontier.data().get(), &source_vertex, sizeof(IndexType), cudaMemcpyHostToDevice, stream);
 
   // Number of vertices in the frontier and number of out-edges from the
   // frontier
@@ -158,17 +157,19 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
 
   while (nf > 0) {
     // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-    traversal::set_frontier_degree(frontier_vertex_degree, frontier, vertex_degree, nf, stream);
+    traversal::set_frontier_degree(frontier_vertex_degree.data().get(),
+                                   frontier.data().get(),
+                                   vertex_degree.data().get(),
+                                   nf,
+                                   stream);
 
-    traversal::exclusive_sum(d_cub_exclusive_sum_storage,
-                             cub_exclusive_sum_storage_bytes,
-                             frontier_vertex_degree,
-                             exclusive_sum_frontier_vertex_degree,
+    traversal::exclusive_sum(frontier_vertex_degree.data().get(),
+                             exclusive_sum_frontier_vertex_degree.data().get(),
                              nf + 1,
                              stream);
 
     cudaMemcpyAsync(&mf,
-                    &exclusive_sum_frontier_vertex_degree[nf],
+                    exclusive_sum_frontier_vertex_degree.data().get() + nf,
                     sizeof(IndexType),
                     cudaMemcpyDeviceToHost,
                     stream);
@@ -176,32 +177,32 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
     // We need mf to know the next kernel's launch dims
     cudaStreamSynchronize(stream);
 
-    traversal::compute_bucket_offsets(exclusive_sum_frontier_vertex_degree,
-                                      exclusive_sum_frontier_vertex_buckets_offsets,
+    traversal::compute_bucket_offsets(exclusive_sum_frontier_vertex_degree.data().get(),
+                                      exclusive_sum_frontier_vertex_buckets_offsets.data().get(),
                                       nf,
                                       mf,
                                       stream);
 
     // Reset the transient structures to 0
-    cudaMemsetAsync(iter_buffer, 0, iter_buffer_size, stream);
+    cudaMemsetAsync(iter_buffer.data(), 0, iter_buffer_size, stream);
 
     sssp_kernels::frontier_expand(row_offsets,
                                   col_indices,
                                   edge_weights,
-                                  frontier,
+                                  frontier.data().get(),
                                   nf,
                                   mf,
-                                  new_frontier,
+                                  new_frontier.data().get(),
                                   d_new_frontier_cnt,
-                                  exclusive_sum_frontier_vertex_degree,
-                                  exclusive_sum_frontier_vertex_buckets_offsets,
+                                  exclusive_sum_frontier_vertex_degree.data().get(),
+                                  exclusive_sum_frontier_vertex_buckets_offsets.data().get(),
                                   distances,
                                   next_distances,
                                   predecessors,
                                   edge_mask,
                                   next_frontier_bmap,
                                   relaxed_edges_bmap,
-                                  isolated_bmap,
+                                  isolated_bmap.data().get(),
                                   stream);
 
     cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
@@ -216,9 +217,10 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
     cudaStreamSynchronize(stream);
 
     // Swap frontiers
-    IndexType *tmp = frontier;
-    frontier       = new_frontier;
-    new_frontier   = tmp;
+    // IndexType *tmp = frontier;
+    // frontier       = new_frontier;
+    // new_frontier   = tmp;
+    new_frontier.swap(frontier);
     iters++;
 
     if (iters > n) {
@@ -231,22 +233,6 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
 template <typename IndexType, typename DistType>
 void SSSP<IndexType, DistType>::clean()
 {
-  // the vectors have a destructor that takes care of cleaning
-  ALLOC_FREE_TRY(frontier, nullptr);
-  ALLOC_FREE_TRY(new_frontier, nullptr);
-  ALLOC_FREE_TRY(isolated_bmap, nullptr);
-  ALLOC_FREE_TRY(vertex_degree, nullptr);
-  ALLOC_FREE_TRY(d_cub_exclusive_sum_storage, nullptr);
-  ALLOC_FREE_TRY(frontier_vertex_degree, nullptr);
-  ALLOC_FREE_TRY(exclusive_sum_frontier_vertex_degree, nullptr);
-  ALLOC_FREE_TRY(exclusive_sum_frontier_vertex_buckets_offsets, nullptr);
-  ALLOC_FREE_TRY(iter_buffer, nullptr);
-
-  // Distances were working data
-  if (!computeDistances) ALLOC_FREE_TRY(distances, nullptr);
-
-  // next_distances were working data
-  ALLOC_FREE_TRY(next_distances, nullptr);
 }
 
 }  // namespace detail
@@ -282,13 +268,13 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
   if (!graph.edge_data) {
     // Generate unit weights
 
-    // TODO: This should fallback to BFS, but for now it'll go through the
+    // FIXME: This should fallback to BFS, but for now it'll go through the
     // SSSP path since BFS needs the directed flag, which should not be
     // necessary for the SSSP API. We can pass directed to the BFS call, but
     // BFS also does only integer distances right now whereas we need float or
     // double
 
-    thrust::device_vector<WT> d_edge_weights(num_edges, static_cast<WT>(1));
+    rmm::device_vector<WT> d_edge_weights(num_edges, static_cast<WT>(1));
     edge_weights_ptr = thrust::raw_pointer_cast(&d_edge_weights.front());
     cugraph::detail::SSSP<VT, WT> sssp(
       num_vertices, num_edges, offsets_ptr, indices_ptr, edge_weights_ptr);

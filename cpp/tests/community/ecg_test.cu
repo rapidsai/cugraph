@@ -8,15 +8,14 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <cugraph.h>
 #include <gtest/gtest.h>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
 
+#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
-
-#include "rmm_utils.h"
+#include <rmm/mr/device/cnmem_memory_resource.hpp>
 
 TEST(ecg, success)
 {
@@ -133,9 +132,9 @@ TEST(ecg, dolphin)
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

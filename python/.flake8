@@ -1,0 +1,4 @@
+# Copyright (c) 2020, NVIDIA CORPORATION.
+
+[flake8]
+exclude = img,notebooks,thirdparty,__init__.py,libgdf

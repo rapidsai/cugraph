@@ -27,6 +27,7 @@
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
 
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "components/scc_matrix.cuh"
 #include "topology/topology.cuh"
 
@@ -164,11 +165,10 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    CSR_Result<int> result;
-    ConvertCOOtoCSR(&cooColInd[0], &cooRowInd[0], nnz, result);
-
-    cugraph::experimental::GraphCSRView<int, int, float> G(
-      result.rowOffsets, result.colIndices, nullptr, m, nnz);
+    cugraph::experimental::GraphCOOView<int, int, float> G_coo(
+      &cooRowInd[0], &cooColInd[0], nullptr, m, nnz);
+    auto G_unique                                          = cugraph::coo_to_csr(G_coo);
+    cugraph::experimental::GraphCSRView<int, int, float> G = G_unique->view();
 
     rmm::device_vector<int> d_labels(m);
 
@@ -210,9 +210,9 @@ INSTANTIATE_TEST_CASE_P(
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

@@ -30,7 +30,7 @@ enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
 struct GraphProperties {
   bool directed{false};
   bool weighted{false};
-  bool multigraph{multigraph};
+  bool multigraph{false};
   bool bipartite{false};
   bool tree{false};
   PropType has_negative_edges{PropType::PROP_UNDEF};
@@ -54,8 +54,8 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphViewBase {
  public:
-  Comm comm;
   WT *edge_data;  ///< edge weight
+  Comm comm;
 
   GraphProperties prop;
 

@@ -22,15 +22,12 @@
 #include <string>
 #include "cub/cub.cuh"
 
-#include <rmm_utils.h>
-
-#include <cugraph.h>
-#include <graph.hpp>
-#include "utilities/error_utils.h"
-#include "utilities/graph_utils.cuh"
-
+#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
-#include <rmm/device_buffer.hpp>
+#include <utilities/error_utils.h>
+
+#include <graph.hpp>
+#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {
@@ -133,7 +130,8 @@ int pagerankSolver(IndexType n,
   b_d = b.data().get();
 
 #if 1 /* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
-  CUDA_TRY(cudaMalloc((void **)&tmp_d, sizeof(ValueType) * n));
+  thrust::device_vector<ValueType> tmp(n);
+  tmp_d = tmp.data().get();
 #else
   rmm::device_vector<WT> tmp(n);
   tmp_d = pr.data().get();
@@ -215,11 +213,6 @@ int pagerankSolver(IndexType n,
   std::cout << " --------------------------------------------" << std::endl;
 #endif
 
-#if 1 /* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
-  CUDA_TRY(cudaFree(tmp_d));
-#endif
-  // ALLOC_FREE_TRY(cub_d_temp_storage, stream);
-
   return converged ? 0 : 1;
 }
 
@@ -293,7 +286,8 @@ void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
   }
 
 #if 1 /* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
-  CUDA_TRY(cudaMalloc((void **)&d_pr, sizeof(WT) * m));
+  thrust::device_vector<WT> pr(m);
+  d_pr = pr.data().get();
 #else
   rmm::device_vector<WT> pr(m);
   d_pr = pr.data().get();
@@ -335,10 +329,6 @@ void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
   }
 
   copy<WT>(m, d_pr, (WT *)pagerank);
-
-#if 1 /* temporary solution till https://github.com/NVlabs/cub/issues/162 is resolved */
-  CUDA_TRY(cudaFree(d_pr));
-#endif
 }
 }  // namespace detail
 

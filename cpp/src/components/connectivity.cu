@@ -36,7 +36,6 @@ namespace detail {
  * @tparam IndexT the numeric type of non-floating point elements
  * @tparam TPB_X the threads to use per block when configuring the kernel
  * @param graph input graph; assumed undirected for weakly CC [in]
- * @param table of 2 gdf_columns: output labels and vertex indices [out]
  * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
  * @param stream the cuda stream [in]
  */
@@ -55,15 +54,11 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
   VT nrows = graph.number_of_vertices;
 
   if (connectivity_type == cugraph_cc_t::CUGRAPH_WEAK) {
-    auto d_alloc =
-      std::shared_ptr<MLCommon::deviceAllocator>{new MLCommon::defaultDeviceAllocator()};
-
     MLCommon::Sparse::weak_cc_entry<VT, ET, TPB_X>(labels,
                                                    graph.offsets,
                                                    graph.indices,
                                                    graph.number_of_edges,
                                                    graph.number_of_vertices,
-                                                   d_alloc,
                                                    stream);
   } else {
     SCC_Data<ByteT, VT> sccd(nrows, graph.offsets, graph.indices);

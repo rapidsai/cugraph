@@ -16,6 +16,7 @@
 #include <algorithms.hpp>
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "cuda_profiler_api.h"
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
@@ -123,11 +124,14 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     ASSERT_EQ(fclose(fpin), 0);
 
     //  Pagerank runs on CSC, so feed COOtoCSR the row/col backwards.
-    CSR_Result_Weighted<int, T> result;
-    ConvertCOOtoCSR_weighted(&cooColInd[0], &cooRowInd[0], &cooVal[0], nnz, result);
-
-    cugraph::experimental::GraphCSCView<int, int, T> G(
-      result.rowOffsets, result.colIndices, result.edgeWeights, m, nnz);
+    cugraph::experimental::GraphCOOView<int, int, T> G_coo(
+      &cooColInd[0], &cooRowInd[0], &cooVal[0], m, nnz);
+    auto G_unique = cugraph::coo_to_csr(G_coo);
+    cugraph::experimental::GraphCSCView<int, int, T> G(G_unique->view().offsets,
+                                                       G_unique->view().indices,
+                                                       G_unique->view().edge_data,
+                                                       G_unique->view().number_of_vertices,
+                                                       G_unique->view().number_of_edges);
 
     cudaDeviceSynchronize();
     if (PERF) {
@@ -193,9 +197,9 @@ INSTANTIATE_TEST_CASE_P(
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

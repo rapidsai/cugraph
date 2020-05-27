@@ -20,11 +20,12 @@
 #include <execinfo.h>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
-#include "rmm_utils.h"
+#include <utilities/error_utils.h>
 
 namespace MLCommon {
 
@@ -63,15 +64,14 @@ class Exception : public std::exception {
     auto depth = backtrace(stack, MaxStackDepth);
     std::ostringstream oss;
     oss << std::endl << "Obtained " << depth << " stack frames" << std::endl;
-    char** strings = backtrace_symbols(stack, depth);
-    if (strings == nullptr) {
+    std::unique_ptr<char*, decltype(&::free)> strings(backtrace_symbols(stack, depth), &::free);
+    if (strings.get() == nullptr) {
       oss << "But no stack trace could be found!" << std::endl;
       msg += oss.str();
       return;
     }
     ///@todo: support for demangling of C++ symbol names
-    for (int i = 0; i < depth; ++i) { oss << "#" << i << " in " << strings[i] << std::endl; }
-    free(strings);
+    for (int i = 0; i < depth; ++i) { oss << "#" << i << " in " << strings.get()[i] << std::endl; }
     msg += oss.str();
 #endif  // __GNUC__
   }
@@ -155,16 +155,6 @@ void copyAsync(Type* dPtr1, const Type* dPtr2, size_t len, cudaStream_t stream)
  */
 inline size_t allocLengthForMatrix(size_t rows, size_t columns) { return rows * columns; }
 
-/** cuda malloc */
-template <typename Type>
-void allocate(Type*& ptr, size_t len, bool setZero = false)
-{
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&ptr, sizeof(Type) * len, stream);
-  // cudaMalloc((void **)&ptr, sizeof(Type) * len);
-  if (setZero) CUDA_CHECK(cudaMemset(ptr, 0, sizeof(Type) * len));
-}
-
 /** Helper function to check alignment of pointer.
  * @param ptr the pointer to check
  * @param alignment to be checked for
@@ -223,10 +213,10 @@ void myPrintDevVector(const char* variableName,
                       size_t componentsCount,
                       OutStream& out)
 {
-  T* hostMem = new T[componentsCount];
-  CUDA_CHECK(cudaMemcpy(hostMem, devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
-  myPrintHostVector(variableName, hostMem, componentsCount, out);
-  delete[] hostMem;
+  std::vector<T> hostMem(componentsCount);
+  CUDA_CHECK(
+    cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
+  myPrintHostVector(variableName, hostMem.data(), componentsCount, out);
 }
 
 template <class T>

@@ -19,14 +19,12 @@
 cimport cugraph.traversal.sssp as c_sssp
 cimport cugraph.traversal.bfs as c_bfs
 from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_wrapper
-from cugraph.utilities.column_utils cimport *
+from cugraph.structure import graph_new_wrapper
 
 from cugraph.utilities.unrenumber import unrenumber
 
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
@@ -61,8 +59,8 @@ def sssp(input_graph, source):
     #         - indices: int (signed, 32-bit)
     #         - weights: float / double
     #         Extract data_type from weights (not None: float / double, None: signed int 32-bit)
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
     c_indices_ptr = indices.__cuda_array_interface__['data'][0]
 
@@ -124,7 +122,7 @@ def sssp(input_graph, source):
         else: # This case should not happen
             raise NotImplementedError
     else:
-        # TODO: Something might be done here considering WT = float
+        # FIXME: Something might be done here considering WT = float
         graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                                 <int*> c_indices_ptr,
                                                 <float*> NULL,
@@ -134,6 +132,7 @@ def sssp(input_graph, source):
         c_bfs.bfs[int, int, float](graph_float,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
+                                   <double*> NULL,
                                    <int> source)
 
     #FIXME: Update with multiple column renumbering

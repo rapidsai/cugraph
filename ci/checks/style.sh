@@ -12,7 +12,7 @@ PATH=/conda/bin:$PATH
 source activate gdf
 
 # Run flake8 and get results/return code
-FLAKE=`flake8 python`
+FLAKE=`flake8 --config=python/.flake8 python`
 FLAKE_RETVAL=$?
 
 # Run clang-format and check for a consistent code format
@@ -41,4 +41,3 @@ IFS=$'\n'
 RETVAL=`echo "${RETVALS[*]}" | sort -nr | head -n1`
 
 exit $RETVAL
-

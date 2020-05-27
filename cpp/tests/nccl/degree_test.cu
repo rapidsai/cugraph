@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <cugraph.h>
 #include <string.h>
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
@@ -121,9 +120,11 @@ int main(int argc, char **argv)
 {
   testing::InitGoogleTest(&argc, argv);
   MPI_Init(&argc, &argv);
-  rmmInitialize(nullptr);
-  int rc = RUN_ALL_TESTS();
-  rmmFinalize();
+  {
+    auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+    rmm::mr::set_default_resource(resource.get());
+    int rc = RUN_ALL_TESTS();
+  }
   MPI_Finalize();
   return rc;
 }

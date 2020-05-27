@@ -97,6 +97,7 @@ SOURCES = [1]
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp(graph_file, source):
+    print('DOING test_sssp : ' + graph_file + '\n\n\n')
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
@@ -122,6 +123,7 @@ def test_sssp(graph_file, source):
                 err = err + 1
 
     assert err == 0
+    print('DONE test_sssp : ' + graph_file + '\n\n\n')
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation

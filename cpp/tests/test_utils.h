@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,13 +42,11 @@ extern "C" {
 #include <thrust/reduce.h>
 #include <thrust/sequence.h>
 
-#include <rmm_utils.h>
-
 #include <rmm/rmm.h>
 
-#include "cugraph.h"
-
 #include "utilities/error_utils.h"
+
+#include "converters/COOtoCSR.cuh"
 
 #ifndef CUDA_RT_CALL
 #define CUDA_RT_CALL(call)                                                               \
@@ -83,21 +81,6 @@ extern "C" {
       FAIL();                                                          \
     }                                                                  \
   }
-
-std::function<void(gdf_column*)> gdf_col_deleter = [](gdf_column* col) {
-  if (col) {
-    col->size = 0;
-    if (col->data) {
-      cudaStream_t stream{nullptr};
-      ALLOC_FREE_TRY(col->data, stream);
-    }
-    delete col;
-  }
-};
-using gdf_column_ptr = typename std::unique_ptr<gdf_column, decltype(gdf_col_deleter)>;
-
-std::function<void(cugraph::Graph*)> Graph_deleter = [](cugraph::Graph* G) { delete G; };
-using Graph_ptr = typename std::unique_ptr<cugraph::Graph, decltype(Graph_deleter)>;
 
 std::string getFileName(const std::string& s)
 {
@@ -143,7 +126,7 @@ void printv(size_t n, T* vec, int offset)
     dev_ptr + offset,
     dev_ptr + offset + n,
     std::ostream_iterator<T>(
-      std::cout, " "));  // Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
+      std::cout, " "));  // Assume no RMM dependency; FIXME: check / test (potential BUG !!!!!)
   std::cout << std::endl;
 }
 
@@ -641,208 +624,52 @@ int read_binary_vector(FILE* fpin, int n, std::vector<double>& val)
   return 0;
 }
 
-// Creates a gdf_column from a std::vector
-template <typename col_type>
-gdf_column_ptr create_gdf_column(std::vector<col_type> const& host_vector)
+// FIXME: A similar function could be useful for CSC format
+//        There are functions above that operate coo -> csr and coo->csc
+/**
+ * @tparam
+ */
+template <typename VT, typename ET, typename WT>
+std::unique_ptr<cugraph::experimental::GraphCSR<VT, ET, WT>> generate_graph_csr_from_mm(
+  bool& directed, std::string mm_file)
 {
-  // Create a new instance of a gdf_column with a custom deleter that will free
-  // the associated device memory when it eventually goes out of scope
-  gdf_column_ptr the_column{new gdf_column, gdf_col_deleter};
-  // Allocate device storage for gdf_column and copy contents from host_vector
-  const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
-  cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
+  VT number_of_vertices;
+  ET number_of_edges;
 
-  // Deduce the type and set the gdf_dtype accordingly
-  gdf_dtype gdf_col_type;
-  if (std::is_same<col_type, int8_t>::value)
-    gdf_col_type = GDF_INT8;
-  else if (std::is_same<col_type, uint8_t>::value)
-    gdf_col_type = GDF_INT8;
-  else if (std::is_same<col_type, int16_t>::value)
-    gdf_col_type = GDF_INT16;
-  else if (std::is_same<col_type, uint16_t>::value)
-    gdf_col_type = GDF_INT16;
-  else if (std::is_same<col_type, int32_t>::value)
-    gdf_col_type = GDF_INT32;
-  else if (std::is_same<col_type, uint32_t>::value)
-    gdf_col_type = GDF_INT32;
-  else if (std::is_same<col_type, int64_t>::value)
-    gdf_col_type = GDF_INT64;
-  else if (std::is_same<col_type, uint64_t>::value)
-    gdf_col_type = GDF_INT64;
-  else if (std::is_same<col_type, float>::value)
-    gdf_col_type = GDF_FLOAT32;
-  else if (std::is_same<col_type, double>::value)
-    gdf_col_type = GDF_FLOAT64;
-  // Fill the gdf_column members
-  the_column->valid      = nullptr;
-  the_column->null_count = 0;
-  the_column->size       = host_vector.size();
-  the_column->dtype      = gdf_col_type;
-  gdf_dtype_extra_info extra_info;
-  extra_info.time_unit   = TIME_UNIT_NONE;
-  the_column->dtype_info = extra_info;
-  return the_column;
-}
+  FILE* fpin = fopen(mm_file.c_str(), "r");
+  EXPECT_NE(fpin, nullptr);
 
-// Creates a gdf_column from a std::vector
-template <typename col_type>
-void create_gdf_column(std::vector<col_type> const& host_vector, gdf_column* the_column)
-{
-  // Allocate device storage for gdf_column and copy contents from host_vector
-  const size_t input_size_bytes = host_vector.size() * sizeof(col_type);
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY((void**)&(the_column->data), input_size_bytes, stream);
-  cudaMemcpy(the_column->data, host_vector.data(), input_size_bytes, cudaMemcpyHostToDevice);
+  VT number_of_columns = 0;
+  MM_typecode mm_typecode{0};
+  EXPECT_EQ(mm_properties<VT>(
+              fpin, 1, &mm_typecode, &number_of_vertices, &number_of_columns, &number_of_edges),
+            0);
+  EXPECT_TRUE(mm_is_matrix(mm_typecode));
+  EXPECT_TRUE(mm_is_coordinate(mm_typecode));
+  EXPECT_FALSE(mm_is_complex(mm_typecode));
+  EXPECT_FALSE(mm_is_skew(mm_typecode));
 
-  // Deduce the type and set the gdf_dtype accordingly
-  gdf_dtype gdf_col_type;
-  if (std::is_same<col_type, int8_t>::value)
-    gdf_col_type = GDF_INT8;
-  else if (std::is_same<col_type, uint8_t>::value)
-    gdf_col_type = GDF_INT8;
-  else if (std::is_same<col_type, int16_t>::value)
-    gdf_col_type = GDF_INT16;
-  else if (std::is_same<col_type, uint16_t>::value)
-    gdf_col_type = GDF_INT16;
-  else if (std::is_same<col_type, int32_t>::value)
-    gdf_col_type = GDF_INT32;
-  else if (std::is_same<col_type, uint32_t>::value)
-    gdf_col_type = GDF_INT32;
-  else if (std::is_same<col_type, int64_t>::value)
-    gdf_col_type = GDF_INT64;
-  else if (std::is_same<col_type, uint64_t>::value)
-    gdf_col_type = GDF_INT64;
-  else if (std::is_same<col_type, float>::value)
-    gdf_col_type = GDF_FLOAT32;
-  else if (std::is_same<col_type, double>::value)
-    gdf_col_type = GDF_FLOAT64;
-  // Fill the gdf_column members
-  the_column->valid      = nullptr;
-  the_column->null_count = 0;
-  the_column->size       = host_vector.size();
-  the_column->dtype      = gdf_col_type;
-  gdf_dtype_extra_info extra_info;
-  extra_info.time_unit   = TIME_UNIT_NONE;
-  the_column->dtype_info = extra_info;
-}
+  directed = !mm_is_symmetric(mm_typecode);
 
-void gdf_col_delete(gdf_column* col)
-{
-  if (col) {
-    col->size = 0;
-    cudaStream_t stream{nullptr};
-    if (col->data) ALLOC_FREE_TRY(col->data, stream);
-#if 1
-    // If delete col is executed, the memory pointed by col is no longer valid and
-    // can be used in another memory allocation, so executing col->data = nullptr
-    // after delete col is dangerous, also, col = nullptr has no effect here (the
-    // address is passed by value, for col = nullptr should work, the input
-    // parameter should be gdf_column*& col (or alternatively, gdf_column** col and
-    // *col = nullptr also work)
-    col->data = nullptr;
-    delete col;
-#else
-    delete col;
-    col->data = nullptr;
-    col       = nullptr;
-#endif
-  }
-}
+  // Allocate memory on host
+  std::vector<VT> coo_row_ind(number_of_edges);
+  std::vector<VT> coo_col_ind(number_of_edges);
+  std::vector<WT> coo_val(number_of_edges);
 
-template <typename col_type>
-bool gdf_column_equal(gdf_column* a, gdf_column* b)
-{
-  if (a == nullptr || b == nullptr) {
-    std::cout << "A given column is null!\n";
-    return false;
-  }
-  if (a->dtype != b->dtype) {
-    std::cout << "Mismatched dtypes\n";
-    return false;
-  }
-  if (a->size != b->size) {
-    std::cout << "Mismatched sizes: a=" << a->size << " b=" << b->size << "\n";
-    return false;
-  }
-  std::vector<col_type> a_h(a->size);
-  std::vector<col_type> b_h(b->size);
-  cudaMemcpy(&a_h[0], a->data, sizeof(col_type) * a->size, cudaMemcpyDefault);
-  cudaMemcpy(&b_h[0], b->data, sizeof(col_type) * b->size, cudaMemcpyDefault);
-  for (size_t i = 0; i < a_h.size(); i++) {
-    if (a_h[i] != b_h[i]) {
-      std::cout << "Elements at " << i << " differ: a=" << a_h[i] << " b=" << b_h[i] << "\n";
-      return false;
-    }
-  }
-  return true;
-}
+  // Read
+  EXPECT_EQ((mm_to_coo<VT, WT>(
+              fpin, 1, number_of_edges, &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], NULL)),
+            0);
+  EXPECT_EQ(fclose(fpin), 0);
 
-template <typename idx_t>
-bool gdf_csr_equal(gdf_column* a_off, gdf_column* a_ind, gdf_column* b_off, gdf_column* b_ind)
-{
-  if (a_off == nullptr || a_ind == nullptr || b_off == nullptr || b_ind == nullptr) {
-    std::cout << "A given column is null!\n";
-    return false;
-  }
-  auto type = a_off->dtype;
-  if (a_ind->dtype != type || b_off->dtype != type || b_ind->dtype != type) {
-    std::cout << "Mismatched dtypes\n";
-    return false;
-  }
-  if (!gdf_column_equal<idx_t>(a_off, b_off)) {
-    std::cout << "Offsets arrays do not match!\n";
-    return false;
-  }
-  if (a_ind->size != b_ind->size) {
-    std::cout << "Size of indices arrays do not match\n";
-    return false;
-  }
-  // Compare the elements of each section of the indices, regardless of order
-  std::vector<idx_t> a_off_h(a_off->size);
-  std::vector<idx_t> a_ind_h(a_ind->size);
-  std::vector<idx_t> b_ind_h(b_ind->size);
-  cudaMemcpy(&a_off_h[0], a_off->data, a_off->size * sizeof(idx_t), cudaMemcpyDefault);
-  cudaMemcpy(&a_ind_h[0], a_ind->data, a_ind->size * sizeof(idx_t), cudaMemcpyDefault);
-  cudaMemcpy(&b_ind_h[0], b_ind->data, b_ind->size * sizeof(idx_t), cudaMemcpyDefault);
-  auto numVerts = a_off_h.size() - 1;
-  for (size_t vert = 0; vert < numVerts; vert++) {
-    auto start = a_off_h[vert];
-    auto end   = a_off_h[vert + 1];
-    std::set<idx_t> a_set;
-    std::set<idx_t> b_set;
-    for (int i = start; i < end; i++) {
-      a_set.insert(a_ind_h[i]);
-      b_set.insert(b_ind_h[i]);
-    }
-    if (a_set.size() != b_set.size()) {
-      std::cout << "Vertex " << vert << " set sizes do not match!\n";
-      std::cout << "A Set: {";
-      for (auto it = a_set.begin(); it != a_set.end(); it++) std::cout << " " << *it;
-      std::cout << "}\nB Set: {";
-      for (auto it = b_set.begin(); it != b_set.end(); it++) std::cout << " " << *it;
-      std::cout << "}\n";
-      std::cout << "A list: {";
-      for (int i = start; i < end; i++) { std::cout << " " << a_ind_h[i]; }
-      std::cout << "}\nB List: {";
-      for (int i = start; i < end; i++) { std::cout << " " << b_ind_h[i]; }
-      std::cout << "}\n";
-      return false;
-    }
-    for (auto it = a_set.begin(); it != a_set.end(); it++) {
-      if (b_set.count(*it) != 1) {
-        std::cout << "A set contains " << *it << " B set does not!\n";
-        return false;
-      }
-    }
-  }
-  return true;
+  cugraph::experimental::GraphCOOView<VT, ET, WT> cooview(
+    &coo_col_ind[0], &coo_row_ind[0], &coo_val[0], number_of_vertices, number_of_edges);
+
+  return cugraph::coo_to_csr(cooview);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TODO: move this code to rapids-core
+// FIXME: move this code to rapids-core
 ////////////////////////////////////////////////////////////////////////////////
 
 // Define RAPIDS_DATASET_ROOT_DIR using a preprocessor variable to

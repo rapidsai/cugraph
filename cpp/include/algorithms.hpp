@@ -16,6 +16,7 @@
 #pragma once
 
 #include <graph.hpp>
+#include <internals.hpp>
 
 namespace cugraph {
 
@@ -186,13 +187,90 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
                   VT const *second,
                   WT *result);
 
+enum class cugraph_bc_implem_t {
+  CUGRAPH_DEFAULT = 0,  ///> Native cugraph implementation
+  CUGRAPH_GUNROCK       ///> Gunrock implementation
+};
+
+/**
+ *
+ * @brief                                       ForceAtlas2 is a continuous graph layout algorithm
+ * for handy network visualization.
+ *
+ *                                              NOTE: Peak memory allocation occurs at 17*V.
+ *
+ * @throws                                      cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                                   Type of vertex identifiers. Supported value : int
+ * (signed, 32-bit)
+ * @tparam ET                                   Type of edge identifiers.  Supported value : int
+ * (signed, 32-bit)
+ * @tparam WT                                   Type of edge weights. Supported values : float or
+ * double.
+ *
+ * @param[in] graph                             cuGRAPH graph descriptor, should contain the
+ * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
+ * algorithm and set to 1 by default.
+ * @param[out] pos                              Device array (2, n) containing x-axis and y-axis
+ * positions;
+ * @param[in] max_iter                          The maximum number of iterations Force Atlas 2
+ * should run for.
+ * @param[in] x_start                           Device array containing starting x-axis positions;
+ * @param[in] y_start                           Device array containing starting y-axis positions;
+ * @param[in] outbound_attraction_distribution  Distributes attraction along outbound edges. Hubs
+ * attract less and thus are pushed to the borders.
+ * @param[in] lin_log_mode                      Switch ForceAtlas’ model from lin-lin to lin-log
+ * (tribute to Andreas Noack). Makes clusters more tight.
+ * @param[in] prevent_overlapping               Prevent nodes from overlapping.
+ * @param[in] edge_weight_influence             How much influence you give to the edges weight. 0
+ * is “no influence” and 1 is “normal”.
+ * @param[in] jitter_tolerance                  How much swinging you allow. Above 1 discouraged.
+ * Lower gives less speed and more precision.
+ * @param[in] barnes_hut_optimize:              Whether to use the fast Barnes Hut or use the slower
+ * exact version.
+ * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs
+ * accuracy (0) for Barnes Hut only.
+ * @params[in] scaling_ratio                    Float strictly positive. How much repulsion you
+ * want. More makes a more sparse graph. Switching from regular mode to LinLog mode needs a
+ * readjustment of the scaling parameter.
+ * @params[in] strong_gravity_mode                      The “Strong gravity” option sets a force
+ * that attracts the nodes that are distant from the center more ( is this distance). This force has
+ * the drawback of being so strong that it is sometimes stronger than the other forces. It may
+ * result in a biased placement of the nodes. However, its advantage is to force a very compact
+ * layout, which may be useful for certain purposes.
+ * @params[in] gravity                          Attracts nodes to the center. Prevents islands from
+ * drifting away.
+ * @params[in] verbose                          Output convergence info at each interation.
+ * @params[in] callback                         An instance of GraphBasedDimRedCallback class to
+ * intercept the internal state of positions while they are being trained.
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
+                  float *pos,
+                  const int max_iter                            = 500,
+                  float *x_start                                = nullptr,
+                  float *y_start                                = nullptr,
+                  bool outbound_attraction_distribution         = true,
+                  bool lin_log_mode                             = false,
+                  bool prevent_overlapping                      = false,
+                  const float edge_weight_influence             = 1.0,
+                  const float jitter_tolerance                  = 1.0,
+                  bool barnes_hut_optimize                      = true,
+                  const float barnes_hut_theta                  = 0.5,
+                  const float scaling_ratio                     = 2.0,
+                  bool strong_gravity_mode                      = false,
+                  const float gravity                           = 1.0,
+                  bool verbose                                  = false,
+                  internals::GraphBasedDimRedCallback *callback = nullptr);
+
 /**
  * @brief     Compute betweenness centrality for a graph
  *
  * Betweenness centrality for a vertex is the sum of the fraction of
  * all pairs shortest paths that pass through the vertex.
  *
- * Note that gunrock (current implementation) does not support a weighted graph.
+ * Note that both the native and the gunrock implementations do not support a weighted graph.
  *
  * @throws                           cugraph::logic_error with a custom message when an error
  * occurs.
@@ -202,7 +280,8 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
- * @tparam result_t                  Type of computed result.  Supported values :  float
+ * @tparam result_t                  Type of computed result.  Supported values :  float or double
+ * (double only supported in default implementation)
  *
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a CSR
@@ -212,19 +291,23 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
  * @param[in] weight                 If specified, device array of weights for each edge
  * @param[in] k                      If specified, number of vertex samples defined in the vertices
- * array
- * @param[in] vertices               If specified, device array of sampled vertex ids to estimate
- * betweenness centrality.
+ * array.
+ * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
+ * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
+ * shortest path counters.
+ * @param[in] implem                 Cugraph currently supports 2 implementations: native and
+ * gunrock
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
-                            bool normalized    = true,
-                            bool endpoints     = false,
-                            WT const *weight   = nullptr,
-                            VT k               = 0,
-                            VT const *vertices = nullptr);
+                            bool normalized            = true,
+                            bool endpoints             = false,
+                            WT const *weight           = nullptr,
+                            VT k                       = 0,
+                            VT const *vertices         = nullptr,
+                            cugraph_bc_implem_t implem = cugraph_bc_implem_t::CUGRAPH_DEFAULT);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
@@ -286,13 +369,15 @@ void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a COO
  * @param[in] k                      The order of the truss
- * @param[out] output_graph          cuGRAPH graph descriptor with the k-truss subgraph as a COO
+ * @param[in] mr                     Memory resource used to allocate the returned graph
+ * @return                           Unique pointer to K Truss subgraph in COO format
  *
  */
 template <typename VT, typename ET, typename WT>
-void k_truss_subgraph(experimental::GraphCOOView<VT, ET, WT> const &graph,
-                      int k,
-                      experimental::GraphCOOView<VT, ET, WT> &output_graph);
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
+  experimental::GraphCOOView<VT, ET, WT> const &graph,
+  int k,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 /**
  * @brief        Compute the Katz centrality for the nodes of the graph G
@@ -366,7 +451,7 @@ void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_n
  * @param[in]  num_vertex_ids        Number of elements in vertex_id/core_number arrays
  * @param[in]  mr                    Memory resource used to allocate the returned graph
  *
- * @param[out] out_graph             Unique pointer to K Core subgraph in COO formate
+ * @param[out] out_graph             Unique pointer to K Core subgraph in COO format
  */
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
@@ -392,16 +477,11 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
  * @param[in]  graph        The input graph object
- * @param[out] first        Upon return will be a device pointer pointing to an array containing
- *                          the first entry of each result pair.
- * @param[out] second       Upon return will be a device pointer pointing to an array containing
- *                          the second entry of each result pair.
- * @return    The number of pairs
+ * @return                  Graph in COO format
  */
 template <typename VT, typename ET, typename WT>
-ET get_two_hop_neighbors(experimental::GraphCSRView<VT, ET, WT> const &graph,
-                         VT **first,
-                         VT **second);
+std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  experimental::GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
@@ -433,7 +513,9 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
           VT *predecessors,
           const VT source_vertex);
 
-// TODO: Either distances is in VT or in WT, even if there should be no weights
+// FIXME: Internally distances is of int (signed 32-bit) data type, but current
+// template uses data from VT, ET, WT from he GraphCSR View even if weights
+// are not considered
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
  *
@@ -448,11 +530,14 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a CSR
  *
- * @param[out] distances            If set to a valid column, this is populated by distance of every
- * vertex in the graph from the starting vertex
+ * @param[out] distances             If set to a valid pointer, this is populated by distance of
+ * every vertex in the graph from the starting vertex
  *
- * @param[out] predecessors         If set to a valid column, this is populated by bfs traversal
+ * @param[out] predecessors          If set to a valid pointer, this is populated by bfs traversal
  * predecessor of every vertex
+ *
+ * @param[out] sp_counters           If set to a valid pointer, this is populated by bfs traversal
+ * shortest_path counter of every vertex
  *
  * @param[in] start_vertex           The starting vertex for breadth first search traversal
  *
@@ -464,6 +549,7 @@ template <typename VT, typename ET, typename WT>
 void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
+         double *sp_counters,
          const VT start_vertex,
          bool directed = true);
 

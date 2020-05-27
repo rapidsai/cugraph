@@ -19,8 +19,7 @@
 from cugraph.link_prediction.jaccard cimport jaccard as c_jaccard
 from cugraph.link_prediction.jaccard cimport jaccard_list as c_jaccard_list
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.column_utils cimport *
-from cugraph.structure import graph_wrapper
+from cugraph.structure import graph_new_wrapper
 from libc.stdint cimport uintptr_t
 from cython cimport floating
 
@@ -36,20 +35,20 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
     indices = None
 
     if input_graph.adjlist:
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets,
-                                                          input_graph.adjlist.indices], [np.int32])
+        [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets,
+                                                              input_graph.adjlist.indices], [np.int32])
     elif input_graph.transposedadjlist:
         #
         # NOTE: jaccard ONLY operates on an undirected graph, so CSR and CSC should be
         #       equivalent.  The undirected check has already happened, so we'll just use
         #       the CSC as if it were CSR.
         #
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.offsets,
-                                                           input_graph.transposedadjlist.indices], [np.int32])
+        [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.transposedadjlist.offsets,
+                                                              input_graph.transposedadjlist.indices], [np.int32])
     else:
         input_graph.view_adj_list()
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets,
-                                                           input_graph.adjlist.indices], [np.int32])
+        [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets,
+                                                              input_graph.adjlist.indices], [np.int32])
         
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
@@ -69,7 +68,7 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
     weight_type = np.float32
 
     if weights_arr is not None:
-        [weights] = graph_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
+        [weights] = graph_new_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
         c_weights = weights.__cuda_array_interface__['data'][0]
         weight_type = weights.dtype
 

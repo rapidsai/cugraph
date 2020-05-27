@@ -1,28 +1,22 @@
-#!/usr/bin/env bash
-# Copyright (c) 2018, NVIDIA CORPORATION.
-##########################################
-# cuGraph GPU build & testscript for CI  #
-##########################################
-set -e
+#!/bin/bash
+# Copyright (c) 2020, NVIDIA CORPORATION.
+#################################
+# cuGraph Docs build script for CI #
+#################################
 
-# Logger function for build status output
-function logger() {
-  echo -e "\n>>>> $@\n"
-}
+if [ -z "$PROJECT_WORKSPACE" ]; then
+    echo ">>>> ERROR: Could not detect PROJECT_WORKSPACE in environment"
+    echo ">>>> WARNING: This script contains git commands meant for automated building, do not run locally"
+    exit 1
+fi
 
-# Set path, build parallel level, and CUDA version
+export DOCS_WORKSPACE=$WORKSPACE/docs
 export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
-export PARALLEL_LEVEL=4
-export CUDA_REL=${CUDA_VERSION%.*}
-export CUDF_VERSION=0.7.*
-export RMM_VERSION=0.7.*
-
-# Set home to the job's workspace
 export HOME=$WORKSPACE
-
-################################################################################
-# SETUP - Check environment
-################################################################################
+export PROJECT_WORKSPACE=/rapids/cugraph
+export LIBCUDF_KERNEL_CACHE_PATH="$HOME/.jitify-cache"
+export NIGHTLY_VERSION=$(echo $BRANCH_VERSION | awk -F. '{print $2}')
+export PROJECTS=(cugraph libcugraph)
 
 logger "Check environment..."
 env
@@ -31,13 +25,11 @@ logger "Check GPU usage..."
 nvidia-smi
 
 logger "Activate conda env..."
-source activate gdf
-conda install -c nvidia -c rapidsai -c rapidsai-nightly -c numba -c conda-forge \
-    cudatoolkit=${CUDA_REL} cudf=$CUDF_VERSION rmm=$RMM_VERSION nvgraph networkx \
-    python-louvain sphinx sphinx_rtd_theme numpydoc sphinxcontrib-websupport \
-    nbsphinx ipython pandoc=\<2.0.0 recommonmark
-
+source activate rapids
+# TODO: Move installs to docs-build-env meta package
+conda install -c anaconda markdown beautifulsoup4 jq
 pip install sphinx-markdown-tables
+
 
 logger "Check versions..."
 python --version
@@ -45,20 +37,39 @@ $CC --version
 $CXX --version
 conda list
 
-################################################################################
-# BUILD - Build libcugraph and cuGraph from source
-################################################################################
-
-logger "Build libcugraph..."
-$WORKSPACE/build.sh clean libcugraph cugraph
-
-################################################################################
-# BUILD - Build docs
-################################################################################
-
-logger "Build docs..."
-cd $WORKSPACE/docs
+# Build Doxygen docs
+logger "Build Doxygen docs..."
+cd $PROJECT_WORKSPACE/cpp/build
+make docs_cugraph
+	
+# Build Python docs
+logger "Build Sphinx docs..."
+cd $PROJECT_WORKSPACE/docs
 make html
 
-rm -rf /data/docs/html/*
-mv build/html/* /data/docs/html
+#Commit to Website
+cd $DOCS_WORKSPACE
+
+for PROJECT in ${PROJECTS[@]}; do
+    if [ ! -d "api/$PROJECT/$BRANCH_VERSION" ]; then
+        mkdir -p api/$PROJECT/$BRANCH_VERSION
+    fi
+    rm -rf $DOCS_WORKSPACE/api/$PROJECT/$BRANCH_VERSION/*	
+done
+
+
+mv $PROJECT_WORKSPACE/cpp/doxygen/html/* $DOCS_WORKSPACE/api/libcugraph/$BRANCH_VERSION
+mv $PROJECT_WORKSPACE/docs/build/html/* $DOCS_WORKSPACE/api/cugraph/$BRANCH_VERSION
+
+# Customize HTML documentation
+./update_symlinks.sh $NIGHTLY_VERSION
+./customization/lib_map.sh
+
+
+for PROJECT in ${PROJECTS[@]}; do
+    echo ""
+    echo "Customizing: $PROJECT"
+    ./customization/customize_docs_in_folder.sh api/$PROJECT/ $NIGHTLY_VERSION
+    git add $DOCS_WORKSPACE/api/$PROJECT/*
+done
+

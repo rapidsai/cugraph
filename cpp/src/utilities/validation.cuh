@@ -21,7 +21,6 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include <cudf/types.h>
 #include <thrust/sort.h>
 
 namespace cugraph {
