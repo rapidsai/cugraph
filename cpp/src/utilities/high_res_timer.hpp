@@ -16,22 +16,23 @@
 #pragma once
 
 #include <ctime>
-#include <map>
 #include <iostream>
+#include <map>
 #include <string>
 
 class HighResTimer {
-public:
-  HighResTimer(): timers() {}
+ public:
+  HighResTimer() : timers() {}
   ~HighResTimer() {}
 
   void start(std::string label)
   {
     auto it = timers.find(label);
     if (it == timers.end()) {
-      it = timers.insert(std::make_pair(label, std::make_pair<int,int64_t>(int{0}, int64_t{0}))).first;
+      it = timers.insert(std::make_pair(label, std::make_pair<int, int64_t>(int{0}, int64_t{0})))
+             .first;
     }
-    
+
     timespec start_time;
     clock_gettime(CLOCK_REALTIME, &start_time);
     it->second.second -= start_time.tv_sec * 1000000000 + start_time.tv_nsec;
@@ -52,37 +53,37 @@ public:
   //
   //  Add display functions... specific label or entire structure
   //
-  void display(std::ostream &os) {
+  void display(std::ostream &os)
+  {
     os << "Timer Results (in ms):" << std::endl;
-    for (auto it = timers.begin() ; it != timers.end() ; ++it) {
-      os << "   " << it->first
-         << " called " << it->second.first << " times, average time: "
-         << (it->second.second / (1000000.0 * it->second.first))
+    for (auto it = timers.begin(); it != timers.end(); ++it) {
+      os << "   " << it->first << " called " << it->second.first
+         << " times, average time: " << (it->second.second / (1000000.0 * it->second.first))
          << std::endl;
     }
   }
 
-  void display(std::ostream &os, std::string label) {
+  void display(std::ostream &os, std::string label)
+  {
     auto it = timers.find(label);
-    os << it->first
-       << " called " << it->second.first << " times, average time: "
-       << (it->second.second / (1000000.0 * it->second.first))
+    os << it->first << " called " << it->second.first
+       << " times, average time: " << (it->second.second / (1000000.0 * it->second.first))
        << std::endl;
   }
 
-  void display_and_clear(std::ostream &os) {
+  void display_and_clear(std::ostream &os)
+  {
     os << "Timer Results (in ms):" << std::endl;
-    for (auto it = timers.begin() ; it != timers.end() ; ++it) {
-      os << "   " << it->first
-         << " called " << it->second.first << " times, average time: "
-         << (it->second.second / (1000000.0 * it->second.first))
+    for (auto it = timers.begin(); it != timers.end(); ++it) {
+      os << "   " << it->first << " called " << it->second.first
+         << " times, average time: " << (it->second.second / (1000000.0 * it->second.first))
          << std::endl;
     }
 
     timers.clear();
   }
 
-private:
+ private:
   std::map<std::string, std::pair<int, int64_t>> timers;
   std::string open_label;  // should probably be a stack...
 };

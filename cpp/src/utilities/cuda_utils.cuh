@@ -78,7 +78,9 @@ __device__ static __forceinline__ float atomicAdd(float volatile *addr, float va
   return ::atomicAdd(const_cast<float *>(addr), val);
 }
 
-__device__ static __forceinline__ int32_t atomicCAS(int32_t volatile *addr, int32_t expected, int32_t val)
+__device__ static __forceinline__ int32_t atomicCAS(int32_t volatile *addr,
+                                                    int32_t expected,
+                                                    int32_t val)
 {
   return ::atomicCAS(const_cast<int32_t *>(addr), expected, val);
 }
