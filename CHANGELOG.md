@@ -60,6 +60,7 @@
 - PR #906 Update Louvain notebook
 
 ## Bug Fixes
+- PR #907 Fix bfs directed missing vertices
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation
 - PR #800 Fix bfs error in optimization path
