@@ -15,14 +15,21 @@
  */
 #pragma once
 
+// FIXME: better move this file to include/utilities (following cuDF) and rename to error.hpp
+#include <utilities/error_utils.h>
+
+#include <detail/patterns/edge_op_utils.cuh>
+#include <detail/patterns/reduce_op.cuh>
+#include <detail/utilities/cuda.cuh>
+#include <detail/utilities/thrust_tuple_utils.cuh>
 #include <graph.hpp>
-#include <detail/reduce_op.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <cub/cub.cuh>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/discard_iterator.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
@@ -34,20 +41,8 @@
 namespace {
 
 // FIXME: block size requires tuning
-int32_t constexpr expand_low_out_degree_block_size = 128;
-int32_t constexpr update_block_size = 128;
-
-template <typename TupleType, size_t... Is>
-__device__ auto remove_first_tuple_element_impl(
-    TupleType const& tuple, std::index_sequence<Is...>) {
-  return thrust::make_tuple(thrust::get<1 + Is>(tuple)...);
-}
-
-template <typename TupleType>
-__device__ auto remove_first_tuple_element(TupleType const& tuple) {
-  size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
-  return remove_first_tuple_element_impl(tuple, std::make_index_sequence<tuple_size - 1>());
-}
+int32_t constexpr expand_and_transform_if_v_push_if_e_for_all_low_out_degree_block_size = 128;
+int32_t constexpr expand_and_transform_if_v_push_if_e_update_block_size = 128;
 
 template <typename GraphType,
           typename RowIterator,
@@ -55,7 +50,7 @@ template <typename GraphType,
           typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__
-void for_all_v_in_frontier_for_all_nbr_of_v_low_out_degree(
+void for_all_frontier_row_for_all_nbr_col_low_out_degree(
     GraphType graph_device_view,
     RowIterator row_first, RowIterator row_last,
     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -64,24 +59,35 @@ void for_all_v_in_frontier_for_all_nbr_of_v_low_out_degree(
     BufferPayloadOutputIterator buffer_payload_output_first,
     size_t* buffer_idx_ptr,
     EdgeOp e_op) {
+  using weight_t = typename GraphType::weight_type;
+
+  static_assert(GraphType::is_csr_type);
+
   auto num_rows = static_cast<size_t>(thrust::distance(row_first, row_last));
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   size_t idx = tid;
 
   auto graph_offset_first = graph_device_view.offset_data();
   auto graph_index_first = graph_device_view.index_data();
+  auto graph_weight_first = graph_device_view.weight_data();
 
   while (idx < num_rows) {
-    auto row_offset = graph_device_view.get_this_partition_row_offset_from_row_nocheck(*(row_first + idx));
+    auto row_offset =
+      graph_device_view.get_this_partition_row_offset_from_row_nocheck(*(row_first + idx));
     auto nbr_offset_first = *(graph_offset_first + row_offset);
     auto nbr_offset_last = *(graph_offset_first + (row_offset + 1));
     for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
       auto nbr_vid = *(graph_index_first + nbr_offset);
       auto col_offset = graph_device_view.get_this_partition_col_offset_from_col_nocheck(nbr_vid);
+      // FIXME: weight_first != nullptr is not idiomatic
+      weight_t w = (graph_weight_first != nullptr) ? *(graph_weight_first + col_offset) : 1.0;
       auto e_op_result =
-        e_op(
+        cugraph::experimental::detail::evaluate_edge_op<
+          GraphType, EdgeOp, AdjMatrixRowValueInputIterator, AdjMatrixColValueInputIterator
+        >().compute(
           *(adj_matrix_row_value_input_first + row_offset),
-          *(adj_matrix_col_value_input_first + col_offset));
+          *(adj_matrix_col_value_input_first + col_offset),
+          w, e_op);
       if (thrust::get<0>(e_op_result) == true) {
         // FIXME: This atomicInc serializes execution. If we renumber vertices to insure that rows
         // within a partition are sorted by their out-degree in decreasing order, we can compute
@@ -93,7 +99,9 @@ void for_all_v_in_frontier_for_all_nbr_of_v_low_out_degree(
             reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
             static_cast<unsigned long long int>(1));
         *(buffer_key_output_first + buffer_idx) = col_offset;
-        *(buffer_payload_output_first + buffer_idx) = remove_first_tuple_element(e_op_result);
+        *(buffer_payload_output_first + buffer_idx) =
+          cugraph::experimental::detail::remove_first_thrust_tuple_element<
+            decltype(e_op_result)>()(e_op_result);
       }
     }
 
@@ -165,8 +173,8 @@ void update_frontier_and_vertex_output_values(
     size_t num_buffer_elements,
     VertexValueInputIterator vertex_value_input_first,
     VertexValueOutputIterator vertex_value_output_first,
-    vertex_t** bucket_ptrs, size_t* bucket_size_ptrs,
-    size_t invalid_bucket_idx, VertexOp v_op) {
+    vertex_t** bucket_ptrs, size_t* bucket_sizes_ptr,
+    size_t invalid_bucket_idx, vertex_t invalid_vertex, VertexOp v_op) {
   static_assert(
     std::is_same<
       typename std::iterator_traits<BufferKeyInputIterator>::value_type, vertex_t>::value);
@@ -176,7 +184,7 @@ void update_frontier_and_vertex_output_values(
   // FIXME: it might be more performant to process more than one element per thread
   auto num_blocks = (num_buffer_elements + blockDim.x - 1) / blockDim.x;
 
-  using BlockScan = cub::BlockScan<size_t, update_block_size>;
+  using BlockScan = cub::BlockScan<size_t, expand_and_transform_if_v_push_if_e_update_block_size>;
   __shared__ typename BlockScan::TempStorage temp_storage;
 
   __shared__ size_t bucket_block_start_offsets[num_buckets];
@@ -190,7 +198,7 @@ void update_frontier_and_vertex_output_values(
     }
 
     size_t selected_bucket_idx{invalid_bucket_idx};
-    vertex_t key{cugraph::experimental::invalid_vertex_id<vertex_t>::value};
+    vertex_t key{invalid_vertex};
 
     if (idx < num_buffer_elements) {
       key = *(buffer_key_input_first + idx);
@@ -199,7 +207,9 @@ void update_frontier_and_vertex_output_values(
       auto v_op_result = v_op(v_val, payload);
       selected_bucket_idx = thrust::get<0>(v_op_result);
       if (selected_bucket_idx != invalid_bucket_idx) {
-        *(vertex_value_output_first + key) = remove_first_tuple_element(v_op_result);
+        *(vertex_value_output_first + key) =
+          cugraph::experimental::detail::remove_first_thrust_tuple_element<
+            decltype(v_op_result)>()(v_op_result);
         bucket_block_local_offsets[selected_bucket_idx] = 1;
       }
     }
@@ -215,7 +225,7 @@ void update_frontier_and_vertex_output_values(
         static_assert(sizeof(unsigned long long int) == sizeof(size_t));
         bucket_block_start_offsets[i] =
           atomicAdd(
-            reinterpret_cast<unsigned long long int*>(bucket_size_ptrs + i),
+            reinterpret_cast<unsigned long long int*>(bucket_sizes_ptr + i),
             static_cast<unsigned long long int>(bucket_block_aggregate_sizes[i]));
       }
     }
@@ -224,9 +234,10 @@ void update_frontier_and_vertex_output_values(
 
     // FIXME: better use shared memory buffer to aggreaget global memory writes
     if (selected_bucket_idx != invalid_bucket_idx) {
-      for (size_t i = 0; i < num_buckets; ++i) {
-        bucket_ptrs[i][bucket_block_start_offsets[i] + bucket_block_local_offsets[i]] = key;
-      }
+      bucket_ptrs[selected_bucket_idx][
+        bucket_block_start_offsets[selected_bucket_idx] +
+        bucket_block_local_offsets[selected_bucket_idx]
+      ] = key;
     }
 
     idx += gridDim.x * blockDim.x;
@@ -234,58 +245,33 @@ void update_frontier_and_vertex_output_values(
   }
 }
 
-}
+}  // namespace
 
 namespace cugraph {
 namespace experimental {
 namespace detail {
 
 template <typename HandleType, typename GraphType,
+          typename RowIterator,
           typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
-          typename EdgeOp, typename T>
-void transform_v_transform_reduce_e(
-    HandleType handle, GraphType graph,
+          typename VertexValueInputIterator, typename VertexValueOutputIterator,
+          typename AdjMatrixRowValueOutputIterator, typename AdjMatrixColValueOutputIterator,
+          typename RowFrontierType,
+          typename EdgeOp, typename ReduceOp, typename VertexOp>
+void expand_and_transform_if_v_push_if_e(
+    HandleType handle, GraphType graph_device_view,
+    RowIterator row_first, RowIterator row_last,
     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
     AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
     VertexValueInputIterator vertex_value_input_first,
     VertexValueOutputIterator vertex_value_output_first,
-    EdgeOp e_op, T init);
-
-template <typename HandleType, typename GraphType,
-          typename RowIterator,
-          typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
-          typename RowFrontierType,
-          typename EdgeOp, typename ReduceOp, typename VertexOp>
-void expand_and_transform_if_v_push_if_e(
-    HandleType handle, GraphType graph,
-    RowIterator row_first, RowIterator row_last,
-    AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-    AdjMatrixColValueInputIterator adj_matrix_row_value_input_last,
-    VertexValueInputIterator vertex_value_input_first,
-    VertexValueOutputIterator vertex_value_output_first,
+    AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
+    AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
     RowFrontierType row_frontier,
-    EdgeOp e_op, ReduceOp reduce_op, VertexOp v_op);
+    EdgeOp e_op, ReduceOp reduce_op, VertexOp v_op) {
+  static_assert(GraphType::is_csr_type);
 
-template <typename HandleType, typename GraphType,
-          typename RowIterator,
-          typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
-          typename RowFrontierType,
-          typename EdgeOp, typename ReduceOp, typename VertexOp>
-void expand_and_transform_if_v_push_if_e(
-  HandleType handle, GraphType graph_device_view,
-  RowIterator row_first, RowIterator row_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexValueInputIterator vertex_value_input_first,
-  VertexValueOutputIterator vertex_value_output_first,
-  RowFrontierType row_frontier,
-  EdgeOp e_op, ReduceOp reduce_op, VertexOp v_op) {
+  using vertex_t = typename GraphType::vertex_type;
   using reduce_op_input_t = typename ReduceOp::type;
 
   auto max_pushes =
@@ -311,19 +297,17 @@ void expand_and_transform_if_v_push_if_e(
   auto buffer_key_first = std::get<0>(buffer_first);
   auto buffer_payload_first = std::get<1>(buffer_first);
   
-  auto expand_low_out_degree_num_blocks =
-    static_cast<int>(
-      std::min<size_t>(
-        (thrust::distance(row_first, row_last) + expand_low_out_degree_block_size - 1) /
-        expand_low_out_degree_block_size,
-        handle.get_max_num_blocks_1D()));
+  grid_1d_thread_t for_all_low_out_degree_grid(
+    thrust::distance(row_first, row_last),
+    expand_and_transform_if_v_push_if_e_for_all_low_out_degree_block_size,
+    handle.get_max_num_blocks_1D());
 
   // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
   // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
   // order, we will apply this kernel only to low out-degree vertices.
-  for_all_v_in_frontier_for_all_nbr_of_v_low_out_degree<<<
-    expand_low_out_degree_num_blocks, expand_low_out_degree_block_size, 0,
-    handle.get_default_stream()
+  for_all_frontier_row_for_all_nbr_col_low_out_degree<<<
+    for_all_low_out_degree_grid.num_blocks, for_all_low_out_degree_grid.block_size,
+    0, handle.get_default_stream()
   >>>(
     graph_device_view,
     row_first, row_last,
@@ -341,22 +325,40 @@ void expand_and_transform_if_v_push_if_e(
     // need to exchange buffer elements (and may reduce again)
     CUGRAPH_FAIL("unimplemented.");
   }
-    
-  auto update_num_blocks =
-    static_cast<int>(
-      std::min<size_t>(
-        (thrust::distance(row_first, row_last) + update_block_size - 1) / update_block_size,
-        handle.get_max_num_blocks_1D()));
   
+  grid_1d_thread_t update_grid(
+    thrust::distance(row_first, row_last),
+    expand_and_transform_if_v_push_if_e_update_block_size,
+    handle.get_max_num_blocks_1D());
+  
+  auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
+
   auto bucket_and_bucket_size_device_ptrs =
     row_frontier.get_bucket_and_bucket_size_device_pointers();
   update_frontier_and_vertex_output_values<RowFrontierType::kNumBuckets><<<
-    update_num_blocks, update_block_size, 0, handle.get_default_stream()
+    update_grid.num_blocks, update_grid.block_size, 0, handle.get_default_stream()
   >>>(
     buffer_key_first, buffer_payload_first, num_buffer_elements,
-    vertex_value_input_first, vertex_value_output_first,
-    std::get<0>(bucket_and_bucket_size_device_ptrs), std::get<1>(bucket_and_bucket_size_device_ptrs),
-    RowFrontierType::kInvalidBucketIdx, v_op);
+    vertex_value_input_first,
+    vertex_value_output_first,
+    std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
+    std::get<1>(bucket_and_bucket_size_device_ptrs).get(),
+    RowFrontierType::kInvalidBucketIdx, invalid_vertex, v_op);
+
+  auto bucket_sizes_device_ptr = std::get<1>(bucket_and_bucket_size_device_ptrs);
+  thrust::host_vector<size_t> bucket_sizes(
+    bucket_sizes_device_ptr, bucket_sizes_device_ptr + RowFrontierType::kNumBuckets);
+  for (size_t i = 0; i < RowFrontierType::kNumBuckets; ++i) {
+    row_frontier.get_bucket(i).set_size(bucket_sizes[i]);
+  }
+
+  if (!std::is_same<AdjMatrixRowValueOutputIterator, thrust::discard_iterator<>>::value) {
+    CUGRAPH_FAIL("unimplemented.");
+  }
+  
+  if (!std::is_same<AdjMatrixRowValueOutputIterator, thrust::discard_iterator<>>::value) {
+    CUGRAPH_FAIL("unimplemented.");
+  }
 
   if (HandleType::is_opg) {
     // need to merge row_frontier
