@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.14.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.15.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -104,6 +104,13 @@ set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
 
+option(BUILD_MPI "Build with MPI" OFF)
+if (BUILD_MPI)
+    find_package(MPI REQUIRED)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
+endif(BUILD_MPI)
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
@@ -163,68 +170,6 @@ if(BUILD_TESTS)
             "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
-
-###################################################################################################
-# - NVStrings -------------------------------------------------------------------------------------
-
-find_path(NVSTRINGS_INCLUDE "nvstrings"
-          HINTS "$ENV{NVSTRINGS_ROOT}/include"
-                "$ENV{CONDA_PREFIX}/include/nvstrings"
-                "$ENV{CONDA_PREFIX}/include")
-
-find_library(NVSTRINGS_LIBRARY "NVStrings"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-find_library(NVCATEGORY_LIBRARY "NVCategory"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-find_library(NVTEXT_LIBRARY "NVText"
-             HINTS "$ENV{NVSTRINGS_ROOT}/lib"
-                   "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "NVSTRINGS: NVSTRINGS_INCLUDE set to ${NVSTRINGS_INCLUDE}")
-message(STATUS "NVSTRINGS: NVSTRINGS_LIBRARY set to ${NVSTRINGS_LIBRARY}")
-message(STATUS "NVSTRINGS: NVCATEGORY_LIBRARY set to ${NVCATEGORY_LIBRARY}")
-message(STATUS "NVSTRINGS: NVTEXT_LIBRARY set to ${NVTEXT_LIBRARY}")
-
-add_library(NVStrings SHARED IMPORTED ${NVSTRINGS_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
-    set_target_properties(NVStrings PROPERTIES IMPORTED_LOCATION ${NVSTRINGS_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVSTRINGS_LIBRARY)
-
-add_library(NVCategory SHARED IMPORTED ${NVCATEGORY_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
-    set_target_properties(NVCategory PROPERTIES IMPORTED_LOCATION ${NVCATEGORY_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVCATEGORY_LIBRARY)
-
-add_library(NVText SHARED IMPORTED ${NVTEXT_LIBRARY})
-if (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
-    set_target_properties(NVText PROPERTIES IMPORTED_LOCATION ${NVTEXT_LIBRARY})
-endif (NVSTRINGS_INCLUDE AND NVTEXT_LIBRARY)
-
-###################################################################################################
-# - cudf ------------------------------------------------------------------------------------------
-
-find_path(CUDF_INCLUDE "cudf"
-    HINTS
-    "$ENV{CUDF_ROOT}/include"
-    "$ENV{CONDA_PREFIX}/include/cudf"
-    "$ENV{CONDA_PREFIX}/include")
-
-find_library(CUDF_LIBRARY "cudf"
-    HINTS
-    "$ENV{CUDF_ROOT}/lib"
-    "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "CUDF: CUDF_LIBRARY set to ${CUDF_LIBRARY}")
-message(STATUS "CUDF: CUDF_INCLUDE set to ${CUDF_INCLUDE}")
-
-add_library(cudf SHARED IMPORTED ${CUDF_LIBRARY})
-if (CUDF_INCLUDE AND CUDF_LIBRARY)
-    set_target_properties(cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
-endif (CUDF_INCLUDE AND CUDF_LIBRARY)
 
 ###################################################################################################
 # - RMM -------------------------------------------------------------------------------------------
@@ -302,6 +247,48 @@ add_dependencies(gunrock cugunrock)
 
 set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${CUGUNROCK_DIR}/lib/libgunrock.a)
 
+# - NCCL
+if(NOT NCCL_PATH)
+    find_package(NCCL REQUIRED)
+else()
+    message("-- Manually set NCCL PATH to ${NCCL_PATH}")
+    set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
+    set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
+endif(NOT NCCL_PATH)
+
+# - raft - (header only) -----------------------------------------------------
+
+# Only cloned if RAFT_PATH env variable is not defined
+
+if(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable detected.")
+  message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
+  set(RAFT_DIR ENV{RAFT_PATH})
+
+  ExternalProject_Add(raft
+    DOWNLOAD_COMMAND  ""
+    SOURCE_DIR        ${RAFT_DIR}
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND     ""
+    INSTALL_COMMAND   "")
+
+else(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable NOT detected, cloning RAFT")
+  set(RAFT_DIR ${CMAKE_CURRENT_BINARY_DIR}/raft CACHE STRING "Path to RAFT repo")
+
+  ExternalProject_Add(raft
+    GIT_REPOSITORY    https://github.com/rapidsai/raft.git
+    GIT_TAG           e003de27fc4e4a096337f184dddbd7942a68bb5c
+    PREFIX            ${RAFT_DIR}
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND     ""
+    INSTALL_COMMAND   "")
+
+  # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
+  set(RAFT_DIR ${RAFT_DIR}/src/raft/ CACHE STRING "Path to RAFT repo")
+endif(DEFINED ENV{RAFT_PATH})
+
+
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 
@@ -314,65 +301,42 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/ktruss/ktruss.cu
+    src/comms/mpi/comms_mpi.cpp
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/cusparse_helper.cu
-    src/structure/cugraph.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
-    src/converters/nvgraph.cu
+    src/layout/force_atlas2.cu
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
-    src/community/nvgraph_gdf.cu
+    src/community/spectral_clustering.cu
+    src/community/louvain.cpp
+    src/community/louvain_kernels.cu
+    src/community/ktruss.cu
     src/community/ECG.cu
+    src/community/triangles_counting.cu
+    src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
-    src/snmg/blas/spmv.cu
-    src/snmg/link_analysis/pagerank.cu
     src/utilities/cusparse_helper.cu
-    src/utilities/graph_utils.cu
-    src/snmg/utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/snmg/degree/degree.cu
-    src/snmg/COO2CSR/COO2CSR.cu
-    src/nvgraph/arnoldi.cu
-    src/nvgraph/bfs.cu
-    src/nvgraph/bfs2d.cu
-    src/nvgraph/bfs_kernels.cu
-    src/nvgraph/convert.cu
-    src/nvgraph/csrmv.cu
-    src/nvgraph/csrmv_cub.cu
-    src/nvgraph/csr_graph.cpp
-    src/nvgraph/graph_extractor.cu
-    src/nvgraph/jaccard_gpu.cu
     src/nvgraph/kmeans.cu
     src/nvgraph/lanczos.cu
-    src/nvgraph/lobpcg.cu
-    src/nvgraph/matrix.cu
+    src/nvgraph/spectral_matrix.cu
     src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph.cu
     src/nvgraph/nvgraph_cusparse.cpp
     src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_error.cu
     src/nvgraph/nvgraph_lapack.cu
     src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/pagerank.cu
-    src/nvgraph/pagerank_kernels.cu
     src/nvgraph/partition.cu
-    src/nvgraph/size2_selector.cu
-    src/nvgraph/sssp.cu
-    src/nvgraph/triangles_counting.cpp
-    src/nvgraph/triangles_counting_kernels.cu
-    src/nvgraph/valued_csr_graph.cpp
-    src/nvgraph/widest_path.cu
 )
 
 #
@@ -380,17 +344,20 @@ add_library(cugraph SHARED
 #        wait until after cugunrock is constructed.
 #
 add_dependencies(cugraph cugunrock)
+add_dependencies(cugraph raft)
+
+if (BUILD_MPI)
+    add_compile_definitions(ENABLE_OPG=1)
+endif (BUILD_MPI)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
-
 target_include_directories(cugraph
     PRIVATE
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
-    "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
     "${CUB_INCLUDE_DIR}"
     "${CUHORNET_INCLUDE_DIR}/hornet/include"
@@ -399,6 +366,9 @@ target_include_directories(cugraph
     "${CUHORNET_INCLUDE_DIR}/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUGUNROCK_DIR}/include"
+    "${NCCL_INCLUDE_DIRS}"
+    "${MPI_CXX_INCLUDE_PATH}"
+    "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -407,7 +377,8 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY})
+    ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
@@ -419,7 +390,7 @@ target_link_libraries(cugraph PRIVATE
 ###   ...
 ###
 ###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY} and ${RMM_LIBRARY}), cmake
+###   environment. If a full file path is provided (e.g ${RMM_LIBRARY}), cmake
 ###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
 ###   disabled).
 ###
@@ -432,7 +403,7 @@ target_link_libraries(cugraph PRIVATE
 ###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
 ###   checks whether there is any other libgomp.so with the different full path (after resolving
 ###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${CUDF_LIBRARY} and ${RMM_LIBRARY} are added; this one can
+###   path included in BUILD_RPATH when ${RMM_LIBRARY} are added; this one can
 ###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
 ###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
 ###   overlaps with implicit directories).
@@ -480,3 +451,16 @@ install(TARGETS cugraph LIBRARY
 
 install(DIRECTORY include/
     DESTINATION include/cugraph)
+
+###################################################################################################
+# - make documentation ----------------------------------------------------------------------------
+# requires doxygen and graphviz to be installed
+# from build directory, run make docs_cugraph
+
+# doc targets for cuGraph
+add_custom_command(OUTPUT CUGRAPH_DOXYGEN
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
+                   COMMAND doxygen Doxyfile
+                   VERBATIM)
+
+add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)

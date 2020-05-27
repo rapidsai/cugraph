@@ -19,7 +19,6 @@
 cimport cugraph.cores.core_number as c_core
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.column_utils cimport *
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -48,7 +47,7 @@ def core_number(input_graph):
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_core_number = df['core_number'].__cuda_array_interface__['data'][0];
 
-    cdef GraphCSR[int,int,float] graph = GraphCSR[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    cdef GraphCSRView[int,int,float] graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     graph.get_vertex_identifiers(<int*>c_identifier)
     c_core.core_number(graph, <int*>c_core_number)

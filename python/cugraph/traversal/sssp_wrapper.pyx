@@ -19,14 +19,12 @@
 cimport cugraph.traversal.sssp as c_sssp
 cimport cugraph.traversal.bfs as c_bfs
 from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_wrapper
-from cugraph.utilities.column_utils cimport *
+from cugraph.structure import graph_new_wrapper
 
 from cugraph.utilities.unrenumber import unrenumber
 
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 from libc.float cimport FLT_MAX_EXP
 
 import cudf
@@ -38,8 +36,8 @@ def sssp(input_graph, source):
     Call sssp
     """
     # Step 1: Declare the different variables
-    cdef GraphCSR[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
-    cdef GraphCSR[int, int, double] graph_double    # For weighted double graph (SSSP)
+    cdef GraphCSRView[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
+    cdef GraphCSRView[int, int, double] graph_double    # For weighted double graph (SSSP)
 
     # Pointers required for CSR Graph
     cdef uintptr_t c_offsets_ptr        = <uintptr_t> NULL # Pointer to the CSR offsets
@@ -61,8 +59,8 @@ def sssp(input_graph, source):
     #         - indices: int (signed, 32-bit)
     #         - weights: float / double
     #         Extract data_type from weights (not None: float / double, None: signed int 32-bit)
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
     c_indices_ptr = indices.__cuda_array_interface__['data'][0]
 
@@ -100,7 +98,7 @@ def sssp(input_graph, source):
     #         - weights is None: BFS
     if weights is not None:
         if data_type == np.float32:
-            graph_float = GraphCSR[int, int, float](<int*> c_offsets_ptr,
+            graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                                      <int*> c_indices_ptr,
                                                      <float*> c_weights_ptr,
                                                      num_verts,
@@ -111,7 +109,7 @@ def sssp(input_graph, source):
                                          <int*> c_predecessor_ptr,
                                          <int> source)
         elif data_type == np.float64:
-            graph_double = GraphCSR[int, int, double](<int*> c_offsets_ptr,
+            graph_double = GraphCSRView[int, int, double](<int*> c_offsets_ptr,
                                                       <int*> c_indices_ptr,
                                                       <double*> c_weights_ptr,
                                                       num_verts,
@@ -124,8 +122,8 @@ def sssp(input_graph, source):
         else: # This case should not happen
             raise NotImplementedError
     else:
-        # TODO: Something might be done here considering WT = float
-        graph_float = GraphCSR[int, int, float](<int*> c_offsets_ptr,
+        # FIXME: Something might be done here considering WT = float
+        graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                                 <int*> c_indices_ptr,
                                                 <float*> NULL,
                                                 num_verts,
@@ -134,6 +132,7 @@ def sssp(input_graph, source):
         c_bfs.bfs[int, int, float](graph_float,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
+                                   <double*> NULL,
                                    <int> source)
 
     #FIXME: Update with multiple column renumbering

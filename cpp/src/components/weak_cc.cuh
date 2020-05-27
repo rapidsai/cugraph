@@ -15,20 +15,19 @@
  */
 #pragma once
 
-#include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
 
 #include <cuda_runtime.h>
 #include <stdio.h>
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <type_traits>
 
+#include <rmm/thrust_rmm_allocator.h>
 #include "utilities/cuda_utils.cuh"
 #include "utils.h"
-#include "rmmAllocatorAdapter.hpp"
 
 namespace MLCommon {
 
@@ -36,17 +35,16 @@ namespace MLCommon {
  * @brief Provide a ceiling division operation ie. ceil(a / b)
  * @tparam IntType supposed to be only integers for now!
  */
-template <typename IntType1,
-          typename IntType2>
-constexpr inline __host__ __device__
-IntType1 ceildiv(IntType1 a, IntType2 b) {
+template <typename IntType1, typename IntType2>
+constexpr inline __host__ __device__ IntType1 ceildiv(IntType1 a, IntType2 b)
+{
   return (a + b - 1) / b;
 }
 
 namespace Sparse {
 
 class WeakCCState {
-public:
+ public:
   bool *xa;
   bool *fa;
   bool *m;
@@ -64,15 +62,15 @@ __global__ void weak_cc_label_device(vertex_t *labels,
                                      bool *xa,
                                      bool *m,
                                      vertex_t startVertexId,
-                                     vertex_t batchSize) {
-
+                                     vertex_t batchSize)
+{
   vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;
   if (tid < batchSize) {
     if (fa[tid + startVertexId]) {
       fa[tid + startVertexId] = false;
       vertex_t ci, cj;
       bool ci_mod = false;
-      ci = labels[tid + startVertexId];
+      ci          = labels[tid + startVertexId];
 
       // TODO:
       //    This can't be optimal.  A high degree vertex will cause
@@ -86,21 +84,21 @@ __global__ void weak_cc_label_device(vertex_t *labels,
       //
       //  edge_t degree = get_stop_idx(tid, batchSize, nnz, offsets) - offsets[tid];
       //
-      //edge_t degree = offsets[tid+1] - offsets[tid];
-      //for (auto j = 0 ; j < degree ; j++) { // TODO: Can't this be calculated from the ex_scan?
+      // edge_t degree = offsets[tid+1] - offsets[tid];
+      // for (auto j = 0 ; j < degree ; j++) { // TODO: Can't this be calculated from the ex_scan?
       //  vertex_t j_ind = indices[start+j];
       //  ...
       // }
       //
-      for (edge_t j = offsets[tid] ; j < offsets[tid+1] ; ++j) {
+      for (edge_t j = offsets[tid]; j < offsets[tid + 1]; ++j) {
         vertex_t j_ind = indices[j];
-        cj = labels[j_ind];
+        cj             = labels[j_ind];
         if (ci < cj) {
           cugraph::atomicMin(labels + j_ind, ci);
           xa[j_ind] = true;
-          m[0] = true;
+          m[0]      = true;
         } else if (ci > cj) {
-          ci = cj;
+          ci     = cj;
           ci_mod = true;
         }
       }
@@ -108,7 +106,7 @@ __global__ void weak_cc_label_device(vertex_t *labels,
       if (ci_mod) {
         cugraph::atomicMin(labels + startVertexId + tid, ci);
         xa[startVertexId + tid] = true;
-        m[0] = true;
+        m[0]                    = true;
       }
     }
   }
@@ -119,25 +117,26 @@ __global__ void weak_cc_init_label_kernel(vertex_t *labels,
                                           vertex_t startVertexId,
                                           vertex_t batchSize,
                                           vertex_t MAX_LABEL,
-                                          Lambda filter_op) {
-
+                                          Lambda filter_op)
+{
   /** F1 and F2 in the paper correspond to fa and xa */
   /** Cd in paper corresponds to db_cluster */
   vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;
-  if (tid<batchSize) {
+  if (tid < batchSize) {
     if (filter_op(tid) && labels[tid + startVertexId] == MAX_LABEL)
       labels[startVertexId + tid] = vertex_t{startVertexId + tid + 1};
   }
 }
 
 template <typename vertex_t, int TPB_X = 32>
-__global__ void weak_cc_init_all_kernel(vertex_t *labels, bool *fa, bool *xa,
-                                        vertex_t N, vertex_t MAX_LABEL) {
+__global__ void weak_cc_init_all_kernel(
+  vertex_t *labels, bool *fa, bool *xa, vertex_t N, vertex_t MAX_LABEL)
+{
   vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;
-  if (tid<N) {
+  if (tid < N) {
     labels[tid] = MAX_LABEL;
-    fa[tid] = true;
-    xa[tid] = false;
+    fa[tid]     = true;
+    xa[tid]     = false;
   }
 }
 
@@ -151,9 +150,9 @@ void weak_cc_label_batched(vertex_t *labels,
                            vertex_t startVertexId,
                            vertex_t batchSize,
                            cudaStream_t stream,
-                           Lambda filter_op) {
-  ASSERT(sizeof(vertex_t) == 4 || sizeof(vertex_t) == 8,
-         "Index_ should be 4 or 8 bytes");
+                           Lambda filter_op)
+{
+  ASSERT(sizeof(vertex_t) == 4 || sizeof(vertex_t) == 8, "Index_ should be 4 or 8 bytes");
 
   bool host_m{true};
 
@@ -161,8 +160,8 @@ void weak_cc_label_batched(vertex_t *labels,
   dim3 threads(TPB_X);
   vertex_t MAX_LABEL = std::numeric_limits<vertex_t>::max();
 
-  weak_cc_init_label_kernel<vertex_t, TPB_X><<<blocks, threads, 0, stream>>>(
-    labels, startVertexId, batchSize, MAX_LABEL, filter_op);
+  weak_cc_init_label_kernel<vertex_t, TPB_X>
+    <<<blocks, threads, 0, stream>>>(labels, startVertexId, batchSize, MAX_LABEL, filter_op);
 
   CUDA_CHECK(cudaPeekAtLastError());
 
@@ -171,8 +170,7 @@ void weak_cc_label_batched(vertex_t *labels,
     CUDA_CHECK(cudaMemsetAsync(state.m, false, sizeof(bool), stream));
 
     weak_cc_label_device<vertex_t, edge_t, TPB_X><<<blocks, threads, 0, stream>>>(
-      labels, offsets, indices, nnz, state.fa, state.xa, state.m,
-      startVertexId, batchSize);
+      labels, offsets, indices, nnz, state.fa, state.xa, state.m, startVertexId, batchSize);
     CUDA_CHECK(cudaPeekAtLastError());
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
@@ -213,8 +211,10 @@ void weak_cc_label_batched(vertex_t *labels,
  * @param filter_op   Optional filtering function to determine which points
  *                    should get considered for labeling.
  */
-template<typename vertex_t, typename edge_t, int TPB_X = 32,
-         typename Lambda = auto(vertex_t)->bool>
+template <typename vertex_t,
+          typename edge_t,
+          int TPB_X       = 32,
+          typename Lambda = auto(vertex_t)->bool>
 void weak_cc_batched(vertex_t *labels,
                      edge_t const *offsets,
                      vertex_t const *indices,
@@ -224,22 +224,20 @@ void weak_cc_batched(vertex_t *labels,
                      vertex_t batchSize,
                      WeakCCState &state,
                      cudaStream_t stream,
-                     Lambda filter_op) {
+                     Lambda filter_op)
+{
+  dim3 blocks(ceildiv(N, TPB_X));
+  dim3 threads(TPB_X);
 
-    dim3 blocks(ceildiv(N, TPB_X));
-    dim3 threads(TPB_X);
+  vertex_t MAX_LABEL = std::numeric_limits<vertex_t>::max();
+  if (startVertexId == 0) {
+    weak_cc_init_all_kernel<vertex_t, TPB_X>
+      <<<blocks, threads, 0, stream>>>(labels, state.fa, state.xa, N, MAX_LABEL);
+    CUDA_CHECK(cudaPeekAtLastError());
+  }
 
-    vertex_t MAX_LABEL = std::numeric_limits<vertex_t>::max();
-    if (startVertexId == 0) {
-      weak_cc_init_all_kernel<vertex_t, TPB_X><<<blocks, threads, 0, stream>>>
-        (labels, state.fa, state.xa, N, MAX_LABEL);
-      CUDA_CHECK(cudaPeekAtLastError());
-    }
-
-    weak_cc_label_batched<vertex_t, edge_t, TPB_X>(labels, offsets, indices,
-                                                   nnz, N, state,
-                                                   startVertexId, batchSize,
-                                                   stream, filter_op);
+  weak_cc_label_batched<vertex_t, edge_t, TPB_X>(
+    labels, offsets, indices, nnz, N, state, startVertexId, batchSize, stream, filter_op);
 }
 
 /**
@@ -269,24 +267,25 @@ void weak_cc_batched(vertex_t *labels,
  * @param filter_op   Optional filtering function to determine which points
  *                    should get considered for labeling.
  */
-template<typename vertex_t, typename edge_t, int TPB_X = 32,
-         typename Lambda = auto(vertex_t)->bool>
+template <typename vertex_t,
+          typename edge_t,
+          int TPB_X       = 32,
+          typename Lambda = auto(vertex_t)->bool>
 void weak_cc(vertex_t *labels,
              edge_t const *offsets,
              vertex_t const *indices,
              edge_t nnz,
              vertex_t N,
-             std::shared_ptr<deviceAllocator> d_alloc,
              cudaStream_t stream,
-             Lambda filter_op) {
-
+             Lambda filter_op)
+{
   rmm::device_vector<bool> xa(N);
   rmm::device_vector<bool> fa(N);
   rmm::device_vector<bool> m(1);
 
   WeakCCState state(xa.data().get(), fa.data().get(), m.data().get());
-  weak_cc_batched<vertex_t, edge_t, TPB_X>(labels, offsets, indices,
-                                           nnz, N, 0, N, state, stream, filter_op);
+  weak_cc_batched<vertex_t, edge_t, TPB_X>(
+    labels, offsets, indices, nnz, N, 0, N, state, stream, filter_op);
 }
 
 /**
@@ -313,18 +312,16 @@ void weak_cc(vertex_t *labels,
  * @param N           Number of vertices
  * @param stream      Cuda stream to use
  */
-template<typename vertex_t, typename edge_t, int TPB_X = 32>
+template <typename vertex_t, typename edge_t, int TPB_X = 32>
 void weak_cc_entry(vertex_t *labels,
                    edge_t const *offsets,
                    vertex_t const *indices,
                    edge_t nnz,
                    vertex_t N,
-                   std::shared_ptr<deviceAllocator> d_alloc,
-                   cudaStream_t stream) {
-
-  weak_cc(labels, offsets, indices, nnz, N, d_alloc, stream,
-          [] __device__ (vertex_t) { return true; });
+                   cudaStream_t stream)
+{
+  weak_cc(labels, offsets, indices, nnz, N, stream, [] __device__(vertex_t) { return true; });
 }
-  
-} //namespace Sparse
-} //namespace MLCommon
+
+}  // namespace Sparse
+}  // namespace MLCommon

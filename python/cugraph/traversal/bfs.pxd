@@ -23,8 +23,9 @@ from libcpp cimport bool
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void bfs[VT,ET,WT](
-        const GraphCSR[VT,ET,WT] &graph,
+        const GraphCSRView[VT,ET,WT] &graph,
         VT *distances,
         VT *predecessors,
+        double *sp_counters,
         const VT start_vertex,
         bool directed) except +

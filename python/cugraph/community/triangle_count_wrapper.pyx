@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,10 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.triangle_count cimport *
-from cugraph.structure.graph cimport *
-from cugraph.structure import graph_wrapper
-from cugraph.utilities.column_utils cimport *
+from cugraph.community.triangle_count cimport triangle_count as c_triangle_count
+from cugraph.structure.graph_new cimport *
+from cugraph.structure import graph_new_wrapper
 from libc.stdint cimport uintptr_t
 import numpy as np
 
@@ -31,25 +30,24 @@ def triangles(input_graph):
     """
     Call triangle_count_nvgraph
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    offsets = None
+    indices = None
 
-    if input_graph.adjlist:
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
-        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
-    else:
-        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
-        if input_graph.edgelist.weights:
-            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-            graph_wrapper.add_edge_list(graph, src, dst, weights)
-        else:
-            graph_wrapper.add_edge_list(graph, src, dst)
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
 
-    cdef uint64_t result
-    triangle_count_nvgraph(g, &result)
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets,
+                                                          input_graph.adjlist.indices], [np.int32])
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
+
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+
+    cdef GraphCSRView[int,int,float] graph
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+
+    result = c_triangle_count(graph)
     
     return result

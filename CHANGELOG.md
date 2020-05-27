@@ -1,8 +1,25 @@
-# cuGraph 0.14.0 (Date TBD)
+# cuGraph 0.15.0 (Date TBD)
 
 ## New Features
 
 ## Improvements
+
+## Bug Fixes
+
+# cuGraph 0.14.0 (Date TBD)
+
+## New Features
+- PR #756 Add Force Atlas 2 layout
+- PR #822 Added new functions in python graph class, similar to networkx
+- PR #840 OPG degree
+- PR #881 Raft integration infrastructure
+- PR #875 UVM notebook
+
+
+## Improvements
+- PR #882 Add Force Atlas 2 to benchmarks
+- PR #876 Add BFS C++ tests
+- PR #817 Add native Betweenness Centrality with sources subset
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #780 Remove gdf_column from cuhornet features
@@ -10,14 +27,52 @@
 - PR #782 Use Cython's `new_build_ext` (if available)
 - PR #788 Added options and config file to enable codecov
 - PR #793 Fix legacy cudf imports/cimports
+- PR #802 Removed use of gdf_column from db code
+- PR #798 Edit return graph type in algorithms return graphs
 - PR #803 Enable Ninja build
 - PR #804 Cythonize in parallel
+- PR #823 Remove gdf column from nvgraph
+- PR #807 Updating the Python docs
+- PR #820 OPG infra and all-gather smoke test
+- PR #799 Refactored graph class with RAII
+- PR #818 Initial version of new "benchmarks" folder
+- PR #829 Updated README and CONTRIBUTIOIN docs
+- PR #836 Remove SNMG code
+- PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
+- PR #832 Removed RMM ALLOC from db subtree
+- PR #833 Update graph functions to use new Graph class
+- PR #834 Updated local gpuci build
+- PR #845 Add .clang-format & format all files
+- PR #859 Updated main docs
+- PR #862 Katz Centrality : Auto calculation of alpha parameter if set to none
+- PR #865 Added C++ docs
+- PR #866 Use RAII graph class in KTruss
+- PR #867 Updates to support the latest flake8 version
+- PR #874 Update setup.py to use custom clean command
+- PR #878 Updated build script
+- PR #879 Add docs build script to repository
+- PR #818 Initial version of new "benchmarks" folder
+- PR #880 Remove remaining gdf_column references
+- PR #891 A few gdf_column stragglers
+- PR #893 Add external_repositories dir and raft symlink to .gitignore
+- PR #897 Remove RMM ALLOC calls
+- PR #899 Update include paths to remove deleted cudf headers
+- PR #906 Update Louvain notebook
 
 ## Bug Fixes
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation
 - PR #800 Fix bfs error in optimization path
- 
+- PR #825 Fix outdated CONTRIBUTING.md
+- PR #827 Fix indexing CI errors due to cudf updates
+- PR #844 Fixing tests, converting __getitem__ calls to .iloc
+- PR #851 Removed RMM from tests
+- PR #852 Fix BFS Notebook
+- PR #855 Missed a file in the original SNMG PR
+- PR #860 Fix all Notebooks
+- PR #870 Fix Louvain
+- PR #889 Added missing conftest.py file to benchmarks dir
+- PR #896 opg dask infrastructure fixes
 
 # cuGraph 0.13.0 (Date TBD)
 

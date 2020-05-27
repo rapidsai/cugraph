@@ -19,12 +19,10 @@
 #cimport cugraph.link_analysis.pagerank as c_pagerank
 from cugraph.link_analysis.pagerank cimport pagerank as c_pagerank
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.column_utils cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
-from cugraph.structure import graph_wrapper
+from cugraph.structure import graph_new_wrapper
 import cudf
 import rmm
 import numpy as np
@@ -39,8 +37,8 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     if not input_graph.transposedadjlist:
         input_graph.view_transposed_adj_list()
 
-    [offsets, indices] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices], [np.int32])
-    [weights] = graph_wrapper.datatype_cast([input_graph.transposedadjlist.weights], [np.float32, np.float64])
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices], [np.int32])
+    [weights] = graph_new_wrapper.datatype_cast([input_graph.transposedadjlist.weights], [np.float32, np.float64])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = len(indices)
@@ -77,8 +75,8 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSC[int,int,float] graph_float
-    cdef GraphCSC[int,int,double] graph_double
+    cdef GraphCSCView[int,int,float] graph_float
+    cdef GraphCSCView[int,int,double] graph_double
     
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
@@ -96,13 +94,13 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
     
     if (df['pagerank'].dtype == np.float32): 
-        graph_float = GraphCSC[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
+        graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
 
         c_pagerank[int,int,float](graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
                                <float> alpha, <float> tol, <int> max_iter, has_guess)
         graph_float.get_vertex_identifiers(<int*>c_identifier)
     else: 
-        graph_double = GraphCSC[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
+        graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
         c_pagerank[int,int,double](graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, has_guess)
         graph_double.get_vertex_identifiers(<int*>c_identifier)

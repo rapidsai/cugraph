@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pytest
 
@@ -20,7 +19,6 @@ import pandas as pd
 import cudf
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 
 def test_version():
@@ -155,18 +153,10 @@ def compare(src1, dst1, val1, src2, dst2, val2):
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_symmetrize_unweighted(managed, pool, graph_file):
+def test_symmetrize_unweighted(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file+'.csv')
 
@@ -198,18 +188,10 @@ def test_symmetrize_unweighted(managed, pool, graph_file):
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_symmetrize_weighted(managed, pool, graph_file):
+def test_symmetrize_weighted(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file+'.csv')
 
@@ -224,18 +206,10 @@ def test_symmetrize_weighted(managed, pool, graph_file):
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False])))
+
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_symmetrize_df(managed, pool, graph_file):
+def test_symmetrize_df(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file+'.csv')
     sym_df = cugraph.symmetrize_df(cu_M, '0', '1')
