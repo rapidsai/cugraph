@@ -76,15 +76,6 @@ typename GraphType::vertex_type count_if_adj_matrix_col(
 
 template <typename HandleType, typename GraphType,
           typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
-          typename EdgeOp, typename T>
-T transform_reduce_e(
-    HandleType handle, GraphType graph,
-    AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-    EdgeOp e_op, T init);
-
-template <typename HandleType, typename GraphType,
-          typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
           typename EdgeOp>
 typename GraphType::edge_type count_if_e(
     HandleType handle, GraphType graph,
