@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #903 Add short commit hash to conda package
 
 ## Bug Fixes
 
