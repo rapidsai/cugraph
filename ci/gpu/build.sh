@@ -68,6 +68,7 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       dask-cuda=${MINOR_VERSION} \
       scikit-learn>=0.21 \
       nccl>=2.5 \
+      ucx-py=${MINOR_VERSION} \
       libcypher-parser \
       ipython=7.3* \
       jupyterlab

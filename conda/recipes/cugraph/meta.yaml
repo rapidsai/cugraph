@@ -28,11 +28,13 @@ requirements:
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
     - cudf={{ minor_version }}
+    - ucx-py {{ minor_version }}
   run:
     - python x.x
     - libcugraph={{ version }}
     - cudf={{ minor_version }}
     - nccl>=2.5
+    - ucx-py {{ minor_version }}
 
 #test:
 #  commands:
