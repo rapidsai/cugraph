@@ -224,7 +224,7 @@ void BC<VT, ET, WT, result_t>::accumulate_edges(result_t *betweenness,
                deltas + number_of_vertices,
                static_cast<result_t>(0));
   // Step 2) Process each node, -1 is used to notify unreached nodes in the sssp
-  for (VT depth = max_depth; depth > 0; --depth) {
+  for (VT depth = max_depth; depth >= 0; --depth) {
     edges_accumulation_kernel<VT, ET, WT, result_t><<<grid, block, 0, stream>>>(betweenness,
                                                                                 number_of_vertices,
                                                                                 graph.indices,
