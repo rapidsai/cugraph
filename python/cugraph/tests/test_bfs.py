@@ -56,23 +56,6 @@ def prepare_test():
     gc.collect()
 
 
-# TODO: This is also present in test_betweenness_centrality.py
-#       And it could probably be used in SSSP also
-def build_graphs(graph_file, directed=True):
-    # cugraph
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    G.view_adj_list()  # Enforce CSR generation before computation
-
-    # networkx
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(M, create_using=(nx.DiGraph() if directed
-                                                   else nx.Graph()),
-                                  source='0', target='1')
-    return G, Gnx
-
-
 # =============================================================================
 # Functions for comparison
 # =============================================================================
@@ -103,7 +86,7 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
     Returns
     -------
     """
-    G, Gnx = build_graphs(graph_file, directed)
+    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed)
     # Seed for reproducibility
     if isinstance(seed, int):
         random.seed(seed)

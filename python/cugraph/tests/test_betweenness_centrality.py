@@ -58,21 +58,6 @@ RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 # =============================================================================
 # Comparison functions
 # =============================================================================
-def build_graphs(graph_file, directed=True):
-    # cugraph
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    G.view_adj_list()  # Enforce generation before computation
-
-    # networkx
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(M, create_using=(nx.DiGraph() if directed
-                                                   else nx.Graph()),
-                                  source='0', target='1')
-    return G, Gnx
-
-
 def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
                                 weight=None, endpoints=False,
                                 k=None, seed=None, implementation=None,
@@ -110,7 +95,7 @@ def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
             Each key is the vertex identifier, each value is the betweenness
             centrality score obtained from networkx betweenness_centrality
     """
-    G, Gnx = build_graphs(graph_file, directed=directed)
+    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
     calc_func = None
     if k is not None and seed is not None:
         calc_func = _calc_bc_subset
