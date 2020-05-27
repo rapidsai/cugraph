@@ -495,7 +495,7 @@ void bottom_up_main(IndexType *unvisited,
   dim3 grid, block;
   block.x = MAIN_BOTTOMUP_DIMX;
 
-  grid.x = min((IndexType)MAXBLOCKS, ((unvisited_size + block.x - 1)) / block.x);
+  grid.x = min((IndexType)MAXBLOCKS, ((unvisited_size + block.x)) / block.x);
 
   main_bottomup_kernel<<<grid, block, 0, m_stream>>>(unvisited,
                                                      unvisited_size,
