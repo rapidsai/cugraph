@@ -16,12 +16,11 @@
 // FIXME: better move this file to include/utilities (following cuDF) and rename to error.hpp
 #include <utilities/error_utils.h>
 
-#include <detail/adj_matrix_row_frontier.cuh>
-#include <detail/copy_patterns.hpp>
+// FIXME: think about moving pattern accelerator API related files to detail/patterns
 #include <detail/graph_device_view.cuh>
-#include <detail/one_level_patterns.cuh>
-#include <detail/reduce_op.cuh>
-#include <detail/two_level_patterns.cuh>
+#include <detail/patterns/adj_matrix_row_frontier.cuh>
+#include <detail/patterns/expand_and_transform_if_e.cuh>
+#include <detail/patterns/reduce_op.cuh>
 #include <graph.hpp>
 #include <utilities/traits.hpp>
 
@@ -30,6 +29,7 @@
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -37,26 +37,6 @@
 #include <limits>
 #include <type_traits>
 
-
-namespace raft {  // FIXME: should be replaced with the real raft Handle class
-
-class Handle {
- public:
-  static bool constexpr is_opg = false;
-
-  cudaStream_t get_default_stream() const {
-    return stream_;
-  }
-
-  size_t get_max_num_blocks_1D() {
-    return static_cast<size_t>(65535);
-  }
-
- private:
-  cudaStream_t stream_{0};
-};
-
-}
 
 namespace cugraph {
 namespace experimental {
@@ -73,7 +53,10 @@ void bfs_this_partition(
 
   static_assert(
     std::is_integral<vertex_t>::value,
-    "VertexIterator should point to an integral value.");
+    "GraphType::vertex_type should be integral.");
+  static_assert(
+    std::is_same<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>::value,
+    "GraphType::vertex_type and VertexIterator mismatch.");
   static_assert(is_csr<GraphType>::value, "GraphType should be CSR.");
 
   auto p_graph_device_view =
@@ -81,7 +64,6 @@ void bfs_this_partition(
   auto const graph_device_view = *p_graph_device_view;
 
   auto const num_vertices = graph_device_view.get_number_of_vertices();
-  auto const num_this_partition_vertices = graph_device_view.get_number_of_this_partition_vertices();
   if (num_vertices == 0) {
     return;
   }
@@ -108,8 +90,8 @@ void bfs_this_partition(
     thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first));
   thrust::transform(
     thrust::cuda::par.on(handle.get_default_stream()),
-    thrust::make_counting_iterator(static_cast<vertex_t>(0)),
-    thrust::make_counting_iterator(num_this_partition_vertices),
+    graph_device_view.this_partition_vertex_begin(),
+    graph_device_view.this_partition_vertex_end(),
     val_first,
     [graph_device_view, starting_vertex] __device__ (auto val) {
       auto distance = invalid_distance;
@@ -126,8 +108,9 @@ void bfs_this_partition(
   std::vector<size_t> bucket_sizes(
     static_cast<size_t>(Bucket::num_buckets),
     graph_device_view.get_number_of_this_partition_adj_matrix_rows());
-  AdjMatrixRowFrontier<raft::Handle, thrust::tuple<vertex_t>, vertex_t, 1> adj_matrix_row_frontier(
-    handle, bucket_sizes);
+  AdjMatrixRowFrontier<
+    raft::Handle, thrust::tuple<vertex_t>, vertex_t, static_cast<size_t>(Bucket::num_buckets)
+  > adj_matrix_row_frontier(handle, bucket_sizes);
 
   if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(starting_vertex)) {
     adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(starting_vertex);
@@ -154,6 +137,7 @@ void bfs_this_partition(
         graph_device_view.this_partition_adj_matrix_col_begin(),
         distance_first,
         thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first)),
+        thrust::make_discard_iterator(), thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
         [graph_device_view, distance_first] __device__ (auto src_val, auto dst_val) {
           uint32_t push = true;
@@ -166,11 +150,15 @@ void bfs_this_partition(
               push = false;
             }
           }
+          // FIXME: need to test this works properly if payload size is 0 (returns a tuple of size 1)
           return thrust::make_tuple(push, src_val);
         },
         reduce_op::any<thrust::tuple<vertex_t>>(),
         [depth] __device__ (auto v_val, auto pushed_val) {
-          auto idx = AdjMatrixRowFrontier<raft::Handle, thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
+          auto idx =
+            AdjMatrixRowFrontier<
+              raft::Handle, thrust::tuple<vertex_t>, vertex_t
+            >::kInvalidBucketIdx;
           if (v_val == invalid_distance) {
             idx = static_cast<size_t>(Bucket::cur);
           }
