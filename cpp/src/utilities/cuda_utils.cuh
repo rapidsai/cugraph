@@ -63,4 +63,26 @@ __device__ static __forceinline__ int32_t atomicAdd(int32_t *addr, int32_t val)
   return ::atomicAdd(addr, val);
 }
 
+__device__ static __forceinline__ int32_t atomicAdd(int32_t volatile *addr, int32_t val)
+{
+  return ::atomicAdd(const_cast<int32_t *>(addr), val);
+}
+
+__device__ static __forceinline__ double atomicAdd(double volatile *addr, double val)
+{
+  return ::atomicAdd(const_cast<double *>(addr), val);
+}
+
+__device__ static __forceinline__ float atomicAdd(float volatile *addr, float val)
+{
+  return ::atomicAdd(const_cast<float *>(addr), val);
+}
+
+__device__ static __forceinline__ int32_t atomicCAS(int32_t volatile *addr,
+                                                    int32_t expected,
+                                                    int32_t val)
+{
+  return ::atomicCAS(const_cast<int32_t *>(addr), expected, val);
+}
+
 }  // namespace cugraph

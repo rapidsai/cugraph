@@ -61,6 +61,7 @@
 - PR #852 Fix BFS Notebook
 - PR #855 Missed a file in the original SNMG PR
 - PR #860 Fix all Notebooks
+- PR #870 Fix Louvain
 - PR #889 Added missing conftest.py file to benchmarks dir
 - PR #896 opg dask infrastructure fixes
 
