@@ -21,8 +21,10 @@
 
 #include "cuda_profiler_api.h"
 
+#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "converters/renumber.cuh"
-#include "rmm_utils.h"
 
 #include <chrono>
 
@@ -35,7 +37,7 @@ __global__ void display_list(const char *label, uint32_t *verts, size_t length)
 {
   printf("%s\n", label);
 
-  for (size_t i = 0; i < length; ++i) { printf("  %lu\n", verts[i]); }
+  for (size_t i = 0; i < length; ++i) { printf("  %u\n", verts[i]); }
 }
 
 __global__ void setup_generator(curandState *state)
@@ -71,12 +73,6 @@ __global__ void generate_destinations(curandState *state,
   state[first] = local_state;
 }
 
-cudaError_t test_free(void *ptr)
-{
-  ALLOC_FREE_TRY(ptr, nullptr);
-  return cudaSuccess;
-}
-
 TEST_F(RenumberingTest, SmallFixedVertexList)
 {
   uint32_t src_data[] = {4U, 6U, 8U, 20U, 1U};
@@ -93,10 +89,10 @@ TEST_F(RenumberingTest, SmallFixedVertexList)
   uint32_t tmp_results[length];
   uint32_t tmp_map[2 * length];
 
-  cudaStream_t stream{nullptr};
-
-  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(uint32_t) * length, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(uint32_t) * length, stream), RMM_SUCCESS);
+  rmm::device_vector<uint32_t> src(length);
+  rmm::device_vector<uint32_t> dst(length);
+  src_d = src.data().get();
+  dst_d = dst.data().get();
 
   EXPECT_EQ(cudaMemcpy(src_d, src_data, sizeof(uint32_t) * length, cudaMemcpyHostToDevice),
             cudaSuccess);
@@ -132,9 +128,6 @@ TEST_F(RenumberingTest, SmallFixedVertexList)
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
-
-  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexListNegative)
@@ -153,10 +146,10 @@ TEST_F(RenumberingTest, SmallFixedVertexListNegative)
   int64_t tmp_results[length];
   int64_t tmp_map[2 * length];
 
-  cudaStream_t stream{nullptr};
-
-  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(int64_t) * length, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(int64_t) * length, stream), RMM_SUCCESS);
+  rmm::device_vector<int64_t> src(length);
+  rmm::device_vector<int64_t> dst(length);
+  src_d = src.data().get();
+  dst_d = dst.data().get();
 
   EXPECT_EQ(cudaMemcpy(src_d, src_data, sizeof(int64_t) * length, cudaMemcpyHostToDevice),
             cudaSuccess);
@@ -192,9 +185,6 @@ TEST_F(RenumberingTest, SmallFixedVertexListNegative)
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
-
-  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
@@ -213,10 +203,10 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
   uint64_t tmp_results[length];
   uint64_t tmp_map[2 * length];
 
-  cudaStream_t stream{nullptr};
-
-  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(uint64_t) * length, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(uint64_t) * length, stream), RMM_SUCCESS);
+  rmm::device_vector<uint64_t> src(length);
+  rmm::device_vector<uint64_t> dst(length);
+  src_d = src.data().get();
+  dst_d = dst.data().get();
 
   EXPECT_EQ(cudaMemcpy(src_d, src_data, sizeof(uint64_t) * length, cudaMemcpyHostToDevice),
             cudaSuccess);
@@ -252,9 +242,6 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
-
-  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
 }
 
 TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
@@ -275,12 +262,14 @@ TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
   uint32_t tmp_results[length];
   uint64_t tmp_map[2 * length];
 
-  cudaStream_t stream{nullptr};
-
-  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(uint64_t) * length, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(uint64_t) * length, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&src_renumbered_d, sizeof(uint32_t) * length, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_renumbered_d, sizeof(uint32_t) * length, stream), RMM_SUCCESS);
+  rmm::device_vector<uint64_t> src(length);
+  rmm::device_vector<uint64_t> dst(length);
+  src_d = src.data().get();
+  dst_d = dst.data().get();
+  rmm::device_vector<uint32_t> src_renumbered(length);
+  rmm::device_vector<uint32_t> dst_renumbered(length);
+  src_renumbered_d = src_renumbered.data().get();
+  dst_renumbered_d = dst_renumbered.data().get();
 
   EXPECT_EQ(cudaMemcpy(src_d, src_data, sizeof(uint64_t) * length, cudaMemcpyHostToDevice),
             cudaSuccess);
@@ -318,9 +307,6 @@ TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
     EXPECT_EQ(tmp_results[i], dst_expected[i]);
     EXPECT_EQ(tmp_map[tmp_results[i]], dst_data[i]);
   }
-
-  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
 }
 
 TEST_F(RenumberingTest, Random100KVertexSet)
@@ -330,15 +316,19 @@ TEST_F(RenumberingTest, Random100KVertexSet)
   uint64_t *src_d;
   uint64_t *dst_d;
 
-  uint64_t *src_data    = (uint64_t *)malloc(num_verts * sizeof(uint64_t));
-  uint64_t *dst_data    = (uint64_t *)malloc(num_verts * sizeof(uint64_t));
-  uint64_t *tmp_results = (uint64_t *)malloc(num_verts * sizeof(uint64_t));
-  uint64_t *tmp_map     = (uint64_t *)malloc(2 * num_verts * sizeof(uint64_t));
+  std::vector<uint64_t> src_data_vec(num_verts);
+  std::vector<uint64_t> dst_data_vec(num_verts);
+  std::vector<uint64_t> tmp_results_vec(num_verts);
+  std::vector<uint64_t> tmp_map_vec(2 * num_verts);
 
-  cudaStream_t stream{nullptr};
-
-  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(uint64_t) * num_verts, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(uint64_t) * num_verts, stream), RMM_SUCCESS);
+  uint64_t *src_data    = src_data_vec.data();
+  uint64_t *dst_data    = dst_data_vec.data();
+  uint64_t *tmp_results = tmp_results_vec.data();
+  uint64_t *tmp_map     = tmp_map_vec.data();
+  rmm::device_vector<uint64_t> src(num_verts);
+  rmm::device_vector<uint64_t> dst(num_verts);
+  src_d = src.data().get();
+  dst_d = dst.data().get();
 
   //
   //  Generate random source and vertex values
@@ -411,12 +401,6 @@ TEST_F(RenumberingTest, Random100KVertexSet)
 
   EXPECT_EQ(min_id, 0);
   EXPECT_EQ(max_id, (unique_verts - 1));
-  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
-  free(src_data);
-  free(dst_data);
-  free(tmp_results);
-  free(tmp_map);
 }
 
 TEST_F(RenumberingTest, Random10MVertexSet)
@@ -431,10 +415,10 @@ TEST_F(RenumberingTest, Random10MVertexSet)
   uint32_t *src_d;
   uint32_t *dst_d;
 
-  cudaStream_t stream{nullptr};
-
-  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(uint32_t) * num_verts, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(uint32_t) * num_verts, stream), RMM_SUCCESS);
+  rmm::device_vector<uint32_t> src(num_verts);
+  rmm::device_vector<uint32_t> dst(num_verts);
+  src_d = src.data().get();
+  dst_d = dst.data().get();
 
   //
   //  Init the random number generate
@@ -442,7 +426,8 @@ TEST_F(RenumberingTest, Random10MVertexSet)
   const int num_threads{64};
   curandState *state;
 
-  EXPECT_EQ(RMM_ALLOC(&state, sizeof(curandState) * num_threads, stream), RMM_SUCCESS);
+  rmm::device_vector<curandState> state_vals(num_threads);
+  state = state_vals.data().get();
   setup_generator<<<num_threads, 1>>>(state);
   generate_sources<<<num_threads, 1>>>(state, num_verts, src_d);
   generate_destinations<<<num_threads, 1>>>(state, num_verts, src_d, dst_d);
@@ -472,9 +457,6 @@ TEST_F(RenumberingTest, Random10MVertexSet)
   std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count() * 1000 << std::endl;
   std::cout << "  unique verts = " << unique_verts << std::endl;
   std::cout << "  hash size = " << hash_size << std::endl;
-
-  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
 }
 
 TEST_F(RenumberingTest, Random100MVertexSet)
@@ -492,10 +474,10 @@ TEST_F(RenumberingTest, Random100MVertexSet)
   uint32_t *src_d;
   uint32_t *dst_d;
 
-  cudaStream_t stream{nullptr};
-
-  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(uint32_t) * num_verts, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(uint32_t) * num_verts, stream), RMM_SUCCESS);
+  rmm::device_vector<uint32_t> src(num_verts);
+  rmm::device_vector<uint32_t> dst(num_verts);
+  src_d = src.data().get();
+  dst_d = dst.data().get();
 
   //
   //  Init the random number generate
@@ -503,7 +485,8 @@ TEST_F(RenumberingTest, Random100MVertexSet)
   const int num_threads{64};
   curandState *state;
 
-  EXPECT_EQ(RMM_ALLOC(&state, sizeof(curandState) * num_threads, stream), RMM_SUCCESS);
+  rmm::device_vector<curandState> state_vals(num_threads);
+  state = state_vals.data().get();
   setup_generator<<<num_threads, 1>>>(state);
   generate_sources<<<num_threads, 1>>>(state, num_verts, src_d);
   generate_destinations<<<num_threads, 1>>>(state, num_verts, src_d, dst_d);
@@ -533,9 +516,6 @@ TEST_F(RenumberingTest, Random100MVertexSet)
   std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count() * 1000 << std::endl;
   std::cout << "  unique verts = " << unique_verts << std::endl;
   std::cout << "  hash size = " << hash_size << std::endl;
-
-  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
 }
 
 TEST_F(RenumberingTest, Random500MVertexSet)
@@ -553,10 +533,10 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   uint32_t *src_d;
   uint32_t *dst_d;
 
-  cudaStream_t stream{nullptr};
-
-  EXPECT_EQ(RMM_ALLOC(&src_d, sizeof(uint32_t) * num_verts, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_ALLOC(&dst_d, sizeof(uint32_t) * num_verts, stream), RMM_SUCCESS);
+  rmm::device_vector<uint32_t> src(num_verts);
+  rmm::device_vector<uint32_t> dst(num_verts);
+  src_d = src.data().get();
+  dst_d = dst.data().get();
 
   //
   //  Init the random number generate
@@ -564,7 +544,8 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   const int num_threads{64};
   curandState *state;
 
-  EXPECT_EQ(RMM_ALLOC(&state, sizeof(curandState) * num_threads, stream), RMM_SUCCESS);
+  rmm::device_vector<curandState> state_vals(num_threads);
+  state = state_vals.data().get();
   setup_generator<<<num_threads, 1>>>(state);
   generate_sources<<<num_threads, 1>>>(state, num_verts, src_d);
   generate_destinations<<<num_threads, 1>>>(state, num_verts, src_d, dst_d);
@@ -594,16 +575,13 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   std::cout << "Renumber kernel elapsed time (ms): " << elapsed_seconds.count() * 1000 << std::endl;
   std::cout << "  unique verts = " << unique_verts << std::endl;
   std::cout << "  hash size = " << hash_size << std::endl;
-
-  EXPECT_EQ(RMM_FREE(src_d, stream), RMM_SUCCESS);
-  EXPECT_EQ(RMM_FREE(dst_d, stream), RMM_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

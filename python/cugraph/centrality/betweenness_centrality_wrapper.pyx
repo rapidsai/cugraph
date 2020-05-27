@@ -22,7 +22,6 @@ from cugraph.structure.graph_new cimport *
 from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph import DiGraph
 import cudf

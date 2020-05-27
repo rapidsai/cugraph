@@ -69,7 +69,7 @@ def katz_centrality(input_graph, alpha=None, max_iter=100, tol=1.0e-5, nstart=No
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_katz = df['katz_centrality'].__cuda_array_interface__['data'][0]
 
-    cdef GraphCSRViewFloat graph = get_graph_view[GraphCSRViewFloat](input_graph, True)
+    cdef GraphCSRViewFloat graph = get_graph_view[GraphCSRViewFloat](input_graph, False)
 
     c_katz_centrality[int,int,float,double](graph, <double*> c_katz, alpha, max_iter, tol, has_guess, normalized)
 

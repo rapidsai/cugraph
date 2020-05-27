@@ -21,6 +21,7 @@
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
 #include <iterator>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "test_utils.h"
 
 // do the perf measurements
@@ -90,8 +91,6 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
     ASSERT_TRUE(mm_is_coordinate(mc));
     ASSERT_TRUE(mm_is_symmetric(mc));  // weakly cc only works w/ undirected graphs, for now;
 
-    // rmmInitialize(nullptr);
-
 #ifdef _DEBUG_WEAK_CC
     std::cout << "matrix nrows: " << m << "\n";
     std::cout << "matrix nnz: " << nnz << "\n";
@@ -149,9 +148,9 @@ INSTANTIATE_TEST_CASE_P(simple_test,
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

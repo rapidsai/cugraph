@@ -16,7 +16,6 @@
 #pragma once
 
 #include <thrust/device_ptr.h>
-#include <thrust/device_vector.h>
 #include <thrust/scan.h>
 
 #include <cuda_runtime.h>
@@ -26,7 +25,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include "rmmAllocatorAdapter.hpp"
+#include <rmm/thrust_rmm_allocator.h>
 #include "utilities/cuda_utils.cuh"
 #include "utils.h"
 
@@ -277,7 +276,6 @@ void weak_cc(vertex_t *labels,
              vertex_t const *indices,
              edge_t nnz,
              vertex_t N,
-             std::shared_ptr<deviceAllocator> d_alloc,
              cudaStream_t stream,
              Lambda filter_op)
 {
@@ -320,11 +318,9 @@ void weak_cc_entry(vertex_t *labels,
                    vertex_t const *indices,
                    edge_t nnz,
                    vertex_t N,
-                   std::shared_ptr<deviceAllocator> d_alloc,
                    cudaStream_t stream)
 {
-  weak_cc(
-    labels, offsets, indices, nnz, N, d_alloc, stream, [] __device__(vertex_t) { return true; });
+  weak_cc(labels, offsets, indices, nnz, N, stream, [] __device__(vertex_t) { return true; });
 }
 
 }  // namespace Sparse
