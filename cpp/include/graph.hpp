@@ -62,7 +62,6 @@ class GraphViewBase {
  public:
   static bool constexpr is_opg = false;
 
-  Comm comm;
   WT *edge_data;  ///< edge weight
   Comm comm;
 
