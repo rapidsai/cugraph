@@ -35,4 +35,3 @@ dependencies:
 - recommonmark
 - pip
 - libcypher-parser
-- sphinx-markdown-tables
