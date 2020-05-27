@@ -44,8 +44,9 @@ class graph_compressed_sparse_base_device_view_t<
  public:
   using vertex_type = typename GraphType::vertex_type;
   using edge_type = typename GraphType::edge_type;
-
-  static bool constexpr is_csr = GraphType::is_csr;
+  using weight_type = typename GraphType::weight_type;
+  static constexpr bool is_csr_type = is_csr<GraphType>::value;
+  static constexpr bool is_csc_type = is_csc<GraphType>::value;
 
   graph_compressed_sparse_base_device_view_t() = delete;
   ~graph_compressed_sparse_base_device_view_t() = default;
@@ -59,16 +60,6 @@ class graph_compressed_sparse_base_device_view_t<
     graph_compressed_sparse_base_device_view_t&&) = default;
 
   __host__ __device__
-  edge_type const* offset_data() const noexcept {
-    return p_offsets_;
-  }
-
-  __host__ __device__
-  vertex_type const* index_data() const noexcept {
-    return p_indices_;
-  }
-
-  __host__ __device__
   bool is_symmetric() const noexcept {
     return is_symmetric_;
   }
@@ -76,6 +67,11 @@ class graph_compressed_sparse_base_device_view_t<
   __host__ __device__
   vertex_type get_number_of_vertices() const noexcept {
     return number_of_vertices_;
+  }
+
+  __host__ __device__
+  vertex_type get_number_of_edges() const noexcept {
+    return number_of_edges_;
   }
 
   __host__ __device__
@@ -87,17 +83,20 @@ class graph_compressed_sparse_base_device_view_t<
  protected:
   bool is_symmetric_{false};
   vertex_type number_of_vertices_{0};
+  edge_type number_of_edges_{0};
 
-  edge_type const* p_offsets_{nullptr};
-  vertex_type const* p_indices_{nullptr};
+  edge_type const* offsets_ptr_{nullptr};
+  vertex_type const* indices_ptr_{nullptr};
+  weight_type const* weights_ptr_{nullptr};
 
   graph_compressed_sparse_base_device_view_t(GraphType const& graph) {
     // FIXME: better not directly access graph member variables, and directed is a misnomer.
     is_symmetric_ = !graph.prop.directed;
     number_of_vertices_ = graph.number_of_vertices;
     // FIXME: better not directly access graph member variables
-    p_offsets_ = graph.offsets;
-    p_indices_ = graph.indices;
+    offsets_ptr_ = graph.offsets;
+    indices_ptr_ = graph.indices;
+    weights_ptr_ = graph.edge_data;
   }
 };
 
@@ -113,6 +112,9 @@ class graph_compressed_sparse_device_view_t<
  public:
   using vertex_type = typename GraphType::vertex_type;
   using edge_type = typename GraphType::edge_type;
+  using weight_type = typename GraphType::weight_type;
+  static constexpr bool is_csr_type = is_csr<GraphType>::value;
+  static constexpr bool is_csc_type = is_csc<GraphType>::value;
 
   graph_compressed_sparse_device_view_t() = delete;
   ~graph_compressed_sparse_device_view_t() = default;
@@ -145,23 +147,23 @@ class graph_compressed_sparse_device_view_t<
     // See E. Boman, K. Devine, and S. Rajamanickam, "Scalable matrix computation on large
     // scale-free graphs using 2D graph partitioning," 2013.
     auto num_this_partition_adj_matrix_row_ranges = 1;
-    rmm::device_buffer* p_buffer =
+    rmm::device_buffer* buffer_ptr =
       new rmm::device_buffer(num_this_partition_adj_matrix_row_ranges * sizeof(vertex_type) * 2);
     auto deleter =
-      [p_buffer] (graph_compressed_sparse_device_view_t* graph_device_view) {
+      [buffer_ptr] (graph_compressed_sparse_device_view_t* graph_device_view) {
         graph_device_view->destroy();
-        delete p_buffer;
+        delete buffer_ptr;
       };
     std::unique_ptr<graph_compressed_sparse_device_view_t, decltype(deleter)>
-    p_graph_device_view(
-      new graph_compressed_sparse_device_view_t(graph, p_buffer->data()), deleter);
+    graph_device_view_ptr(
+      new graph_compressed_sparse_device_view_t(graph, buffer_ptr->data()), deleter);
 
-    return p_graph_device_view;
+    return graph_device_view_ptr;
   }
 
 private:
-  vertex_type const* p_this_partition_adj_matrix_row_firsts_{nullptr};
-  vertex_type const* p_this_partition_adj_matrix_row_lasts_{nullptr};
+  vertex_type const* this_partition_adj_matrix_row_firsts_ptr_{nullptr};
+  vertex_type const* this_partition_adj_matrix_row_lasts_ptr_{nullptr};
   size_t num_this_partition_adj_matrix_row_ranges_{0};
 };
 
@@ -174,6 +176,9 @@ class graph_compressed_sparse_device_view_t<
 public:
   using vertex_type = typename GraphType::vertex_type;
   using edge_type = typename GraphType::edge_type;
+  using weight_type = typename GraphType::weight_type;
+  static constexpr bool is_csr_type = is_csr<GraphType>::value;
+  static constexpr bool is_csc_type = is_csc<GraphType>::value;
 
   graph_compressed_sparse_device_view_t() = delete;
   ~graph_compressed_sparse_device_view_t() = default;
@@ -194,6 +199,26 @@ public:
     std::function<void(graph_compressed_sparse_device_view_t*)>
   > create(GraphType const& graph) {
     return std::make_unique<graph_compressed_sparse_device_view_t>(graph);
+  }
+
+  // FIXME: better replace offset_data(), index_data(), and weight_data() with functions returning
+  // a single value. This will abstract out graph data structure internals if adopt more complex
+  // data structure than CSR/CSC (e.g. for 2D partitioning with a very large number of processes
+  // CSR/CSC representations can become hyper-sparse for low degree vertices; in this case,
+  // DCSR/DCSC will save memory, also we can skip storing offsets for 0 degree vertices)
+  __host__ __device__
+  edge_type const* offset_data() const noexcept {
+    return this->offsets_ptr_;
+  }
+
+  __host__ __device__
+  vertex_type const* index_data() const noexcept {
+    return this->indices_ptr_;
+  }
+
+  __host__ __device__
+  weight_type const* weight_data() const noexcept {
+    return this->weights_ptr_;
   }
 
   __host__ __device__
