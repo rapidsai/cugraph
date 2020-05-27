@@ -69,7 +69,7 @@ TEST(louvain, success)
   int min = *min_element(cluster_id.begin(), cluster_id.end());
 
   ASSERT_GE(min, 0);
-  ASSERT_GE(modularity, 0.402777);
+  ASSERT_GE(modularity, 0.402777 * 0.95);
 }
 
 /*
