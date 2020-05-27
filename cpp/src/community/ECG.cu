@@ -107,7 +107,6 @@ void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
 }  // anonymous namespace
 
 namespace cugraph {
-namespace nvgraph {
 
 template <typename VT, typename ET, typename WT>
 void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
@@ -195,5 +194,4 @@ template void ecg<int32_t, int32_t, double>(
   double min_weight,
   int32_t ensemble_size,
   int32_t *ecg_parts);
-}  // namespace nvgraph
 }  // namespace cugraph

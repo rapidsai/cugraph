@@ -579,6 +579,36 @@ void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
              VT *louvain_parts,
              int max_iter = 100);
 
+/**
+ * @brief Computes the ecg clustering of the given graph.
+ *
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph_coo             input graph object (COO)
+ * @param[in]  graph_csr             input graph object (CSR)
+ * @param[in]  min_weight            The minimum weight parameter
+ * @param[in]  ensemble_size         The ensemble size parameter
+ * @param[out] ecg_parts             A device pointer to array where the partitioning should be
+ * written
+ */
+template <typename VT, typename ET, typename WT>
+void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
+         WT min_weight,
+         VT ensemble_size,
+         VT *ecg_parts);
+
 namespace nvgraph {
 
 /**
@@ -750,36 +780,6 @@ void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &g
                                  int n_clusters,
                                  VT const *clustering,
                                  WT *score);
-
-/**
- * @brief Computes the ecg clustering of the given graph.
- *
- * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
- * then uses the ensemble partitions to determine weights for the input graph.
- * The final result is found by running full Louvain on the input graph using
- * the determined weights. See https://arxiv.org/abs/1809.05578 for further
- * information.
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in]  graph_coo             input graph object (COO)
- * @param[in]  graph_csr             input graph object (CSR)
- * @param[in]  min_weight            The minimum weight parameter
- * @param[in]  ensemble_size         The ensemble size parameter
- * @param[out] ecg_parts             A device pointer to array where the partitioning should be
- * written
- */
-template <typename VT, typename ET, typename WT>
-void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
-         WT min_weight,
-         VT ensemble_size,
-         VT *ecg_parts);
 
 }  // namespace nvgraph
 }  // namespace cugraph
