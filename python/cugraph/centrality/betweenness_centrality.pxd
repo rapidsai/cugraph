@@ -22,10 +22,6 @@ from libcpp cimport bool
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    ctypedef enum cugraph_bc_implem_t:
-        CUGRAPH_DEFAULT "cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT"
-        CUGRAPH_GUNROCK "cugraph::cugraph_bc_implem_t::CUGRAPH_GUNROCK"
-
     cdef void betweenness_centrality[VT,ET,WT,result_t](
         const GraphCSRView[VT,ET,WT] &graph,
         result_t *result,
@@ -33,6 +29,5 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         bool endpoints,
         const WT *weight,
         VT k,
-        const VT *vertices,
-        cugraph_bc_implem_t implem) except +
+        const VT *vertices) except +
 

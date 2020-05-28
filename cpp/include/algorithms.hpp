@@ -187,11 +187,6 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
                   VT const *second,
                   WT *result);
 
-enum class cugraph_bc_implem_t {
-  CUGRAPH_DEFAULT = 0,  ///> Native cugraph implementation
-  CUGRAPH_GUNROCK       ///> Gunrock implementation
-};
-
 /**
  *
  * @brief                                       ForceAtlas2 is a continuous graph layout algorithm
@@ -270,7 +265,7 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  * Betweenness centrality for a vertex is the sum of the fraction of
  * all pairs shortest paths that pass through the vertex.
  *
- * Note that both the native and the gunrock implementations do not support a weighted graph.
+ * The current implementation does not support a weighted graph.
  *
  * @throws                           cugraph::logic_error with a custom message when an error
  * occurs.
@@ -295,19 +290,16 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
  * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
  * shortest path counters.
- * @param[in] implem                 Cugraph currently supports 2 implementations: native and
- * gunrock
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
-                            bool normalized            = true,
-                            bool endpoints             = false,
-                            WT const *weight           = nullptr,
-                            VT k                       = 0,
-                            VT const *vertices         = nullptr,
-                            cugraph_bc_implem_t implem = cugraph_bc_implem_t::CUGRAPH_DEFAULT);
+                            bool normalized    = true,
+                            bool endpoints     = false,
+                            WT const *weight   = nullptr,
+                            VT k               = 0,
+                            VT const *vertices = nullptr);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components

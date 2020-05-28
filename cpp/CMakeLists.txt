@@ -226,27 +226,6 @@ ExternalProject_Add(cuhornet
   INSTALL_COMMAND   ""
 )
 
-# - GUNROCK
-set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
-  "Path to cugunrock repo")
-
-ExternalProject_Add(cugunrock
-  GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           fea_full_bc      # provide a branch, a tag, or even a commit hash
-  PREFIX            ${CUGUNROCK_DIR}
-  CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-                    -DGPU_ARCHS=""
-                    -DGUNROCK_BUILD_SHARED_LIBS=OFF
-                    -DGUNROCK_BUILD_TESTS=OFF
-  BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
-)
-
-add_library(gunrock STATIC IMPORTED)
-
-add_dependencies(gunrock cugunrock)
-
-set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${CUGUNROCK_DIR}/lib/libgunrock.a)
-
 # - NCCL
 if(NOT NCCL_PATH)
     find_package(NCCL REQUIRED)
@@ -339,11 +318,6 @@ add_library(cugraph SHARED
     src/nvgraph/partition.cu
 )
 
-#
-# NOTE:  This dependency will force the building of cugraph to
-#        wait until after cugunrock is constructed.
-#
-add_dependencies(cugraph cugunrock)
 add_dependencies(cugraph raft)
 
 if (BUILD_MPI)
@@ -377,7 +351,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    ${RMM_LIBRARY} ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
