@@ -323,7 +323,7 @@ void BC<VT, ET, WT, result_t>::rescale()
       modified = true;
     }
   }
-  if (modified) {
+  if (modified && !is_edge_betweenness) {
     if (number_of_sources > 0) {
       rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
     }
