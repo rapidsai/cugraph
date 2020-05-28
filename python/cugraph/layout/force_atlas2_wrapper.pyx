@@ -26,7 +26,7 @@ from libc.stdint cimport uintptr_t
 
 import cudf
 import cudf._lib as libcudf
-import rmm
+from numba import cuda
 import numpy as np
 import numpy.ctypeslib as ctypeslib
 
@@ -103,7 +103,7 @@ def force_atlas2(input_graph,
     if input_graph.edgelist.weights \
             and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
 
-        pos = rmm.device_array(
+        pos = cuda.device_array(
                         (num_verts, 2),
                         order="F",
                         dtype=np.float64)
@@ -135,7 +135,7 @@ def force_atlas2(input_graph,
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
     else:
-        pos = rmm.device_array(
+        pos = cuda.device_array(
                 (num_verts, 2),
                 order="F",
                 dtype=np.float32)
