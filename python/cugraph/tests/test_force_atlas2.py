@@ -57,10 +57,10 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
     return pos
 
 
-DATASETS = [('../datasets/karate.csv', 0.71),
-            ('../datasets/polbooks.csv', 0.76),
-            ('../datasets/dolphins.csv', 0.67),
-            ('../datasets/netscience.csv', 0.67)]
+DATASETS = [('../datasets/karate.csv', 0.70),
+            ('../datasets/polbooks.csv', 0.75),
+            ('../datasets/dolphins.csv', 0.66),
+            ('../datasets/netscience.csv', 0.66)]
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
 
@@ -100,4 +100,5 @@ def test_force_atlas2(graph_file, score, max_iter,
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
     cu_trust = trustworthiness(M, cu_pos[['x', 'y']].to_pandas())
+    print(cu_trust, score)
     assert cu_trust > score
