@@ -5,7 +5,6 @@ channels:
 - rapidsai-nightly
 - conda-forge
 dependencies:
-- libcypher-parser
 - cudf=0.14.*
 - nvstrings=0.14.*
 - rmm=0.14.*
@@ -29,10 +28,10 @@ dependencies:
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport
+- sphinx-markdown-tables
 - nbsphinx
 - numpydoc
 - ipython
 - recommonmark
 - pip
-- pip:
-  - sphinx-markdown-tables
+- libcypher-parser
