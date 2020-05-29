@@ -283,8 +283,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                                    endpoints,
                                                    static_cast<WT *>(nullptr),
                                                    configuration.number_of_sources_,
-                                                   sources_ptr,
-                                                   cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT),
+                                                   sources_ptr),
                    cugraph::logic_error);
       return;
     } else {
@@ -294,8 +293,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                       endpoints,
                                       static_cast<WT *>(nullptr),
                                       configuration.number_of_sources_,
-                                      sources_ptr,
-                                      cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT);
+                                      sources_ptr);
     }
     cudaDeviceSynchronize();
     CUDA_TRY(cudaMemcpy(result.data(),

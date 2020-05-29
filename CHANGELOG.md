@@ -8,6 +8,7 @@
 - PR #881 Raft integration infrastructure
 
 ## Improvements
+- PR #917 Remove gunrock option from Betweenness Centrality
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #780 Remove gdf_column from cuhornet features

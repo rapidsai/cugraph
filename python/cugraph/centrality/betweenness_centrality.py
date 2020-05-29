@@ -18,7 +18,7 @@ from cugraph.centrality import betweenness_centrality_wrapper
 
 # NOTE: result_type=float could ne an intuitive way to indicate the result type
 def betweenness_centrality(G, k=None, normalized=True,
-                           weight=None, endpoints=False, implementation=None,
+                           weight=None, endpoints=False,
                            seed=None, result_dtype=np.float64):
     """
     Compute the betweenness centrality for all nodes of the graph G from a
@@ -63,13 +63,6 @@ def betweenness_centrality(G, k=None, normalized=True,
         If true, include the endpoints in the shortest path counts.
         (Not Supported)
 
-    implementation : string, optional, default=None
-        if implementation is None or "default", uses native cugraph,
-        if "gunrock" uses gunrock based bc.
-        The default version supports normalized, k and seed options.
-        "gunrock" might be faster when considering all the sources, but
-        only return float results and consider all the vertices as sources.
-
     seed : optional
         if k is specified and k is an integer, use seed to initialize the
         random number generator.
@@ -79,7 +72,6 @@ def betweenness_centrality(G, k=None, normalized=True,
 
     result_dtype : np.float32 or np.float64, optional, default=np.float64
         Indicate the data type of the betweenness centrality scores
-        Using double automatically switch implementation to "default"
 
     Returns
     -------
@@ -103,10 +95,6 @@ def betweenness_centrality(G, k=None, normalized=True,
     >>> bc = cugraph.betweenness_centrality(G)
     """
 
-    #
-    # Some features not implemented in gunrock implementation, failing fast,
-    # but passing parameters through
-    #
     # vertices is intended to be a cuDF series that contains a sampling of
     # k vertices out of the graph.
     #
@@ -114,18 +102,8 @@ def betweenness_centrality(G, k=None, normalized=True,
     # workaround.
     #
     vertices = None
-    if implementation is None:
-        implementation = "default"
-    if implementation not in ["default", "gunrock"]:
-        raise ValueError("Only two implementations are supported: 'default' "
-                         "and 'gunrock'")
 
     if k is not None:
-        if implementation == "gunrock":
-            raise ValueError("sampling feature of betweenness "
-                             "centrality not currently supported "
-                             "with gunrock implementation, "
-                             "please use None or 'default'")
         # In order to compare with pre-set sources,
         # k can either be a list or an integer or None
         #  int: Generate an random sample with k elements
@@ -171,6 +149,5 @@ def betweenness_centrality(G, k=None, normalized=True,
                                                                endpoints,
                                                                weight,
                                                                k, vertices,
-                                                               implementation,
                                                                result_dtype)
     return df
