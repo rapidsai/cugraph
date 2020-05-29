@@ -13,13 +13,14 @@
 
 import random
 import numpy as np
+import cugraph
 from cugraph.centrality import betweenness_centrality_wrapper
 from cugraph.centrality import edge_betweenness_centrality_wrapper
 
 
 # NOTE: result_type=float could ne an intuitive way to indicate the result type
 def betweenness_centrality(G, k=None, normalized=True,
-                           weight=None, endpoints=False, implementation=None,
+                           weight=None, endpoints=False,
                            seed=None, result_dtype=np.float64):
     """
     Compute the betweenness centrality for all nodes of the graph G from a
@@ -108,7 +109,6 @@ def betweenness_centrality(G, k=None, normalized=True,
     #
     # NOTE: cuDF doesn't currently support sampling, but there is a python
     # workaround.
-    implementation = _initialize_and_verify_implementation(implementation, k)
 
     vertices, k = _initialize_vertices(G, k, seed)
 
@@ -127,7 +127,6 @@ def betweenness_centrality(G, k=None, normalized=True,
                                                                endpoints,
                                                                weight,
                                                                k, vertices,
-                                                               implementation,
                                                                result_dtype)
     return df
 
@@ -220,33 +219,6 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
     return df
 
 
-# =============================================================================
-# Internal functions
-# =============================================================================
-# Parameter: 'implementation'
-# -----------------------------------------------------------------------------
-#
-# Some features are not implemented in gunrock implementation, failing fast,
-# but passing parameters through
-#
-
-def _initialize_and_verify_implementation(implementation, k):
-    if implementation is None:
-        implementation = "default"
-
-    if implementation not in ["default", "gunrock"]:
-        raise ValueError("Only two implementations are supported: 'default' "
-                         "and 'gunrock'")
-    if implementation == "gunrock" and k is not None:
-        raise ValueError("sampling feature of betweenness "
-                         "centrality not currently supported "
-                         "with gunrock implementation, "
-                         "please use None or 'default'")
-    return implementation
-
-
-# Parameter: 'k' and 'seed'
-# -----------------------------------------------------------------------------
 # In order to compare with pre-set sources,
 # k can either be a list or an integer or None
 #  int: Generate an random sample with k elements

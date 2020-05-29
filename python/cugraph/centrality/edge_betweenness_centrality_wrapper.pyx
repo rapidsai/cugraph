@@ -23,7 +23,7 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport calloc, malloc, free
 from cugraph.structure import graph_new_wrapper
-from cugraph.structure.graph import DiGraph
+from cugraph.structure.graph import DiGraph, Graph
 import cudf
 import rmm
 import numpy as np
@@ -124,5 +124,10 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'src')
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
+
+    if type(input_graph) is Graph:
+        lower_triangle = df['src'] >= df['dst']
+        df[["src", "dst"]][lower_triangle] = df[["dst", "src"]][lower_triangle]
+        df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
     return df
