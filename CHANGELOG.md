@@ -1,3 +1,13 @@
+# cuGraph 0.15.0 (Date TBD)
+
+## New Features
+
+## Improvements
+- PR #903 Add short commit hash to conda package
+
+## Bug Fixes
+- PR #919 Pagerank fix
+
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
