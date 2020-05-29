@@ -17,6 +17,7 @@
 - PR #881 Raft integration infrastructure
 
 ## Improvements
+- PR #917 Remove gunrock option from Betweenness Centrality
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #780 Remove gdf_column from cuhornet features
@@ -59,6 +60,7 @@
 - PR #906 Update Louvain notebook
 
 ## Bug Fixes
+- PR #916 Fix CI error on Force Atlas 2 test
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation
 - PR #800 Fix bfs error in optimization path
