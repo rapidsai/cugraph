@@ -50,6 +50,7 @@
 - PR #906 Update Louvain notebook
 
 ## Bug Fixes
+- PR #916 Fix CI error on Force Atlas 2 test
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation
 - PR #800 Fix bfs error in optimization path
