@@ -26,8 +26,8 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         CUGRAPH_DEFAULT "cugraph::cugraph_bc_implem_t::CUGRAPH_DEFAULT"
         CUGRAPH_GUNROCK "cugraph::cugraph_bc_implem_t::CUGRAPH_GUNROCK"
 
-    cdef void betweenness_centrality[VT,ET,WT,result_t](
-        const GraphCSRView[VT,ET,WT] &graph,
+    cdef void betweenness_centrality[VT, ET, WT, result_t](
+        const GraphCSRView[VT, ET, WT] &graph,
         result_t *result,
         bool normalized,
         bool endpoints,
@@ -36,8 +36,8 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         const VT *vertices,
         cugraph_bc_implem_t implem) except +
 
-    cdef void edge_betweenness_centrality[VT,ET,WT,result_t](
-        const GraphCSRView[VT,ET,WT] &graph,
+    cdef void edge_betweenness_centrality[VT, ET, WT, result_t](
+        const GraphCSRView[VT, ET, WT] &graph,
         result_t *result,
         bool normalized,
         const WT *weight,
