@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.14.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.15.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -316,8 +316,9 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
+    src/community/louvain.cpp
+    src/community/louvain_kernels.cu
     src/community/ktruss.cu
-    src/community/louvain.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu

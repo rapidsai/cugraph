@@ -17,9 +17,9 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <rmm/mr/device/cnmem_memory_resource.hpp>
 
-TEST(nvgraph_louvain, success)
+TEST(louvain, success)
 {
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
                             67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
@@ -59,22 +59,23 @@ TEST(nvgraph_louvain, success)
   float modularity{0.0};
   int num_level = 40;
 
-  cugraph::nvgraph::louvain(G, &modularity, &num_level, result_v.data().get());
+  cugraph::louvain(G, &modularity, &num_level, result_v.data().get());
 
   cudaMemcpy((void*)&(cluster_id[0]),
              result_v.data().get(),
              sizeof(int) * num_verts,
              cudaMemcpyDeviceToHost);
+
   int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-  ASSERT_TRUE(min >= 0);
-  ASSERT_TRUE(modularity >= 0.402777);
+  ASSERT_GE(min, 0);
+  ASSERT_GE(modularity, 0.402777 * 0.95);
 }
 
 int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
   rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
   return rc;

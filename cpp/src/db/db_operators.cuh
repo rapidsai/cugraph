@@ -16,9 +16,7 @@
 
 #pragma once
 
-#include <rmm_utils.h>
 #include <db/db_object.cuh>
-#include "rmm/device_buffer.hpp"
 
 #define MAXBLOCKS 65535
 #define FIND_MATCHES_BLOCK_SIZE 512

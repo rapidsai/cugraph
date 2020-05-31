@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "db/db_operators.cuh"
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
@@ -230,9 +231,9 @@ TEST_F(Test_FindMatches, fifthTest)
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

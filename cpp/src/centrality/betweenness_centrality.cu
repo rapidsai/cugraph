@@ -20,11 +20,8 @@
 
 #include <algorithms.hpp>
 #include <graph.hpp>
-#include "rmm_utils.h"
 
 #include <utilities/error_utils.h>
-
-#include <gunrock/gunrock.h>
 
 #include "betweenness_centrality.cuh"
 
@@ -430,92 +427,6 @@ void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &g
 }
 }  // namespace detail
 
-namespace gunrock {
-
-// NOTE: sample_seeds is not really available anymore,  as it has been
-//       replaced by k and vertices parameters, delegating the random
-//       generation to somewhere else (i.e python's side)
-template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
-                            result_t *result,
-                            bool normalize,
-                            VT const *sample_seeds    = nullptr,
-                            VT number_of_sample_seeds = 0)
-{
-  cudaStream_t stream{nullptr};
-
-  //
-  //  gunrock currently (as of 2/28/2020) only operates on a graph and results in
-  //  host memory.  [That is, the first step in gunrock is to allocate device memory
-  //  and copy the data into device memory, the last step is to allocate host memory
-  //  and copy the results into the host memory]
-  //
-  //  They are working on fixing this.  In the meantime, to get the features into
-  //  cuGraph we will first copy the graph back into local memory and when we are finished
-  //  copy the result back into device memory.
-  //
-  std::vector<ET> v_offsets(graph.number_of_vertices + 1);
-  std::vector<VT> v_indices(graph.number_of_edges);
-  std::vector<float> v_result(graph.number_of_vertices);
-  std::vector<float> v_sigmas(graph.number_of_vertices);
-  std::vector<int> v_labels(graph.number_of_vertices);
-
-  // fill them
-  CUDA_TRY(cudaMemcpy(v_offsets.data(),
-                      graph.offsets,
-                      sizeof(ET) * (graph.number_of_vertices + 1),
-                      cudaMemcpyDeviceToHost));
-  CUDA_TRY(cudaMemcpy(
-    v_indices.data(), graph.indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDeviceToHost));
-
-  if (sample_seeds == nullptr) {
-    bc(graph.number_of_vertices,
-       graph.number_of_edges,
-       v_offsets.data(),
-       v_indices.data(),
-       -1,
-       v_result.data(),
-       v_sigmas.data(),
-       v_labels.data());
-  } else {
-    //
-    //  Gunrock, as currently implemented
-    //  doesn't support this method.
-    //
-    CUGRAPH_FAIL("gunrock doesn't currently support sampling seeds");
-  }
-
-  // copy to results
-  CUDA_TRY(cudaMemcpy(
-    result, v_result.data(), sizeof(result_t) * graph.number_of_vertices, cudaMemcpyHostToDevice));
-
-  // Rescale result (Based on normalize and directed/undirected)
-  if (normalize) {
-    if (graph.number_of_vertices > 2) {
-      float denominator = (graph.number_of_vertices - 1) * (graph.number_of_vertices - 2);
-
-      thrust::transform(rmm::exec_policy(stream)->on(stream),
-                        result,
-                        result + graph.number_of_vertices,
-                        result,
-                        [denominator] __device__(float f) { return (f * 2) / denominator; });
-    }
-  } else {
-    //
-    //  gunrock answer needs to be doubled to match networkx
-    //
-    if (graph.prop.directed) {
-      thrust::transform(rmm::exec_policy(stream)->on(stream),
-                        result,
-                        result + graph.number_of_vertices,
-                        result,
-                        [] __device__(float f) { return (f * 2); });
-    }
-  }
-}
-
-}  // namespace gunrock
-
 /**
  * @param[out]  result          array<result_t>(number_of_vertices)
  * @param[in]   normalize       bool True -> Apply normalization
@@ -531,34 +442,9 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             bool endpoints,
                             WT const *weight,
                             VT k,
-                            VT const *vertices,
-                            cugraph_bc_implem_t implem)
+                            VT const *vertices)
 {
-  // FIXME: Gunrock call returns float and not result_t hence the implementation
-  //       switch
-  if ((typeid(result_t) == typeid(double)) && (implem == cugraph_bc_implem_t::CUGRAPH_GUNROCK)) {
-    implem = cugraph_bc_implem_t::CUGRAPH_DEFAULT;
-    std::cerr << "[WARN] result_t type is 'double', switching to default "
-              << "implementation" << std::endl;
-  }
-  //
-  // NOTE:  gunrock implementation doesn't yet support the unused parameters:
-  //     - endpoints
-  //     - weight
-  //     - k
-  //     - vertices
-  //
-  // These parameters are present in the API to support future features.
-  //
-  if (implem == cugraph_bc_implem_t::CUGRAPH_DEFAULT) {
-    detail::betweenness_centrality(graph, result, normalize, endpoints, weight, k, vertices);
-  } else if (implem == cugraph_bc_implem_t::CUGRAPH_GUNROCK) {
-    gunrock::betweenness_centrality(graph, result, normalize);
-  } else {
-    CUGRAPH_FAIL(
-      "Invalid Betweenness Centrality implementation, please refer to cugraph_bc_implem_t for "
-      "valid implementations");
-  }
+  detail::betweenness_centrality(graph, result, normalize, endpoints, weight, k, vertices);
 }
 
 template void betweenness_centrality<int, int, float, float>(
@@ -568,8 +454,7 @@ template void betweenness_centrality<int, int, float, float>(
   bool,
   float const *,
   int,
-  int const *,
-  cugraph_bc_implem_t);
+  int const *);
 template void betweenness_centrality<int, int, double, double>(
   experimental::GraphCSRView<int, int, double> const &,
   double *,
@@ -577,8 +462,7 @@ template void betweenness_centrality<int, int, double, double>(
   bool,
   double const *,
   int,
-  int const *,
-  cugraph_bc_implem_t);
+  int const *);
 
 /**
  * @param[out]  result          array<result_t>(number_of_vertices)
