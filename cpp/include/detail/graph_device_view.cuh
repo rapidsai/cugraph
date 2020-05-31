@@ -18,7 +18,6 @@
 // FIXME: better move this file to include/utilities (following cuDF) and rename to error.hpp
 #include <utilities/error_utils.h>
 
-#include <utilities/traits.hpp>
 #include <graph.hpp>
 
 #include <rmm/rmm.h>
@@ -39,14 +38,14 @@ class graph_compressed_sparse_base_device_view_t;
 // Common for both OPG and single-GPU versions
 template<typename GraphType>
 class graph_compressed_sparse_base_device_view_t<
-  GraphType, std::enable_if_t<is_csr<GraphType>::value || is_csc<GraphType>::value>
+  GraphType, std::enable_if_t<GraphType::is_row_major || GraphType::is_column_major>
 > {
  public:
   using vertex_type = typename GraphType::vertex_type;
   using edge_type = typename GraphType::edge_type;
   using weight_type = typename GraphType::weight_type;
-  static constexpr bool is_csr_type = is_csr<GraphType>::value;
-  static constexpr bool is_csc_type = is_csc<GraphType>::value;
+  static constexpr bool is_row_major = GraphType::is_row_major;
+  static constexpr bool is_column_major = GraphType::is_row_major;
 
   graph_compressed_sparse_base_device_view_t() = delete;
   ~graph_compressed_sparse_base_device_view_t() = default;
@@ -107,14 +106,16 @@ class graph_compressed_sparse_device_view_t;
 template<typename GraphType>
 class graph_compressed_sparse_device_view_t<
   GraphType,
-  std::enable_if_t<GraphType::is_opg && (is_csr<GraphType>::value || is_csc<GraphType>::value)>
+  std::enable_if_t<
+    GraphType::is_opg && (GraphType::is_row_major || GraphType::is_column_major)
+  >
 > : public graph_compressed_sparse_base_device_view_t<GraphType> {
  public:
   using vertex_type = typename GraphType::vertex_type;
   using edge_type = typename GraphType::edge_type;
   using weight_type = typename GraphType::weight_type;
-  static constexpr bool is_csr_type = is_csr<GraphType>::value;
-  static constexpr bool is_csc_type = is_csc<GraphType>::value;
+  static constexpr bool is_row_major = GraphType::is_row_major;
+  static constexpr bool is_column_major = GraphType::is_row_major;
 
   graph_compressed_sparse_device_view_t() = delete;
   ~graph_compressed_sparse_device_view_t() = default;
@@ -146,9 +147,9 @@ class graph_compressed_sparse_device_view_t<
     // purpose.
     // See E. Boman, K. Devine, and S. Rajamanickam, "Scalable matrix computation on large
     // scale-free graphs using 2D graph partitioning," 2013.
-    auto num_this_partition_adj_matrix_row_ranges = 1;
+    auto num_this_partition_adj_matrix_segments = 1;
     rmm::device_buffer* buffer_ptr =
-      new rmm::device_buffer(num_this_partition_adj_matrix_row_ranges * sizeof(vertex_type) * 2);
+      new rmm::device_buffer(num_this_partition_adj_matrix_segments * sizeof(vertex_type) * 2);
     auto deleter =
       [buffer_ptr] (graph_compressed_sparse_device_view_t* graph_device_view) {
         graph_device_view->destroy();
@@ -162,23 +163,25 @@ class graph_compressed_sparse_device_view_t<
   }
 
 private:
-  vertex_type const* this_partition_adj_matrix_row_firsts_ptr_{nullptr};
-  vertex_type const* this_partition_adj_matrix_row_lasts_ptr_{nullptr};
-  size_t num_this_partition_adj_matrix_row_ranges_{0};
+  vertex_type const* this_partition_adj_matrix_segment_firsts_ptr_{nullptr};
+  vertex_type const* this_partition_adj_matrix_segment_lasts_ptr_{nullptr};
+  size_t num_this_partition_adj_matrix_offset_ranges_{0};
 };
 
 // single GPU version
 template<typename GraphType>
 class graph_compressed_sparse_device_view_t<
   GraphType,
-  std::enable_if_t<!GraphType::is_opg && (is_csr<GraphType>::value || is_csc<GraphType>::value)>
+  std::enable_if_t<
+    !GraphType::is_opg && (GraphType::is_row_major || GraphType::is_column_major)
+  >
 > : public graph_compressed_sparse_base_device_view_t<GraphType> {
 public:
   using vertex_type = typename GraphType::vertex_type;
   using edge_type = typename GraphType::edge_type;
   using weight_type = typename GraphType::weight_type;
-  static constexpr bool is_csr_type = is_csr<GraphType>::value;
-  static constexpr bool is_csc_type = is_csc<GraphType>::value;
+  static constexpr bool is_row_major = GraphType::is_row_major;
+  static constexpr bool is_column_major = GraphType::is_row_major;
 
   graph_compressed_sparse_device_view_t() = delete;
   ~graph_compressed_sparse_device_view_t() = default;
@@ -278,6 +281,7 @@ public:
   auto this_partition_vertex_end() const {
     return thrust::make_counting_iterator(this->number_of_vertices_);
   }
+
   auto this_partition_adj_matrix_row_begin() const {
     return thrust::make_counting_iterator(static_cast<vertex_type>(0));
   }

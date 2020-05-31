@@ -17,12 +17,11 @@
 
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/adj_matrix_row_frontier.cuh>
-#include <detail/patterns/expand_and_transform_if_e.cuh>
+#include <detail/patterns/expand_row_and_transform_if_e.cuh>
 #include <detail/patterns/reduce_op.cuh>
 #include <detail/patterns/transform_reduce_e.cuh>
 #include <detail/utilities/cuda.cuh>
 #include <graph.hpp>
-#include <utilities/traits.hpp>
 
 #include <rmm/rmm.h>
 
@@ -58,7 +57,7 @@ void sssp_this_partition(
   static_assert(
     std::is_same<typename std::iterator_traits<WeightIterator>::value_type, weight_t>::value,
     "GraphType::weight_type and WeightIterator mismatch.");
-  static_assert(is_csr<GraphType>::value, "GraphType should be CSR.");
+  static_assert(GraphType::is_row_major, "GraphType should be CSR.");
   
   auto p_graph_device_view =
     graph_compressed_sparse_device_view_t<GraphType>::create(csr_graph);
@@ -92,7 +91,7 @@ void sssp_this_partition(
     transform_reduce_e(
       handle, graph_device_view,
       thrust::make_constant_iterator(0)/* dummy */, thrust::make_constant_iterator(0)/* dummy */,
-      [] __device__ (auto src_val, auto dst_val, weight_t w) {
+      [] __device__ (auto row_val, auto col_val, weight_t w) {
         return thrust::make_tuple(static_cast<weight_t>(1.0), w);
       },
       thrust::make_tuple(static_cast<weight_t>(0.0), static_cast<weight_t>(0.0)));
@@ -170,7 +169,7 @@ void sssp_this_partition(
       };
 
     if (adj_matrix_row_distances.size() > 0) {
-      expand_and_transform_if_v_push_if_e(
+      expand_row_and_transform_if_v_push_if_e(
         handle, graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
@@ -186,25 +185,25 @@ void sssp_this_partition(
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
         [graph_device_view, distance_first] __device__ (
-            auto src_val, auto dst_val, weight_t w) {
+            auto row_val, auto col_val, weight_t w) {
           auto push = true;
-          auto new_distance = thrust::get<0>(src_val) + w;
+          auto new_distance = thrust::get<0>(row_val) + w;
           bool local =
-            graph_device_view.in_this_partition_vertex_range_nocheck(thrust::get<1>(src_val));
+            graph_device_view.in_this_partition_vertex_range_nocheck(thrust::get<1>(row_val));
           if (local) {
             auto this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(dst_val);
+              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
             auto old_distance = *(distance_first + this_partition_vertex_offset);
             if (new_distance >= old_distance) {
               push = false;
             }
           }
-          return thrust::make_tuple(push, new_distance, thrust::get<1>(src_val));
+          return thrust::make_tuple(push, new_distance, thrust::get<1>(row_val));
         },
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(), v_op);
     }
     else {
-      expand_and_transform_if_v_push_if_e(
+      expand_row_and_transform_if_v_push_if_e(
         handle, graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
@@ -215,21 +214,21 @@ void sssp_this_partition(
         thrust::make_discard_iterator(), thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
         [graph_device_view, distance_first] __device__ (
-            auto src_val, auto dst_val, weight_t w) {
+            auto row_val, auto col_val, weight_t w) {
           auto push = true;
           bool local =
-            graph_device_view.in_this_partition_vertex_range_nocheck(src_val);
+            graph_device_view.in_this_partition_vertex_range_nocheck(row_val);
           if (local) {
-            auto src_this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(src_val);
-            auto dst_this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(dst_val);
-            auto old_distance = *(distance_first + dst_this_partition_vertex_offset);
-            auto new_distance = *(distance_first + src_this_partition_vertex_offset) + w;
+            auto row_this_partition_vertex_offset =
+              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(row_val);
+            auto col_this_partition_vertex_offset =
+              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
+            auto old_distance = *(distance_first + col_this_partition_vertex_offset);
+            auto new_distance = *(distance_first + row_this_partition_vertex_offset) + w;
             if (new_distance >= old_distance) {
               push = false;
             }
-            return thrust::make_tuple(push, new_distance, src_val);
+            return thrust::make_tuple(push, new_distance, row_val);
           }
           else {
             assert(0);

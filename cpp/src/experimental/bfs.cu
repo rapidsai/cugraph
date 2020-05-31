@@ -19,10 +19,9 @@
 // FIXME: think about moving pattern accelerator API related files to detail/patterns
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/adj_matrix_row_frontier.cuh>
-#include <detail/patterns/expand_and_transform_if_e.cuh>
+#include <detail/patterns/expand_row_and_transform_if_e.cuh>
 #include <detail/patterns/reduce_op.cuh>
 #include <graph.hpp>
-#include <utilities/traits.hpp>
 
 #include <rmm/rmm.h>
 
@@ -57,7 +56,7 @@ void bfs_this_partition(
   static_assert(
     std::is_same<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>::value,
     "GraphType::vertex_type and VertexIterator mismatch.");
-  static_assert(is_csr<GraphType>::value, "GraphType should be CSR.");
+  static_assert(GraphType::is_row_major, "GraphType should be CSR.");
 
   auto p_graph_device_view =
     graph_compressed_sparse_device_view_t<GraphType>::create(csr_graph);
@@ -130,7 +129,7 @@ void bfs_this_partition(
     else {
       auto cur_adj_matrix_row_frontier_last =
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
-      expand_and_transform_if_v_push_if_e(
+      expand_row_and_transform_if_v_push_if_e(
         handle, graph_device_view,
         cur_adj_matrix_row_frontier_first, cur_adj_matrix_row_frontier_last,
         graph_device_view.this_partition_adj_matrix_row_begin(),
@@ -139,19 +138,19 @@ void bfs_this_partition(
         thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first)),
         thrust::make_discard_iterator(), thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
-        [graph_device_view, distance_first] __device__ (auto src_val, auto dst_val) {
+        [graph_device_view, distance_first] __device__ (auto row_val, auto col_val) {
           uint32_t push = true;
-          bool local = graph_device_view.in_this_partition_vertex_range_nocheck(src_val);
+          bool local = graph_device_view.in_this_partition_vertex_range_nocheck(row_val);
           if (local) {
             auto this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(dst_val);
+              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
             auto distance = *(distance_first + this_partition_vertex_offset);
             if (distance != invalid_distance) {
               push = false;
             }
           }
           // FIXME: need to test this works properly if payload size is 0 (returns a tuple of size 1)
-          return thrust::make_tuple(push, src_val);
+          return thrust::make_tuple(push, row_val);
         },
         reduce_op::any<thrust::tuple<vertex_t>>(),
         [depth] __device__ (auto v_val, auto pushed_val) {

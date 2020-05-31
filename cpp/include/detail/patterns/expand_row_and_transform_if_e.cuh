@@ -61,7 +61,7 @@ void for_all_frontier_row_for_all_nbr_col_low_out_degree(
     EdgeOp e_op) {
   using weight_t = typename GraphType::weight_type;
 
-  static_assert(GraphType::is_csr_type);
+  static_assert(GraphType::is_row_major);
 
   auto num_rows = static_cast<size_t>(thrust::distance(row_first, row_last));
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -258,7 +258,7 @@ template <typename HandleType, typename GraphType,
           typename AdjMatrixRowValueOutputIterator, typename AdjMatrixColValueOutputIterator,
           typename RowFrontierType,
           typename EdgeOp, typename ReduceOp, typename VertexOp>
-void expand_and_transform_if_v_push_if_e(
+void expand_row_and_transform_if_v_push_if_e(
     HandleType handle, GraphType graph_device_view,
     RowIterator row_first, RowIterator row_last,
     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -269,7 +269,7 @@ void expand_and_transform_if_v_push_if_e(
     AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
     RowFrontierType row_frontier,
     EdgeOp e_op, ReduceOp reduce_op, VertexOp v_op) {
-  static_assert(GraphType::is_csr_type);
+  static_assert(GraphType::is_row_major);
 
   using vertex_t = typename GraphType::vertex_type;
   using reduce_op_input_t = typename ReduceOp::type;

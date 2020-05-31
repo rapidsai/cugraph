@@ -54,7 +54,7 @@ template <typename GraphType,
           typename AdjMatrixColValueInputIterator>
 struct evaluate_edge_op<
   GraphType, EdgeOp, AdjMatrixRowValueInputIterator, AdjMatrixColValueInputIterator,
-  typename std::enable_if_t<GraphType::is_csr_type>
+  typename std::enable_if_t<GraphType::is_row_major || GraphType::is_column_major>
 > {
   using row_value_type =
     typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
@@ -82,43 +82,6 @@ struct evaluate_edge_op<
   >
   compute(R r, C c, W w, E e) {
     return e(r, c);
-  }
-};
-
-template <typename GraphType,
-          typename EdgeOp,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator>
-struct evaluate_edge_op<
-  GraphType, EdgeOp, AdjMatrixRowValueInputIterator, AdjMatrixColValueInputIterator,
-  typename std::enable_if_t<GraphType::is_csc_type>
-> {
-  using row_value_type =
-    typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
-  using col_value_type =
-    typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
-  using weight_type = typename GraphType::weight_type;
-
-  template <typename E = EdgeOp, typename R = row_value_type, typename C = col_value_type,
-            typename W = weight_type>
-  __device__
-  std::enable_if_t<
-    is_valid_edge_op<typename std::result_of<E(C, R, W)>>::valid,
-    typename std::result_of<E(C, R, W)>::type
-  >
-  compute(R r, C c, W w, E e) {
-    return e(c, r, w);
-  }
-
-  template <typename E = EdgeOp, typename R = row_value_type, typename C = col_value_type,
-            typename W = weight_type>
-  __device__
-  std::enable_if_t<
-    is_valid_edge_op<typename std::result_of<E(C, R)>>::valid,
-    typename std::result_of<E(C, R)>::type
-  >
-  compute(R r, C c, W w, E e) {
-    return e(c, r);
   }
 };
 
