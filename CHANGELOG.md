@@ -48,6 +48,7 @@
 - PR #893 Add external_repositories dir and raft symlink to .gitignore
 - PR #897 Remove RMM ALLOC calls
 - PR #899 Update include paths to remove deleted cudf headers
+- PR #903 Add short commit hash to conda package
 - PR #906 Update Louvain notebook
 
 ## Bug Fixes
