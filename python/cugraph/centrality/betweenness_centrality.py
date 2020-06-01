@@ -103,10 +103,6 @@ def betweenness_centrality(G, k=None, normalized=True,
 
     vertices, k = _initialize_vertices(G, k, seed)
 
-    if endpoints is True:
-        raise NotImplementedError("endpoints accumulation for betweenness "
-                                  "centrality not currently supported")
-
     if weight is not None:
         raise NotImplementedError("weighted implementation of betweenness "
                                   "centrality not currently supported")

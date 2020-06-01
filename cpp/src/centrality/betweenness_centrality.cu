@@ -381,7 +381,6 @@ void verify_input(result_t *result,
     CUGRAPH_EXPECTS(sources != nullptr,
                     "sources cannot be null if number_of_source is different from 0.");
   }
-  if (endpoints) { CUGRAPH_FAIL("Endpoints option is currently not supported."); }
 }
 /**
  * ---------------------------------------------------------------------------*
