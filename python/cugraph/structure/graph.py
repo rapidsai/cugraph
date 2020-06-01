@@ -358,8 +358,13 @@ class Graph:
             number.
         """
         if self.adjlist is None:
-            offsets, indices, weights = graph_new_wrapper.view_adj_list(self)
-            self.adjlist = self.AdjList(offsets, indices, weights)
+            if self.transposedadjlist is not None and type(self) is Graph:
+                off, ind, vals = (self.transposedadjlist.offsets,
+                                  self.transposedadjlist.indices,
+                                  self.transposedadjlist.weights)
+            else:
+                off, ind, vals = graph_new_wrapper.view_adj_list(self)
+            self.adjlist = self.AdjList(off, ind, vals)
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
     def view_transposed_adj_list(self):
@@ -388,9 +393,13 @@ class Graph:
 
         """
         if self.transposedadjlist is None:
-            off, ind, vals = graph_new_wrapper.view_transposed_adj_list(self)
+            if self.adjlist is not None and type(self) is Graph:
+                off, ind, vals = (self.adjlist.offsets, self.adjlist.indices,
+                                  self.adjlist.weights)
+            else:
+                off, ind, vals = graph_new_wrapper.\
+                                 view_transposed_adj_list(self)
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
-
         return (self.transposedadjlist.offsets,
                 self.transposedadjlist.indices,
                 self.transposedadjlist.weights)
@@ -463,11 +472,13 @@ class Graph:
         """
         return self.number_of_vertices()
 
-    def number_of_edges(self):
+    def number_of_edges(self, directed_edges=False):
         """
         Get the number of edges in the graph.
 
         """
+        if directed_edges and self.edgelist is not None:
+            return len(self.edgelist.edgelist_df)
         if self.edge_count is None:
             if self.edgelist is not None:
                 if type(self) is Graph:

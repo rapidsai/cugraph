@@ -54,7 +54,7 @@ def weakly_connected_components(input_graph):
                                                              [np.int32])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     df = cudf.DataFrame()
     df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -90,7 +90,7 @@ def strongly_connected_components(input_graph):
     [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     df = cudf.DataFrame()
     df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
