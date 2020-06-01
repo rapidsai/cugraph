@@ -1,13 +1,3 @@
-# cuGraph 0.15.0 (Date TBD)
-
-## New Features
-
-## Improvements
-- PR #903 Add short commit hash to conda package
-
-## Bug Fixes
-- PR #919 Pagerank fix
-
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
@@ -76,7 +66,8 @@
 - PR #889 Added missing conftest.py file to benchmarks dir
 - PR #896 opg dask infrastructure fixes
 - PR #907 Fix bfs directed missing vertices
-- PR #911 Env and changelog update 
+- PR #911 Env and changelog update
+- PR #919 Pagerank fix
 
 # cuGraph 0.13.0 (31 Mar 2020)
 
