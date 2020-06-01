@@ -195,9 +195,7 @@ __global__ void endpoints_accumulation_kernel(result_t *betweenness,
           dsw += sw * factor;
         }
       }
-      // TODO(xcadet) Look into non atomic operations possibilities
-      atomicAdd(&betweenness[w], 1);
-      atomicAdd(&betweenness[source], 1);
+      betweenness[w] += 1;
       deltas[w] = dsw;
     }
   }
@@ -232,6 +230,20 @@ void BC<VT, ET, WT, result_t>::accumulate_endpoints(result_t *betweenness,
                                    source,
                                    depth);
   }
+  // FIXME: This might a lot for a single addition, but this avoids
+  //        multiple atomicAdd calls in the accumulation kernel
+  int number_of_unvisited_vertices = thrust::count(
+    rmm::exec_policy(stream)->on(stream), distances, distances + number_of_vertices, -1);
+  VT number_of_visited_vertices_except_source =
+    number_of_vertices - number_of_unvisited_vertices - 1;
+  rmm::device_vector<VT> buffer(1);
+  buffer[0] = {number_of_visited_vertices_except_source};
+  thrust::transform(rmm::exec_policy(stream)->on(stream),
+                    buffer.begin(),
+                    buffer.end(),
+                    betweenness + source,
+                    betweenness + source,
+                    thrust::plus<result_t>());
 
   thrust::transform(rmm::exec_policy(stream)->on(stream),
                     deltas,
@@ -332,7 +344,7 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
   auto current_max_depth = thrust::max_element(
     rmm::exec_policy(stream)->on(stream), distances, distances + number_of_vertices);
   VT max_depth = 0;
-  cudaMemcpy(&max_depth, current_max_depth, sizeof(VT), cudaMemcpyDeviceToHost);
+  CUDA_TRY(cudaMemcpy(&max_depth, current_max_depth, sizeof(VT), cudaMemcpyDeviceToHost));
   // Step 2) Dependency accumulation
   if (is_edge_betweenness) {
     accumulate_edges(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
