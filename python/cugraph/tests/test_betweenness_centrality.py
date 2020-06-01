@@ -324,7 +324,7 @@ def test_betweenness_centrality_normalized_subset_small(graph_file,
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.parametrize('graph_file', UNRENUMBERED_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.UNRENUMBERED_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)

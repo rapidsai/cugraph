@@ -88,8 +88,8 @@ def test_louvain_with_edgevals(graph_file):
     assert abs(cu_mod - cu_mod_nx) < .0001
 
 
-# Test all combinations
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_louvain(graph_file):
     gc.collect()
 
@@ -105,11 +105,9 @@ def test_louvain(graph_file):
     for i in range(len(cu_parts)):
         cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
     assert set(nx_parts.keys()) == set(cu_map.keys())
-    # cu_mod_nx = community.modularity(cu_map, Gnx)
-    nx_mod = community.modularity(nx_parts, Gnx)
 
+    cu_mod_nx = community.modularity(cu_map, Gnx)
+    nx_mod = community.modularity(nx_parts, Gnx)
     assert len(cu_parts) == len(nx_parts)
     assert cu_mod > (.82 * nx_mod)
-
-    # FIXME: improve accuracy
-    # assert abs(cu_mod - cu_mod_nx) < .0001
+    assert abs(cu_mod - cu_mod_nx) < .0001
