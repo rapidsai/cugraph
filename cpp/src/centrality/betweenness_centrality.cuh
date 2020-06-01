@@ -104,6 +104,13 @@ class BC {
                         VT source,
                         VT max_depth);
 
+  void accumulate_endpoints(result_t *betweenness,
+                            VT *distances,
+                            double *sp_counters,
+                            double *deltas,
+                            VT source,
+                            VT max_depth);
+
   void compute_single_source(VT source_vertex);
 
   void initialize_work_sizes();
@@ -111,7 +118,9 @@ class BC {
   void initialize_device_information();
 
   void rescale();
-  void rescale_vertices_betweenness_centrality(result_t &rescale_factor, bool &modified);
+  void rescale_vertices_betweenness_centrality(result_t &rescale_factor,
+                                               bool endpoints,
+                                               bool &modified);
   void rescale_edges_betweenness_centrality(result_t &rescale_factor, bool &modified);
 };
 }  // namespace detail

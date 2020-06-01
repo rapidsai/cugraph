@@ -168,6 +168,78 @@ void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness,
                     betweenness,
                     thrust::plus<result_t>());
 }
+template <typename VT, typename ET, typename WT, typename result_t>
+__global__ void endpoints_accumulation_kernel(result_t *betweenness,
+                                              VT number_vertices,
+                                              VT const *indices,
+                                              ET const *offsets,
+                                              VT *distances,
+                                              double *sp_counters,
+                                              double *deltas,
+                                              VT source,
+                                              VT depth)
+{
+  for (int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < number_vertices;
+       tid += gridDim.x * blockDim.x) {
+    VT w       = tid;
+    double dsw = 0;
+    double sw  = sp_counters[w];
+    if (distances[w] == depth) {  // Process nodes at this depth
+      ET edge_start = offsets[w];
+      ET edge_end   = offsets[w + 1];
+      ET edge_count = edge_end - edge_start;
+      for (ET edge_idx = 0; edge_idx < edge_count; ++edge_idx) {  // Visit neighbors
+        VT v = indices[edge_start + edge_idx];
+        if (distances[v] == distances[w] + 1) {
+          double factor = (static_cast<double>(1) + deltas[v]) / sp_counters[v];
+          dsw += sw * factor;
+        }
+      }
+      // TODO(xcadet) Look into non atomic operations possibilities
+      atomicAdd(&betweenness[w], 1);
+      atomicAdd(&betweenness[source], 1);
+      deltas[w] = dsw;
+    }
+  }
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::accumulate_endpoints(result_t *betweenness,
+                                                    VT *distances,
+                                                    double *sp_counters,
+                                                    double *deltas,
+                                                    VT source,
+                                                    VT max_depth)
+{
+  dim3 grid, block;
+  block.x = max_block_dim_1D;
+  grid.x  = min(max_grid_dim_1D, (number_of_edges / block.x + 1));
+  // Step 1) Dependencies (deltas) are initialized to 0 before starting
+  thrust::fill(rmm::exec_policy(stream)->on(stream),
+               deltas,
+               deltas + number_of_vertices,
+               static_cast<result_t>(0));
+  // Step 2) Process each node, -1 is used to notify unreached nodes in the sssp
+  for (VT depth = max_depth; depth > 0; --depth) {
+    endpoints_accumulation_kernel<VT, ET, WT, result_t>
+      <<<grid, block, 0, stream>>>(betweenness,
+                                   number_of_vertices,
+                                   graph.indices,
+                                   graph.offsets,
+                                   distances,
+                                   sp_counters,
+                                   deltas,
+                                   source,
+                                   depth);
+  }
+
+  thrust::transform(rmm::exec_policy(stream)->on(stream),
+                    deltas,
+                    deltas + number_of_vertices,
+                    betweenness,
+                    betweenness,
+                    thrust::plus<result_t>());
+}
 
 // FIXME: Load is balanced over vertices, should use forAllEdges primitive
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -263,10 +335,13 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
   cudaMemcpy(&max_depth, current_max_depth, sizeof(VT), cudaMemcpyDeviceToHost);
   // Step 2) Dependency accumulation
   if (is_edge_betweenness) {
-    printf("[DBG] EDGE_ACCUMULATION\n");
     accumulate_edges(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
   } else {
-    accumulate(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
+    if (endpoints) {
+      accumulate_endpoints(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
+    } else {
+      accumulate(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
+    }
   }
 }
 
@@ -312,7 +387,7 @@ void BC<VT, ET, WT, result_t>::rescale()
     if (is_edge_betweenness) {
       rescale_edges_betweenness_centrality(rescale_factor, modified);
     } else {
-      rescale_vertices_betweenness_centrality(rescale_factor, modified);
+      rescale_vertices_betweenness_centrality(rescale_factor, endpoints, modified);
     }
   } else {
     if (!graph.prop.directed) {
@@ -336,11 +411,16 @@ void BC<VT, ET, WT, result_t>::rescale()
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::rescale_vertices_betweenness_centrality(result_t &rescale_factor,
+                                                                       bool endpoints,
                                                                        bool &modified)
 {
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
   if (number_of_vertices > 2) {
-    rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
+    if (endpoints) {
+      rescale_factor /= (casted_number_of_vertices * (casted_number_of_vertices - 1));
+    } else {
+      rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
+    }
     modified = true;
   }
 }
@@ -479,7 +559,6 @@ void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &g
                                  VT k,
                                  VT const *vertices)
 {
-  printf("[DBG] ENTERING EDGE_BC\n");
   detail::edge_betweenness_centrality(graph, result, normalize, weight, k, vertices);
 }
 
