@@ -35,17 +35,13 @@ def golden_call(graph_file):
         return 0.9279554486274719
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
 MIN_WEIGHTS = [.05, .10, .15]
 
 ENSEMBLE_SIZES = [16, 32]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 @pytest.mark.parametrize('min_weight', MIN_WEIGHTS)
 @pytest.mark.parametrize('ensemble_size', ENSEMBLE_SIZES)
 def test_ecg_clustering(graph_file,

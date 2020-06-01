@@ -37,13 +37,6 @@ with warnings.catch_warnings():
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
-
-TINY_DATASETS = ['../datasets/karate.csv']
-
-UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
-
-SMALL_DATASETS = ['../datasets/netscience.csv']
-
 SUBSET_SIZE_OPTIONS = [4]
 SUBSET_SEED_OPTIONS = [42]
 
@@ -246,7 +239,7 @@ def prepare_test():
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.TINY_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 def test_betweenness_centrality_normalized_tiny(graph_file,
@@ -260,7 +253,7 @@ def test_betweenness_centrality_normalized_tiny(graph_file,
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.TINY_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 def test_betweenness_centrality_unnormalized_tiny(graph_file,
@@ -274,7 +267,7 @@ def test_betweenness_centrality_unnormalized_tiny(graph_file,
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('graph_file', SMALL_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 def test_betweenness_centrality_normalized_small(graph_file,
@@ -288,7 +281,7 @@ def test_betweenness_centrality_normalized_small(graph_file,
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('graph_file', SMALL_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 def test_betweenness_centrality_unnormalized_small(graph_file,
@@ -302,7 +295,7 @@ def test_betweenness_centrality_unnormalized_small(graph_file,
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('graph_file', SMALL_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
@@ -330,7 +323,7 @@ def test_betweenness_centrality_normalized_subset_small(graph_file,
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.parametrize('graph_file', UNRENUMBERED_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.UNRENUMBERED_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
@@ -352,7 +345,7 @@ def test_betweenness_centrality_normalized_fixed_sample(graph_file,
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('graph_file', SMALL_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
@@ -376,7 +369,7 @@ def test_betweenness_centrality_unnormalized_subset_small(graph_file,
     compare_scores(cu_bc, nx_bc)
 
 
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 def test_betweenness_centrality_unnormalized_endpoints_except(graph_file,
@@ -392,7 +385,7 @@ def test_betweenness_centrality_unnormalized_endpoints_except(graph_file,
                                                    result_dtype=result_dtype)
 
 
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 def test_betweenness_centrality_normalized_endpoints_except(graph_file,
@@ -408,7 +401,7 @@ def test_betweenness_centrality_normalized_endpoints_except(graph_file,
                                                    result_dtype=result_dtype)
 
 
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 def test_betweenness_centrality_unnormalized_weight_except(graph_file,
@@ -424,7 +417,7 @@ def test_betweenness_centrality_unnormalized_weight_except(graph_file,
                                                    result_dtype=result_dtype)
 
 
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 def test_betweenness_centrality_normalized_weight_except(graph_file,
@@ -440,7 +433,7 @@ def test_betweenness_centrality_normalized_weight_except(graph_file,
                                                    result_dtype=result_dtype)
 
 
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 def test_betweenness_centrality_invalid_dtype(graph_file, directed):
     """Test calls betwenness_centrality normalized + weight"""
