@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #898 Add Edge Betweenness Centrality, and endpoints to BC
 - PR #903 Add short commit hash to conda package
 
 ## Bug Fixes
