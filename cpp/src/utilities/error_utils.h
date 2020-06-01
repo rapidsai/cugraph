@@ -23,8 +23,6 @@
 
 #include <rmm/rmm.h>
 
-#include "nvgraph_error_utils.h"
-
 namespace cugraph {
 /**---------------------------------------------------------------------------*
  * @brief Exception thrown when logical precondition is violated.

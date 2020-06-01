@@ -224,11 +224,11 @@ TEST_P(Tests_Force_Atlas2, CheckFP64_T) { run_current_test<double>(GetParam()); 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Force_Atlas2,
-                        ::testing::Values(Force_Atlas2_Usecase("test/datasets/karate.mtx", 0.74),
-                                          Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0.70),
-                                          Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0.77),
+                        ::testing::Values(Force_Atlas2_Usecase("test/datasets/karate.mtx", 0.73),
+                                          Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0.69),
+                                          Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0.76),
                                           Force_Atlas2_Usecase("test/datasets/netscience.mtx",
-                                                               0.81)));
+                                                               0.80)));
 
 int main(int argc, char** argv)
 {

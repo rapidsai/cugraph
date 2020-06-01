@@ -316,8 +316,9 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
+    src/community/louvain.cpp
+    src/community/louvain_kernels.cu
     src/community/ktruss.cu
-    src/community/louvain.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu

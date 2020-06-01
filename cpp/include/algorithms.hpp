@@ -187,11 +187,6 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
                   VT const *second,
                   WT *result);
 
-enum class cugraph_bc_implem_t {
-  CUGRAPH_DEFAULT = 0,  ///> Native cugraph implementation
-  CUGRAPH_GUNROCK       ///> Gunrock implementation
-};
-
 /**
  *
  * @brief                                       ForceAtlas2 is a continuous graph layout algorithm
@@ -270,7 +265,7 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  * Betweenness centrality for a vertex is the sum of the fraction of
  * all pairs shortest paths that pass through the vertex.
  *
- * Note that both the native and the gunrock implementations do not support a weighted graph.
+ * The current implementation does not support a weighted graph.
  *
  * @throws                           cugraph::logic_error with a custom message when an error
  * occurs.
@@ -295,19 +290,16 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
  * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
  * shortest path counters.
- * @param[in] implem                 Cugraph currently supports 2 implementations: native and
- * gunrock
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
-                            bool normalized            = true,
-                            bool endpoints             = false,
-                            WT const *weight           = nullptr,
-                            VT k                       = 0,
-                            VT const *vertices         = nullptr,
-                            cugraph_bc_implem_t implem = cugraph_bc_implem_t::CUGRAPH_DEFAULT);
+                            bool normalized    = true,
+                            bool endpoints     = false,
+                            WT const *weight   = nullptr,
+                            VT k               = 0,
+                            VT const *vertices = nullptr);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
@@ -553,6 +545,62 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          const VT start_vertex,
          bool directed = true);
 
+/**
+ * @brief      Louvain implementation
+ *
+ * Compute a clustering of the graph by minimizing modularity
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[out] final_modularity      modularity of the returned clustering
+ * @param[out] num_level             number of levels of the returned clustering
+ * @param[out] clustering            Pointer to device array where the clustering should be stored
+ * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ */
+template <typename VT, typename ET, typename WT>
+void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
+             WT *final_modularity,
+             int *num_level,
+             VT *louvain_parts,
+             int max_iter = 100);
+
+/**
+ * @brief Computes the ecg clustering of the given graph.
+ *
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph_coo             input graph object (COO)
+ * @param[in]  graph_csr             input graph object (CSR)
+ * @param[in]  min_weight            The minimum weight parameter
+ * @param[in]  ensemble_size         The ensemble size parameter
+ * @param[out] ecg_parts             A device pointer to array where the partitioning should be
+ * written
+ */
+template <typename VT, typename ET, typename WT>
+void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
+         WT min_weight,
+         VT ensemble_size,
+         VT *ecg_parts);
+
 namespace nvgraph {
 
 /**
@@ -724,60 +772,6 @@ void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &g
                                  int n_clusters,
                                  VT const *clustering,
                                  WT *score);
-
-/**
- * @brief      Wrapper function for Nvgraph louvain implementation
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in]  graph                 input graph object (CSR)
- * @param[out] final_modularity      modularity of the returned clustering
- * @param[out] num_level             number of levels of the returned clustering
- * @param[out] clustering            Pointer to device array where the clustering should be stored
- * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
- */
-template <typename VT, typename ET, typename WT>
-void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
-             WT *final_modularity,
-             VT *num_level,
-             VT *louvain_parts,
-             int max_iter = 100);
-
-/**
- * @brief Computes the ecg clustering of the given graph.
- *
- * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
- * then uses the ensemble partitions to determine weights for the input graph.
- * The final result is found by running full Louvain on the input graph using
- * the determined weights. See https://arxiv.org/abs/1809.05578 for further
- * information.
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in]  graph_coo             input graph object (COO)
- * @param[in]  graph_csr             input graph object (CSR)
- * @param[in]  min_weight            The minimum weight parameter
- * @param[in]  ensemble_size         The ensemble size parameter
- * @param[out] ecg_parts             A device pointer to array where the partitioning should be
- * written
- */
-template <typename VT, typename ET, typename WT>
-void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
-         WT min_weight,
-         VT ensemble_size,
-         VT *ecg_parts);
 
 }  // namespace nvgraph
 }  // namespace cugraph

@@ -19,7 +19,7 @@
 from cugraph.structure.graph_new cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void ecg[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
