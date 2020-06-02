@@ -2,7 +2,7 @@
 
 [![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, user familiar with NetworkX will quickly reconnize the NetworkX-like API provided in cuGraph, with the goal being to allow existing code to be ported with minimal effort into RAPIDS.  For users familiar with C++/CUDA and graph structures, a C++ API is also provided.  However, there is less type and structure checking at the C++ layer.
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, user familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal being to allow existing code to be ported with minimal effort into RAPIDS.  For users familiar with C++/CUDA and graph structures, a C++ API is also provided.  However, there is less type and structure checking at the C++ layer.
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
@@ -17,7 +17,7 @@ import cugraph
 gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int32"] )
 
 # We now have data as edge pairs
-# create a Graph using the source (src) and destination (dst) vertex pairs the GDF  
+# create a Graph using the source (src) and destination (dst) vertex pairs the GDF
 G = cugraph.Graph()
 G.from_cudf_edgelist(gdf, source='src', destination='dst')
 
@@ -26,18 +26,19 @@ gdf_page = cugraph.pagerank(G)
 
 # Let's look at the PageRank Score (only do this on small graphs)
 for i in range(len(gdf_page)):
-	print("vertex " + str(gdf_page['vertex'][i]) + 
-		" PageRank is " + str(gdf_page['pagerank'][i]))  
+	print("vertex " + str(gdf_page['vertex'][i]) +
+		" PageRank is " + str(gdf_page['pagerank'][i]))
 ```
 
 
 ## Supported Algorithms
 
-| Category     | Algorithm                              | Sacle        |  Notes
+| Category     | Algorithm                              | Scale        |  Notes
 | ------------ | -------------------------------------- | ------------ | ------------------- |
 | Centrality   |                                        |              |                     |
 |              | Katz                                   | Single-GPU   |                     |
 |              | Betweenness Centrality                 | Single-GPU   |                     |
+|              | Edge Betweenness Centrality            | Single-GPU   |                     |
 | Community    |                                        |              |                     |
 |              | Louvain                                | Single-GPU   |                     |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
@@ -55,7 +56,7 @@ for i in range(len(gdf_page)):
 | Layout       |                                        |              |                     |
 |              | Force Atlas 2                          | Single-GPU   |                     |
 | Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Single-GPU   |  Multi-GPU on DGX avaible  |
+|              | Pagerank                               | Single-GPU   |  Multi-GPU on DGX available  |
 |              | Personal Pagerank                      | Single-GPU   |                     |
 | Link Prediction |                                     |              |                     |
 |              | Jacard Similarity                      | Single-GPU   |                     |
@@ -84,15 +85,15 @@ The current version of cuGraph has some limitations:
 
 cuGraph provides the renumber function to mitigate this problem. Input vertex IDs for the renumber function can be any type, can be non-contiguous, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
-cuGraph provides an auto-renumbering feature, enabled by default, during Graph creating.  Renumbered vertices are automaticaly un-renumbered.
+cuGraph provides an auto-renumbering feature, enabled by default, during Graph creating.  Renumbered vertices are automatically un-renumbered.
 
-cuGraph is constantly being updatred and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) if errors are encountered with newer versions
+cuGraph is constantly being updated and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) if errors are encountered with newer versions
 
 ## Graph Sizes and GPU Memory Size
-The amount of memory required is dependent on the graph structure and the analytics being executed.  As a simple rule of thumb, the amount of GPU memory should be about twice the size of the data size.  That gives overhead for the CSV reader and other transform functions.  There are ways around the rule but using smaller data chunks.  
+The amount of memory required is dependent on the graph structure and the analytics being executed.  As a simple rule of thumb, the amount of GPU memory should be about twice the size of the data size.  That gives overhead for the CSV reader and other transform functions.  There are ways around the rule but using smaller data chunks.
 
 
-|       Size        | Recomended GPU Memory |
+|       Size        | Recommended GPU Memory |
 |-------------------|-----------------------|
 | 500 million edges	|  32GB    |
 | 250 million edges |	16 GB  |
