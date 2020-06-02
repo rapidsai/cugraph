@@ -50,8 +50,8 @@ def betweenness_centrality(G, k=None, normalized=True,
         2 / ((n - 1) * (n - 2)) for Graphs (undirected), and
         1 / ((n - 1) * (n - 2)) for DiGraphs (directed graphs)
         where n is the number of nodes in G.
-        Normalization will ensure that the values in [0, 1],
-        this normalization scales fo the highest possible value where one
+        Normalization will ensure that values are in [0, 1],
+        this normalization scales for the highest possible value where one
         node is crossed by every single shortest path.
 
     weight : cudf.DataFrame, optional, default=None
@@ -147,12 +147,12 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
     normalized : bool, optional
         Default is True.
         If true, the betweenness values are normalized by
-        2 / ((n - 1) * (n - 2)) for Graphs (undirected), and
-        1 / ((n - 1) * (n - 2)) for DiGraphs (directed graphs)
+        2 / (n * (n - 1)) for Graphs (undirected), and
+        1 / (n * (n - 1)) for DiGraphs (directed graphs)
         where n is the number of nodes in G.
-        Normalization will ensure that the values in [0, 1],
+        Normalization will ensure that values are in [0, 1],
         this normalization scales fo the highest possible value where one
-        node is crossed by every single shortest path.
+        edge is crossed by every single shortest path.
 
     weight : cudf.DataFrame, optional, default=None
         Specifies the weights to be used for each edge.
@@ -174,15 +174,26 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
     Returns
     -------
     df : cudf.DataFrame
-        GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding betweenness centrality values.
-        Please note that the resulting the 'vertex' column might not be
+        GPU data frame containing three cudf.Series of size |E|: the vertex
+        identifiers of the sources, the vertex identifies of the destinations
+        and the corresponding betweenness centrality values.
+        Please note that the resulting the 'src', 'dst' column might not be
         in ascending order.
 
-        df['vertex'] : cudf.Series
-            Contains the vertex identifiers
+        df['src'] : cudf.Series
+            Contains the vertex identifiers of the source of each edge
+
+        df['dst'] : cudf.Series
+            Contains the vertex identifiers of the destination of each edge
+
         df['edge_betweenness_centrality'] : cudf.Series
-            Contains the betweenness centrality of vertices
+            Contains the betweenness centrality of edges
+
+        When using undirected graphs, 'src' and 'dst' only contains elements
+        such that 'src' < 'dst', which might differ from networkx and user's
+        input. Namely edge (1 -> 0) is transformed into (0 -> 1) but
+        contains the betweenness centrality of edge (1 -> 0).
+
 
     Examples
     --------

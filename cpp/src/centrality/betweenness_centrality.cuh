@@ -15,11 +15,38 @@
  */
 
 // Author: Xavier Cadet xcadet@nvidia.com
+
 #pragma once
 #include <rmm/thrust_rmm_allocator.h>
 
 namespace cugraph {
 namespace detail {
+template <typename VT, typename ET, typename WT, typename result_t>
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                            result_t *result,
+                            bool normalize,
+                            bool endpoints,
+                            WT const *weight,
+                            VT const number_of_sources,
+                            VT const *sources);
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                 result_t *result,
+                                 bool normalize,
+                                 WT const *weight,
+                                 VT const number_of_sources,
+                                 VT const *sources);
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void verify_betweenness_centrality_input(result_t *result,
+                                         bool is_edge_betweenness,
+                                         bool normalize,
+                                         bool endpoints,
+                                         WT const *weights,
+                                         VT const number_of_sources,
+                                         VT const *sources);
+
 template <typename VT, typename ET, typename WT, typename result_t>
 class BC {
  public:
@@ -36,14 +63,13 @@ class BC {
                  WT const *weigth,
                  VT const *sources,
                  VT const number_of_sources);
-  // TODO(xcadet) This should probably be merged in a single function
+
   void configure_edge(result_t *betweenness,
                       bool normalize,
                       WT const *weigth,
                       VT const *sources,
                       VT const number_of_sources);
   void compute();
-  // void compute_edge();
 
  private:
   // --- Information concerning the graph ---
@@ -87,41 +113,31 @@ class BC {
   int max_block_dim_1D = 0;
   cudaStream_t stream;
 
-  // -----------------------------------------------------------------------
-  void setup();  // Saves information related to the graph itself
+  void setup();
 
-  void accumulate(result_t *betweenness,
-                  VT *distances,
-                  double *sp_counters,
-                  double *deltas,
-                  VT source,
-                  VT max_depth);
-
-  void accumulate_edges(result_t *betweenness,
-                        VT *distances,
-                        double *sp_counters,
-                        double *deltas,
-                        VT source,
-                        VT max_depth);
-
-  void accumulate_endpoints(result_t *betweenness,
-                            VT *distances,
-                            double *sp_counters,
-                            double *deltas,
-                            VT source,
-                            VT max_depth);
+  void initialize_work_vectors();
+  void initialize_pointers_to_vectors();
+  void initialize_device_information();
 
   void compute_single_source(VT source_vertex);
 
-  void initialize_work_sizes();
-  void initialize_pointers_to_vectors();
-  void initialize_device_information();
+  void accumulate(VT source_vertex, VT max_depth);
+  void initialize_dependencies();
+  void accumulate_edges(VT max_depth, dim3 grid_configuration, dim3 block_configuration);
+  void accumulate_vertices_with_endpoints(VT source_vertex,
+                                          VT max_depth,
+                                          dim3 grid_configuration,
+                                          dim3 block_configuration);
+  void accumulate_vertices(VT max_depth, dim3 grid_configuration, dim3 block_configuration);
+  void add_reached_endpoints_to_source_betweenness(VT source_vertex);
+  void add_vertices_dependencies_to_betweenness();
 
   void rescale();
   void rescale_vertices_betweenness_centrality(result_t &rescale_factor,
                                                bool endpoints,
                                                bool &modified);
   void rescale_edges_betweenness_centrality(result_t &rescale_factor, bool &modified);
+  void apply_rescale_factor_to_betweenness(result_t scaling_factor);
 };
 }  // namespace detail
 }  // namespace cugraph

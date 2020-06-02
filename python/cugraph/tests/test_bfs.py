@@ -104,18 +104,18 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
     elif isinstance(seed, list):  # For other Verifications
         for start_vertex in seed:
             compare_func = _compare_bfs_spc if return_sp_counter else \
-                           _compare_bfs
+                _compare_bfs
             compare_func(G, Gnx, start_vertex)
     elif seed is None:  # Same here, it is only to run full checks
         for start_vertex in Gnx:
             compare_func = _compare_bfs_spc if return_sp_counter else \
-                           _compare_bfs
+                _compare_bfs
             compare_func(G, Gnx, start_vertex)
     else:  # Unknown type given to seed
         raise NotImplementedError("Invalid type for seed")
 
 
-def _compare_bfs(G,  Gnx, source):
+def _compare_bfs(G, Gnx, source):
     df = cugraph.bfs(G, source, return_sp_counter=False)
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor'
@@ -133,9 +133,9 @@ def _compare_bfs(G,  Gnx, source):
                            df['predecessor'].to_array())}
 
     nx_distances = nx.single_source_shortest_path_length(Gnx, source)
-    # TODO: The following only verifies vertices that were reached
+    # FIXME: The following only verifies vertices that were reached
     #       by cugraph's BFS.
-    # We assume that the distances are ginven back as integers in BFS
+    # We assume that the distances are given back as integers in BFS
     # max_val = np.iinfo(df['distance'].dtype).max
     # Unreached vertices have a distance of max_val
 
