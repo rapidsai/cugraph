@@ -250,10 +250,6 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute()
 {
   CUGRAPH_EXPECTS(configured, "BC must be configured before computation");
-  thrust::fill(rmm::exec_policy(stream)->on(stream),
-               betweenness,
-               betweenness + number_of_vertices,
-               static_cast<result_t>(0));
   if (sources) {
     for (VT source_idx = 0; source_idx < number_of_sources; ++source_idx) {
       VT source_vertex = sources[source_idx];
