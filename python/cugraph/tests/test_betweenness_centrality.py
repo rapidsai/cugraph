@@ -107,7 +107,6 @@ def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
                           endpoints=endpoints,
                           seed=seed,
                           result_dtype=result_dtype)
-    print()
 
     return sorted_df
 
@@ -309,9 +308,9 @@ def test_betweenness_centrality_weight_except(graph_file,
                                               endpoints,
                                               subset_seed,
                                               result_dtype):
-    """Test calls edge_betwenness_centrality with weight
+    """Calls betwenness_centrality with weight
 
-    As of 05//28/2020, weight is not supported and should raise
+    As of 05/28/2020, weight is not supported and should raise
     a NotImplementedError
     """
     prepare_test()
