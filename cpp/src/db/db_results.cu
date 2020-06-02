@@ -103,6 +103,20 @@ bool db_result<idx_t>::hasVariable(std::string name)
 }
 
 template <typename idx_t>
+std::vector<idx_t>&& db_result<idx_t>::getHostColumn(std::string name)
+{
+  int pos = -1;
+  for (size_t i = 0; i < names.size(); i++) {
+    if (names[i] == name) pos = i;
+  }
+  CUGRAPH_EXPECTS(pos > 0, "Given variable name not found");
+  std::vector<idx_t> result(columnSize);
+  CUDA_TRY(
+    cudaMemcpy(result.data(), columns[pos].data(), sizeof(idx_t) * columnSize, cudaMemcpyDefault));
+  return std::move(result);
+}
+
+template <typename idx_t>
 std::string db_result<idx_t>::toString()
 {
   std::stringstream ss;

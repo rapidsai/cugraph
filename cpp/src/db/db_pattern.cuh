@@ -117,6 +117,8 @@ class pattern_path {
   pattern_path& operator=(const pattern_path& other) = delete;
   pattern_path& operator                             =(pattern_path&& other);
   std::vector<pattern_element<idx_t>*>& getPathNodes();
+  bool hasBoundVariables(context<idx_t>& ctx);
+  bool hasNamedValues(context<idx_t>& ctx);
 };
 
 }  // namespace db

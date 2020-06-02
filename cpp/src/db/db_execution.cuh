@@ -28,6 +28,8 @@ namespace cugraph {
 namespace db {
 enum class execution_type { LoadCsv, Match, Create, Merge, Return };
 
+std::string execution_typeToString(execution_type type);
+
 /**
  * Super class from which all execution node sub-types inherit
  */
@@ -35,7 +37,7 @@ template <typename idx_t>
 class execution_node {
  public:
   virtual ~execution_node()                 = default;
-  virtual void execute()                    = 0;
+  virtual void execute(context<idx_t>& ctx) = 0;
   virtual string_table& getStringResult()   = 0;
   virtual db_result<idx_t>& getGPUResult()  = 0;
   virtual std::string getResultIdentifier() = 0;
@@ -61,7 +63,7 @@ class load_csv_node : public execution_node<idx_t> {
   string_table& getStringResult() override;
   db_result<idx_t>& getGPUResult() override;
   std::string getResultIdentifier() override;
-  void execute() override;
+  void execute(context<idx_t>& ctx) override;
   execution_type type() override;
 };
 
@@ -84,7 +86,7 @@ class match_node : public execution_node<idx_t> {
   string_table& getStringResult() override;
   db_result<idx_t>& getGPUResult() override;
   std::string getResultIdentifier() override;
-  void execute() override;
+  void execute(context<idx_t>& ctx) override;
   execution_type type() override;
 };
 
@@ -106,7 +108,7 @@ class create_node : public execution_node<idx_t> {
   string_table& getStringResult() override;
   db_result<idx_t>& getGPUResult() override;
   std::string getResultIdentifier() override;
-  void execute() override;
+  void execute(context<idx_t>& ctx) override;
   execution_type type() override;
 };
 
@@ -135,7 +137,7 @@ class query_plan {
 
  public:
   query_plan() = default;
-  query_plan(const cypher_parse_result_t* parseResult, context<idx_t> ctx);
+  query_plan(const cypher_parse_result_t* parseResult, context<idx_t>&& ctx);
   query_plan(const query_plan& other) = delete;
   query_plan(query_plan&& other);
   ~query_plan();

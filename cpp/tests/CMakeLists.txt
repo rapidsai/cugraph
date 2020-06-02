@@ -249,6 +249,14 @@ set(PARSER_TEST_SRC
 
 ConfigureTest(PARSER_TEST "${PARSER_TEST_SRC}" "")
 
+###################################################################################################
+#-Parser tests ---------------------------------------------------------------------
+
+set(QUERY_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/db/simple_query_test.cu")
+
+ConfigureTest(QUERY_TEST "${QUERY_TEST_SRC}" "")
+
 #-NCCL tests ---------------------------------------------------------------------
 
 if (BUILD_MPI)

@@ -15,7 +15,9 @@
  */
 
 #include <cugraph.h>
+#include <cypher-parser.h>
 #include <rmm_utils.h>
+#include <db/db_execution.cuh>
 #include <db/db_object.cuh>
 #include <sstream>
 
@@ -29,7 +31,7 @@ db_object<idx_t>::db_object()
   relationshipsTable.addColumn("end");
   relationshipsTable.addColumn("type");
   nodeLabelsTable.addColumn("nodeId");
-  nodeLabelsTable.addColumn("Label Id");
+  nodeLabelsTable.addColumn("LabelId");
   nodePropertiesTable.addColumn("nodeId");
   nodePropertiesTable.addColumn("propertyLabel");
   nodePropertiesTable.addColumn("value");
@@ -41,7 +43,51 @@ db_object<idx_t>::db_object()
 template <typename idx_t>
 std::string db_object<idx_t>::query(std::string query)
 {
-  return "";
+  // Create a context to be used for this query
+  context<idx_t> ctx(&idEncoder,
+                     &relationshipsTable,
+                     &nodeLabelsTable,
+                     &nodePropertiesTable,
+                     &relationshipPropertiesTable);
+
+  // Parse the query
+  cypher_parse_result_t* result = cypher_parse(query.c_str(), NULL, NULL, 0);
+
+  // Construct a query plan
+  query_plan<idx_t> plan(result, std::move(ctx));
+
+  // Free up the result from the parser
+  cypher_parse_result_free(result);
+
+  // Execute the query plan
+  std::string output = plan.execute();
+
+  // Complete updates on tables
+  relationshipsTable.flush_input();
+  nodeLabelsTable.flush_input();
+  nodePropertiesTable.flush_input();
+  relationshipPropertiesTable.flush_input();
+
+  // Return the result.
+  return output;
+}
+
+template <typename idx_t>
+std::string db_object<idx_t>::toString()
+{
+  std::stringstream ss;
+  ss << "Database:\n";
+  ss << "Encoder:\n";
+  ss << idEncoder.toString();
+  ss << "Relationships Table:\n";
+  ss << relationshipsTable.toString();
+  ss << "Node Labels Table:\n";
+  ss << nodeLabelsTable.toString();
+  ss << "Node Properties Table:\n";
+  ss << nodePropertiesTable.toString();
+  ss << "Relationship Properties Table:\n";
+  ss << relationshipPropertiesTable.toString();
+  return ss.str();
 }
 
 template class db_object<int32_t>;

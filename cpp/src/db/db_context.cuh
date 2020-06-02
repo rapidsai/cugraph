@@ -36,6 +36,12 @@ class encoder {
   idx_t encode(std::string val);
   std::string decode(idx_t val);
   idx_t getId();
+
+  /**
+   * For debugging purposes only
+   * @return A human representation of the encoder's content
+   */
+  std::string toString();
 };
 
 template <typename idx_t>
@@ -71,6 +77,10 @@ class context {
   void registerVariables(db_result<idx_t>&& result);
   std::string getNamedEntry(std::string name, std::string colname, idx_t row);
   std::string getNamedEntry(std::string name, idx_t colId, idx_t row);
+  idx_t getNamedRows(std::string name);
+  std::vector<idx_t>&& getVariableColumn(std::string name);
+  bool hasVariable(std::string name);
+  bool hasNamed(std::string name);
 };
 
 }  // namespace db

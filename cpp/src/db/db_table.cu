@@ -210,6 +210,13 @@ void db_table<idx_t>::addEntry(db_pattern<idx_t>& pattern)
 }
 
 template <typename idx_t>
+idx_t db_table<idx_t>::getLastRowId()
+{
+  idx_t lastId = column_size + inputBuffer.size() - 1;
+  return lastId;
+}
+
+template <typename idx_t>
 void db_table<idx_t>::rebuildIndices()
 {
   for (size_t i = 0; i < columns.size(); i++) {

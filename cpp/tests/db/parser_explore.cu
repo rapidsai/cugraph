@@ -94,4 +94,9 @@ TEST_F(Test_Parser, printOut)
   std::cout << input << "\n";
   cugraph::db::printOutAst(input);
   std::cout << "\n";
+
+  input = "CREATE (:Person)-[:FriendsWith]->(:Person)";
+  std::cout << input << "\n";
+  cugraph::db::printOutAst(input);
+  std::cout << "\n";
 }

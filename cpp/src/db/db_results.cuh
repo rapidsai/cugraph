@@ -47,6 +47,7 @@ class db_result {
   void allocateColumns(idx_t size);
   std::string getIdentifier();
   bool hasVariable(std::string name);
+  std::vector<idx_t>&& getHostColumn(std::string name);
   /**
    * For debugging purposes
    * @return Human readable representation

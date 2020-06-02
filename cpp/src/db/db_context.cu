@@ -59,6 +59,19 @@ idx_t encoder<idx_t>::getId()
   return myId;
 }
 
+template <typename idx_t>
+std::string encoder<idx_t>::toString()
+{
+  std::stringstream ss;
+  idx_t encoded = idToString.size();
+  idx_t ids     = nextId - encoded;
+  ss << "Encoder object with " << encoded << " encoded values and " << ids << " allocated ids:\n";
+  for (auto it = idToString.begin(); it != idToString.end(); it++) {
+    ss << it->first << " == " << it->second << "\n";
+  }
+  return ss.str();
+}
+
 template class encoder<int32_t>;
 template class encoder<int64_t>;
 
@@ -200,6 +213,45 @@ std::string context<idx_t>::getNamedEntry(std::string name, idx_t col, idx_t row
   }
   CUGRAPH_EXPECTS(pos > 0, "Named result not found");
   return namedResults[pos][col][row];
+}
+
+template <typename idx_t>
+idx_t context<idx_t>::getNamedRows(std::string name)
+{
+  int pos = -1;
+  for (size_t i = 0; i < resultNames.size(); i++) {
+    if (resultNames[i] == name) pos = i;
+  }
+  CUGRAPH_EXPECTS(pos > 0, "Named result not found");
+  return namedResults[pos][0].size();
+}
+
+template <typename idx_t>
+std::vector<idx_t>&& context<idx_t>::getVariableColumn(std::string name)
+{
+  int pos = -1;
+  for (size_t i = 0; i < variables.size(); i++)
+    if (variables[i].hasVariable(name)) pos = i;
+  CUGRAPH_EXPECTS(pos > 0, "Variable not found");
+  return variables[pos].getHostColumn(name);
+}
+
+template <typename idx_t>
+bool context<idx_t>::hasVariable(std::string name)
+{
+  for (size_t i = 0; i < variables.size(); i++) {
+    if (variables[i].hasVariable(name)) return true;
+  }
+  return false;
+}
+
+template <typename idx_t>
+bool context<idx_t>::hasNamed(std::string name)
+{
+  for (size_t i = 0; i < resultNames.size(); i++) {
+    if (resultNames[i] == name) return true;
+  }
+  return false;
 }
 
 template class context<int32_t>;

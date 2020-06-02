@@ -109,6 +109,7 @@ class db_table {
   ~db_table() = default;
   void addColumn(std::string name);
   void addEntry(db_pattern<idx_t>& pattern);
+  idx_t getLastRowId();
 
   /**
    * This method will rebuild the indices for each column in the table. This is done by

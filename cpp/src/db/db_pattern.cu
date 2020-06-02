@@ -405,6 +405,45 @@ pattern_path<idx_t>& pattern_path<idx_t>::operator=(pattern_path<idx_t>&& other)
   return *this;
 }
 
+template <typename idx_t>
+std::vector<pattern_element<idx_t>*>& pattern_path<idx_t>::getPathNodes()
+{
+  return path;
+}
+
+template <typename idx_t>
+bool pattern_path<idx_t>::hasBoundVariables(context<idx_t>& ctx)
+{
+  for (size_t i = 0; i < path.size(); i++) {
+    std::string nodeId = path[i]->getIdentifier();
+    if (path[i]->type() == pattern_type::Node && ctx.hasVariable(nodeId)) return true;
+  }
+  return false;
+}
+
+template <typename idx_t>
+bool pattern_path<idx_t>::hasNamedValues(context<idx_t>& ctx)
+{
+  for (size_t i = 0; i < path.size(); i++) {
+    if (path[i]->type() == pattern_type::Node) {
+      node_pattern<idx_t>* node = reinterpret_cast<node_pattern<idx_t>*>(path[i]);
+      for (auto it = node->getProperties().begin(); it != node->getProperties().end(); it++) {
+        if (it->second.type() == value_type::Array_Access ||
+            it->second.type() == value_type::Property_Access)
+          return true;
+      }
+    } else {
+      relationship_pattern<idx_t>* rel = reinterpret_cast<relationship_pattern<idx_t>*>(path[i]);
+      for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
+        if (it->second.type() == value_type::Array_Access ||
+            it->second.type() == value_type::Property_Access)
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
 template class pattern_path<int32_t>;
 template class pattern_path<int64_t>;
 

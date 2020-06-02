@@ -45,6 +45,12 @@ class db_object {
  public:
   db_object();
   std::string query(std::string query);
+
+  /**
+   * For debugging purposes only.
+   * @return Human readable representation.
+   */
+  std::string toString();
 };
 
 }  // namespace db
