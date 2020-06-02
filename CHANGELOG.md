@@ -51,6 +51,7 @@
 - PR #906 Update Louvain notebook
 
 ## Bug Fixes
+- PR #927 Update scikit learn dependency
 - PR #916 Fix CI error on Force Atlas 2 test
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation

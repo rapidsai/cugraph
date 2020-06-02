@@ -24,7 +24,7 @@ dependencies:
 - boost
 - cython>=0.29,<0.30
 - pytest
-- scikit-learn>=0.21
+- scikit-learn>=0.23.1
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport
