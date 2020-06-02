@@ -17,18 +17,15 @@
 # cython: language_level = 3
 
 from cugraph.centrality.betweenness_centrality cimport edge_betweenness_centrality as c_edge_betweenness_centrality
-from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
-from libcpp cimport bool
-from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph import DiGraph, Graph
+from cugraph.structure.graph_new cimport *
+from cugraph.utilities.unrenumber import unrenumber
+from libc.stdint cimport uintptr_t
+from libcpp cimport bool
 import cudf
-import rmm
 import numpy as np
 import numpy.ctypeslib as ctypeslib
-
 
 def edge_betweenness_centrality(input_graph, normalized, weight, k,
                                 vertices, result_dtype):

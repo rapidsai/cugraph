@@ -22,7 +22,8 @@ namespace detail {
 // FIXME: Accumulation kernel mights not scale well, as each thread is handling
 //        all the edges for each node, an approach similar to the traversal
 //        bucket (i.e. BFS / SSSP) system might enable speed up.
-//        Should look into forAllEdges
+//        Should look into forAllEdge type primitive for different
+//        load balancing
 template <typename VT, typename ET, typename WT, typename result_t>
 __global__ void edges_accumulation_kernel(result_t *betweenness,
                                           VT number_vertices,

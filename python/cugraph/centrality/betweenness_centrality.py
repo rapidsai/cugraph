@@ -151,7 +151,7 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
         1 / (n * (n - 1)) for DiGraphs (directed graphs)
         where n is the number of nodes in G.
         Normalization will ensure that values are in [0, 1],
-        this normalization scales fo the highest possible value where one
+        this normalization scales for the highest possible value where one
         edge is crossed by every single shortest path.
 
     weight : cudf.DataFrame, optional, default=None

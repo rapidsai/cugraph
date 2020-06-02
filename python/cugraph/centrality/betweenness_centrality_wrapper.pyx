@@ -17,14 +17,13 @@
 # cython: language_level = 3
 
 from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
-from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
-from libcpp cimport bool
-from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph import DiGraph
+from cugraph.structure.graph_new cimport *
+from cugraph.utilities.unrenumber import unrenumber
+from libc.stdint cimport uintptr_t
+from libcpp cimport bool
 import cudf
-import rmm
 import numpy as np
 import numpy.ctypeslib as ctypeslib
 
