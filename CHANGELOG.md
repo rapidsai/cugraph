@@ -1,4 +1,4 @@
-# cuGraph 0.14.0 (Date TBD)
+# cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features
 - PR #756 Add Force Atlas 2 layout
