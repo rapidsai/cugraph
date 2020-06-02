@@ -77,7 +77,13 @@ bool pagerankIteration(IndexType n,
     return true;
   } else {
     if (iter < max_iter) {
-      std::swap(pr, tmp);
+      // FIXME: Copy the pagerank vector results to the tmp vector, since there
+      // are still raw pointers in pagerank pointing to tmp vector locations
+      // that were std::swapped out in the solver.  A thrust::swap would
+      // probably be more efficent if the vectors were passed everywhere instead
+      // of pointers. std::swap is unsafe though. Just copying for now, as this
+      // may soon be replaced by the pattern accelerator.
+      copy(n, pr, tmp);
     } else {
       scal(n, (ValueType)1.0 / nrm1(n, pr), pr);
     }
