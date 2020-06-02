@@ -388,8 +388,6 @@ void BC<VT, ET, WT, result_t>::rescale()
 {
   size_t result_size = number_of_vertices;
   if (is_edge_betweenness) result_size = number_of_edges;
-  // TODO(xcadet) There might be a way to avoid the |E| or |V| allocation
-  // The multiplication is operated via constant
   bool modified                      = false;
   result_t rescale_factor            = static_cast<result_t>(1);
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
