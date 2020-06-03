@@ -42,7 +42,7 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
     [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))

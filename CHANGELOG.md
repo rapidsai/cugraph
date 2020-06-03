@@ -4,7 +4,9 @@
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
+- PR #913 Eliminate `rmm.device_array` usage
 - PR #903 Add short commit hash to conda package
+- PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
 
 ## Bug Fixes
 

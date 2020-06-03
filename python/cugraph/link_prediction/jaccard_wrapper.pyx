@@ -51,7 +51,7 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
                                                               input_graph.adjlist.indices], [np.int32])
         
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     cdef uintptr_t c_result_col = <uintptr_t> NULL
     cdef uintptr_t c_first_col = <uintptr_t> NULL
