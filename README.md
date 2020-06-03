@@ -2,7 +2,7 @@
 
 [![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operators, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientist familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, user familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal being to allow existing code to be ported with minimal effort into RAPIDS.  For users familiar with C++/CUDA and graph structures, a C++ API is also provided.  However, there is less type and structure checking at the C++ layer.
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operates, at the Python layer, on GPU DataFrames, allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS.  For users familiar with C++/CUDA and graph structures, a C++ API is also provided.  However, there is less type and structure checking at the C++ layer.
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
@@ -10,24 +10,24 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerat
 
 
 
-```markdown
+```python
 import cugraph
 
 # read data into a cuDF DataFrame using read_csv
-gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int32"] )
+cu_M = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int32"])
 
 # We now have data as edge pairs
-# create a Graph using the source (src) and destination (dst) vertex pairs the GDF
+# create a Graph using the source (src) and destination (dst) vertex pairs
 G = cugraph.Graph()
-G.from_cudf_edgelist(gdf, source='src', destination='dst')
+G.from_cudf_edgelist(cu_M, source='src', destination='dst')
 
 # Let's now get the PageRank score of each vertex by calling cugraph.pagerank
-gdf_page = cugraph.pagerank(G)
+df_page = cugraph.pagerank(G)
 
 # Let's look at the PageRank Score (only do this on small graphs)
-for i in range(len(gdf_page)):
-	print("vertex " + str(gdf_page['vertex'][i]) +
-		" PageRank is " + str(gdf_page['pagerank'][i]))
+for i in range(len(df_page)):
+	print("vertex " + str(df_page['vertex'].iloc[i]) +
+		" PageRank is " + str(df_page['pagerank'].iloc[i]))
 ```
 
 
@@ -94,9 +94,9 @@ The amount of memory required is dependent on the graph structure and the analyt
 
 
 |       Size        | Recommended GPU Memory |
-|-------------------|-----------------------|
-| 500 million edges	|  32GB    |
-| 250 million edges |	16 GB  |
+|-------------------|------------------------|
+| 500 million edges |  32GB                  |
+| 250 million edges |  16 GB                 |
 
 
 
@@ -154,7 +154,7 @@ Python API documentation can be generated from [docs](docs) directory.
 
 ## <div align="left"><img src="img/rapids_logo.png" width="265px"/></div> Open GPU Data Science
 
-The RAPIDS suite of open source software libraries aim to enable execution of end-to-end data science and analytics pipelines entirely on GPUs. It relies on NVIDIA® CUDA® primitives for low-level compute optimization, but exposing that GPU parallelism and high-bandwidth memory speed through user-friendly Python interfaces.
+The RAPIDS suite of open source software libraries aims to enable execution of end-to-end data science and analytics pipelines entirely on GPUs. It relies on NVIDIA® CUDA® primitives for low-level compute optimization but exposing that GPU parallelism and high-bandwidth memory speed through user-friendly Python interfaces.
 
 <p align="center"><img src="img/rapids_arrow.png" width="80%"/></p>
 
