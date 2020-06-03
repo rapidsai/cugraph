@@ -1,3 +1,4 @@
+'''
 import warnings
 import gc
 import dask_cudf
@@ -83,3 +84,4 @@ def test_pagerank():
     client.close()
     cluster.close()
     os.remove(tempfileName)
+'''

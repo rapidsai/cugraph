@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,14 +16,14 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
+from libcpp cimport bool
 
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-cdef extern from "cugraph.h" namespace "cugraph":
-
-    cdef void katz_centrality(
-        Graph *graph,
-        gdf_column *katz_centrality,
+    cdef void katz_centrality[VT,ET,WT,result_t](
+        const GraphCSRView[VT,ET,WT] &graph,
+        result_t *katz_centrality,
         double alpha,
         int max_iter,
         double tol,

@@ -16,52 +16,260 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.structure.graph_new as c_graph
+from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_new cimport get_two_hop_neighbors as c_get_two_hop_neighbors
+from cugraph.structure.graph_new cimport renumber_vertices as c_renumber_vertices
+from cugraph.structure.utils_wrapper import *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 
+from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
+
+import cudf
 import rmm
 import numpy as np
 
 
-"""
-cdef cppclass GraphBase[WT]:
-    cdef GraphBase[WT] c_base
+def datatype_cast(cols, dtypes):
+    cols_out = []
+    for col in cols:
+        if col is None or col.dtype.type in dtypes:
+            cols_out.append(col)
+        else:
+            cols_out.append(col.astype(dtypes[0]))
+    return cols_out
 
-    def __cinit__(self, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphBase(edge_data, number_of_vertices, number_of_edges)
 
-cdef cppclass GraphCOO[VT,WT]:
-    cdef GraphCOO c_base
+def renumber(source_col, dest_col):
+    num_edges = len(source_col)
+    
+    src_renumbered = cudf.Series(np.zeros(num_edges), dtype=np.int32)
+    dst_renumbered = cudf.Series(np.zeros(num_edges), dtype=np.int32)
 
-    def __cinit__(self):
-        self.c_base = GraphCOO()
+    cdef uintptr_t c_src = source_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst = dest_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_src_renumbered = src_renumbered.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_renumbered = dst_renumbered.__cuda_array_interface__['data'][0]
+    cdef int map_size = 0
+    cdef int n_edges = num_edges
+
+    cdef unique_ptr[device_buffer] numbering_map
+
+    if (source_col.dtype == np.int32):
+        numbering_map = move(c_renumber_vertices[int,int,int](n_edges,
+                                                              <int*>c_src,
+                                                              <int*>c_dst,
+                                                              <int*>c_src_renumbered,
+                                                              <int*>c_dst_renumbered,
+                                                              &map_size))
+    else:
+        numbering_map = move(c_renumber_vertices[long,int,int](n_edges,
+                                                               <long*>c_src,
+                                                               <long*>c_dst,
+                                                               <int*>c_src_renumbered,
+                                                               <int*>c_dst_renumbered,
+                                                               &map_size))
         
-    def __cinit__(self, VT const *src_indices, VT const *dst_indices, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphCOO(src_indices, dst_indices, edge_data, number_of_vertices, number_of_edges)
-
-cdef cppclass GraphCSRBase[VT,WT]:
-    cdef GraphCSRBase c_base
-
-    def __cinit__(self, VT const *src_indices, VT const *dst_indices, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphCSRBase(src_indices, dst_indices, edge_data, number_of_vertices, number_of_edges)
-
-cdef cppclass GraphCSR[VT,WT]:
-    cdef GraphCSR c_base
-
-    def __cinit__(self):
-        self.c_base = GraphCSR()
         
-    def __cinit__(self, VT const *src_indices, VT const *dst_indices, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphCSR(src_indices, dst_indices, edge_data, number_of_vertices, number_of_edges)
+    map = DeviceBuffer.c_from_unique_ptr(move(numbering_map))
+    map = Buffer(map)
+    
+    output_map = cudf.Series(data=map, dtype=source_col.dtype)
 
-cdef cppclass GraphCSC[VT,WT]:
-    cdef GraphCSC c_base
+    return src_renumbered, dst_renumbered, output_map
+                                        
 
-    def __cinit__(self):
-        self.c_base = GraphCSC()
+def view_adj_list(input_graph):
+
+    if input_graph.adjlist is None:
+        if input_graph.edgelist is None:
+            raise Exception('Graph is Empty')
+
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        weights = None
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+
+        return coo2csr(src, dst, weights)
+
+
+def view_transposed_adj_list(input_graph):
+
+    if input_graph.transposedadjlist is None:
+        if input_graph.edgelist is None:
+            if input_graph.adjlist is None:
+                raise Exception('Graph is Empty')
+            else:
+                input_graph.view_edge_list()
+
+        [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+        weights = None
+        if input_graph.edgelist.weights:
+            [weights] = datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+
+        return coo2csr(dst, src, weights)
+
+
+def view_edge_list(input_graph):
+
+    if input_graph.adjlist is None:
+        raise Exception('Graph is Empty')
+
+    [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
+
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef GraphCSRView[int,int,float] graph
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+
+    src_indices = cudf.Series(np.zeros(num_edges), dtype= indices.dtype)
+    cdef uintptr_t c_src_indices = src_indices.__cuda_array_interface__['data'][0]
+    graph.get_source_indices(<int*>c_src_indices)
+
+    return src_indices, indices, weights
+
+
+def _degree_coo(src, dst, x=0):
+    #
+    #  Computing the degree of the input graph from COO
+    #
+    cdef DegreeDirection dir
+
+    if x == 0:
+        dir = DIRECTION_IN_PLUS_OUT
+    elif x == 1:
+        dir = DIRECTION_IN
+    elif x == 2:
+        dir = DIRECTION_OUT
+    else:
+        raise Exception("x should be 0, 1 or 2")
+
+    [src, dst] = datatype_cast([src, dst], [np.int32])
+
+    num_verts = 1 + max(src.max(), dst.max())
+    num_edges = len(src)
+
+    vertex_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    degree_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+
+    cdef GraphCOOView[int,int,float] graph
+
+    cdef uintptr_t c_vertex = vertex_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_degree = degree_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_src = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst = dst.__cuda_array_interface__['data'][0]
+
+    graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>NULL, num_verts, num_edges)
+
+    graph.degree(<int*> c_degree, dir)
+    graph.get_vertex_identifiers(<int*>c_vertex)
+
+    return vertex_col, degree_col
+
+
+def _degree_csr(offsets, indices, x=0):
+    cdef DegreeDirection dir
+
+    if x == 0:
+        dir = DIRECTION_IN_PLUS_OUT
+    elif x == 1:
+        dir = DIRECTION_IN
+    elif x == 2:
+        dir = DIRECTION_OUT
+    else:
+        raise Exception("x should be 0, 1 or 2")
+
+    [offsets, indices] = datatype_cast([offsets, indices], [np.int32])
+
+    num_verts = len(offsets)-1
+    num_edges = len(indices)
+
+    vertex_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    degree_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+
+    cdef GraphCSRView[int,int,float] graph
+
+    cdef uintptr_t c_vertex = vertex_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_degree = degree_col.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
         
-    def __cinit__(self, VT const *src_indices, VT const *dst_indices, WT const *edge_data, size_t number_of_vertices, size_t number_of_edges):
-        self.c_base = GraphCSC(src_indices, dst_indices, edge_data, number_of_vertices, number_of_edges)
-"""
+    graph.degree(<int*> c_degree, dir)
+    graph.get_vertex_identifiers(<int*>c_vertex)
+
+    return vertex_col, degree_col
+
+
+def _degree(input_graph, x=0):
+    transpose_x = { 0: 0,
+                    2: 1,
+                    1: 2 }
+    
+    if input_graph.adjlist is not None:
+        return _degree_csr(input_graph.adjlist.offsets,
+                           input_graph.adjlist.indices,
+                           x)
+
+    if input_graph.transposedadjlist is not None:
+        return _degree_csr(input_graph.transposedadjlist.offsets,
+                           input_graph.transposedadjlist.indices,
+                           transpose_x[x])
+
+    if input_graph.edgelist is not None:
+        return _degree_coo(input_graph.edgelist.edgelist_df['src'],
+                           input_graph.edgelist.edgelist_df['dst'],
+                           x)
+                           
+    raise Exception("input_graph not COO, CSR or CSC")
+
+    
+def _degrees(input_graph):
+    verts, indegrees = _degree(input_graph,1)
+    verts, outdegrees = _degree(input_graph, 2)
+    
+    return verts, indegrees, outdegrees
+
+
+def get_two_hop_neighbors(input_graph):
+    cdef GraphCSRView[int,int,float] graph
+
+    offsets = None
+    indices = None
+    transposed = False
+
+    if input_graph.adjlist:
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    elif input_graph.transposedadjlist:
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+        transposed = True
+    else:
+        input_graph.view_adj_list()
+        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(indices)
+
+    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*> c_indices, <float*>NULL, num_verts, num_edges)
+
+    df = coo_to_df(move(c_get_two_hop_neighbors(graph)))
+    if not transposed:
+        df.rename(columns={'src':'first', 'dst':'second'}, inplace=True)
+    else:
+        df.rename(columns={'dst':'first', 'src':'second'}, inplace=True)
+
+    return df
+
+
+def weight_type(input_graph):
+    weights_type = None
+    if input_graph.edgelist.weights:
+        weights_type = input_graph.edgelist.edgelist_df['weights'].dtype
+    return weights_type

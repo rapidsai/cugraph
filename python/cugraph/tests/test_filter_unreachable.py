@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import time
 
 import pytest
@@ -20,7 +19,6 @@ import numpy as np
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -38,20 +36,10 @@ print('Networkx version : {} '.format(nx.__version__))
 SOURCES = [1]
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
 @pytest.mark.parametrize('source', SOURCES)
-def test_filter_unreachable(managed, pool, graph_file, source):
+def test_filter_unreachable(graph_file, source):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
 

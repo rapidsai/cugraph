@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@ from cugraph.centrality import katz_centrality_wrapper
 
 
 def katz_centrality(G,
-                    alpha=0.1,
+                    alpha=None,
                     max_iter=100,
                     tol=1.0e-6,
                     nstart=None,
@@ -35,12 +35,19 @@ def katz_centrality(G,
     ----------
     G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed or undirected edges where undirected edges are
-        represented as directed edges in both directions.
+        contain either directed (DiGraph) or undirected edges (Graph).
     alpha : float
-        Attenuation factor with a default value of 0.1.  If alpha is not less
-        than 1/(lambda_max) where lambda_max is the maximum degree
-        GDF_CUDA_ERROR is returned
+        Attenuation factor defaulted to None. If alpha is not specified then
+        it is internally calculated as 1/(degree_max) where degree_max is the
+        maximum out degree.
+        NOTE : The maximum acceptable value of alpha for convergence
+        alpha_max = 1/(lambda_max) where lambda_max is the largest eigenvalue
+        of the graph.
+        Since lambda_max is always lesser than or equal to degree_max for a
+        graph, alpha_max will always be greater than or equal to
+        (1/degree_max). Therefore, setting alpha to (1/degree_max) will
+        guarantee that it will never exceed alpha_max thus in turn fulfilling
+        the requirement for convergence.
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
@@ -79,12 +86,10 @@ def katz_centrality(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> kc = cugraph.katz_centrality(G)
     """
 

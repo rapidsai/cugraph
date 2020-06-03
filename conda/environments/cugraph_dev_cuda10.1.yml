@@ -5,17 +5,18 @@ channels:
 - rapidsai-nightly
 - conda-forge
 dependencies:
-- cudf=0.13.*
-- nvstrings=0.13.*
-- rmm=0.13.*
+- cudf=0.14.*
+- nvstrings=0.14.*
+- rmm=0.14.*
 - dask>=2.12.0
 - distributed>=2.12.0
-- dask-cuda=0.13*
-- dask-cudf=0.13*
+- dask-cuda=0.14*
+- dask-cudf=0.14*
+- nccl>=2.5
+- ucx-py=0.14*
 - scipy
 - networkx
 - python-louvain
-- nccl
 - cudatoolkit=10.1
 - cmake>=3.12
 - python>=3.6,<3.8
@@ -23,14 +24,14 @@ dependencies:
 - boost
 - cython>=0.29,<0.30
 - pytest
+- scikit-learn>=0.23.1
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport
+- sphinx-markdown-tables
 - nbsphinx
 - numpydoc
 - ipython
 - recommonmark
 - pip
 - libcypher-parser
-- pip:
-  - sphinx-markdown-tables

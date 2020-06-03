@@ -12,13 +12,11 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -46,10 +44,10 @@ def calc_katz(graph_file):
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
     largest_out_degree = G.degrees().nlargest(n=1, columns='out_degree')
-    largest_out_degree = largest_out_degree['out_degree'][0]
+    largest_out_degree = largest_out_degree['out_degree'].iloc[0]
     katz_alpha = 1/(largest_out_degree + 1)
 
-    k_df = cugraph.katz_centrality(G, katz_alpha, max_iter=1000)
+    k_df = cugraph.katz_centrality(G, None, max_iter=1000)
 
     NM = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(NM, create_using=nx.DiGraph(),
@@ -65,18 +63,9 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv']
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_katz_centrality(managed, pool, graph_file):
+def test_katz_centrality(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     katz_scores = calc_katz(graph_file)
 

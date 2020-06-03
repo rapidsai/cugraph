@@ -84,7 +84,7 @@
 // http://parlab.eecs.berkeley.edu/sites/all/parlab/files/main.pdf
 //
 
-namespace cugraph { 
+namespace cugraph {
 namespace detail {
 namespace traversal {
 
@@ -132,21 +132,22 @@ struct vec_t<double> {
 // ------------------------- Helper device functions -------------------
 //
 
-__forceinline__ __device__ int getMaskNRightmostBitSet(int n) {
-  if (n == INT_SIZE)
-    return (~0);
+__forceinline__ __device__ int getMaskNRightmostBitSet(int n)
+{
+  if (n == INT_SIZE) return (~0);
   int mask = (1 << n) - 1;
   return mask;
 }
 
-__forceinline__ __device__ int getMaskNLeftmostBitSet(int n) {
-  if (n == 0)
-    return 0;
+__forceinline__ __device__ int getMaskNLeftmostBitSet(int n)
+{
+  if (n == 0) return 0;
   int mask = ~((1 << (INT_SIZE - n)) - 1);
   return mask;
 }
 
-__forceinline__ __device__ int getNextZeroBit(int& val) {
+__forceinline__ __device__ int getNextZeroBit(int& val)
+{
   int ibit = __ffs(~val) - 1;
   val |= (1 << ibit);
 
@@ -155,46 +156,44 @@ __forceinline__ __device__ int getNextZeroBit(int& val) {
 
 struct BitwiseAnd {
   template <typename T>
-  __host__ __device__ __forceinline__ T operator()(const T& a,
-                                                   const T& b) const {
+  __host__ __device__ __forceinline__ T operator()(const T& a, const T& b) const
+  {
     return (a & b);
   }
 };
 struct BitwiseOr {
   template <typename T>
-  __host__ __device__ __forceinline__ T operator()(const T& a,
-                                                   const T& b) const {
+  __host__ __device__ __forceinline__ T operator()(const T& a, const T& b) const
+  {
     return (a | b);
   }
 };
 
 template <typename ValueType, typename SizeType>
-__global__ void fill_vec_kernel(ValueType* vec, SizeType n, ValueType val) {
-  for (SizeType idx = blockIdx.x * blockDim.x + threadIdx.x; idx < n;
-       idx += blockDim.x * gridDim.x)
+__global__ void fill_vec_kernel(ValueType* vec, SizeType n, ValueType val)
+{
+  for (SizeType idx = blockIdx.x * blockDim.x + threadIdx.x; idx < n; idx += blockDim.x * gridDim.x)
     vec[idx] = val;
 }
 
 template <typename ValueType, typename SizeType>
-void fill_vec(ValueType* vec, SizeType n, ValueType val, cudaStream_t stream) {
+void fill_vec(ValueType* vec, SizeType n, ValueType val, cudaStream_t stream)
+{
   dim3 grid, block;
   block.x = 256;
-  grid.x = (n + block.x - 1) / block.x;
+  grid.x  = (n + block.x - 1) / block.x;
 
   fill_vec_kernel<<<grid, block, 0, stream>>>(vec, n, val);
   CUDA_CHECK_LAST();
 }
 
 template <typename IndexType>
-__device__ IndexType binsearch_maxle(const IndexType* vec,
-                                     const IndexType val,
-                                     IndexType low,
-                                     IndexType high) {
+__device__ IndexType
+binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexType high)
+{
   while (true) {
-    if (low == high)
-      return low;  // we know it exists
-    if ((low + 1) == high)
-      return (vec[high] <= val) ? high : low;
+    if (low == high) return low;  // we know it exists
+    if ((low + 1) == high) return (vec[high] <= val) ? high : low;
 
     IndexType mid = low + (high - low) / 2;
 
@@ -205,30 +204,28 @@ __device__ IndexType binsearch_maxle(const IndexType* vec,
   }
 }
 
-__device__ static __forceinline__ float atomicMin(float* addr, float val) {
+__device__ static __forceinline__ float atomicMin(float* addr, float val)
+{
   int* addr_as_int = (int*)addr;
-  int old = *addr_as_int;
+  int old          = *addr_as_int;
   int expected;
   do {
     expected = old;
-    old = ::atomicCAS(addr_as_int,
-                      expected,
-                      __float_as_int(::fminf(val, __int_as_float(expected))));
+    old =
+      ::atomicCAS(addr_as_int, expected, __float_as_int(::fminf(val, __int_as_float(expected))));
   } while (expected != old);
   return __int_as_float(old);
 }
 
-__device__ static __forceinline__ double atomicMin(double* address,
-                                                   double val) {
+__device__ static __forceinline__ double atomicMin(double* address, double val)
+{
   unsigned long long int* address_as_ull = (unsigned long long int*)address;
-  unsigned long long int old = *address_as_ull, assumed;
+  unsigned long long int old             = *address_as_ull, assumed;
 
   do {
     assumed = old;
-    old = ::atomicCAS(
-        address_as_ull,
-        assumed,
-        __double_as_longlong(::fmin(val, __longlong_as_double(assumed))));
+    old     = ::atomicCAS(
+      address_as_ull, assumed, __double_as_longlong(::fmin(val, __longlong_as_double(assumed))));
 
     // Note: uses integer comparison to avoid hang in case of NaN (since NaN !=
     // NaN)
@@ -237,78 +234,52 @@ __device__ static __forceinline__ double atomicMin(double* address,
   return __longlong_as_double(old);
 }
 
-// Creates CUB data for graph size n
-template <typename IndexType>
-void cub_exclusive_sum_alloc(IndexType n,
-                             void*& d_temp_storage,
-                             size_t& temp_storage_bytes) {
-  // Determine temporary device storage requirements for exclusive prefix scan
-  d_temp_storage = NULL;
-  temp_storage_bytes = 0;
-  IndexType *d_in = NULL, *d_out = NULL;
-  cub::DeviceScan::ExclusiveSum(
-      d_temp_storage, temp_storage_bytes, d_in, d_out, n);
-  // Allocate temporary storage for exclusive prefix scan
-  cudaStream_t stream{nullptr};
-  ALLOC_TRY(&d_temp_storage, temp_storage_bytes, stream);
-}
-
 template <typename IndexType>
 __global__ void flag_isolated_vertices_kernel(IndexType n,
                                               int* isolated_bmap,
                                               const IndexType* row_ptr,
                                               IndexType* degrees,
-                                              IndexType* nisolated) {
+                                              IndexType* nisolated)
+{
   typedef cub::BlockLoad<IndexType,
                          FLAG_ISOLATED_VERTICES_DIMX,
                          FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD,
                          cub::BLOCK_LOAD_WARP_TRANSPOSE>
-      BlockLoad;
+    BlockLoad;
   typedef cub::BlockStore<IndexType,
                           FLAG_ISOLATED_VERTICES_DIMX,
                           FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD,
                           cub::BLOCK_STORE_WARP_TRANSPOSE>
-      BlockStore;
+    BlockStore;
   typedef cub::BlockReduce<IndexType, FLAG_ISOLATED_VERTICES_DIMX> BlockReduce;
-  typedef cub::WarpReduce<int, FLAG_ISOLATED_VERTICES_THREADS_PER_INT>
-      WarpReduce;
+  typedef cub::WarpReduce<int, FLAG_ISOLATED_VERTICES_THREADS_PER_INT> WarpReduce;
 
   __shared__ typename BlockLoad::TempStorage load_temp_storage;
   __shared__ typename BlockStore::TempStorage store_temp_storage;
   __shared__ typename BlockReduce::TempStorage block_reduce_temp_storage;
 
   __shared__ typename WarpReduce::TempStorage
-      warp_reduce_temp_storage[FLAG_ISOLATED_VERTICES_DIMX /
-                               FLAG_ISOLATED_VERTICES_THREADS_PER_INT];
+    warp_reduce_temp_storage[FLAG_ISOLATED_VERTICES_DIMX / FLAG_ISOLATED_VERTICES_THREADS_PER_INT];
 
   __shared__ IndexType row_ptr_tail[FLAG_ISOLATED_VERTICES_DIMX];
 
-  for (IndexType block_off = FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD *
-           (blockDim.x * blockIdx.x);
+  for (IndexType block_off = FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD * (blockDim.x * blockIdx.x);
        block_off < n;
-       block_off +=
-       FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD * (blockDim.x * gridDim.x)) {
-    IndexType thread_off =
-        block_off + FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD * threadIdx.x;
-    IndexType last_node_thread =
-        thread_off + FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1;
+       block_off += FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD * (blockDim.x * gridDim.x)) {
+    IndexType thread_off = block_off + FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD * threadIdx.x;
+    IndexType last_node_thread = thread_off + FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1;
 
     IndexType thread_row_ptr[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD];
-    IndexType block_valid_items =
-        n - block_off + 1;  //+1, we need row_ptr[last_node+1]
+    IndexType block_valid_items = n - block_off + 1;  //+1, we need row_ptr[last_node+1]
 
-    BlockLoad(load_temp_storage)
-        .Load(row_ptr + block_off, thread_row_ptr, block_valid_items, -1);
+    BlockLoad(load_temp_storage).Load(row_ptr + block_off, thread_row_ptr, block_valid_items, -1);
 
     // To compute 4 degrees, we need 5 values of row_ptr
     // Saving the "5th" value in shared memory for previous thread to use
-    if (threadIdx.x > 0) {
-      row_ptr_tail[threadIdx.x - 1] = thread_row_ptr[0];
-    }
+    if (threadIdx.x > 0) { row_ptr_tail[threadIdx.x - 1] = thread_row_ptr[0]; }
 
     // If this is the last thread, it needs to load its row ptr tail value
-    if (threadIdx.x == (FLAG_ISOLATED_VERTICES_DIMX - 1) &&
-        last_node_thread < n) {
+    if (threadIdx.x == (FLAG_ISOLATED_VERTICES_DIMX - 1) && last_node_thread < n) {
       row_ptr_tail[threadIdx.x] = row_ptr[last_node_thread + 1];
     }
     __syncthreads();  // we may reuse temp_storage
@@ -320,23 +291,17 @@ __global__ void flag_isolated_vertices_kernel(IndexType n,
     IndexType local_degree[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD];
 
 #pragma unroll
-    for (int i = 0; i < (FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1);
-         ++i) {
-      IndexType degree = local_degree[i] =
-          thread_row_ptr[i + 1] - thread_row_ptr[i];
+    for (int i = 0; i < (FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1); ++i) {
+      IndexType degree = local_degree[i] = thread_row_ptr[i + 1] - thread_row_ptr[i];
 
-      if (i < imax)
-        local_isolated_bmap |= ((degree == 0) << i);
+      if (i < imax) local_isolated_bmap |= ((degree == 0) << i);
     }
 
     if (last_node_thread < n) {
-      IndexType degree =
-          local_degree[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1] =
-              row_ptr_tail[threadIdx.x] -
-          thread_row_ptr[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1];
+      IndexType degree = local_degree[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1] =
+        row_ptr_tail[threadIdx.x] - thread_row_ptr[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1];
 
-      local_isolated_bmap |=
-          ((degree == 0) << (FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1));
+      local_isolated_bmap |= ((degree == 0) << (FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1));
     }
 
     local_isolated_bmap <<= (thread_off % INT_SIZE);
@@ -347,29 +312,22 @@ __global__ void flag_isolated_vertices_kernel(IndexType n,
     // steps
     __syncthreads();
 
-    IndexType total_nisolated =
-        BlockReduce(block_reduce_temp_storage).Sum(local_nisolated);
+    IndexType total_nisolated = BlockReduce(block_reduce_temp_storage).Sum(local_nisolated);
 
-    if (threadIdx.x == 0 && total_nisolated) {
-      atomicAdd(nisolated, total_nisolated);
-    }
+    if (threadIdx.x == 0 && total_nisolated) { atomicAdd(nisolated, total_nisolated); }
 
     int logicalwarpid = threadIdx.x / FLAG_ISOLATED_VERTICES_THREADS_PER_INT;
 
     // Building int for bmap
     int int_aggregate_isolated_bmap =
-        WarpReduce(warp_reduce_temp_storage[logicalwarpid])
-            .Reduce(local_isolated_bmap, BitwiseOr());
+      WarpReduce(warp_reduce_temp_storage[logicalwarpid]).Reduce(local_isolated_bmap, BitwiseOr());
 
-    int is_head_of_visited_int =
-        ((threadIdx.x % (FLAG_ISOLATED_VERTICES_THREADS_PER_INT)) == 0);
-    if (is_head_of_visited_int &&
-        (thread_off / INT_SIZE) < (n + INT_SIZE - 1) / INT_SIZE) {
+    int is_head_of_visited_int = ((threadIdx.x % (FLAG_ISOLATED_VERTICES_THREADS_PER_INT)) == 0);
+    if (is_head_of_visited_int && (thread_off / INT_SIZE) < (n + INT_SIZE - 1) / INT_SIZE) {
       isolated_bmap[thread_off / INT_SIZE] = int_aggregate_isolated_bmap;
     }
 
-    BlockStore(store_temp_storage)
-        .Store(degrees + block_off, local_degree, block_valid_items - 1);
+    BlockStore(store_temp_storage).Store(degrees + block_off, local_degree, block_valid_items - 1);
   }
 }
 
@@ -379,17 +337,16 @@ void flag_isolated_vertices(IndexType n,
                             const IndexType* row_ptr,
                             IndexType* degrees,
                             IndexType* nisolated,
-                            cudaStream_t m_stream) {
+                            cudaStream_t m_stream)
+{
   dim3 grid, block;
   block.x = FLAG_ISOLATED_VERTICES_DIMX;
 
-  grid.x =
-      min((IndexType)MAXBLOCKS,
-          (n / FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD + 1 + block.x - 1) /
-              block.x);
+  grid.x = min((IndexType)MAXBLOCKS,
+               (n / FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD + 1 + block.x - 1) / block.x);
 
   flag_isolated_vertices_kernel<<<grid, block, 0, m_stream>>>(
-      n, isolated_bmap, row_ptr, degrees, nisolated);
+    n, isolated_bmap, row_ptr, degrees, nisolated);
   CUDA_CHECK_LAST();
 }
 
@@ -397,10 +354,11 @@ template <typename IndexType>
 __global__ void set_frontier_degree_kernel(IndexType* frontier_degree,
                                            IndexType* frontier,
                                            const IndexType* degree,
-                                           IndexType n) {
+                                           IndexType n)
+{
   for (IndexType idx = blockDim.x * blockIdx.x + threadIdx.x; idx < n;
        idx += gridDim.x * blockDim.x) {
-    IndexType u = frontier[idx];
+    IndexType u          = frontier[idx];
     frontier_degree[idx] = degree[u];
   }
 }
@@ -410,12 +368,12 @@ void set_frontier_degree(IndexType* frontier_degree,
                          IndexType* frontier,
                          const IndexType* degree,
                          IndexType n,
-                         cudaStream_t m_stream) {
+                         cudaStream_t m_stream)
+{
   dim3 grid, block;
   block.x = 256;
-  grid.x = min((n + block.x - 1) / block.x, (IndexType)MAXBLOCKS);
-  set_frontier_degree_kernel<<<grid, block, 0, m_stream>>>(
-      frontier_degree, frontier, degree, n);
+  grid.x  = min((n + block.x - 1) / block.x, (IndexType)MAXBLOCKS);
+  set_frontier_degree_kernel<<<grid, block, 0, m_stream>>>(frontier_degree, frontier, degree, n);
   CUDA_CHECK_LAST();
 }
 
@@ -425,11 +383,18 @@ void exclusive_sum(void* d_temp_storage,
                    IndexType* d_in,
                    IndexType* d_out,
                    IndexType num_items,
-                   cudaStream_t m_stream) {
-  if (num_items <= 1)
-    return;  // DeviceScan fails if n==1
+                   cudaStream_t m_stream)
+{
+  if (num_items <= 1) return;  // DeviceScan fails if n==1
   cub::DeviceScan::ExclusiveSum(
-      d_temp_storage, temp_storage_bytes, d_in, d_out, num_items, m_stream);
+    d_temp_storage, temp_storage_bytes, d_in, d_out, num_items, m_stream);
+}
+
+template <typename IndexType>
+void exclusive_sum(IndexType* d_in, IndexType* d_out, IndexType num_items, cudaStream_t m_stream)
+{
+  if (num_items <= 1) return;  // DeviceScan fails if n==1
+  thrust::exclusive_scan(rmm::exec_policy(m_stream)->on(m_stream), d_in, d_in + num_items, d_out);
 }
 
 //
@@ -439,21 +404,20 @@ void exclusive_sum(void* d_temp_storage,
 //
 
 template <typename IndexType>
-__global__ void compute_bucket_offsets_kernel(
-    const IndexType* frontier_degrees_exclusive_sum,
-    IndexType* bucket_offsets,
-    const IndexType frontier_size,
-    IndexType total_degree) {
-  IndexType end = ((total_degree - 1 + TOP_DOWN_EXPAND_DIMX) /
-                       TOP_DOWN_EXPAND_DIMX * NBUCKETS_PER_BLOCK +
-                   1);
+__global__ void compute_bucket_offsets_kernel(const IndexType* frontier_degrees_exclusive_sum,
+                                              IndexType* bucket_offsets,
+                                              const IndexType frontier_size,
+                                              IndexType total_degree)
+{
+  IndexType end =
+    ((total_degree - 1 + TOP_DOWN_EXPAND_DIMX) / TOP_DOWN_EXPAND_DIMX * NBUCKETS_PER_BLOCK + 1);
 
   for (IndexType bid = blockIdx.x * blockDim.x + threadIdx.x; bid <= end;
        bid += gridDim.x * blockDim.x) {
     IndexType eid = min(bid * TOP_DOWN_BUCKET_SIZE, total_degree - 1);
 
-    bucket_offsets[bid] = binsearch_maxle(
-        frontier_degrees_exclusive_sum, eid, (IndexType)0, frontier_size - 1);
+    bucket_offsets[bid] =
+      binsearch_maxle(frontier_degrees_exclusive_sum, eid, (IndexType)0, frontier_size - 1);
   }
 }
 
@@ -462,18 +426,21 @@ void compute_bucket_offsets(IndexType* cumul,
                             IndexType* bucket_offsets,
                             IndexType frontier_size,
                             IndexType total_degree,
-                            cudaStream_t m_stream) {
+                            cudaStream_t m_stream)
+{
   dim3 grid, block;
   block.x = COMPUTE_BUCKET_OFFSETS_DIMX;
 
-  grid.x = min((IndexType)MAXBLOCKS,
-               ((total_degree - 1 + TOP_DOWN_EXPAND_DIMX) /
-                    TOP_DOWN_EXPAND_DIMX * NBUCKETS_PER_BLOCK +
-                1 + block.x - 1) /
-                   block.x);
+  grid.x =
+    min((IndexType)MAXBLOCKS,
+        ((total_degree - 1 + TOP_DOWN_EXPAND_DIMX) / TOP_DOWN_EXPAND_DIMX * NBUCKETS_PER_BLOCK + 1 +
+         block.x - 1) /
+          block.x);
 
   compute_bucket_offsets_kernel<<<grid, block, 0, m_stream>>>(
-      cumul, bucket_offsets, frontier_size, total_degree);
+    cumul, bucket_offsets, frontier_size, total_degree);
   CUDA_CHECK_LAST();
 }
-} } } //namespace
+}  // namespace traversal
+}  // namespace detail
+}  // namespace cugraph

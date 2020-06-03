@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,10 @@
  */
 #pragma once
 
+#include <graph.hpp>
+
 #include "nvgraph_error.hxx"
-#include "valued_csr_graph.hxx"
-#include "matrix.hxx"
+#include "spectral_matrix.hxx"
 
 
 namespace nvgraph {
@@ -42,20 +43,20 @@ namespace nvgraph {
    *    performed.
    *  @return NVGRAPH error flag.
    */
-  template <typename IndexType_, typename ValueType_>
-  NVGRAPH_ERROR modularity_maximization( ValuedCsrGraph<IndexType_,ValueType_>& G,
-           IndexType_ nClusters,
-           IndexType_ nEigVecs,
-           IndexType_ maxIter_lanczos,
-           IndexType_ restartIter_lanczos,
-           ValueType_ tol_lanczos,
-           IndexType_ maxIter_kmeans,
-           ValueType_ tol_kmeans,
-           IndexType_ * __restrict__ clusters,
-           Vector<ValueType_> &eigVals,
-           Vector<ValueType_> &eigVecs,
-           IndexType_ & iters_lanczos,
-           IndexType_ & iters_kmeans) ;
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  NVGRAPH_ERROR modularity_maximization(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                        vertex_t nClusters,
+                                        vertex_t nEigVecs,
+                                        int maxIter_lanczos,
+                                        int restartIter_lanczos,
+                                        weight_t tol_lanczos,
+                                        int maxIter_kmeans,
+                                        weight_t tol_kmeans,
+                                        vertex_t * __restrict__ clusters,
+                                        weight_t *eigVals,
+                                        weight_t *eigVecs,
+                                        int & iters_lanczos,
+                                        int & iters_kmeans) ;
 
 
   /// Compute modularity
@@ -65,11 +66,11 @@ namespace nvgraph {
    *  @param parts (Input, device memory, n entries) Cluster assignments.
    *  @param modularity On exit, modularity
    */
- template <typename IndexType_, typename ValueType_>
-  NVGRAPH_ERROR analyzeModularity(ValuedCsrGraph<IndexType_,ValueType_> & G,
-            IndexType_ nClusters,
-            const IndexType_ * __restrict__ parts,
-            ValueType_ & modularity) ;
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  NVGRAPH_ERROR analyzeModularity(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                  vertex_t nClusters,
+                                  const vertex_t * __restrict__ parts,
+                                  weight_t & modularity);
 
 }
 

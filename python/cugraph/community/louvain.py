@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,8 +23,8 @@ def louvain(input_graph, max_iter=100):
     Parameters
     ----------
     input_graph : cugraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information
-        as an edge list.
+        cuGraph graph descriptor of type Graph
+
         The adjacency list will be computed if not already present. The graph
         should be undirected where an undirected edge is represented by a
         directed edge in both direction.
@@ -40,18 +40,24 @@ def louvain(input_graph, max_iter=100):
     parts : cudf.DataFrame
         GPU data frame of size V containing two columns the vertex id and the
         partition id it is assigned to.
+
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df['partition'] : cudf.Series
+            Contains the partition assigned to the vertices
+
     modularity_score : float
-        a floating point number containing the modularity score of the
+        a floating point number containing the global modularity score of the
         partitioning.
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
+    >>> M = cudf.read_csv('datasets/karate.csv',
+                          delimiter = ' ',
+                          dtype=['int32', 'int32', 'float32'],
+                          header=None)
     >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sources, destinations, None)
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> parts, modularity_score = cugraph.louvain(G)
     """
 

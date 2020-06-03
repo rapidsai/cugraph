@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,14 +16,14 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_new cimport *
 
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void louvain(
-        Graph *graph,
-        void *final_modularity,
-        void *num_level,
-        void *louvain_parts,
+    cdef void louvain[VT,ET,WT](
+        const GraphCSRView[VT,ET,WT] &graph,
+        WT *final_modularity,
+        int *num_level,
+        VT *louvain_parts,
         int max_iter) except +

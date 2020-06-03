@@ -12,13 +12,11 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
 import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -34,14 +32,21 @@ with warnings.catch_warnings():
 print('Networkx version : {} '.format(nx.__version__))
 
 
-def calc_k_cores(graph_file):
+def calc_k_cores(graph_file, directed=True):
+    # directed is used to create either a Graph or DiGraph so the returned
+    # cugraph can be compared to nx graph of same type.
     cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph()
+    NM = utils.read_csv_for_nx(graph_file)
+    if directed:
+        G = cugraph.DiGraph()
+        Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
+                                      create_using=nx.DiGraph())
+    else:
+        G = cugraph.Graph()
+        Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
+                                      create_using=nx.Graph())
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
     ck = cugraph.k_core(G)
-    NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
-                                  create_using=nx.DiGraph())
     nk = nx.k_core(Gnx)
     return ck, nk
 
@@ -60,19 +65,19 @@ DATASETS = ['../datasets/dolphins.csv',
             '../datasets/netscience.csv']
 
 
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('graph_file', DATASETS)
-def test_core_number(managed, pool, graph_file):
+def test_core_number_DiGraph(graph_file):
     gc.collect()
 
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
-
     cu_kcore, nx_kcore = calc_k_cores(graph_file)
+
+    assert compare_edges(cu_kcore, nx_kcore)
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+def test_core_number_Graph(graph_file):
+    gc.collect()
+
+    cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 
     assert compare_edges(cu_kcore, nx_kcore)
