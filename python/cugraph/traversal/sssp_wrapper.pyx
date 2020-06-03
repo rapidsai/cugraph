@@ -71,7 +71,7 @@ def sssp(input_graph, source):
 
     # Step 4: Setup number of vertices and number of edges
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     # Step 5: Handle the case our graph had to be renumbered
     #         Our source index might no longer be valid

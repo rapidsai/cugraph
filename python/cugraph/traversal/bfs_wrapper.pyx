@@ -60,7 +60,7 @@ def bfs(input_graph, start, directed=True,
 
     # Step 4: Setup number of vertices and edges
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     # Step 5: Handle the case the graph has been renumbered
     #         The source given as input has to be renumbered

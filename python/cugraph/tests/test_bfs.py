@@ -61,12 +61,15 @@ def prepare_test():
 def build_graphs(graph_file, directed=True):
     # cugraph
     cu_M = utils.read_csv_file(graph_file)
+    # Get unsymmetrized/directed edges
+    cu_M = cu_M[cu_M['0'] <= cu_M['1']].reset_index(drop=True)
     G = cugraph.DiGraph() if directed else cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
     G.view_adj_list()  # Enforce CSR generation before computation
 
     # networkx
     M = utils.read_csv_for_nx(graph_file)
+    M = M[M['0'] <= M['1']]
     Gnx = nx.from_pandas_edgelist(M, create_using=(nx.DiGraph() if directed
                                                    else nx.Graph()),
                                   source='0', target='1')
