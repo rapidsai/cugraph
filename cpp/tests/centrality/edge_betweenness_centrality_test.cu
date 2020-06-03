@@ -208,7 +208,6 @@ bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_
 // Defines Betweenness Centrality UseCase
 // SSSP's test suite code uses type of Graph parameter that could be used
 // (MTX / RMAT)
-// FIXME: Use VT for number_of_sources?
 typedef struct EdgeBC_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
@@ -267,12 +266,8 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     VT *sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
-    reference_edge_betweenness_centrality(G,
-                                          expected.data(),
-                                          normalize,
-                                          // FIXME: weights
-                                          configuration.number_of_sources_,
-                                          sources_ptr);
+    reference_edge_betweenness_centrality(
+      G, expected.data(), normalize, configuration.number_of_sources_, sources_ptr);
 
     sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
@@ -299,7 +294,6 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
 // Tests
 // ============================================================================
 // Verifiy Un-Normalized results
-// Endpoint parameter is currently not usefull, is for later use
 TEST_P(Tests_EdgeBC, CheckFP32_NO_NORMALIZE)
 {
   run_current_test<int, int, float, float, false>(GetParam());

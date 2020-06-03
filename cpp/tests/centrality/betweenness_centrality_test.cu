@@ -256,7 +256,6 @@ bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_
 // Defines Betweenness Centrality UseCase
 // SSSP's test suite code uses type of Graph parameter that could be used
 // (MTX / RMAT)
-// FIXME: Use VT for number_of_sources?
 typedef struct BC_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
@@ -283,13 +282,12 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 
   virtual void SetUp() {}
   virtual void TearDown() {}
-  // FIXME: Should normalize be part of the configuration instead?
   // VT         vertex identifier data type
   // ET         edge identifier data type
   // WT         edge weight data type
   // result_t   result data type
   // normalize  should the result be normalized
-  // endpoints  should the endpoints be included (Not Implemented Yet)
+  // endpoints  should the endpoints be included
   template <typename VT,
             typename ET,
             typename WT,
@@ -321,13 +319,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     VT *sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
-    reference_betweenness_centrality(G,
-                                     expected.data(),
-                                     normalize,
-                                     endpoints,
-                                     // FIXME: weights
-                                     configuration.number_of_sources_,
-                                     sources_ptr);
+    reference_betweenness_centrality(
+      G, expected.data(), normalize, endpoints, configuration.number_of_sources_, sources_ptr);
 
     sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
@@ -357,7 +350,6 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 // Tests
 // ============================================================================
 // Verifiy Un-Normalized results
-// Endpoint parameter is currently not usefull, is for later use
 TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS)
 {
   run_current_test<int, int, float, float, false, false>(GetParam());
@@ -368,7 +360,6 @@ TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS)
   run_current_test<int, int, double, double, false, false>(GetParam());
 }
 
-// FIXME: Currently endpoints throws and exception as it is not supported
 TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_ENDPOINTS)
 {
   run_current_test<int, int, float, float, false, true>(GetParam());
@@ -390,7 +381,6 @@ TEST_P(Tests_BC, CheckFP64_NORMALIZE_NO_ENDPOINTS)
   run_current_test<int, int, double, double, true, false>(GetParam());
 }
 
-// FIXME: Currently endpoints throws and exception as it is not supported
 TEST_P(Tests_BC, CheckFP32_NORMALIZE_ENDPOINTS)
 {
   run_current_test<int, int, float, float, true, true>(GetParam());

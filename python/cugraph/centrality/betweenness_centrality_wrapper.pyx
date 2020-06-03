@@ -100,7 +100,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         raise TypeError("result type for betweenness centrality can only be "
                         "float or double")
 
-    #FIXME: For large graph renumbering produces a dataframe organized
+    # For large graph unrenumbering produces a dataframe organized
     #       in buckets, i.e, if they are 3 buckets
     # 0
     # 8191

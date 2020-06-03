@@ -32,8 +32,6 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
     """
     Call betweenness centrality
     """
-    # NOTE: This is based on the fact that the call to the wrapper already
-    #       checked for the validity of the implementation parameter
     cdef GraphCSRView[int, int, float] graph_float
     cdef GraphCSRView[int, int, double] graph_double
 
@@ -115,14 +113,8 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
         raise TypeError("result type for betweenness centrality can only be "
                         "float or double")
 
-    # FIXME: For large graph renumbering produces a dataframe organized
-    #       in buckets, i.e, if they are 3 buckets
-    # 0
-    # 8191
-    # 16382
-    # 1
-    # 8192 ...
-    # Instead of having  the sources in ascending order
+    # Same as Betweenness Centrality unrenumber resuls might be organized
+    # in buckets
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'src')
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
