@@ -356,8 +356,9 @@ void BC<VT, ET, WT, result_t>::accumulate_vertices_with_endpoints(VT source_vert
 }
 
 // Distances should contain -1 for unreached nodes,
-// FIXME: It seems to be quite a lot to be able to increase the score
-//        of the source vertex
+
+// FIXME: There might be a cleaner way to add a value to a single
+//        score in the betweenness vector
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::add_reached_endpoints_to_source_betweenness(VT source_vertex)
 {
