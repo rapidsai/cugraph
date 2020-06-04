@@ -19,10 +19,10 @@
 
 #include <rmm/rmm.h>
 
-#include <thrust/fill.h>
-#include <thrust/for_each.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -193,7 +193,7 @@ void pagerank_this_partition(
     transform_v_transform_reduce_e(
       handle, csc_graph,
       thrust::make_constant_iterator(0)/* dummy */, adj_matrix_col_pageranks.begin(), pagerank_first,
-      [damping_factor] __device__ (auto src_val, auto dst_val) {
+      [damping_factor] __device__ (auto src_val, auto dst_val, auto w) {
         return src_val * damping_factor;
       },
       unvarying_part);
