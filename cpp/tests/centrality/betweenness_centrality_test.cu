@@ -32,6 +32,10 @@
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "traversal/bfs_ref.h"
 
+// FIXME: including header files under src from a test file is inappropriate. This should be fixed
+// once we switch to the RAFT error handling mechanism.
+#include "utilities/error_utils.h"
+
 #ifndef TEST_EPSILON
 #define TEST_EPSILON 0.0001
 #endif
@@ -246,7 +250,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = is_directed;
-    CUDA_CHECK_LAST();
+    // FIXME: RAFT error handling macros should be used instead
+    CUDA_RT_CALL(cudaGetLastError());
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);
 
@@ -296,10 +301,11 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                       sources_ptr);
     }
     cudaDeviceSynchronize();
-    CUDA_TRY(cudaMemcpy(result.data(),
-                        d_result.data().get(),
-                        sizeof(result_t) * G.number_of_vertices,
-                        cudaMemcpyDeviceToHost));
+    // FIXME: RAFT error handling maros should be used instead
+    CUDA_RT_CALL(cudaMemcpy(result.data(),
+                            d_result.data().get(),
+                            sizeof(result_t) * G.number_of_vertices,
+                            cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
     for (int i = 0; i < G.number_of_vertices; ++i)
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
