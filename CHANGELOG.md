@@ -9,7 +9,9 @@
 
 ## Bug Fixes
 
-# cuGraph 0.14.0 (Date TBD)
+
+# cuGraph 0.14.0 (03 Jun 2020)
+
 
 ## New Features
 - PR #756 Add Force Atlas 2 layout
@@ -63,6 +65,7 @@
 - PR #906 Update Louvain notebook
 
 ## Bug Fixes
+- PR #927 Update scikit learn dependency
 - PR #916 Fix CI error on Force Atlas 2 test
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation
@@ -80,6 +83,7 @@
 - PR #907 Fix bfs directed missing vertices
 - PR #911 Env and changelog update
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash
+- PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
 
 # cuGraph 0.13.0 (31 Mar 2020)
 

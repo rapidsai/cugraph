@@ -66,7 +66,7 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       distributed>=2.12.0 \
       dask-cudf=${MINOR_VERSION} \
       dask-cuda=${MINOR_VERSION} \
-      scikit-learn>=0.21 \
+      scikit-learn=0.23.0 \
       nccl>=2.5 \
       ucx-py=${MINOR_VERSION} \
       libcypher-parser \
