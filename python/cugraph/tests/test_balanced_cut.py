@@ -39,16 +39,12 @@ def random_call(G, partitions):
     return set(range(num_verts)), score
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
 PARTITIONS = [2, 4, 8]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_edge_cut_clustering(graph_file, partitions):
     gc.collect()
@@ -77,7 +73,7 @@ def test_edge_cut_clustering(graph_file, partitions):
     assert cu_score < rand_score
 
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     gc.collect()

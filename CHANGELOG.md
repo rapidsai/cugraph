@@ -52,6 +52,7 @@
 - PR #874 Update setup.py to use custom clean command
 - PR #876 Add BFS C++ tests
 - PR #878 Updated build script
+- PR #887 Updates test to common datasets
 - PR #879 Add docs build script to repository
 - PR #880 Remove remaining gdf_column references
 - PR #882 Add Force Atlas 2 to benchmarks
