@@ -6,6 +6,7 @@
 - PR #913 Eliminate `rmm.device_array` usage
 - PR #903 Add short commit hash to conda package
 - PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
+- PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
 
 ## Bug Fixes
 
