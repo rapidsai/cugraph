@@ -17,7 +17,8 @@
 #include <unordered_map>
 #include <utility>
 #include "high_res_clock.h"
-#include "test_utils.h"
+
+#include "utilities/test_utilities.hpp"
 
 #include <converters/COOtoCSR.cuh>
 
@@ -128,7 +129,7 @@ typedef struct SSSP_Usecase_t {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // FIXME: Use platform independent stuff from c++14/17 on compiler update
     if (type_ == MTX) {
-      const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+      const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
       if ((config_ != "") && (config_[0] != '/')) {
         file_path_ = rapidsDatasetRootDir + "/" + config_;
       } else {
@@ -203,7 +204,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_NE(fpin, static_cast<FILE*>(nullptr)) << "fopen (" << param.file_path_ << ") failure.";
 
       // mm_properties has only one template param which should be fixed there
-      ASSERT_EQ(mm_properties<MaxVType>(fpin, 1, &mc, &m, &k, &nnz), 0)
+      ASSERT_EQ(cugraph::test::mm_properties<MaxVType>(fpin, 1, &mc, &m, &k, &nnz), 0)
         << "could not read Matrix Market file properties"
         << "\n";
       ASSERT_TRUE(mm_is_matrix(mc));
@@ -218,7 +219,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       // Read weights if given
       if (!mm_is_pattern(mc)) {
         cooVal.resize(nnz);
-        ASSERT_EQ((mm_to_coo(fpin,
+        ASSERT_EQ((cugraph::test::mm_to_coo(fpin,
                              1,
                              nnz,
                              &cooRowInd[0],
@@ -229,7 +230,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
           << "could not read matrix data"
           << "\n";
       } else {
-        ASSERT_EQ((mm_to_coo(fpin,
+        ASSERT_EQ((cugraph::test::mm_to_coo(fpin,
                              1,
                              nnz,
                              &cooRowInd[0],

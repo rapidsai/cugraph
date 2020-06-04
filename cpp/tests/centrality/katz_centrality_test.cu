@@ -9,7 +9,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
-#include "test_utils.h"
+
+#include "utilities/test_utilities.hpp"
 
 std::vector<int> getGoldenTopKIds(std::ifstream& fs_result, int k = 10)
 {
@@ -58,7 +59,7 @@ typedef struct Katz_Usecase_t {
   Katz_Usecase_t(const std::string& a, const std::string& b)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
@@ -97,7 +98,7 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
     int m, k;
     int nnz;
     MM_typecode mc;
-    ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
+    ASSERT_EQ(cugraph::test::mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
       << "could not read Matrix Market file properties"
       << "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
@@ -111,7 +112,7 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
     std::vector<double> katz_centrality(m);
 
     // Read
-    ASSERT_EQ((mm_to_coo<int, int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
               0)
       << "could not read matrix data"
       << "\n";

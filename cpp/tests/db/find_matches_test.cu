@@ -19,7 +19,7 @@
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 #include "rmm/device_buffer.hpp"
-#include "test_utils.h"
+#include "utilities/test_utilities.hpp"
 #include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
 

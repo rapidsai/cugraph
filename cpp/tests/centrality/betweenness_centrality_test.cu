@@ -19,7 +19,7 @@
 
 #include <thrust/device_vector.h>
 #include <utility>
-#include "test_utils.h"
+#include "utilities/test_utilities.hpp"
 
 #include <algorithms.hpp>
 #include <graph.hpp>
@@ -208,7 +208,7 @@ typedef struct BC_Usecase_t {
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // FIXME: Use platform independent stuff from c++14/17 on compiler update
-    const std::string &rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
       file_path_ = rapidsDatasetRootDir + "/" + config_;
     } else {
@@ -242,7 +242,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
   {
     // Step 1: Construction of the graph based on configuration
     bool is_directed = false;
-    auto csr = generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
+    auto csr = cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = is_directed;

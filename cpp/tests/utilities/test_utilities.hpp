@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include "utilities/test_utilities.hpp"
+
 #include "converters/COOtoCSR.cuh"
 
 #include <cuda.h>
@@ -64,6 +66,9 @@ extern "C" {
       FAIL();                                                          \
     }                                                                  \
   }
+
+namespace cugraph {
+namespace test {
 
 std::string getFileName(const std::string& s)
 {
@@ -361,3 +366,6 @@ static const std::string& get_rapids_dataset_root_dir()
   }
   return rdrd;
 }
+
+}  // namespace test
+}  // namespace cugraph
