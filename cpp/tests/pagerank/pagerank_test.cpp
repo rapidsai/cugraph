@@ -12,10 +12,11 @@
 // Pagerank solver tests
 // Author: Alex Fender afender@nvidia.com
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <cmath>
+
 #include <algorithms.hpp>
-#include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
+#include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "cuda_profiler_api.h"
 #include "gtest/gtest.h"
@@ -116,8 +117,8 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     std::vector<T> cooVal(nnz), pagerank(m);
 
     // device alloc
-    rmm::device_vector<T> pagerank_vector(m);
-    T* d_pagerank = thrust::raw_pointer_cast(pagerank_vector.data());
+    rmm::device_uvector<T> pagerank_vector(static_cast<size_t>(m), nullptr);
+    T* d_pagerank = pagerank_vector.data();
 
     // Read
     ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
