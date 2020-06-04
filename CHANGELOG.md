@@ -9,6 +9,8 @@
 
 ## Bug Fixes
 
+- PR #932 update RAPIDS conda package versions from 0.14 to 0.15
+
 # cuGraph 0.14.0 (Date TBD)
 
 ## New Features
