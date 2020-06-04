@@ -28,8 +28,14 @@ def null_check(col):
 class Graph:
 
     class EdgeList:
-        def __init__(self, source, destination, edge_attr=None,
-                     renumber_map=None):
+        def __init__(self, *args):
+            if len(args) == 1:
+                self.__from_dask_cudf(*args)
+            else:
+                self.__from_cudf(*args)
+
+        def __from_cudf(self, source, destination, edge_attr=None,
+                        renumber_map=None):
             self.renumber_map = renumber_map
             self.edgelist_df = cudf.DataFrame()
             self.edgelist_df['src'] = source
@@ -42,6 +48,11 @@ class Graph:
                         self.edgelist_df[k] = edge_attr[k]
                 else:
                     self.edgelist_df['weights'] = edge_attr
+
+        def __from_dask_cudf(self, ddf):
+            self.renumber_map = None
+            self.edgelist_df = ddf
+            self.weights = False
 
     class AdjList:
         def __init__(self, offsets, indices, value=None):
@@ -199,6 +210,9 @@ class Graph:
             self.from_cudf_edgelist(input_df, edge_attr='weights')
         else:
             self.from_cudf_edgelist(input_df)
+
+    def from_dask_cudf_edgelist(self, input_ddf):
+        self.edgelist = self.EdgeList(input_ddf)
 
     def view_edge_list(self):
         """
