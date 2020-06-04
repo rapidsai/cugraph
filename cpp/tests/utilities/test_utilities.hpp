@@ -17,7 +17,7 @@
 
 #include "utilities/test_utilities.hpp"
 
-#include "converters/COOtoCSR.cuh"
+#include "functions.hpp"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
