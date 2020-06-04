@@ -30,7 +30,6 @@ extern "C" {
 #include <cstdio>
 #include <string>
 
-
 // FIXME: RAFT error handling macros should be used instead
 #ifndef CUDA_RT_CALL
 #define CUDA_RT_CALL(call)                                                               \

@@ -21,8 +21,8 @@
 #include "cuda_profiler_api.h"
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
-#include "utilities/test_utilities.hpp"
 #include "trust_worthiness.h"
+#include "utilities/test_utilities.hpp"
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -83,7 +83,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     std::stringstream ss;
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") +
                           std::string(test_info->name()) + std::string("_") +
-                          cugraph::test::getFileName(param.matrix_file) + std::string("_") + ss.str().c_str();
+                          cugraph::test::getFileName(param.matrix_file) + std::string("_") +
+                          ss.str().c_str();
 
     int m, k, nnz;
     MM_typecode mc;
@@ -111,7 +112,9 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     float* d_force_atlas2 = force_atlas2_vector.data().get();
 
     // Read
-    ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)), 0)
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
+              0)
       << "could not read matrix data"
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);

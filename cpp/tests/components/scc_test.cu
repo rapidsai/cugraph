@@ -120,9 +120,10 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
     const ::testing::TestInfo* const test_info =
       ::testing::UnitTest::GetInstance()->current_test_info();
     std::stringstream ss;
-    std::string test_id =
-      std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) +
-      std::string("_") + cugraph::test::getFileName(param.get_matrix_file()) + std::string("_") + ss.str().c_str();
+    std::string test_id = std::string(test_info->test_case_name()) + std::string(".") +
+                          std::string(test_info->name()) + std::string("_") +
+                          cugraph::test::getFileName(param.get_matrix_file()) + std::string("_") +
+                          ss.str().c_str();
 
     using ByteT  = unsigned char;
     using IndexT = int;
@@ -159,8 +160,9 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
 
     // Read: COO Format
     //
-    ASSERT_EQ(
-      (cugraph::test::mm_to_coo<IndexT, IndexT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)), 0)
+    ASSERT_EQ((cugraph::test::mm_to_coo<IndexT, IndexT>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)),
+              0)
       << "could not read matrix data"
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);

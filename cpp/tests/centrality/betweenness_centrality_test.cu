@@ -246,7 +246,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
   {
     // Step 1: Construction of the graph based on configuration
     bool is_directed = false;
-    auto csr = cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
+    auto csr =
+      cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = is_directed;

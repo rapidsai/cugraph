@@ -82,7 +82,8 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     std::stringstream ss;
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") +
                           std::string(test_info->name()) + std::string("_") +
-                          cugraph::test::getFileName(param.matrix_file) + std::string("_") + ss.str().c_str();
+                          cugraph::test::getFileName(param.matrix_file) + std::string("_") +
+                          ss.str().c_str();
 
     int m, k, nnz;
     MM_typecode mc;
@@ -119,7 +120,9 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     T* d_pagerank = thrust::raw_pointer_cast(pagerank_vector.data());
 
     // Read
-    ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)), 0)
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
+              0)
       << "could not read matrix data"
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);

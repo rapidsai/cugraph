@@ -112,7 +112,8 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
     std::vector<double> katz_centrality(m);
 
     // Read
-    ASSERT_EQ((cugraph::test::mm_to_coo<int, int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, int>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
               0)
       << "could not read matrix data"
       << "\n";

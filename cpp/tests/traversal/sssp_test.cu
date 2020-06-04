@@ -220,23 +220,23 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       if (!mm_is_pattern(mc)) {
         cooVal.resize(nnz);
         ASSERT_EQ((cugraph::test::mm_to_coo(fpin,
-                             1,
-                             nnz,
-                             &cooRowInd[0],
-                             &cooColInd[0],
-                             &cooVal[0],
-                             static_cast<DistType*>(nullptr))),
+                                            1,
+                                            nnz,
+                                            &cooRowInd[0],
+                                            &cooColInd[0],
+                                            &cooVal[0],
+                                            static_cast<DistType*>(nullptr))),
                   0)
           << "could not read matrix data"
           << "\n";
       } else {
         ASSERT_EQ((cugraph::test::mm_to_coo(fpin,
-                             1,
-                             nnz,
-                             &cooRowInd[0],
-                             &cooColInd[0],
-                             static_cast<DistType*>(nullptr),
-                             static_cast<DistType*>(nullptr))),
+                                            1,
+                                            nnz,
+                                            &cooRowInd[0],
+                                            &cooColInd[0],
+                                            static_cast<DistType*>(nullptr),
+                                            static_cast<DistType*>(nullptr))),
                   0)
           << "could not read matrix data"
           << "\n";
