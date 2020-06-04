@@ -3,7 +3,9 @@
 ## New Features
 
 ## Improvements
+- PR #913 Eliminate `rmm.device_array` usage
 - PR #903 Add short commit hash to conda package
+- PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
 
 ## Bug Fixes
 
@@ -75,7 +77,8 @@
 - PR #889 Added missing conftest.py file to benchmarks dir
 - PR #896 opg dask infrastructure fixes
 - PR #907 Fix bfs directed missing vertices
-- PR #911 Env and changelog update 
+- PR #911 Env and changelog update
+- PR #923 Updated pagerank with @afender 's temp fix for double-free crash
 
 # cuGraph 0.13.0 (31 Mar 2020)
 

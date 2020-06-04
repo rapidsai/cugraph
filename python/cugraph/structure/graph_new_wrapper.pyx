@@ -118,7 +118,7 @@ def view_edge_list(input_graph):
     [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
     [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
@@ -255,7 +255,7 @@ def get_two_hop_neighbors(input_graph):
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*> c_indices, <float*>NULL, num_verts, num_edges)
 

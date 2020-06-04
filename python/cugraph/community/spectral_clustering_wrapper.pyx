@@ -54,7 +54,7 @@ def spectralBalancedCutClustering(input_graph,
     [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     if input_graph.adjlist.weights is not None:
         [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
@@ -130,7 +130,7 @@ def spectralModularityMaximizationClustering(input_graph,
     [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     # Create the output dataframe
     df = cudf.DataFrame()
@@ -193,7 +193,7 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
 
     score = None
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     if input_graph.adjlist.weights is None:
         raise Exception("analyze clustering modularity must be called on a graph with weights")
@@ -248,7 +248,7 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
 
     score = None
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     if input_graph.adjlist.weights is not None:
         [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
@@ -301,7 +301,7 @@ def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
 
     score = None
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     if input_graph.adjlist.weights is not None:
         [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
