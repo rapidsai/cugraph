@@ -267,8 +267,8 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  *
  * The current implementation does not support a weighted graph.
  *
- * @throws                           cugraph::logic_error with a custom message when an error
- * occurs.
+ * @throws                           cugraph::logic_error if `result == nullptr` or
+ * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr`.
  *
  * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
  * 32-bit)
@@ -307,8 +307,10 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
  * pass through this edge. The weight parameter is currenlty not supported
  *
- * @throws                           cugraph::logic_error with a custom message when an error
- * occurs.
+ *  * @throws                           cugraph::logic_error if `result == nullptr` or
+ * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr` or `endpoints ==
+ true`.
+
  *
  * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
  * 32-bit)

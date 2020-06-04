@@ -51,8 +51,8 @@ template <typename VT, typename ET, typename WT, typename result_t>
 class BC {
  public:
   virtual ~BC(void) {}
-  BC(experimental::GraphCSRView<VT, ET, WT> const &_graph, cudaStream_t _stream = 0)
-    : graph(_graph), stream(_stream)
+  BC(experimental::GraphCSRView<VT, ET, WT> const &graph, cudaStream_t stream = 0)
+    : graph_(graph), stream_(stream)
   {
     setup();
   }
@@ -60,58 +60,58 @@ class BC {
                  bool is_edge_betweenness,
                  bool normalize,
                  bool endpoints,
-                 WT const *weigth,
+                 WT const *weight,
                  VT const *sources,
                  VT const number_of_sources);
 
   void configure_edge(result_t *betweenness,
                       bool normalize,
-                      WT const *weigth,
+                      WT const *weight,
                       VT const *sources,
                       VT const number_of_sources);
   void compute();
 
  private:
   // --- Information concerning the graph ---
-  const experimental::GraphCSRView<VT, ET, WT> &graph;
+  const experimental::GraphCSRView<VT, ET, WT> &graph_;
   // --- These information are extracted on setup ---
-  VT number_of_vertices;  // Number of vertices in the graph
-  VT number_of_edges;     // Number of edges in the graph
-  ET const *offsets_ptr;  // Pointer to the offsets
-  VT const *indices_ptr;  // Pointers to the indices
+  VT number_of_vertices_;  // Number of vertices in the graph
+  VT number_of_edges_;     // Number of edges in the graph
+  ET const *offsets_ptr_;  // Pointer to the offsets
+  VT const *indices_ptr_;  // Pointers to the indices
 
   // --- Information from configuration ---
-  bool configured          = false;  // Flag to ensure configuration was called
-  bool normalized          = false;  // If True normalize the betweenness
-  bool is_edge_betweenness = false;  // If True compute edge_betweeness
+  bool configured_          = false;  // Flag to ensure configuration was called
+  bool normalized_          = false;  // If True normalize the betweenness
+  bool is_edge_betweenness_ = false;  // If True compute edge_betweeness
 
   // FIXME: For weighted version
-  WT const *edge_weights_ptr = nullptr;  // Pointer to the weights
-  bool endpoints             = false;    // If True normalize the betweenness
-  VT const *sources          = nullptr;  // Subset of vertices to gather information from
-  VT number_of_sources;                  // Number of vertices in sources
+  WT const *edge_weights_ptr_ = nullptr;  // Pointer to the weights
+  bool endpoints_             = false;    // If True normalize the betweenness
+  VT const *sources_          = nullptr;  // Subset of vertices to gather information from
+  VT number_of_sources_;                  // Number of vertices in sources
 
   // --- Output ----
   // betweenness is set/read by users - using Vectors
-  result_t *betweenness = nullptr;
+  result_t *betweenness_ = nullptr;
 
   // --- Data required to perform computation ----
-  rmm::device_vector<VT> distances_vec;
-  rmm::device_vector<VT> predecessors_vec;
-  rmm::device_vector<double> sp_counters_vec;
-  rmm::device_vector<double> deltas_vec;
+  rmm::device_vector<VT> distances_vec_;
+  rmm::device_vector<VT> predecessors_vec_;
+  rmm::device_vector<double> sp_counters_vec_;
+  rmm::device_vector<double> deltas_vec_;
 
-  VT *distances    = nullptr;  // array<VT>(|V|) stores the distances gathered by the latest SSSP
-  VT *predecessors = nullptr;  // array<WT>(|V|) stores the predecessors of the latest SSSP
-  double *sp_counters =
-    nullptr;                 // array<VT>(|V|) stores the shortest path counter for the latest SSSP
-  double *deltas = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
+  VT *distances_    = nullptr;  // array<VT>(|V|) stores the distances gathered by the latest SSSP
+  VT *predecessors_ = nullptr;  // array<WT>(|V|) stores the predecessors of the latest SSSP
+  double *sp_counters_ =
+    nullptr;                  // array<VT>(|V|) stores the shortest path counter for the latest SSSP
+  double *deltas_ = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
 
   // FIXME: This should be replaced using RAFT handle
-  int device_id        = 0;
-  int max_grid_dim_1D  = 0;
-  int max_block_dim_1D = 0;
-  cudaStream_t stream;
+  int device_id_        = 0;
+  int max_grid_dim_1D_  = 0;
+  int max_block_dim_1D_ = 0;
+  cudaStream_t stream_;
 
   void setup();
 
@@ -133,9 +133,7 @@ class BC {
   void add_vertices_dependencies_to_betweenness();
 
   void rescale();
-  void rescale_vertices_betweenness_centrality(result_t &rescale_factor,
-                                               bool endpoints,
-                                               bool &modified);
+  void rescale_vertices_betweenness_centrality(result_t &rescale_factor, bool &modified);
   void rescale_edges_betweenness_centrality(result_t &rescale_factor, bool &modified);
   void apply_rescale_factor_to_betweenness(result_t scaling_factor);
 };
