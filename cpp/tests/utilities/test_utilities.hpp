@@ -340,7 +340,7 @@ std::unique_ptr<cugraph::experimental::GraphCSR<VT, ET, WT>> generate_graph_csr_
   EXPECT_EQ(fclose(fpin), 0);
 
   cugraph::experimental::GraphCOOView<VT, ET, WT> cooview(
-    &coo_col_ind[0], &coo_row_ind[0], &coo_val[0], number_of_vertices, number_of_edges);
+    &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], number_of_vertices, number_of_edges);
 
   return cugraph::coo_to_csr(cooview);
 }
