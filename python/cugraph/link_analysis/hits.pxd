@@ -11,5 +11,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.link_analysis.pagerank import pagerank
-from cugraph.link_analysis.hits import hits
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph_new cimport *
+from libcpp cimport bool
+
+
+cdef extern from "algorithms.hpp" namespace "cugraph::gunrock":
+
+    cdef void hits[VT,ET,WT](
+        const GraphCSRView[VT,ET,WT] &graph,
+        int max_iter,
+        WT tolerance,
+        const WT *starting_value,
+        bool normalized,
+        WT *hubs,
+        WT *authorities) except +

@@ -308,6 +308,7 @@ add_library(cugraph SHARED
     src/utilities/cusparse_helper.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/gunrock_hits.cu
     src/traversal/bfs.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
