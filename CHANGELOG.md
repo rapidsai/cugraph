@@ -8,6 +8,7 @@
 - PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
 
 ## Bug Fixes
+- PR #938 Quote conda installs to avoid bash interpretation
 
 # cuGraph 0.14.0 (Date TBD)
 
