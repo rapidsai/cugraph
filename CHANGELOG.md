@@ -84,6 +84,7 @@
 - PR #911 Env and changelog update
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash
 - PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
+- PR 935 Merge 
 
 # cuGraph 0.13.0 (31 Mar 2020)
 
