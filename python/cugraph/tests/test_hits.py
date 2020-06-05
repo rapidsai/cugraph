@@ -104,8 +104,8 @@ def test_hits(graph_file, max_iter, tol):
     cugraph_hits = cugraph_call(cu_M, max_iter, tol)
 
     # Calculating mismatch
-    #hubs = sorted(hubs.items(), key=lambda x: x[0])
-    #print("hubs = ", hubs)
+    # hubs = sorted(hubs.items(), key=lambda x: x[0])
+    # print("hubs = ", hubs)
 
     #
     #  Scores don't match.  Networkx uses the 1-norm,
@@ -135,4 +135,3 @@ def test_hits(graph_file, max_iter, tol):
 
     assert cugraph_hits['authorities'].is_monotonic_decreasing
     assert cugraph_hits['nx_authorities'].is_monotonic_decreasing
-

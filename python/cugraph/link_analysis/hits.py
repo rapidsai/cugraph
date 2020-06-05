@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.link_analysis import hits_wrapper
-from cugraph.structure.graph import null_check
 
 
 def hits(G,
