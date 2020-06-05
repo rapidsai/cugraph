@@ -64,7 +64,9 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
     # FIXME: We could sample directly from a cudf array in the futur: i.e
     #       c_vertices = vertices.__cuda_array_interface__['data'][0]
     if vertices is not None:
-        c_vertices = np.array(vertices, dtype=np.int32).__array_interface__['data'][0]
+        np_verts =  np.array(vertices, dtype=np.int32)
+        c_vertices = np_verts.__array_interface__['data'][0]
+
 
     c_k = 0
     if k is not None:

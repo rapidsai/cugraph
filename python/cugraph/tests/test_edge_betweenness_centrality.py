@@ -60,17 +60,22 @@ RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 # =============================================================================
 def calc_edge_betweenness_centrality(graph_file,
                                      directed=True,
+                                     k=None,
                                      normalized=False,
                                      weight=None,
-                                     k=None,
                                      seed=None,
-                                     result_dtype=np.float32):
-    """ Generate both cugraph and networkx betweenness centrality
+                                     result_dtype=np.float64,
+                                     use_k_full=False):
+    """ Generate both cugraph and networkx edge betweenness centrality
 
     Parameters
     ----------
     graph_file : string
         Path to COO Graph representation in .csv format
+
+    k : int or None, optional, default=None
+        int:  Number of sources  to sample  from
+        None: All sources are used to compute
 
     directed : bool, optional, default=True
 
@@ -78,21 +83,27 @@ def calc_edge_betweenness_centrality(graph_file,
         True: Normalize Betweenness Centrality scores
         False: Scores are left unnormalized
 
-    k : int or None, optional, default=None
-        int:  Number of sources  to sample  from
-        None: All sources are used to compute
+    weight : cudf.DataFrame:
+        Not supported as of 06/2020
 
     seed : int or None, optional, default=None
         Seed for random sampling  of the starting point
 
+    result_dtype :  numpy.dtype
+        Expected type of the result, either np.float32 or np.float64
+
+    use_k_full : bool
+        When True, if k is None replaces k by the number of sources of the
+        Graph
+
     Returns
     -------
-        cu_bc : dict
-            Each key is the vertex identifier, each value is the betweenness
-            centrality score obtained from cugraph betweenness_centrality
-        nx_bc : dict
-            Each key is the vertex identifier, each value is the betweenness
-            centrality score obtained from networkx betweenness_centrality
+
+    sorted_df : cudf.DataFrame
+        Contains 'src', 'dst', 'cu_bc' and 'ref_bc' columns,  where 'cu_bc'
+        and 'ref_bc' are the two betweenness centrality scores to compare.
+        The dataframe is expected to be sorted based on 'src' then 'dst',
+        so that we can use cupy.isclose to compare the scores.
     """
     G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
     calc_func = None
@@ -101,6 +112,9 @@ def calc_edge_betweenness_centrality(graph_file,
     elif k is not None:
         calc_func = _calc_bc_subset_fixed
     else:  # We processed to a comparison using every sources
+        if use_k_full:
+            print("Computing k_full")
+            k = Gnx.number_of_nodes()
         calc_func = _calc_bc_full
     sorted_df = calc_func(G,
                           Gnx,
@@ -186,12 +200,17 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed,
 
 def _calc_bc_full(G, Gnx, normalized, weight, k, seed, result_dtype):
     df = cugraph.edge_betweenness_centrality(G,
+                                             k=k,
                                              normalized=normalized,
                                              weight=weight,
+                                             seed=seed,
                                              result_dtype=result_dtype)
     assert df['betweenness_centrality'].dtype == result_dtype,  \
         "'betweenness_centrality' column has not the expected type"
-    nx_bc_dict = nx.edge_betweenness_centrality(Gnx, normalized=normalized,
+    nx_bc_dict = nx.edge_betweenness_centrality(Gnx,
+                                                k=k,
+                                                normalized=normalized,
+                                                seed=seed,
                                                 weight=weight)
 
     nx_df = generate_nx_result(nx_bc_dict, type(Gnx) is nx.DiGraph) \
@@ -269,6 +288,36 @@ def test_edge_betweenness_centrality(graph_file,
                                                  weight=weight,
                                                  seed=subset_seed,
                                                  result_dtype=result_dtype)
+    compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize('subset_size', [None])
+@pytest.mark.parametrize('normalized', NORMALIZED_OPTIONS)
+@pytest.mark.parametrize('weight', [None])
+@pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
+@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize('use_k_full', [True])
+def test_edge_betweenness_centrality_k_full(graph_file,
+                                            directed,
+                                            subset_size,
+                                            normalized,
+                                            weight,
+                                            subset_seed,
+                                            result_dtype,
+                                            use_k_full):
+    """Tests full edge betweenness centrality by using k = G.number_of_vertices()
+    instead of k=None, checks that k scales properly"""
+    prepare_test()
+    sorted_df = calc_edge_betweenness_centrality(graph_file,
+                                                 directed=directed,
+                                                 normalized=normalized,
+                                                 k=subset_size,
+                                                 weight=weight,
+                                                 seed=subset_seed,
+                                                 result_dtype=result_dtype,
+                                                 use_k_full=use_k_full)
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
