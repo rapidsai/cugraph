@@ -47,7 +47,7 @@ def cudify(d):
 
 
 def cugraph_call(cu_M, max_iter, tol):
-    # cugraph Pagerank Call
+    # cugraph hits Call
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
     t1 = time.time()

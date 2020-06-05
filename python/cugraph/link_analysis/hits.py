@@ -30,6 +30,10 @@ def hits(G,
     The cuGraph implementation of HITS is a wrapper around the gunrock
     implementation of HITS.
 
+    Note that the gunrock implementation uses a 2-norm, while networkx
+    uses a 1-norm.  The raw scores will be different, but the rank ordering
+    should be comparable with networkx.
+
     Parameters
     ----------
     graph : cugraph.Graph
