@@ -7,10 +7,14 @@
 - PR #903 Add short commit hash to conda package
 - PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
 - PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
+- PR #934 Update conda dev environment.yml dependencies to 0.15
 
 ## Bug Fixes
+- PR #938 Quote conda installs to avoid bash interpretation
 
-# cuGraph 0.14.0 (Date TBD)
+
+# cuGraph 0.14.0 (03 Jun 2020)
+
 
 ## New Features
 - PR #756 Add Force Atlas 2 layout
@@ -53,6 +57,7 @@
 - PR #874 Update setup.py to use custom clean command
 - PR #876 Add BFS C++ tests
 - PR #878 Updated build script
+- PR #887 Updates test to common datasets
 - PR #879 Add docs build script to repository
 - PR #880 Remove remaining gdf_column references
 - PR #882 Add Force Atlas 2 to benchmarks
@@ -63,6 +68,7 @@
 - PR #906 Update Louvain notebook
 
 ## Bug Fixes
+- PR #927 Update scikit learn dependency
 - PR #916 Fix CI error on Force Atlas 2 test
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation
@@ -80,6 +86,8 @@
 - PR #907 Fix bfs directed missing vertices
 - PR #911 Env and changelog update
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash
+- PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
+- PR 935 Merge 
 
 # cuGraph 0.13.0 (31 Mar 2020)
 

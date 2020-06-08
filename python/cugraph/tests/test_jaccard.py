@@ -82,13 +82,8 @@ def networkx_call(M):
     return src, dst, coeff
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/netscience.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_jaccard(graph_file):
     gc.collect()
 
@@ -135,7 +130,7 @@ def test_jaccard_edgevals(graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_jaccard_two_hop(graph_file):
     gc.collect()
 
@@ -164,7 +159,7 @@ def test_jaccard_two_hop(graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_jaccard_two_hop_edge_vals(graph_file):
     gc.collect()
 

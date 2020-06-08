@@ -105,18 +105,8 @@ def cugraph_strong_call(cu_M):
     return label_vertex_dict
 
 
-# these should come w/ cugraph/python:
-#
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-STRONGDATASETS = ['../datasets/dolphins.csv',
-                  '../datasets/netscience.csv',
-                  '../datasets/email-Eu-core.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_weak_cc(graph_file):
     gc.collect()
 
@@ -155,7 +145,7 @@ def test_weak_cc(graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', STRONGDATASETS)
+@pytest.mark.parametrize('graph_file', utils.STRONGDATASETS)
 def test_strong_cc(graph_file):
     gc.collect()
 
