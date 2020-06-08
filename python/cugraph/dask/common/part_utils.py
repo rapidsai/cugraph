@@ -14,9 +14,6 @@
 #
 
 import numpy as np
-from collections import OrderedDict
-
-from functools import reduce
 from tornado import gen
 from collections import Sequence
 from dask.distributed import futures_of, default_client, wait
@@ -25,8 +22,6 @@ from toolz import first
 from dask.array.core import Array as daskArray
 from dask_cudf.core import DataFrame as daskDataFrame
 from dask_cudf.core import Series as daskSeries
-
-#from cuml.dask.common.utils import parse_host_port
 
 '''
 def hosts_to_parts(futures):
@@ -123,6 +118,7 @@ def flatten_grouped_results(client, gpu_futures,
 
     return futures
 '''
+
 
 @gen.coroutine
 def _extract_partitions(dask_obj, client=None):

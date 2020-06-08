@@ -1,4 +1,3 @@
-#import cugraph.dask.opg_pagerank as dcg
 from dask.distributed import Client
 import gc
 import cudf
@@ -6,13 +5,11 @@ import cudf
 import cugraph
 import dask_cudf
 
-## Move to conftest
+# Move to conftest
 from dask_cuda import LocalCUDACluster
-#cluster = LocalCUDACluster(protocol="tcp", scheduler_port=0)
-##
 
 
-## MOVE TO UTILS
+# MOVE TO UTILS
 def get_n_gpus():
     import os
     try:
@@ -45,7 +42,6 @@ def get_chunksize(input_path):
         chunksize = max(size)
     return chunksize
 
-###############
 
 def test_dask_opg_degree():
 
@@ -62,17 +58,16 @@ def test_dask_opg_degree():
                              names=['src', 'dst', 'value'],
                              dtype=['int32', 'int32', 'float32'])
 
-
     df = cudf.read_csv(input_data_path,
-                             delimiter=' ',
-                             names=['src', 'dst', 'value'],
-                             dtype=['int32', 'int32', 'float32'])
+                       delimiter=' ',
+                       names=['src', 'dst', 'value'],
+                       dtype=['int32', 'int32', 'float32'])
 
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf)
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df,'src','dst')
+    g.from_cudf_edgelist(df, 'src', 'dst')
 
     assert dg.in_degree().equals(g.in_degree())
     client.close()
