@@ -40,7 +40,8 @@ void hits(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const 
           weight_t *authorities)
 {
   CUGRAPH_EXPECTS(hubs != nullptr, "Invalid API parameter: hubs array should be of size V");
-  CUGRAPH_EXPECTS(authorities != nullptr, "Invalid API parameter: authorities array should be of size V");
+  CUGRAPH_EXPECTS(authorities != nullptr,
+                  "Invalid API parameter: authorities array should be of size V");
 
   //
   //  NOTE:  gunrock doesn't support tolerance parameter
