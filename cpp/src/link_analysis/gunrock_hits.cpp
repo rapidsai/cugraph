@@ -24,9 +24,6 @@
 
 #include <utilities/error_utils.h>
 
-#include <rmm/thrust_rmm_allocator.h>
-#include <thrust/for_each.h>
-
 #include <gunrock/gunrock.h>
 
 namespace cugraph {
@@ -42,6 +39,9 @@ void hits(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const 
           weight_t *hubs,
           weight_t *authorities)
 {
+  CUGRAPH_EXPECTS(hubs != nullptr, "Invalid API parameter: hubs array should be of size V");
+  CUGRAPH_EXPECTS(authorities != nullptr, "Invalid API parameter: authorities array should be of size V");
+
   //
   //  NOTE:  gunrock doesn't support tolerance parameter
   //         gunrock doesn't support passing a starting value

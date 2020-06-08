@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.tests import utils
+from cugraph.tests import utils, test_utils
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -48,9 +48,10 @@ def cudify(d):
 
 def cugraph_call(cu_M, max_iter, tol):
     # cugraph hits Call
+
+    t1 = time.time()
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    t1 = time.time()
     df = cugraph.hits(G, max_iter, tol)
     t2 = time.time() - t1
     print('Cugraph Time : '+str(t2))
@@ -65,13 +66,14 @@ def networkx_call(M, max_iter, tol):
     # so here we do this explicitly
     print('Format conversion ... ')
 
-    # Directed NetworkX graph
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.DiGraph())
-
     # Networkx Hits Call
     print('Solving... ')
     t1 = time.time()
+
+    # Directed NetworkX graph
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  #create_using=nx.DiGraph())
+                                  create_using=nx.Graph())
 
     # same parameters as in NVGRAPH
     pr = nx.hits(Gnx, max_iter, tol, normalized=True)
@@ -82,15 +84,14 @@ def networkx_call(M, max_iter, tol):
     return pr
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv']
-
-MAX_ITERATIONS = [50]
+DATASETS = [ '../datasets/netscience.csv' ]
+MAX_ITERATIONS = [100]
 TOLERANCE = [1.0e-06]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
+#@pytest.mark.parametrize('graph_file', test_utils.DATASETS)
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('tol', TOLERANCE)
@@ -126,12 +127,19 @@ def test_hits(graph_file, max_iter, tol):
     #  Sort by hubs (cugraph) in descending order.  Then we'll
     #  check to make sure all scores are in descending order.
     #
+    cugraph_hits = cugraph_hits.sort_values('nx_hubs', False)
+    print("cugraph_hits sorted by nx_hubs\n", cugraph_hits)
+
     cugraph_hits = cugraph_hits.sort_values('hubs', False)
+
+    print("cugraph_hits sorted by hubs\n", cugraph_hits)
 
     assert cugraph_hits['hubs'].is_monotonic_decreasing
     assert cugraph_hits['nx_hubs'].is_monotonic_decreasing
 
     cugraph_hits = cugraph_hits.sort_values('authorities', False)
+
+    print("cugraph_hits sorted by authorities\n", cugraph_hits)
 
     assert cugraph_hits['authorities'].is_monotonic_decreasing
     assert cugraph_hits['nx_authorities'].is_monotonic_decreasing
