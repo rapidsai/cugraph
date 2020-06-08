@@ -176,7 +176,7 @@ void reference_edge_betweenness_centrality(
   reference_rescale<VT, ET, WT, result_t>(
     result, graph.prop.directed, normalize, number_of_vertices, number_of_edges);
 }
-// Explicit declaration
+// Explicit instantiation
 template void reference_edge_betweenness_centrality<int, int, float, float>(
   cugraph::experimental::GraphCSRView<int, int, float> const &,
   float *,

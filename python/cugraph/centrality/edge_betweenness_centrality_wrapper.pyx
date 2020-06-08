@@ -27,46 +27,45 @@ import cudf
 import numpy as np
 import numpy.ctypeslib as ctypeslib
 
+
+def get_output_df(input_graph, result_dtype):
+    number_of_edges = input_graph.number_of_edges(directed_edges=True)
+    df = cudf.DataFrame()
+    df['src'] = cudf.Series(np.zeros(number_of_edges, dtype=np.int32))
+    df['dst'] = input_graph.adjlist.indices.copy()
+    df['betweenness_centrality'] = cudf.Series(np.zeros(number_of_edges,
+                                               dtype=result_dtype))
+    return df
+
+
 def edge_betweenness_centrality(input_graph, normalized, weight, k,
                                 vertices, result_dtype):
     """
     Call betweenness centrality
     """
-    cdef GraphCSRView[int, int, float] graph_float
-    cdef GraphCSRView[int, int, double] graph_double
+    cdef GraphCSRViewFloat graph_float
+    cdef GraphCSRViewDouble graph_double
+    cdef uintptr_t c_src_identifier = <uintptr_t> NULL
+    cdef uintptr_t c_dst_identifier = <uintptr_t> NULL
+    cdef uintptr_t c_betweenness = <uintptr_t> NULL
+    cdef uintptr_t c_vertices = <uintptr_t> NULL
+    cdef uintptr_t c_weight = <uintptr_t> NULL
 
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    df = get_output_df(input_graph, result_dtype)
 
-    number_of_vertices= input_graph.number_of_vertices()
-    number_of_edges = len(indices)
-
-    df = cudf.DataFrame()
-    df['src'] = cudf.Series(np.zeros(number_of_edges, dtype=np.int32))
-    df['dst'] = indices.copy()
-    df['betweenness_centrality'] = cudf.Series(np.zeros(number_of_edges,
-                                               dtype=result_dtype))
-
-    cdef uintptr_t c_src_identifier = df['src'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst_identifier = df['dst'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
-
-    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weight = <uintptr_t> NULL
-    cdef uintptr_t c_vertices = <uintptr_t> NULL
+    c_src_identifier = df['src'].__cuda_array_interface__['data'][0]
+    c_dst_identifier = df['dst'].__cuda_array_interface__['data'][0]
+    c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
 
     if weight is not None:
         c_weight = weight.__cuda_array_interface__['data'][0]
 
-    # FIXME: We could sample directly from a cudf array in the futur: i.e
-    #       c_vertices = vertices.__cuda_array_interface__['data'][0]
     if vertices is not None:
-        np_verts =  np.array(vertices, dtype=np.int32)
+        np_verts = np.array(vertices, dtype=np.int32)
         c_vertices = np_verts.__array_interface__['data'][0]
-
 
     c_k = 0
     if k is not None:
@@ -77,11 +76,7 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
     #       The current BFS requires the GraphCSR to be declared
     #       as <int, int, float> or <int, int double> even if weights is null
     if result_dtype == np.float32:
-        graph_float = GraphCSRView[int, int, float](<int*> c_offsets,
-                                                    <int*> c_indices,
-                                                    <float*> NULL,
-                                                    number_of_vertices,
-                                                    number_of_edges)
+        graph_float = get_graph_view[GraphCSRViewFloat](input_graph, False)
         # fixme: there might be a way to avoid manually setting the graph property
         graph_float.prop.directed = type(input_graph) is DiGraph
 
@@ -94,11 +89,7 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
                                                     <int*> c_vertices)
         graph_float.get_source_indices(<int*>c_src_identifier)
     elif result_dtype == np.float64:
-        graph_double = GraphCSRView[int, int, double](<int*>c_offsets,
-                                                      <int*>c_indices,
-                                                      <double*> NULL,
-                                                      number_of_vertices,
-                                                      number_of_edges)
+        graph_double = get_graph_view[GraphCSRViewDouble](input_graph, False)
         # FIXME: there might be a way to avoid manually setting
         #        the graph property
         graph_double.prop.directed = type(input_graph) is DiGraph

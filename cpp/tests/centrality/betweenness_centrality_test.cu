@@ -222,7 +222,7 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSRView<VT, ET
   reference_rescale<VT, ET, WT, result_t>(
     result, graph.prop.directed, normalize, endpoints, number_of_vertices, number_of_sources);
 }
-// Explicit declaration
+// Explicit instantiation
 template void reference_betweenness_centrality<int, int, float, float>(
   cugraph::experimental::GraphCSRView<int, int, float> const &,
   float *,
