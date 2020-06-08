@@ -56,7 +56,7 @@ for i in range(len(df_page)):
 | Layout       |                                        |              |                     |
 |              | Force Atlas 2                          | Single-GPU   |                     |
 | Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Single-GPU   |  Multi-GPU on DGX available  |
+|              | Pagerank                               | Single-GPU   |                     |
 |              | Personal Pagerank                      | Single-GPU   |                     |
 | Link Prediction |                                     |              |                     |
 |              | Jacard Similarity                      | Single-GPU   |                     |
