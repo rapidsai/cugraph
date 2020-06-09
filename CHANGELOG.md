@@ -1,6 +1,7 @@
 # cuGraph 0.15.0 (Date TBD)
 
 ## New Features
+- PR #937 Add wrapper for gunrock HITS algorithm
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
