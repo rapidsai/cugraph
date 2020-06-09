@@ -11,11 +11,10 @@
 - PR #934 Update conda dev environment.yml dependencies to 0.15
 
 ## Bug Fixes
+- PR #936 Update Force Atlas 2 doc and wrapper
 - PR #938 Quote conda installs to avoid bash interpretation
 
-
 # cuGraph 0.14.0 (03 Jun 2020)
-
 
 ## New Features
 - PR #756 Add Force Atlas 2 layout
