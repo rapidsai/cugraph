@@ -326,13 +326,15 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
     thrust::device_vector<result_t> d_result(G.number_of_vertices);
-    cugraph::betweenness_centrality(G,
+    ASSERT_TRUE(false);  // TODO(xcadet) DBG Re-enable for OPG
+    /*cugraph::betweenness_centrality(G,
                                     d_result.data().get(),
                                     normalize,
                                     endpoints,
                                     static_cast<WT *>(nullptr),
                                     configuration.number_of_sources_,
                                     sources_ptr);
+                                    */
     cudaDeviceSynchronize();
     CUDA_TRY(cudaMemcpy(result.data(),
                         d_result.data().get(),

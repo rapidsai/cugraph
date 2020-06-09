@@ -17,6 +17,7 @@
 # cython: language_level = 3
 
 from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
+from cugraph.centrality.betweenness_centrality cimport handle_t
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph import DiGraph
 from cugraph.structure.graph_new cimport *
@@ -27,6 +28,29 @@ import cudf
 import numpy as np
 import numpy.ctypeslib as ctypeslib
 
+import dask_cudf as dc
+import cugraph.raft
+from cugraph.raft.dask.common.comms import Comms
+from dask.distributed import wait, default_client
+from cugraph.raft.dask.common.comms import worker_state
+#from cugraph.dask.common.input_utils import DistributedDataHandler
+
+def prepare_client():
+    # client = default_client()
+    client = None
+    return client
+
+def prepare_comms(client):
+     comms = Comms(comms_p2p=False)
+     comms.init()
+     return comms
+
+def prepare_batch_opg():
+    client = prepare_client()
+    prepare_comms(client)
+    # client = default_client()
+    # futures = [client.submit(task ...]
+    # wait(degree_ddf)
 
 def get_output_df(input_graph, result_dtype):
     number_of_vertices = input_graph.number_of_vertices()
@@ -48,6 +72,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
     cdef uintptr_t c_betweenness = <uintptr_t> NULL
     cdef uintptr_t c_vertices = <uintptr_t> NULL
     cdef uintptr_t c_weight = <uintptr_t> NULL
+    cdef handle_t *c_handle
 
     if not input_graph.adjlist:
         input_graph.view_adj_list()
@@ -69,7 +94,11 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
     c_k = 0
     if k is not None:
         c_k = k
-
+    # TODO(xcadet) Check if there is a better way to do this
+    # TODO(xcadet) Find a way to execute without a Client
+    # prepare_batch_opg()
+    handle = cugraph.raft.common.handle.Handle() #  if handle is None else handle
+    c_handle = <handle_t*><size_t> handle.getHandle()
     # NOTE: The current implementation only has <int, int, float, float> and
     #       <int, int, double, double> as explicit template declaration
     #       The current BFS requires the GraphCSR to be declared
@@ -79,18 +108,21 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         # FIXME: There might be a way to avoid manually setting the Graph property
         graph_float.prop.directed = type(input_graph) is DiGraph
 
-        c_betweenness_centrality[int, int, float, float](graph_float,
+        c_betweenness_centrality[int, int, float, float](c_handle[0],
+                                                         graph_float,
                                                          <float*> c_betweenness,
                                                          normalized, endpoints,
                                                          <float*> c_weight, c_k,
                                                          <int*> c_vertices)
         graph_float.get_vertex_identifiers(<int*> c_identifier)
+
     elif result_dtype == np.float64:
         graph_double = get_graph_view[GraphCSRViewDouble](input_graph, False)
         # FIXME: There might be a way to avoid manually setting the Graph property
         graph_double.prop.directed = type(input_graph) is DiGraph
 
-        c_betweenness_centrality[int, int, double, double](graph_double,
+        c_betweenness_centrality[int, int, double, double](c_handle[0],
+                                                           graph_double,
                                                            <double*> c_betweenness,
                                                            normalized, endpoints,
                                                            <double*> c_weight, c_k,

@@ -113,7 +113,6 @@ def calc_edge_betweenness_centrality(graph_file,
         calc_func = _calc_bc_subset_fixed
     else:  # We processed to a comparison using every sources
         if use_k_full:
-            print("Computing k_full")
             k = Gnx.number_of_nodes()
         calc_func = _calc_bc_full
     sorted_df = calc_func(G,

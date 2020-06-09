@@ -17,6 +17,7 @@
 
 #include <graph.hpp>
 #include <internals.hpp>
+#include <raft/handle.hpp>
 
 namespace cugraph {
 
@@ -293,7 +294,8 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality(const raft::handle_t &handle,
+                            experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalized    = true,
                             bool endpoints     = false,

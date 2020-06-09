@@ -23,6 +23,7 @@
 
 #include <utilities/error_utils.h>
 
+#include <raft/handle.hpp>
 #include "betweenness_centrality.cuh"
 #include "betweenness_centrality_kernels.cuh"
 
@@ -30,7 +31,8 @@ namespace cugraph {
 namespace detail {
 namespace {
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality_impl(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality_impl(const raft::handle_t &handle,
+                                 experimental::GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  bool endpoints,
@@ -158,6 +160,7 @@ void BC<VT, ET, WT, result_t>::initialize_pointers_to_vectors()
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::initialize_device_information()
 {
+  // TODO(xcadet) Update to use raft::handle
   CUDA_TRY(cudaGetDevice(&device_id_));
   CUDA_TRY(cudaDeviceGetAttribute(&max_grid_dim_1D_, cudaDevAttrMaxGridDimX, device_id_));
   CUDA_TRY(cudaDeviceGetAttribute(&max_block_dim_1D_, cudaDevAttrMaxBlockDimX, device_id_));
@@ -390,9 +393,24 @@ void BC<VT, ET, WT, result_t>::apply_rescale_factor_to_betweenness(result_t resc
                     thrust::multiplies<result_t>());
 }
 }  // namespace detail
+namespace opg {
+void setup(const raft::handle_t &handle)
+{
+  printf("[DBG][OPG] Setup\n");
+  int rank = handle.get_comms().get_rank();
+  printf("[DBG][OPG] Rank(%d)\n", rank);
+}
+
+void get_batch() { printf("[DBG][OPG] Get Batch\n"); }
+
+void process() { printf("[DBG][OPG] Process\n"); }
+
+void combine() { printf("[DBG][OPG] Combine\n"); }
+}  // namespace opg
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality(const raft::handle_t &handle,
+                            experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -400,10 +418,23 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             VT k,
                             VT const *vertices)
 {
-  detail::betweenness_centrality_impl(graph, result, normalize, endpoints, weight, k, vertices);
+  if (handle.comms_initialized()) {
+    printf("[DBG][OPG] Started BATCH-OPG-BC\n");
+    opg::setup(handle);
+    opg::get_batch();
+    detail::betweenness_centrality_impl(
+      handle, graph, result, normalize, endpoints, weight, k, vertices);
+    opg::process();
+    opg::combine();
+  } else {
+    printf("[DBG][OPG] Started Regular-BC\n");
+    detail::betweenness_centrality_impl(
+      handle, graph, result, normalize, endpoints, weight, k, vertices);
+  }
 }
 
 template void betweenness_centrality<int, int, float, float>(
+  const raft::handle_t &,
   experimental::GraphCSRView<int, int, float> const &,
   float *,
   bool,
@@ -412,6 +443,7 @@ template void betweenness_centrality<int, int, float, float>(
   int,
   int const *);
 template void betweenness_centrality<int, int, double, double>(
+  const raft::handle_t &,
   experimental::GraphCSRView<int, int, double> const &,
   double *,
   bool,
