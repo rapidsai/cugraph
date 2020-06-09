@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include "utilities/test_utilities.hpp"
-
 #include "functions.hpp"
 
 #include <cuda.h>
