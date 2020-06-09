@@ -47,8 +47,25 @@
 // ============================================================================
 // C++ Reference Implementation
 // ============================================================================
+
+template <typename VT, typename ET, typename WT, typename result_t>
+ET get_edge_index_from_source_and_destination(VT source_vertex,
+                                              VT destination_vertex,
+                                              VT const *indices,
+                                              ET const *offsets)
+{
+  ET index          = -1;
+  ET first_edge_idx = offsets[source_vertex];
+  ET last_edge_idx  = offsets[source_vertex + 1];
+  auto index_it = std::find(indices + first_edge_idx, indices + last_edge_idx, destination_vertex);
+  if (index_it != (indices + last_edge_idx)) { index = std::distance(indices, index_it); }
+  return index;
+}
+
 template <typename VT, typename ET, typename WT, typename result_t>
 void ref_accumulation(result_t *result,
+                      VT const *indices,
+                      ET const *offsets,
                       VT const number_of_vertices,
                       std::stack<VT> &S,
                       std::vector<std::vector<VT>> &pred,
@@ -60,57 +77,25 @@ void ref_accumulation(result_t *result,
   while (!S.empty()) {
     VT w = S.top();
     S.pop();
-    for (VT v : pred[w]) { deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]); }
-    if (w != source) { result[w] += deltas[w]; }
-  }
-}
+    for (VT v : pred[w]) {
+      ET edge_idx =
+        get_edge_index_from_source_and_destination<VT, ET, WT, result_t>(v, w, indices, offsets);
+      double coefficient = (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
 
-template <typename VT, typename ET, typename WT, typename result_t>
-void ref_endpoints_accumulation(result_t *result,
-                                VT const number_of_vertices,
-                                std::stack<VT> &S,
-                                std::vector<std::vector<VT>> &pred,
-                                std::vector<double> &sigmas,
-                                std::vector<double> &deltas,
-                                VT source)
-{
-  result[source] += S.size() - 1;
-  for (VT v = 0; v < number_of_vertices; ++v) { deltas[v] = 0; }
-  while (!S.empty()) {
-    VT w = S.top();
-    S.pop();
-    for (VT v : pred[w]) { deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]); }
-    if (w != source) { result[w] += deltas[w] + 1; }
-  }
-}
-
-template <typename VT, typename ET, typename WT, typename result_t>
-void ref_edge_accumulation(result_t *result,
-                           VT const number_of_vertices,
-                           std::stack<VT> &S,
-                           std::vector<std::vector<VT>> &pred,
-                           std::vector<double> &sigmas,
-                           std::vector<double> &deltas,
-                           VT source)
-{
-  for (VT v = 0; v < number_of_vertices; ++v) { deltas[v] = 0; }
-  while (!S.empty()) {
-    VT w = S.top();
-    S.pop();
-    for (VT v : pred[w]) { deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]); }
-    if (w != source) { result[w] += deltas[w]; }
+      deltas[v] += coefficient;
+      result[edge_idx] += coefficient;
+    }
   }
 }
 
 // Algorithm 1: Shortest-path vertex betweenness, (Brandes, 2001)
 template <typename VT, typename ET, typename WT, typename result_t>
-void reference_betweenness_centrality_impl(VT *indices,
-                                           ET *offsets,
-                                           VT const number_of_vertices,
-                                           result_t *result,
-                                           bool endpoints,
-                                           VT const *sources,
-                                           VT const number_of_sources)
+void reference_edge_betweenness_centrality_impl(VT *indices,
+                                                ET *offsets,
+                                                VT const number_of_vertices,
+                                                result_t *result,
+                                                VT const *sources,
+                                                VT const number_of_sources)
 {
   std::queue<VT> Q;
   std::stack<VT> S;
@@ -130,13 +115,8 @@ void reference_betweenness_centrality_impl(VT *indices,
       ref_bfs<VT, ET>(indices, offsets, number_of_vertices, Q, S, dist, pred, sigmas, s);
       //  Step 2: Accumulation
       //          Back propagation of dependencies
-      if (endpoints) {
-        ref_endpoints_accumulation<VT, ET, WT, result_t>(
-          result, number_of_vertices, S, pred, sigmas, deltas, s);
-      } else {
-        ref_accumulation<VT, ET, WT, result_t>(
-          result, number_of_vertices, S, pred, sigmas, deltas, s);
-      }
+      ref_accumulation<VT, ET, WT, result_t>(
+        result, indices, offsets, number_of_vertices, S, pred, sigmas, deltas, s);
     }
   } else {
     for (VT s = 0; s < number_of_vertices; ++s) {
@@ -145,13 +125,8 @@ void reference_betweenness_centrality_impl(VT *indices,
       ref_bfs<VT, ET>(indices, offsets, number_of_vertices, Q, S, dist, pred, sigmas, s);
       //  Step 2: Accumulation
       //          Back propagation of dependencies
-      if (endpoints) {
-        ref_endpoints_accumulation<VT, ET, WT, result_t>(
-          result, number_of_vertices, S, pred, sigmas, deltas, s);
-      } else {
-        ref_accumulation<VT, ET, WT, result_t>(
-          result, number_of_vertices, S, pred, sigmas, deltas, s);
-      }
+      ref_accumulation<VT, ET, WT, result_t>(
+        result, indices, offsets, number_of_vertices, S, pred, sigmas, deltas, s);
     }
   }
 }
@@ -160,44 +135,28 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void reference_rescale(result_t *result,
                        bool directed,
                        bool normalize,
-                       bool endpoints,
                        VT const number_of_vertices,
-                       VT const number_of_sources)
+                       ET const number_of_edges)
 {
-  bool modified                      = false;
   result_t rescale_factor            = static_cast<result_t>(1);
-  result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
   if (normalize) {
-    if (number_of_vertices > 2) {
-      if (endpoints) {
-        rescale_factor /= (casted_number_of_vertices * (casted_number_of_vertices - 1));
-      } else {
-        rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
-      }
-      modified = true;
+    if (number_of_vertices > 1) {
+      rescale_factor /= ((casted_number_of_vertices) * (casted_number_of_vertices - 1));
     }
   } else {
-    if (!directed) {
-      rescale_factor /= static_cast<result_t>(2);
-      modified = true;
-    }
+    if (!directed) { rescale_factor /= static_cast<result_t>(2); }
   }
-  if (modified) {
-    if (number_of_sources > 0) {
-      rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
-    }
-  }
-  for (auto idx = 0; idx < number_of_vertices; ++idx) { result[idx] *= rescale_factor; }
+  for (auto idx = 0; idx < number_of_edges; ++idx) { result[idx] *= rescale_factor; }
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void reference_betweenness_centrality(cugraph::experimental::GraphCSRView<VT, ET, WT> const &graph,
-                                      result_t *result,
-                                      bool normalize,
-                                      bool endpoints,  // This is not yet implemented
-                                      VT const number_of_sources,
-                                      VT const *sources)
+void reference_edge_betweenness_centrality(
+  cugraph::experimental::GraphCSRView<VT, ET, WT> const &graph,
+  result_t *result,
+  bool normalize,
+  VT const number_of_sources,
+  VT const *sources)
 {
   VT number_of_vertices = graph.number_of_vertices;
   ET number_of_edges    = graph.number_of_edges;
@@ -212,28 +171,21 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSRView<VT, ET
 
   cudaDeviceSynchronize();
 
-  reference_betweenness_centrality_impl<VT, ET, WT, result_t>(&h_indices[0],
-                                                              &h_offsets[0],
-                                                              number_of_vertices,
-                                                              result,
-                                                              endpoints,
-                                                              sources,
-                                                              number_of_sources);
+  reference_edge_betweenness_centrality_impl<VT, ET, WT, result_t>(
+    &h_indices[0], &h_offsets[0], number_of_vertices, result, sources, number_of_sources);
   reference_rescale<VT, ET, WT, result_t>(
-    result, graph.prop.directed, normalize, endpoints, number_of_vertices, number_of_sources);
+    result, graph.prop.directed, normalize, number_of_vertices, number_of_edges);
 }
 // Explicit instantiation
-template void reference_betweenness_centrality<int, int, float, float>(
+template void reference_edge_betweenness_centrality<int, int, float, float>(
   cugraph::experimental::GraphCSRView<int, int, float> const &,
   float *,
   bool,
-  bool,
   const int,
   int const *);
-template void reference_betweenness_centrality<int, int, double, double>(
+template void reference_edge_betweenness_centrality<int, int, double, double>(
   cugraph::experimental::GraphCSRView<int, int, double> const &,
   double *,
-  bool,
   bool,
   const int,
   int const *);
@@ -256,11 +208,11 @@ bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_
 // Defines Betweenness Centrality UseCase
 // SSSP's test suite code uses type of Graph parameter that could be used
 // (MTX / RMAT)
-typedef struct BC_Usecase_t {
+typedef struct EdgeBC_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
   int number_of_sources_;  // Starting point from the traversal
-  BC_Usecase_t(const std::string &config, int number_of_sources)
+  EdgeBC_Usecase_t(const std::string &config, int number_of_sources)
     : config_(config), number_of_sources_(number_of_sources)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
@@ -272,29 +224,24 @@ typedef struct BC_Usecase_t {
       file_path_ = config_;
     }
   };
-} BC_Usecase;
+} EdgeBC_Usecase;
 
-class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
+class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
  public:
-  Tests_BC() {}
+  Tests_EdgeBC() {}
   static void SetupTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
   virtual void TearDown() {}
+  // FIXME: Should normalize be part of the configuration instead?
   // VT         vertex identifier data type
   // ET         edge identifier data type
   // WT         edge weight data type
   // result_t   result data type
   // normalize  should the result be normalized
-  // endpoints  should the endpoints be included
-  template <typename VT,
-            typename ET,
-            typename WT,
-            typename result_t,
-            bool normalize,
-            bool endpoints>
-  void run_current_test(const BC_Usecase &configuration)
+  template <typename VT, typename ET, typename WT, typename result_t, bool normalize>
+  void run_current_test(const EdgeBC_Usecase &configuration)
   {
     // Step 1: Construction of the graph based on configuration
     bool is_directed = false;
@@ -303,8 +250,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = is_directed;
     CUDA_CHECK_LAST();
-    std::vector<result_t> result(G.number_of_vertices, 0);
-    std::vector<result_t> expected(G.number_of_vertices, 0);
+    std::vector<result_t> result(G.number_of_edges, 0);
+    std::vector<result_t> expected(G.number_of_edges, 0);
 
     // Step 2: Generation of sources based on configuration
     //         if number_of_sources_ is 0 then sources must be nullptr
@@ -319,27 +266,24 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     VT *sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
-    reference_betweenness_centrality(
-      G, expected.data(), normalize, endpoints, configuration.number_of_sources_, sources_ptr);
+    reference_edge_betweenness_centrality(
+      G, expected.data(), normalize, configuration.number_of_sources_, sources_ptr);
 
     sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
-    thrust::device_vector<result_t> d_result(G.number_of_vertices);
-    cugraph::betweenness_centrality(G,
-                                    d_result.data().get(),
-                                    normalize,
-                                    endpoints,
-                                    static_cast<WT *>(nullptr),
-                                    configuration.number_of_sources_,
-                                    sources_ptr);
-    cudaDeviceSynchronize();
+    thrust::device_vector<result_t> d_result(G.number_of_edges);
+    cugraph::edge_betweenness_centrality(G,
+                                         d_result.data().get(),
+                                         normalize,
+                                         static_cast<WT *>(nullptr),
+                                         configuration.number_of_sources_,
+                                         sources_ptr);
     CUDA_TRY(cudaMemcpy(result.data(),
                         d_result.data().get(),
-                        sizeof(result_t) * G.number_of_vertices,
+                        sizeof(result_t) * G.number_of_edges,
                         cudaMemcpyDeviceToHost));
-    cudaDeviceSynchronize();
-    for (int i = 0; i < G.number_of_vertices; ++i)
+    for (int i = 0; i < G.number_of_edges; ++i)
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
         << "[MISMATCH] vaid = " << i << ", cugraph = " << result[i]
         << " expected = " << expected[i];
@@ -350,55 +294,35 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 // Tests
 // ============================================================================
 // Verifiy Un-Normalized results
-TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_NO_ENDPOINTS)
+TEST_P(Tests_EdgeBC, CheckFP32_NO_NORMALIZE)
 {
-  run_current_test<int, int, float, float, false, false>(GetParam());
+  run_current_test<int, int, float, float, false>(GetParam());
 }
 
-TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_NO_ENDPOINTS)
+TEST_P(Tests_EdgeBC, CheckFP64_NO_NORMALIZE)
 {
-  run_current_test<int, int, double, double, false, false>(GetParam());
-}
-
-TEST_P(Tests_BC, CheckFP32_NO_NORMALIZE_ENDPOINTS)
-{
-  run_current_test<int, int, float, float, false, true>(GetParam());
-}
-
-TEST_P(Tests_BC, CheckFP64_NO_NORMALIZE_ENDPOINTS)
-{
-  run_current_test<int, int, double, double, false, true>(GetParam());
+  run_current_test<int, int, double, double, false>(GetParam());
 }
 
 // Verifiy Normalized results
-TEST_P(Tests_BC, CheckFP32_NORMALIZE_NO_ENDPOINTS)
+TEST_P(Tests_EdgeBC, CheckFP32_NORMALIZE)
 {
-  run_current_test<int, int, float, float, true, false>(GetParam());
+  run_current_test<int, int, float, float, true>(GetParam());
 }
 
-TEST_P(Tests_BC, CheckFP64_NORMALIZE_NO_ENDPOINTS)
+TEST_P(Tests_EdgeBC, CheckFP64_NORMALIZE)
 {
-  run_current_test<int, int, double, double, true, false>(GetParam());
-}
-
-TEST_P(Tests_BC, CheckFP32_NORMALIZE_ENDPOINTS)
-{
-  run_current_test<int, int, float, float, true, true>(GetParam());
-}
-
-TEST_P(Tests_BC, CheckFP64_NORMALIZE_ENDPOINTS)
-{
-  run_current_test<int, int, double, double, true, true>(GetParam());
+  run_current_test<int, int, double, double, true>(GetParam());
 }
 
 // FIXME: There is an InvalidValue on a Memcopy only on tests/datasets/dblp.mtx
 INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_BC,
-                        ::testing::Values(BC_Usecase("test/datasets/karate.mtx", 0),
-                                          BC_Usecase("test/datasets/netscience.mtx", 0),
-                                          BC_Usecase("test/datasets/netscience.mtx", 4),
-                                          BC_Usecase("test/datasets/wiki2003.mtx", 4),
-                                          BC_Usecase("test/datasets/wiki-Talk.mtx", 4)));
+                        Tests_EdgeBC,
+                        ::testing::Values(EdgeBC_Usecase("test/datasets/karate.mtx", 0),
+                                          EdgeBC_Usecase("test/datasets/netscience.mtx", 0),
+                                          EdgeBC_Usecase("test/datasets/netscience.mtx", 4),
+                                          EdgeBC_Usecase("test/datasets/wiki2003.mtx", 4),
+                                          EdgeBC_Usecase("test/datasets/wiki-Talk.mtx", 4)));
 
 int main(int argc, char **argv)
 {

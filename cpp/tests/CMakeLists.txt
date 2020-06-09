@@ -138,6 +138,12 @@ set(BETWEENNESS_TEST_SRC
 
   ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}" "")
 
+set(EDGE_BETWEENNESS_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/edge_betweenness_centrality_test.cu")
+
+  ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}" "")
+
 ###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
 
