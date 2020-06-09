@@ -349,9 +349,10 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCOO(VT number_of_vertices, ET number_of_edges, bool has_data = false,
-           cudaStream_t stream = nullptr, rmm::mr::device_memory_resource *mr =
-                                              rmm::mr::get_default_resource())
+  GraphCOO(
+      VT number_of_vertices, ET number_of_edges, bool has_data = false,
+      cudaStream_t stream = nullptr,
+      rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
       : number_of_vertices_(number_of_vertices),
         number_of_edges_(number_of_edges),
         src_indices_(sizeof(VT) * number_of_edges, stream, mr),
@@ -516,9 +517,10 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSR(VT number_of_vertices_, ET number_of_edges_, bool has_data_ = false,
-           cudaStream_t stream = nullptr, rmm::mr::device_memory_resource *mr =
-                                              rmm::mr::get_default_resource())
+  GraphCSR(
+      VT number_of_vertices_, ET number_of_edges_, bool has_data_ = false,
+      cudaStream_t stream = nullptr,
+      rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
       : GraphCompressedSparseBase<VT, ET, WT>(
             number_of_vertices_, number_of_edges_, has_data_, stream, mr) {}
 
@@ -569,9 +571,10 @@ public:
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSC(VT number_of_vertices_, ET number_of_edges_, bool has_data_ = false,
-           cudaStream_t stream = nullptr, rmm::mr::device_memory_resource *mr =
-                                              rmm::mr::get_default_resource())
+  GraphCSC(
+      VT number_of_vertices_, ET number_of_edges_, bool has_data_ = false,
+      cudaStream_t stream = nullptr,
+      rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
       : GraphCompressedSparseBase<VT, ET, WT>(
             number_of_vertices_, number_of_edges_, has_data_, stream, mr) {}
 
