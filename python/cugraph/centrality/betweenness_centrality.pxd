@@ -31,3 +31,10 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         VT k,
         const VT *vertices) except +
 
+    cdef void edge_betweenness_centrality[VT, ET, WT, result_t](
+        const GraphCSRView[VT, ET, WT] &graph,
+        result_t *result,
+        bool normalized,
+        const WT *weight,
+        VT k,
+        const VT *vertices) except +
