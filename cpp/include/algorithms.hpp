@@ -267,8 +267,8 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  *
  * The current implementation does not support a weighted graph.
  *
- * @throws                           cugraph::logic_error with a custom message when an error
- * occurs.
+ * @throws                           cugraph::logic_error if `result == nullptr` or
+ * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr`.
  *
  * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
  * 32-bit)
@@ -300,6 +300,46 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             WT const *weight   = nullptr,
                             VT k               = 0,
                             VT const *vertices = nullptr);
+
+/**
+ * @brief     Compute edge betweenness centrality for a graph
+ *
+ * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
+ * pass through this edge. The weight parameter is currenlty not supported
+ *
+ *  * @throws                           cugraph::logic_error if `result == nullptr` or
+ * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr` or `endpoints ==
+ true`.
+
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ * @tparam result_t                  Type of computed result.  Supported values :  float or double
+ * (double only supported in default implementation)
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * information as a CSR
+ * @param[out] result                Device array of centrality scores
+ * @param[in] normalized             If true, return normalized scores, if false return unnormalized
+ * scores.
+ * @param[in] weight                 If specified, device array of weights for each edge
+ * @param[in] k                      If specified, number of vertex samples defined in the vertices
+ * array.
+ * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
+ * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
+ * shortest path counters.
+ *
+ */
+template <typename VT, typename ET, typename WT, typename result_t>
+void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                 result_t *result,
+                                 bool normalized    = true,
+                                 WT const *weight   = nullptr,
+                                 VT k               = 0,
+                                 VT const *vertices = nullptr);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
@@ -774,4 +814,45 @@ void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &g
                                  WT *score);
 
 }  // namespace nvgraph
+
+namespace gunrock {
+
+/**
+ * @brief     Compute the HITS vertex values for a graph
+ *
+ * cuGraph uses the gunrock implementation of HITS
+ *
+ * @throws                           cugraph::logic_error on an error
+ *
+ * @tparam VT                        Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights.
+ *                                   Supported value : float
+ *
+ * @param[in] graph                  input graph object (CSR). Edge weights are not used
+ *                                   for this algorithm.
+ * @param[in] max_iter               Maximum number of iterations to run
+ * @param[in] tolerance              Currently ignored.  gunrock implementation runs
+ *                                   the specified number of iterations and stops
+ * @param[in] starting value         Currently ignored.  gunrock does not support.
+ * @param[in] normalized             Currently ignored, gunrock computes this as true
+ * @param[out] *hubs                 Device memory pointing to the node value based
+ *                                   on outgoing links
+ * @param[out] *authorities          Device memory pointing to the node value based
+ *                                   on incoming links
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void hits(experimental::GraphCSRView<VT, ET, WT> const &graph,
+          int max_iter,
+          WT tolerance,
+          WT const *starting_value,
+          bool normalized,
+          WT *hubs,
+          WT *authorities);
+
+}  // namespace gunrock
+
 }  // namespace cugraph

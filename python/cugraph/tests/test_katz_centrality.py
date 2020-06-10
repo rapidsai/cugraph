@@ -59,11 +59,7 @@ def calc_katz(graph_file):
     return k_df
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_katz_centrality(graph_file):
     gc.collect()
 

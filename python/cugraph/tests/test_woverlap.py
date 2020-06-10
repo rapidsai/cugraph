@@ -82,16 +82,9 @@ def cpu_call(M, first, second):
     return result
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/netscience.csv']
-#  Too slow to run on CPU
-#            '../datasets/email-Eu-core.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_woverlap(graph_file):
     gc.collect()
 

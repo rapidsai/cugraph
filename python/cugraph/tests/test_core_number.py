@@ -12,9 +12,7 @@
 # limitations under the License.
 
 import gc
-
 import pytest
-
 import cugraph
 from cugraph.tests import utils
 
@@ -49,11 +47,7 @@ def calc_core_number(graph_file):
     return cn
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_core_number(graph_file):
     gc.collect()
 

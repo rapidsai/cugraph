@@ -106,7 +106,7 @@ def force_atlas2(input_graph,
         pos = cuda.device_array(
                         (num_verts, 2),
                         order="F",
-                        dtype=np.float64)
+                        dtype=np.float32)
 
         pos_ptr = pos.device_ctypes_pointer.value
 
