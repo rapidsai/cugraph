@@ -20,7 +20,8 @@
 #include <comms_mpi.hpp>
 #include <graph.hpp>
 #include "gtest/gtest.h"
-#include "test_utils.h"
+
+#include "utilities/test_utilities.hpp"
 
 // ref Degree on the host
 template <typename idx_t>
