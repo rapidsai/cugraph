@@ -19,6 +19,7 @@
 from cugraph.link_prediction.jaccard cimport jaccard as c_jaccard
 from cugraph.link_prediction.jaccard cimport jaccard_list as c_jaccard_list
 from cugraph.structure.graph_new cimport *
+from cugraph.utilities.unrenumber import unrenumber
 from cugraph.structure import graph_new_wrapper
 from libc.stdint cimport uintptr_t
 from cython cimport floating
@@ -168,7 +169,7 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
                 cols = unrenumbered_df.columns.to_list()
                 df = unrenumbered_df[cols[1:] + [cols[0]]]
             else:
-                df['source'] = input_graph.edgelist.renumber_map[df['source']].reset_index(drop=True)
-                df['destination'] = input_graph.edgelist.renumber_map[df['destination']].reset_index(drop=True)
+                df = unrenumber(input_graph.edgelist.renumber_map, df, 'source')
+                df = unrenumber(input_graph.edgelist.renumber_map, df, 'destination')
 
         return df
