@@ -9,6 +9,7 @@
 - PR #903 Add short commit hash to conda package
 - PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
 - PR #934 Update conda dev environment.yml dependencies to 0.15
+- PR #942 Removed references to deprecated RMM headers.
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
