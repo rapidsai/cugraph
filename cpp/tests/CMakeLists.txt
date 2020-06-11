@@ -39,6 +39,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
         "${CMAKE_SOURCE_DIR}/include"
         "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${RAFT_DIR}/cpp/include"
     )
 
     target_link_libraries(${CMAKE_TEST_NAME}
