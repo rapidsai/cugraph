@@ -224,10 +224,10 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
       }
 
       // Cycle through all entries in the pattern and do the inserts into db tables
-      for (size_t i = 0; i < path.getPathNodes().size(); i++) {
-        if (path.getPathNodes()[i]->type() == pattern_type::Node) {
+      for (size_t k = 0; k < path.getPathNodes().size(); k++) {
+        if (path.getPathNodes()[k]->type() == pattern_type::Node) {
           node_pattern<idx_t>* node =
-            reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[i]);
+            reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[k]);
           std::string nodeId = node->getIdentifier();
           idx_t eNodeId      = translated[nodeId];
 
@@ -262,7 +262,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
           }
         } else {
           relationship_pattern<idx_t>* rel =
-            reinterpret_cast<relationship_pattern<idx_t>*>(path.getPathNodes()[i]);
+            reinterpret_cast<relationship_pattern<idx_t>*>(path.getPathNodes()[k]);
           idx_t eStart = translated[rel->getStart()];
           idx_t eEnd   = translated[rel->getEnd()];
 
@@ -300,14 +300,411 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
 
     // Case where there are bound variables but no named values
     else if (!hasNamed && hasVariable) {
+      // Look through each node to determine which variables are in use
+      // get the variable columns locally and ensure that they are they same length
+      std::map<std::string, std::vector<idx_t>> localVariables;
+      std::map<std::string, idx_t> translated;
+      for (size_t k = 0; k < path.getPathNodes().size(); k++) {
+        if (path.getPathNodes()[k]->type() == pattern_type::Node) {
+          node_pattern<idx_t>* node =
+            reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[k]);
+          std::string id = node->getIdentifier();
+          if (ctx.hasVariable(id)) {
+            localVariables[id] = ctx.getVariableColumn(id);
+          } else {
+            CUGRAPH_FAIL("Create statement with unbound nodes found");
+          }
+        }
+      }
+
+      size_t variableSize = 0;
+      for (auto it = localVariables.begin(); it != localVariables.end(); it++) {
+        if (it->second.size() > 0 && variableSize == 0) variableSize = it->second.size();
+        if (it->second.size() != variableSize) CUGRAPH_FAIL("Inconsistent bound variable counts");
+      }
+
+      // For each iteration of variable bound values, add to the tables
+      for (size_t j = 0; j < variableSize; j++) {
+        for (size_t k = 0; k < path.getPathNodes().size(); k++) {
+          if (path.getPathNodes()[k]->type() == pattern_type::Relationship) {
+            relationship_pattern<idx_t>* rel =
+              reinterpret_cast<relationship_pattern<idx_t>*>(path.getPathNodes()[k]);
+            idx_t eStart   = localVariables[rel->getStart()][j];
+            idx_t eEnd     = localVariables[rel->getEnd()][j];
+            idx_t numTypes = rel->getTypes().size();
+            CUGRAPH_EXPECTS(numTypes == 1, "Relationships must have one type and one type only");
+            idx_t eType = ctx.getEncoder()->encode(rel->getTypes()[0].getIdentifier());
+            db_pattern_entry<idx_t> p1(eStart);
+            db_pattern_entry<idx_t> p2(eType);
+            db_pattern_entry<idx_t> p3(eEnd);
+            db_pattern<idx_t> pat;
+            pat.addEntry(p1);
+            pat.addEntry(p2);
+            pat.addEntry(p3);
+            auto table = ctx.getRelationshipsTable();
+            table->addEntry(pat);
+
+            // Adding any relationship properties
+            idx_t relId = table->getLastRowId();
+            for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
+              idx_t ePropName  = ctx.getEncoder()->encode(it->first);
+              idx_t ePropValue = ctx.getEncoder()->encode(it->second.getIdentifier());
+              db_pattern_entry<idx_t> t1(relId);
+              db_pattern_entry<idx_t> t2(ePropName);
+              db_pattern_entry<idx_t> t3(ePropValue);
+              db_pattern<idx_t> tat;
+              tat.addEntry(t1);
+              tat.addEntry(t2);
+              tat.addEntry(t3);
+              auto relProp = ctx.getRelationshipPropertiesTable();
+              relProp->addEntry(tat);
+            }
+          }
+        }
+      }
     }
 
     // Case where there are named values, but no bound variables
     else if (hasNamed && !hasVariable) {
+      // Figure out the number of rows being inserted:
+      idx_t numRows = 0;
+      for (size_t j = 0; j < path.getPathNodes().size(); j++) {
+        if (path.getPathNodes()[j]->type() == pattern_type::Node) {
+          node_pattern<idx_t>* node =
+            reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[j]);
+          for (auto it = node->getProperties().begin(); it != node->getProperties().end(); it++) {
+            if (it->second.type() == value_type::Array_Access ||
+                it->second.type() == value_type::Property_Access) {
+              std::string id = it->second.getIdentifier();
+              if (ctx.hasNamed(id)) {
+                idx_t rowCount = ctx.getNamedRows(id);
+                if (numRows == 0) { numRows = rowCount; }
+                if (numRows != rowCount) { CUGRAPH_FAIL("Inconsistent row count in named result"); }
+              }
+            }
+          }
+        } else {
+          relationship_pattern<idx_t>* rel =
+            reinterpret_cast<relationship_pattern<idx_t>*>(path.getPathNodes()[j]);
+          for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
+            if (it->second.type() == value_type::Array_Access ||
+                it->second.type() == value_type::Property_Access) {
+              std::string id = it->second.getIdentifier();
+              if (ctx.hasNamed(id)) {
+                idx_t rowCount = ctx.getNamedRows(id);
+                if (numRows == 0) { numRows = rowCount; }
+                if (numRows != rowCount) { CUGRAPH_FAIL("Inconsistent row count in named result"); }
+              }
+            }
+          }
+        }
+      }
+
+      // For every row in the named result put in table entries
+      for (idx_t row = 0; row < numRows; row++) {
+        // Cycle through all nodes on the path and get encoded ids for them
+        std::map<std::string, idx_t> translated;
+        for (size_t j = 0; j < path.getPathNodes().size(); j++) {
+          if (path.getPathNodes()[j]->type() == pattern_type::Node) {
+            std::string id = path.getPathNodes()[j]->getIdentifier();
+            idx_t eid      = ctx.getEncoder()->getId();
+            translated[id] = eid;
+          }
+        }
+
+        // Cycle through all entries in the pattern and do the inserts into db tables
+        for (size_t k = 0; k < path.getPathNodes().size(); k++) {
+          if (path.getPathNodes()[k]->type() == pattern_type::Node) {
+            node_pattern<idx_t>* node =
+              reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[k]);
+            std::string nodeId = node->getIdentifier();
+            idx_t eNodeId      = translated[nodeId];
+
+            // Insert entries into the node labels table
+            for (size_t j = 0; j < node->getLabels().size(); j++) {
+              std::string label = node->getLabels()[j];
+              idx_t elabel      = ctx.getEncoder()->encode(label);
+              db_pattern_entry<idx_t> p1(eNodeId);
+              db_pattern_entry<idx_t> p2(elabel);
+              db_pattern<idx_t> pat;
+              pat.addEntry(p1);
+              pat.addEntry(p2);
+              auto table = ctx.getNodeLabelsTable();
+              table->addEntry(pat);
+            }
+
+            // Insert entries into the node properties table
+            for (auto it = node->getProperties().begin(); it != node->getProperties().end(); it++) {
+              std::string propName = it->first;
+              idx_t ePropName      = ctx.getEncoder()->encode(propName);
+              idx_t ePropValue     = 0;
+
+              // Appropriately handle lookups into the named values of the context
+              switch (it->second.type()) {
+                case value_type::Array_Access: {
+                  std::string name     = it->second.getIdentifier();
+                  uint32_t idx         = it->second.getArrayIndex();
+                  std::string lookedUp = ctx.getNamedEntry(name, idx, row);
+                  ePropValue           = ctx.getEncoder()->encode(lookedUp);
+                  break;
+                }
+                case value_type::Property_Access: {
+                  std::string name     = it->second.getIdentifier();
+                  std::string pname    = it->second.getPropertyName();
+                  std::string lookedup = ctx.getNamedEntry(name, pname, row);
+                  ePropValue           = ctx.getEncoder()->encode(lookedup);
+                  break;
+                }
+                default: {
+                  std::string propValue = it->second.getIdentifier();
+                  ePropValue            = ctx.getEncoder()->encode(propValue);
+                  break;
+                }
+              }
+
+              db_pattern_entry<idx_t> p1(eNodeId);
+              db_pattern_entry<idx_t> p2(ePropName);
+              db_pattern_entry<idx_t> p3(ePropValue);
+              db_pattern<idx_t> pat;
+              pat.addEntry(p1);
+              pat.addEntry(p2);
+              pat.addEntry(p3);
+              auto table = ctx.getNodePropertiesTable();
+              table->addEntry(pat);
+            }
+          } else {
+            relationship_pattern<idx_t>* rel =
+              reinterpret_cast<relationship_pattern<idx_t>*>(path.getPathNodes()[k]);
+            idx_t eStart = translated[rel->getStart()];
+            idx_t eEnd   = translated[rel->getEnd()];
+
+            idx_t numTypes = rel->getTypes().size();
+            CUGRAPH_EXPECTS(numTypes == 1, "Relationships must have one type and one type only");
+            idx_t eType = ctx.getEncoder()->encode(rel->getTypes()[0].getIdentifier());
+            db_pattern_entry<idx_t> p1(eStart);
+            db_pattern_entry<idx_t> p2(eType);
+            db_pattern_entry<idx_t> p3(eEnd);
+            db_pattern<idx_t> pat;
+            pat.addEntry(p1);
+            pat.addEntry(p2);
+            pat.addEntry(p3);
+            auto table = ctx.getRelationshipsTable();
+            table->addEntry(pat);
+
+            // Insert entries into relationship properties table
+            idx_t relId = table->getLastRowId();
+            for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
+              idx_t ePropName  = ctx.getEncoder()->encode(it->first);
+              idx_t ePropValue = 0;
+              switch (it->second.type()) {
+                case value_type::Array_Access: {
+                  std::string name     = it->second.getIdentifier();
+                  uint32_t idx         = it->second.getArrayIndex();
+                  std::string lookedUp = ctx.getNamedEntry(name, idx, row);
+                  ePropValue           = ctx.getEncoder()->encode(lookedUp);
+                  break;
+                }
+                case value_type::Property_Access: {
+                  std::string name     = it->second.getIdentifier();
+                  std::string pname    = it->second.getPropertyName();
+                  std::string lookedup = ctx.getNamedEntry(name, pname, row);
+                  ePropValue           = ctx.getEncoder()->encode(lookedup);
+                  break;
+                }
+                default: {
+                  std::string propValue = it->second.getIdentifier();
+                  ePropValue            = ctx.getEncoder()->encode(propValue);
+                  break;
+                }
+              }
+              db_pattern_entry<idx_t> t1(relId);
+              db_pattern_entry<idx_t> t2(ePropName);
+              db_pattern_entry<idx_t> t3(ePropValue);
+              db_pattern<idx_t> tat;
+              tat.addEntry(t1);
+              tat.addEntry(t2);
+              tat.addEntry(t3);
+              auto relProp = ctx.getRelationshipPropertiesTable();
+              relProp->addEntry(tat);
+            }
+          }
+        }
+      }
     }
 
     // Case where there are both named values and bound variables
     else if (hasNamed && hasVariable) {
+      // Figure out the number of rows being inserted:
+      idx_t numRows = 0;
+      std::map<std::string, std::vector<idx_t>> localVariables;
+      for (size_t j = 0; j < path.getPathNodes().size(); j++) {
+        if (path.getPathNodes()[j]->type() == pattern_type::Node) {
+          node_pattern<idx_t>* node =
+            reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[j]);
+          std::string id = node->getIdentifier();
+          if (ctx.hasVariable(id)) {
+            localVariables[id] = ctx.getVariableColumn(id);
+          } else {
+            CUGRAPH_FAIL("All pattern nodes must be bound to variables if any are.");
+          }
+          for (auto it = node->getProperties().begin(); it != node->getProperties().end(); it++) {
+            if (it->second.type() == value_type::Array_Access ||
+                it->second.type() == value_type::Property_Access) {
+              std::string id = it->second.getIdentifier();
+              if (ctx.hasNamed(id)) {
+                idx_t rowCount = ctx.getNamedRows(id);
+                if (numRows == 0) { numRows = rowCount; }
+                if (numRows != rowCount) { CUGRAPH_FAIL("Inconsistent row count in named result"); }
+              }
+            }
+          }
+        } else {
+          relationship_pattern<idx_t>* rel =
+            reinterpret_cast<relationship_pattern<idx_t>*>(path.getPathNodes()[j]);
+          for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
+            if (it->second.type() == value_type::Array_Access ||
+                it->second.type() == value_type::Property_Access) {
+              std::string id = it->second.getIdentifier();
+              if (ctx.hasNamed(id)) {
+                idx_t rowCount = ctx.getNamedRows(id);
+                if (numRows == 0) { numRows = rowCount; }
+                if (numRows != rowCount) { CUGRAPH_FAIL("Inconsistent row count in named result"); }
+              }
+            }
+          }
+        }
+      }
+
+      // For every row in the named result put in table entries
+      for (idx_t row = 0; row < numRows; row++) {
+        // Cycle through all nodes on the path and get encoded ids for them
+        std::map<std::string, idx_t> translated;
+        for (size_t j = 0; j < path.getPathNodes().size(); j++) {
+          if (path.getPathNodes()[j]->type() == pattern_type::Node) {
+            std::string id = path.getPathNodes()[j]->getIdentifier();
+            idx_t eid      = ctx.getEncoder()->getId();
+            translated[id] = eid;
+          }
+        }
+
+        // Cycle through all entries in the pattern and do the inserts into db tables
+        for (size_t k = 0; k < path.getPathNodes().size(); k++) {
+          if (path.getPathNodes()[k]->type() == pattern_type::Node) {
+            node_pattern<idx_t>* node =
+              reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[k]);
+            std::string nodeId = node->getIdentifier();
+            idx_t eNodeId      = localVariables[nodeId][row];
+
+            // Insert entries into the node labels table
+            for (size_t j = 0; j < node->getLabels().size(); j++) {
+              std::string label = node->getLabels()[j];
+              idx_t elabel      = ctx.getEncoder()->encode(label);
+              db_pattern_entry<idx_t> p1(eNodeId);
+              db_pattern_entry<idx_t> p2(elabel);
+              db_pattern<idx_t> pat;
+              pat.addEntry(p1);
+              pat.addEntry(p2);
+              auto table = ctx.getNodeLabelsTable();
+              table->addEntry(pat);
+            }
+
+            // Insert entries into the node properties table
+            for (auto it = node->getProperties().begin(); it != node->getProperties().end(); it++) {
+              std::string propName = it->first;
+              idx_t ePropName      = ctx.getEncoder()->encode(propName);
+              idx_t ePropValue     = 0;
+
+              // Appropriately handle lookups into the named values of the context
+              switch (it->second.type()) {
+                case value_type::Array_Access: {
+                  std::string name     = it->second.getIdentifier();
+                  uint32_t idx         = it->second.getArrayIndex();
+                  std::string lookedUp = ctx.getNamedEntry(name, idx, row);
+                  ePropValue           = ctx.getEncoder()->encode(lookedUp);
+                  break;
+                }
+                case value_type::Property_Access: {
+                  std::string name     = it->second.getIdentifier();
+                  std::string pname    = it->second.getPropertyName();
+                  std::string lookedup = ctx.getNamedEntry(name, pname, row);
+                  ePropValue           = ctx.getEncoder()->encode(lookedup);
+                  break;
+                }
+                default: {
+                  std::string propValue = it->second.getIdentifier();
+                  ePropValue            = ctx.getEncoder()->encode(propValue);
+                  break;
+                }
+              }
+
+              db_pattern_entry<idx_t> p1(eNodeId);
+              db_pattern_entry<idx_t> p2(ePropName);
+              db_pattern_entry<idx_t> p3(ePropValue);
+              db_pattern<idx_t> pat;
+              pat.addEntry(p1);
+              pat.addEntry(p2);
+              pat.addEntry(p3);
+              auto table = ctx.getNodePropertiesTable();
+              table->addEntry(pat);
+            }
+          } else {
+            relationship_pattern<idx_t>* rel =
+              reinterpret_cast<relationship_pattern<idx_t>*>(path.getPathNodes()[k]);
+            idx_t eStart = localVariables[rel->getStart()][row];
+            idx_t eEnd   = localVariables[rel->getEnd()][row];
+
+            idx_t numTypes = rel->getTypes().size();
+            CUGRAPH_EXPECTS(numTypes == 1, "Relationships must have one type and one type only");
+            idx_t eType = ctx.getEncoder()->encode(rel->getTypes()[0].getIdentifier());
+            db_pattern_entry<idx_t> p1(eStart);
+            db_pattern_entry<idx_t> p2(eType);
+            db_pattern_entry<idx_t> p3(eEnd);
+            db_pattern<idx_t> pat;
+            pat.addEntry(p1);
+            pat.addEntry(p2);
+            pat.addEntry(p3);
+            auto table = ctx.getRelationshipsTable();
+            table->addEntry(pat);
+
+            // Insert entries into relationship properties table
+            idx_t relId = table->getLastRowId();
+            for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
+              idx_t ePropName  = ctx.getEncoder()->encode(it->first);
+              idx_t ePropValue = 0;
+              switch (it->second.type()) {
+                case value_type::Array_Access: {
+                  std::string name     = it->second.getIdentifier();
+                  uint32_t idx         = it->second.getArrayIndex();
+                  std::string lookedUp = ctx.getNamedEntry(name, idx, row);
+                  ePropValue           = ctx.getEncoder()->encode(lookedUp);
+                  break;
+                }
+                case value_type::Property_Access: {
+                  std::string name     = it->second.getIdentifier();
+                  std::string pname    = it->second.getPropertyName();
+                  std::string lookedup = ctx.getNamedEntry(name, pname, row);
+                  ePropValue           = ctx.getEncoder()->encode(lookedup);
+                  break;
+                }
+                default: {
+                  std::string propValue = it->second.getIdentifier();
+                  ePropValue            = ctx.getEncoder()->encode(propValue);
+                  break;
+                }
+              }
+              db_pattern_entry<idx_t> t1(relId);
+              db_pattern_entry<idx_t> t2(ePropName);
+              db_pattern_entry<idx_t> t3(ePropValue);
+              db_pattern<idx_t> tat;
+              tat.addEntry(t1);
+              tat.addEntry(t2);
+              tat.addEntry(t3);
+              auto relProp = ctx.getRelationshipPropertiesTable();
+              relProp->addEntry(tat);
+            }
+          }
+        }
+      }
     }
   }
 }
