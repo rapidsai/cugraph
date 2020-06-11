@@ -15,38 +15,20 @@
  */
 #pragma once
 
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <algorithm>
-#include <cstdint>
-#include <cstdlib>
-#include <iomanip>
-#include <iostream>
-#include <limits>
-#include <map>
-#include <sstream>
-#include <string>
-#include <utility>
+#include "functions.hpp"
+
+#include <cuda.h>
+#include <cuda_runtime.h>
+
 extern "C" {
 #include "mmio.h"
 }
-#include <cuda.h>
-#include <cuda_profiler_api.h>
-#include <cuda_runtime.h>
-#include <library_types.h>
-#include <thrust/adjacent_difference.h>
-#include <thrust/device_vector.h>
-#include <thrust/functional.h>
-#include <thrust/host_vector.h>
-#include <thrust/reduce.h>
-#include <thrust/sequence.h>
+#include <nccl.h>
 
+#include <cstdio>
+#include <string>
 
-#include "utilities/error_utils.h"
-
-#include "converters/COOtoCSR.cuh"
-
+// FIXME: RAFT error handling macros should be used instead
 #ifndef CUDA_RT_CALL
 #define CUDA_RT_CALL(call)                                                               \
   {                                                                                      \
@@ -63,6 +45,7 @@ extern "C" {
   }
 #endif
 
+// FIXME: RAFT error handling macros should be used instead
 #define NCCLCHECK(cmd)                                                                          \
   {                                                                                             \
     ncclResult_t nccl_status = cmd;                                                             \
@@ -81,6 +64,9 @@ extern "C" {
     }                                                                  \
   }
 
+namespace cugraph {
+namespace test {
+
 std::string getFileName(const std::string& s)
 {
   char sep = '/';
@@ -92,137 +78,6 @@ std::string getFileName(const std::string& s)
   size_t i = s.rfind(sep, s.length());
   if (i != std::string::npos) { return (s.substr(i + 1, s.length() - i)); }
   return ("");
-}
-
-template <typename T>
-void verbose_diff(std::vector<T>& v1, std::vector<T>& v2)
-{
-  for (unsigned int i = 0; i < v1.size(); ++i) {
-    if (v1[i] != v2[i]) {
-      std::cout << "[" << i << "] : " << v1[i] << " vs. " << v2[i] << std::endl;
-    }
-  }
-}
-
-template <typename T>
-int eq(std::vector<T>& v1, std::vector<T>& v2)
-{
-  if (v1 == v2)
-    return 0;
-  else {
-    verbose_diff(v1, v2);
-    return 1;
-  }
-}
-
-template <typename T>
-void printv(size_t n, T* vec, int offset)
-{
-  thrust::device_ptr<T> dev_ptr(vec);
-  std::cout.precision(15);
-  std::cout << "sample size = " << n << ", offset = " << offset << std::endl;
-  thrust::copy(
-    dev_ptr + offset,
-    dev_ptr + offset + n,
-    std::ostream_iterator<T>(
-      std::cout, " "));  // Assume no RMM dependency; FIXME: check / test (potential BUG !!!!!)
-  std::cout << std::endl;
-}
-
-template <typename T>
-void random_vals(std::vector<T>& v)
-{
-  srand(42);
-  for (auto i = size_t{0}; i < v.size(); i++) v[i] = static_cast<T>(std::rand() % 10);
-}
-
-template <typename T_ELEM>
-void ref_csr2csc(int m,
-                 int n,
-                 int nnz,
-                 const T_ELEM* csrVals,
-                 const int* csrRowptr,
-                 const int* csrColInd,
-                 T_ELEM* cscVals,
-                 int* cscRowind,
-                 int* cscColptr,
-                 int base = 0)
-{
-  int i, j, row, col, index;
-  int* counters;
-  T_ELEM val;
-
-  /* early return */
-  if ((m <= 0) || (n <= 0) || (nnz <= 0)) { return; }
-
-  /* build compressed column pointers */
-  memset(cscColptr, 0, (n + 1) * sizeof(cscColptr[0]));
-  cscColptr[0] = base;
-  for (i = 0; i < nnz; i++) { cscColptr[1 + csrColInd[i] - base]++; }
-  for (i = 0; i < n; i++) { cscColptr[i + 1] += cscColptr[i]; }
-
-  /* expand row indecis and copy them and values into csc arrays according to permutation */
-  counters = (int*)malloc(n * sizeof(counters[0]));
-  memset(counters, 0, n * sizeof(counters[0]));
-  for (i = 0; i < m; i++) {
-    for (j = csrRowptr[i]; j < csrRowptr[i + 1]; j++) {
-      row = i + base;
-      col = csrColInd[j - base];
-
-      index = cscColptr[col - base] - base + counters[col - base];
-      counters[col - base]++;
-
-      cscRowind[index] = row;
-
-      if (csrVals != NULL || cscVals != NULL) {
-        val            = csrVals[j - base];
-        cscVals[index] = val;
-      }
-    }
-  }
-  free(counters);
-}
-
-template <typename T>
-int transition_matrix_cpu(int n, int e, int* csrRowPtrA, int* csrColIndA, T* weight, T* is_leaf)
-// omp_set_num_threads(4);
-//#pragma omp parallel
-{
-  int j, row, row_size;
-  //#pragma omp for
-  for (row = 0; row < n; row++) {
-    row_size = csrRowPtrA[row + 1] - csrRowPtrA[row];
-    if (row_size == 0)
-      is_leaf[row] = 1.0;
-    else {
-      is_leaf[row] = 0.0;
-      for (j = csrRowPtrA[row]; j < csrRowPtrA[row + 1]; j++) weight[j] = 1.0 / row_size;
-    }
-  }
-  return 0;
-}
-template <typename T>
-void printCsrMatI(int m,
-                  int n,
-                  int nnz,
-                  std::vector<int>& csrRowPtr,
-                  std::vector<uint16_t>& csrColInd,
-                  std::vector<T>& csrVal)
-{
-  std::vector<T> v(n);
-  std::stringstream ss;
-  ss.str(std::string());
-  ss << std::fixed;
-  ss << std::setprecision(2);
-  for (int i = 0; i < m; i++) {
-    std::fill(v.begin(), v.end(), 0);
-    for (int j = csrRowPtr[i]; j < csrRowPtr[i + 1]; j++) v[csrColInd[j]] = csrVal[j];
-
-    std::copy(v.begin(), v.end(), std::ostream_iterator<int>(ss, " "));
-    ss << "\n";
-  }
-  ss << "\n";
-  std::cout << ss.str();
 }
 
 /// Read matrix properties from Matrix Market file
@@ -407,186 +262,6 @@ int mm_to_coo(FILE* f,
   return 0;
 }
 
-/// Compare two tuples based on the element indexed by i
-class lesser_tuple {
-  const int i;
-
- public:
-  lesser_tuple(int _i) : i(_i) {}
-  template <typename Tuple1, typename Tuple2>
-  __host__ __device__ bool operator()(const Tuple1 t1, const Tuple2 t2)
-  {
-    switch (i) {
-      case 0:
-        return (thrust::get<0>(t1) == thrust::get<0>(t2) ? thrust::get<1>(t1) < thrust::get<1>(t2)
-                                                         : thrust::get<0>(t1) < thrust::get<0>(t2));
-      case 1:
-        return (thrust::get<1>(t1) == thrust::get<1>(t2) ? thrust::get<0>(t1) < thrust::get<0>(t2)
-                                                         : thrust::get<1>(t1) < thrust::get<1>(t2));
-      default:
-        return (thrust::get<0>(t1) == thrust::get<0>(t2) ? thrust::get<1>(t1) < thrust::get<1>(t2)
-                                                         : thrust::get<0>(t1) < thrust::get<0>(t2));
-    }
-  }
-};
-
-/// Sort entries in COO format matrix
-/** Sort is stable.
- *
- *  @param nnz Number of non-zero matrix entries.
- *  @param sort_by_row Boolean indicating whether matrix entries
- *  will be sorted by row index or by column index.
- *  @param cooRowInd Row indices for COO matrix.
- *  @param cooColInd Column indices for COO matrix.
- *  @param cooRVal Real component for COO matrix entries. Ignored if
- *  null pointer.
- *  @param cooIVal Imaginary component COO matrix entries. Ignored if
- *  null pointer.
- */
-template <typename IndexType_, typename ValueType_>
-void coo_sort(IndexType_ nnz,
-              int sort_by_row,
-              IndexType_* cooRowInd,
-              IndexType_* cooColInd,
-              ValueType_* cooRVal,
-              ValueType_* cooIVal)
-{
-  // Determine whether to sort by row or by column
-  int i;
-  if (sort_by_row == 0)
-    i = 1;
-  else
-    i = 0;
-
-  // Apply stable sort
-  using namespace thrust;
-  if ((cooRVal == NULL) && (cooIVal == NULL))
-    stable_sort(make_zip_iterator(make_tuple(cooRowInd, cooColInd)),
-                make_zip_iterator(make_tuple(cooRowInd + nnz, cooColInd + nnz)),
-                lesser_tuple(i));
-  else if ((cooRVal == NULL) && (cooIVal != NULL))
-    stable_sort(make_zip_iterator(make_tuple(cooRowInd, cooColInd, cooIVal)),
-                make_zip_iterator(make_tuple(cooRowInd + nnz, cooColInd + nnz, cooIVal + nnz)),
-                lesser_tuple(i));
-  else if ((cooRVal != NULL) && (cooIVal == NULL))
-    stable_sort(make_zip_iterator(make_tuple(cooRowInd, cooColInd, cooRVal)),
-                make_zip_iterator(make_tuple(cooRowInd + nnz, cooColInd + nnz, cooRVal + nnz)),
-                lesser_tuple(i));
-  else
-    stable_sort(
-      make_zip_iterator(make_tuple(cooRowInd, cooColInd, cooRVal, cooIVal)),
-      make_zip_iterator(make_tuple(cooRowInd + nnz, cooColInd + nnz, cooRVal + nnz, cooIVal + nnz)),
-      lesser_tuple(i));
-}
-
-template <typename IndexT>
-void coo2csr(std::vector<IndexT>& cooRowInd,        // in: I[] (overwrite)
-             const std::vector<IndexT>& cooColInd,  // in: J[]
-             std::vector<IndexT>& csrRowPtr,        // out
-             std::vector<IndexT>& csrColInd)        // out
-{
-  std::vector<std::pair<IndexT, IndexT>> items;
-  for (auto i = size_t{0}; i < cooRowInd.size(); ++i)
-    items.push_back(std::make_pair(cooRowInd[i], cooColInd[i]));
-  // sort pairs
-  std::sort(items.begin(),
-            items.end(),
-            [](const std::pair<IndexT, IndexT>& left, const std::pair<IndexT, IndexT>& right) {
-              return left.first < right.first;
-            });
-  for (auto i = size_t{0}; i < cooRowInd.size(); ++i) {
-    cooRowInd[i] = items[i].first;   // save the sorted rows to compress them later
-    csrColInd[i] = items[i].second;  // save the col idx, not sure if they are sorted for each row
-  }
-  // Count number of elements per row
-  for (auto i = size_t{0}; i < cooRowInd.size(); ++i) ++(csrRowPtr[cooRowInd[i] + 1]);
-
-  // Compute cumulative sum to obtain row offsets/pointers
-  for (auto i = size_t{0}; i < csrRowPtr.size() - 1; ++i) csrRowPtr[i + 1] += csrRowPtr[i];
-}
-
-/// Compress sorted list of indices
-/** For use in converting COO format matrix to CSR or CSC format.
- *
- *  @param n Maximum index.
- *  @param nnz Number of non-zero matrix entries.
- *  @param sortedIndices Sorted list of indices (COO format).
- *  @param compressedIndices (Output) Compressed list of indices (CSR
- *  or CSC format). Should have at least n+1 entries.
- */
-template <typename IndexType_>
-void coo_compress(IndexType_ m,
-                  IndexType_ n,
-                  IndexType_ nnz,
-                  const IndexType_* __restrict__ sortedIndices,
-                  IndexType_* __restrict__ compressedIndices)
-{
-  IndexType_ i;
-
-  // Initialize everything to zero
-  memset(compressedIndices, 0, (m + 1) * sizeof(IndexType_));
-
-  // Count number of elements per row
-  for (i = 0; i < nnz; ++i) ++(compressedIndices[sortedIndices[i] + 1]);
-
-  // Compute cumulative sum to obtain row offsets/pointers
-  for (i = 0; i < m; ++i) compressedIndices[i + 1] += compressedIndices[i];
-}
-
-/// Convert COO format matrix to CSR format
-/** On output, matrix entries in COO format matrix will be sorted
- *  (primarily by row index, secondarily by column index).
- *
- *  @param m Number of matrix rows.
- *  @param n Number of matrix columns.
- *  @param nnz Number of non-zero matrix entries.
- *  @param cooRowInd Row indices for COO matrix.
- *  @param cooColInd Column indices for COO matrix.
- *  @param cooRVal Real component of COO matrix entries. Ignored if
- *  null pointer.
- *  @param cooIVal Imaginary component of COO matrix entries. Ignored
- *  if null pointer.
- *  @param csrRowPtr Row pointers for CSR matrix. Should have at least
- *  n+1 entries.
- *  @param csrColInd Column indices for CSR matrix (identical to
- *  output of cooColInd). Should have at least nnz entries. Ignored if
- *  null pointer.
- *  @param csrRVal Real component of CSR matrix entries (identical to
- *  output of cooRVal). Should have at least nnz entries.  Ignored if
- *  null pointer.
- *  @param csrIVal Imaginary component of CSR matrix entries
- *  (identical to output of cooIVal). Should have at least nnz
- *  entries.  Ignored if null pointer.
- *  @return Zero if matrix was converted successfully. Otherwise
- *  non-zero.
- */
-template <typename IndexType_, typename ValueType_>
-int coo_to_csr(IndexType_ m,
-               IndexType_ n,
-               IndexType_ nnz,
-               IndexType_* __restrict__ cooRowInd,
-               IndexType_* __restrict__ cooColInd,
-               ValueType_* __restrict__ cooRVal,
-               ValueType_* __restrict__ cooIVal,
-               IndexType_* __restrict__ csrRowPtr,
-               IndexType_* __restrict__ csrColInd,
-               ValueType_* __restrict__ csrRVal,
-               ValueType_* __restrict__ csrIVal)
-{
-  // Convert COO to CSR matrix
-  coo_sort(nnz, 0, cooRowInd, cooColInd, cooRVal, cooIVal);
-  coo_sort(nnz, 1, cooRowInd, cooColInd, cooRVal, cooIVal);
-  // coo_sort2<int,float>(m, nnz, cooRowInd, cooColInd);
-  coo_compress(m, n, nnz, cooRowInd, csrRowPtr);
-
-  // Copy arrays
-  if (csrColInd != NULL) memcpy(csrColInd, cooColInd, nnz * sizeof(IndexType_));
-  if ((cooRVal != NULL) && (csrRVal != NULL)) memcpy(csrRVal, cooRVal, nnz * sizeof(ValueType_));
-  if ((cooIVal != NULL) && (csrIVal != NULL)) memcpy(csrIVal, cooIVal, nnz * sizeof(ValueType_));
-
-  return 0;
-}
-
 int read_binary_vector(FILE* fpin, int n, std::vector<float>& val)
 {
   size_t is_read1;
@@ -662,7 +337,7 @@ std::unique_ptr<cugraph::experimental::GraphCSR<VT, ET, WT>> generate_graph_csr_
   EXPECT_EQ(fclose(fpin), 0);
 
   cugraph::experimental::GraphCOOView<VT, ET, WT> cooview(
-    &coo_col_ind[0], &coo_row_ind[0], &coo_val[0], number_of_vertices, number_of_edges);
+    &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], number_of_vertices, number_of_edges);
 
   return cugraph::coo_to_csr(cooview);
 }
@@ -688,3 +363,6 @@ static const std::string& get_rapids_dataset_root_dir()
   }
   return rdrd;
 }
+
+}  // namespace test
+}  // namespace cugraph

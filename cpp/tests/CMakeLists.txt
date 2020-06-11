@@ -39,6 +39,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
         "${CMAKE_SOURCE_DIR}/include"
         "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${RAFT_DIR}/cpp/include"
     )
 
     target_link_libraries(${CMAKE_TEST_NAME}
@@ -149,7 +150,7 @@ set(EDGE_BETWEENNESS_TEST_SRC
 
 set(PAGERANK_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cpp")
 
 ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
