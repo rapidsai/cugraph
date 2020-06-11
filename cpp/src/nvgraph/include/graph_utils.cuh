@@ -29,7 +29,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
-#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 
 #define USE_CG 1

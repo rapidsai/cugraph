@@ -22,7 +22,6 @@
 #include <string>
 #include "cub/cub.cuh"
 
-#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <utilities/error_utils.h>
 

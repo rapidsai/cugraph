@@ -42,7 +42,6 @@ extern "C" {
 #include <thrust/reduce.h>
 #include <thrust/sequence.h>
 
-#include <rmm/rmm.h>
 
 #include "utilities/error_utils.h"
 
