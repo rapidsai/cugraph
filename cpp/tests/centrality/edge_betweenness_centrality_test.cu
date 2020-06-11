@@ -19,7 +19,7 @@
 
 #include <thrust/device_vector.h>
 #include <utility>
-#include "test_utils.h"
+#include "utilities/test_utilities.hpp"
 
 #include <algorithms.hpp>
 #include <graph.hpp>
@@ -217,7 +217,7 @@ typedef struct EdgeBC_Usecase_t {
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // FIXME: Use platform independent stuff from c++14/17 on compiler update
-    const std::string &rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
       file_path_ = rapidsDatasetRootDir + "/" + config_;
     } else {
@@ -245,11 +245,12 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
   {
     // Step 1: Construction of the graph based on configuration
     bool is_directed = false;
-    auto csr = generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
+    auto csr =
+      cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = is_directed;
-    CUDA_CHECK_LAST();
+    CUDA_RT_CALL(cudaGetLastError());
     std::vector<result_t> result(G.number_of_edges, 0);
     std::vector<result_t> expected(G.number_of_edges, 0);
 
@@ -279,10 +280,10 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
                                          static_cast<WT *>(nullptr),
                                          configuration.number_of_sources_,
                                          sources_ptr);
-    CUDA_TRY(cudaMemcpy(result.data(),
-                        d_result.data().get(),
-                        sizeof(result_t) * G.number_of_edges,
-                        cudaMemcpyDeviceToHost));
+    CUDA_RT_CALL(cudaMemcpy(result.data(),
+                            d_result.data().get(),
+                            sizeof(result_t) * G.number_of_edges,
+                            cudaMemcpyDeviceToHost));
     for (int i = 0; i < G.number_of_edges; ++i)
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
         << "[MISMATCH] vaid = " << i << ", cugraph = " << result[i]

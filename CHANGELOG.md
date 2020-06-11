@@ -9,6 +9,7 @@
 - PR #903 Add short commit hash to conda package
 - PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
 - PR #933 Update opg_degree to use raft, add python tests
+- PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
 - PR #934 Update conda dev environment.yml dependencies to 0.15
 
 ## Bug Fixes
