@@ -57,18 +57,20 @@ source activate gdf
 
 logger "conda install required packages"
 conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
-      cudf=${MINOR_VERSION} \
-      rmm=${MINOR_VERSION} \
-      networkx>=2.3 \
+      "cudf=${MINOR_VERSION}" \
+      "rmm=${MINOR_VERSION}" \
+      "networkx>=2.3" \
       python-louvain \
-      cudatoolkit=$CUDA_REL \
-      dask>=2.12.0 \
-      distributed>=2.12.0 \
-      dask-cudf=${MINOR_VERSION} \
-      dask-cuda=${MINOR_VERSION} \
-      nccl>=2.5 \
+      "cudatoolkit=$CUDA_REL" \
+      "dask>=2.12.0" \
+      "distributed>=2.12.0" \
+      "dask-cudf=${MINOR_VERSION}" \
+      "dask-cuda=${MINOR_VERSION}" \
+      "scikit-learn>=0.21" \
+      "nccl>=2.5" \
+      "ucx-py=${MINOR_VERSION}" \
       libcypher-parser \
-      ipython=7.3* \
+      "ipython=7.3*" \
       jupyterlab
 
 # Install the master version of dask and distributed

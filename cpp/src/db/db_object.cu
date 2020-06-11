@@ -16,7 +16,6 @@
 
 #include <cugraph.h>
 #include <cypher-parser.h>
-#include <rmm_utils.h>
 #include <db/db_execution.cuh>
 #include <db/db_object.cuh>
 #include <sstream>

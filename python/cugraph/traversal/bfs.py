@@ -15,7 +15,7 @@ from cugraph.traversal import bfs_wrapper
 from cugraph.structure.graph import Graph
 
 
-def bfs(G, start):
+def bfs(G, start, return_sp_counter=False):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -28,6 +28,9 @@ def bfs(G, start):
     start : Integer
         The index of the graph vertex from which the traversal begins
 
+    return_sp_counter : bool, optional, default=False
+        Indicates if shortest path counters should be returned
+
     Returns
     -------
     df : cudf.DataFrame
@@ -38,6 +41,9 @@ def bfs(G, start):
 
         df['predecessor'][i] gives for the i'th vertex the vertex it was
         reached from in the traversal
+
+        df['sp_counter'][i] gives for the i'th vertex the number of shortest
+        path leading to it during traversal (Only if retrun_sp_counter is True)
 
     Examples
     --------
@@ -53,6 +59,6 @@ def bfs(G, start):
     else:
         directed = True
 
-    df = bfs_wrapper.bfs(G, start, directed)
+    df = bfs_wrapper.bfs(G, start, directed, return_sp_counter)
 
     return df

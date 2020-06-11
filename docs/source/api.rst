@@ -39,6 +39,13 @@ Conversion from Other Formats
 Centrality
 ==========
 
+Betweenness Centrality
+----------------------
+
+.. automodule:: cugraph.centrality.betweenness_centrality
+    :members:
+    :undoc-members:
+
 Katz Centrality
 ---------------
 
@@ -46,12 +53,6 @@ Katz Centrality
     :members:
     :undoc-members:
 
-Betweenness Centrality
-----------------------
-
-.. automodule:: cugraph.centrality.betweenness_centrality
-    :members:
-    :undoc-members:
 
 Community
 =========
@@ -60,6 +61,13 @@ Louvain
 -------
 
 .. automodule:: cugraph.community.louvain
+    :members:
+    :undoc-members:
+
+K-Truss
+-------
+
+.. automodule:: cugraph.community.ktruss_subgraph
     :members:
     :undoc-members:
 
@@ -91,6 +99,7 @@ Triangle Counting
     :members:
     :undoc-members:
 
+
 Components
 ==========
 
@@ -118,14 +127,15 @@ Core Number
     :members:
     :undoc-members:
 
+Layout
+======
 
-K-Truss
--------
+Force Atlas 2
+-------------
 
-.. automodule:: cugraph.ktruss.ktruss_subgraph
+.. automodule:: cugraph.layout.force_atlas2
     :members:
     :undoc-members:
-
 
 Link Analysis
 =============

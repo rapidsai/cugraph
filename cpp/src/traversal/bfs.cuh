@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <rmm/thrust_rmm_allocator.h>
 #include <climits>
 
 #define TRAVERSAL_DEFAULT_ALPHA 15
@@ -23,9 +24,9 @@ namespace detail {
 template <typename IndexType>
 class BFS {
  private:
-  IndexType n, nnz;
-  const IndexType *row_offsets;
-  const IndexType *col_indices;
+  IndexType number_of_vertices, number_of_edges;
+  const IndexType *row_offsets = nullptr;
+  const IndexType *col_indices = nullptr;
 
   bool directed;
   bool deterministic;
@@ -34,31 +35,36 @@ class BFS {
   bool useEdgeMask;
   bool computeDistances;
   bool computePredecessors;
-  IndexType *distances;
-  IndexType *predecessors;
-  int *edge_mask;
+  rmm::device_vector<IndexType> distances_vals;
+  IndexType *distances    = nullptr;
+  IndexType *predecessors = nullptr;
+  double *sp_counters     = nullptr;
+  int *edge_mask          = nullptr;
 
+  rmm::device_vector<IndexType> original_frontier;
+  rmm::device_vector<int> visited_bmap;
+  rmm::device_vector<int> isolated_bmap;
+  rmm::device_vector<int> previous_visited_bmap;
+  rmm::device_vector<IndexType> vertex_degree;
+  rmm::device_vector<IndexType> buffer_np1_1;
+  rmm::device_vector<IndexType> buffer_np1_2;
+  rmm::device_vector<IndexType> exclusive_sum_frontier_vertex_buckets_offsets;
+  rmm::device_vector<IndexType> d_counters_pad;
   // Working data
   // For complete description of each, go to bfs.cu
   IndexType nisolated;
-  IndexType *frontier, *new_frontier;
-  IndexType *original_frontier;
+  IndexType *frontier                             = nullptr;
+  IndexType *new_frontier                         = nullptr;
+  IndexType *frontier_vertex_degree               = nullptr;
+  IndexType *exclusive_sum_frontier_vertex_degree = nullptr;
+  IndexType *unvisited_queue                      = nullptr;
+  IndexType *left_unvisited_queue                 = nullptr;
+  IndexType *d_new_frontier_cnt                   = nullptr;
+  IndexType *d_mu                                 = nullptr;
+  IndexType *d_unvisited_cnt                      = nullptr;
+  IndexType *d_left_unvisited_cnt                 = nullptr;
+
   IndexType vertices_bmap_size;
-  int *visited_bmap, *isolated_bmap;
-  IndexType *vertex_degree;
-  IndexType *buffer_np1_1, *buffer_np1_2;
-  IndexType *frontier_vertex_degree;
-  IndexType *exclusive_sum_frontier_vertex_degree;
-  IndexType *unvisited_queue;
-  IndexType *left_unvisited_queue;
-  IndexType *exclusive_sum_frontier_vertex_buckets_offsets;
-  IndexType *d_counters_pad;
-  IndexType *d_new_frontier_cnt;
-  IndexType *d_mu;
-  IndexType *d_unvisited_cnt;
-  IndexType *d_left_unvisited_cnt;
-  void *d_cub_exclusive_sum_storage;
-  size_t cub_exclusive_sum_storage_bytes;
 
   // Parameters for direction optimizing
   IndexType alpha, beta;
@@ -72,16 +78,16 @@ class BFS {
  public:
   virtual ~BFS(void) { clean(); }
 
-  BFS(IndexType _n,
-      IndexType _nnz,
+  BFS(IndexType _number_of_vertices,
+      IndexType _number_of_edges,
       const IndexType *_row_offsets,
       const IndexType *_col_indices,
       bool _directed,
       IndexType _alpha,
       IndexType _beta,
       cudaStream_t _stream = 0)
-    : n(_n),
-      nnz(_nnz),
+    : number_of_vertices(_number_of_vertices),
+      number_of_edges(_number_of_edges),
       row_offsets(_row_offsets),
       col_indices(_col_indices),
       directed(_directed),
@@ -92,7 +98,10 @@ class BFS {
     setup();
   }
 
-  void configure(IndexType *distances, IndexType *predecessors, int *edge_mask);
+  void configure(IndexType *distances,
+                 IndexType *predecessors,
+                 double *sp_counters,
+                 int *edge_mask);
 
   void traverse(IndexType source_vertex);
 };

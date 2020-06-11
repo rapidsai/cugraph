@@ -73,3 +73,7 @@ datasets/*
 
 ## Doxygen
 cpp/doxygen/html
+
+# Raft symlink
+python/cugraph/raft
+python/_external_repositories/

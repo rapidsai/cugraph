@@ -1,5 +1,21 @@
-#include <cugraph.h>
-#include <rmm_utils.h>
+/*
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#include <rmm/thrust_rmm_allocator.h>
+#include <utilities/error_utils.h>
+#include <graph.hpp>
 #include "converters/COOtoCSR.cuh"
 #include "utilities/graph_utils.cuh"
 
@@ -8,95 +24,72 @@ namespace detail {
 
 template <typename IdxT>
 struct permutation_functor {
-  IdxT* permutation;
-  permutation_functor(IdxT* p) : permutation(p) {}
-  __host__ __device__ IdxT operator()(IdxT in) { return permutation[in]; }
+  IdxT const *permutation;
+  permutation_functor(IdxT const *p) : permutation(p) {}
+  __host__ __device__ IdxT operator()(IdxT in) const { return permutation[in]; }
 };
 
 /**
  * This function takes a graph and a permutation vector and permutes the
  * graph according to the permutation vector. So each vertex id i becomes
  * vertex id permutation[i] in the permuted graph.
+ *
  * @param graph The graph to permute.
  * @param permutation The permutation vector to use, must be a valid permutation
  * i.e. contains all values 0-n exactly once.
+ * @param result View of the resulting graph... note this should be pre allocated
+ *               and number_of_vertices and number_of_edges should be set
  * @return The permuted graph.
  */
-template <typename IdxT, typename ValT>
-cugraph::Graph* permute_graph(cugraph::Graph* graph, IdxT* permutation)
+template <typename vertex_t, typename edge_t, typename weight_t>
+void permute_graph(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                   vertex_t const *permutation,
+                   experimental::GraphCSRView<vertex_t, edge_t, weight_t> result,
+                   cudaStream_t stream = 0)
 {
-  CUGRAPH_EXPECTS(graph->adjList || graph->edgeList, "Graph requires connectivity information.");
-  IdxT nnz;
-  if (graph->edgeList) {
-    nnz = graph->edgeList->src_indices->size;
-  } else if (graph->adjList) {
-    nnz = graph->adjList->indices->size;
-  }
-  IdxT* src_indices;
-  ALLOC_TRY(&src_indices, sizeof(IdxT) * nnz, nullptr);
-  IdxT* dest_indices;
-  ALLOC_TRY(&dest_indices, sizeof(IdxT) * nnz, nullptr);
-  ValT* weights = nullptr;
+  //  Create a COO out of the CSR
+  rmm::device_vector<vertex_t> src_vertices_v(graph.number_of_edges);
+  rmm::device_vector<vertex_t> dst_vertices_v(graph.number_of_edges);
+  rmm::device_vector<weight_t> weights_v(graph.number_of_edges);
 
-  // Fill a copy of the data from either the edge list or adjacency list:
-  if (graph->edgeList) {
-    thrust::copy(rmm::exec_policy(nullptr)->on(nullptr),
-                 (IdxT*)graph->edgeList->src_indices->data,
-                 (IdxT*)graph->edgeList->src_indices->data + nnz,
-                 src_indices);
-    thrust::copy(rmm::exec_policy(nullptr)->on(nullptr),
-                 (IdxT*)graph->edgeList->dest_indices->data,
-                 (IdxT*)graph->edgeList->dest_indices->data + nnz,
-                 dest_indices);
-    weights = (ValT*)graph->edgeList->edge_data->data;
-  } else if (graph->adjList) {
-    cugraph::detail::offsets_to_indices(
-      (IdxT*)graph->adjList->offsets->data, (IdxT)graph->adjList->offsets->size - 1, src_indices);
-    thrust::copy(rmm::exec_policy(nullptr)->on(nullptr),
-                 (IdxT*)graph->adjList->indices->data,
-                 (IdxT*)graph->adjList->indices->data + nnz,
-                 dest_indices);
-    weights = (ValT*)graph->adjList->edge_data->data;
-  }
+  vertex_t *d_src     = src_vertices_v.data().get();
+  vertex_t *d_dst     = dst_vertices_v.data().get();
+  weight_t *d_weights = weights_v.data().get();
+
+  graph.get_source_indices(d_src);
+
+  if (graph.has_data())
+    thrust::copy(rmm::exec_policy(stream)->on(stream),
+                 graph.edge_data,
+                 graph.edge_data + graph.number_of_edges,
+                 d_weights);
 
   // Permute the src_indices
-  permutation_functor<IdxT> pf(permutation);
+  permutation_functor<vertex_t> pf(permutation);
   thrust::transform(
-    rmm::exec_policy(nullptr)->on(nullptr), src_indices, src_indices + nnz, src_indices, pf);
+    rmm::exec_policy(stream)->on(stream), d_src, d_src + graph.number_of_edges, d_src, pf);
 
   // Permute the destination indices
-  thrust::transform(
-    rmm::exec_policy(nullptr)->on(nullptr), dest_indices, dest_indices + nnz, dest_indices, pf);
+  thrust::transform(rmm::exec_policy(stream)->on(stream),
+                    graph.indices,
+                    graph.indices + graph.number_of_edges,
+                    d_dst,
+                    pf);
 
-  // Call COO2CSR to get the new adjacency
-  CSR_Result_Weighted<IdxT, ValT> new_csr;
-  ConvertCOOtoCSR_weighted(src_indices, dest_indices, weights, (int64_t)nnz, new_csr);
+  cugraph::experimental::GraphCOOView<vertex_t, edge_t, weight_t> graph_coo;
 
-  // Construct the result graph
-  cugraph::Graph* result     = new cugraph::Graph;
-  result->adjList            = new cugraph::gdf_adj_list;
-  result->adjList->offsets   = new gdf_column;
-  result->adjList->indices   = new gdf_column;
-  result->adjList->edge_data = new gdf_column;
-  result->adjList->ownership = 1;
+  graph_coo.number_of_vertices = graph.number_of_vertices;
+  graph_coo.number_of_edges    = graph.number_of_edges;
+  graph_coo.src_indices        = d_src;
+  graph_coo.dst_indices        = d_dst;
 
-  gdf_column_view(result->adjList->offsets,
-                  new_csr.rowOffsets,
-                  nullptr,
-                  new_csr.size + 1,
-                  graph->adjList->offsets->dtype);
-  gdf_column_view(
-    result->adjList->indices, new_csr.colIndices, nullptr, nnz, graph->adjList->offsets->dtype);
-  gdf_column_view(result->adjList->edge_data,
-                  new_csr.edgeWeights,
-                  nullptr,
-                  nnz,
-                  graph->adjList->edge_data->dtype);
+  if (graph.has_data()) {
+    graph_coo.edge_data = d_weights;
+  } else {
+    graph_coo.edge_data = nullptr;
+  }
 
-  ALLOC_FREE_TRY(src_indices, nullptr);
-  ALLOC_FREE_TRY(dest_indices, nullptr);
-
-  return result;
+  cugraph::coo_to_csr_inplace(graph_coo, result);
 }
 
 }  // namespace detail

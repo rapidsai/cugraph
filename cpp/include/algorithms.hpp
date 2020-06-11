@@ -16,6 +16,7 @@
 #pragma once
 
 #include <graph.hpp>
+#include <internals.hpp>
 
 namespace cugraph {
 
@@ -76,7 +77,7 @@ namespace cugraph {
  *
  */
 template <typename VT, typename ET, typename WT>
-void pagerank(experimental::GraphCSC<VT, ET, WT> const &graph,
+void pagerank(experimental::GraphCSCView<VT, ET, WT> const &graph,
               WT *pagerank,
               VT personalization_subset_size = 0,
               VT *personalization_subset     = nullptr,
@@ -105,7 +106,7 @@ void pagerank(experimental::GraphCSC<VT, ET, WT> const &graph,
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void jaccard(experimental::GraphCSR<VT, ET, WT> const &graph, WT const *weights, WT *result);
+void jaccard(experimental::GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
 
 /**
  * @brief     Compute jaccard similarity coefficient for selected vertex pairs
@@ -129,7 +130,7 @@ void jaccard(experimental::GraphCSR<VT, ET, WT> const &graph, WT const *weights,
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void jaccard_list(experimental::GraphCSR<VT, ET, WT> const &graph,
+void jaccard_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
                   WT const *weights,
                   ET num_pairs,
                   VT const *first,
@@ -155,7 +156,7 @@ void jaccard_list(experimental::GraphCSR<VT, ET, WT> const &graph,
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void overlap(experimental::GraphCSR<VT, ET, WT> const &graph, WT const *weights, WT *result);
+void overlap(experimental::GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
 
 /**
  * @brief     Compute overlap coefficient for select pairs of vertices
@@ -179,7 +180,7 @@ void overlap(experimental::GraphCSR<VT, ET, WT> const &graph, WT const *weights,
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void overlap_list(experimental::GraphCSR<VT, ET, WT> const &graph,
+void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
                   WT const *weights,
                   ET num_pairs,
                   VT const *first,
@@ -187,22 +188,95 @@ void overlap_list(experimental::GraphCSR<VT, ET, WT> const &graph,
                   WT *result);
 
 /**
+ *
+ * @brief                                       ForceAtlas2 is a continuous graph layout algorithm
+ * for handy network visualization.
+ *
+ *                                              NOTE: Peak memory allocation occurs at 17*V.
+ *
+ * @throws                                      cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                                   Type of vertex identifiers. Supported value : int
+ * (signed, 32-bit)
+ * @tparam ET                                   Type of edge identifiers.  Supported value : int
+ * (signed, 32-bit)
+ * @tparam WT                                   Type of edge weights. Supported values : float or
+ * double.
+ *
+ * @param[in] graph                             cuGRAPH graph descriptor, should contain the
+ * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
+ * algorithm and set to 1 by default.
+ * @param[out] pos                              Device array (2, n) containing x-axis and y-axis
+ * positions;
+ * @param[in] max_iter                          The maximum number of iterations Force Atlas 2
+ * should run for.
+ * @param[in] x_start                           Device array containing starting x-axis positions;
+ * @param[in] y_start                           Device array containing starting y-axis positions;
+ * @param[in] outbound_attraction_distribution  Distributes attraction along outbound edges. Hubs
+ * attract less and thus are pushed to the borders.
+ * @param[in] lin_log_mode                      Switch ForceAtlas’ model from lin-lin to lin-log
+ * (tribute to Andreas Noack). Makes clusters more tight.
+ * @param[in] prevent_overlapping               Prevent nodes from overlapping.
+ * @param[in] edge_weight_influence             How much influence you give to the edges weight. 0
+ * is “no influence” and 1 is “normal”.
+ * @param[in] jitter_tolerance                  How much swinging you allow. Above 1 discouraged.
+ * Lower gives less speed and more precision.
+ * @param[in] barnes_hut_optimize:              Whether to use the fast Barnes Hut or use the slower
+ * exact version.
+ * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs
+ * accuracy (0) for Barnes Hut only.
+ * @params[in] scaling_ratio                    Float strictly positive. How much repulsion you
+ * want. More makes a more sparse graph. Switching from regular mode to LinLog mode needs a
+ * readjustment of the scaling parameter.
+ * @params[in] strong_gravity_mode                      The “Strong gravity” option sets a force
+ * that attracts the nodes that are distant from the center more ( is this distance). This force has
+ * the drawback of being so strong that it is sometimes stronger than the other forces. It may
+ * result in a biased placement of the nodes. However, its advantage is to force a very compact
+ * layout, which may be useful for certain purposes.
+ * @params[in] gravity                          Attracts nodes to the center. Prevents islands from
+ * drifting away.
+ * @params[in] verbose                          Output convergence info at each interation.
+ * @params[in] callback                         An instance of GraphBasedDimRedCallback class to
+ * intercept the internal state of positions while they are being trained.
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
+                  float *pos,
+                  const int max_iter                            = 500,
+                  float *x_start                                = nullptr,
+                  float *y_start                                = nullptr,
+                  bool outbound_attraction_distribution         = true,
+                  bool lin_log_mode                             = false,
+                  bool prevent_overlapping                      = false,
+                  const float edge_weight_influence             = 1.0,
+                  const float jitter_tolerance                  = 1.0,
+                  bool barnes_hut_optimize                      = true,
+                  const float barnes_hut_theta                  = 0.5,
+                  const float scaling_ratio                     = 2.0,
+                  bool strong_gravity_mode                      = false,
+                  const float gravity                           = 1.0,
+                  bool verbose                                  = false,
+                  internals::GraphBasedDimRedCallback *callback = nullptr);
+
+/**
  * @brief     Compute betweenness centrality for a graph
  *
  * Betweenness centrality for a vertex is the sum of the fraction of
  * all pairs shortest paths that pass through the vertex.
  *
- * Note that gunrock (current implementation) does not support a weighted graph.
+ * The current implementation does not support a weighted graph.
  *
- * @throws                           cugraph::logic_error with a custom message when an error
- * occurs.
+ * @throws                           cugraph::logic_error if `result == nullptr` or
+ * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr`.
  *
  * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
  * 32-bit)
  * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
- * @tparam result_t                  Type of computed result.  Supported values :  float
+ * @tparam result_t                  Type of computed result.  Supported values :  float or double
+ * (double only supported in default implementation)
  *
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a CSR
@@ -212,19 +286,60 @@ void overlap_list(experimental::GraphCSR<VT, ET, WT> const &graph,
  * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
  * @param[in] weight                 If specified, device array of weights for each edge
  * @param[in] k                      If specified, number of vertex samples defined in the vertices
- * array
- * @param[in] vertices               If specified, device array of sampled vertex ids to estimate
- * betweenness centrality.
+ * array.
+ * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
+ * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
+ * shortest path counters.
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalized    = true,
                             bool endpoints     = false,
                             WT const *weight   = nullptr,
                             VT k               = 0,
                             VT const *vertices = nullptr);
+
+/**
+ * @brief     Compute edge betweenness centrality for a graph
+ *
+ * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
+ * pass through this edge. The weight parameter is currenlty not supported
+ *
+ *  * @throws                           cugraph::logic_error if `result == nullptr` or
+ * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr` or `endpoints ==
+ true`.
+
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ * @tparam result_t                  Type of computed result.  Supported values :  float or double
+ * (double only supported in default implementation)
+ *
+ * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * information as a CSR
+ * @param[out] result                Device array of centrality scores
+ * @param[in] normalized             If true, return normalized scores, if false return unnormalized
+ * scores.
+ * @param[in] weight                 If specified, device array of weights for each edge
+ * @param[in] k                      If specified, number of vertex samples defined in the vertices
+ * array.
+ * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
+ * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
+ * shortest path counters.
+ *
+ */
+template <typename VT, typename ET, typename WT, typename result_t>
+void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                 result_t *result,
+                                 bool normalized    = true,
+                                 WT const *weight   = nullptr,
+                                 VT k               = 0,
+                                 VT const *vertices = nullptr);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
@@ -262,7 +377,7 @@ enum class cugraph_cc_t {
  * associated with vertex id i.
  */
 template <typename VT, typename ET, typename WT>
-void connected_components(experimental::GraphCSR<VT, ET, WT> const &graph,
+void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels);
 
@@ -286,13 +401,15 @@ void connected_components(experimental::GraphCSR<VT, ET, WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a COO
  * @param[in] k                      The order of the truss
- * @param[out] output_graph          cuGRAPH graph descriptor with the k-truss subgraph as a COO
+ * @param[in] mr                     Memory resource used to allocate the returned graph
+ * @return                           Unique pointer to K Truss subgraph in COO format
  *
  */
 template <typename VT, typename ET, typename WT>
-void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
-                      int k,
-                      experimental::GraphCOO<VT, ET, WT> &output_graph);
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
+  experimental::GraphCOOView<VT, ET, WT> const &graph,
+  int k,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 /**
  * @brief        Compute the Katz centrality for the nodes of the graph G
@@ -327,7 +444,7 @@ void k_truss_subgraph(experimental::GraphCOO<VT, ET, WT> const &graph,
  * @param[in] normalized             If True normalize the resulting katz centrality values
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void katz_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
+void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                      result_t *result,
                      double alpha,
                      int max_iter,
@@ -345,7 +462,7 @@ void katz_centrality(experimental::GraphCSR<VT, ET, WT> const &graph,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
-void core_number(experimental::GraphCSR<VT, ET, WT> const &graph, VT *core_number);
+void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_number);
 
 /**
  * @brief   Compute K Core of the graph G
@@ -358,21 +475,24 @@ void core_number(experimental::GraphCSR<VT, ET, WT> const &graph, VT *core_numbe
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
- * @param[in]  graph                 cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @param[in]  graph                 cuGRAPH graph in coordinate format
  * @param[in]  k                     Order of the core. This value must not be negative.
  * @param[in]  vertex_id             User specified vertex identifiers for which core number values
  * are supplied
  * @param[in]  core_number           User supplied core number values corresponding to vertex_id
  * @param[in]  num_vertex_ids        Number of elements in vertex_id/core_number arrays
- * @param[out] out_graph             K Core subgraph
+ * @param[in]  mr                    Memory resource used to allocate the returned graph
+ *
+ * @param[out] out_graph             Unique pointer to K Core subgraph in COO format
  */
 template <typename VT, typename ET, typename WT>
-void k_core(experimental::GraphCOO<VT, ET, WT> const &graph,
-            int k,
-            VT const *vertex_id,
-            VT const *core_number,
-            VT num_vertex_ids,
-            experimental::GraphCOO<VT, ET, WT> &out_graph);
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
+  experimental::GraphCOOView<VT, ET, WT> const &graph,
+  int k,
+  VT const *vertex_id,
+  VT const *core_number,
+  VT num_vertex_ids,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 /**
  * @brief      Find all 2-hop neighbors in the graph
@@ -389,14 +509,11 @@ void k_core(experimental::GraphCOO<VT, ET, WT> const &graph,
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
  * @param[in]  graph        The input graph object
- * @param[out] first        Upon return will be a device pointer pointing to an array containing
- *                          the first entry of each result pair.
- * @param[out] second       Upon return will be a device pointer pointing to an array containing
- *                          the second entry of each result pair.
- * @return    The number of pairs
+ * @return                  Graph in COO format
  */
 template <typename VT, typename ET, typename WT>
-ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph, VT **first, VT **second);
+std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  experimental::GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
@@ -423,12 +540,14 @@ ET get_two_hop_neighbors(experimental::GraphCSR<VT, ET, WT> const &graph, VT **f
  *
  */
 template <typename VT, typename ET, typename WT>
-void sssp(experimental::GraphCSR<VT, ET, WT> const &graph,
+void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
           WT *distances,
           VT *predecessors,
           const VT source_vertex);
 
-// TODO: Either distances is in VT or in WT, even if there should be no weights
+// FIXME: Internally distances is of int (signed 32-bit) data type, but current
+// template uses data from VT, ET, WT from he GraphCSR View even if weights
+// are not considered
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
  *
@@ -443,11 +562,14 @@ void sssp(experimental::GraphCSR<VT, ET, WT> const &graph,
  * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
  * information as a CSR
  *
- * @param[out] distances            If set to a valid column, this is populated by distance of every
- * vertex in the graph from the starting vertex
+ * @param[out] distances             If set to a valid pointer, this is populated by distance of
+ * every vertex in the graph from the starting vertex
  *
- * @param[out] predecessors         If set to a valid column, this is populated by bfs traversal
+ * @param[out] predecessors          If set to a valid pointer, this is populated by bfs traversal
  * predecessor of every vertex
+ *
+ * @param[out] sp_counters           If set to a valid pointer, this is populated by bfs traversal
+ * shortest_path counter of every vertex
  *
  * @param[in] start_vertex           The starting vertex for breadth first search traversal
  *
@@ -456,9 +578,281 @@ void sssp(experimental::GraphCSR<VT, ET, WT> const &graph,
  * @throws     cugraph::logic_error when an error occurs.
  */
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSR<VT, ET, WT> const &graph,
+void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
+         double *sp_counters,
          const VT start_vertex,
          bool directed = true);
+
+/**
+ * @brief      Louvain implementation
+ *
+ * Compute a clustering of the graph by minimizing modularity
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[out] final_modularity      modularity of the returned clustering
+ * @param[out] num_level             number of levels of the returned clustering
+ * @param[out] clustering            Pointer to device array where the clustering should be stored
+ * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ */
+template <typename VT, typename ET, typename WT>
+void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
+             WT *final_modularity,
+             int *num_level,
+             VT *louvain_parts,
+             int max_iter = 100);
+
+/**
+ * @brief Computes the ecg clustering of the given graph.
+ *
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph_coo             input graph object (COO)
+ * @param[in]  graph_csr             input graph object (CSR)
+ * @param[in]  min_weight            The minimum weight parameter
+ * @param[in]  ensemble_size         The ensemble size parameter
+ * @param[out] ecg_parts             A device pointer to array where the partitioning should be
+ * written
+ */
+template <typename VT, typename ET, typename WT>
+void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
+         WT min_weight,
+         VT ensemble_size,
+         VT *ecg_parts);
+
+namespace nvgraph {
+
+/**
+ * @brief             Count the number of triangles in the graph
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ *
+ * @return                           The number of triangles
+ */
+template <typename VT, typename ET, typename WT>
+uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph);
+
+/**
+ * @brief             Extract subgraph by vertices
+ *
+ * This function will identify all edges that connect pairs of vertices
+ * that are both contained in the vertices list and return a COO containing
+ * these edges.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (COO)
+ * @param[in]  vertices              device pointer to an array of vertex ids
+ * @param[in]  num_vertices          number of vertices in the array vertices
+ * @param[out] result                a graph in COO format containing the edges in the subgraph
+ */
+template <typename VT, typename ET, typename WT>
+std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  experimental::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices);
+
+/**
+ * @brief     Wrapper function for Nvgraph balanced cut clustering
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  num_clusters          The desired number of clusters
+ * @param[in]  num_eigen_vects       The number of eigenvectors to use
+ * @param[in]  evs_tolerance         The tolerance to use for the eigenvalue solver
+ * @param[in]  evs_max_iter          The maximum number of iterations of the eigenvalue solver
+ * @param[in]  kmean_tolerance       The tolerance to use for the kmeans solver
+ * @param[in]  kmean_max_iter        The maximum number of iteration of the k-means solver
+ * @param[out] clustering            Pointer to device memory where the resulting clustering will be
+ * stored
+ */
+template <typename VT, typename ET, typename WT>
+void balancedCutClustering(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                           VT num_clusters,
+                           VT num_eigen_vects,
+                           WT evs_tolerance,
+                           int evs_max_iter,
+                           WT kmean_tolerance,
+                           int kmean_max_iter,
+                           VT *clustering);
+
+/**
+ * @brief      Wrapper function for Nvgraph spectral modularity maximization algorithm
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  num_clusters          The desired number of clusters
+ * @param[in]  num_eigen_vects       The number of eigenvectors to use
+ * @param[in]  evs_tolerance         The tolerance to use for the eigenvalue solver
+ * @param[in]  evs_max_iter          The maximum number of iterations of the eigenvalue solver
+ * @param[in]  kmean_tolerance       The tolerance to use for the kmeans solver
+ * @param[in]  kmean_max_iter        The maximum number of iteration of the k-means solver
+ * @param[out] clustering            Pointer to device memory where the resulting clustering will be
+ * stored
+ */
+template <typename VT, typename ET, typename WT>
+void spectralModularityMaximization(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                    VT n_clusters,
+                                    VT n_eig_vects,
+                                    WT evs_tolerance,
+                                    int evs_max_iter,
+                                    WT kmean_tolerance,
+                                    int kmean_max_iter,
+                                    VT *clustering);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering modularity metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_modularity(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                  int n_clusters,
+                                  VT const *clustering,
+                                  WT *score);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering edge cut metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_edge_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                int n_clusters,
+                                VT const *clustering,
+                                WT *score);
+
+/**
+ * @brief      Wrapper function for Nvgraph clustering ratio cut metric
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  n_clusters            Number of clusters in the clustering
+ * @param[in]  clustering            Pointer to device array containing the clustering to analyze
+ * @param[out] score                 Pointer to a float in which the result will be written
+ */
+template <typename VT, typename ET, typename WT>
+void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
+                                 int n_clusters,
+                                 VT const *clustering,
+                                 WT *score);
+
+}  // namespace nvgraph
+
+namespace gunrock {
+
+/**
+ * @brief     Compute the HITS vertex values for a graph
+ *
+ * cuGraph uses the gunrock implementation of HITS
+ *
+ * @throws                           cugraph::logic_error on an error
+ *
+ * @tparam VT                        Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights.
+ *                                   Supported value : float
+ *
+ * @param[in] graph                  input graph object (CSR). Edge weights are not used
+ *                                   for this algorithm.
+ * @param[in] max_iter               Maximum number of iterations to run
+ * @param[in] tolerance              Currently ignored.  gunrock implementation runs
+ *                                   the specified number of iterations and stops
+ * @param[in] starting value         Currently ignored.  gunrock does not support.
+ * @param[in] normalized             Currently ignored, gunrock computes this as true
+ * @param[out] *hubs                 Device memory pointing to the node value based
+ *                                   on outgoing links
+ * @param[out] *authorities          Device memory pointing to the node value based
+ *                                   on incoming links
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void hits(experimental::GraphCSRView<VT, ET, WT> const &graph,
+          int max_iter,
+          WT tolerance,
+          WT const *starting_value,
+          bool normalized,
+          WT *hubs,
+          WT *authorities);
+
+}  // namespace gunrock
+
 }  // namespace cugraph

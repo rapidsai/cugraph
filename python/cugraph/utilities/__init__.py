@@ -12,4 +12,4 @@
 # limitations under the License.
 
 # from cugraph.utilities.grmat import grmat_gen
-from cugraph.utilities.pointer_utils import device_of_gpu_pointer
+# from cugraph.utilities.pointer_utils import device_of_gpu_pointer

@@ -21,12 +21,13 @@
 
 #include <algorithm>
 #include <iterator>
-#include "test_utils.h"
+#include "utilities/test_utilities.hpp"
 
 #include <algorithms.hpp>
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
 
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "components/scc_matrix.cuh"
 #include "topology/topology.cuh"
 
@@ -43,7 +44,7 @@ struct Usecase {
   explicit Usecase(const std::string& a)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
@@ -119,9 +120,10 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
     const ::testing::TestInfo* const test_info =
       ::testing::UnitTest::GetInstance()->current_test_info();
     std::stringstream ss;
-    std::string test_id =
-      std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) +
-      std::string("_") + getFileName(param.get_matrix_file()) + std::string("_") + ss.str().c_str();
+    std::string test_id = std::string(test_info->test_case_name()) + std::string(".") +
+                          std::string(test_info->name()) + std::string("_") +
+                          cugraph::test::getFileName(param.get_matrix_file()) + std::string("_") +
+                          ss.str().c_str();
 
     using ByteT  = unsigned char;
     using IndexT = int;
@@ -135,7 +137,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
     FILE* fpin = fopen(param.get_matrix_file().c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.get_matrix_file().c_str() << ") failure.";
 
-    ASSERT_EQ(mm_properties<IndexT>(fpin, 1, &mc, &m, &k, &nnz), 0)
+    ASSERT_EQ(cugraph::test::mm_properties<IndexT>(fpin, 1, &mc, &m, &k, &nnz), 0)
       << "could not read Matrix Market file properties"
       << "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
@@ -158,17 +160,17 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
 
     // Read: COO Format
     //
-    ASSERT_EQ(
-      (mm_to_coo<IndexT, IndexT>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)), 0)
+    ASSERT_EQ((cugraph::test::mm_to_coo<IndexT, IndexT>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)),
+              0)
       << "could not read matrix data"
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    CSR_Result<int> result;
-    ConvertCOOtoCSR(&cooColInd[0], &cooRowInd[0], nnz, result);
-
-    cugraph::experimental::GraphCSR<int, int, float> G(
-      result.rowOffsets, result.colIndices, nullptr, m, nnz);
+    cugraph::experimental::GraphCOOView<int, int, float> G_coo(
+      &cooRowInd[0], &cooColInd[0], nullptr, m, nnz);
+    auto G_unique                                          = cugraph::coo_to_csr(G_coo);
+    cugraph::experimental::GraphCSRView<int, int, float> G = G_unique->view();
 
     rmm::device_vector<int> d_labels(m);
 
@@ -210,9 +212,9 @@ INSTANTIATE_TEST_CASE_P(
 
 int main(int argc, char** argv)
 {
-  rmmInitialize(nullptr);
   testing::InitGoogleTest(&argc, argv);
+  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
+  rmm::mr::set_default_resource(resource.get());
   int rc = RUN_ALL_TESTS();
-  rmmFinalize();
   return rc;
 }

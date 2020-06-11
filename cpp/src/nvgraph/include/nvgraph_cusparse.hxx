@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 
 #include <cusparse_v2.h>
 #include <cusparse_internal.h>
-#include "valued_csr_graph.hxx"
 #include "nvgraph_vector.hxx"
 
 #include <iostream>
@@ -72,16 +71,6 @@ public:
                      const ValueType_* x,
                      const ValueType_* beta, 
                      ValueType_* y);
-  
-  template <typename IndexType_, typename ValueType_>
-  static void csrmv( const bool transposed,
-                     const bool sym,
-                     const ValueType_* alpha, 
-                     const ValuedCsrGraph<IndexType_, ValueType_>& G,
-                     const Vector<ValueType_>& x,
-                     const ValueType_* beta, 
-                     Vector<ValueType_>& y
-                     );
   
   // future possible features
   /*

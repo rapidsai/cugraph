@@ -8,9 +8,14 @@ cuGraph, and all of RAPIDS in general, is an open-source project where we encour
 If you are ready to contribute, jump right to the [Contribute Code](#code) section.
 
 
+__Style Formatting Tools:__
+* `clang-format`  version 8.01+
+* `flake8`        version 3.5.0+
+
+
 <a name="issue"></a>
 ## 1) File an Issue for the RAPIDS cuGraph team to work
-To file an issue, go to the RAPIDS cuGraph [issue](https://github.com/rapidsai/cugraph/issues/new/choose) page an select the appropiate issue type.  Once an issue is filed the RAPIDS cuGraph team will evaluate and triage the issue.  If you believe the issue needs priority attention, please include that in the issue to notify the team.
+To file an issue, go to the RAPIDS cuGraph [issue](https://github.com/rapidsai/cugraph/issues/new/choose) page an select the appropriate issue type.  Once an issue is filed the RAPIDS cuGraph team will evaluate and triage the issue.  If you believe the issue needs priority attention, please include that in the issue to notify the team.
 
 ***Bug Report***</pr>
 If you notice something not working please file an issue
@@ -49,20 +54,19 @@ We love when people want to get involved, and if you have a suggestion for a new
 
 If you need more context on a particular issue, please ask.
 
-
+----
 <a name="code"></a>
-
-# So You Want to Contribute Code
+# So you want to contribute code
 
 **TL;DR General Development Process**
 1. Read the documentation on [building from source](SOURCEBUILD.md) to learn how to setup, and validate, the development environment
 2. Read the RAPIDS [Code of Conduct](https://docs.rapids.ai/resources/conduct/)
-3. Find or submit an issue to work on (include a comment that you are workign issue)
+3. Find or submit an issue to work on (include a comment that you are working issue)
 4. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
 5. When done, and code passes local CI, create your pull request (PR)
    1. Update the CHANGELOG.md with PR number - see [Changelog formatting](https://docs.rapids.ai/resources/changelog/)
    2. Ensure that the PR has the proper [tags](PRTAGS.md)
-   3. Ensure the code matches out [style guilde](https://docs.rapids.ai/resources/style/) 
+   3. Ensure the code matches out [style guide](https://docs.rapids.ai/resources/style/) 
 6. Verify that cuGraph CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
 7. Wait for other developers to review your code and update code as needed
 8. Once reviewed and approved, a RAPIDS developer will merge your pull request
@@ -144,14 +148,13 @@ others know you are working on it. If you have any questions related to the
 implementation of the issue, ask them in the issue instead of the PR.
 
 
-### Style Guild
+### Style Guide
 All Python code most pass flake8 style checking
 All C++ code must pass clang style checking
+All code must adhere to the [RAPIDS Style Guide](https://docs.rapids.ai/resources/style/)
 
 ### Tests
 All code must have associate test cases.  Code without test will not be accepted
-
-
 
 
 

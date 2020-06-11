@@ -16,11 +16,8 @@
 
 #pragma once
 
-#include <cugraph.h>
-#include <rmm_utils.h>
-#include <db/db_object.cuh>
+#include <db/db_table.cuh>
 #include <db/db_results.cuh>
-#include "rmm/device_buffer.hpp"
 
 #define MAXBLOCKS 65535
 #define FIND_MATCHES_BLOCK_SIZE 512

@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.14.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.15.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -172,28 +172,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - cudf ------------------------------------------------------------------------------------------
-
-find_path(CUDF_INCLUDE "cudf"
-    HINTS
-    "$ENV{CUDF_ROOT}/include"
-    "$ENV{CONDA_PREFIX}/include/cudf"
-    "$ENV{CONDA_PREFIX}/include")
-
-find_library(CUDF_LIBRARY "cudf"
-    HINTS
-    "$ENV{CUDF_ROOT}/lib"
-    "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "CUDF: CUDF_LIBRARY set to ${CUDF_LIBRARY}")
-message(STATUS "CUDF: CUDF_INCLUDE set to ${CUDF_INCLUDE}")
-
-add_library(cudf SHARED IMPORTED ${CUDF_LIBRARY})
-if (CUDF_INCLUDE AND CUDF_LIBRARY)
-    set_target_properties(cudf PROPERTIES IMPORTED_LOCATION ${CUDF_LIBRARY})
-endif (CUDF_INCLUDE AND CUDF_LIBRARY)
-
-###################################################################################################
 # - RMM -------------------------------------------------------------------------------------------
 
 find_path(RMM_INCLUDE "rmm"
@@ -278,6 +256,39 @@ else()
     set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
 endif(NOT NCCL_PATH)
 
+# - raft - (header only) -----------------------------------------------------
+
+# Only cloned if RAFT_PATH env variable is not defined
+
+if(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable detected.")
+  message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
+  set(RAFT_DIR ENV{RAFT_PATH})
+
+  ExternalProject_Add(raft
+    DOWNLOAD_COMMAND  ""
+    SOURCE_DIR        ${RAFT_DIR}
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND     ""
+    INSTALL_COMMAND   "")
+
+else(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable NOT detected, cloning RAFT")
+  set(RAFT_DIR ${CMAKE_CURRENT_BINARY_DIR}/raft CACHE STRING "Path to RAFT repo")
+
+  ExternalProject_Add(raft
+    GIT_REPOSITORY    https://github.com/rapidsai/raft.git
+    GIT_TAG           2487eb0c12f374729043baa5448c0d309c921e60
+    PREFIX            ${RAFT_DIR}
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND     ""
+    INSTALL_COMMAND   "")
+
+  # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
+  set(RAFT_DIR "${RAFT_DIR}/src/raft/")
+endif(DEFINED ENV{RAFT_PATH})
+
+
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 
@@ -290,7 +301,6 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/ktruss/ktruss.cu
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
@@ -301,55 +311,38 @@ add_library(cugraph SHARED
     src/db/db_table.cu
     src/db/parser_helpers.cu
     src/utilities/cusparse_helper.cu
-    src/structure/cugraph.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
-    src/converters/nvgraph.cu
+    src/layout/force_atlas2.cu
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
-    src/community/nvgraph_gdf.cu
+    src/community/spectral_clustering.cu
+    src/community/louvain.cpp
+    src/community/louvain_kernels.cu
+    src/community/ktruss.cu
     src/community/ECG.cu
+    src/community/triangles_counting.cu
+    src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/utilities/cusparse_helper.cu
-    src/utilities/graph_utils.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/nvgraph/arnoldi.cu
-    src/nvgraph/bfs.cu
-    src/nvgraph/bfs2d.cu
-    src/nvgraph/bfs_kernels.cu
-    src/nvgraph/convert.cu
-    src/nvgraph/csrmv.cu
-    src/nvgraph/csrmv_cub.cu
-    src/nvgraph/csr_graph.cpp
-    src/nvgraph/graph_extractor.cu
-    src/nvgraph/jaccard_gpu.cu
     src/nvgraph/kmeans.cu
     src/nvgraph/lanczos.cu
-    src/nvgraph/lobpcg.cu
-    src/nvgraph/matrix.cu
+    src/nvgraph/spectral_matrix.cu
     src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph.cu
     src/nvgraph/nvgraph_cusparse.cpp
     src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_error.cu
     src/nvgraph/nvgraph_lapack.cu
     src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/pagerank.cu
-    src/nvgraph/pagerank_kernels.cu
     src/nvgraph/partition.cu
-    src/nvgraph/size2_selector.cu
-    src/nvgraph/sssp.cu
-    src/nvgraph/triangles_counting.cpp
-    src/nvgraph/triangles_counting_kernels.cu
-    src/nvgraph/valued_csr_graph.cpp
-    src/nvgraph/widest_path.cu
 )
 
 #
@@ -357,6 +350,11 @@ add_library(cugraph SHARED
 #        wait until after cugunrock is constructed.
 #
 add_dependencies(cugraph cugunrock)
+add_dependencies(cugraph raft)
+
+if (BUILD_MPI)
+    add_compile_definitions(ENABLE_OPG=1)
+endif (BUILD_MPI)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
@@ -366,7 +364,6 @@ target_include_directories(cugraph
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
-    "${CUDF_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
     "${CUB_INCLUDE_DIR}"
     "${CUHORNET_INCLUDE_DIR}/hornet/include"
@@ -377,6 +374,7 @@ target_include_directories(cugraph
     "${CUGUNROCK_DIR}/include"
     "${NCCL_INCLUDE_DIRS}"
     "${MPI_CXX_INCLUDE_PATH}"
+    "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -385,7 +383,8 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${CUDF_LIBRARY} ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    ${RMM_LIBRARY} gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
 ###################################################################################################
@@ -397,7 +396,7 @@ target_link_libraries(cugraph PRIVATE
 ###   ...
 ###
 ###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY} and ${RMM_LIBRARY}), cmake
+###   environment. If a full file path is provided (e.g ${RMM_LIBRARY}), cmake
 ###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
 ###   disabled).
 ###
@@ -410,7 +409,7 @@ target_link_libraries(cugraph PRIVATE
 ###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
 ###   checks whether there is any other libgomp.so with the different full path (after resolving
 ###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${CUDF_LIBRARY} and ${RMM_LIBRARY} are added; this one can
+###   path included in BUILD_RPATH when ${RMM_LIBRARY} are added; this one can
 ###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
 ###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
 ###   overlaps with implicit directories).
@@ -458,3 +457,16 @@ install(TARGETS cugraph LIBRARY
 
 install(DIRECTORY include/
     DESTINATION include/cugraph)
+
+###################################################################################################
+# - make documentation ----------------------------------------------------------------------------
+# requires doxygen and graphviz to be installed
+# from build directory, run make docs_cugraph
+
+# doc targets for cuGraph
+add_custom_command(OUTPUT CUGRAPH_DOXYGEN
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
+                   COMMAND doxygen Doxyfile
+                   VERBATIM)
+
+add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)

@@ -36,13 +36,12 @@ namespace detail {
  * @tparam IndexT the numeric type of non-floating point elements
  * @tparam TPB_X the threads to use per block when configuring the kernel
  * @param graph input graph; assumed undirected for weakly CC [in]
- * @param table of 2 gdf_columns: output labels and vertex indices [out]
  * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
  * @param stream the cuda stream [in]
  */
 template <typename VT, typename ET, typename WT, int TPB_X = 32>
 std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
-  experimental::GraphCSR<VT, ET, WT> const &graph,
+  experimental::GraphCSRView<VT, ET, WT> const &graph,
   cugraph_cc_t connectivity_type,
   VT *labels,
   cudaStream_t stream)
@@ -55,15 +54,11 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
   VT nrows = graph.number_of_vertices;
 
   if (connectivity_type == cugraph_cc_t::CUGRAPH_WEAK) {
-    auto d_alloc =
-      std::shared_ptr<MLCommon::deviceAllocator>{new MLCommon::defaultDeviceAllocator()};
-
     MLCommon::Sparse::weak_cc_entry<VT, ET, TPB_X>(labels,
                                                    graph.offsets,
                                                    graph.indices,
                                                    graph.number_of_edges,
                                                    graph.number_of_vertices,
-                                                   d_alloc,
                                                    stream);
   } else {
     SCC_Data<ByteT, VT> sccd(nrows, graph.offsets, graph.indices);
@@ -73,7 +68,7 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void connected_components(experimental::GraphCSR<VT, ET, WT> const &graph,
+void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels)
 {
@@ -85,8 +80,8 @@ void connected_components(experimental::GraphCSR<VT, ET, WT> const &graph,
 }
 
 template void connected_components<int32_t, int32_t, float>(
-  experimental::GraphCSR<int32_t, int32_t, float> const &, cugraph_cc_t, int32_t *);
+  experimental::GraphCSRView<int32_t, int32_t, float> const &, cugraph_cc_t, int32_t *);
 template void connected_components<int64_t, int64_t, float>(
-  experimental::GraphCSR<int64_t, int64_t, float> const &, cugraph_cc_t, int64_t *);
+  experimental::GraphCSRView<int64_t, int64_t, float> const &, cugraph_cc_t, int64_t *);
 
 }  // namespace cugraph
