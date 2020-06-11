@@ -394,18 +394,33 @@ void BC<VT, ET, WT, result_t>::apply_rescale_factor_to_betweenness(result_t resc
 }
 }  // namespace detail
 namespace opg {
-void setup(const raft::handle_t &handle)
+template <typename result_t>
+void setup(const raft::handle_t &handle, result_t *result_ptr)
 {
   printf("[DBG][OPG] Setup\n");
-  int rank = handle.get_comms().get_rank();
+  int rank      = handle.get_comms().get_rank();
+  int device_id = handle.get_device();
   printf("[DBG][OPG] Rank(%d)\n", rank);
+  printf("[DBG][OPG] Device(%d)\n", device_id);
 }
+
+void receive_output_destination() {}
 
 void get_batch() { printf("[DBG][OPG] Get Batch\n"); }
 
 void process() { printf("[DBG][OPG] Process\n"); }
 
-void combine() { printf("[DBG][OPG] Combine\n"); }
+template <typename VT, typename result_t>
+void combine(const raft::handle_t &handle, result_t *src_result, result_t *dst_result, VT size)
+{
+  printf("[DBG][OPG] Combine\n");
+  // TODO(xcadet) Use handle stream as last parameter ?
+  printf("[DBG][OPG] Trying to reduce_sum from %p to %p with %d elements\n",
+         src_result,
+         dst_result,
+         size);
+  handle.get_comms().reduce(src_result, dst_result, size, raft::comms::op_t::SUM, 0, 0);
+}
 }  // namespace opg
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -420,14 +435,28 @@ void betweenness_centrality(const raft::handle_t &handle,
 {
   if (handle.comms_initialized()) {
     printf("[DBG][OPG] Started BATCH-OPG-BC\n");
-    opg::setup(handle);
+    printf("[DBG][OPG] Pointer within C++ %p\n", result);
+    // TODO(xcadet) Through this approach we need an extra |V| device memory,
+    //              should probaly directly use the allocated data for rank 0
+    rmm::device_vector<result_t> betweenness(graph.number_of_vertices, 0);
+    opg::setup<result_t>(handle, result);
     opg::get_batch();
     detail::betweenness_centrality_impl(
-      handle, graph, result, normalize, endpoints, weight, k, vertices);
+      handle, graph, betweenness.data().get(), normalize, endpoints, weight, k, vertices);
+    // thrust::copy(
+    // betweenness.begin(), betweenness.end(), std::ostream_iterator<result_t>(std::cout, ","));
+    // thrust::copy(
+    // result, result + graph.number_of_vertices, std::ostream_iterator<result_t>(std::cout, ","));
+    // std::cout << std::endl;
+
     opg::process();
-    opg::combine();
+    handle.get_comms().reduce(
+      betweenness.data().get(), result, betweenness.size(), raft::comms::op_t::SUM, 0, 0);
+    // opg::combine<VT, result_t>(handle, betweenness.data().get(), result,
+    // graph.number_of_vertices);
   } else {
     printf("[DBG][OPG] Started Regular-BC\n");
+
     detail::betweenness_centrality_impl(
       handle, graph, result, normalize, endpoints, weight, k, vertices);
   }

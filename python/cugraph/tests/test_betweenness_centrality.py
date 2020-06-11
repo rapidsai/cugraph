@@ -15,12 +15,16 @@ import gc
 
 import pytest
 
+import dask_cuda
+import dask.distributed
+
 import cugraph
 from cugraph.tests import utils
 import random
 import numpy as np
 import cupy
 import cudf
+import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -41,6 +45,8 @@ DIRECTED_GRAPH_OPTIONS = [False, True]
 ENDPOINTS_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
+
+OPG_OPTIONS = [None, 1, 2]
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/netscience.csv']
@@ -251,6 +257,16 @@ def prepare_test():
     gc.collect()
 
 
+@pytest.fixture
+def use_opg_batch():
+    print("[DBG][OPG] Using OPG")
+    cluster = dask_cuda.LocalCUDACluster()
+    client = dask.distributed.Client()
+    print("[DBG][OPG] Using cluster", cluster)
+    yield (cluster, client)
+    client.close()
+    cluster.close()
+
 # =============================================================================
 # Tests
 # =============================================================================
@@ -280,6 +296,23 @@ def test_betweenness_centrality(graph_file,
                                             seed=subset_seed,
                                             result_dtype=result_dtype)
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
+
+
+def test_opg_betweenness_centrality():
+    #rmm.reinitialize(managed_memory=True)
+    directed = True
+    graph_file = '../datasets/karate.csv'
+    cluster = dask_cuda.LocalCUDACluster()
+    client = dask.distributed.Client(cluster)
+    print(cluster)
+    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
+    sorted_df = calc_betweenness_centrality(graph_file,
+                                            directed=directed, result_dtype=np.float32)
+
+    compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
+
+    client.close()
+    cluster.close()
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
