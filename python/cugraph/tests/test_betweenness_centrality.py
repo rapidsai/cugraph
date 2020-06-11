@@ -305,8 +305,9 @@ def test_opg_betweenness_centrality():
     cluster = dask_cuda.LocalCUDACluster()
     client = dask.distributed.Client(cluster)
     print(cluster)
-    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
     sorted_df = calc_betweenness_centrality(graph_file,
+                                            normalized=False,
+                                            endpoints=False,
                                             directed=directed, result_dtype=np.float32)
 
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")

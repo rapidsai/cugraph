@@ -62,43 +62,45 @@ def get_output_df(input_graph, result_dtype):
     return df
 
 
-def run_work(input_graph, c_py_identifier, c_py_betweenness, k, normalized, endpoints, session_id=None):
-    cdef GraphCSRViewFloat graph_float
-    cdef handle_t *c_handle
+def get_batch(sources, number_of_workers, current_worker):
+    batch_size = len(sources) // number_of_workers
+    begin =  current_worker * batch_size
+    end = (current_worker + 1) * batch_size
+    if current_worker == (number_of_workers - 1):
+        end = len(sources)
+    batch = sources[begin:end]
+    return batch
 
-    #df = get_output_df(input_graph, result_dtype)
-    #cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
-    #cdef uintptr_t c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
 
-    #print("[DBG][OPG] This should be a future on the result_ptr", c_py_betweenness)
-    print("[DBG][OPG] This should be  k", k)
-    cdef uintptr_t c_identifier =  c_py_identifier
-    cdef uintptr_t c_betweenness = c_py_betweenness
-    print("[DBG][OPG] Pointer inside:", hex(c_betweenness))
-    print("[DBG] Inside run work, session_id:", session_id)
+def run_work(input_graph, normalized, endpoints, vertices, result_dtype, session_id):
+    df = get_output_df(input_graph, result_dtype)
+    session_state = worker_state(session_id)
+    number_of_workers = session_state['nworkers']
+    worker_id = session_state['wid']
 
-    c_k = 0
-    if k is not None:
-        c_k = k
+    cdef GraphCSRViewFloat graph_float = get_graph_view[GraphCSRViewFloat](input_graph, False)
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_batch = <uintptr_t> NULL
 
-    if session_id is not None:
-        graph_float = get_graph_view[GraphCSRViewFloat](input_graph, False)
-        # FIXME: There might be a way to avoid manually setting the Graph property
-        graph_float.prop.directed = type(input_graph) is DiGraph
-        session_state = worker_state(session_id)
-        print("[DBG] nworkers: ", session_state['nworkers'],"  id: ", session_state['wid'])
-        handle = session_state['handle']
-        c_handle = <handle_t*><size_t> handle.getHandle()
-        c_betweenness_centrality[int, int, float, float](c_handle[0],
-                                                         graph_float,
-                                                         <float*> c_betweenness,
-                                                         normalized,
-                                                         endpoints,
-                                                         <float*> NULL,
-                                                         c_k,
-                                                         <int*> NULL)
-        graph_float.get_vertex_identifiers(<int*> c_identifier)
-        #print(df)
+    batch = get_batch(vertices, number_of_workers, worker_id)
+    number_of_sources_in_batch = len(batch)
+    print("[DBG] Worker {}/{} has to process batch({}) = {}".format(worker_id + 1, number_of_workers, number_of_sources_in_batch, batch))
+    c_batch = batch.__array_interface__['data'][0]
+
+    handle = session_state['handle']
+    c_handle = <handle_t*><size_t> handle.getHandle()
+    c_betweenness_centrality[int, int, float, float](c_handle[0],
+                                                     graph_float,
+                                                     <float*> c_betweenness,
+                                                     normalized,
+                                                     endpoints,
+                                                     <float*> NULL,
+                                                     number_of_sources_in_batch,
+                                                     <int*> c_batch)
+    graph_float.get_vertex_identifiers(<int*> c_identifier)
+    if worker_id == 0:
+        return df
 
 
 def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
@@ -124,7 +126,6 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         # NOTE: Do not merge lines, c_vertices may end up pointing at the
         #       wrong place the length of vertices increase.
         np_verts =  np.array(vertices, dtype=np.int32)
-        c_vertices = np_verts.__array_interface__['data'][0]
 
     c_k = 0
     if k is not None:
@@ -144,16 +145,11 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
 
         if comms is not None:
             df = get_output_df(input_graph, result_dtype)
-            c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
-            c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
-
-            print("[DBG][OPG] Pointer before dispatch:", hex(c_betweenness))
-            print(df["betweenness_centrality"])
-            destination_future = client.scatter(c_betweenness, broadcast=True)
-            futures = [client.submit(run_work, input_graph, c_identifier, destination_future, #df,
-            k, normalized, endpoints, comms.sessionId, workers=[worker_idx]) for worker_idx in comms.worker_addresses]
+            if vertices is None:
+                vertices = np.arange(input_graph.number_of_vertices(), dtype=np.int32)
+            futures = [client.submit(run_work, input_graph, normalized, endpoints, vertices, result_dtype, comms.sessionId, workers=[worker_id]) for worker_id in comms.worker_addresses]
             wait(futures)
-            print("[DBG][OPG] DF post wait", df)
+            df = futures[0].result()
         else:
             df = get_output_df(input_graph, result_dtype)
 

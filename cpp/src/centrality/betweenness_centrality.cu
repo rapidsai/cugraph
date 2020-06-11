@@ -180,7 +180,7 @@ void BC<VT, ET, WT, result_t>::compute()
       compute_single_source(source_vertex);
     }
   }
-  rescale();
+  // [DBG] Reactivate rescale rescale();
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -443,17 +443,9 @@ void betweenness_centrality(const raft::handle_t &handle,
     opg::get_batch();
     detail::betweenness_centrality_impl(
       handle, graph, betweenness.data().get(), normalize, endpoints, weight, k, vertices);
-    // thrust::copy(
-    // betweenness.begin(), betweenness.end(), std::ostream_iterator<result_t>(std::cout, ","));
-    // thrust::copy(
-    // result, result + graph.number_of_vertices, std::ostream_iterator<result_t>(std::cout, ","));
-    // std::cout << std::endl;
-
     opg::process();
-    handle.get_comms().reduce(
-      betweenness.data().get(), result, betweenness.size(), raft::comms::op_t::SUM, 0, 0);
-    // opg::combine<VT, result_t>(handle, betweenness.data().get(), result,
-    // graph.number_of_vertices);
+    opg::combine<VT, result_t>(handle, betweenness.data().get(), result, graph.number_of_vertices);
+    printf("[DBG][OPG] End of computation\n");
   } else {
     printf("[DBG][OPG] Started Regular-BC\n");
 
