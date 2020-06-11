@@ -24,7 +24,8 @@
 #include <utilities/error_utils.h>
 
 #include "gtest/gtest.h"
-#include "test_utils.h"
+
+#include "utilities/test_utilities.hpp"
 
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "bfs_ref.h"
@@ -61,7 +62,7 @@ typedef struct BFS_Usecase_t {
   int source_;             // Starting point from the traversal
   BFS_Usecase_t(const std::string &config, int source) : config_(config), source_(source)
   {
-    const std::string &rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
       file_path_ = rapidsDatasetRootDir + "/" + config_;
     } else {
@@ -90,7 +91,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     VT number_of_vertices;
     ET number_of_edges;
     bool directed = false;
-    auto csr      = generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
+    auto csr =
+      cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = directed;
