@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,10 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include "utilities/cusparse_helper.h"
-// FIX ME #include <raft/sparse/cusparse_wrappers.h>
+// FIXME : use RAFT cusparse wrapper
+// The wrapper is about to be upgraded in RAFT
+// better wait for it to be stable before building on top of it
+// #include <raft/sparse/cusparse_wrappers.h>
 #include "utilities/error_utils.h"
 
 namespace cugraph {
@@ -45,7 +48,7 @@ class OPGcsrmv {
   std::vector<VT> displs_h;
 
   cudaStream_t stream;
-  // FIX ME - access csrmv through RAFT
+
   cugraph::detail::CusparseCsrMV<WT> spmv;
 
  public:

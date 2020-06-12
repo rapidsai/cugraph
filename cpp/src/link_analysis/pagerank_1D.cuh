@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,12 +47,10 @@ class Pagerank {
   // part_offsets[num_devices] contains the global number of vertices
   size_t *part_off;
 
-  // local CSR matrix
+  // Google matrix
   ET *off;
   VT *ind;
-  rmm::device_vector<WT> val;
-
-  // vectors of size v_glob
+  rmm::device_vector<WT> val;       // values of the substochastic matrix
   rmm::device_vector<WT> bookmark;  // constant vector with dangling node info
 
   bool is_setup;
@@ -80,8 +78,8 @@ void pagerank(raft::handle_t const &handle,
               const int n_iter           = 40)
 {
   // null pointers check
-  CUGRAPH_EXPECTS(G.offsets != nullptr, "Invalid API parameter - csr_off is null");
-  CUGRAPH_EXPECTS(G.indices != nullptr, "Invalid API parameter - csr_ind is null");
+  CUGRAPH_EXPECTS(G.offsets != nullptr, "Invalid API parameter - offsets is null");
+  CUGRAPH_EXPECTS(G.indices != nullptr, "Invalid API parameter - indidices is null");
   CUGRAPH_EXPECTS(pagerank_result != nullptr,
                   "Invalid API parameter - pagerank output memory must be allocated");
 
@@ -95,13 +93,13 @@ void pagerank(raft::handle_t const &handle,
   rmm::device_vector<VT> degree(G.number_of_vertices);
 
   // in-degree of CSC (equivalent to out-degree of original edge list)
-  G.degree(degree, experimental::DegreeDirection::IN);
+  G.degree(degree.data().get(), experimental::DegreeDirection::IN);
 
   // Allocate and intialize Pagerank class
   Pagerank<VT, ET, WT> pr_solver(handle, G);
 
   // Set all constants info
-  pr_solver.setup(damping_factor, degree);
+  pr_solver.setup(damping_factor, degree.data().get());
 
   // Run n_iter pagerank MG SPMVs.
   pr_solver.solve(n_iter, pagerank_result);

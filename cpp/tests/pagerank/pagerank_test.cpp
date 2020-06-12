@@ -22,6 +22,7 @@
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 
+#include <raft/handle.hpp>
 #include "utilities/test_utilities.hpp"
 
 // do the perf measurements
@@ -129,6 +130,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     ASSERT_EQ(fclose(fpin), 0);
 
     //  Pagerank runs on CSC, so feed COOtoCSR the row/col backwards.
+    raft::handle_t handle;
     cugraph::experimental::GraphCOOView<int, int, T> G_coo(
       &cooColInd[0], &cooRowInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
@@ -142,14 +144,14 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-        cugraph::pagerank<int, int, T>(G, d_pagerank);
+        cugraph::pagerank<int, int, T>(handle, G, d_pagerank);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       pagerank_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();
-      cugraph::pagerank<int, int, T>(G, d_pagerank);
+      cugraph::pagerank<int, int, T>(handle, G, d_pagerank);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,11 +38,6 @@ OPGcsrmv<VT, ET, WT>::OPGcsrmv(
   y_loc.resize(v_loc);
   WT h_one  = 1.0;
   WT h_zero = 0.0;
-
-  // displs_d.resize(p);
-  // displs_h.resize(p);
-  // comm.allgather(v_loc, displs_d, 1, stream);
-  // memcpy displs_h displs_d
 
   spmv.setup(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
 }
