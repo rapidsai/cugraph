@@ -21,7 +21,6 @@
 #include <iostream>
 #include <stdexcept>
 
-#include <rmm/rmm.h>
 
 namespace cugraph {
 /**---------------------------------------------------------------------------*
