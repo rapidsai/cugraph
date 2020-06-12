@@ -298,20 +298,33 @@ def test_betweenness_centrality(graph_file,
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
+def prepare_opg():
+    cluster = prepare_cluster()
+    client = prepare_client(cluster)
+    return cluster, client
+
+
+def prepare_cluster():
+    cluster = dask_cuda.LocalCUDACluster()
+    return cluster
+
+
+def prepare_client(cluster):
+    client = dask.distributed.Client(cluster)
+    return client
+
+
 def test_opg_betweenness_centrality():
     #rmm.reinitialize(managed_memory=True)
     directed = True
     graph_file = '../datasets/karate.csv'
-    cluster = dask_cuda.LocalCUDACluster()
-    client = dask.distributed.Client(cluster)
-    print(cluster)
+    cluster, client = prepare_opg()
     sorted_df = calc_betweenness_centrality(graph_file,
                                             normalized=False,
                                             endpoints=False,
                                             directed=directed, result_dtype=np.float32)
 
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
-
     client.close()
     cluster.close()
 

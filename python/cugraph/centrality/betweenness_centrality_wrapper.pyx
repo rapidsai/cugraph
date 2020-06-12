@@ -138,10 +138,15 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
     #       The current BFS requires the GraphCSR to be declared
     #       as <int, int, float> or <int, int double> even if weights is null
     if result_dtype == np.float32:
-        client = default_client()
-        comms = Comms(client=client, comms_p2p=False)
-        comms.init()
-
+        try:
+            client = default_client()
+        except ValueError:
+            client = None
+        if client is not None:
+            comms = Comms(client=client, comms_p2p=False)
+            comms.init()
+        else:
+            comms = None
 
         if comms is not None:
             df = get_output_df(input_graph, result_dtype)
