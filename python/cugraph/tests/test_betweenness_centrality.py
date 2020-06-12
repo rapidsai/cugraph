@@ -46,7 +46,7 @@ ENDPOINTS_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 
-OPG_OPTIONS = [None, 1, 2]
+OPG_DEVICE_COUNT_OPTIONS = [0, 1, 2]
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/netscience.csv']
@@ -298,35 +298,56 @@ def test_betweenness_centrality(graph_file,
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-def prepare_opg():
-    cluster = prepare_cluster()
-    client = prepare_client(cluster)
-    return cluster, client
+# TODO(xcadet) This should probably be moved to an util file
+class OPGContext:
+    def __init__(self, number_of_devices):
+        self._number_of_devices = number_of_devices
+        self._cluster = None
+        self._client = None
+
+    def __enter__(self):
+        self._prepare_opg(self._number_of_devices)
+
+    def __exit__(self, type, value, traceback):
+        self._close()
+
+    def _prepare_opg(self, opg_device_count):
+        if opg_device_count > 0:
+            self._prepare_cluster()
+            self._prepare_client()
+
+    def _prepare_cluster(self):
+        self._cluster = dask_cuda.LocalCUDACluster(
+            n_workers=self._number_of_devices)
+
+    def _prepare_client(self):
+        self._client = dask.distributed.Client(self._cluster)
+
+    def _close(self):
+        if self._client is not None:
+            self._client.close()
+        if self._cluster is not None:
+            self._cluster.close()
 
 
-def prepare_cluster():
-    cluster = dask_cuda.LocalCUDACluster()
-    return cluster
-
-
-def prepare_client(cluster):
-    client = dask.distributed.Client(cluster)
-    return client
-
-
-def test_opg_betweenness_centrality():
+@pytest.mark.parametrize('opg_device_count', OPG_DEVICE_COUNT_OPTIONS)
+def test_opg_betweenness_centrality(opg_device_count):
     #rmm.reinitialize(managed_memory=True)
     directed = True
     graph_file = '../datasets/karate.csv'
-    cluster, client = prepare_opg()
-    sorted_df = calc_betweenness_centrality(graph_file,
-                                            normalized=False,
-                                            endpoints=False,
-                                            directed=directed, result_dtype=np.float32)
+    #cluster, client = prepare_opg(opg_device_count)
+    with OPGContext(opg_device_count):
+        sorted_df = calc_betweenness_centrality(graph_file,
+                                                normalized=False,
+                                                endpoints=False,
+                                                directed=directed,
+                                                result_dtype=np.float32)
 
-    compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
-    client.close()
-    cluster.close()
+        compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
+    #if client is not None:
+        #client.close()
+    #if cluster is not None:
+        #cluster.close()
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)

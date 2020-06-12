@@ -31,26 +31,9 @@ import numpy.ctypeslib as ctypeslib
 import dask_cudf
 import dask_cuda
 import cugraph.raft
-from cugraph.raft.dask.common.comms import Comms
-from dask.distributed import wait, default_client
-from cugraph.raft.dask.common.comms import worker_state
+from cugraph.raft.dask.common.comms import (Comms, worker_state)
+from cugraph.raft.dask.common.utils import default_client
 #from cugraph.dask.common.input_utils import DistributedDataHandler
-
-def prepare_client():
-    client = default_client()
-    return client
-
-def prepare_comms(client):
-     comms = Comms(comms_p2p=False)
-     comms.init()
-     return comms
-
-def prepare_batch_opg():
-    client = prepare_client()
-    prepare_comms(client)
-    # client = default_client()
-    # futures = [client.submit(task ...]
-    # wait(degree_ddf)
 
 
 def get_output_df(input_graph, result_dtype):
@@ -143,7 +126,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         except ValueError:
             client = None
         if client is not None:
-            comms = Comms(client=client, comms_p2p=False)
+            comms = Comms(client=client)
             comms.init()
         else:
             comms = None
@@ -153,14 +136,14 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
             if vertices is None:
                 vertices = np.arange(input_graph.number_of_vertices(), dtype=np.int32)
             futures = [client.submit(run_work, input_graph, normalized, endpoints, vertices, result_dtype, comms.sessionId, workers=[worker_id]) for worker_id in comms.worker_addresses]
-            wait(futures)
-            df = futures[0].result()
+            gather = client.gather(futures)
+            df = gather[0]
+            comms.destroy()
         else:
             df = get_output_df(input_graph, result_dtype)
 
             c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
             c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
-
 
             graph_float = get_graph_view[GraphCSRViewFloat](input_graph, False)
             graph_float.prop.directed = type(input_graph) is DiGraph
