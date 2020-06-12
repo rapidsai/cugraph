@@ -218,8 +218,8 @@ set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuho
 
 
 ExternalProject_Add(cuhornet
-  GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-  GIT_TAG           master
+  GIT_REPOSITORY    https://github.com/kaatish/cuhornet.git
+  GIT_TAG           fix-rmm-deprecation
   PREFIX            ${CUHORNET_DIR}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
