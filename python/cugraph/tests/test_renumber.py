@@ -22,10 +22,6 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
 
 def test_renumber_ips():
 
@@ -152,7 +148,7 @@ def test_renumber_negative_col():
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_renumber_files(graph_file):
     gc.collect()
 
@@ -173,7 +169,7 @@ def test_renumber_files(graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_renumber_files_col(graph_file):
     gc.collect()
 
@@ -195,7 +191,7 @@ def test_renumber_files_col(graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_renumber_files_multi_col(graph_file):
     gc.collect()
 

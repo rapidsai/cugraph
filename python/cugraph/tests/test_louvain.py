@@ -65,13 +65,8 @@ def networkx_call(M):
     return parts
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_louvain_with_edgevals(graph_file):
     gc.collect()
 
@@ -93,12 +88,8 @@ def test_louvain_with_edgevals(graph_file):
     assert abs(cu_mod - cu_mod_nx) < .0001
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_louvain(graph_file):
     gc.collect()
 

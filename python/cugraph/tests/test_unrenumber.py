@@ -21,14 +21,9 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
 
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_multi_column_unrenumbering(graph_file):
     gc.collect()
 

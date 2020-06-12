@@ -66,16 +66,9 @@ def base_call(M, start_vertex):
     return vertex, dist
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/polbooks.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.skip(reason="SG BFS is not yet formally supported")
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_bfs(managed, pool, graph_file):
     gc.collect()
 

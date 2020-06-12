@@ -39,14 +39,11 @@ def random_call(G, partitions):
     return score
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
 PARTITIONS = [2, 4, 8]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 @pytest.mark.parametrize('partitions', PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):
     gc.collect()

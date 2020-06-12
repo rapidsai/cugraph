@@ -19,6 +19,8 @@ import cugraph
 from cugraph.tests import utils
 import random
 import numpy as np
+import cupy
+import cudf
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -36,15 +38,16 @@ with warnings.catch_warnings():
 # Parameters
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
+ENDPOINTS_OPTIONS = [False, True]
+NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 
-TINY_DATASETS = ['../datasets/karate.csv']
+DATASETS = ['../datasets/karate.csv',
+            '../datasets/netscience.csv']
 
 UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
 
-SMALL_DATASETS = ['../datasets/netscience.csv']
-
-SUBSET_SIZE_OPTIONS = [4]
+SUBSET_SIZE_OPTIONS = [4, None]
 SUBSET_SEED_OPTIONS = [42]
 
 # NOTE: The following is not really being exploited in the tests as the
@@ -56,25 +59,12 @@ RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 # =============================================================================
 # Comparison functions
 # =============================================================================
-def build_graphs(graph_file, directed=True):
-    # cugraph
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    G.view_adj_list()  # Enforce generation before computation
-
-    # networkx
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(M, create_using=(nx.DiGraph() if directed
-                                                   else nx.Graph()),
-                                  source='0', target='1')
-    return G, Gnx
-
-
-def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
+def calc_betweenness_centrality(graph_file, directed=True,
+                                k=None, normalized=False,
                                 weight=None, endpoints=False,
-                                k=None, seed=None,
-                                result_dtype=np.float32):
+                                seed=None,
+                                result_dtype=np.float64,
+                                use_k_full=False):
     """ Generate both cugraph and networkx betweenness centrality
 
     Parameters
@@ -84,39 +74,60 @@ def calc_betweenness_centrality(graph_file, directed=True, normalized=False,
 
     directed : bool, optional, default=True
 
-    normalized : bool
-        True: Normalize Betweenness Centrality scores
-        False: Scores are left unnormalized
-
     k : int or None, optional, default=None
         int:  Number of sources  to sample  from
         None: All sources are used to compute
 
+    normalized : bool
+        True: Normalize Betweenness Centrality scores
+        False: Scores are left unnormalized
+
+    weight : cudf.DataFrame:
+        Not supported as of 06/2020
+
+    endpoints : bool
+        True: Endpoints are included when computing scores
+        False: Endpoints are not considered
+
     seed : int or None, optional, default=None
         Seed for random sampling  of the starting point
 
+    result_dtype :  numpy.dtype
+        Expected type of the result, either np.float32 or np.float64
+
+    use_k_full : bool
+        When True, if k is None replaces k by the number of sources of the
+        Graph
+
     Returns
     -------
-        cu_bc : dict
-            Each key is the vertex identifier, each value is the betweenness
-            centrality score obtained from cugraph betweenness_centrality
-        nx_bc : dict
-            Each key is the vertex identifier, each value is the betweenness
-            centrality score obtained from networkx betweenness_centrality
+
+    sorted_df : cudf.DataFrame
+        Contains 'vertex' and  'cu_bc' 'ref_bc' columns,  where 'cu_bc'
+        and 'ref_bc' are the two betweenness centrality scores to compare.
+        The dataframe is expected to be sorted based on 'vertex', so that we
+        can use cupy.isclose to compare the scores.
     """
-    G, Gnx = build_graphs(graph_file, directed=directed)
+    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
     calc_func = None
     if k is not None and seed is not None:
         calc_func = _calc_bc_subset
     elif k is not None:
         calc_func = _calc_bc_subset_fixed
     else:  # We processed to a comparison using every sources
+        if use_k_full:
+            k = Gnx.number_of_nodes()
         calc_func = _calc_bc_full
-    cu_bc, nx_bc = calc_func(G, Gnx, normalized=normalized, weight=weight,
-                             endpoints=endpoints, k=k, seed=seed,
-                             result_dtype=result_dtype)
+    sorted_df = calc_func(G,
+                          Gnx,
+                          k=k,
+                          normalized=normalized,
+                          weight=weight,
+                          endpoints=endpoints,
+                          seed=seed,
+                          result_dtype=result_dtype)
 
-    return cu_bc, nx_bc
+    return sorted_df
 
 
 def _calc_bc_subset(G, Gnx, normalized, weight, endpoints, k, seed,
@@ -126,17 +137,27 @@ def _calc_bc_subset(G, Gnx, normalized, weight, endpoints, k, seed,
     # We first mimic acquisition of the nodes to compare with same sources
     random.seed(seed)  # It will be called again in nx's call
     sources = random.sample(Gnx.nodes(), k)
-    df = cugraph.betweenness_centrality(G, normalized=normalized,
+    df = cugraph.betweenness_centrality(G,
+                                        k=sources,
+                                        normalized=normalized,
                                         weight=weight,
                                         endpoints=endpoints,
-                                        k=sources,
                                         result_dtype=result_dtype)
-    nx_bc = nx.betweenness_centrality(Gnx, normalized=normalized, k=k,
+    sorted_df = df.sort_values("vertex").rename({"betweenness_centrality":
+                                                 "cu_bc"})
+
+    nx_bc = nx.betweenness_centrality(Gnx,
+                                      k=k,
+                                      normalized=normalized,
+                                      weight=weight,
+                                      endpoints=endpoints,
                                       seed=seed)
-    cu_bc = {key: score for key, score in
-             zip(df['vertex'].to_array(),
-                 df['betweenness_centrality'].to_array())}
-    return cu_bc, nx_bc
+    _, nx_bc = zip(*sorted(nx_bc.items()))
+    nx_df = cudf.DataFrame({"ref_bc": nx_bc})
+
+    merged_sorted_df = cudf.concat([sorted_df, nx_df], axis=1, sort=False)
+
+    return merged_sorted_df
 
 
 def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed,
@@ -151,92 +172,79 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed,
     sources = random.sample(range(G.number_of_vertices()), k)
     # The first call is going to proceed to the random sampling in the same
     # fashion as the lines above
-    df = cugraph.betweenness_centrality(G, k=k, normalized=normalized,
+    df = cugraph.betweenness_centrality(G,
+                                        k=k,
+                                        normalized=normalized,
                                         weight=weight,
                                         endpoints=endpoints,
                                         seed=seed,
                                         result_dtype=result_dtype)
+    sorted_df = df.sort_values("vertex").rename({"betweenness_centrality":
+                                                 "cu_bc"})
+
     # The second call is going to process source that were already sampled
     # We set seed to None as k : int, seed : not none should not be normal
     # behavior
-    df2 = cugraph.betweenness_centrality(G, k=sources, normalized=normalized,
+    df2 = cugraph.betweenness_centrality(G,
+                                         k=sources,
+                                         normalized=normalized,
                                          weight=weight,
                                          endpoints=endpoints,
                                          seed=None,
                                          result_dtype=result_dtype)
-    cu_bc = {key: score for key, score in
-             zip(df['vertex'].to_array(),
-                 df['betweenness_centrality'].to_array())}
-    cu_bc2 = {key: score for key, score in
-              zip(df2['vertex'].to_array(),
-                  df2['betweenness_centrality'].to_array())}
+    sorted_df2 = df2.sort_values("vertex").rename({"betweenness_centrality":
+                                                   "ref_bc"})
 
-    return cu_bc, cu_bc2
+    merged_sorted_df = cudf.concat([sorted_df, sorted_df2["ref_bc"]], axis=1,
+                                   sort=False)
+
+    return merged_sorted_df
 
 
 def _calc_bc_full(G, Gnx, normalized, weight, endpoints,
                   k, seed,
                   result_dtype):
-    df = cugraph.betweenness_centrality(G, normalized=normalized,
+    df = cugraph.betweenness_centrality(G,
+                                        k=k,
+                                        normalized=normalized,
                                         weight=weight,
                                         endpoints=endpoints,
                                         result_dtype=result_dtype)
     assert df['betweenness_centrality'].dtype == result_dtype,  \
         "'betweenness_centrality' column has not the expected type"
-    nx_bc = nx.betweenness_centrality(Gnx, normalized=normalized,
+    nx_bc = nx.betweenness_centrality(Gnx,
+                                      k=k,
+                                      normalized=normalized,
                                       weight=weight,
                                       endpoints=endpoints)
 
-    cu_bc = {key: score for key, score in
-             zip(df['vertex'].to_array(),
-                 df['betweenness_centrality'].to_array())}
-    return cu_bc, nx_bc
+    sorted_df = df.sort_values("vertex").rename({"betweenness_centrality":
+                                                 "cu_bc"})
+    _, nx_bc = zip(*sorted(nx_bc.items()))
+    nx_df = cudf.DataFrame({"ref_bc": nx_bc})
+
+    merged_sorted_df = cudf.concat([sorted_df, nx_df], axis=1, sort=False)
+
+    return merged_sorted_df
 
 
 # =============================================================================
 # Utils
 # =============================================================================
-def compare_single_score(result, expected, epsilon):
-    """
-    Compare value in score at given index with relative error
-
-    Parameters
-    ----------
-    scores : DataFrame
-        contains 'cu' and 'nx' columns which are the values to compare
-    idx : int
-        row index of the DataFrame
-    epsilon : floating point
-        indicates relative error tolerated
-
-    Returns
-    -------
-    close : bool
-        True: Result and expected are close to each other
-        False: Otherwise
-    """
-    close = np.isclose(result, expected, rtol=epsilon)
-    return close
-
-
-# NOTE: We assume that both cugraph and networkx are generating dicts with
-#       all the sources, thus we can compare all of them
-def compare_scores(cu_bc, ref_bc, epsilon=DEFAULT_EPSILON):
-    missing_key_error = 0
-    score_mismatch_error = 0
-    for vertex in ref_bc:
-        if vertex in cu_bc:
-            result = cu_bc[vertex]
-            expected = ref_bc[vertex]
-            if not compare_single_score(result, expected, epsilon=epsilon):
-                score_mismatch_error += 1
-                print("ERROR: vid = {}, cu = {}, "
-                      "nx = {}".format(vertex, result, expected))
-        else:
-            missing_key_error += 1
-            print("[ERROR] Missing vertex {vertex}".format(vertex=vertex))
-    assert missing_key_error == 0, "Some vertices were missing"
-    assert score_mismatch_error == 0, "Some scores were not close enough"
+# NOTE: We assume that both column are ordered in such way that values
+#        at ith positions are expected to be compared in both columns
+# i.e: sorted_df[idx][first_key] should be compared to
+#      sorted_df[idx][second_key]
+def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
+    errors = sorted_df[~cupy.isclose(sorted_df[first_key],
+                                     sorted_df[second_key],
+                                     rtol=epsilon)]
+    num_errors = len(errors)
+    if num_errors > 0:
+        print(errors)
+    assert num_errors == 0, \
+        "Mismatch were found when comparing '{}' and '{}' (rtol = {})" \
+        .format(first_key, second_key, epsilon)
 
 
 def prepare_test():
@@ -246,84 +254,65 @@ def prepare_test():
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_normalized_tiny(graph_file,
-                                                directed,
-                                                result_dtype):
-    """Test Normalized Betweenness Centrality"""
-    prepare_test()
-    cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
-                                               normalized=True,
-                                               result_dtype=result_dtype)
-    compare_scores(cu_bc, nx_bc)
-
-
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_unnormalized_tiny(graph_file,
-                                                  directed,
-                                                  result_dtype):
-    """Test Unnormalized Betweenness Centrality"""
-    prepare_test()
-    cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
-                                               normalized=False,
-                                               result_dtype=result_dtype)
-    compare_scores(cu_bc, nx_bc)
-
-
-@pytest.mark.parametrize('graph_file', SMALL_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_normalized_small(graph_file,
-                                                 directed,
-                                                 result_dtype):
-    """Test Unnormalized Betweenness Centrality"""
-    prepare_test()
-    cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
-                                               normalized=True,
-                                               result_dtype=result_dtype)
-    compare_scores(cu_bc, nx_bc)
-
-
-@pytest.mark.parametrize('graph_file', SMALL_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_unnormalized_small(graph_file,
-                                                   directed,
-                                                   result_dtype):
-    """Test Unnormalized Betweenness Centrality"""
-    prepare_test()
-    cu_bc, nx_bc = calc_betweenness_centrality(graph_file, directed=directed,
-                                               normalized=False,
-                                               result_dtype=result_dtype)
-    compare_scores(cu_bc, nx_bc)
-
-
-@pytest.mark.parametrize('graph_file', SMALL_DATASETS)
+@pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
+@pytest.mark.parametrize('normalized', NORMALIZED_OPTIONS)
+@pytest.mark.parametrize('weight', [None])
+@pytest.mark.parametrize('endpoints', ENDPOINTS_OPTIONS)
 @pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_normalized_subset_small(graph_file,
-                                                        directed,
-                                                        subset_size,
-                                                        subset_seed,
-                                                        result_dtype):
-    """Test Unnormalized Betweenness Centrality using a subset
-
-    Only k sources are considered for an approximate Betweenness Centrality
-    """
+def test_betweenness_centrality(graph_file,
+                                directed,
+                                subset_size,
+                                normalized,
+                                weight,
+                                endpoints,
+                                subset_seed,
+                                result_dtype):
     prepare_test()
-    cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                               directed=directed,
-                                               normalized=True,
-                                               k=subset_size,
-                                               seed=subset_seed,
-                                               result_dtype=result_dtype)
-    compare_scores(cu_bc, nx_bc)
+    sorted_df = calc_betweenness_centrality(graph_file,
+                                            directed=directed,
+                                            normalized=normalized,
+                                            k=subset_size,
+                                            weight=weight,
+                                            endpoints=endpoints,
+                                            seed=subset_seed,
+                                            result_dtype=result_dtype)
+    compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
+
+
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize('subset_size', [None])
+@pytest.mark.parametrize('normalized', NORMALIZED_OPTIONS)
+@pytest.mark.parametrize('weight', [None])
+@pytest.mark.parametrize('endpoints', ENDPOINTS_OPTIONS)
+@pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
+@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize('use_k_full', [True])
+def test_betweenness_centrality_k_full(graph_file,
+                                       directed,
+                                       subset_size,
+                                       normalized,
+                                       weight,
+                                       endpoints,
+                                       subset_seed,
+                                       result_dtype,
+                                       use_k_full):
+    """Tests full betweenness centrality by using k = G.number_of_vertices()
+    instead of k=None, checks that k scales properly"""
+    prepare_test()
+    sorted_df = calc_betweenness_centrality(graph_file,
+                                            directed=directed,
+                                            normalized=normalized,
+                                            k=subset_size,
+                                            weight=weight,
+                                            endpoints=endpoints,
+                                            seed=subset_seed,
+                                            result_dtype=result_dtype,
+                                            use_k_full=use_k_full)
+    compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
 # NOTE: This test should only be execute on unrenumbered datasets
@@ -333,120 +322,95 @@ def test_betweenness_centrality_normalized_subset_small(graph_file,
 @pytest.mark.parametrize('graph_file', UNRENUMBERED_DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
+@pytest.mark.parametrize('normalized', NORMALIZED_OPTIONS)
+@pytest.mark.parametrize('weight', [None])
+@pytest.mark.parametrize('endpoints', ENDPOINTS_OPTIONS)
+@pytest.mark.parametrize('subset_seed', [None])
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_normalized_fixed_sample(graph_file,
-                                                        directed,
-                                                        subset_size,
-                                                        result_dtype):
-    """Test Unnormalized Betweenness Centrality using a subset
+def test_betweenness_centrality_fixed_sample(graph_file,
+                                             directed,
+                                             subset_size,
+                                             normalized,
+                                             weight,
+                                             endpoints,
+                                             subset_seed,
+                                             result_dtype):
+    """Test Betweenness Centrality using a subset
 
     Only k sources are considered for an approximate Betweenness Centrality
     """
     prepare_test()
-    cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                               directed=directed,
-                                               normalized=True,
-                                               k=subset_size,
-                                               seed=None,
-                                               result_dtype=result_dtype)
-    compare_scores(cu_bc, nx_bc)
+    sorted_df = calc_betweenness_centrality(graph_file,
+                                            directed=directed,
+                                            k=subset_size,
+                                            normalized=normalized,
+                                            weight=weight,
+                                            endpoints=endpoints,
+                                            seed=subset_seed,
+                                            result_dtype=result_dtype)
+    compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.parametrize('graph_file', SMALL_DATASETS)
+@pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
+@pytest.mark.parametrize('normalized', NORMALIZED_OPTIONS)
+@pytest.mark.parametrize('weight', [[]])
+@pytest.mark.parametrize('endpoints', ENDPOINTS_OPTIONS)
 @pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_unnormalized_subset_small(graph_file,
-                                                          directed,
-                                                          subset_size,
-                                                          subset_seed,
-                                                          result_dtype):
-    """Test Unnormalized Betweenness Centrality on Graph on subset
+def test_betweenness_centrality_weight_except(graph_file,
+                                              directed,
+                                              subset_size,
+                                              normalized,
+                                              weight,
+                                              endpoints,
+                                              subset_seed,
+                                              result_dtype):
+    """Calls betwenness_centrality with weight
 
-    Only k sources are considered for an approximate Betweenness Centrality
+    As of 05/28/2020, weight is not supported and should raise
+    a NotImplementedError
     """
     prepare_test()
-    cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                               directed=directed,
-                                               normalized=False,
-                                               k=subset_size,
-                                               seed=subset_seed,
-                                               result_dtype=result_dtype)
-    compare_scores(cu_bc, nx_bc)
-
-
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_unnormalized_endpoints_except(graph_file,
-                                                              directed,
-                                                              result_dtype):
-    """Test calls betwenness_centrality unnormalized + endpoints"""
-    prepare_test()
     with pytest.raises(NotImplementedError):
-        cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                                   normalized=False,
-                                                   endpoints=True,
-                                                   directed=directed,
-                                                   result_dtype=result_dtype)
+        sorted_df = calc_betweenness_centrality(graph_file,
+                                                directed=directed,
+                                                k=subset_size,
+                                                normalized=normalized,
+                                                weight=weight,
+                                                endpoints=endpoints,
+                                                seed=subset_seed,
+                                                result_dtype=result_dtype)
+        compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_normalized_endpoints_except(graph_file,
-                                                            directed,
-                                                            result_dtype):
-    """Test calls betwenness_centrality normalized + endpoints"""
-    prepare_test()
-    with pytest.raises(NotImplementedError):
-        cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                                   normalized=True,
-                                                   endpoints=True,
-                                                   directed=directed,
-                                                   result_dtype=result_dtype)
+@pytest.mark.parametrize('normalized', NORMALIZED_OPTIONS)
+@pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
+@pytest.mark.parametrize('weight', [None])
+@pytest.mark.parametrize('endpoints', ENDPOINTS_OPTIONS)
+@pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
+@pytest.mark.parametrize('result_dtype', [str])
+def test_betweenness_invalid_dtype(graph_file,
+                                   directed,
+                                   subset_size,
+                                   normalized,
+                                   weight,
+                                   endpoints,
+                                   subset_seed,
+                                   result_dtype):
+    """Test calls edge_betwenness_centrality an invalid type"""
 
-
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_unnormalized_weight_except(graph_file,
-                                                           directed,
-                                                           result_dtype):
-    """Test calls betwenness_centrality unnormalized + weight"""
-    prepare_test()
-    with pytest.raises(NotImplementedError):
-        cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                                   normalized=False,
-                                                   weight=True,
-                                                   directed=directed,
-                                                   result_dtype=result_dtype)
-
-
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_betweenness_centrality_normalized_weight_except(graph_file,
-                                                         directed,
-                                                         result_dtype):
-    """Test calls betwenness_centrality normalized + weight"""
-    prepare_test()
-    with pytest.raises(NotImplementedError):
-        cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                                   normalized=True,
-                                                   weight=True,
-                                                   directed=directed,
-                                                   result_dtype=result_dtype)
-
-
-@pytest.mark.parametrize('graph_file', TINY_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-def test_betweenness_centrality_invalid_dtype(graph_file, directed):
-    """Test calls betwenness_centrality normalized + weight"""
     prepare_test()
     with pytest.raises(TypeError):
-        cu_bc, nx_bc = calc_betweenness_centrality(graph_file,
-                                                   normalized=True,
-                                                   result_dtype=str,
-                                                   directed=directed)
+        sorted_df = calc_betweenness_centrality(graph_file,
+                                                directed=directed,
+                                                k=subset_size,
+                                                normalized=normalized,
+                                                weight=weight,
+                                                endpoints=endpoints,
+                                                seed=subset_seed,
+                                                result_dtype=result_dtype)
+        compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")

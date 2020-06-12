@@ -126,9 +126,6 @@ def networkx_call(M, max_iter, tol, alpha, personalization_perc):
     return pr, personalization
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv']
-
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
@@ -138,7 +135,7 @@ HAS_GUESS = [0, 1]
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
 @pytest.mark.parametrize('tol', TOLERANCE)
 @pytest.mark.parametrize('alpha', ALPHA)

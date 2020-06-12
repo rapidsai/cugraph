@@ -39,6 +39,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
         "${CMAKE_SOURCE_DIR}/include"
         "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${RAFT_DIR}/cpp/include"
     )
 
     target_link_libraries(${CMAKE_TEST_NAME}
@@ -138,12 +139,18 @@ set(BETWEENNESS_TEST_SRC
 
   ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}" "")
 
+set(EDGE_BETWEENNESS_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/edge_betweenness_centrality_test.cu")
+
+  ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}" "")
+
 ###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
 
 set(PAGERANK_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cpp")
 
 ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
@@ -203,7 +210,7 @@ set(RENUMBERING_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
-ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "${NVSTRINGS_LIBRARY}")
+ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "")
 
 ###################################################################################################
 #-FORCE ATLAS 2  tests ------------------------------------------------------------------------------
@@ -221,7 +228,7 @@ set(CONNECT_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
 
-  ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
+ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
 
 ###################################################################################################
 #-STRONGLY CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
