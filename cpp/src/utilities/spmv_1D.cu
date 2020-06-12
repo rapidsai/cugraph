@@ -23,10 +23,9 @@ namespace cugraph {
 namespace opg {
 template <typename VT, typename ET, typename WT>
 OPGcsrmv<VT, ET, WT>::OPGcsrmv(
-  const raft::handle_t &handle, size_t *part_off_, ET *off_, VT *ind_, WT *val_, WT *x)
-  : comm(handle.get_comms()), part_off(part_off_), off(off_), ind(ind_), val(val_)
+  const raft::comms::comms_t &comm_, size_t *part_off_, ET *off_, VT *ind_, WT *val_, WT *x)
+  : comm(comm_), part_off(part_off_), off(off_), ind(ind_), val(val_)
 {
-  sync_all();
   stream = nullptr;
   i      = comm.get_rank();
   p      = comm.get_size();
@@ -45,7 +44,7 @@ OPGcsrmv<VT, ET, WT>::OPGcsrmv(
   // comm.allgather(v_loc, displs_d, 1, stream);
   // memcpy displs_h displs_d
 
-  spmv.setup(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc);
+  spmv.setup(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
 }
 
 template <typename VT, typename ET, typename WT>
@@ -56,31 +55,14 @@ OPGcsrmv<VT, ET, WT>::~OPGcsrmv()
 template <typename VT, typename ET, typename WT>
 void OPGcsrmv<VT, ET, WT>::run(WT *x)
 {
-  sync_all();
   WT h_one  = 1.0;
   WT h_zero = 0.0;
-  spmv.run(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc);
-  comm.allgatherv(y_loc, x, v_loc, displs_h, stream);
+  spmv.run(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
+  comm.allgatherv(y_loc.data().get(), x, &v_locs_h[0], &displs_h[0], stream);
 }
 
-template class OPGcsrmv<int, double>;
-template class OPGcsrmv<int, float>;
-
-template <typename VT, typename ET, typename WT>
-void snmg_csrmv_impl(size_t *part_offsets, ET *off, VT *ind, WT *val, WT *x)
-{
-  CUGRAPH_EXPECTS(part_offsets != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(off != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(ind != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(val != nullptr, "Invalid API parameter");
-  CUGRAPH_EXPECTS(x != nullptr, "Invalid API parameter");
-
-  cugraph::detail::Cusparse::get_handle();
-
-  OPGcsrmv<VT, ET, WT> spmv_solver(snmg_env, part_offsets, off, ind, val, x);
-  spmv_solver.run(x);
-  cugraph::detail::Cusparse::destroy_handle();
-}
+template class OPGcsrmv<int, int, double>;
+template class OPGcsrmv<int, int, float>;
 
 }  // namespace opg
 }  // namespace cugraph

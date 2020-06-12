@@ -308,6 +308,7 @@ add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/pagerank_1D.cu
     src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu

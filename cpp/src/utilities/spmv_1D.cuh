@@ -20,9 +20,9 @@
 #pragma once
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
-#include "cusparse_helper.h"
+#include "utilities/cusparse_helper.h"
 // FIX ME #include <raft/sparse/cusparse_wrappers.h>
-#include "error_utils.cuh"
+#include "utilities/error_utils.h"
 
 namespace cugraph {
 namespace opg {
@@ -33,7 +33,7 @@ class OPGcsrmv {
   size_t v_glob;
   size_t v_loc;
   size_t e_loc;
-  const comms::comms_t& comm;
+  const raft::comms::comms_t& comm;
   size_t* part_off;
   int i;
   int p;
@@ -41,16 +41,16 @@ class OPGcsrmv {
   VT* ind;
   WT* val;
   rmm::device_vector<WT> y_loc;
-  rmm::device_vector<size_t> displs_d;
-  std::vector<size_t> displs_h;
+  std::vector<size_t> v_locs_h;
+  std::vector<VT> displs_h;
 
-  WT* y_loc;
   cudaStream_t stream;
   // FIX ME - access csrmv through RAFT
   cugraph::detail::CusparseCsrMV<WT> spmv;
 
  public:
-  OPGcsrmv(const raft::handle_t& handle, size_t* part_off_, ET* off_, VT* ind_, WT* val_, WT* x);
+  OPGcsrmv(
+    const raft::comms::comms_t& comm, size_t* part_off_, ET* off_, VT* ind_, WT* val_, WT* x);
 
   ~OPGcsrmv();
 

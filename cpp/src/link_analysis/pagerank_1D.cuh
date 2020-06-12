@@ -24,6 +24,7 @@
 #include <raft/handle.hpp>
 
 #include "utilities/error_utils.h"
+#include "utilities/spmv_1D.cuh"
 
 namespace cugraph {
 namespace opg {
@@ -31,14 +32,13 @@ namespace opg {
 template <typename VT, typename ET, typename WT>
 class Pagerank {
  private:
-  size_t v_glob;               // global number of vertices
-  size_t v_loc;                // local number of vertices
-  size_t e_loc;                // local number of edges
-  int id;                      // thread id
-  int nt;                      // number of threads
-  WT alpha;                    // damping factor
-  const comms::comms_t &comm;  // info about the opg comm setup
+  size_t v_glob;                     // global number of vertices
+  size_t v_loc;                      // local number of vertices
+  size_t e_loc;                      // local number of edges
+  WT alpha;                          // damping factor
+  const raft::comms::comms_t &comm;  // info about the opg comm setup
   cudaStream_t stream;
+  int sm_count;
 
   // Vertex offsets for each partition.
   // This information should be available on all threads/devices
@@ -58,8 +58,7 @@ class Pagerank {
   bool is_setup;
 
  public:
-  Pagerank(
-    const raft::handle_t &handle, size_t *part_off_, ET *off_, VT *ind_, cudaStream_t stream = 0);
+  Pagerank(const raft::handle_t &handle, const experimental::GraphCSCView<VT, ET, WT> &G);
   ~Pagerank();
 
   void transition_vals(const VT *degree);
@@ -74,19 +73,15 @@ class Pagerank {
 };
 
 template <typename VT, typename ET, typename WT>
-void pagerank(const raft::handle_t &handle,
-              size_t v_loc,
-              ET *csr_off,
-              VT *csr_ind,
-              VT *degree,
+void pagerank(raft::handle_t const &handle,
+              const experimental::GraphCSCView<VT, ET, WT> &G,
               WT *pagerank_result,
               const float damping_factor = 0.85,
-              const int n_iter           = 40,
-              cudaStream_t stream        = 0)
+              const int n_iter           = 40)
 {
   // null pointers check
-  CUGRAPH_EXPECTS(csr_off != nullptr, "Invalid API parameter - csr_off is null");
-  CUGRAPH_EXPECTS(csr_ind != nullptr, "Invalid API parameter - csr_ind is null");
+  CUGRAPH_EXPECTS(G.offsets != nullptr, "Invalid API parameter - csr_off is null");
+  CUGRAPH_EXPECTS(G.indices != nullptr, "Invalid API parameter - csr_ind is null");
   CUGRAPH_EXPECTS(pagerank_result != nullptr,
                   "Invalid API parameter - pagerank output memory must be allocated");
 
@@ -97,20 +92,13 @@ void pagerank(const raft::handle_t &handle,
                   "Invalid API parameter - invalid damping factor value (alpha>1)");
   CUGRAPH_EXPECTS(n_iter > 0, "Invalid API parameter - n_iter must be > 0");
 
-  CUGRAPH_EXPECTS(v_loc > 0, "Invalid API parameter - v_loc must be > 0");
+  rmm::device_vector<VT> degree(G.number_of_vertices);
 
-  // Must be shared
-  std::vector<size_t> part_offset(comm.get_size() + 1);
-
-  // MPICHECK(MPI_Allgather(&v_loc, 1, MPI_SIZE_T, &part_offset[1], 1, MPI_SIZE_T, MPI_COMM_WORLD));
-  std::partial_sum(part_offset.begin(), part_offset.end(), part_offset.begin());
-  if (comm.is_master())
-    for (auto i = part_offset.begin(); i != part_offset.end(); ++i) std::cout << *i << ' ';
-  std::cout << std::endl;
-  sync_all();
+  // in-degree of CSC (equivalent to out-degree of original edge list)
+  G.degree(degree, experimental::DegreeDirection::IN);
 
   // Allocate and intialize Pagerank class
-  Pagerank<VT, ET, WT> pr_solver(&comm, &part_offset[0], csr_off, csr_ind, stream);
+  Pagerank<VT, ET, WT> pr_solver(handle, G);
 
   // Set all constants info
   pr_solver.setup(damping_factor, degree);

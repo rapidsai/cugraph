@@ -19,9 +19,13 @@
 
 #include <graph.hpp>
 #include "pagerank_1D.cuh"
+#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace opg {
+
+#define CUDA_MAX_KERNEL_THREADS 256
+#define CUDA_MAX_BLOCKS 65535
 
 template <typename VT, typename ET, typename WT>
 __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
@@ -32,18 +36,21 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 }
 
 template <typename VT, typename ET, typename WT>
-Pagerank<VT, WT>::Pagerank(
-  const comms::comms_t &comm_, size_t *part_off_, ET *off_, VT *ind_, cudaStream_t stream_)
-  : comm(comm_), part_off(part_off_), off(off_), ind(ind_), stream(stream_)
+Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_,
+                               experimental::GraphCSCView<VT, ET, WT> const &G)
+  : comm(handle_.get_comms())
 {
-  id     = comm->get_rank();
-  nt     = comm->get_size();
-  v_glob = part_off[nt];
-  v_loc  = part_off[id + 1] - part_off[id];
-  VT tmp_e;
-  cudaMemcpy(&tmp_e, &off[v_loc], sizeof(VT), cudaMemcpyDeviceToHost);
-  CUDA_CHECK_LAST();
-  e_loc    = tmp_e;
+  v_glob = G.number_of_vertices;
+
+  // FIXME needs PR #944
+  // v_loc  = G.number_of_local_vertices;
+  // e_loc  = G.number_of_local_edges;
+  // part_off = G.local_offset;
+
+  off      = G.offsets;
+  ind      = G.indices;
+  sm_count = handle_.get_device_properties().multiProcessorCount;
+
   is_setup = false;
   bookmark.resize(v_glob);
   val.resize(e_loc);
@@ -62,8 +69,8 @@ template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
 {
   int threads = min(static_cast<VT>(e_loc), 256);
-  int blocks  = min(static_cast<VT>(32 * comm->get_sm_count()), CUDA_MAX_BLOCKS);
-  transition_kernel<VT, WT><<<blocks, threads>>>(e_loc, ind, degree, val);
+  int blocks  = min(static_cast<VT>(32 * sm_count), CUDA_MAX_BLOCKS);
+  transition_kernel<VT, ET, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
   CUDA_CHECK_LAST();
 }
 
@@ -71,8 +78,9 @@ template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::flag_leafs(const VT *degree)
 {
   int threads = min(static_cast<VT>(v_glob), 256);
-  int blocks  = min(static_cast<VT>(32 * comm->get_sm_count()), CUDA_MAX_BLOCKS);
-  cugraph::detail::flag_leafs_kernel<VT, WT><<<blocks, threads>>>(v_glob, degree, bookmark);
+  int blocks  = min(static_cast<VT>(32 * sm_count), CUDA_MAX_BLOCKS);
+  cugraph::detail::flag_leafs_kernel<VT, WT>
+    <<<blocks, threads>>>(v_glob, degree, bookmark.data().get());
   CUDA_CHECK_LAST();
 }
 
@@ -85,9 +93,9 @@ void Pagerank<VT, ET, WT>::setup(WT _alpha, VT *degree)
     WT zero = 0.0;
 
     // Update dangling node vector
-    cugraph::detail::fill(v_glob, bookmark, zero);
+    cugraph::detail::fill(v_glob, bookmark.data().get(), zero);
     flag_leafs(degree);
-    cugraph::detail::update_dangling_nodes(v_glob, bookmark, alpha);
+    cugraph::detail::update_dangling_nodes(v_glob, bookmark.data().get(), alpha);
 
     // Transition matrix
     transition_vals(degree);
@@ -110,13 +118,13 @@ void Pagerank<VT, ET, WT>::solve(int max_iter, WT *pagerank)
     // This should not be requiered in theory
     // This is not needed on one GPU at this time
     cudaDeviceSynchronize();
-    dot_res = cugraph::detail::dot(v_glob, bookmark, pr);
-    OPGcsrmv<VT, ET, WT> spmv_solver(comm, part_off, off, ind, val, pagerank);
+    dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
+    OPGcsrmv<VT, ET, WT> spmv_solver(comm, part_off, off, ind, val.data().get(), pagerank);
     for (auto i = 0; i < max_iter; ++i) {
       spmv_solver.run(pagerank);
       cugraph::detail::scal(v_glob, alpha, pr);
       cugraph::detail::addv(v_glob, dot_res * (one / v_glob), pr);
-      dot_res = cugraph::detail::dot(v_glob, bookmark, pr);
+      dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
       cugraph::detail::scal(v_glob, one / cugraph::detail::nrm2(v_glob, pr), pr);
     }
     cugraph::detail::scal(v_glob, one / cugraph::detail::nrm1(v_glob, pr), pr);
