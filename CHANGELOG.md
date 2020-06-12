@@ -1,20 +1,23 @@
 # cuGraph 0.15.0 (Date TBD)
 
 ## New Features
+- PR #937 Add wrapper for gunrock HITS algorithm
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
 - PR #913 Eliminate `rmm.device_array` usage
 - PR #903 Add short commit hash to conda package
 - PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
+- PR #933 Update opg_degree to use raft, add python tests
+- PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
 - PR #934 Update conda dev environment.yml dependencies to 0.15
+- PR #941 Regression python/cudf fix
 
 ## Bug Fixes
+- PR #936 Update Force Atlas 2 doc and wrapper
 - PR #938 Quote conda installs to avoid bash interpretation
 
-
 # cuGraph 0.14.0 (03 Jun 2020)
-
 
 ## New Features
 - PR #756 Add Force Atlas 2 layout

@@ -301,13 +301,13 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/comms/mpi/comms_mpi.cpp
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/cusparse_helper.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu

@@ -816,4 +816,45 @@ void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &g
                                  WT *score);
 
 }  // namespace nvgraph
+
+namespace gunrock {
+
+/**
+ * @brief     Compute the HITS vertex values for a graph
+ *
+ * cuGraph uses the gunrock implementation of HITS
+ *
+ * @throws                           cugraph::logic_error on an error
+ *
+ * @tparam VT                        Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam ET                        Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam WT                        Type of edge weights.
+ *                                   Supported value : float
+ *
+ * @param[in] graph                  input graph object (CSR). Edge weights are not used
+ *                                   for this algorithm.
+ * @param[in] max_iter               Maximum number of iterations to run
+ * @param[in] tolerance              Currently ignored.  gunrock implementation runs
+ *                                   the specified number of iterations and stops
+ * @param[in] starting value         Currently ignored.  gunrock does not support.
+ * @param[in] normalized             Currently ignored, gunrock computes this as true
+ * @param[out] *hubs                 Device memory pointing to the node value based
+ *                                   on outgoing links
+ * @param[out] *authorities          Device memory pointing to the node value based
+ *                                   on incoming links
+ *
+ */
+template <typename VT, typename ET, typename WT>
+void hits(experimental::GraphCSRView<VT, ET, WT> const &graph,
+          int max_iter,
+          WT tolerance,
+          WT const *starting_value,
+          bool normalized,
+          WT *hubs,
+          WT *authorities);
+
+}  // namespace gunrock
+
 }  // namespace cugraph

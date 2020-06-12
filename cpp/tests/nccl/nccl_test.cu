@@ -4,7 +4,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
 #include "gtest/gtest.h"
-#include "test_utils.h"
+
+#include "utilities/test_utilities.hpp"
 
 TEST(allgather, success)
 {
