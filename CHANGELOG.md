@@ -2,6 +2,7 @@
 
 ## New Features
 - PR #937 Add wrapper for gunrock HITS algorithm
+- PR #939 Updated Notebooks to include new features and benchmarks
 - PR #947 OPG pagerank (CUDA)
 
 ## Improvements
@@ -12,6 +13,7 @@
 - PR #933 Update opg_degree to use raft, add python tests
 - PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
 - PR #934 Update conda dev environment.yml dependencies to 0.15
+- PR #942 Removed references to deprecated RMM headers.
 - PR #941 Regression python/cudf fix
 
 ## Bug Fixes
