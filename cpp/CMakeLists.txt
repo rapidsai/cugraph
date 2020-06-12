@@ -306,6 +306,7 @@ add_library(cugraph SHARED
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/cusparse_helper.cu
+    src/utilities/spmv_1D.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu

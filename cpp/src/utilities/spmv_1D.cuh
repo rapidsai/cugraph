@@ -21,6 +21,7 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include "cusparse_helper.h"
+// FIX ME #include <raft/sparse/cusparse_wrappers.h>
 #include "error_utils.cuh"
 
 namespace cugraph {
@@ -45,6 +46,7 @@ class OPGcsrmv {
 
   WT* y_loc;
   cudaStream_t stream;
+  // FIX ME - access csrmv through RAFT
   cugraph::detail::CusparseCsrMV<WT> spmv;
 
  public:
