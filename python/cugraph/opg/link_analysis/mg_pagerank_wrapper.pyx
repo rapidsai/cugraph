@@ -18,7 +18,7 @@ from cugraph.structure.utils_wrapper import *
 from cugraph.opg.link_analysis cimport mg_pagerank as c_pagerank
 import cudf
 from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+import cugraph.structure.graph_new_wrapper as graph_new_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
 

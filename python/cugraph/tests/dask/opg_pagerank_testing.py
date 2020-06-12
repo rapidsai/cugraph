@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.dask.opg_pagerank as dcg
+import cugraph.dask as dcg
 from dask.distributed import Client
 import gc
 import cudf
