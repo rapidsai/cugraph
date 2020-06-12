@@ -2,6 +2,7 @@
 
 ## New Features
 - PR #937 Add wrapper for gunrock HITS algorithm
+- PR #947 OPG pagerank (CUDA)
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
