@@ -37,8 +37,9 @@ void betweenness_centrality_impl(const raft::handle_t &handle,
                                  bool normalize,
                                  bool endpoints,
                                  WT const *weight,
-                                 VT const number_of_sources,
-                                 VT const *sources)
+                                 VT number_of_sources,
+                                 VT const *sources,
+                                 VT total_number_of_sources)
 {
   // Current Implementation relies on BFS
   // FIXME: For SSSP version
@@ -50,6 +51,7 @@ void betweenness_centrality_impl(const raft::handle_t &handle,
   bc.configure(
     result, is_edge_betweenness, normalize, endpoints, weight, sources, number_of_sources);
   bc.compute();
+  bc.rescale_by_total_sources_used(total_number_of_sources);
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -180,7 +182,7 @@ void BC<VT, ET, WT, result_t>::compute()
       compute_single_source(source_vertex);
     }
   }
-  // [DBG] Reactivate rescale rescale();
+  rescale();
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -330,10 +332,8 @@ void BC<VT, ET, WT, result_t>::accumulate_vertices(VT max_depth,
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::rescale()
 {
-  bool modified                      = false;
-  result_t rescale_factor            = static_cast<result_t>(1);
-  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices_);
-  result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources_);
+  bool modified           = false;
+  result_t rescale_factor = static_cast<result_t>(1);
   if (normalized_) {
     if (is_edge_betweenness_) {
       rescale_edges_betweenness_centrality(rescale_factor, modified);
@@ -344,11 +344,6 @@ void BC<VT, ET, WT, result_t>::rescale()
     if (!graph_.prop.directed) {
       rescale_factor /= static_cast<result_t>(2);
       modified = true;
-    }
-  }
-  if (modified && !is_edge_betweenness_) {
-    if (number_of_sources_ > 0) {
-      rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
     }
   }
   apply_rescale_factor_to_betweenness(rescale_factor);
@@ -369,12 +364,12 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::rescale_vertices_betweenness_centrality(result_t &rescale_factor,
                                                                        bool &modified)
 {
-  result_t casted_number_of_vertices_ = static_cast<result_t>(number_of_vertices_);
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices_);
   if (number_of_vertices_ > 2) {
     if (endpoints_) {
-      rescale_factor /= (casted_number_of_vertices_ * (casted_number_of_vertices_ - 1));
+      rescale_factor /= (casted_number_of_vertices * (casted_number_of_vertices - 1));
     } else {
-      rescale_factor /= ((casted_number_of_vertices_ - 1) * (casted_number_of_vertices_ - 2));
+      rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
     }
     modified = true;
   }
@@ -392,7 +387,28 @@ void BC<VT, ET, WT, result_t>::apply_rescale_factor_to_betweenness(result_t resc
                     betweenness_,
                     thrust::multiplies<result_t>());
 }
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::rescale_by_total_sources_used(VT total_number_of_sources_used)
+{
+  result_t rescale_factor = static_cast<result_t>(1);
+  result_t casted_total_number_of_sources_used =
+    static_cast<result_t>(total_number_of_sources_used);
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices_);
+
+  if (normalized_) {
+    if (number_of_vertices_ > 2 && total_number_of_sources_used > 0) {
+      rescale_factor *= (casted_number_of_vertices / casted_total_number_of_sources_used);
+    }
+  } else if (!graph_.prop.directed) {
+    if (number_of_vertices_ > 2 && total_number_of_sources_used > 0) {
+      rescale_factor *= (casted_number_of_vertices / casted_total_number_of_sources_used);
+    }
+  }
+  apply_rescale_factor_to_betweenness(rescale_factor);
+}
 }  // namespace detail
+
 namespace opg {
 template <typename result_t>
 void setup(const raft::handle_t &handle, result_t *result_ptr)
@@ -431,26 +447,44 @@ void betweenness_centrality(const raft::handle_t &handle,
                             bool endpoints,
                             WT const *weight,
                             VT k,
-                            VT const *vertices)
+                            VT const *vertices,
+                            VT total_number_of_sources_used)
 {
   if (handle.comms_initialized()) {
     printf("[DBG][OPG] Started BATCH-OPG-BC\n");
     printf("[DBG][OPG] Pointer within C++ %p\n", result);
+    printf("[DBG][OPG] Normalize  %d\n", normalize);
+    printf("[DBG][OPG] endpoints  %d\n", endpoints);
+    printf("[DBG][OPG] k  %d\n", k);
+    printf("[DBG][OPG] total_number_of_sources_used %d\n", total_number_of_sources_used);
     // TODO(xcadet) Through this approach we need an extra |V| device memory,
     //              should probaly directly use the allocated data for rank 0
     rmm::device_vector<result_t> betweenness(graph.number_of_vertices, 0);
     opg::setup<result_t>(handle, result);
     opg::get_batch();
-    detail::betweenness_centrality_impl(
-      handle, graph, betweenness.data().get(), normalize, endpoints, weight, k, vertices);
+    detail::betweenness_centrality_impl(handle,
+                                        graph,
+                                        betweenness.data().get(),
+                                        normalize,
+                                        endpoints,
+                                        weight,
+                                        k,
+                                        vertices,
+                                        total_number_of_sources_used);
     opg::process();
     opg::combine<VT, result_t>(handle, betweenness.data().get(), result, graph.number_of_vertices);
     printf("[DBG][OPG] End of computation\n");
   } else {
     printf("[DBG][OPG] Started Regular-BC\n");
-
-    detail::betweenness_centrality_impl(
-      handle, graph, result, normalize, endpoints, weight, k, vertices);
+    detail::betweenness_centrality_impl(handle,
+                                        graph,
+                                        result,
+                                        normalize,
+                                        endpoints,
+                                        weight,
+                                        k,
+                                        vertices,
+                                        total_number_of_sources_used);
   }
 }
 
@@ -462,7 +496,8 @@ template void betweenness_centrality<int, int, float, float>(
   bool,
   float const *,
   int,
-  int const *);
+  int const *,
+  int);
 template void betweenness_centrality<int, int, double, double>(
   const raft::handle_t &,
   experimental::GraphCSRView<int, int, double> const &,
@@ -471,7 +506,8 @@ template void betweenness_centrality<int, int, double, double>(
   bool,
   double const *,
   int,
-  int const *);
+  int const *,
+  int);
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,

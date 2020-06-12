@@ -26,6 +26,11 @@ import cupy
 import cudf
 import rmm
 
+# TODO(xcadet): Unable to access the get_visible devices from
+# cugraph.dask.pagerank.core, remove os import later and os.environ call
+import os
+
+
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
@@ -46,7 +51,10 @@ ENDPOINTS_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 
-OPG_DEVICE_COUNT_OPTIONS = [0, 1, 2]
+# FIXME: Should we check 1 and 3 ?
+# 1 could be automatically disabled and fallback on regular path
+# even if there is a cluster?
+OPG_DEVICE_COUNT_OPTIONS = [1, 2, 4]
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/netscience.csv']
@@ -257,16 +265,6 @@ def prepare_test():
     gc.collect()
 
 
-@pytest.fixture
-def use_opg_batch():
-    print("[DBG][OPG] Using OPG")
-    cluster = dask_cuda.LocalCUDACluster()
-    client = dask.distributed.Client()
-    print("[DBG][OPG] Using cluster", cluster)
-    yield (cluster, client)
-    client.close()
-    cluster.close()
-
 # =============================================================================
 # Tests
 # =============================================================================
@@ -300,10 +298,11 @@ def test_betweenness_centrality(graph_file,
 
 # TODO(xcadet) This should probably be moved to an util file
 class OPGContext:
-    def __init__(self, number_of_devices):
+    def __init__(self, number_of_devices, dashboard_address=8081):
         self._number_of_devices = number_of_devices
         self._cluster = None
         self._client = None
+        self._dashboard_address = dashboard_address
 
     def __enter__(self):
         self._prepare_opg(self._number_of_devices)
@@ -318,7 +317,8 @@ class OPGContext:
 
     def _prepare_cluster(self):
         self._cluster = dask_cuda.LocalCUDACluster(
-            n_workers=self._number_of_devices)
+            n_workers=self._number_of_devices,
+            dashboard_address=self._dashboard_address)
 
     def _prepare_client(self):
         self._client = dask.distributed.Client(self._cluster)
@@ -331,23 +331,36 @@ class OPGContext:
 
 
 @pytest.mark.parametrize('opg_device_count', OPG_DEVICE_COUNT_OPTIONS)
-def test_opg_betweenness_centrality(opg_device_count):
-    #rmm.reinitialize(managed_memory=True)
-    directed = True
-    graph_file = '../datasets/karate.csv'
-    #cluster, client = prepare_opg(opg_device_count)
+@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
+@pytest.mark.parametrize('normalized', NORMALIZED_OPTIONS)
+@pytest.mark.parametrize('weight', [None])
+@pytest.mark.parametrize('endpoints', ENDPOINTS_OPTIONS)
+@pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
+@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
+def test_opg_betweenness_centrality(opg_device_count,
+                                    graph_file,
+                                    directed,
+                                    subset_size,
+                                    normalized,
+                                    weight,
+                                    endpoints,
+                                    subset_seed,
+                                    result_dtype):
+    prepare_test()
+    if opg_device_count > len(os.environ["CUDA_VISIBLE_DEVICES"]):
+        pytest.skip("Not enough devices available to test OPG")
     with OPGContext(opg_device_count):
         sorted_df = calc_betweenness_centrality(graph_file,
-                                                normalized=False,
-                                                endpoints=False,
                                                 directed=directed,
-                                                result_dtype=np.float32)
-
+                                                normalized=normalized,
+                                                k=subset_size,
+                                                weight=weight,
+                                                endpoints=endpoints,
+                                                seed=subset_seed,
+                                                result_dtype=result_dtype)
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
-    #if client is not None:
-        #client.close()
-    #if cluster is not None:
-        #cluster.close()
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)

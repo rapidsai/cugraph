@@ -70,6 +70,7 @@ class BC {
                       VT const *sources,
                       VT const number_of_sources);
   void compute();
+  void rescale_by_total_sources_used(VT total_number_of_sources_used);
 
  private:
   // --- Information concerning the graph ---

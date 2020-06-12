@@ -271,26 +271,31 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  * @throws                           cugraph::logic_error if `result == nullptr` or
  * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr`.
  *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- * @tparam result_t                  Type of computed result.  Supported values :  float or double
- * (double only supported in default implementation)
+ * @tparam VT                               Type of vertex identifiers. Supported value : int
+ * (signed, 32-bit)
+ * @tparam ET                               Type of edge identifiers.  Supported value : int
+ * (signed, 32-bit)
+ * @tparam WT                               Type of edge weights. Supported values : float or
+ * double.
+ * @tparam result_t                         Type of computed result.  Supported values :  float or
+ * double (double only supported in default implementation)
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
- * information as a CSR
- * @param[out] result                Device array of centrality scores
- * @param[in] normalized             If true, return normalized scores, if false return unnormalized
- * scores.
- * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
- * @param[in] weight                 If specified, device array of weights for each edge
- * @param[in] k                      If specified, number of vertex samples defined in the vertices
- * array.
- * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
- * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
- * shortest path counters.
+ * @param[in] graph                         cuGRAPH graph descriptor, should contain the
+ * connectivity information as a CSR
+ * @param[out] result                       Device array of centrality scores
+ * @param[in] normalized                    If true, return normalized scores, if false return
+ * unnormalized scores.
+ * @param[in] endpoints                     If true, include endpoints of paths in score, if false
+ * do not
+ * @param[in] weight                        If specified, device array of weights for each edge
+ * @param[in] k                             If specified, number of vertex samples defined in the
+ * vertices array.
+ * @param[in] vertices                      If specified, host array of vertex ids to estimate
+ * betweenness
+ * @param[in] total_number_of_source_used   If specified use this number of to normalized results
+ * when using subsampling, it allows accumulation of results across multiple calls centrality,
+ * these vertices will serve as sources for the traversal algorihtm to obtain shortest path
+ * counters.
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -301,7 +306,10 @@ void betweenness_centrality(const raft::handle_t &handle,
                             bool endpoints     = false,
                             WT const *weight   = nullptr,
                             VT k               = 0,
-                            VT const *vertices = nullptr);
+                            VT const *vertices = nullptr,
+                            // TODO(xcadet) If batch distribution is operated at C++ level we
+                            // might not need to add this extra parameter
+                            VT total_number_of_source_used = 0);
 
 /**
  * @brief     Compute edge betweenness centrality for a graph

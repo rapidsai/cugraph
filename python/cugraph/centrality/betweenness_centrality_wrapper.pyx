@@ -62,6 +62,7 @@ def run_work(input_graph, normalized, endpoints, vertices, result_dtype, session
     worker_id = session_state['wid']
 
     cdef GraphCSRViewFloat graph_float = get_graph_view[GraphCSRViewFloat](input_graph, False)
+    graph_float.prop.directed = type(input_graph) is DiGraph
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_batch = <uintptr_t> NULL
@@ -80,7 +81,8 @@ def run_work(input_graph, normalized, endpoints, vertices, result_dtype, session
                                                      endpoints,
                                                      <float*> NULL,
                                                      number_of_sources_in_batch,
-                                                     <int*> c_batch)
+                                                     <int*> c_batch,
+                                                     len(vertices))
     graph_float.get_vertex_identifiers(<int*> c_identifier)
     if worker_id == 0:
         return df
@@ -109,6 +111,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         # NOTE: Do not merge lines, c_vertices may end up pointing at the
         #       wrong place the length of vertices increase.
         np_verts =  np.array(vertices, dtype=np.int32)
+        c_vertices = np_verts.__array_interface__['data'][0]
 
     c_k = 0
     if k is not None:
@@ -133,8 +136,11 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
 
         if comms is not None:
             df = get_output_df(input_graph, result_dtype)
+            # TODO(xcadet) Gather somewhere above
             if vertices is None:
                 vertices = np.arange(input_graph.number_of_vertices(), dtype=np.int32)
+            else:
+                vertices = np_verts
             futures = [client.submit(run_work, input_graph, normalized, endpoints, vertices, result_dtype, comms.sessionId, workers=[worker_id]) for worker_id in comms.worker_addresses]
             gather = client.gather(futures)
             df = gather[0]
@@ -149,34 +155,43 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
             graph_float.prop.directed = type(input_graph) is DiGraph
             handle = cugraph.raft.common.handle.Handle() #  if handle is None else handle
             c_handle = <handle_t*><size_t> handle.getHandle()
+            if vertices is None:
+                total_number_of_sources_used = graph_float.number_of_vertices
+            else:
+                total_number_of_sources_used = len(vertices)
             c_betweenness_centrality[int, int, float, float](c_handle[0],
                                                             graph_float,
                                                             <float*> c_betweenness,
                                                             normalized, endpoints,
                                                             <float*> c_weight, c_k,
-                                                            <int*> c_vertices)
+                                                            <int*> c_vertices,
+                                                            total_number_of_sources_used)
             graph_float.get_vertex_identifiers(<int*> c_identifier)
 
     elif result_dtype == np.float64:
         df = get_output_df(input_graph, result_dtype)
-        df = dask_cuda.persist(df)
 
         c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
         c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
 
-
         graph_double = get_graph_view[GraphCSRViewDouble](input_graph, False)
-        # FIXME: There might be a way to avoid manually setting the Graph property
         graph_double.prop.directed = type(input_graph) is DiGraph
         handle = cugraph.raft.common.handle.Handle() #  if handle is None else handle
         c_handle = <handle_t*><size_t> handle.getHandle()
+        if vertices is None:
+            total_number_of_sources_used = graph_double.number_of_vertices
+        else:
+            total_number_of_sources_used = len(vertices)
         c_betweenness_centrality[int, int, double, double](c_handle[0],
                                                            graph_double,
                                                            <double*> c_betweenness,
                                                            normalized, endpoints,
                                                            <double*> c_weight, c_k,
-                                                           <int*> c_vertices)
+                                                           <int*> c_vertices,
+                                                           total_number_of_sources_used)
         graph_double.get_vertex_identifiers(<int*> c_identifier)
+
+
     else:
         raise TypeError("result type for betweenness centrality can only be "
                         "float or double")
