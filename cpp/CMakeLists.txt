@@ -278,14 +278,14 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           e003de27fc4e4a096337f184dddbd7942a68bb5c
+    GIT_TAG           2487eb0c12f374729043baa5448c0d309c921e60
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
     INSTALL_COMMAND   "")
 
   # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
-  set(RAFT_DIR ${RAFT_DIR}/src/raft/ CACHE STRING "Path to RAFT repo")
+  set(RAFT_DIR "${RAFT_DIR}/src/raft/")
 endif(DEFINED ENV{RAFT_PATH})
 
 
@@ -301,13 +301,13 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/comms/mpi/comms_mpi.cpp
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/cusparse_helper.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
@@ -379,7 +379,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    ${RMM_LIBRARY} gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE

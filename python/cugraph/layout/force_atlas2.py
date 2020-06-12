@@ -82,11 +82,11 @@ def force_atlas2(input_graph,
             An instance of GraphBasedDimRedCallback class to intercept
             the internal state of positions while they are being trained.
             Example of callback usage:
-                from cugraph.layout import GraphBasedDimRedCallback
+                from cugraph.internals import GraphBasedDimRedCallback
                     class CustomCallback(GraphBasedDimRedCallback):
                         def on_preprocess_end(self, positions):
                             print(positions.copy_to_host())
-                        def on_train_end(self, positions):
+                        def on_epoch_end(self, positions):
                             print(positions.copy_to_host())
                         def on_train_end(self, positions):
                             print(positions.copy_to_host())

@@ -66,14 +66,8 @@ def nx_call(M, verts, directed=True):
     return nx.subgraph(G, verts)
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_4)
 def test_subgraph_extraction_DiGraph(graph_file):
     gc.collect()
 
@@ -89,7 +83,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_4)
 def test_subgraph_extraction_Graph(graph_file):
     gc.collect()
 

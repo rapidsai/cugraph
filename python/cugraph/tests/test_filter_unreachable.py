@@ -13,7 +13,6 @@
 
 import gc
 import time
-
 import pytest
 import numpy as np
 
@@ -36,7 +35,7 @@ print('Networkx version : {} '.format(nx.__version__))
 SOURCES = [1]
 
 
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 @pytest.mark.parametrize('source', SOURCES)
 def test_filter_unreachable(graph_file, source):
     gc.collect()

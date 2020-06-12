@@ -86,15 +86,11 @@ def networkx_call(M, source, edgevals=False):
     return path, Gnx
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
 SOURCES = [1]
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS_4)
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp(graph_file, source):
     print('DOING test_sssp : ' + graph_file + '\n\n\n')
@@ -126,8 +122,8 @@ def test_sssp(graph_file, source):
     print('DONE test_sssp : ' + graph_file + '\n\n\n')
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp_edgevals(graph_file, source):
     gc.collect()
@@ -159,7 +155,7 @@ def test_sssp_edgevals(graph_file, source):
     assert err == 0
 
 
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
+@pytest.mark.parametrize('graph_file', utils.DATASETS_1)
 @pytest.mark.parametrize('source', SOURCES)
 def test_sssp_data_type_conversion(graph_file, source):
     gc.collect()
