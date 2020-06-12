@@ -21,7 +21,6 @@
 #include <iostream>
 #include <stdexcept>
 
-
 namespace cugraph {
 /**---------------------------------------------------------------------------*
  * @brief Exception thrown when logical precondition is violated.
