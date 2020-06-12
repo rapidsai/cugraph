@@ -12,6 +12,7 @@
 - PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
 - PR #934 Update conda dev environment.yml dependencies to 0.15
 - PR #941 Regression python/cudf fix
+- PR #946 Install meta packages for dependencies
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
