@@ -383,3 +383,23 @@ template void pagerank<int, int, double>(experimental::GraphCSCView<int, int, do
                                          bool has_guess);
 
 }  // namespace cugraph
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace cugraph {
+
+template <typename VT, typename ET, typename WT>
+void mg_pagerank_temp(raft::handle_t &handle, experimental::GraphCSCView<VT,ET,WT> const &graph, WT* pagerank){
+
+std::cout<<"\nINSIDE CPP\n";
+auto &comm = handle.get_comms();
+std::cout<<comm.get_rank()<<"\n";
+std::cout<<comm.get_size()<<"\n";
+}
+
+// explicit instantiation
+template void mg_pagerank_temp<int, int, float>(raft::handle_t &handle, experimental::GraphCSCView<int,int,float> const &graph, float* pagerank);
+template void mg_pagerank_temp<int, int, double>(raft::handle_t &handle, experimental::GraphCSCView<int,int,double> const &graph, double* pagerank);
+} //namespace cugraph
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

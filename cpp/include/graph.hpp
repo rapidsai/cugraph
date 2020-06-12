@@ -60,6 +60,10 @@ class GraphViewBase {
   VT number_of_vertices;
   ET number_of_edges;
 
+  VT number_of_local_vertices;
+  ET number_of_local_edges;
+  VT local_offset;
+
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
    *
@@ -67,12 +71,21 @@ class GraphViewBase {
    * identifiers
    */
   void get_vertex_identifiers(VT *identifiers) const;
+  void set_local_data(VT number_of_local_vertices_, ET number_of_local_edges_, VT local_offset_)
+  {
+      number_of_local_vertices = number_of_local_vertices_;
+      number_of_local_edges = number_of_local_edges_;
+      local_offset = local_offset_;
+  }
   void set_handle(raft::handle_t *handle_) { handle = handle_; }
   GraphViewBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
     : edge_data(edge_data_),
       prop(),
       number_of_vertices(number_of_vertices_),
-      number_of_edges(number_of_edges_)
+      number_of_edges(number_of_edges_),
+      number_of_local_vertices(number_of_vertices_),
+      number_of_local_edges(number_of_edges_),
+      local_offset(0)
   {
     handle = new raft::handle_t;
   }
