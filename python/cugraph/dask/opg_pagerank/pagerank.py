@@ -19,11 +19,11 @@ from dask.distributed import wait, default_client
 from cugraph.raft.dask.common.comms import worker_state
 from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
 
+
 def common_func(sID, data, local_data):
-    print(data)
-    print(local_data)
+    print("Dataframe: ", data)
+    print("local data: ", local_data)
     sessionstate = worker_state(sID)
-    print("nworkers: ", sessionstate['nworkers'],"  id: ", sessionstate['wid'])
     mg_pagerank.mg_pagerank(data[0], local_data, sessionstate['handle'])
     return 1
 
@@ -39,7 +39,7 @@ def pagerank(input_graph):
     local_data = data.calculate_local_data(comms)
     print("Calling function")
     result = dict([(data.worker_info[wf[0]]["rank"],
-                            client.submit(
+                    client.submit(
             common_func,
             comms.sessionId,
             wf[1],
@@ -47,4 +47,3 @@ def pagerank(input_graph):
             workers=[wf[0]]))
             for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
-

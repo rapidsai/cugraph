@@ -142,11 +142,11 @@ class DistributedDataHandler:
                             get_local_data,
                             wf[1],
                             workers=[wf[0]]))
-                            for idx, wf in enumerate(self.worker_to_parts.items())]
-                         )
+                          for idx, wf in enumerate(self.worker_to_parts.items()
+                                                   )])
 
         _local_data_dict = self.client.compute(local_data, sync=True)
-        local_data_dict = {'edges':[], 'offsets':[], 'verts':[]}
+        local_data_dict = {'edges': [], 'offsets': [], 'verts': []}
         for rank in range(len(_local_data_dict)):
             data = _local_data_dict[rank]
             local_data_dict['edges'].append(data[0])
@@ -154,9 +154,12 @@ class DistributedDataHandler:
             local_data_dict['verts'].append(data[2])
 
         import numpy as np
-        local_data_dict['edges'] = np.array(local_data_dict['edges'], dtype=np.int32)
-        local_data_dict['offsets'] = np.array(local_data_dict['offsets'], dtype=np.int32)
-        local_data_dict['verts'] = np.array(local_data_dict['verts'], dtype=np.int32)
+        local_data_dict['edges'] = np.array(local_data_dict['edges'],
+                                            dtype=np.int32)
+        local_data_dict['offsets'] = np.array(local_data_dict['offsets'],
+                                              dtype=np.int32)
+        local_data_dict['verts'] = np.array(local_data_dict['verts'],
+                                            dtype=np.int32)
         return local_data_dict
 
 """ Internal methods, API subject to change """

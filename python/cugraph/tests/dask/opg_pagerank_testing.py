@@ -14,15 +14,14 @@
 import cugraph.dask as dcg
 from dask.distributed import Client
 import gc
-import cudf
-
 import cugraph
 import dask_cudf
 
-## Move to conftest
+# Move to conftest
 from dask_cuda import LocalCUDACluster
-#cluster = LocalCUDACluster(protocol="tcp", scheduler_port=0)
-##
+# cluster = LocalCUDACluster(protocol="tcp", scheduler_port=0)
+#
+
 
 def test_dask_pagerank():
 
@@ -38,8 +37,6 @@ def test_dask_pagerank():
                              delimiter=' ',
                              names=['src', 'dst', 'value'],
                              dtype=['int32', 'int32', 'float32'])
-
-
 
     g = cugraph.DiGraph()
     g.from_dask_cudf_edgelist(ddf)
