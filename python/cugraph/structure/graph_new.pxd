@@ -47,6 +47,7 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
 
     cdef cppclass GraphViewBase[VT,ET,WT]:
         WT *edge_data
+        handle_t *handle;
         GraphProperties prop
         VT number_of_vertices
         ET number_of_edges

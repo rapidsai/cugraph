@@ -15,14 +15,19 @@
 #
 
 from cugraph.structure.graph_new cimport *
+from libcpp cimport bool
 
-cdef extern from "raft/handle.hpp" namespace "raft":
-    cdef cppclass handle_t:
-        handle_t() except +
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void mg_pagerank_temp[VT,ET,WT](
-        handle_t &handle,
+    cdef void pagerank[VT,ET,WT](
+        const handle_t &handle,
         const GraphCSCView[VT,ET,WT] &graph,
-        WT *pagerank) except +
+        WT *pagerank,
+        VT size,
+        VT *personalization_subset,
+        WT *personalization_values,
+        double alpha,
+        double tolerance,
+        long long max_iter,
+        bool has_guess) except +

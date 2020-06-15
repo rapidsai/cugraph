@@ -77,7 +77,8 @@ namespace cugraph {
  *
  */
 template <typename VT, typename ET, typename WT>
-void pagerank(experimental::GraphCSCView<VT, ET, WT> const &graph,
+void pagerank(raft::handle_t const &handle,
+              experimental::GraphCSCView<VT, ET, WT> const &graph,
               WT *pagerank,
               VT personalization_subset_size = 0,
               VT *personalization_subset     = nullptr,
@@ -641,12 +642,6 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
          VT ensemble_size,
          VT *ecg_parts);
 
-/////////////////////////////////////////////////////////
-template <typename VT, typename ET, typename WT>
-void mg_pagerank_temp(raft::handle_t &handle,
-                      experimental::GraphCSCView<VT, ET, WT> const &graph,
-                      WT *pagerank);
-////////////////////////////////////////////////////////
 
 namespace nvgraph {
 
