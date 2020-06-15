@@ -21,7 +21,6 @@
 
 #include "cuda_profiler_api.h"
 
-#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "converters/renumber.cuh"
