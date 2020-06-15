@@ -642,7 +642,6 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
          VT ensemble_size,
          VT *ecg_parts);
 
-
 namespace nvgraph {
 
 /**

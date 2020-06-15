@@ -350,7 +350,7 @@ void pagerank(raft::handle_t const &handle,
               bool has_guess)
 {
   CUGRAPH_EXPECTS(pagerank != nullptr, "Invalid API parameter: Pagerank array should be of size V");
-  
+
   if (handle.comms_initialized()) {
     std::cout << "\nINSIDE CPP\n";
     auto &comm = handle.get_comms();
