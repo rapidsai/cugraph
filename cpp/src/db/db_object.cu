@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <cugraph.h>
 #include <cypher-parser.h>
 #include <db/db_execution.cuh>
 #include <db/db_object.cuh>
