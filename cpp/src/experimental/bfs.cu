@@ -23,7 +23,8 @@
 #include <detail/patterns/reduce_op.cuh>
 #include <graph.hpp>
 
-#include <rmm/rmm.h>
+#include <raft/handle.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -43,7 +44,7 @@ namespace detail {
 
 template <typename GraphType, typename VertexIterator>
 void bfs_this_partition(
-    raft::Handle handle, GraphType const& csr_graph,
+    raft::handle_t handle, GraphType const& csr_graph,
     VertexIterator distance_first, VertexIterator predecessor_first,
     typename GraphType::vertex_type starting_vertex,
     bool direction_optimizing = false, size_t depth_limit = std::numeric_limits<size_t>::max(),
@@ -88,7 +89,7 @@ void bfs_this_partition(
   auto val_first =
     thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first));
   thrust::transform(
-    thrust::cuda::par.on(handle.get_default_stream()),
+    thrust::cuda::par.on(handle.get_stream()),
     graph_device_view.this_partition_vertex_begin(),
     graph_device_view.this_partition_vertex_end(),
     val_first,
@@ -108,7 +109,7 @@ void bfs_this_partition(
     static_cast<size_t>(Bucket::num_buckets),
     graph_device_view.get_number_of_this_partition_adj_matrix_rows());
   AdjMatrixRowFrontier<
-    raft::Handle, thrust::tuple<vertex_t>, vertex_t, static_cast<size_t>(Bucket::num_buckets)
+    raft::handle_t, thrust::tuple<vertex_t>, vertex_t, static_cast<size_t>(Bucket::num_buckets)
   > adj_matrix_row_frontier(handle, bucket_sizes);
 
   if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(starting_vertex)) {
@@ -156,7 +157,7 @@ void bfs_this_partition(
         [depth] __device__ (auto v_val, auto pushed_val) {
           auto idx =
             AdjMatrixRowFrontier<
-              raft::Handle, thrust::tuple<vertex_t>, vertex_t
+              raft::handle_t, thrust::tuple<vertex_t>, vertex_t
             >::kInvalidBucketIdx;
           if (v_val == invalid_distance) {
             idx = static_cast<size_t>(Bucket::cur);
@@ -187,7 +188,7 @@ void bfs_this_partition(
 // explicit instantiation
 
 template void bfs_this_partition(
-    raft::Handle handle, GraphCSRView<uint32_t, uint32_t, float> const& csr_graph,
+    raft::handle_t handle, GraphCSRView<uint32_t, uint32_t, float> const& csr_graph,
     uint32_t* distance_first, uint32_t* predecessor_first, uint32_t starting_vertex,
     bool direction_optimizing, size_t depth_limit, bool do_expensive_check);
 

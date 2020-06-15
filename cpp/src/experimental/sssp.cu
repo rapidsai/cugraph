@@ -23,7 +23,7 @@
 #include <detail/utilities/cuda.cuh>
 #include <graph.hpp>
 
-#include <rmm/rmm.h>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -41,7 +41,7 @@ namespace detail {
 
 template <typename GraphType, typename VertexIterator, typename WeightIterator>
 void sssp_this_partition(
-    raft::Handle handle, GraphType const& csr_graph,
+    raft::handle_t handle, GraphType const& csr_graph,
     WeightIterator distance_first, VertexIterator predecessor_first,
     typename GraphType::vertex_type starting_vertex,
     size_t depth_limit = std::numeric_limits<size_t>::max(), bool do_expensive_check = false) {
@@ -109,7 +109,7 @@ void sssp_this_partition(
   auto val_first =
     thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first));
   thrust::transform(
-    thrust::cuda::par.on(handle.get_default_stream()),
+    thrust::cuda::par.on(handle.get_stream()),
     graph_device_view.this_partition_vertex_begin(),
     graph_device_view.this_partition_vertex_end(),
     val_first,
@@ -129,14 +129,14 @@ void sssp_this_partition(
     static_cast<size_t>(Bucket::num_buckets),
     graph_device_view.get_number_of_this_partition_adj_matrix_rows());
   AdjMatrixRowFrontier<
-    raft::Handle, thrust::tuple<weight_t, vertex_t>, vertex_t, static_cast<size_t>(Bucket::num_buckets)
+    raft::handle_t, thrust::tuple<weight_t, vertex_t>, vertex_t, static_cast<size_t>(Bucket::num_buckets)
   > adj_matrix_row_frontier(handle, bucket_sizes);
   //adj_matrix_row_frontier.track_updated_vertices_in_this_partition();
 
   // 5. SSSP iteration
 
   rmm::device_vector<weight_t> adj_matrix_row_distances{};
-  if (raft::Handle::is_opg) {
+  if (GraphType::is_opg) {
     adj_matrix_row_distances.assign(
       graph_device_view.get_number_of_this_partition_adj_matrix_rows(),
       std::numeric_limits<weight_t>::max());
@@ -163,7 +163,7 @@ void sssp_this_partition(
           ? (new_dist < near_far_threshold
             ? static_cast<size_t>(Bucket::new_near) : static_cast<size_t>(Bucket::far))
           : AdjMatrixRowFrontier<
-              raft::Handle, thrust::tuple<vertex_t>, vertex_t
+              raft::handle_t, thrust::tuple<vertex_t>, vertex_t
             >::kInvalidBucketIdx;
         return thrust::make_tuple(idx, thrust::get<0>(pushed_val), thrust::get<1>(pushed_val));
       };
@@ -261,7 +261,7 @@ void sssp_this_partition(
                   graph_device_view.get_this_partition_row_offset_from_row_nocheck(v));
               if (dist < old_near_far_threshold) {
                 return AdjMatrixRowFrontier<
-                         raft::Handle, thrust::tuple<vertex_t>, vertex_t
+                         raft::handle_t, thrust::tuple<vertex_t>, vertex_t
                        >::kInvalidBucketIdx;
               }
               else if (dist < near_far_threshold) {
@@ -282,7 +282,7 @@ void sssp_this_partition(
                   graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(v));
               if (dist < old_near_far_threshold) {
                 return AdjMatrixRowFrontier<
-                         raft::Handle, thrust::tuple<vertex_t>, vertex_t
+                         raft::handle_t, thrust::tuple<vertex_t>, vertex_t
                        >::kInvalidBucketIdx;
               }
               else if (dist < near_far_threshold) {
@@ -316,7 +316,7 @@ void sssp_this_partition(
 // explicit instantiation
 
 template void sssp_this_partition(
-    raft::Handle handle, GraphCSRView<uint32_t, uint32_t, float> const& csr_graph,
+    raft::handle_t handle, GraphCSRView<uint32_t, uint32_t, float> const& csr_graph,
     float* distance_first, uint32_t* predecessor_first, uint32_t starting_vertex,
     size_t depth_limit, bool do_expensive_check);
 

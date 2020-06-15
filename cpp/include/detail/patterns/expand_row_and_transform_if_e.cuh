@@ -113,13 +113,13 @@ template <typename HandleType,
           typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator,
           typename ReduceOp>
 size_t reduce_buffer_elements(
-    HandleType handle,
+    HandleType& handle,
     BufferKeyOutputIterator buffer_key_output_first,
     BufferPayloadOutputIterator buffer_payload_output_first,
     size_t num_buffer_elements,
     ReduceOp reduce_op) {
   thrust::sort_by_key(
-    thrust::cuda::par.on(handle.get_default_stream()),
+    thrust::cuda::par.on(handle.get_stream()),
     buffer_key_output_first, buffer_key_output_first + num_buffer_elements,
     buffer_payload_output_first);
 
@@ -129,7 +129,7 @@ size_t reduce_buffer_elements(
     // non-first elements)
     auto it =
       thrust::unique_by_key(
-        thrust::cuda::par.on(handle.get_default_stream()),
+        thrust::cuda::par.on(handle.get_stream()),
         buffer_key_output_first, buffer_key_output_first + num_buffer_elements,
         buffer_payload_output_first);
     return static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
@@ -147,7 +147,7 @@ size_t reduce_buffer_elements(
     rmm::device_vector<payload_t> values(num_buffer_elements);
     auto it =
       thrust::reduce_by_key(
-        thrust::cuda::par.on(handle.get_default_stream()),
+        thrust::cuda::par.on(handle.get_stream()),
         buffer_key_output_first, buffer_key_output_first + num_buffer_elements,
         buffer_payload_output_first,
         keys.begin(), values.begin(),
@@ -259,7 +259,7 @@ template <typename HandleType, typename GraphType,
           typename RowFrontierType,
           typename EdgeOp, typename ReduceOp, typename VertexOp>
 void expand_row_and_transform_if_v_push_if_e(
-    HandleType handle, GraphType graph_device_view,
+    HandleType& handle, GraphType graph_device_view,
     RowIterator row_first, RowIterator row_last,
     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
     AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
@@ -276,7 +276,7 @@ void expand_row_and_transform_if_v_push_if_e(
 
   auto max_pushes =
     thrust::transform_reduce(
-      thrust::cuda::par.on(handle.get_default_stream()),
+      thrust::cuda::par.on(handle.get_stream()),
       row_first, row_last,
       [graph_device_view] __device__ (auto row) {
         auto graph_offset_first = graph_device_view.offset_data();
@@ -300,14 +300,14 @@ void expand_row_and_transform_if_v_push_if_e(
   grid_1d_thread_t for_all_low_out_degree_grid(
     thrust::distance(row_first, row_last),
     expand_and_transform_if_v_push_if_e_for_all_low_out_degree_block_size,
-    handle.get_max_num_blocks_1D());
+    get_max_num_blocks_1D());
 
   // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
   // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
   // order, we will apply this kernel only to low out-degree vertices.
   for_all_frontier_row_for_all_nbr_col_low_out_degree<<<
     for_all_low_out_degree_grid.num_blocks, for_all_low_out_degree_grid.block_size,
-    0, handle.get_default_stream()
+    0, handle.get_stream()
   >>>(
     graph_device_view,
     row_first, row_last,
@@ -321,7 +321,7 @@ void expand_row_and_transform_if_v_push_if_e(
       handle, buffer_key_first, buffer_payload_first,
       row_frontier.get_buffer_idx_value(), reduce_op);
 
-  if (HandleType::is_opg) {
+  if (GraphType::is_opg) {
     // need to exchange buffer elements (and may reduce again)
     CUGRAPH_FAIL("unimplemented.");
   }
@@ -329,14 +329,14 @@ void expand_row_and_transform_if_v_push_if_e(
   grid_1d_thread_t update_grid(
     thrust::distance(row_first, row_last),
     expand_and_transform_if_v_push_if_e_update_block_size,
-    handle.get_max_num_blocks_1D());
+    get_max_num_blocks_1D());
   
   auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
   auto bucket_and_bucket_size_device_ptrs =
     row_frontier.get_bucket_and_bucket_size_device_pointers();
   update_frontier_and_vertex_output_values<RowFrontierType::kNumBuckets><<<
-    update_grid.num_blocks, update_grid.block_size, 0, handle.get_default_stream()
+    update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()
   >>>(
     buffer_key_first, buffer_payload_first, num_buffer_elements,
     vertex_value_input_first,
@@ -360,7 +360,7 @@ void expand_row_and_transform_if_v_push_if_e(
     CUGRAPH_FAIL("unimplemented.");
   }
 
-  if (HandleType::is_opg) {
+  if (GraphType::is_opg) {
     // need to merge row_frontier
     CUGRAPH_FAIL("unimplemented.");
   }

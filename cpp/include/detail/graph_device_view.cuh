@@ -46,6 +46,7 @@ class graph_compressed_sparse_base_device_view_t<
   using weight_type = typename GraphType::weight_type;
   static constexpr bool is_row_major = GraphType::is_row_major;
   static constexpr bool is_column_major = GraphType::is_row_major;
+  static constexpr bool is_opg = GraphType::is_opg;
 
   graph_compressed_sparse_base_device_view_t() = delete;
   ~graph_compressed_sparse_base_device_view_t() = default;
@@ -116,6 +117,7 @@ class graph_compressed_sparse_device_view_t<
   using weight_type = typename GraphType::weight_type;
   static constexpr bool is_row_major = GraphType::is_row_major;
   static constexpr bool is_column_major = GraphType::is_row_major;
+  static constexpr bool is_opg = GraphType::is_opg;
 
   graph_compressed_sparse_device_view_t() = delete;
   ~graph_compressed_sparse_device_view_t() = default;
@@ -182,6 +184,7 @@ public:
   using weight_type = typename GraphType::weight_type;
   static constexpr bool is_row_major = GraphType::is_row_major;
   static constexpr bool is_column_major = GraphType::is_row_major;
+  static constexpr bool is_opg = GraphType::is_opg;
 
   graph_compressed_sparse_device_view_t() = delete;
   ~graph_compressed_sparse_device_view_t() = default;

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <detail/patterns/edge_op_utils.cuh>
+#include <detail/utilities/cuda.cuh>
 #include <graph.hpp>
 
 #include <cub/cub.cuh>
@@ -140,7 +141,7 @@ template <typename HandleType, typename GraphType,
           typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
           typename EdgeOp, typename T>
 T transform_reduce_e(
-    HandleType handle, GraphType graph,
+    HandleType& handle, GraphType graph,
     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
     AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
     EdgeOp e_op, T init) {
@@ -152,12 +153,12 @@ T transform_reduce_e(
       ? graph.get_number_of_this_partition_adj_matrix_rows()
       : graph.get_number_of_this_partition_adj_matrix_cols(),
     transform_reduce_e_for_all_low_out_degree_block_size,
-    handle.get_max_num_blocks_1D());
+    get_max_num_blocks_1D());
 
   thrust::device_vector<T> block_results(update_grid.num_blocks);
 
   for_all_major_for_all_nbr_low_out_degree<<<
-    update_grid.num_blocks, update_grid.block_size, 0, handle.get_default_stream()
+    update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()
   >>>(
     graph,
     GraphType::is_row_major
@@ -176,10 +177,10 @@ T transform_reduce_e(
   // synchronization point in varying timings and the number of SMs is not very big)
   auto result =
     thrust::reduce(
-      thrust::cuda::par.on(handle.get_default_stream()),
+      thrust::cuda::par.on(handle.get_stream()),
       block_results.begin(), block_results.end(), T(), plus_thrust_tuple<T>());
 
-  if (HandleType::is_opg) {
+  if (GraphType::is_opg) {
     // need reduction
     CUGRAPH_FAIL("unimplemented.");
   }

@@ -144,7 +144,7 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename HandleType, typename vertex_t>
+template <typename HandleType, typename vertex_t, bool is_opg = false>
 class Bucket {
  public:
   Bucket(HandleType const& handle, size_t capacity)
@@ -163,14 +163,14 @@ class Bucket {
     size_ = size;
   }
 
-  template <bool opg = HandleType::is_opg>
-  std::enable_if_t<opg, size_t> aggregate_size() const {
+  template <bool do_aggregate = is_opg>
+  std::enable_if_t<do_aggregate, size_t> aggregate_size() const {
     CUGRAPH_FAIL("unimplemented.");
     return size_;
   }
 
-  template <bool opg = HandleType::is_opg>
-  std::enable_if_t<!opg, size_t> aggregate_size() const {
+  template <bool do_aggregate = is_opg>
+  std::enable_if_t<!do_aggregate, size_t> aggregate_size() const {
     return size_;
   }
 
@@ -213,7 +213,7 @@ class Bucket {
 };
 
 template <typename HandleType, typename ReduceInputTupleType, typename vertex_t,
-          size_t num_buckets = 1>
+          bool is_opg = false, size_t num_buckets = 1>
 class AdjMatrixRowFrontier {
  public:
   static size_t constexpr kNumBuckets = num_buckets;
@@ -224,21 +224,21 @@ class AdjMatrixRowFrontier {
       tmp_bucket_ptrs_(num_buckets, nullptr),
       tmp_bucket_sizes_(num_buckets, 0),
       buffer_ptrs_(kReduceInputTupleSize + 1/* to store destination column number */, nullptr),
-      buffer_idx_(0, handle_ptr_->get_default_stream()) {
+      buffer_idx_(0, handle_ptr_->get_stream()) {
     CUGRAPH_EXPECTS(
       bucket_capacities.size() == num_buckets,
       "invalid input argument bucket_capacities (size mismatch)");
     for (size_t i = 0; i < num_buckets; ++i) {
       buckets_.emplace_back(handle, bucket_capacities[i]);
     }
-    buffer_.set_stream(handle_ptr_->get_default_stream());
+    buffer_.set_stream(handle_ptr_->get_stream());
   }
 
-  Bucket<HandleType, vertex_t>& get_bucket(size_t bucket_idx) {
+  Bucket<HandleType, vertex_t, is_opg>& get_bucket(size_t bucket_idx) {
     return buckets_[bucket_idx];
   }
 
-  Bucket<HandleType, vertex_t> const& get_bucket(size_t bucket_idx) const {
+  Bucket<HandleType, vertex_t, is_opg> const& get_bucket(size_t bucket_idx) const {
     return buckets_[bucket_idx];
   }
 
@@ -254,11 +254,11 @@ class AdjMatrixRowFrontier {
   
     auto& this_bucket = get_bucket(bucket_idx);
     grid_1d_thread_t move_and_invalidate_if_grid(
-      this_bucket.size(), move_and_invalidate_if_block_size, handle_ptr_->get_max_num_blocks_1D());
+      this_bucket.size(), move_and_invalidate_if_block_size, get_max_num_blocks_1D());
 
     move_and_invalidate_if<kNumBuckets><<<
       move_and_invalidate_if_grid.num_blocks, move_and_invalidate_if_block_size, 0,
-      handle_ptr_->get_default_stream()
+      handle_ptr_->get_stream()
     >>>(
       this_bucket.begin(), this_bucket.end(),
       std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
@@ -270,7 +270,7 @@ class AdjMatrixRowFrontier {
     // to move_if)
     auto it =
       thrust::remove_if(
-        thrust::cuda::par.on(handle_ptr_->get_default_stream()),
+        thrust::cuda::par.on(handle_ptr_->get_stream()),
         get_bucket(bucket_idx).begin(), get_bucket(bucket_idx).end(),
         [] __device__ (auto value) {
           return value == invalid_vertex;
@@ -307,7 +307,7 @@ class AdjMatrixRowFrontier {
     // FIXME: rmm::device_buffer resize incurs copy if memory is reallocated, which is unnecessary
     // in this case.
     buffer_.resize(
-      compute_aggregate_buffer_size_in_bytes(size), handle_ptr_->get_default_stream());
+      compute_aggregate_buffer_size_in_bytes(size), handle_ptr_->get_stream());
     if (size > buffer_capacity_) {
       buffer_capacity_ = size;
       update_buffer_ptrs();
@@ -323,7 +323,7 @@ class AdjMatrixRowFrontier {
     if (buffer_size_ != buffer_capacity_) {
       // FIXME: rmm::device_buffer shrink_to_fit incurs copy if memory is reallocated, which is
       // unnecessary in this case.
-      buffer_.shrink_to_fit(handle_ptr_->get_default_stream());
+      buffer_.shrink_to_fit(handle_ptr_->get_stream());
       update_buffer_ptrs();
       buffer_capacity_ = buffer_size_;
     }
@@ -342,11 +342,11 @@ class AdjMatrixRowFrontier {
   }
 
   size_t get_buffer_idx_value() {
-    return buffer_idx_.value(handle_ptr_->get_default_stream());
+    return buffer_idx_.value(handle_ptr_->get_stream());
   }
 
   void set_buffer_idx_value(size_t value) {
-    buffer_idx_.set_value(value, handle_ptr_->get_default_stream());
+    buffer_idx_.set_value(value, handle_ptr_->get_stream());
   }
 
  private:
@@ -354,7 +354,7 @@ class AdjMatrixRowFrontier {
   static size_t constexpr kBufferAlignment = 128;
 
   HandleType const* handle_ptr_{nullptr};
-  std::vector<Bucket<HandleType, vertex_t>> buckets_{};
+  std::vector<Bucket<HandleType, vertex_t, is_opg>> buckets_{};
   rmm::device_vector<vertex_t*> tmp_bucket_ptrs_{};
   rmm::device_vector<size_t> tmp_bucket_sizes_{};
 

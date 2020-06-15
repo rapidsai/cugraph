@@ -26,6 +26,8 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
+//FIXME: Better move this to RAFT
+
 /**
  * @brief Size of a warp in a CUDA kernel.
  */
@@ -118,26 +120,11 @@ class grid_1d_block_t {
   }
 };
 
+//FIXME: a temporary to test 1D pattern accelerator, should be added to RAFT::handle_t
+constexpr size_t get_max_num_blocks_1D() {
+  return static_cast<size_t>(65535);
+}
+
 }  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph
-
-namespace raft {  // FIXME: should be replaced with the real raft Handle class
-
-class Handle {
- public:
-  static bool constexpr is_opg = false;
-      
-  cudaStream_t get_default_stream() const {
-    return stream_;
-  }
-      
-  size_t get_max_num_blocks_1D() const {
-    return static_cast<size_t>(65535);
-  }
-    
- private:
-  cudaStream_t stream_{0};
-};
-      
-}  
