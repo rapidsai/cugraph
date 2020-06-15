@@ -131,7 +131,7 @@ set(KATZ_TEST_SRC
   ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}" "")
 
 ###################################################################################################
-# - betweenness centrality tests -------------------------------------------------------------------------
+# - betweenness centrality tests ------------------------------------------------------------------
 
 set(BETWEENNESS_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
@@ -156,17 +156,19 @@ ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
+
 set(SSSP_TEST_SRCS
-	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-	"${CMAKE_CURRENT_SOURCE_DIR}/traversal/sssp_test.cu")
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/sssp_test.cu")
 
 ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
 
 ###################################################################################################
-# - BFS tests ------------------------------------------------------------------------------------
+# - BFS tests -------------------------------------------------------------------------------------
+
 set(BFS_TEST_SRCS
-	"${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-	"${CMAKE_CURRENT_SOURCE_DIR}/traversal/bfs_test.cu")
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/bfs_test.cu")
 
 ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}" "")
 
@@ -188,7 +190,7 @@ set(ECG_TEST_SRC
 ConfigureTest(ECG_TEST "${ECG_TEST_SRC}" "")
 
 ###################################################################################################
-# - Balanced cut clustering tests ---------------------------------------------------------------------------------
+# - Balanced cut clustering tests -----------------------------------------------------------------
 
 set(BALANCED_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/community/balanced_edge_test.cpp")
@@ -196,7 +198,7 @@ set(BALANCED_TEST_SRC
 ConfigureTest(BALANCED_TEST "${BALANCED_TEST_SRC}" "")
 
 ###################################################################################################
-# - TRIANGLE tests ---------------------------------------------------------------------------------
+# - TRIANGLE tests --------------------------------------------------------------------------------
 
 set(TRIANGLE_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/community/triangle_test.cu")
@@ -213,7 +215,7 @@ set(RENUMBERING_TEST_SRC
 ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "")
 
 ###################################################################################################
-#-FORCE ATLAS 2  tests ------------------------------------------------------------------------------
+# - FORCE ATLAS 2  tests --------------------------------------------------------------------------
 
 set(FA2_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
@@ -222,7 +224,7 @@ set(FA2_TEST_SRC
 ConfigureTest(FA2_TEST "${FA2_TEST_SRC}" "")
 
 ###################################################################################################
-#-CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
+# - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
 
 set(CONNECT_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
@@ -231,7 +233,7 @@ set(CONNECT_TEST_SRC
 ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
 
 ###################################################################################################
-#-STRONGLY CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
+# - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
 
 set(SCC_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
@@ -240,7 +242,7 @@ set(SCC_TEST_SRC
 ConfigureTest(SCC_TEST "${SCC_TEST_SRC}" "")
 
 ###################################################################################################
-#-FIND_MATCHES tests ---------------------------------------------------------------------
+# - FIND_MATCHES tests ----------------------------------------------------------------------------
 
 set(FIND_MATCHES_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/db/find_matches_test.cu")
@@ -248,7 +250,7 @@ set(FIND_MATCHES_TEST_SRC
 ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
 
 ###################################################################################################
-#-NCCL tests ---------------------------------------------------------------------
+# - NCCL tests ------------------------------------------------------------------------------------
 
 if (BUILD_MPI)
     set(NCCL_TEST_SRC
@@ -261,6 +263,15 @@ if (BUILD_MPI)
 
     ConfigureTest(NCCL_DEGREE_TEST "${NCCL_DEGREE_TEST_SRC}" "")
 endif(BUILD_MPI)
+
+###################################################################################################
+# - Experimental BFS tests ------------------------------------------------------------------------
+
+set(EXPERIMENTAL_BFS_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/bfs_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}" "")
 
 ###################################################################################################
 ### enable testing ################################################################################
