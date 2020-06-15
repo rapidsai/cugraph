@@ -25,7 +25,10 @@ extern "C" {
 }
 #include <nccl.h>
 
+#include <gtest/gtest.h>
+
 #include <cstdio>
+#include <cfloat>
 #include <string>
 
 // FIXME: RAFT error handling macros should be used instead

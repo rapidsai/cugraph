@@ -20,7 +20,7 @@
 
 #include <graph.hpp>
 
-#include <rmm/rmm.h>
+#include <rmm/device_buffer.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
 

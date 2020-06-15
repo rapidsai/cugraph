@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include <comms_mpi.hpp>
-
 #include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
 
