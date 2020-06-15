@@ -643,8 +643,9 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
 
 /////////////////////////////////////////////////////////
 template <typename VT, typename ET, typename WT>
-void mg_pagerank_temp(raft::handle_t &handle, experimental::GraphCSCView<VT,ET,WT> const &graph,
-                      WT* pagerank);
+void mg_pagerank_temp(raft::handle_t &handle,
+                      experimental::GraphCSCView<VT, ET, WT> const &graph,
+                      WT *pagerank);
 ////////////////////////////////////////////////////////
 
 namespace nvgraph {
