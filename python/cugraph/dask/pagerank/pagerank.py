@@ -162,7 +162,7 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
     >>>                                    dtype=['int32', 'int32'])
     >>> pr = dcg.pagerank(ddf_edge_list, alpha=0.85, max_iter=50)
     """
-
+    print("HI")
     client = default_client()
     gpu_futures = _get_mg_info(edge_list)
     # npartitions = len(gpu_futures)

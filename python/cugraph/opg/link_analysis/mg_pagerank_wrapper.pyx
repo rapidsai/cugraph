@@ -22,7 +22,7 @@ import cugraph.structure.graph_new_wrapper as graph_new_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
 
-def mg_pagerank(input_df, handle):
+def mg_pagerank(input_df, local_data, handle):
     """
     Call pagerank
     """
@@ -36,10 +36,12 @@ def mg_pagerank(input_df, handle):
 
     num_verts = 34 #FIXME Get global number of vertices
     num_edges = 156 #FIXME Get global number of edges
-    num_local_edges = len(input_df)
-    local_offset = dst.min()
+    local_offset = dst.min() # Find using local data offset array
     dst = dst - local_offset
-    num_local_verts = dst.max() + 1
+    num_local_verts = dst.max() + 1 # Find using local data verts array
+    cdef uintptr_t c_local_verts = local_data['verts'].__array_interface__['data'][0]
+    cdef uintptr_t c_local_edges = local_data['edges'].__array_interface__['data'][0]
+    cdef uintptr_t c_local_offsets = local_data['offsets'].__array_interface__['data'][0]
 
     _offsets, indices, weights = coo2csr(dst, src, weights)
     offsets = _offsets[:num_local_verts + 1]
@@ -65,12 +67,12 @@ def mg_pagerank(input_df, handle):
 
     if (df['pagerank'].dtype == np.float32):
         graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
-        graph_float.set_local_data(num_local_verts, num_local_edges, local_offset)
+        graph_float.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
         c_pagerank.mg_pagerank_temp[int,int,float](handle_[0], graph_float, <float*> c_pagerank_val)
 
     else:
         graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
-        graph_double.set_local_data(num_local_verts, num_local_edges, local_offset)
+        graph_double.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
         c_pagerank.mg_pagerank_temp[int,int,double](handle_[0], graph_double, <double*> c_pagerank_val)
 
     return df

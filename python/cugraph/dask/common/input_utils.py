@@ -91,8 +91,7 @@ class DistributedDataHandler:
             raise Exception("Graph data must be dask-cudf dataframe")
 
         gpu_futures = client.sync(_extract_partitions, data, client)
-        workers = tuple(set(map(lambda x: x[0], gpu_futures)))
-
+        workers = tuple(OrderedDict.fromkeys(map(lambda x: x[0], gpu_futures)))
         return DistributedDataHandler(gpu_futures=gpu_futures, workers=workers,
                                       datatype=datatype, multiple=multiple,
                                       client=client)
@@ -133,6 +132,32 @@ class DistributedDataHandler:
 
             self.total_rows += total
 
+    def calculate_local_data(self, comms):
+
+        if self.worker_info is None and comms is not None:
+            self.calculate_worker_and_rank_info(comms)
+
+        local_data = dict([(self.worker_info[wf[0]]["rank"],
+                            self.client.submit(
+                            get_local_data,
+                            wf[1],
+                            workers=[wf[0]]))
+                            for idx, wf in enumerate(self.worker_to_parts.items())]
+                         )
+
+        _local_data_dict = self.client.compute(local_data, sync=True)
+        local_data_dict = {'edges':[], 'offsets':[], 'verts':[]}
+        for rank in range(len(_local_data_dict)):
+            data = _local_data_dict[rank]
+            local_data_dict['edges'].append(data[0])
+            local_data_dict['offsets'].append(data[1])
+            local_data_dict['verts'].append(data[2])
+
+        import numpy as np
+        local_data_dict['edges'] = np.array(local_data_dict['edges'], dtype=np.int32)
+        local_data_dict['offsets'] = np.array(local_data_dict['offsets'], dtype=np.int32)
+        local_data_dict['verts'] = np.array(local_data_dict['verts'], dtype=np.int32)
+        return local_data_dict
 
 """ Internal methods, API subject to change """
 
@@ -156,3 +181,11 @@ def _get_rows(objs, multiple):
     def get_obj(x): return x[0] if multiple else x
     total = list(map(lambda x: get_obj(x).shape[0], objs))
     return total, reduce(lambda a, b: a + b, total)
+
+
+def get_local_data(df):
+    df = df[0]
+    num_local_edges = len(df)
+    local_offset = df['dst'].min()
+    num_local_verts = df['dst'].max() - local_offset + 1
+    return num_local_edges, local_offset, num_local_verts
