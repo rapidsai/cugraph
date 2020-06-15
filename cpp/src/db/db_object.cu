@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/binary_search.h>
 #include <utilities/error_utils.h>

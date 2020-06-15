@@ -16,7 +16,6 @@
 
 #include <algorithms.hpp>
 
-#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
 #include <utilities/error_utils.h>
