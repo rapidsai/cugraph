@@ -71,6 +71,7 @@
 - PR #897 Remove RMM ALLOC calls
 - PR #899 Update include paths to remove deleted cudf headers
 - PR #906 Update Louvain notebook
+- PR #948 Move doc customization scripts to Jenkins
 
 ## Bug Fixes
 - PR #927 Update scikit learn dependency
