@@ -40,16 +40,14 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_,
                                experimental::GraphCSCView<VT, ET, WT> const &G)
   : comm(handle_.get_comms())
 {
-  v_glob = G.number_of_vertices;
-
-  // FIXME needs PR #944
-  // v_loc  = G.number_of_local_vertices;
-  // e_loc  = G.number_of_local_edges;
-  // part_off = G.local_offset;
-
-  off      = G.offsets;
-  ind      = G.indices;
-  sm_count = handle_.get_device_properties().multiProcessorCount;
+  v_glob         = G.number_of_vertices;
+  v_loc          = G.local_vertices[comm.get_rank()];
+  e_loc          = G.local_edges[comm.get_rank()];
+  part_off       = G.local_offsets;
+  local_vertices = G.local_vertices;
+  off            = G.offsets;
+  ind            = G.indices;
+  sm_count       = handle_.get_device_properties().multiProcessorCount;
 
   is_setup = false;
   bookmark.resize(v_glob);
@@ -118,7 +116,8 @@ void Pagerank<VT, ET, WT>::solve(int max_iter, WT *pagerank)
     // This is not needed on one GPU at this time
     cudaDeviceSynchronize();
     dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
-    OPGcsrmv<VT, ET, WT> spmv_solver(comm, part_off, off, ind, val.data().get(), pagerank);
+    OPGcsrmv<VT, ET, WT> spmv_solver(
+      comm, local_vertices, part_off, off, ind, val.data().get(), pagerank);
     for (auto i = 0; i < max_iter; ++i) {
       spmv_solver.run(pagerank);
       cugraph::detail::scal(v_glob, alpha, pr);

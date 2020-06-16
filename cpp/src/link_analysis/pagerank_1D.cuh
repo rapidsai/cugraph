@@ -45,7 +45,8 @@ class Pagerank {
   // part_offsets[device_id] contains the global ID
   // of the first vertex of the partion owned by device_id.
   // part_offsets[num_devices] contains the global number of vertices
-  size_t *part_off;
+  VT *part_off;
+  VT *local_vertices;
 
   // Google matrix
   ET *off;

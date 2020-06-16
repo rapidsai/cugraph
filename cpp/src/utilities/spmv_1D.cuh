@@ -37,7 +37,8 @@ class OPGcsrmv {
   size_t v_loc;
   size_t e_loc;
   const raft::comms::comms_t& comm;
-  size_t* part_off;
+  VT* part_off;
+  VT* local_vertices;
   int i;
   int p;
   ET* off;
@@ -52,8 +53,13 @@ class OPGcsrmv {
   cugraph::detail::CusparseCsrMV<WT> spmv;
 
  public:
-  OPGcsrmv(
-    const raft::comms::comms_t& comm, size_t* part_off_, ET* off_, VT* ind_, WT* val_, WT* x);
+  OPGcsrmv(const raft::comms::comms_t& comm,
+           VT* local_vertices,
+           VT* part_off,
+           ET* off_,
+           VT* ind_,
+           WT* val_,
+           WT* x);
 
   ~OPGcsrmv();
 

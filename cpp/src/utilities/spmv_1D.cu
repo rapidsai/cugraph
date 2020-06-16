@@ -22,9 +22,19 @@
 namespace cugraph {
 namespace opg {
 template <typename VT, typename ET, typename WT>
-OPGcsrmv<VT, ET, WT>::OPGcsrmv(
-  const raft::comms::comms_t &comm_, size_t *part_off_, ET *off_, VT *ind_, WT *val_, WT *x)
-  : comm(comm_), part_off(part_off_), off(off_), ind(ind_), val(val_)
+OPGcsrmv<VT, ET, WT>::OPGcsrmv(const raft::comms::comms_t &comm_,
+                               VT *local_vertices_,
+                               VT *part_off_,
+                               ET *off_,
+                               VT *ind_,
+                               WT *val_,
+                               WT *x)
+  : comm(comm_),
+    local_vertices(local_vertices_),
+    part_off(part_off_),
+    off(off_),
+    ind(ind_),
+    val(val_)
 {
   stream = nullptr;
   i      = comm.get_rank();
@@ -53,7 +63,10 @@ void OPGcsrmv<VT, ET, WT>::run(WT *x)
   WT h_one  = 1.0;
   WT h_zero = 0.0;
   spmv.run(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
-  comm.allgatherv(y_loc.data().get(), x, &v_locs_h[0], &displs_h[0], stream);
+  // FIXME https://github.com/rapidsai/raft/issues/21
+  size_t recvbuf[comm.get_size()];
+  for (int i = 0; i < comm.get_size(); i++) recvbuf[i] = local_vertices[i];
+  comm.allgatherv(y_loc.data().get(), x, recvbuf, part_off, stream);
 }
 
 template class OPGcsrmv<int, int, double>;
