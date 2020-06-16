@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 
-// snmg spmv
-// Author: Alex Fender afender@nvidia.com
-
 #include "spmv_1D.cuh"
 
 namespace cugraph {

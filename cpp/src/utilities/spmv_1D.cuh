@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 
-// snmg spmv
-// Author: Alex Fender afender@nvidia.com
-
 #pragma once
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

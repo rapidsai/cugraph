@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// snmg pagerank
 // Author: Alex Fender afender@nvidia.com
 
 #pragma once

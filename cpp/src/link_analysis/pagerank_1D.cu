@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// opg 1D pagerank
 // Author: Alex Fender afender@nvidia.com
 
 #include <graph.hpp>
