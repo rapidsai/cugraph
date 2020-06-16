@@ -4,6 +4,7 @@
 - PR #937 Add wrapper for gunrock HITS algorithm
 - PR #861 Adds simple OpenCypher query execution
 - PR #939 Updated Notebooks to include new features and benchmarks
+- PR #944 opg pagerank dask
 - PR #950 Adds python bindings for db
 
 ## Improvements
@@ -17,6 +18,7 @@
 - PR #942 Removed references to deprecated RMM headers.
 - PR #941 Regression python/cudf fix
 - PR #945 Simplified benchmark --no-rmm-reinit option, updated default options
+- PR #946 Install meta packages for dependencies
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper

@@ -63,6 +63,8 @@ from cugraph.proto.structure import find_bicliques
 from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
 
+from cugraph.opg.link_analysis.mg_pagerank_wrapper import mg_pagerank
+
 # Versioneer
 from ._version import get_versions
 __version__ = get_versions()['version']
