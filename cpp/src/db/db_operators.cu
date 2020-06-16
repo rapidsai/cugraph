@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+#include <rmm/thrust_rmm_allocator.h>
 #include <utilities/error_utils.h>
 #include <cub/device/device_select.cuh>
 #include <db/db_operators.cuh>
+#include <rmm/device_buffer.hpp>
 
 namespace cugraph {
 namespace db {
