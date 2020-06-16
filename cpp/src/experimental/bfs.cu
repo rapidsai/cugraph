@@ -17,6 +17,7 @@
 #include <utilities/error_utils.h>
 
 // FIXME: think about moving pattern accelerator API related files to detail/patterns
+#include <algorithms.hpp>
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/adj_matrix_row_frontier.cuh>
 #include <detail/patterns/expand_row_and_transform_if_e.cuh>
@@ -44,11 +45,10 @@ namespace detail {
 
 template <typename GraphType, typename VertexIterator>
 void bfs_this_partition(
-    raft::handle_t handle, GraphType const& csr_graph,
+    raft::handle_t &handle, GraphType const &csr_graph,
     VertexIterator distance_first, VertexIterator predecessor_first,
-    typename GraphType::vertex_type starting_vertex,
-    bool direction_optimizing = false, size_t depth_limit = std::numeric_limits<size_t>::max(),
-    bool do_expensive_check = false) {
+    typename GraphType::vertex_type start_vertex, bool direction_optimizing, size_t depth_limit,
+    bool do_expensive_check) {
   using vertex_t = typename GraphType::vertex_type;
 
   static_assert(
@@ -74,7 +74,7 @@ void bfs_this_partition(
     graph_device_view.is_symmetric() || !direction_optimizing,
     "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
   CUGRAPH_EXPECTS(
-    graph_device_view.in_vertex_range(starting_vertex),
+    graph_device_view.in_vertex_range(start_vertex),
     "Invalid input argument: starting vertex out-of-range.");
 
   if (do_expensive_check) {
@@ -93,10 +93,10 @@ void bfs_this_partition(
     graph_device_view.this_partition_vertex_begin(),
     graph_device_view.this_partition_vertex_end(),
     val_first,
-    [graph_device_view, starting_vertex] __device__ (auto val) {
+    [graph_device_view, start_vertex] __device__ (auto val) {
       auto distance = invalid_distance;
       auto v = graph_device_view.get_vertex_from_this_partition_vertex_offset_nocheck(val);
-      if (v == starting_vertex) {
+      if (v == start_vertex) {
         distance = static_cast<vertex_t>(0);
       }
       return thrust::make_tuple(distance, invalid_vertex);
@@ -112,8 +112,8 @@ void bfs_this_partition(
     raft::handle_t, thrust::tuple<vertex_t>, vertex_t, static_cast<size_t>(Bucket::num_buckets)
   > adj_matrix_row_frontier(handle, bucket_sizes);
 
-  if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(starting_vertex)) {
-    adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(starting_vertex);
+  if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(start_vertex)) {
+    adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(start_vertex);
   }
 
   // 4. BFS iteration
@@ -185,13 +185,23 @@ void bfs_this_partition(
   return;
 }
 
+}  // namespace detail
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void bfs(raft::handle_t &handle, GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         vertex_t *distances, vertex_t *predecessors, vertex_t start_vertex,
+         bool direction_optimizing, size_t depth_limit, bool do_expensive_check) {
+  detail::bfs_this_partition(
+    handle, graph, distances, predecessors, start_vertex,
+    direction_optimizing, depth_limit, do_expensive_check);
+}
+
 // explicit instantiation
 
-template void bfs_this_partition(
-    raft::handle_t handle, GraphCSRView<uint32_t, uint32_t, float> const& csr_graph,
-    uint32_t* distance_first, uint32_t* predecessor_first, uint32_t starting_vertex,
-    bool direction_optimizing, size_t depth_limit, bool do_expensive_check);
+template void bfs(
+  raft::handle_t &handle, GraphCSRView<int32_t, int32_t, float> const &graph,
+  int32_t *distances, int32_t *predecessors, int32_t start_vertex,
+  bool direction_optimizing, size_t depth_limit, bool do_expensive_check);
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

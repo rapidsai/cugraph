@@ -44,7 +44,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS} cudart cuda)
+        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS} cudart cuda cublas cusolver cusparse)
     if (BUILD_MPI)
         include_directories(include ${MPI_CXX_INCLUDE_PATH} ${NCCL_INCLUDE_DIRS})
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE ${MPI_C_LIBRARIES} ${NCCL_LIBRARIES} )
