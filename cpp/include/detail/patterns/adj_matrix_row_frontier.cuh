@@ -380,7 +380,7 @@ class AdjMatrixRowFrontier {
     buffer_ptrs_[0] = reinterpret_cast<void*>(ptr);
     ptr += round_up(sizeof(vertex_t) * buffer_capacity_, kBufferAlignment);
     for (size_t i = 0; i < kReduceInputTupleSize; ++i) {
-      buffer_ptrs_[i] = reinterpret_cast<void*>(ptr);
+      buffer_ptrs_[1 + i] = reinterpret_cast<void*>(ptr);
       ptr += round_up(tuple_element_sizes_[i] * buffer_capacity_, kBufferAlignment);
     }
   }

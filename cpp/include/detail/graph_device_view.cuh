@@ -93,6 +93,7 @@ class graph_compressed_sparse_base_device_view_t<
     // FIXME: better not directly access graph member variables, and directed is a misnomer.
     is_symmetric_ = !graph.prop.directed;
     number_of_vertices_ = graph.number_of_vertices;
+    number_of_edges_ = graph.number_of_edges;
     // FIXME: better not directly access graph member variables
     offsets_ptr_ = graph.offsets;
     indices_ptr_ = graph.indices;

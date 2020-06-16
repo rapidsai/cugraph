@@ -109,7 +109,8 @@ void bfs_this_partition(
     static_cast<size_t>(Bucket::num_buckets),
     graph_device_view.get_number_of_this_partition_adj_matrix_rows());
   AdjMatrixRowFrontier<
-    raft::handle_t, thrust::tuple<vertex_t>, vertex_t, static_cast<size_t>(Bucket::num_buckets)
+    raft::handle_t, thrust::tuple<vertex_t>, vertex_t,
+    false, static_cast<size_t>(Bucket::num_buckets)
   > adj_matrix_row_frontier(handle, bucket_sizes);
 
   if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(start_vertex)) {
