@@ -96,12 +96,12 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     if (df['pagerank'].dtype == np.float32): 
         graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
 
-        c_pagerank[int,int,float](graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+        c_pagerank[int,int,float](graph_float.handle[0], graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
                                <float> alpha, <float> tol, <int> max_iter, has_guess)
         graph_float.get_vertex_identifiers(<int*>c_identifier)
     else: 
         graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
-        c_pagerank[int,int,double](graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+        c_pagerank[int,int,double](graph_double.handle[0], graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, has_guess)
         graph_double.get_vertex_identifiers(<int*>c_identifier)
 
