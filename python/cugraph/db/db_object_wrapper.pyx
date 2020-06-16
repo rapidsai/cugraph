@@ -10,9 +10,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# distutils: language = c++
 
-from db_object cimport db_object
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.db.db_object cimport *
 
 cdef class db_big:
     cdef db_object[long]*c_db
@@ -23,14 +27,18 @@ cdef class db_big:
     def __dealloc__(self):
         del self.c_db
 
-    def query(self):
-        return self.c_db.query()
+    def query(self, q):
+        q1 = q.encode('utf-8')
+        q2 = self.c_db.query(q1)
+        return q2.decode('utf-8')
 
     def toString(self):
-        return self.c_db.toString()
+        q = self.c_db.toString()
+        return q.decode('utf-8')
 
     def __str__(self):
-        return self.c_db.toString()
+        q = self.c_db.toString()
+        return q.decode('utf-8')
 
 cdef class db_small:
     cdef db_object[int]*c_db
@@ -41,11 +49,15 @@ cdef class db_small:
     def __dealloc__(self):
         del self.c_db
 
-    def query(self):
-        return self.c_db.query()
+    def query(self, q):
+        q1 = q.encode('utf-8')
+        q2 = self.c_db.query(q1)
+        return q2.decode('utf-8')
 
     def toString(self):
-        return self.c_db.toString()
+        q = self.c_db.toString()
+        return q.decode('utf-8')
 
     def __str__(self):
-        return self.c_db.toString()
+        q = self.c_db.toString()
+        return q.decode('utf-8')

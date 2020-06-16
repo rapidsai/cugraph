@@ -100,6 +100,7 @@ EXTENSIONS = [
               sources=CYTHON_FILES,
               include_dirs=[conda_include_dir,
                             '../cpp/include',
+                            '../cpp/src',
                             "../thirdparty/cub",
                             raft_include_dir,
                             os.path.join(

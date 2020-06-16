@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <db/db_table.cuh>
 #include <db/db_results.cuh>
+#include <db/db_table.cuh>
 
 #define MAXBLOCKS 65535
 #define FIND_MATCHES_BLOCK_SIZE 512

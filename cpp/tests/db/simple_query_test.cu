@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph.h>
 #include "db/db_object.cuh"
 #include "gtest/gtest.h"
-#include "high_res_clock.h"
-#include "test_utils.h"
 #include "utilities/graph_utils.cuh"
 
 class Test_Parser : public ::testing::Test {

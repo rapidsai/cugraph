@@ -16,9 +16,9 @@
 
 #pragma once
 
+#include <string>
 #include "db/db_context.cuh"
 #include "db/db_table.cuh"
-#include <string>
 
 namespace cugraph {
 namespace db {
