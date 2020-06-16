@@ -30,7 +30,8 @@ struct any {
 template <typename T>
 struct min {
   using type = T;
-  __host__ __device__ T operator()(T const& lhs, T const& rhs) const {
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const
+  {
     return lhs < rhs ? lhs : rhs;
   }
 };

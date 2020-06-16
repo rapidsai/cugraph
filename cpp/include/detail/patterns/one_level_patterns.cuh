@@ -17,71 +17,80 @@
 
 #include <graph.hpp>
 
-
 namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename HandleType, typename GraphType,
+template <typename HandleType, typename GraphType, typename VertexValueInputIterator, typename T>
+T reduce_v(HandleType handle,
+           GraphType graph,
+           VertexValueInputIterator vertex_value_input_first,
+           T init);
+
+template <typename HandleType, typename GraphType, typename VertexValueInputIterator, typename T>
+T reduce_v(HandleType handle,
+           GraphType graph,
+           VertexValueInputIterator vertex_value_input_first,
+           VertexValueInputIterator vertex_value_input_last,
+           T init);
+
+template <typename HandleType,
+          typename GraphType,
           typename VertexValueInputIterator,
+          typename VertexOp,
           typename T>
-T reduce_v(
-    HandleType handle, GraphType graph,
-    VertexValueInputIterator vertex_value_input_first,
-    T init);
+T transform_reduce_v(HandleType handle,
+                     GraphType graph,
+                     VertexValueInputIterator vertex_value_input_first,
+                     VertexOp v_op,
+                     T init);
 
-template <typename HandleType, typename GraphType,
-          typename VertexValueInputIterator,
-          typename T>
-T reduce_v(
-    HandleType handle, GraphType graph,
-    VertexValueInputIterator vertex_value_input_first,
-    VertexValueInputIterator vertex_value_input_last,
-    T init);
-
-template <typename HandleType, typename GraphType,
-          typename VertexValueInputIterator,
-          typename VertexOp, typename T>
-T transform_reduce_v(
-    HandleType handle, GraphType graph,
-    VertexValueInputIterator vertex_value_input_first,
-    VertexOp v_op, T init);
-
-template <typename HandleType, typename GraphType,
+template <typename HandleType,
+          typename GraphType,
           typename VertexValueInputIterator,
           typename VertexOp>
-typename GraphType::vertex_type count_if_v(
-    HandleType handle, GraphType graph,
-    VertexValueInputIterator vertex_value_input_first,
-    VertexOp v_op);
+typename GraphType::vertex_type count_if_v(HandleType handle,
+                                           GraphType graph,
+                                           VertexValueInputIterator vertex_value_input_first,
+                                           VertexOp v_op);
 
-template <typename HandleType, typename GraphType,
-          typename VertexValueInputIterator, typename AdjMatrixColValueInputIterator,
+template <typename HandleType,
+          typename GraphType,
+          typename VertexValueInputIterator,
+          typename AdjMatrixColValueInputIterator,
           typename VertexValueOutputIterator,
-          typename VertexOp, typename T>
+          typename VertexOp,
+          typename T>
 T transform_reduce_v_with_adj_matrix_col(
-    HandleType handle, GraphType graph,
-    VertexValueInputIterator vertex_value_input_first,
-    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-    VertexValueOutputIterator vetex_value_output_first,
-    VertexOp v_op, T init);
+  HandleType handle,
+  GraphType graph,
+  VertexValueInputIterator vertex_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  VertexValueOutputIterator vetex_value_output_first,
+  VertexOp v_op,
+  T init);
 
-template <typename HandleType, typename GraphType,
+template <typename HandleType,
+          typename GraphType,
           typename AdjMatrixColValueInputIterator,
           typename ColOp>
 typename GraphType::vertex_type count_if_adj_matrix_col(
-    HandleType handle, GraphType graph,
-    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-    ColOp col_op);
+  HandleType handle,
+  GraphType graph,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  ColOp col_op);
 
-template <typename HandleType, typename GraphType,
-          typename AdjMatrixRowValueInputIterator, typename AdjMatrixColValueInputIterator,
+template <typename HandleType,
+          typename GraphType,
+          typename AdjMatrixRowValueInputIterator,
+          typename AdjMatrixColValueInputIterator,
           typename EdgeOp>
 typename GraphType::edge_type count_if_e(
-    HandleType handle, GraphType graph,
-    AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-    EdgeOp e_op);
+  HandleType handle,
+  GraphType graph,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  EdgeOp e_op);
 
 }  // namespace detail
 }  // namespace experimental

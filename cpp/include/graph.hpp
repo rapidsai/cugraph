@@ -98,7 +98,7 @@ template <typename VT, typename ET, typename WT>
 class GraphCOOView : public GraphViewBase<VT, ET, WT> {
  public:
   using vertex_type = VT;
-  using edge_type = ET;
+  using edge_type   = ET;
   using weight_type = WT;
 
   VT *src_indices{nullptr};  ///< rowInd
@@ -230,10 +230,10 @@ class GraphCompressedSparseBaseView : public GraphViewBase<VT, ET, WT> {
 template <typename VT, typename ET, typename WT>
 class GraphCSRView : public GraphCompressedSparseBaseView<VT, ET, WT> {
  public:
-  using vertex_type = VT;
-  using edge_type = ET;
-  using weight_type = WT;
-  static constexpr bool is_row_major = true;
+  using vertex_type                     = VT;
+  using edge_type                       = ET;
+  using weight_type                     = WT;
+  static constexpr bool is_row_major    = true;
   static constexpr bool is_column_major = false;
 
   /**
@@ -280,10 +280,10 @@ class GraphCSRView : public GraphCompressedSparseBaseView<VT, ET, WT> {
 template <typename VT, typename ET, typename WT>
 class GraphCSCView : public GraphCompressedSparseBaseView<VT, ET, WT> {
  public:
-  using vertex_type = VT;
-  using edge_type = ET;
-  using weight_type = WT;
-  static constexpr bool is_row_major = true;
+  using vertex_type                     = VT;
+  using edge_type                       = ET;
+  using weight_type                     = WT;
+  static constexpr bool is_row_major    = true;
   static constexpr bool is_column_major = false;
 
   /**
@@ -365,9 +365,9 @@ class GraphCOO {
   rmm::device_buffer edge_data_{};    ///< CSR data
 
  public:
-  using vertex_type = VT;
-  using edge_type = ET;
-  using weight_type = WT;
+  using vertex_type            = VT;
+  using edge_type              = ET;
+  using weight_type            = WT;
   static bool constexpr is_opg = false;
 
   /**
@@ -547,10 +547,10 @@ class GraphCompressedSparseBase {
 template <typename VT, typename ET, typename WT>
 class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
  public:
-  using vertex_type = VT;
-  using edge_type = ET;
-  using weight_type = WT;
-  static constexpr bool is_row_major = true;
+  using vertex_type                     = VT;
+  using edge_type                       = ET;
+  using weight_type                     = WT;
+  static constexpr bool is_row_major    = true;
   static constexpr bool is_column_major = false;
 
   /**
@@ -612,10 +612,10 @@ class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
 template <typename VT, typename ET, typename WT>
 class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
  public:
-  using vertex_type = VT;
-  using edge_type = ET;
-  using weight_type = WT;
-  static constexpr bool is_row_major = true;
+  using vertex_type                     = VT;
+  using edge_type                       = ET;
+  using weight_type                     = WT;
+  static constexpr bool is_row_major    = true;
   static constexpr bool is_column_major = false;
 
   /**
@@ -671,26 +671,34 @@ struct invalid_vertex_id;
 
 template <typename VT>
 struct invalid_vertex_id<
-  VT, typename std::enable_if_t<std::is_integral<VT>::value && std::is_signed<VT>::value>
-> : std::integral_constant<VT, -1> {};
+  VT,
+  typename std::enable_if_t<std::is_integral<VT>::value && std::is_signed<VT>::value>>
+  : std::integral_constant<VT, -1> {
+};
 
 template <typename VT>
 struct invalid_vertex_id<
-  VT, typename std::enable_if_t<std::is_integral<VT>::value && std::is_unsigned<VT>::value>
-> : std::integral_constant<VT, std::numeric_limits<VT>::max()> {};
+  VT,
+  typename std::enable_if_t<std::is_integral<VT>::value && std::is_unsigned<VT>::value>>
+  : std::integral_constant<VT, std::numeric_limits<VT>::max()> {
+};
 
 template <typename ET, typename Enable = void>
 struct invalid_edge_id;
 
 template <typename ET>
 struct invalid_edge_id<
-  ET, typename std::enable_if_t<std::is_integral<ET>::value && std::is_signed<ET>::value>
-> : std::integral_constant<ET, -1> {};
+  ET,
+  typename std::enable_if_t<std::is_integral<ET>::value && std::is_signed<ET>::value>>
+  : std::integral_constant<ET, -1> {
+};
 
 template <typename ET>
 struct invalid_edge_id<
-  ET, typename std::enable_if_t<std::is_integral<ET>::value && std::is_unsigned<ET>::value>
-> : std::integral_constant<ET, std::numeric_limits<ET>::max()> {};
+  ET,
+  typename std::enable_if_t<std::is_integral<ET>::value && std::is_unsigned<ET>::value>>
+  : std::integral_constant<ET, std::numeric_limits<ET>::max()> {
+};
 
 }  // namespace experimental
 }  // namespace cugraph

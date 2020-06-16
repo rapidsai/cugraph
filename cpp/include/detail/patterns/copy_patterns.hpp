@@ -17,42 +17,51 @@
 
 #include <graph.hpp>
 
-
 namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename HandleType, typename GraphType,
-          typename VertexValueInputIterator, typename AdjMatrixRowValueOutputIterator>
-void copy_to_adj_matrix_row(
-    HandleType handle, GraphType graph,
-    VertexValueInputIterator vertex_value_input_first,
-    AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first);
+template <typename HandleType,
+          typename GraphType,
+          typename VertexValueInputIterator,
+          typename AdjMatrixRowValueOutputIterator>
+void copy_to_adj_matrix_row(HandleType handle,
+                            GraphType graph,
+                            VertexValueInputIterator vertex_value_input_first,
+                            AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first);
 
-template <typename HandleType, typename GraphType,
+template <typename HandleType,
+          typename GraphType,
           typename VertexIterator,
-          typename VertexValueInputIterator, typename AdjMatrixRowValueOutputIterator>
-void copy_to_adj_matrix_row(
-    HandleType handle, GraphType graph,
-    VertexIterator vertex_first, VertexIterator vertex_last,
-    VertexValueInputIterator vertex_value_input_first,
-    AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first);
+          typename VertexValueInputIterator,
+          typename AdjMatrixRowValueOutputIterator>
+void copy_to_adj_matrix_row(HandleType handle,
+                            GraphType graph,
+                            VertexIterator vertex_first,
+                            VertexIterator vertex_last,
+                            VertexValueInputIterator vertex_value_input_first,
+                            AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first);
 
-template <typename HandleType, typename GraphType,
-          typename VertexValueInputIterator, typename AdjMatrixColValueOutputIterator>
-void copy_to_adj_matrix_col(
-    HandleType handle, GraphType graph,
-    VertexValueInputIterator vertex_value_input_first,
-    AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first);
+template <typename HandleType,
+          typename GraphType,
+          typename VertexValueInputIterator,
+          typename AdjMatrixColValueOutputIterator>
+void copy_to_adj_matrix_col(HandleType handle,
+                            GraphType graph,
+                            VertexValueInputIterator vertex_value_input_first,
+                            AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first);
 
-template <typename HandleType, typename GraphType,
+template <typename HandleType,
+          typename GraphType,
           typename VertexIterator,
-          typename VertexValueInputIterator, typename AdjMatrixColValueOutputIterator>
-void copy_to_adj_matrix_col(
-    HandleType handle, GraphType graph,
-    VertexIterator vertex_first, VertexIterator vertex_last,
-    VertexValueInputIterator vertex_value_input_first,
-    AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first);
+          typename VertexValueInputIterator,
+          typename AdjMatrixColValueOutputIterator>
+void copy_to_adj_matrix_col(HandleType handle,
+                            GraphType graph,
+                            VertexIterator vertex_first,
+                            VertexIterator vertex_last,
+                            VertexValueInputIterator vertex_value_input_first,
+                            AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first);
 
 }  // namespace detail
 }  // namespace experimental

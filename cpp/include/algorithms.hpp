@@ -858,15 +858,23 @@ void hits(experimental::GraphCSRView<VT, ET, WT> const &graph,
 namespace experimental {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void bfs(raft::handle_t &handle, GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-         vertex_t *distances, vertex_t *predecessors, vertex_t start_vertex,
-         bool direction_optimizing = false, size_t depth_limit = std::numeric_limits<size_t>::max(),
-         bool do_expensive_check = false);
- 
+void bfs(raft::handle_t &handle,
+         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         vertex_t *distances,
+         vertex_t *predecessors,
+         vertex_t start_vertex,
+         bool direction_optimizing = false,
+         size_t depth_limit        = std::numeric_limits<size_t>::max(),
+         bool do_expensive_check   = false);
+
 template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp(raft::handle_t &handle, GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-          weight_t *distances, vertex_t *predecessors, vertex_t source_vertex,
-          size_t depth_limit = std::numeric_limits<size_t>::max(), bool do_expensive_check = false);
+void sssp(raft::handle_t &handle,
+          GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+          weight_t *distances,
+          vertex_t *predecessors,
+          vertex_t source_vertex,
+          size_t depth_limit      = std::numeric_limits<size_t>::max(),
+          bool do_expensive_check = false);
 
 }  // namespace experimental
 
