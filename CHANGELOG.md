@@ -4,6 +4,7 @@
 - PR #937 Add wrapper for gunrock HITS algorithm
 - PR #861 Adds simple OpenCypher query execution
 - PR #939 Updated Notebooks to include new features and benchmarks
+- PR #950 Adds python bindings for db
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
