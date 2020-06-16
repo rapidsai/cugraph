@@ -3,6 +3,7 @@
 ## New Features
 - PR #937 Add wrapper for gunrock HITS algorithm
 - PR #939 Updated Notebooks to include new features and benchmarks
+- PR #944 opg pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
 
 ## Improvements
@@ -15,6 +16,8 @@
 - PR #934 Update conda dev environment.yml dependencies to 0.15
 - PR #942 Removed references to deprecated RMM headers.
 - PR #941 Regression python/cudf fix
+- PR #945 Simplified benchmark --no-rmm-reinit option, updated default options
+- PR #946 Install meta packages for dependencies
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -72,6 +75,7 @@
 - PR #897 Remove RMM ALLOC calls
 - PR #899 Update include paths to remove deleted cudf headers
 - PR #906 Update Louvain notebook
+- PR #948 Move doc customization scripts to Jenkins
 
 ## Bug Fixes
 - PR #927 Update scikit learn dependency
@@ -93,7 +97,7 @@
 - PR #911 Env and changelog update
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash
 - PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
-- PR 935 Merge 
+- PR 935 Merge
 
 # cuGraph 0.13.0 (31 Mar 2020)
 
