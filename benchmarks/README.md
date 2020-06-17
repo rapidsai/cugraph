@@ -22,7 +22,8 @@ directory under the root of the `cuGraph` source tree.
 
 * The benchmark datasets downloaded and installed in <cugraph>/datasets. Run the
 script below from the <cugraph>/datasets directory:
-``` cd <cugraph>/datasets
+```
+cd <cugraph>/datasets
 ./get_test_data.sh --benchmark
 ```
 
