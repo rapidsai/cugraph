@@ -36,8 +36,8 @@ OPGcsrmv<VT, ET, WT>::OPGcsrmv(const raft::comms::comms_t &comm_,
   stream = nullptr;
   i      = comm.get_rank();
   p      = comm.get_size();
-  v_glob = part_off[p];
-  v_loc  = part_off[i + 1] - part_off[i];
+  v_glob = part_off[p - 1] + local_vertices[p - 1];
+  v_loc  = local_vertices[i];
   VT tmp;
   cudaMemcpy(&tmp, &off[v_loc], sizeof(VT), cudaMemcpyDeviceToHost);
   CUDA_CHECK_LAST();

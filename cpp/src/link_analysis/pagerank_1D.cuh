@@ -40,10 +40,6 @@ class Pagerank {
   int sm_count;
 
   // Vertex offsets for each partition.
-  // This information should be available on all threads/devices
-  // part_offsets[device_id] contains the global ID
-  // of the first vertex of the partion owned by device_id.
-  // part_offsets[num_devices] contains the global number of vertices
   VT *part_off;
   VT *local_vertices;
 

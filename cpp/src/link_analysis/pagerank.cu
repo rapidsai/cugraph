@@ -357,7 +357,7 @@ void pagerank(raft::handle_t const &handle,
                     "Invalid API parameter: Multi-GPU Pagerank does not support Personalized "
                     "variant, please use the single GPU version for this feature");
     CUGRAPH_EXPECTS(
-      tolerance == 1e-5,
+      tolerance > 1e-6 && tolerance < 1e-4,
       "Invalid API parameter: Multi-GPU Pagerank does not support tolerance, please use "
       "the number of iteration as stopping criteria");
     CUGRAPH_EXPECTS(has_guess == false,
