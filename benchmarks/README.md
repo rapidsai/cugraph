@@ -20,8 +20,11 @@ directory under the root of the `cuGraph` source tree.
   * NOTE: the `rlratzel` channel is temporary! This plugin will eventually be
     moved to a more standard channel
 
-* specific datasets installed in <cugraph>/datasets (see benchmark sources in
-  this dir for details)
+* The benchmark datasets downloaded and installed in <cugraph>/datasets. Run the
+script below from the <cugraph>/datasets directory:
+``` cd <cugraph>/datasets
+./get_test_data.sh --benchmark
+```
 
 ## Usage (Python)
 ### Python
