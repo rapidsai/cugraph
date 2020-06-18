@@ -1,0 +1,116 @@
+/*
+ * Copyright (c) 2020, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef VERTEX_BINNING_CUH
+#define VERTEX_BINNING_CUH
+
+#include "vertex_binning_kernels.cuh"
+
+namespace detail {
+
+namespace opg {
+
+template <typename VT, typename ET>
+struct DegreeBucket
+{
+  VT * vertexIds;
+  VT numberOfVertices;
+  ET ceilLogDegreeStart;
+  ET ceilLogDegreeEnd;
+};
+
+template <typename VT, typename ET>
+class LogDistribution
+{
+  VT * vertex_id_begin_;
+  thrust::host_vector<ET> bin_offsets_;
+
+  public :
+  LogDistribution(
+      rmm::device_vector<ET>& vertex_id,
+      rmm::device_vector<ET>& bin_offsets) :
+    vertex_id_begin_(vertex_id.data.get()), bin_offsets_(bin_offsets) {}
+
+  DegreeBucket<VT, ET> degreeRange(
+      ET ceilLogDegreeStart, ET ceilLogDegreeEnd) {
+    if (ceilLogDegreeStart < static_cast<ET>(0)) {
+      ceilLogDegreeStart = 0;
+    }
+    return DegreeBucket<VT, ET>{
+      vertex_id_begin_ + bin_offsets_[ceilLogDegreeStart + 1],
+      bin_offsets_[ceilLogDegreeEnd + 1] - bin_offsets_[ceilLogDegreeStart + 1],
+      ceilLogDegreeStart, ceilLogDegreeEnd};
+  }
+
+  DegreeBucket<VT, ET> degreeRange(
+      ET ceilLogDegreeStart) {
+    return degreeRange(ceilLogDegreeStart, bin_offsets_.size() - 1);
+  }
+};
+
+template <typename VT, typename ET>
+class VertexBinner
+{
+  ET *offsets_;
+  unsigned *active_bitmap_;
+  VT vertex_begin_;
+  VT vertex_end_;
+
+  rmm::device_vector<ET> tempBins_;
+  rmm::device_vector<ET> bin_offsets_;
+
+  public :
+  VertexBinner(void) :
+    tempBins_(NumberBins<ET>), bin_offsets_(NumberBins<ET>) {}
+
+  void setup(
+    ET *offsets,
+    unsigned *active_bitmap,
+    VT vertex_begin,
+    VT vertex_end) {
+    offsets_ = offsets;
+    active_bitmap_ = active_bitmap;
+    vertex_begin_ = vertex_begin;
+    vertex_end_ = vertex_end;
+  }
+
+  LogDistribution<VT, ET>
+  run(
+    rmm::device_vector<VT>& reorganized_vertices,
+    cudaStream_t stream);
+};
+
+template <typename VT, typename ET>
+LogDistribution<VT, ET>
+VertexBinner<VT, ET>::run(
+    rmm::device_vector<VT>& reorganized_vertices,
+    cudaStream_t stream) {
+  bin_vertices(
+      reorganized_vertices,
+      bin_offsets_, tempBins_,
+      active_bitmap_,
+      offsets_,
+      vertex_begin_, vertex_end_,
+      stream);
+
+  return LogDistribution<VT, ET>(reorganized_vertices, bin_offsets_);
+}
+
+}//namespace opg
+
+}//namespace detail
+
+#endif //VERTEX_BINNING_CUH
