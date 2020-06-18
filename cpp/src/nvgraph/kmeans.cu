@@ -365,8 +365,7 @@ static int chooseNewCentroid(IndexType_ n,
   inclusive_scan(
     device_pointer_cast(dists), device_pointer_cast(dists + n), device_pointer_cast(distsCumSum));
   cudaCheckError();
-  CUDA_TRY(
-    cudaMemcpy(&distsSum, distsCumSum + n - 1, sizeof(ValueType_), cudaMemcpyDeviceToHost));
+  CUDA_TRY(cudaMemcpy(&distsSum, distsCumSum + n - 1, sizeof(ValueType_), cudaMemcpyDeviceToHost));
 
   // Randomly choose observation vector
   //   Probabilities are proportional to square of distance to closest
@@ -766,8 +765,7 @@ NVGRAPH_ERROR kmeans(IndexType_ n,
     cudaCheckError();
 
     if (n < k) CUDA_TRY(cudaMemsetAsync(clusterSizes + n, 0, (k - n) * sizeof(IndexType_)));
-    CUDA_TRY(
-      cudaMemcpyAsync(centroids, obs, d * n * sizeof(ValueType_), cudaMemcpyDeviceToDevice));
+    CUDA_TRY(cudaMemcpyAsync(centroids, obs, d * n * sizeof(ValueType_), cudaMemcpyDeviceToDevice));
     *residual_host = 0;
     return NVGRAPH_OK;
   }

@@ -162,8 +162,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (param.result_file.length() > 0) {
       std::vector<T> calculated_res(m);
 
-      CUDA_TRY(
-        cudaMemcpy(&calculated_res[0], d_pagerank, sizeof(T) * m, cudaMemcpyDeviceToHost));
+      CUDA_TRY(cudaMemcpy(&calculated_res[0], d_pagerank, sizeof(T) * m, cudaMemcpyDeviceToHost));
       std::sort(calculated_res.begin(), calculated_res.end());
       fpin = fopen(param.result_file.c_str(), "rb");
       ASSERT_TRUE(fpin != NULL) << " Cannot read file with reference data: " << param.result_file

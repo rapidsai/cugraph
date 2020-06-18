@@ -62,7 +62,7 @@ void apply_repulsion(const float *restrict x_pos,
   dim3 nblocks(min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS_2D),
                min((n + nthreads.y - 1) / nthreads.y, CUDA_MAX_BLOCKS_2D));
 
-  //FIXME: apply repulsion should take stream as an input argument
+  // FIXME: apply repulsion should take stream as an input argument
   repulsion_kernel<vertex_t>
     <<<nblocks, nthreads>>>(x_pos, y_pos, repel_x, repel_y, mass, scaling_ratio, n);
   CHECK_CUDA(nullptr);

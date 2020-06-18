@@ -26,9 +26,9 @@
 #include <nvgraph/include/sm_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/transform.h>
-#include <utilities/error.hpp>
 #include <ctime>
 #include <nvgraph/include/nvgraph_error.hxx>
+#include <utilities/error.hpp>
 
 #include <nvgraph/include/modularity_maximization.hxx>
 #include <nvgraph/include/nvgraph_cublas.hxx>

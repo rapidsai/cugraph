@@ -187,8 +187,7 @@ void myPrintDevVector(const char* variableName,
                       OutStream& out)
 {
   std::vector<T> hostMem(componentsCount);
-  CUDA_TRY(
-    cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
+  CUDA_TRY(cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
   myPrintHostVector(variableName, hostMem.data(), componentsCount, out);
 }
 

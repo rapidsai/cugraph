@@ -12,16 +12,16 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <utilities/high_res_clock.h>
 #include <layout/trust_worthiness.h>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
 
+#include <rmm/thrust_rmm_allocator.h>
 #include <raft/error.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include <rmm/thrust_rmm_allocator.h>
 
 #include <cuda_profiler_api.h>
 
@@ -209,8 +209,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     // Copy pos to host
     std::vector<float> h_pos(m * 2);
-    CUDA_TRY(
-      cudaMemcpy(&h_pos[0], d_force_atlas2, sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(&h_pos[0], d_force_atlas2, sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
 
     // Transpose the data
     std::vector<std::vector<double>> C_contiguous_embedding(m, std::vector<double>(2));

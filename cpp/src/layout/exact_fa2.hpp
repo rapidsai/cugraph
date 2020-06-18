@@ -85,7 +85,7 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   cudaStream_t stream = {nullptr};
   sort(graph, stream);
   CHECK_CUDA(stream);
-  //FIXME: this function should work on "stream"
+  // FIXME: this function should work on "stream"
   graph.degree(d_mass, cugraph::experimental::DegreeDirection::OUT);
   CHECK_CUDA(stream);
 

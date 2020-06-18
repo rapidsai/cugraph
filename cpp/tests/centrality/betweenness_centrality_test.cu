@@ -338,8 +338,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     cudaDeviceSynchronize();
     CUDA_TRY(cudaMemcpy(result.data(),
                         d_result.data().get(),
-                            sizeof(result_t) * G.number_of_vertices,
-                            cudaMemcpyDeviceToHost));
+                        sizeof(result_t) * G.number_of_vertices,
+                        cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
     for (int i = 0; i < G.number_of_vertices; ++i)
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))

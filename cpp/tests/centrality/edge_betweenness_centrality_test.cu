@@ -282,9 +282,9 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
                                          configuration.number_of_sources_,
                                          sources_ptr);
     CUDA_TRY(cudaMemcpy(result.data(),
-                            d_result.data().get(),
-                            sizeof(result_t) * G.number_of_edges,
-                            cudaMemcpyDeviceToHost));
+                        d_result.data().get(),
+                        sizeof(result_t) * G.number_of_edges,
+                        cudaMemcpyDeviceToHost));
     for (int i = 0; i < G.number_of_edges; ++i)
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
         << "[MISMATCH] vaid = " << i << ", cugraph = " << result[i]

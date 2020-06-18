@@ -15,8 +15,8 @@
  */
 #pragma once
 #include <cusparse.h>
-#include <utilities/error.hpp>
 #include <rmm/device_buffer.hpp>
+#include <utilities/error.hpp>
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {

@@ -28,7 +28,7 @@ namespace cugraph {
  */
 struct logic_error : public raft::exception {
   explicit logic_error(char const* const message) : raft::exception(message) {}
-  explicit logic_error(std::string const &message) : raft::exception(message) {}
+  explicit logic_error(std::string const& message) : raft::exception(message) {}
 };
 
 }  // namespace cugraph

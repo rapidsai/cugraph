@@ -16,8 +16,8 @@
 
 // Author: Prasun Gera pgera@nvidia.com
 
-#include <utilities/error.hpp>
 #include <algorithm>
+#include <utilities/error.hpp>
 
 #include "graph.hpp"
 

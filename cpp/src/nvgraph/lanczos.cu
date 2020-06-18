@@ -133,9 +133,9 @@ static int performLanczosIteration(const Matrix<IndexType_, ValueType_> *A,
     // Apply matrix
     if (shift != 0)
       CUDA_TRY(cudaMemcpyAsync(lanczosVecs_dev + (*iter) * n,
-                                 lanczosVecs_dev + (*iter - 1) * n,
-                                 n * sizeof(ValueType_),
-                                 cudaMemcpyDeviceToDevice));
+                               lanczosVecs_dev + (*iter - 1) * n,
+                               n * sizeof(ValueType_),
+                               cudaMemcpyDeviceToDevice));
     A->mv(1, lanczosVecs_dev + IDX(0, *iter - 1, n), shift, lanczosVecs_dev + IDX(0, *iter, n));
 
     // Full reorthogonalization
@@ -164,9 +164,9 @@ static int performLanczosIteration(const Matrix<IndexType_, ValueType_> *A,
                    lanczosVecs_dev + IDX(0, *iter, n),
                    1);
       CUDA_TRY(cudaMemcpyAsync(alpha_host + (*iter - 1),
-                                 work_dev + (*iter - 1),
-                                 sizeof(ValueType_),
-                                 cudaMemcpyDeviceToHost));
+                               work_dev + (*iter - 1),
+                               sizeof(ValueType_),
+                               cudaMemcpyDeviceToHost));
       Cublas::gemv(true,
                    n,
                    *iter,
@@ -585,9 +585,9 @@ static int lanczosRestart(IndexType_ n,
 
   // Normalize residual to obtain new Lanczos vector
   CUDA_TRY(cudaMemcpyAsync(lanczosVecs_dev + IDX(0, iter_new, n),
-                             lanczosVecs_dev + IDX(0, iter, n),
-                             n * sizeof(ValueType_),
-                             cudaMemcpyDeviceToDevice));
+                           lanczosVecs_dev + IDX(0, iter, n),
+                           n * sizeof(ValueType_),
+                           cudaMemcpyDeviceToDevice));
   beta_host[iter_new - 1] = Cublas::nrm2(n, lanczosVecs_dev + IDX(0, iter_new, n), 1);
   Cublas::scal(n, 1 / beta_host[iter_new - 1], lanczosVecs_dev + IDX(0, iter_new, n), 1);
 
@@ -880,9 +880,9 @@ NVGRAPH_ERROR computeSmallestEigenvectors(const Matrix<IndexType_, ValueType_> *
 
   // Copy results to device memory
   CUDA_TRY(cudaMemcpy(eigVals_dev,
-                        work_host + 2 * (*effIter),
-                        nEigVecs * sizeof(ValueType_),
-                        cudaMemcpyHostToDevice));
+                      work_host + 2 * (*effIter),
+                      nEigVecs * sizeof(ValueType_),
+                      cudaMemcpyHostToDevice));
   // for (int i = 0; i < nEigVecs; ++i)
   //{
   //  std::cout <<*(work_host+(2*(*effIter)+i))<< std::endl;
@@ -1299,15 +1299,15 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> *A
   // Copy results to device memory
   // skip smallest eigenvalue if needed
   CUDA_TRY(cudaMemcpy(eigVals_dev,
-                        work_host + 2 * (*effIter) + top_eigenparis_idx_offset,
-                        nEigVecs * sizeof(ValueType_),
-                        cudaMemcpyHostToDevice));
+                      work_host + 2 * (*effIter) + top_eigenparis_idx_offset,
+                      nEigVecs * sizeof(ValueType_),
+                      cudaMemcpyHostToDevice));
 
   // skip smallest eigenvector if needed
   CUDA_TRY(cudaMemcpy(work_dev,
-                        Z_host + (top_eigenparis_idx_offset * (*effIter)),
-                        (*effIter) * nEigVecs * sizeof(ValueType_),
-                        cudaMemcpyHostToDevice));
+                      Z_host + (top_eigenparis_idx_offset * (*effIter)),
+                      (*effIter) * nEigVecs * sizeof(ValueType_),
+                      cudaMemcpyHostToDevice));
 
   // Convert eigenvectors from Lanczos basis to standard basis
   Cublas::gemm(false,
