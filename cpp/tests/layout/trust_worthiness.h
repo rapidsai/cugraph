@@ -17,6 +17,8 @@
 #include "knn.h"
 
 #include <algorithm>
+#include <iostream>
+#include <vector>
 
 double euclidian_dist(const std::vector<int>& x, const std::vector<int>& y)
 {
