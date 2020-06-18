@@ -80,8 +80,7 @@ class GraphViewBase {
   }
   void set_handle(raft::handle_t *handle_) { handle = handle_; }
   GraphViewBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
-    : handle(nullptr),
-      edge_data(edge_data_),
+    : edge_data(edge_data_),
       prop(),
       number_of_vertices(number_of_vertices_),
       number_of_edges(number_of_edges_),
@@ -89,6 +88,7 @@ class GraphViewBase {
       local_edges(nullptr),
       local_offsets(nullptr)
   {
+    handle = new raft::handle_t;
   }
   bool has_data(void) const { return edge_data != nullptr; }
 };
