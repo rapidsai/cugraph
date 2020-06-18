@@ -144,7 +144,7 @@ template <typename HandleType,
           typename EdgeOp,
           typename T>
 T transform_reduce_e(HandleType& handle,
-                     GraphType graph,
+                     GraphType const& graph_device_view,
                      AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
                      AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
                      EdgeOp e_op,
@@ -154,8 +154,8 @@ T transform_reduce_e(HandleType& handle,
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   grid_1d_thread_t update_grid(GraphType::is_row_major
-                                 ? graph.get_number_of_this_partition_adj_matrix_rows()
-                                 : graph.get_number_of_this_partition_adj_matrix_cols(),
+                                 ? graph_device_view.get_number_of_this_partition_adj_matrix_rows()
+                                 : graph_device_view.get_number_of_this_partition_adj_matrix_cols(),
                                transform_reduce_e_for_all_low_out_degree_block_size,
                                get_max_num_blocks_1D());
 
@@ -165,11 +165,11 @@ T transform_reduce_e(HandleType& handle,
                                              update_grid.block_size,
                                              0,
                                              handle.get_stream()>>>(
-    graph,
-    GraphType::is_row_major ? graph.this_partition_adj_matrix_row_begin()
-                            : graph.this_partition_adj_matrix_col_begin(),
-    GraphType::is_row_major ? graph.this_partition_adj_matrix_row_end()
-                            : graph.this_partition_adj_matrix_col_end(),
+    graph_device_view,
+    GraphType::is_row_major ? graph_device_view.this_partition_adj_matrix_row_begin()
+                            : graph_device_view.this_partition_adj_matrix_col_begin(),
+    GraphType::is_row_major ? graph_device_view.this_partition_adj_matrix_row_end()
+                            : graph_device_view.this_partition_adj_matrix_col_end(),
     adj_matrix_row_value_input_first,
     adj_matrix_col_value_input_first,
     block_results.data(),

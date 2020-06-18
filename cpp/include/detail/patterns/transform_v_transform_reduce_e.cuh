@@ -46,7 +46,7 @@ template <typename HandleType,
           typename EdgeOp,
           typename T>
 void transform_v_transform_reduce_e(HandleType handle,
-                                    GraphType graph,
+                                    GraphType const& graph_device_view,
                                     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
                                     AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
                                     VertexValueInputIterator vertex_value_input_first,

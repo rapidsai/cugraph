@@ -268,7 +268,7 @@ template <typename HandleType,
           typename VertexOp>
 void expand_row_and_transform_if_v_push_if_e(
   HandleType& handle,
-  GraphType graph_device_view,
+  GraphType const& graph_device_view,
   RowIterator row_first,
   RowIterator row_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -277,7 +277,7 @@ void expand_row_and_transform_if_v_push_if_e(
   VertexValueOutputIterator vertex_value_output_first,
   AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
   AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
-  RowFrontierType row_frontier,
+  RowFrontierType& row_frontier,
   EdgeOp e_op,
   ReduceOp reduce_op,
   VertexOp v_op)

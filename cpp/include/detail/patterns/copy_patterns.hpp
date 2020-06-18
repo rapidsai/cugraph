@@ -26,7 +26,7 @@ template <typename HandleType,
           typename VertexValueInputIterator,
           typename AdjMatrixRowValueOutputIterator>
 void copy_to_adj_matrix_row(HandleType handle,
-                            GraphType graph,
+                            GraphType const& graph_device_view,
                             VertexValueInputIterator vertex_value_input_first,
                             AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first);
 
@@ -36,7 +36,7 @@ template <typename HandleType,
           typename VertexValueInputIterator,
           typename AdjMatrixRowValueOutputIterator>
 void copy_to_adj_matrix_row(HandleType handle,
-                            GraphType graph,
+                            GraphType const& graph_device_view,
                             VertexIterator vertex_first,
                             VertexIterator vertex_last,
                             VertexValueInputIterator vertex_value_input_first,
@@ -47,7 +47,7 @@ template <typename HandleType,
           typename VertexValueInputIterator,
           typename AdjMatrixColValueOutputIterator>
 void copy_to_adj_matrix_col(HandleType handle,
-                            GraphType graph,
+                            GraphType const& graph_device_view,
                             VertexValueInputIterator vertex_value_input_first,
                             AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first);
 
@@ -57,7 +57,7 @@ template <typename HandleType,
           typename VertexValueInputIterator,
           typename AdjMatrixColValueOutputIterator>
 void copy_to_adj_matrix_col(HandleType handle,
-                            GraphType graph,
+                            GraphType const& graph_device_view,
                             VertexIterator vertex_first,
                             VertexIterator vertex_last,
                             VertexValueInputIterator vertex_value_input_first,
