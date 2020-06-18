@@ -35,7 +35,8 @@ void bfs_reference(EdgeIterator offset_first,
                    VertexIterator distance_first,
                    VertexIterator predecessor_first,
                    typename std::iterator_traits<VertexIterator>::value_type num_vertices,
-                   typename std::iterator_traits<VertexIterator>::value_type source)
+                   typename std::iterator_traits<VertexIterator>::value_type source,
+                   size_t depth_limit = std::numeric_limits<size_t>::max())
 {
   using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
 
@@ -66,6 +67,7 @@ void bfs_reference(EdgeIterator offset_first,
     std::swap(cur_frontier_rows, new_frontier_rows);
     new_frontier_rows.clear();
     ++depth;
+    if (depth >= depth_limit) { break; }
   }
 
   return;
@@ -132,7 +134,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                   h_reference_distances.begin(),
                   h_reference_predecessors.begin(),
                   csr_graph_view.number_of_vertices,
-                  static_cast<vertex_t>(configuration.source_));
+                  static_cast<vertex_t>(configuration.source_),
+                  std::numeric_limits<size_t>::max());
 
     raft::handle_t handle{};
 
