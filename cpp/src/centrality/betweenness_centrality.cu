@@ -413,28 +413,28 @@ namespace opg {
 template <typename result_t>
 void setup(const raft::handle_t &handle, result_t *result_ptr)
 {
-  printf("[DBG][OPG] Setup\n");
+  // printf("[DBG][OPG] Setup\n");
   int rank      = handle.get_comms().get_rank();
   int device_id = handle.get_device();
-  printf("[DBG][OPG] Rank(%d)\n", rank);
-  printf("[DBG][OPG] Device(%d)\n", device_id);
+  // printf("[DBG][OPG] Rank(%d)\n", rank);
+  // printf("[DBG][OPG] Device(%d)\n", device_id);
 }
 
 void receive_output_destination() {}
 
-void get_batch() { printf("[DBG][OPG] Get Batch\n"); }
+void get_batch() {}  // printf("[DBG][OPG] Get Batch\n"); }
 
-void process() { printf("[DBG][OPG] Process\n"); }
+void process() {}  // printf("[DBG][OPG] Process\n"); }
 
 template <typename VT, typename result_t>
 void combine(const raft::handle_t &handle, result_t *src_result, result_t *dst_result, VT size)
 {
-  printf("[DBG][OPG] Combine\n");
+  // printf("[DBG][OPG] Combine\n");
   // TODO(xcadet) Use handle stream as last parameter ?
-  printf("[DBG][OPG] Trying to reduce_sum from %p to %p with %d elements\n",
-         src_result,
-         dst_result,
-         size);
+  // printf("[DBG][OPG] Trying to reduce_sum from %p to %p with %d elements\n",
+  // src_result,
+  // dst_result,
+  // size);
   handle.get_comms().reduce(src_result, dst_result, size, raft::comms::op_t::SUM, 0, 0);
 }
 }  // namespace opg
@@ -452,11 +452,11 @@ void betweenness_centrality(const raft::handle_t &handle,
 {
   if (handle.comms_initialized()) {
     printf("[DBG][OPG] Started BATCH-OPG-BC\n");
-    printf("[DBG][OPG] Pointer within C++ %p\n", result);
-    printf("[DBG][OPG] Normalize  %d\n", normalize);
-    printf("[DBG][OPG] endpoints  %d\n", endpoints);
-    printf("[DBG][OPG] k  %d\n", k);
-    printf("[DBG][OPG] total_number_of_sources_used %d\n", total_number_of_sources_used);
+    // printf("[DBG][OPG] Pointer within C++ %p\n", result);
+    // printf("[DBG][OPG] Normalize  %d\n", normalize);
+    // printf("[DBG][OPG] endpoints  %d\n", endpoints);
+    // printf("[DBG][OPG] k  %d\n", k);
+    // printf("[DBG][OPG] total_number_of_sources_used %d\n", total_number_of_sources_used);
     // TODO(xcadet) Through this approach we need an extra |V| device memory,
     //              should probaly directly use the allocated data for rank 0
     rmm::device_vector<result_t> betweenness(graph.number_of_vertices, 0);
@@ -473,7 +473,7 @@ void betweenness_centrality(const raft::handle_t &handle,
                                         total_number_of_sources_used);
     opg::process();
     opg::combine<VT, result_t>(handle, betweenness.data().get(), result, graph.number_of_vertices);
-    printf("[DBG][OPG] End of computation\n");
+    // printf("[DBG][OPG] End of computation\n");
   } else {
     printf("[DBG][OPG] Started Regular-BC\n");
     detail::betweenness_centrality_impl(handle,

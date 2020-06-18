@@ -297,6 +297,7 @@ def test_betweenness_centrality(graph_file,
 
 
 # TODO(xcadet) This should probably be moved to an util file
+# TODO(xcadet) After roughly 100 calls  one of the calls ends up hanging
 class OPGContext:
     def __init__(self, number_of_devices, dashboard_address=8081):
         self._number_of_devices = number_of_devices
@@ -327,7 +328,13 @@ class OPGContext:
         if self._client is not None:
             self._client.close()
         if self._cluster is not None:
-            self._cluster.close()
+            # TODO: Sometimes it crashes on a close due to a timeout on the
+            #       cluster
+            try:
+                self._cluster.close()
+            except IOError as e:
+                print("[ERR] There is an issue when trying "
+                      "to close the cluster", e)
 
 
 @pytest.mark.parametrize('opg_device_count', OPG_DEVICE_COUNT_OPTIONS)
