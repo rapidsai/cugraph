@@ -142,7 +142,8 @@ int pagerankSolver(IndexType n,
   rmm::device_vector<WT> tmp(n);
   tmp_d = pr.data().get();
 #endif
-  CUDA_CHECK_LAST();
+  //FIXME: this should take a passed CUDA strema instead of default nullptr
+  CHECK_CUDA(nullptr);
 
   if (!has_guess) {
     fill(n, pagerank_vector, randomProbability);

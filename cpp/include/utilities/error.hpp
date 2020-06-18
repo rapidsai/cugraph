@@ -43,7 +43,7 @@ struct logic_error : public raft::exception {
  */
 #define CUGRAPH_EXPECTS(cond, fmt, ...)                              \
   do {                                                               \
-    if (!cond) {                                                     \
+    if (!(cond)) {                                                   \
       std::string msg{};                                             \
       SET_ERROR_MSG(msg, "cuGraph failure at ", fmt, ##__VA_ARGS__); \
       throw cugraph::logic_error(msg);                               \
