@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-#include <rmm/thrust_rmm_allocator.h>
-#include <thrust/binary_search.h>
-#include <utilities/error.hpp>
-#include <cub/device/device_run_length_encode.cuh>
 #include <db/db_object.cuh>
+
+#include <utilities/error.hpp>
+
+#include <raft/cudart_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
+
+#include <cub/device/device_run_length_encode.cuh>
+#include <thrust/binary_search.h>
+
 #include <sstream>
 
 namespace cugraph {

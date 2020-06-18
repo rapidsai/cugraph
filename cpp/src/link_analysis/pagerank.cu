@@ -22,6 +22,7 @@
 #include <string>
 #include "cub/cub.cuh"
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <utilities/error.hpp>
 

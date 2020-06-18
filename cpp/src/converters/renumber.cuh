@@ -27,6 +27,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/scan.h>
 
+#include <raft/cudart_utils.h>
 #include <rmm/device_buffer.hpp>
 
 #include "sort/bitonic.cuh"
