@@ -21,6 +21,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
 
+#include <raft/cudart_utils.h>
+
 #include "include/debug_macros.h"
 #include "include/nvgraph_cublas.hxx"
 #include "include/nvgraph_cusparse.hxx"
@@ -479,7 +481,7 @@ void LaplacianMatrix<IndexType_, ValueType_>::mv(ValueType_ alpha,
 {
   // Scale result vector
   if (beta == 0)
-    CHECK_CUDA(cudaMemset(y, 0, (this->n) * sizeof(ValueType_)))
+    CUDA_TRY(cudaMemset(y, 0, (this->n) * sizeof(ValueType_)))
   else if (beta != 1)
     thrust::transform(thrust::device_pointer_cast(y),
                       thrust::device_pointer_cast(y + this->n),
@@ -546,7 +548,7 @@ void LaplacianMatrix<IndexType_, ValueType_>::dm(IndexType_ k,
   if (beta == 0.0) {
     // set vectors to 0 (WARNING: notice that you need to set, not scale, because of NaNs corner
     // case)
-    CHECK_CUDA(cudaMemset(y, 0, t * sizeof(ValueType_)));
+    CUDA_TRY(cudaMemset(y, 0, t * sizeof(ValueType_)));
     diagmm<IndexType_, ValueType_, true>
       <<<gridDim, blockDim, 0, A->s>>>(this->n, k, alpha, D.raw(), x, beta, y);
   } else {
