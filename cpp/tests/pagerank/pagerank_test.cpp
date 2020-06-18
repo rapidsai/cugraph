@@ -12,7 +12,7 @@
 // Pagerank solver tests
 // Author: Alex Fender afender@nvidia.com
 
-#include "high_res_clock.h"
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
