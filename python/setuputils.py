@@ -102,7 +102,7 @@ def use_raft_package(raft_path, cpp_build_path,
         os.remove('cugraph/raft')
         os.symlink('../' + raft_path + 'python/raft', 'cugraph/raft')
 
-    return raft_path + 'cpp/include'
+    return os.path.join(raft_path, 'cpp/include')
 
 
 def clone_repo_if_needed(name, cpp_build_path,
