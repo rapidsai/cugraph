@@ -17,6 +17,7 @@
 - PR #941 Regression python/cudf fix
 - PR #945 Simplified benchmark --no-rmm-reinit option, updated default options
 - PR #946 Install meta packages for dependencies
+- PR #954 Update cuGraph error handling to use RAFT
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
