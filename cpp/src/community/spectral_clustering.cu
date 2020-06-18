@@ -26,7 +26,7 @@
 #include <nvgraph/include/sm_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/transform.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 #include <ctime>
 #include <nvgraph/include/nvgraph_error.hxx>
 

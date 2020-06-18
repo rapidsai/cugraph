@@ -21,7 +21,7 @@
 #include <utilities/sm_utils.h>
 #include <cub/cub.cuh>
 #include "traversal_common.cuh"
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 namespace cugraph {
 namespace detail {
 namespace sssp_kernels {

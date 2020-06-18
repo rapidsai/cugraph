@@ -21,7 +21,7 @@
  * @file ktruss.cu
  * --------------------------------------------------------------------------*/
 
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <Hornet.hpp>
 #include <StandardAPI.hpp>

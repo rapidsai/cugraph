@@ -21,7 +21,7 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include "betweenness_centrality.cuh"
 #include "betweenness_centrality_kernels.cuh"

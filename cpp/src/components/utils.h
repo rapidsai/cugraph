@@ -25,7 +25,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 namespace MLCommon {
 

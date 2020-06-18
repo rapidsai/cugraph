@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 #include <graph.hpp>
 #include "converters/COOtoCSR.cuh"
 #include "utilities/graph_utils.cuh"

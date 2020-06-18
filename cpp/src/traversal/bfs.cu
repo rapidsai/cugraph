@@ -16,7 +16,7 @@
 
 #include "graph.hpp"
 
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 #include "bfs_kernels.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"

@@ -19,7 +19,6 @@
 #include "gtest/gtest.h"
 #include "utilities/high_res_clock.h"
 #include "rmm/device_buffer.hpp"
-#include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
 #include "utilities/test_utilities.hpp"
 

@@ -30,7 +30,7 @@
 #include <rmm/device_buffer.hpp>
 
 #include "sort/bitonic.cuh"
-#include "utilities/error_utils.h"
+#include <utilities/error.hpp>
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {

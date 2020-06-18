@@ -15,7 +15,7 @@
  */
 #pragma once
 #include <cusparse.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 #include <rmm/device_buffer.hpp>
 #include "utilities/graph_utils.cuh"
 

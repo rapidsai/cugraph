@@ -21,7 +21,6 @@
 #include <algorithms.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
 
 #include "gtest/gtest.h"
 
