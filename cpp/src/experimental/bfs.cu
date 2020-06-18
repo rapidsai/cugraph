@@ -169,7 +169,7 @@ void bfs_this_partition(raft::handle_t &handle,
     }
 
     depth++;
-    if (depth >= static_cast<vertex_t>(depth_limit)) { break; }
+    if (static_cast<size_t>(depth) >= depth_limit) { break; }
   }
 
   return;

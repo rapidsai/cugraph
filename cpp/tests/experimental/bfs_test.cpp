@@ -170,10 +170,25 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))
       << "distances do not match with the reference values.";
 
-    EXPECT_TRUE(std::equal(h_reference_predecessors.begin(),
-                           h_reference_predecessors.end(),
-                           h_cugraph_predecessors.begin()))
-      << "predecessors do not match with the reference values.";
+    for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
+      auto i = std::distance(h_cugraph_predecessors.begin(), it);
+      if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
+        EXPECT_TRUE(h_reference_predecessors[i] == *it)
+          << "vertex reachability do not match with the reference.";
+      }
+      else {
+        EXPECT_TRUE(h_reference_distances[*it] + 1 == h_reference_distances[i])
+          << "distance to this vertex != distance to the predecessor vertex + 1.";
+        bool found{false};
+        for (auto j = h_offsets[*it]; j < h_offsets[*it + 1]; ++j) {
+          if (h_indices[j] == i) {
+            found = true;
+            break;
+          }
+        }
+        EXPECT_TRUE(found) << "no edge from the predecessor vertex to this vertex";
+      }
+    }
   }
 };
 
