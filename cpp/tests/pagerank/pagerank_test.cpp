@@ -22,7 +22,9 @@
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 
-#include "utilities/test_utilities.hpp"
+#include <utilities/test_utilities.hpp>
+
+#include <raft/error.hpp>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -158,7 +160,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (param.result_file.length() > 0) {
       std::vector<T> calculated_res(m);
 
-      CUDA_RT_CALL(
+      CUDA_TRY(
         cudaMemcpy(&calculated_res[0], d_pagerank, sizeof(T) * m, cudaMemcpyDeviceToHost));
       std::sort(calculated_res.begin(), calculated_res.end());
       fpin = fopen(param.result_file.c_str(), "rb");

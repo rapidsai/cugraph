@@ -22,7 +22,8 @@
 #include "gtest/gtest.h"
 #include "high_res_clock.h"
 #include "trust_worthiness.h"
-#include "utilities/test_utilities.hpp"
+#include <utilities/test_utilities.hpp>
+#include <raft/error.hpp>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -136,9 +137,9 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     T* weights = weights_v.data().get();
 
     // FIXME: RAFT error handling mechanism should be used instead
-    CUDA_RT_CALL(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
-    CUDA_RT_CALL(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
-    CUDA_RT_CALL(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
     cugraph::experimental::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
 
     const int max_iter                    = 500;
@@ -203,7 +204,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     // Copy pos to host
     std::vector<float> h_pos(m * 2);
-    CUDA_RT_CALL(
+    CUDA_TRY(
       cudaMemcpy(&h_pos[0], d_force_atlas2, sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
 
     // Transpose the data

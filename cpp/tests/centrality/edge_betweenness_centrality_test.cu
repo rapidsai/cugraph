@@ -29,6 +29,8 @@
 
 #include <fstream>
 
+#include <raft/error.hpp>
+
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "traversal/bfs_ref.h"
 
@@ -250,7 +252,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = is_directed;
-    CUDA_RT_CALL(cudaGetLastError());
+    CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_edges, 0);
     std::vector<result_t> expected(G.number_of_edges, 0);
 
@@ -280,7 +282,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
                                          static_cast<WT *>(nullptr),
                                          configuration.number_of_sources_,
                                          sources_ptr);
-    CUDA_RT_CALL(cudaMemcpy(result.data(),
+    CUDA_TRY(cudaMemcpy(result.data(),
                             d_result.data().get(),
                             sizeof(result_t) * G.number_of_edges,
                             cudaMemcpyDeviceToHost));

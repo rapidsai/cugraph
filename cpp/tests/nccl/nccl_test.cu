@@ -5,20 +5,20 @@
 #include <thrust/functional.h>
 #include "gtest/gtest.h"
 
-#include "utilities/test_utilities.hpp"
+#include <raft/error.hpp>
 
 TEST(allgather, success)
 {
   int p = 1, r = 0, dev = 0, dev_count = 0;
   MPICHECK(MPI_Comm_size(MPI_COMM_WORLD, &p));
   MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &r));
-  CUDA_RT_CALL(cudaGetDeviceCount(&dev_count));
+  CUDA_TRY(cudaGetDeviceCount(&dev_count));
 
   // shortcut for device ID here
   // may need something smarter later
   dev = r % dev_count;
   // cudaSetDevice must happen before ncclCommInitRank
-  CUDA_RT_CALL(cudaSetDevice(dev));
+  CUDA_TRY(cudaSetDevice(dev));
 
   // print info
   printf("#   Rank %2d - Pid %6d - device %2d\n", r, getpid(), dev);
@@ -26,16 +26,16 @@ TEST(allgather, success)
   // NCCL init
   ncclUniqueId id;
   ncclComm_t comm;
-  if (r == 0) NCCLCHECK(ncclGetUniqueId(&id));
+  if (r == 0) NCCL_TRY(ncclGetUniqueId(&id));
   MPICHECK(MPI_Bcast((void *)&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
-  NCCLCHECK(ncclCommInitRank(&comm, p, id, r));
+  NCCL_TRY(ncclCommInitRank(&comm, p, id, r));
   MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
 
   // allocate device buffers
   int size = 3;
   float *sendbuff, *recvbuff;
-  CUDA_RT_CALL(cudaMalloc(&sendbuff, size * sizeof(float)));
-  CUDA_RT_CALL(cudaMalloc(&recvbuff, size * p * sizeof(float)));
+  CUDA_TRY(cudaMalloc(&sendbuff, size * sizeof(float)));
+  CUDA_TRY(cudaMalloc(&recvbuff, size * p * sizeof(float)));
 
   // init values
   thrust::fill(
@@ -44,7 +44,7 @@ TEST(allgather, success)
     thrust::device_pointer_cast(recvbuff), thrust::device_pointer_cast(recvbuff + size * p), -1.0f);
 
   // ncclAllGather
-  NCCLCHECK(ncclAllGather(
+  NCCL_TRY(ncclAllGather(
     (const void *)sendbuff, (void *)recvbuff, size, ncclFloat, comm, cudaStreamDefault));
 
   // expect each rankid printed size times in ascending order
@@ -56,11 +56,11 @@ TEST(allgather, success)
   }
 
   // free device buffers
-  CUDA_RT_CALL(cudaFree(sendbuff));
-  CUDA_RT_CALL(cudaFree(recvbuff));
+  CUDA_TRY(cudaFree(sendbuff));
+  CUDA_TRY(cudaFree(recvbuff));
 
   // finalizing NCCL
-  NCCLCHECK(ncclCommDestroy(comm));
+  NCCL_TRY(ncclCommDestroy(comm));
 }
 
 int main(int argc, char **argv)
