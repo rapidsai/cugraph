@@ -1,11 +1,13 @@
-#include <mpi.h>
+#include <raft/error.hpp>
+
 #include <nccl.h>
-#include <string.h>
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
-#include "gtest/gtest.h"
 
-#include <raft/error.hpp>
+#include <gtest/gtest.h>
+#include <mpi.h>
+
+#include <cstring>
 
 TEST(allgather, success)
 {

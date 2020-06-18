@@ -16,6 +16,7 @@
 #pragma once
 
 #include <queue>
+#include <limits>
 #include <stack>
 #include <vector>
 

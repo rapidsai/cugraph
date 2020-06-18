@@ -12,19 +12,21 @@
 // Pagerank solver tests
 // Author: Alex Fender afender@nvidia.com
 
-#include <cmath>
+#include "high_res_clock.h"
+#include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
-#include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
-#include "high_res_clock.h"
-
-#include <utilities/test_utilities.hpp>
 
 #include <raft/error.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+
+#include "cuda_profiler_api.h"
+
+#include "gtest/gtest.h"
+
+#include <cmath>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'

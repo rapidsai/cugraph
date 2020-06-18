@@ -15,7 +15,9 @@
  */
 #pragma once
 
-#include "functions.hpp"
+#include <functions.hpp>
+
+#include <gtest/gtest.h>
 
 extern "C" {
 #include "mmio.h"

@@ -16,6 +16,8 @@
 
 #include "knn.h"
 
+#include <algorithm>
+
 double euclidian_dist(const std::vector<int>& x, const std::vector<int>& y)
 {
   double total = 0;

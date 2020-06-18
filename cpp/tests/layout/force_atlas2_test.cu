@@ -12,18 +12,23 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <rmm/thrust_rmm_allocator.h>
-#include <algorithms.hpp>
-#include <fstream>
-#include <graph.hpp>
-#include <iostream>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
-#include "high_res_clock.h"
-#include "trust_worthiness.h"
+#include <high_res_clock.h>
+#include <layout/trust_worthiness.h>
 #include <utilities/test_utilities.hpp>
+
+#include <algorithms.hpp>
+#include <graph.hpp>
+
 #include <raft/error.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <rmm/thrust_rmm_allocator.h>
+
+#include <cuda_profiler_api.h>
+
+#include <gtest/gtest.h>
+
+#include <fstream>
+#include <iostream>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'

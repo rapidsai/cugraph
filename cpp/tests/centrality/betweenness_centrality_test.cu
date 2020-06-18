@@ -14,25 +14,24 @@
  * limitations under the License.
  */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
-#include <thrust/device_vector.h>
-#include <utility>
-#include "utilities/test_utilities.hpp"
+#include <traversal/bfs_ref.h>
+#include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <queue>
-#include <stack>
+#include <raft/error.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+
+#include <thrust/device_vector.h>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <fstream>
-
-#include <raft/error.hpp>
-
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "traversal/bfs_ref.h"
+#include <queue>
+#include <stack>
+#include <utility>
 
 #ifndef TEST_EPSILON
 #define TEST_EPSILON 0.0001
