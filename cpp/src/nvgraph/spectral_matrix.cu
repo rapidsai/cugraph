@@ -481,7 +481,7 @@ void LaplacianMatrix<IndexType_, ValueType_>::mv(ValueType_ alpha,
 {
   // Scale result vector
   if (beta == 0)
-    CUDA_TRY(cudaMemset(y, 0, (this->n) * sizeof(ValueType_)))
+    CUDA_TRY(cudaMemset(y, 0, (this->n) * sizeof(ValueType_)));
   else if (beta != 1)
     thrust::transform(thrust::device_pointer_cast(y),
                       thrust::device_pointer_cast(y + this->n),
