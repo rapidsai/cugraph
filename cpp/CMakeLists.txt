@@ -263,7 +263,7 @@ endif(NOT NCCL_PATH)
 if(DEFINED ENV{RAFT_PATH})
   message(STATUS "RAFT_PATH environment variable detected.")
   message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
-  set(RAFT_DIR ENV{RAFT_PATH})
+  set(RAFT_DIR "$ENV{RAFT_PATH}")
 
   ExternalProject_Add(raft
     DOWNLOAD_COMMAND  ""
