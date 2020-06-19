@@ -127,7 +127,6 @@ void sssp_this_partition(raft::handle_t &handle,
                        false,
                        static_cast<size_t>(Bucket::num_buckets)>
     adj_matrix_row_frontier(handle, bucket_sizes);
-  // adj_matrix_row_frontier.track_updated_vertices_in_this_partition();
 
   // 5. SSSP iteration
 
