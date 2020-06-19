@@ -12,17 +12,23 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <layout/trust_worthiness.h>
+#include <utilities/high_res_clock.h>
+#include <utilities/test_utilities.hpp>
+
 #include <algorithms.hpp>
-#include <fstream>
 #include <graph.hpp>
-#include <iostream>
+
+#include <rmm/thrust_rmm_allocator.h>
+#include <raft/error.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
-#include "high_res_clock.h"
-#include "trust_worthiness.h"
-#include "utilities/test_utilities.hpp"
+
+#include <cuda_profiler_api.h>
+
+#include <gtest/gtest.h>
+
+#include <fstream>
+#include <iostream>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -136,9 +142,9 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     T* weights = weights_v.data().get();
 
     // FIXME: RAFT error handling mechanism should be used instead
-    CUDA_RT_CALL(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
-    CUDA_RT_CALL(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
-    CUDA_RT_CALL(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
     cugraph::experimental::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
 
     const int max_iter                    = 500;
@@ -203,8 +209,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     // Copy pos to host
     std::vector<float> h_pos(m * 2);
-    CUDA_RT_CALL(
-      cudaMemcpy(&h_pos[0], d_force_atlas2, sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(&h_pos[0], d_force_atlas2, sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
 
     // Transpose the data
     std::vector<std::vector<double>> C_contiguous_embedding(m, std::vector<double>(2));

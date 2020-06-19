@@ -17,7 +17,7 @@
 #pragma once
 
 #include <cub/cub.cuh>
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 
 #define MAXBLOCKS 65535
 #define WARP_SIZE 32
@@ -198,7 +198,7 @@ void fill_vec(ValueType* vec, SizeType n, ValueType val, cudaStream_t stream)
   grid.x  = (n + block.x - 1) / block.x;
 
   fill_vec_kernel<<<grid, block, 0, stream>>>(vec, n, val);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename IndexType>
@@ -371,7 +371,7 @@ void flag_isolated_vertices(IndexType n,
 
   flag_isolated_vertices_kernel<<<grid, block, 0, m_stream>>>(
     n, isolated_bmap, row_ptr, degrees, nisolated);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 template <typename IndexType>
@@ -398,7 +398,7 @@ void set_frontier_degree(IndexType* frontier_degree,
   block.x = 256;
   grid.x  = min((n + block.x - 1) / block.x, (IndexType)MAXBLOCKS);
   set_frontier_degree_kernel<<<grid, block, 0, m_stream>>>(frontier_degree, frontier, degree, n);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 template <typename IndexType>
@@ -463,7 +463,7 @@ void compute_bucket_offsets(IndexType* cumul,
 
   compute_bucket_offsets_kernel<<<grid, block, 0, m_stream>>>(
     cumul, bucket_offsets, frontier_size, total_degree);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 }  // namespace traversal
 }  // namespace detail

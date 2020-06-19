@@ -16,7 +16,7 @@
 
 #include "graph.hpp"
 
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 #include "bfs_kernels.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
@@ -356,7 +356,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
         mu -= mf;
 
         cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-        CUDA_CHECK_LAST();
+        CHECK_CUDA(stream);
 
         // We need nf
         cudaStreamSynchronize(stream);
@@ -413,7 +413,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                           sizeof(IndexType),
                           cudaMemcpyDeviceToHost,
                           stream);
-          CUDA_CHECK_LAST()
+          CHECK_CUDA(stream);
           // We need last_left_unvisited_size
           cudaStreamSynchronize(stream);
           bfs_kernels::bottom_up_large(left_unvisited_queue,
@@ -431,7 +431,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                        deterministic);
         }
         cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-        CUDA_CHECK_LAST()
+        CHECK_CUDA(stream);
 
         // We will need nf
         cudaStreamSynchronize(stream);

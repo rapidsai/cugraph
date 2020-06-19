@@ -17,6 +17,9 @@
 - PR #941 Regression python/cudf fix
 - PR #945 Simplified benchmark --no-rmm-reinit option, updated default options
 - PR #946 Install meta packages for dependencies
+- PR #952 Updated get_test_data.sh to also (optionally) download and install datasets for benchmark runs
+- PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
+- PR #954 Update cuGraph error handling to use RAFT
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -97,6 +100,7 @@
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash
 - PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
 - PR 935 Merge
+- PR #956 Use new gpuCI image in local build script
 
 # cuGraph 0.13.0 (31 Mar 2020)
 
