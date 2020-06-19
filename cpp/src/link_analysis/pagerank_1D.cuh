@@ -31,10 +31,10 @@ namespace opg {
 template <typename VT, typename ET, typename WT>
 class Pagerank {
  private:
-  size_t v_glob;  // global number of vertices
-  size_t v_loc;   // local number of vertices
-  size_t e_loc;   // local number of edges
-  WT alpha;       // damping factor
+  VT v_glob{};  // global number of vertices
+  VT v_loc{};   // local number of vertices
+  ET e_loc{};   // local number of edges
+  WT alpha{};   // damping factor
 
   // CUDA
   const raft::comms::comms_t &comm;  // info about the opg comm setup

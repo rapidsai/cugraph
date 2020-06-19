@@ -23,7 +23,7 @@
 namespace cugraph {
 namespace opg {
 
-template <typename VT, typename ET, typename WT>
+template <typename VT, typename WT>
 __global__ void transition_kernel(const size_t e, const VT *ind, const VT *degree, WT *val)
 {
   for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
@@ -33,7 +33,7 @@ __global__ void transition_kernel(const size_t e, const VT *ind, const VT *degre
 template <typename VT, typename ET, typename WT>
 Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_,
                                experimental::GraphCSCView<VT, ET, WT> const &G)
-  : comm(handle_.get_comms())
+  : comm(handle_.get_comms()), bookmark(G.number_of_vertices), val(G.local_edges[comm.get_rank()])
 {
   v_glob         = G.number_of_vertices;
   v_loc          = G.local_vertices[comm.get_rank()];
@@ -47,8 +47,6 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_,
   sm_count       = handle_.get_device_properties().multiProcessorCount;
 
   is_setup = false;
-  bookmark.resize(v_glob);
-  val.resize(e_loc);
 
   // intialize cusparse. This can take some time.
   cugraph::detail::Cusparse::get_handle();
@@ -64,7 +62,7 @@ void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
 {
   int threads = min(static_cast<VT>(e_loc), this->threads);
   int blocks  = min(static_cast<VT>(32 * sm_count), this->blocks);
-  transition_kernel<VT, ET, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
+  transition_kernel<VT, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
   CUDA_CHECK_LAST();
 }
 
