@@ -22,6 +22,8 @@ import subprocess
 import sys
 import warnings
 
+from pathlib import Path
+
 
 def get_environment_option(name):
     ENV_VARIABLE = os.environ.get(name, False)
