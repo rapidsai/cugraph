@@ -40,18 +40,14 @@ struct bitwise_or {
   __device__ unsigned operator()(unsigned& a, unsigned & b) { return a | b; }
 };
 
-void aggregate_visited_frontier(
-    rmm::device_vector<unsigned>& input,
-    rmm::device_vector<unsigned>& visited,
-    cudaStream_t stream) {
-  CUGRAPH_EXPECTS(input.size() == visited.size(),
-      "Size of input frontier vector and visited vector should be equal");
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
-      input.begin(), input.end(),
-      visited.begin(),
-      visited.begin(),
-      bitwise_or());
-}
+struct remove_visited {
+  __device__ unsigned operator()(unsigned& visited, unsigned& output) {
+    //OUTPUT AND VISITED - common bits between output and visited
+    //OUTPUT AND (NOT (OUTPUT AND VISITED))
+    // - remove common bits between output and visited from output
+    return (output & (~( output & visited )));
+  }
+};
 
 template <typename VT>
 struct bitwise_atomic_or {
@@ -76,44 +72,75 @@ struct bitwise_atomic_or {
   }
 };
 
-template <typename VT, typename ET, typename WT>
-void expand_frontier(
-    rmm::device_vector<unsigned>& input,
-    LoadBalanceExecution<VT, ET, WT>& lb,
-    rmm::device_vector<unsigned>& output,
-    VT * predecessors,
-    cudaStream_t stream) {
-  bitwise_atomic_or<VT> bfs_op(output.data(), predecessors);
-  lb.run(bfs_op, input.data(), stream);
-}
+struct is_not_equal {
+  unsigned cmp_;
+  unsigned * flag_;
+  is_not_equal(unsigned cmp, unsigned * flag) : cmp_(cmp), flag_(flag) {}
+  __device__ void operator()(unsigned& val) {
+    if (val != cmp_) {
+      *flag_ = 1;
+    }
+  }
+};
 
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
     cugraph::experimental::GraphCSRView<VT, ET, WT>& graph,
     VT *predecessors,
     const VT start_vertex) {
-  LoadBalanceExecution<VT, ET, WT> lb(graph);
-  size_t buffer_size = number_of_words(graph.number_of_vertices);
 
   //We need to keep track if a vertex is visited or its status
   //This needs to be done for all the vertices in the global graph
-  rmm::device_vector<unsigned> input_frontier(buffer_size);
-  rmm::device_vector<unsigned> output_frontier(buffer_size);
-  rmm::device_vector<unsigned> visited(buffer_size);
+  size_t word_count = number_of_words(graph.number_of_vertices);
+  rmm::device_vector<unsigned> input_frontier(word_count);
+  rmm::device_vector<unsigned> output_frontier(word_count);
+  rmm::device_vector<unsigned> visited(word_count);
 
-  frontier[start_vertex/BitsPWrd<unsigned>] =
+  rmm::device_vector<unsigned> frontier_not_empty(1);
+
+  LoadBalanceExecution<VT, ET, WT> lb(graph);
+  bitwise_atomic_or<VT> bfs_op(output_frontier.data().get(), predecessors);
+  is_not_equal neq(static_cast<unsigned>(0), frontier_not_empty.data().get());
+  cudaStream_t stream = handle.get_stream();
+
+  //0. 'Insert' starting vertex in the input frontier
+  input_frontier[start_vertex/BitsPWrd<unsigned>] =
     static_cast<unsigned>(1)<<(start_vertex%BitsPWrd<unsigned>);
 
-  while(true) {
-    aggregate_visited_frontier(input_frontier, visited);
+  do {
+    //1. Mark all input frontier vertices as visited
+    thrust::transform(rmm::exec_policy(stream)->on(stream),
+        input_frontier.begin(), input_frontier.end(),
+        visited.begin(),
+        visited.begin(),
+        bitwise_or());
+
+    //2. Clear out output frontier
     thrust::fill(
         output_frontier.begin(),
         output_frontier.end(),
         static_cast<unsigned>(0));
-    expand_frontier(input_frontier, lb, output_frontier, predecessors, stream);
-    frontier_correction(output_frontier, visited);
+
+    //3. Create output frontier from input frontier
+    lb.run(bfs_op, input_frontier.data().get(), stream);
+
+    //4. 'Remove' all vertices in output frontier
+    //that are already visited
+    thrust::transform(rmm::exec_policy(stream)->on(stream),
+        visited.begin(), visited.end(),
+        output_frontier.begin(),
+        output_frontier.begin(),
+        remove_visited());
+
+    //5. Use the output frontier as input for the next step
     input_frontier.swap(output_frontier);
-  }
+
+    //6. If all bits in input frontier are inactive then bfs is done
+    frontier_not_empty[0] = 0;
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+        input_frontier.begin(), input_frontier.end(),
+        neq);
+  } while (frontier_not_empty[0] == 1);
 }
 
 template void bfs(raft::handle_t const &handle,
