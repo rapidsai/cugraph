@@ -108,6 +108,20 @@ struct vec_t<int> {
 };
 
 template <>
+struct vec_t<long> {
+  typedef long4 vec4;
+  typedef long2 vec2;
+  static const long max = std::numeric_limits<long>::max();
+};
+
+template <>
+struct vec_t<unsigned> {
+  typedef uint4 vec4;
+  typedef uint2 vec2;
+  static const unsigned max = std::numeric_limits<unsigned>::max();
+};
+
+template <>
 struct vec_t<long long int> {
   typedef longlong4 vec4;
   typedef longlong2 vec2;
@@ -204,6 +218,16 @@ binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexT
   }
 }
 
+template < typename T>
+__device__ static __forceinline__ T atomicAdd(T* addr, T val){
+	return ::atomicAdd(addr, val);
+}
+
+template<>
+__device__ __forceinline__ long atomicAdd<long>(long* addr, long val){
+	return ::atomicAdd(reinterpret_cast<unsigned long long *>(addr), static_cast<unsigned long long>(val));
+}
+
 __device__ static __forceinline__ float atomicMin(float* addr, float val)
 {
   int* addr_as_int = (int*)addr;
@@ -286,7 +310,7 @@ __global__ void flag_isolated_vertices_kernel(IndexType n,
 
     int local_isolated_bmap = 0;
 
-    IndexType imax = (n - thread_off);
+    IndexType imax = (n > thread_off) ? (n - thread_off) : 0;
 
     IndexType local_degree[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD];
 
@@ -314,7 +338,7 @@ __global__ void flag_isolated_vertices_kernel(IndexType n,
 
     IndexType total_nisolated = BlockReduce(block_reduce_temp_storage).Sum(local_nisolated);
 
-    if (threadIdx.x == 0 && total_nisolated) { atomicAdd(nisolated, total_nisolated); }
+    if (threadIdx.x == 0 && total_nisolated) { traversal::atomicAdd(nisolated, total_nisolated); }
 
     int logicalwarpid = threadIdx.x / FLAG_ISOLATED_VERTICES_THREADS_PER_INT;
 

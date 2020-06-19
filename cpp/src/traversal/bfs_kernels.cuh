@@ -92,7 +92,7 @@ __global__ void fill_unvisited_queue_kernel(int *visited_bmap,
     // saving the common offset
     if (threadIdx.x == (FILL_UNVISITED_QUEUE_DIMX - 1)) {
       IndexType total               = unvisited_thread_offset + n_unvisited_in_int;
-      unvisited_common_block_offset = atomicAdd(unvisited_cnt, total);
+      unvisited_common_block_offset = traversal::atomicAdd(unvisited_cnt, total);
     }
 
     // syncthreads for two reasons :
@@ -206,7 +206,7 @@ __global__ void count_unvisited_edges_kernel(const IndexType *potentially_unvisi
     BlockReduce(reduce_temp_storage).Sum(thread_unvisited_edges_count);
 
   // block_unvisited_edges_count is only defined is th.x == 0
-  if (threadIdx.x == 0) atomicAdd(mu, block_unvisited_edges_count);
+  if (threadIdx.x == 0) traversal::atomicAdd(mu, block_unvisited_edges_count);
 }
 
 // Wrapper
@@ -299,8 +299,11 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
     // by different in in visited_bmap)
     IndexType visited_bmap_index[1];  // this is an array of size 1 because CUB
                                       // needs one
-    visited_bmap_index[0]      = -1;
-    IndexType unvisited_vertex = -1;
+    
+    // It's ok for this to be -1 or max unsigned since valid values cannot
+    // exceed (unvisited_vertex / INT_SIZE) which is < max_unsigned
+    visited_bmap_index[0] = ~IndexType(0);
+    IndexType unvisited_vertex = ~IndexType(0);
 
     // local_visited_bmap gives info on the visited bit of unvisited_vertex
     //
@@ -353,7 +356,7 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
 
       // If we haven't found a parent and there's more edge to check
       if (!found && degree > MAIN_BOTTOMUP_MAX_EDGES) {
-        left_unvisited_off = atomicAdd(left_unvisited_cnt, (IndexType)1);
+        left_unvisited_off = traversal::atomicAdd(left_unvisited_cnt, (IndexType)1);
         more_to_visit      = 1;
       }
     }
@@ -462,7 +465,7 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
     BlockScan(scan_temp_storage).ExclusiveSum(found, thread_frontier_offset);
     IndexType inclusive_sum = thread_frontier_offset + found;
     if (threadIdx.x == (MAIN_BOTTOMUP_DIMX - 1) && inclusive_sum) {
-      frontier_common_block_offset = atomicAdd(new_frontier_cnt, inclusive_sum);
+      frontier_common_block_offset = traversal::atomicAdd(new_frontier_cnt, inclusive_sum);
     }
 
     // 1) Broadcasting frontier_common_block_offset
@@ -555,17 +558,21 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
     // is know with inactive threads
     for (IndexType i_edge = first_i_edge + logical_lane_id; i_edge < end_i_edge;
          i_edge += BOTTOM_UP_LOGICAL_WARP_SIZE) {
-      IndexType valid_parent = -1;
+      bool has_valid_parent = false;
+      IndexType valid_parent;
 
       if (!edge_mask || edge_mask[i_edge]) {
         IndexType u     = col_ind[i_edge];
         IndexType lvl_u = distances[u];
 
-        if (lvl_u == (lvl - 1)) { valid_parent = u; }
+        if (lvl_u == (lvl - 1)) { 
+          has_valid_parent = true;
+          valid_parent = u; 
+        }
       }
 
-      unsigned int warp_valid_p_ballot = cugraph::detail::utils::ballot((valid_parent != -1));
-
+      unsigned int warp_valid_p_ballot = cugraph::detail::utils::ballot((has_valid_parent));
+      
       int logical_warp_id_in_warp = (threadIdx.x % WARP_SIZE) / BOTTOM_UP_LOGICAL_WARP_SIZE;
       unsigned int mask           = (1 << BOTTOM_UP_LOGICAL_WARP_SIZE) - 1;
       unsigned int logical_warp_valid_p_ballot =
@@ -576,7 +583,7 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
 
       if (chosen_thread == logical_lane_id) {
         // Using only one valid parent (reduce bw)
-        IndexType off = atomicAdd(new_frontier_cnt, (IndexType)1);
+        IndexType off = traversal::atomicAdd(new_frontier_cnt, (IndexType)1);
         int m         = 1 << (v % INT_SIZE);
         atomicOr(&visited[v / INT_SIZE], m);
         distances[v] = lvl;
@@ -704,15 +711,19 @@ __global__ void topdown_expand_kernel(
   __shared__ IndexType block_n_frontier_candidates;
 
   IndexType block_offset = (blockDim.x * blockIdx.x) * max_items_per_thread;
-  IndexType n_items_per_thread_left =
-    (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX;
+  IndexType n_items_per_thread_left = 0;
+ 
+  if (totaldegree > block_offset){
+    n_items_per_thread_left = 
+      (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX;
+  }
 
   n_items_per_thread_left = min(max_items_per_thread, n_items_per_thread_left);
 
   for (; (n_items_per_thread_left > 0) && (block_offset < totaldegree);
 
        block_offset += MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD * blockDim.x,
-       n_items_per_thread_left -= MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD) {
+       n_items_per_thread_left -= min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD)) {
     // In this loop, we will process batch_set_size batches
     IndexType nitems_per_thread =
       min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD);
@@ -813,8 +824,17 @@ __global__ void topdown_expand_kernel(
         IndexType vec_u[TOP_DOWN_BATCH_SIZE];
         IndexType local_buf1[TOP_DOWN_BATCH_SIZE];
         IndexType local_buf2[TOP_DOWN_BATCH_SIZE];
+	
+	// Bitmask to store validity for the current edge 
+	int valid_mask[(TOP_DOWN_BATCH_SIZE + INT_SIZE - 1)/INT_SIZE];
 
-        IndexType *vec_frontier_degrees_exclusive_sum_index = &local_buf2[0];
+	#pragma unroll
+	for (int i = 0; i < (TOP_DOWN_BATCH_SIZE + INT_SIZE - 1)/INT_SIZE; i++){
+	  valid_mask[i] = 0;
+	} 
+	
+	IndexType *vec_frontier_degrees_exclusive_sum_index = &local_buf2[0];
+
 
 #pragma unroll
         for (IndexType iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
@@ -833,9 +853,7 @@ __global__ void topdown_expand_kernel(
                           frontier_degrees_exclusive_sum_block_offset;
             vec_u[iv]                                    = frontier[k];  // origin of this edge
             vec_frontier_degrees_exclusive_sum_index[iv] = frontier_degrees_exclusive_sum[k];
-          } else {
-            vec_u[iv]                                    = -1;
-            vec_frontier_degrees_exclusive_sum_index[iv] = -1;
+            valid_mask[iv/INT_SIZE] |= (1 << (iv % INT_SIZE));
           }
         }
 
@@ -844,7 +862,9 @@ __global__ void topdown_expand_kernel(
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           IndexType u = vec_u[iv];
           // row_ptr for this vertex origin u
-          vec_row_ptr_u[iv] = (u != -1) ? row_ptr[u] : -1;
+          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
+            vec_row_ptr_u[iv] = row_ptr[u];
+          }
         }
 
         // We won't need row_ptr after that, reusing pointer
@@ -855,13 +875,19 @@ __global__ void topdown_expand_kernel(
           IndexType thread_item_index = left + item_index + iv;
           IndexType gid               = block_offset + thread_item_index * blockDim.x + threadIdx.x;
 
-          IndexType row_ptr_u = vec_row_ptr_u[iv];
-          IndexType edge      = row_ptr_u + gid - vec_frontier_degrees_exclusive_sum_index[iv];
+          // Need this check so that we don't use invalid values of edge to index
+          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
+            IndexType row_ptr_u = vec_row_ptr_u[iv];
+            IndexType edge      = row_ptr_u + gid - vec_frontier_degrees_exclusive_sum_index[iv];
 
-          if (edge_mask && !edge_mask[edge]) row_ptr_u = -1;  // disabling edge
-
-          // Destination of this edge
-          vec_dest_v[iv] = (row_ptr_u != -1) ? col_ind[edge] : -1;
+            if (edge_mask && !edge_mask[edge]){
+              // Mask this edge out in the valid mask
+              valid_mask[iv/INT_SIZE] &= ~(1 << (iv % INT_SIZE)); 
+            }else{
+              // Destination of this edge
+              vec_dest_v[iv] = col_ind[edge];
+            }
+          }
         }
 
         // We don't need vec_frontier_degrees_exclusive_sum_index anymore
@@ -873,8 +899,12 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           IndexType v = vec_dest_v[iv];
-          vec_v_visited_bmap[iv] =
-            (v != -1) ? previous_bmap[v / INT_SIZE] : (~0);  // will look visited
+          
+          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
+            vec_v_visited_bmap[iv] = previous_bmap[v / INT_SIZE];
+          }else{
+            vec_v_visited_bmap[iv] = (~0);  // will look visited
+          }
         }
 
         // From now on we will consider v as a frontier candidate
@@ -884,12 +914,15 @@ __global__ void topdown_expand_kernel(
 
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
+          // If the edge was already masked out, it doesn't matter
+          // So we don't need to check the valid_mask here
           IndexType v = vec_frontier_candidate[iv];
           int m       = 1 << (v % INT_SIZE);
-
-          int is_visited = vec_v_visited_bmap[iv] & m;
-
-          if (is_visited) vec_frontier_candidate[iv] = -1;
+          bool is_visited = vec_v_visited_bmap[iv] & m;
+          if (is_visited){
+            // Mask this edge out in the valid mask
+            valid_mask[iv/INT_SIZE] &= ~(1 << (iv % INT_SIZE)); 
+          }
         }
 
         // Each source should update the destination shortest path counter
@@ -898,7 +931,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType dst = vec_frontier_candidate[iv];
-            if (dst != -1) {
+            if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
               IndexType src = vec_u[iv];
               atomicAdd(&sp_counters[dst], sp_counters[src]);
             }
@@ -912,7 +945,13 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType v              = vec_frontier_candidate[iv];
-            vec_is_isolated_bmap[iv] = (v != -1) ? isolated_bmap[v / INT_SIZE] : -1;
+
+            if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
+              vec_is_isolated_bmap[iv] = isolated_bmap[v / INT_SIZE] ;
+            }else{
+              vec_is_isolated_bmap[iv] = ~(0);
+            } 
+
           }
 
 #pragma unroll
@@ -928,7 +967,7 @@ __global__ void topdown_expand_kernel(
             // visited, and save distance and predecessor here. Not need to
             // check return value of atomicOr
 
-            if (is_isolated && v != -1) {
+            if (is_isolated && (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE)))){
               int m = 1 << (v % INT_SIZE);
               atomicOr(&bmap[v / INT_SIZE], m);
               if (distances) distances[v] = lvl;
@@ -936,7 +975,7 @@ __global__ void topdown_expand_kernel(
               if (predecessors) predecessors[v] = vec_u[iv];
 
               // This is no longer a candidate, neutralize it
-              vec_frontier_candidate[iv] = -1;
+              valid_mask[iv/INT_SIZE] &= ~(1 << (iv % INT_SIZE)); 
             }
           }
         }
@@ -946,8 +985,9 @@ __global__ void topdown_expand_kernel(
 
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-          IndexType v = vec_frontier_candidate[iv];
-          if (v != -1) ++thread_n_frontier_candidates;
+          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
+            ++thread_n_frontier_candidates;
+          }
         }
 
         // We need to have all nfrontier_candidates to be ready before doing the
@@ -965,7 +1005,8 @@ __global__ void topdown_expand_kernel(
           // May have bank conflicts
           IndexType frontier_candidate = vec_frontier_candidate[iv];
 
-          if (frontier_candidate != -1) {
+          //if (frontier_candidate != -1) {
+          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
             shared_local_new_frontier_candidates[thread_frontier_candidate_offset] =
               frontier_candidate;
             shared_local_new_frontier_predecessors[thread_frontier_candidate_offset] = vec_u[iv];
@@ -983,6 +1024,13 @@ __global__ void topdown_expand_kernel(
         // broadcast block_n_frontier_candidates
         __syncthreads();
 
+        
+        // Repurpose valid_mask for accepted candidates
+        #pragma unroll
+        for (int i = 0; i < (TOP_DOWN_BATCH_SIZE + INT_SIZE - 1)/INT_SIZE; i++){
+          valid_mask[i] = 0;
+        }
+        
         IndexType naccepted_vertices = 0;
         // We won't need vec_frontier_candidate after that
         IndexType *vec_frontier_accepted_vertex = vec_frontier_candidate;
@@ -990,7 +1038,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           const int idx_shared             = iv * blockDim.x + threadIdx.x;
-          vec_frontier_accepted_vertex[iv] = -1;
+          //vec_frontier_accepted_vertex[iv] = -1;
 
           if (idx_shared < block_n_frontier_candidates) {
             IndexType v = shared_local_new_frontier_candidates[idx_shared];  // popping
@@ -999,6 +1047,7 @@ __global__ void topdown_expand_kernel(
             int q = atomicOr(&bmap[v / INT_SIZE], m);  // atomicOr returns old
 
             if (!(m & q)) {  // if this thread was the first to discover this node
+              
               if (distances) distances[v] = lvl;
 
               if (predecessors) {
@@ -1007,6 +1056,7 @@ __global__ void topdown_expand_kernel(
               }
 
               vec_frontier_accepted_vertex[iv] = v;
+              valid_mask[iv/INT_SIZE] |= (1 << (iv % INT_SIZE));
               ++naccepted_vertices;
             }
           }
@@ -1024,7 +1074,7 @@ __global__ void topdown_expand_kernel(
           // for this thread, thread_new_frontier_offset + has_successor
           // (exclusive sum)
           if (inclusive_sum)
-            frontier_common_block_offset = atomicAdd(new_frontier_cnt, inclusive_sum);
+            frontier_common_block_offset = traversal::atomicAdd(new_frontier_cnt, inclusive_sum);
         }
 
         // Broadcasting frontier_common_block_offset
@@ -1036,7 +1086,7 @@ __global__ void topdown_expand_kernel(
           if (idx_shared < block_n_frontier_candidates) {
             IndexType new_frontier_vertex = vec_frontier_accepted_vertex[iv];
 
-            if (new_frontier_vertex != -1) {
+            if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
               IndexType off     = frontier_common_block_offset + thread_new_frontier_offset++;
               new_frontier[off] = new_frontier_vertex;
             }
@@ -1117,122 +1167,6 @@ void frontier_expand(const IndexType *row_ptr,
     edge_mask,
     isolated_bmap,
     directed);
-  CUDA_CHECK_LAST();
-}
-
-template <typename IndexType>
-__global__ void flag_isolated_vertices_kernel(IndexType n,
-                                              int *isolated_bmap,
-                                              const IndexType *row_ptr,
-                                              IndexType *degrees,
-                                              IndexType *nisolated)
-{
-  typedef cub::BlockLoad<IndexType,
-                         FLAG_ISOLATED_VERTICES_DIMX,
-                         FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD,
-                         cub::BLOCK_LOAD_WARP_TRANSPOSE>
-    BlockLoad;
-  typedef cub::BlockStore<IndexType,
-                          FLAG_ISOLATED_VERTICES_DIMX,
-                          FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD,
-                          cub::BLOCK_STORE_WARP_TRANSPOSE>
-    BlockStore;
-  typedef cub::BlockReduce<IndexType, FLAG_ISOLATED_VERTICES_DIMX> BlockReduce;
-  typedef cub::WarpReduce<int, FLAG_ISOLATED_VERTICES_THREADS_PER_INT> WarpReduce;
-
-  __shared__ typename BlockLoad::TempStorage load_temp_storage;
-  __shared__ typename BlockStore::TempStorage store_temp_storage;
-  __shared__ typename BlockReduce::TempStorage block_reduce_temp_storage;
-
-  __shared__ typename WarpReduce::TempStorage
-    warp_reduce_temp_storage[FLAG_ISOLATED_VERTICES_DIMX / FLAG_ISOLATED_VERTICES_THREADS_PER_INT];
-
-  __shared__ IndexType row_ptr_tail[FLAG_ISOLATED_VERTICES_DIMX];
-
-  for (IndexType block_off = FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD * (blockDim.x * blockIdx.x);
-       block_off < n;
-       block_off += FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD * (blockDim.x * gridDim.x)) {
-    IndexType thread_off = block_off + FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD * threadIdx.x;
-    IndexType last_node_thread = thread_off + FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1;
-
-    IndexType thread_row_ptr[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD];
-    IndexType block_valid_items = n - block_off + 1;  //+1, we need row_ptr[last_node+1]
-
-    BlockLoad(load_temp_storage).Load(row_ptr + block_off, thread_row_ptr, block_valid_items, -1);
-
-    // To compute 4 degrees, we need 5 values of row_ptr
-    // Saving the "5th" value in shared memory for previous thread to use
-    if (threadIdx.x > 0) { row_ptr_tail[threadIdx.x - 1] = thread_row_ptr[0]; }
-
-    // If this is the last thread, it needs to load its row ptr tail value
-    if (threadIdx.x == (FLAG_ISOLATED_VERTICES_DIMX - 1) && last_node_thread < n) {
-      row_ptr_tail[threadIdx.x] = row_ptr[last_node_thread + 1];
-    }
-    __syncthreads();  // we may reuse temp_storage
-
-    int local_isolated_bmap = 0;
-
-    IndexType imax = (n - thread_off);
-
-    IndexType local_degree[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD];
-
-#pragma unroll
-    for (int i = 0; i < (FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1); ++i) {
-      IndexType degree = local_degree[i] = thread_row_ptr[i + 1] - thread_row_ptr[i];
-
-      if (i < imax) local_isolated_bmap |= ((degree == 0) << i);
-    }
-
-    if (last_node_thread < n) {
-      IndexType degree = local_degree[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1] =
-        row_ptr_tail[threadIdx.x] - thread_row_ptr[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1];
-
-      local_isolated_bmap |= ((degree == 0) << (FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD - 1));
-    }
-
-    local_isolated_bmap <<= (thread_off % INT_SIZE);
-
-    IndexType local_nisolated = __popc(local_isolated_bmap);
-
-    // We need local_nisolated and local_isolated_bmap to be ready for next
-    // steps
-    __syncthreads();
-
-    IndexType total_nisolated = BlockReduce(block_reduce_temp_storage).Sum(local_nisolated);
-
-    if (threadIdx.x == 0 && total_nisolated) { atomicAdd(nisolated, total_nisolated); }
-
-    int logicalwarpid = threadIdx.x / FLAG_ISOLATED_VERTICES_THREADS_PER_INT;
-
-    // Building int for bmap
-    int int_aggregate_isolated_bmap = WarpReduce(warp_reduce_temp_storage[logicalwarpid])
-                                        .Reduce(local_isolated_bmap, traversal::BitwiseOr());
-
-    int is_head_of_visited_int = ((threadIdx.x % (FLAG_ISOLATED_VERTICES_THREADS_PER_INT)) == 0);
-    if (is_head_of_visited_int) {
-      isolated_bmap[thread_off / INT_SIZE] = int_aggregate_isolated_bmap;
-    }
-
-    BlockStore(store_temp_storage).Store(degrees + block_off, local_degree, block_valid_items);
-  }
-}
-
-template <typename IndexType>
-void flag_isolated_vertices(IndexType n,
-                            int *isolated_bmap,
-                            const IndexType *row_ptr,
-                            IndexType *degrees,
-                            IndexType *nisolated,
-                            cudaStream_t m_stream)
-{
-  dim3 grid, block;
-  block.x = FLAG_ISOLATED_VERTICES_DIMX;
-
-  grid.x = min((IndexType)MAXBLOCKS,
-               (n / FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD + 1 + block.x - 1) / block.x);
-
-  flag_isolated_vertices_kernel<<<grid, block, 0, m_stream>>>(
-    n, isolated_bmap, row_ptr, degrees, nisolated);
   CUDA_CHECK_LAST();
 }
 

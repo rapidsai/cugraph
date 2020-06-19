@@ -461,6 +461,8 @@ void BFS<IndexType>::clean()
   // the vectors have a destructor that takes care of cleaning
 }
 
+template class BFS<long>;
+template class BFS<unsigned>;
 template class BFS<int>;
 }  // namespace detail
 
