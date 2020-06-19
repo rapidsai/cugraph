@@ -16,6 +16,7 @@
 
 // Author: Alex Fender afender@nvidia.com
 
+#include <algorithm>
 #include <graph.hpp>
 #include "pagerank_1D.cuh"
 #include "utilities/graph_utils.cuh"
@@ -26,8 +27,9 @@ namespace opg {
 template <typename VT, typename WT>
 __global__ void transition_kernel(const size_t e, const VT *ind, const VT *degree, WT *val)
 {
-  for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
-    val[i] = 1.0 / degree[ind[i]];
+  for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x) {
+    if (degree[ind[i]] != 0) val[i] = 1.0 / degree[ind[i]];
+  }
 }
 
 template <typename VT, typename ET, typename WT>
@@ -60,8 +62,8 @@ Pagerank<VT, ET, WT>::~Pagerank()
 template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
 {
-  int threads = min(static_cast<VT>(e_loc), this->threads);
-  int blocks  = min(static_cast<VT>(32 * sm_count), this->blocks);
+  int threads = std::min(e_loc, this->threads);
+  int blocks  = std::min(32 * sm_count, this->blocks);
   transition_kernel<VT, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
   CUDA_CHECK_LAST();
 }
@@ -69,8 +71,8 @@ void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
 template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::flag_leafs(const VT *degree)
 {
-  int threads = min(static_cast<VT>(v_glob), this->threads);
-  int blocks  = min(static_cast<VT>(32 * sm_count), this->blocks);
+  int threads = std::min(v_glob, this->threads);
+  int blocks  = std::min(32 * sm_count, this->blocks);
   cugraph::detail::flag_leafs_kernel<VT, WT>
     <<<blocks, threads>>>(v_glob, degree, bookmark.data().get());
   CUDA_CHECK_LAST();
