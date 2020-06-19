@@ -31,12 +31,16 @@ namespace opg {
 template <typename VT, typename ET, typename WT>
 class Pagerank {
  private:
-  size_t v_glob;                     // global number of vertices
-  size_t v_loc;                      // local number of vertices
-  size_t e_loc;                      // local number of edges
-  WT alpha;                          // damping factor
+  size_t v_glob;  // global number of vertices
+  size_t v_loc;   // local number of vertices
+  size_t e_loc;   // local number of edges
+  WT alpha;       // damping factor
+
+  // CUDA
   const raft::comms::comms_t &comm;  // info about the opg comm setup
   cudaStream_t stream;
+  int blocks;
+  int threads;
   int sm_count;
 
   // Vertex offsets for each partition.

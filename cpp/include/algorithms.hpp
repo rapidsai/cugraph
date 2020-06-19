@@ -51,16 +51,17 @@ namespace cugraph {
  * @param[in] pagerank               Array of size V. Should contain the initial guess if
  has_guess=true. In this case the initial guess cannot be the vector of 0s. Memory is provided and
  owned by the caller.
- * @param[in] personalization_subset_size (optional) The number of vertices for to personalize.
- Initialized to 0 by default.
- * @param[in] personalization_subset (optional) Array of size personalization_subset_size containing
- vertices for running personalized pagerank. Initialized to nullptr by default. Memory is provided
- and owned by the caller.
- * @param[in] personalization_values (optional) Array of size personalization_subset_size containing
- values associated with personalization_subset vertices. Initialized to nullptr by default. Memory
- is provided and owned by the caller.
- * @param[in] tolerance              Set the tolerance the approximation, this parameter should be a
- small magnitude value.
+ * @param[in] personalization_subset_size (optional) Supported on single-GPU, on the roadmap for
+ Multi-GPU. The number of vertices for to personalize. Initialized to 0 by default.
+ * @param[in] personalization_subset (optional) Supported on single-GPU, on the roadmap for
+ Multi-GPU..= Array of size personalization_subset_size containing vertices for running personalized
+ pagerank. Initialized to nullptr by default. Memory is provided and owned by the caller.
+ * @param[in] personalization_values (optional) Supported on single-GPU, on the roadmap for
+ Multi-GPU. Array of size personalization_subset_size containing values associated with
+ personalization_subset vertices. Initialized to nullptr by default. Memory is provided and owned by
+ the caller.
+ * @param[in] tolerance              Supported on single-GPU. Set the tolerance the approximation,
+ this parameter should be a small magnitude value.
  *                                   The lower the tolerance the better the approximation. If this
  value is 0.0f, cuGraph will use the default value which is 1.0E-5.
  *                                   Setting too small a tolerance can lead to non-convergence due
@@ -70,9 +71,9 @@ namespace cugraph {
  reaches the convergence tolerance.
  *                                   If this value is lower or equal to 0 cuGraph will use the
  default value, which is 500.
- * @param[in] has_guess              (optional) This parameter is used to notify cuGraph if it
- should use a user-provided initial guess. False means the user does not have a guess, in this case
- cuGraph will use a uniform vector set to 1/V.
+ * @param[in] has_guess              (optional) Supported on single-GPU. This parameter is used to
+ notify cuGraph if it should use a user-provided initial guess. False means the user does not have a
+ guess, in this case cuGraph will use a uniform vector set to 1/V.
  *                                   If the value is True, cuGraph will read the pagerank parameter
  and use this as an initial guess.
  * @param[out] *pagerank             The PageRank : pagerank[i] is the PageRank of vertex i. Memory

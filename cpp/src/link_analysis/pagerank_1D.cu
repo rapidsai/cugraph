@@ -23,12 +23,8 @@
 namespace cugraph {
 namespace opg {
 
-#define CUDA_MAX_KERNEL_THREADS 256
-#define CUDA_MAX_BLOCKS 65535
-
 template <typename VT, typename ET, typename WT>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  transition_kernel(const size_t e, const VT *ind, const VT *degree, WT *val)
+__global__ void transition_kernel(const size_t e, const VT *ind, const VT *degree, WT *val)
 {
   for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
     val[i] = 1.0 / degree[ind[i]];
@@ -46,6 +42,8 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_,
   local_vertices = G.local_vertices;
   off            = G.offsets;
   ind            = G.indices;
+  blocks         = handle_.get_device_properties().maxGridSize[0];
+  threads        = handle_.get_device_properties().maxThreadsPerBlock;
   sm_count       = handle_.get_device_properties().multiProcessorCount;
 
   is_setup = false;
@@ -64,8 +62,8 @@ Pagerank<VT, ET, WT>::~Pagerank()
 template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
 {
-  int threads = min(static_cast<VT>(e_loc), 256);
-  int blocks  = min(static_cast<VT>(32 * sm_count), CUDA_MAX_BLOCKS);
+  int threads = min(static_cast<VT>(e_loc), this->threads);
+  int blocks  = min(static_cast<VT>(32 * sm_count), this->blocks);
   transition_kernel<VT, ET, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
   CUDA_CHECK_LAST();
 }
@@ -73,8 +71,8 @@ void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
 template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::flag_leafs(const VT *degree)
 {
-  int threads = min(static_cast<VT>(v_glob), 256);
-  int blocks  = min(static_cast<VT>(32 * sm_count), CUDA_MAX_BLOCKS);
+  int threads = min(static_cast<VT>(v_glob), this->threads);
+  int blocks  = min(static_cast<VT>(32 * sm_count), this->blocks);
   cugraph::detail::flag_leafs_kernel<VT, WT>
     <<<blocks, threads>>>(v_glob, degree, bookmark.data().get());
   CUDA_CHECK_LAST();

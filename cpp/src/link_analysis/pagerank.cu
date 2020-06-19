@@ -355,7 +355,8 @@ void pagerank(raft::handle_t const &handle,
   if (handle.comms_initialized()) {
     CUGRAPH_EXPECTS(personalization_subset == nullptr,
                     "Invalid API parameter: Multi-GPU Pagerank does not support Personalized "
-                    "variant, please use the single GPU version for this feature");
+                    "variant currently, please use the single GPU version for this feature. The "
+                    "multi-GPU support is comming.");
     CUGRAPH_EXPECTS(
       tolerance > 1e-6 && tolerance < 1e-4,
       "Invalid API parameter: Multi-GPU Pagerank does not support tolerance, please use "
@@ -363,6 +364,7 @@ void pagerank(raft::handle_t const &handle,
     CUGRAPH_EXPECTS(has_guess == false,
                     "Invalid API parameter: Multi-GPU Pagerank does not guess, please use the "
                     "single GPU version for this feature");
+    CUGRAPH_EXPECTS(max_iter > 0, "The number of iteration must be positive");
     return cugraph::opg::pagerank<VT, ET, WT>(handle, graph, pagerank, alpha, max_iter);
   } else  // Single GPU
     return detail::pagerank_impl<VT, ET, WT>(graph,
