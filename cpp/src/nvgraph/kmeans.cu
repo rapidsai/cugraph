@@ -32,6 +32,8 @@
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 
+#include <raft/cudart_utils.h>
+
 #include "include/atomics.hxx"
 #include "include/debug_macros.h"
 #include "include/nvgraph_cublas.hxx"
@@ -363,8 +365,7 @@ static int chooseNewCentroid(IndexType_ n,
   inclusive_scan(
     device_pointer_cast(dists), device_pointer_cast(dists + n), device_pointer_cast(distsCumSum));
   cudaCheckError();
-  CHECK_CUDA(
-    cudaMemcpy(&distsSum, distsCumSum + n - 1, sizeof(ValueType_), cudaMemcpyDeviceToHost));
+  CUDA_TRY(cudaMemcpy(&distsSum, distsCumSum + n - 1, sizeof(ValueType_), cudaMemcpyDeviceToHost));
 
   // Randomly choose observation vector
   //   Probabilities are proportional to square of distance to closest
@@ -378,7 +379,7 @@ static int chooseNewCentroid(IndexType_ n,
   obsIndex = min(obsIndex, n - 1);
 
   // Record new centroid position
-  CHECK_CUDA(cudaMemcpyAsync(
+  CUDA_TRY(cudaMemcpyAsync(
     centroid, obs + IDX(0, obsIndex, d), d * sizeof(ValueType_), cudaMemcpyDeviceToDevice));
 
   return 0;
@@ -445,7 +446,7 @@ static int initializeCentroids(IndexType_ n,
   gridDim_block.z = 1;
 
   // Assign observation vectors to code 0
-  CHECK_CUDA(cudaMemsetAsync(codes, 0, n * sizeof(IndexType_)));
+  CUDA_TRY(cudaMemsetAsync(codes, 0, n * sizeof(IndexType_)));
 
   // Choose first centroid
   thrust::fill(thrust::device_pointer_cast(dists), thrust::device_pointer_cast(dists + n), 1);
@@ -454,7 +455,7 @@ static int initializeCentroids(IndexType_ n,
     WARNING("error in k-means++ (could not pick centroid)");
 
   // Compute distances from first centroid
-  CHECK_CUDA(cudaMemsetAsync(dists, 0, n * sizeof(ValueType_)));
+  CUDA_TRY(cudaMemsetAsync(dists, 0, n * sizeof(ValueType_)));
   computeDistances<<<gridDim_warp, blockDim_warp>>>(n, d, 1, obs, centroids, dists);
   cudaCheckError()
 
@@ -466,7 +467,7 @@ static int initializeCentroids(IndexType_ n,
       WARNING("error in k-means++ (could not pick centroid)");
 
     // Compute distances from ith centroid
-    CHECK_CUDA(cudaMemsetAsync(dists + n, 0, n * sizeof(ValueType_)));
+    CUDA_TRY(cudaMemsetAsync(dists + n, 0, n * sizeof(ValueType_)));
     computeDistances<<<gridDim_warp, blockDim_warp>>>(
       n, d, 1, obs, centroids + IDX(0, i, d), dists + n);
     cudaCheckError();
@@ -477,7 +478,7 @@ static int initializeCentroids(IndexType_ n,
   }
 
   // Compute cluster sizes
-  CHECK_CUDA(cudaMemsetAsync(clusterSizes, 0, k * sizeof(IndexType_)));
+  CUDA_TRY(cudaMemsetAsync(clusterSizes, 0, k * sizeof(IndexType_)));
   computeClusterSizes<<<gridDim_block, BLOCK_SIZE>>>(n, k, codes, clusterSizes);
   cudaCheckError();
 
@@ -522,7 +523,7 @@ static int assignCentroids(IndexType_ n,
   dim3 blockDim, gridDim;
 
   // Compute distance between centroids and observation vectors
-  CHECK_CUDA(cudaMemsetAsync(dists, 0, n * k * sizeof(ValueType_)));
+  CUDA_TRY(cudaMemsetAsync(dists, 0, n * k * sizeof(ValueType_)));
   blockDim.x = WARP_SIZE;
   blockDim.y = 1;
   blockDim.z = BLOCK_SIZE / WARP_SIZE;
@@ -533,7 +534,7 @@ static int assignCentroids(IndexType_ n,
   cudaCheckError();
 
   // Find centroid closest to each observation vector
-  CHECK_CUDA(cudaMemsetAsync(clusterSizes, 0, k * sizeof(IndexType_)));
+  CUDA_TRY(cudaMemsetAsync(clusterSizes, 0, k * sizeof(IndexType_)));
   blockDim.x = BLOCK_SIZE;
   blockDim.y = 1;
   blockDim.z = 1;
@@ -738,8 +739,8 @@ NVGRAPH_ERROR kmeans(IndexType_ n,
 
   // Trivial cases
   if (k == 1) {
-    CHECK_CUDA(cudaMemsetAsync(codes, 0, n * sizeof(IndexType_)));
-    CHECK_CUDA(cudaMemcpyAsync(clusterSizes, &n, sizeof(IndexType_), cudaMemcpyHostToDevice));
+    CUDA_TRY(cudaMemsetAsync(codes, 0, n * sizeof(IndexType_)));
+    CUDA_TRY(cudaMemcpyAsync(clusterSizes, &n, sizeof(IndexType_), cudaMemcpyHostToDevice));
     if (updateCentroids(n, d, k, obs, codes, clusterSizes, centroids, work, work_int))
       WARNING("could not compute k-means centroids");
     dim3 blockDim, gridDim;
@@ -749,7 +750,7 @@ NVGRAPH_ERROR kmeans(IndexType_ n,
     gridDim.x  = min((d + WARP_SIZE - 1) / WARP_SIZE, 65535);
     gridDim.y  = 1;
     gridDim.z  = min((n + BLOCK_SIZE / WARP_SIZE - 1) / (BLOCK_SIZE / WARP_SIZE), 65535);
-    CHECK_CUDA(cudaMemsetAsync(work, 0, n * k * sizeof(ValueType_)));
+    CUDA_TRY(cudaMemsetAsync(work, 0, n * k * sizeof(ValueType_)));
     computeDistances<<<gridDim, blockDim>>>(n, d, 1, obs, centroids, work);
     cudaCheckError();
     *residual_host =
@@ -763,9 +764,8 @@ NVGRAPH_ERROR kmeans(IndexType_ n,
     thrust::fill_n(thrust::device_pointer_cast(clusterSizes), n, 1);
     cudaCheckError();
 
-    if (n < k) CHECK_CUDA(cudaMemsetAsync(clusterSizes + n, 0, (k - n) * sizeof(IndexType_)));
-    CHECK_CUDA(
-      cudaMemcpyAsync(centroids, obs, d * n * sizeof(ValueType_), cudaMemcpyDeviceToDevice));
+    if (n < k) CUDA_TRY(cudaMemsetAsync(clusterSizes + n, 0, (k - n) * sizeof(IndexType_)));
+    CUDA_TRY(cudaMemcpyAsync(centroids, obs, d * n * sizeof(ValueType_), cudaMemcpyDeviceToDevice));
     *residual_host = 0;
     return NVGRAPH_OK;
   }

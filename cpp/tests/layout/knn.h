@@ -20,6 +20,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <vector>
 
 struct point {
   point() {}

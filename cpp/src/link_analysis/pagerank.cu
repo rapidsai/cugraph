@@ -22,8 +22,9 @@
 #include <string>
 #include "cub/cub.cuh"
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <graph.hpp>
 #include "utilities/graph_utils.cuh"
@@ -141,7 +142,8 @@ int pagerankSolver(IndexType n,
   rmm::device_vector<WT> tmp(n);
   tmp_d = pr.data().get();
 #endif
-  CUDA_CHECK_LAST();
+  // FIXME: this should take a passed CUDA strema instead of default nullptr
+  CHECK_CUDA(nullptr);
 
   if (!has_guess) {
     fill(n, pagerank_vector, randomProbability);
@@ -338,7 +340,8 @@ void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void pagerank(experimental::GraphCSCView<VT, ET, WT> const &graph,
+void pagerank(raft::handle_t const &handle,
+              experimental::GraphCSCView<VT, ET, WT> const &graph,
               WT *pagerank,
               VT personalization_subset_size,
               VT *personalization_subset,
@@ -350,6 +353,13 @@ void pagerank(experimental::GraphCSCView<VT, ET, WT> const &graph,
 {
   CUGRAPH_EXPECTS(pagerank != nullptr, "Invalid API parameter: Pagerank array should be of size V");
 
+  if (handle.comms_initialized()) {
+    std::cout << "\nINSIDE CPP\n";
+    auto &comm = handle.get_comms();
+    std::cout << comm.get_rank() << "\n";
+    std::cout << comm.get_size() << "\n";
+    return;
+  }
   return detail::pagerank_impl<VT, ET, WT>(graph,
                                            pagerank,
                                            personalization_subset_size,
@@ -362,7 +372,8 @@ void pagerank(experimental::GraphCSCView<VT, ET, WT> const &graph,
 }
 
 // explicit instantiation
-template void pagerank<int, int, float>(experimental::GraphCSCView<int, int, float> const &graph,
+template void pagerank<int, int, float>(raft::handle_t const &handle,
+                                        experimental::GraphCSCView<int, int, float> const &graph,
                                         float *pagerank,
                                         int personalization_subset_size,
                                         int *personalization_subset,
@@ -371,7 +382,8 @@ template void pagerank<int, int, float>(experimental::GraphCSCView<int, int, flo
                                         double tolerance,
                                         int64_t max_iter,
                                         bool has_guess);
-template void pagerank<int, int, double>(experimental::GraphCSCView<int, int, double> const &graph,
+template void pagerank<int, int, double>(raft::handle_t const &handle,
+                                         experimental::GraphCSCView<int, int, double> const &graph,
                                          double *pagerank,
                                          int personalization_subset_size,
                                          int *personalization_subset,

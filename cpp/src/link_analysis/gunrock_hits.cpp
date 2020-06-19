@@ -22,7 +22,7 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <gunrock/gunrock.h>
 

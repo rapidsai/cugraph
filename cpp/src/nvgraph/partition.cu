@@ -25,6 +25,8 @@
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
 
+#include <raft/cudart_utils.h>
+
 #include <nvgraph/include/debug_macros.h>
 #include <nvgraph/include/sm_utils.h>
 #include <nvgraph/include/kmeans.hxx>
@@ -252,7 +254,7 @@ NVGRAPH_ERROR partition(
                  nEigVecs,
                  work.raw(),
                  nEigVecs);
-    CHECK_CUDA(cudaMemcpyAsync(
+    CUDA_TRY(cudaMemcpyAsync(
       eigVecs, work.raw(), nEigVecs * n * sizeof(weight_t), cudaMemcpyDeviceToDevice));
   }
 
