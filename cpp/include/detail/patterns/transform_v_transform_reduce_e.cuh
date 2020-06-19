@@ -15,9 +15,6 @@
  */
 #pragma once
 
-// FIXME: better move this file to include/utilities (following cuDF) and rename to error.hpp
-#include <utilities/error_utils.h>
-
 #include <detail/reduce_op.cuh>
 #include <graph.hpp>
 

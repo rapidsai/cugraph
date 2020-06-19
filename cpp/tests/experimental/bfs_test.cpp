@@ -13,13 +13,14 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-
+ 
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
 
 #include <raft/handle.hpp>
+#include <raft/cudart_utils.h>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -120,14 +121,14 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     std::vector<vertex_t> h_reference_distances(csr_graph_view.number_of_vertices);
     std::vector<vertex_t> h_reference_predecessors(csr_graph_view.number_of_vertices);
 
-    CUDA_RT_CALL(cudaMemcpy(h_offsets.data(),
-                            csr_graph_view.offsets,
-                            sizeof(edge_t) * h_offsets.size(),
-                            cudaMemcpyDeviceToHost));
-    CUDA_RT_CALL(cudaMemcpy(h_indices.data(),
-                            csr_graph_view.indices,
-                            sizeof(vertex_t) * h_indices.size(),
-                            cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(h_offsets.data(),
+                        csr_graph_view.offsets,
+                        sizeof(edge_t) * h_offsets.size(),
+                        cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(h_indices.data(),
+                        csr_graph_view.indices,
+                        sizeof(vertex_t) * h_indices.size(),
+                        cudaMemcpyDeviceToHost));
 
     bfs_reference(h_offsets.begin(),
                   h_indices.begin(),
@@ -160,14 +161,14 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     std::vector<vertex_t> h_cugraph_distances(csr_graph_view.number_of_vertices);
     std::vector<vertex_t> h_cugraph_predecessors(csr_graph_view.number_of_vertices);
 
-    CUDA_RT_CALL(cudaMemcpy(h_cugraph_distances.data(),
-                            d_distances.data(),
-                            sizeof(vertex_t) * d_distances.size(),
-                            cudaMemcpyDeviceToHost));
-    CUDA_RT_CALL(cudaMemcpy(h_cugraph_predecessors.data(),
-                            d_predecessors.data(),
-                            sizeof(vertex_t) * d_predecessors.size(),
-                            cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(h_cugraph_distances.data(),
+                        d_distances.data(),
+                        sizeof(vertex_t) * d_distances.size(),
+                        cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(h_cugraph_predecessors.data(),
+                        d_predecessors.data(),
+                        sizeof(vertex_t) * d_predecessors.size(),
+                        cudaMemcpyDeviceToHost));
 
     EXPECT_TRUE(std::equal(
       h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))

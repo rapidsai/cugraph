@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// FIXME: better move this file to include/utilities (following cuDF) and rename to error.hpp
-#include <utilities/error_utils.h>
-
-// FIXME: think about moving pattern accelerator API related files to detail/patterns
 #include <algorithms.hpp>
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/adj_matrix_row_frontier.cuh>
 #include <detail/patterns/expand_row_and_transform_if_e.cuh>
 #include <detail/patterns/reduce_op.cuh>
 #include <graph.hpp>
+#include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

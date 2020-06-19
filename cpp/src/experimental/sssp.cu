@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <utilities/error_utils.h>
-
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/adj_matrix_row_frontier.cuh>
 #include <detail/patterns/expand_row_and_transform_if_e.cuh>
@@ -22,6 +20,7 @@
 #include <detail/patterns/transform_reduce_e.cuh>
 #include <detail/utilities/cuda.cuh>
 #include <graph.hpp>
+#include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 
