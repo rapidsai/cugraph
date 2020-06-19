@@ -19,6 +19,7 @@
 - PR #946 Install meta packages for dependencies
 - PR #952 Updated get_test_data.sh to also (optionally) download and install datasets for benchmark runs
 - PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
+- PR #954 Update cuGraph error handling to use RAFT
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper

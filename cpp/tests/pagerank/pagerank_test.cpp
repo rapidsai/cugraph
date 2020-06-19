@@ -12,17 +12,21 @@
 // Pagerank solver tests
 // Author: Alex Fender afender@nvidia.com
 
-#include <cmath>
+#include <utilities/high_res_clock.h>
+#include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
+
+#include <raft/error.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
-#include "high_res_clock.h"
 
-#include "utilities/test_utilities.hpp"
+#include "cuda_profiler_api.h"
+
+#include "gtest/gtest.h"
+
+#include <cmath>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -158,8 +162,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (param.result_file.length() > 0) {
       std::vector<T> calculated_res(m);
 
-      CUDA_RT_CALL(
-        cudaMemcpy(&calculated_res[0], d_pagerank, sizeof(T) * m, cudaMemcpyDeviceToHost));
+      CUDA_TRY(cudaMemcpy(&calculated_res[0], d_pagerank, sizeof(T) * m, cudaMemcpyDeviceToHost));
       std::sort(calculated_res.begin(), calculated_res.end());
       fpin = fopen(param.result_file.c_str(), "rb");
       ASSERT_TRUE(fpin != NULL) << " Cannot read file with reference data: " << param.result_file
