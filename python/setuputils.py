@@ -73,6 +73,8 @@ def use_raft_package(raft_path, cpp_build_path,
     """
     Function to use the python code in RAFT in package.raft
 
+    - If RAFT symlink already exists, don't change anything. Use setup.py clean
+        if you want to change RAFT location.
     - Uses RAFT located in $RAFT_PATH if $RAFT_PATH exists.
     - Otherwise it will look for RAFT in the libcugraph build folder,
         located either in the default location ../cpp/build or in
@@ -86,38 +88,55 @@ def use_raft_package(raft_path, cpp_build_path,
          Path to the C++ include folder of RAFT
     """
 
-    if not raft_path:
+    if os.path.islink('cugraph/raft'):
+        raft_path = os.path.realpath('cugraph/raft')
+        # walk up two dirs from `python/raft`
+        raft_path = os.path.join(raft_path, '..', '..')
+        print("-- Using existing RAFT folder")
+    elif isinstance(raft_path, (str, os.PathLike)):
+        print('-- Using RAFT_PATH argument')
+    elif os.environ.get('RAFT_PATH', False) is not False:
+        raft_path = str(os.environ['RAFT_PATH'])
+        print('-- Using RAFT_PATH environment variable')
+    else:
         raft_path, raft_cloned = \
             clone_repo_if_needed('raft', cpp_build_path,
                                  git_info_file=git_info_file)
+        raft_path = os.path.join('../', raft_path)
 
-    else:
-        print("-- Using RAFT_PATH variable, RAFT found at " +
-              str(os.environ['RAFT_PATH']))
-        raft_path = os.environ['RAFT_PATH']
+    raft_path = os.path.realpath(raft_path)
+    print('-- RAFT found at: ' + str(raft_path))
 
     try:
-        os.symlink('../' + raft_path + 'python/raft', 'cugraph/raft')
+        os.symlink(
+            os.path.join(raft_path, 'python/raft'),
+            os.path.join('cugraph/raft')
+        )
     except FileExistsError:
-        os.remove('cugraph/raft')
-        os.symlink('../' + raft_path + 'python/raft', 'cugraph/raft')
+        os.remove(os.path.join('cugraph/raft'))
+        os.symlink(
+            os.path.join(raft_path, 'python/raft'),
+            os.path.join('cugraph/raft')
+        )
 
     return os.path.join(raft_path, 'cpp/include')
 
 
-def clone_repo_if_needed(name, cpp_build_path,
-                         git_info_file='../cpp/cmake/Dependencies.cmake'):
-    if cpp_build_path:
-        cpp_build_path = '../' + cpp_build_path
-    else:
-        cpp_build_path = '../cpp/build/'
+def clone_repo_if_needed(name, cpp_build_path=None,
+                         git_info_file=None):
+    if git_info_file is None:
+        git_info_file = _get_repo_path() + '/cpp/CMakeLists.txt'
+
+    if cpp_build_path is None or cpp_build_path is False:
+        cpp_build_path = _get_repo_path() + '/cpp/build/'
 
     repo_cloned = get_submodule_dependency(name,
                                            cpp_build_path=cpp_build_path,
                                            git_info_file=git_info_file)
 
     if repo_cloned:
-        repo_path = '_external_repositories/' + name + '/'
+        repo_path = (
+            _get_repo_path() + '/python/_external_repositories/' + name + '/')
     else:
         repo_path = os.path.join(cpp_build_path, name + '/src/' + name + '/')
 
@@ -257,3 +276,8 @@ def get_repo_cmake_info(names, file_path):
         results[name] = res
 
     return results
+
+
+def _get_repo_path():
+    python_dir = Path(__file__).resolve()
+    return str(python_dir.parent.parent.absolute())
