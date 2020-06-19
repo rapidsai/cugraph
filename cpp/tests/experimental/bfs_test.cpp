@@ -178,8 +178,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
         EXPECT_TRUE(h_reference_predecessors[i] == *it)
           << "vertex reachability do not match with the reference.";
-      }
-      else {
+      } else {
         EXPECT_TRUE(h_reference_distances[*it] + 1 == h_reference_distances[i])
           << "distance to this vertex != distance to the predecessor vertex + 1.";
         bool found{false};

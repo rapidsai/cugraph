@@ -27,8 +27,8 @@ extern "C" {
 
 #include <gtest/gtest.h>
 
-#include <cstdio>
 #include <cfloat>
+#include <cstdio>
 #include <string>
 
 // FIXME: RAFT error handling macros should be used instead
