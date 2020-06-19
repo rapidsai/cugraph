@@ -65,7 +65,7 @@ void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
   int threads = std::min(e_loc, this->threads);
   int blocks  = std::min(32 * sm_count, this->blocks);
   transition_kernel<VT, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 template <typename VT, typename ET, typename WT>
@@ -75,7 +75,7 @@ void Pagerank<VT, ET, WT>::flag_leafs(const VT *degree)
   int blocks  = std::min(32 * sm_count, this->blocks);
   cugraph::detail::flag_leafs_kernel<VT, WT>
     <<<blocks, threads>>>(v_glob, degree, bookmark.data().get());
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 // Artificially create the google matrix by setting val and bookmark

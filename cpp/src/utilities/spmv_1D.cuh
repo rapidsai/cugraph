@@ -22,7 +22,7 @@
 // The wrapper is about to be upgraded in RAFT
 // better wait for it to be stable before building on top of it
 // #include <raft/sparse/cusparse_wrappers.h>
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 
 namespace cugraph {
 namespace opg {

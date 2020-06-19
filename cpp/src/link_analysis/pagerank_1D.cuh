@@ -22,7 +22,7 @@
 #include <numeric>
 #include <raft/handle.hpp>
 
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 #include "utilities/spmv_1D.cuh"
 
 namespace cugraph {
