@@ -22,8 +22,9 @@
 #include <string>
 #include "cub/cub.cuh"
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <graph.hpp>
 #include "pagerank_1D.cuh"
@@ -142,7 +143,8 @@ int pagerankSolver(IndexType n,
   rmm::device_vector<WT> tmp(n);
   tmp_d = pr.data().get();
 #endif
-  CUDA_CHECK_LAST();
+  // FIXME: this should take a passed CUDA strema instead of default nullptr
+  CHECK_CUDA(nullptr);
 
   if (!has_guess) {
     fill(n, pagerank_vector, randomProbability);
@@ -357,10 +359,6 @@ void pagerank(raft::handle_t const &handle,
                     "Invalid API parameter: Multi-GPU Pagerank does not support Personalized "
                     "variant currently, please use the single GPU version for this feature. The "
                     "multi-GPU support is comming.");
-    CUGRAPH_EXPECTS(
-      tolerance > 1e-6 && tolerance < 1e-4,
-      "Invalid API parameter: Multi-GPU Pagerank does not support tolerance, please use "
-      "the number of iteration as stopping criteria");
     CUGRAPH_EXPECTS(has_guess == false,
                     "Invalid API parameter: Multi-GPU Pagerank does not guess, please use the "
                     "single GPU version for this feature");

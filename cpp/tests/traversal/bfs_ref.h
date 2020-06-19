@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <limits>
 #include <queue>
 #include <stack>
 #include <vector>

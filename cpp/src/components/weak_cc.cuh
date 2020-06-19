@@ -25,6 +25,8 @@
 #include <iostream>
 #include <type_traits>
 
+#include <raft/cudart_utils.h>
+
 #include <rmm/thrust_rmm_allocator.h>
 #include "utilities/cuda_utils.cuh"
 #include "utils.h"
@@ -163,22 +165,22 @@ void weak_cc_label_batched(vertex_t *labels,
   weak_cc_init_label_kernel<vertex_t, TPB_X>
     <<<blocks, threads, 0, stream>>>(labels, startVertexId, batchSize, MAX_LABEL, filter_op);
 
-  CUDA_CHECK(cudaPeekAtLastError());
+  CUDA_TRY(cudaPeekAtLastError());
 
   int n_iters = 0;
   do {
-    CUDA_CHECK(cudaMemsetAsync(state.m, false, sizeof(bool), stream));
+    CUDA_TRY(cudaMemsetAsync(state.m, false, sizeof(bool), stream));
 
     weak_cc_label_device<vertex_t, edge_t, TPB_X><<<blocks, threads, 0, stream>>>(
       labels, offsets, indices, nnz, state.fa, state.xa, state.m, startVertexId, batchSize);
-    CUDA_CHECK(cudaPeekAtLastError());
-    CUDA_CHECK(cudaStreamSynchronize(stream));
+    CUDA_TRY(cudaPeekAtLastError());
+    CUDA_TRY(cudaStreamSynchronize(stream));
 
     thrust::swap(state.fa, state.xa);
 
     //** Updating m *
     MLCommon::updateHost(&host_m, state.m, 1, stream);
-    CUDA_CHECK(cudaStreamSynchronize(stream));
+    CUDA_TRY(cudaStreamSynchronize(stream));
 
     n_iters++;
   } while (host_m);
@@ -233,7 +235,7 @@ void weak_cc_batched(vertex_t *labels,
   if (startVertexId == 0) {
     weak_cc_init_all_kernel<vertex_t, TPB_X>
       <<<blocks, threads, 0, stream>>>(labels, state.fa, state.xa, N, MAX_LABEL);
-    CUDA_CHECK(cudaPeekAtLastError());
+    CUDA_TRY(cudaPeekAtLastError());
   }
 
   weak_cc_label_batched<vertex_t, edge_t, TPB_X>(

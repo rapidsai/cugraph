@@ -27,9 +27,9 @@ namespace opg {
 template <typename VT, typename WT>
 __global__ void transition_kernel(const size_t e, const VT *ind, const VT *degree, WT *val)
 {
-  for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x) {
-    if (degree[ind[i]] != 0) val[i] = 1.0 / degree[ind[i]];
-  }
+  for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
+    val[i] = 1.0 / degree[ind[i]];  // Degree contains IN degree. So all degree[ind[i]] were
+                                    // incremented by definition (no div by 0).
 }
 
 template <typename VT, typename ET, typename WT>

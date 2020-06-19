@@ -256,7 +256,7 @@ endif(NOT NCCL_PATH)
 if(DEFINED ENV{RAFT_PATH})
   message(STATUS "RAFT_PATH environment variable detected.")
   message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
-  set(RAFT_DIR ENV{RAFT_PATH})
+  set(RAFT_DIR "$ENV{RAFT_PATH}")
 
   ExternalProject_Add(raft
     DOWNLOAD_COMMAND  ""
@@ -271,7 +271,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           f17e5f6217a8a3101ea095d37888607bbf8c3b25
+    GIT_TAG           3038c773636540941b8bf9e30c487f20bddc3cdc
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""

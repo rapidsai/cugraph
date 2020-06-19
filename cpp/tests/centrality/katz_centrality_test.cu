@@ -8,7 +8,7 @@
 #include "gmock/gmock-generated-matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "high_res_clock.h"
+#include "utilities/high_res_clock.h"
 
 #include "utilities/test_utilities.hpp"
 

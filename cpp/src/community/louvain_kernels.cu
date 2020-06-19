@@ -174,7 +174,7 @@ void generate_superverticies_graph(
                       new_number_of_vertices,
                       current_graph.number_of_edges,
                       stream);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 
   src_indices_v.resize(current_graph.number_of_edges);
 }
