@@ -309,6 +309,7 @@ add_library(cugraph SHARED
     src/link_analysis/pagerank.cu
     src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
+    src/traversal/opg/frontier_expansion.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
