@@ -874,7 +874,7 @@ void sssp(raft::handle_t &handle,
           weight_t *distances,
           vertex_t *predecessors,
           vertex_t source_vertex,
-          size_t depth_limit      = std::numeric_limits<size_t>::max(),
+          weight_t cutoff         = std::numeric_limits<weight_t>::max(),
           bool do_expensive_check = false);
 
 }  // namespace experimental

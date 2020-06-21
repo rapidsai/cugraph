@@ -76,6 +76,7 @@ void sssp_this_partition(raft::handle_t &handle,
                   "Invalid input argument: starting vertex out-of-range.");
 
   if (do_expensive_check) {
+    // FIXME: need to check weights are non-negative.
     // nothing to do
   }
 
@@ -179,14 +180,14 @@ void sssp_this_partition(raft::handle_t &handle,
           auto row_val, auto col_val, weight_t w) {
           auto push         = true;
           auto new_distance = thrust::get<0>(row_val) + w;
-          bool local =
-            graph_device_view.in_this_partition_vertex_range_nocheck(thrust::get<1>(row_val));
-          if (local) {
+          auto threshold    = cutoff;
+          if (graph_device_view.in_this_partition_vertex_range_nocheck(col_val)) {
             auto this_partition_vertex_offset =
               graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
             auto old_distance = *(distance_first + this_partition_vertex_offset);
-            if (new_distance >= old_distance) { push = false; }
+            threshold         = old_distance < threshold ? old_distance : threshold;
           }
+          if (new_distance >= threshold) { push = false; }
           return thrust::make_tuple(push, new_distance, thrust::get<1>(row_val));
         },
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
@@ -206,21 +207,24 @@ void sssp_this_partition(raft::handle_t &handle,
         adj_matrix_row_frontier,
         [graph_device_view, distance_first, cutoff] __device__(
           auto row_val, auto col_val, weight_t w) {
-          auto push  = true;
-          bool local = graph_device_view.in_this_partition_vertex_range_nocheck(row_val);
-          if (local) {
+          auto push         = true;
+          auto new_distance = invalid_distance;
+          auto threshold    = cutoff;
+          if (graph_device_view.in_this_partition_vertex_range_nocheck(row_val)) {
             auto row_this_partition_vertex_offset =
               graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(row_val);
-            auto col_this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
-            auto old_distance = *(distance_first + col_this_partition_vertex_offset);
-            auto new_distance = *(distance_first + row_this_partition_vertex_offset) + w;
-            if (new_distance >= old_distance) { push = false; }
-            return thrust::make_tuple(push, new_distance, row_val);
+            new_distance = *(distance_first + row_this_partition_vertex_offset) + w;
           } else {
-            assert(0);
-            return thrust::make_tuple(false, invalid_distance, invalid_vertex);
+            assert(0);  // should not be reached.
           }
+          if (graph_device_view.in_this_partition_vertex_range_nocheck(col_val)) {
+            auto this_partition_vertex_offset =
+              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
+            auto old_distance = *(distance_first + this_partition_vertex_offset);
+            threshold         = old_distance < threshold ? old_distance : threshold;
+          }
+          if (new_distance >= threshold) { push = false; }
+          return thrust::make_tuple(push, new_distance, row_val);
         },
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         v_op);
@@ -299,11 +303,11 @@ void sssp(raft::handle_t &handle,
           weight_t *distances,
           vertex_t *predecessors,
           vertex_t start_vertex,
-          size_t depth_limit,
+          weight_t cutoff,
           bool do_expensive_check)
 {
   detail::sssp_this_partition(
-    handle, graph, distances, predecessors, start_vertex, depth_limit, do_expensive_check);
+    handle, graph, distances, predecessors, start_vertex, cutoff, do_expensive_check);
 }
 
 // explicit instantiation
@@ -313,7 +317,7 @@ template void sssp(raft::handle_t &handle,
                    float *distances,
                    int32_t *predecessors,
                    int32_t start_vertex,
-                   size_t depth_limit,
+                   float cutoff,
                    bool do_expensive_check);
 
 }  // namespace experimental
