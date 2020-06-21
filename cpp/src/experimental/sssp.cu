@@ -22,6 +22,7 @@
 #include <graph.hpp>
 #include <utilities/error.hpp>
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/fill.h>
@@ -43,7 +44,7 @@ void sssp_this_partition(raft::handle_t &handle,
                          WeightIterator distance_first,
                          VertexIterator predecessor_first,
                          typename GraphType::vertex_type start_vertex,
-                         size_t depth_limit,
+                         typename GraphType::weight_type cutoff,
                          bool do_expensive_check)
 {
   using vertex_t = typename GraphType::vertex_type;
@@ -78,25 +79,7 @@ void sssp_this_partition(raft::handle_t &handle,
     // nothing to do
   }
 
-  // 2. update delta
-
-  weight_t average_vertex_degree{0.0};
-  weight_t average_edge_weight{0.0};
-  thrust::tie(average_vertex_degree, average_edge_weight) = transform_reduce_e(
-    handle,
-    graph_device_view,
-    thrust::make_constant_iterator(0) /* dummy */,
-    thrust::make_constant_iterator(0) /* dummy */,
-    [] __device__(auto row_val, auto col_val, weight_t w) {
-      return thrust::make_tuple(static_cast<weight_t>(1.0), w);
-    },
-    thrust::make_tuple(static_cast<weight_t>(0.0), static_cast<weight_t>(0.0)));
-  average_vertex_degree /= static_cast<weight_t>(num_vertices);
-  average_edge_weight /=
-    num_edges > 0 ? static_cast<weight_t>(num_edges) : static_cast<weight_t>(1.0);
-  auto delta = (static_cast<weight_t>(warp_size) * average_edge_weight) / average_vertex_degree;
-
-  // 3. initialize distances and predecessors
+  // 2. initialize distances and predecessors
 
   auto constexpr invalid_distance = std::numeric_limits<weight_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
@@ -114,6 +97,26 @@ void sssp_this_partition(raft::handle_t &handle,
                       return thrust::make_tuple(distance, invalid_vertex);
                     });
 
+  if (num_edges > 0) { return; }
+
+  // 3. update delta
+
+  weight_t average_vertex_degree{0.0};
+  weight_t average_edge_weight{0.0};
+  thrust::tie(average_vertex_degree, average_edge_weight) = transform_reduce_e(
+    handle,
+    graph_device_view,
+    thrust::make_constant_iterator(0) /* dummy */,
+    thrust::make_constant_iterator(0) /* dummy */,
+    [] __device__(auto row_val, auto col_val, weight_t w) {
+      return thrust::make_tuple(static_cast<weight_t>(1.0), w);
+    },
+    thrust::make_tuple(static_cast<weight_t>(0.0), static_cast<weight_t>(0.0)));
+  average_vertex_degree /= static_cast<weight_t>(num_vertices);
+  average_edge_weight /= static_cast<weight_t>(num_edges);
+  auto delta =
+    (static_cast<weight_t>(raft::warp_size()) * average_edge_weight) / average_vertex_degree;
+
   // 4. initialize SSSP frontier
 
   enum class Bucket { cur_near, new_near, far, num_buckets };
@@ -130,7 +133,7 @@ void sssp_this_partition(raft::handle_t &handle,
   // 5. SSSP iteration
 
   rmm::device_vector<weight_t> adj_matrix_row_distances{};
-  if (GraphType::is_opg) {
+  if (graph_device_view.get_number_of_this_partition_adj_matrix_rows() != num_vertices) {
     adj_matrix_row_distances.assign(
       graph_device_view.get_number_of_this_partition_adj_matrix_rows(),
       std::numeric_limits<weight_t>::max());
@@ -172,7 +175,8 @@ void sssp_this_partition(raft::handle_t &handle,
           thrust::make_tuple(adj_matrix_row_distances.begin(), thrust::make_discard_iterator())),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
-        [graph_device_view, distance_first] __device__(auto row_val, auto col_val, weight_t w) {
+        [graph_device_view, distance_first, cutoff] __device__(
+          auto row_val, auto col_val, weight_t w) {
           auto push         = true;
           auto new_distance = thrust::get<0>(row_val) + w;
           bool local =
@@ -200,7 +204,8 @@ void sssp_this_partition(raft::handle_t &handle,
         thrust::make_discard_iterator(),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
-        [graph_device_view, distance_first] __device__(auto row_val, auto col_val, weight_t w) {
+        [graph_device_view, distance_first, cutoff] __device__(
+          auto row_val, auto col_val, weight_t w) {
           auto push  = true;
           bool local = graph_device_view.in_this_partition_vertex_range_nocheck(row_val);
           if (local) {
