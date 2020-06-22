@@ -13,7 +13,7 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
- 
+
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
@@ -102,7 +102,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   template <typename vertex_t, typename edge_t>
   void run_current_test(BFS_Usecase const &configuration)
   {
-    // FIXME: directed is a misnomer. this should be directed is set if !symmetric
+    // FIXME: directed is a misnomer.
     bool directed{false};
     auto p_csr_graph =
       cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, float /* weight_t, dummy */>(
@@ -114,7 +114,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     ASSERT_TRUE(configuration.source_ >= 0 &&
                 configuration.source_ <= csr_graph_view.number_of_vertices)
       << "Starting sources should be >= 0 and"
-      << " less than the number of vertices in the graph";
+      << " less than the number of vertices in the graph.";
 
     std::vector<edge_t> h_offsets(csr_graph_view.number_of_vertices + 1);
     std::vector<vertex_t> h_indices(csr_graph_view.number_of_edges);
@@ -145,7 +145,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     rmm::device_uvector<vertex_t> d_predecessors(csr_graph_view.number_of_vertices,
                                                  handle.get_stream());
 
-    cudaDeviceSynchronize();  // for consistent performance measurement
+    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     cugraph::experimental::bfs(handle,
                                csr_graph_view,
@@ -156,7 +156,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                                std::numeric_limits<size_t>::max(),
                                false);
 
-    cudaDeviceSynchronize();  // for consistent performance measurement
+    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     std::vector<vertex_t> h_cugraph_distances(csr_graph_view.number_of_vertices);
     std::vector<vertex_t> h_cugraph_predecessors(csr_graph_view.number_of_vertices);
@@ -170,17 +170,17 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                         sizeof(vertex_t) * d_predecessors.size(),
                         cudaMemcpyDeviceToHost));
 
-    EXPECT_TRUE(std::equal(
+    ASSERT_TRUE(std::equal(
       h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))
       << "distances do not match with the reference values.";
 
     for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
       auto i = std::distance(h_cugraph_predecessors.begin(), it);
       if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
-        EXPECT_TRUE(h_reference_predecessors[i] == *it)
+        ASSERT_TRUE(h_reference_predecessors[i] == *it)
           << "vertex reachability do not match with the reference.";
       } else {
-        EXPECT_TRUE(h_reference_distances[*it] + 1 == h_reference_distances[i])
+        ASSERT_TRUE(h_reference_distances[*it] + 1 == h_reference_distances[i])
           << "distance to this vertex != distance to the predecessor vertex + 1.";
         bool found{false};
         for (auto j = h_offsets[*it]; j < h_offsets[*it + 1]; ++j) {
@@ -189,7 +189,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
             break;
           }
         }
-        EXPECT_TRUE(found) << "no edge from the predecessor vertex to this vertex";
+        ASSERT_TRUE(found) << "no edge from the predecessor vertex to this vertex.";
       }
     }
   }
