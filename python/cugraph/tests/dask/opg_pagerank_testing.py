@@ -16,11 +16,8 @@ from dask.distributed import Client
 import gc
 import cugraph
 import dask_cudf
-
-# Move to conftest
+import cudf
 from dask_cuda import LocalCUDACluster
-# cluster = LocalCUDACluster(protocol="tcp", scheduler_port=0)
-#
 
 
 def test_dask_pagerank():
@@ -38,10 +35,28 @@ def test_dask_pagerank():
                              names=['src', 'dst', 'value'],
                              dtype=['int32', 'int32', 'float32'])
 
-    g = cugraph.DiGraph()
-    g.from_dask_cudf_edgelist(ddf)
+    df = cudf.read_csv(input_data_path,
+                       delimiter=' ',
+                       names=['src', 'dst', 'value'],
+                       dtype=['int32', 'int32', 'float32'])
 
-    dcg.pagerank(g)
+    g = cugraph.DiGraph()
+    g.from_cudf_edgelist(df, 'src', 'dst')
+
+    dg = cugraph.DiGraph()
+    dg.from_dask_cudf_edgelist(ddf)
+
+    expected_pr = cugraph.pagerank(g)
+    result_pr = dcg.pagerank(dg)
+
+    err = 0
+    tol = 1.0e-05
+    assert len(expected_pr) == len(result_pr)
+    for i in range(len(result_pr)):
+        if(abs(result_pr['pagerank'].iloc[i]-expected_pr['pagerank'].iloc[i]) > tol*1.1):
+            err = err + 1
+    print("Mismatches:", err)
+    assert err == 0
 
     client.close()
     cluster.close()

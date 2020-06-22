@@ -20,16 +20,33 @@ from cugraph.raft.dask.common.comms import worker_state
 from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
 
 
-def common_func(sID, data, local_data):
-    print("Dataframe: ", data)
-    print("local data: ", local_data)
+def common_func(sID, data, local_data, alpha, max_iter, tol, personalization, nstart):
     sessionstate = worker_state(sID)
-    mg_pagerank.mg_pagerank(data[0], local_data, sessionstate['handle'])
-    return 1
+    return mg_pagerank.mg_pagerank(data[0],
+                                   local_data,
+                                   sessionstate['handle'],
+                                   alpha,
+                                   max_iter,
+                                   tol,
+                                   personalization,
+                                   nstart)
 
 
-def pagerank(input_graph):
-    print("INSIDE DASK PAGERANK")
+
+def pagerank(input_graph,
+             alpha=0.85,
+             personalization=None,
+             max_iter=100,
+             tol=1.0e-5,
+             nstart=None):
+    if tol != 1.0e-5:
+        raise Warning("Tolerance is currently not supported. Setting it to default 1.0e-5")
+    tol = 1.0e-5
+    if personalization is not None or nstart is not None:
+        raise Warning("personalization and nstart currently not supported. Setting them to None")
+    personalization = None
+    nstart = None
+
     client = default_client()
     _ddf = input_graph.edgelist.edgelist_df
     ddf = _ddf.sort_values(by='dst', ignore_index=True)
@@ -37,13 +54,20 @@ def pagerank(input_graph):
     comms = Comms(comms_p2p=False)
     comms.init(data.workers)
     local_data = data.calculate_local_data(comms)
-    print("Calling function")
+
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
             common_func,
             comms.sessionId,
             wf[1],
             local_data,
+            alpha,
+            max_iter,
+            tol,
+            personalization,
+            nstart,
             workers=[wf[0]]))
             for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
+
+    return result[0].result()
