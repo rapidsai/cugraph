@@ -274,6 +274,15 @@ set(EXPERIMENTAL_BFS_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}" "")
 
 ###################################################################################################
+# - Experimental SSSP tests -----------------------------------------------------------------------
+
+set(EXPERIMENTAL_SSSP_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/sssp_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_SSSP_TEST "${EXPERIMENTAL_SSSP_TEST_SRCS}" "")
+
+###################################################################################################
 ### enable testing ################################################################################
 ###################################################################################################
 
