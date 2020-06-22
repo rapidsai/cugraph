@@ -27,6 +27,7 @@ namespace opg {
 
 template <typename VT, typename ET, typename WT>
 class LoadBalanceExecution {
+  raft::handle_t const &handle_;
   cugraph::experimental::GraphCSRView<VT, ET, WT>& graph_;
   VertexBinner<VT, ET> dist_;
   rmm::device_vector<VT> reorganized_vertices_;
@@ -34,19 +35,21 @@ class LoadBalanceExecution {
   ET vertex_end_;
 
   public:
-  LoadBalanceExecution(cugraph::experimental::GraphCSRView<VT, ET, WT>& graph) :
+  LoadBalanceExecution(raft::handle_t const & handle,
+      cugraph::experimental::GraphCSRView<VT, ET, WT>& graph) :
+    handle_(handle),
     graph_(graph),
-    reorganized_vertices_(graph.local_vertices[(graph->handle).get_comms().get_rank()]),
-    vertex_begin_(graph.local_offsets[(graph->handle).get_comms().get_rank()]),
-    vertex_end_(graph.local_offsets[(graph->handle).get_comms().get_rank()] +
-        graph.local_vertices[(graph->handle).get_comms().get_rank()])
+    reorganized_vertices_(graph.local_vertices[handle_.get_comms().get_rank()]),
+    vertex_begin_(graph.local_offsets[handle_.get_comms().get_rank()]),
+    vertex_end_(graph.local_offsets[handle_.get_comms().get_rank()] +
+        graph.local_vertices[handle_.get_comms().get_rank()])
   {}
 
   template <typename Operator>
   void run(
       Operator op,
-      unsigned *active_bitmap,
-      cudaStream_t stream) {
+      unsigned *active_bitmap) {
+    cudaStream_t stream = handle_.get_stream();
     dist_.setup(graph_.offsets, active_bitmap, vertex_begin_, vertex_end_);
     auto distribution = dist_.run(reorganized_vertices_, stream);
 
@@ -56,10 +59,15 @@ class LoadBalanceExecution {
     DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
     medium_vertex_worker(graph_, medium_bucket, op, stream);
 
-    small_vertex_worker(graph_, distribution.degreeRange(10,12), op, stream);
-    small_vertex_worker(graph_, distribution.degreeRange( 8,10), op, stream);
-    small_vertex_worker(graph_, distribution.degreeRange( 6, 8), op, stream);
-    small_vertex_worker(graph_, distribution.degreeRange( 0, 6), op, stream);
+    DegreeBucket<VT, ET> small_bucket_0 = distribution.degreeRange(10,12);
+    DegreeBucket<VT, ET> small_bucket_1 = distribution.degreeRange( 8,10);
+    DegreeBucket<VT, ET> small_bucket_2 = distribution.degreeRange( 6, 8);
+    DegreeBucket<VT, ET> small_bucket_3 = distribution.degreeRange( 0, 6);
+
+    small_vertex_worker(graph_, small_bucket_0, op, stream);
+    small_vertex_worker(graph_, small_bucket_1, op, stream);
+    small_vertex_worker(graph_, small_bucket_2, op, stream);
+    small_vertex_worker(graph_, small_bucket_3, op, stream);
   }
 };
 

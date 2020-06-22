@@ -16,25 +16,11 @@
 
 #include <raft/handle.hpp>
 #include "load_balance.cuh"
-
+#include "bfs_comms.cuh"
 
 namespace detail {
 
 namespace opg {
-
-constexpr inline size_t
-divup(const size_t& numerator, const size_t& denominator) {
-  return (numerator + denominator - 1)/denominator;
-}
-
-size_t number_of_words(size_t number_of_bits)
-{
-  size_t numerator = number_of_bits;
-  size_t denominator = BitsPWrd<unsigned>;
-  return (numerator > denominator) ?
-    1 + divup(numerator - denominator, denominator) :
-    (denominator > 0);
-}
 
 struct bitwise_or {
   __device__ unsigned operator()(unsigned& a, unsigned & b) { return a | b; }
@@ -63,11 +49,11 @@ struct bitwise_atomic_or {
   __device__ void operator()(VT src, VT dst) {
     unsigned active_bit = static_cast<unsigned>(1)<<(dst % BitsPWrd<unsigned>);
     unsigned prev_word =
-      atomicOr(output_frontier + (dst/BitsPWrd<unsigned>), active_bit);
+      atomicOr(output_frontier_ + (dst/BitsPWrd<unsigned>), active_bit);
     //If this thread activates the frontier bitmap for a destination
     //then the source is the predecessor of that destination
-    if (prev_word & active_word == 0) {
-      predecessors[dst] = src;
+    if (prev_word & active_bit == 0) {
+      predecessors_[dst] = src;
     }
   }
 };
@@ -98,10 +84,19 @@ void bfs(raft::handle_t const &handle,
 
   rmm::device_vector<unsigned> frontier_not_empty(1);
 
-  LoadBalanceExecution<VT, ET, WT> lb(graph);
+  //Load balancer for calls to bfs functors
+  LoadBalanceExecution<VT, ET, WT> lb(handle, graph);
+
+  //BFS Functor for frontier calculation
   bitwise_atomic_or<VT> bfs_op(output_frontier.data().get(), predecessors);
+
+  //Functor to check if frontier is empty
   is_not_equal neq(static_cast<unsigned>(0), frontier_not_empty.data().get());
+
   cudaStream_t stream = handle.get_stream();
+
+  //BFS communications wrapper
+  BFSCommunicator<VT, ET, WT> bfs_comm(handle, word_count);
 
   //0. 'Insert' starting vertex in the input frontier
   input_frontier[start_vertex/BitsPWrd<unsigned>] =
@@ -122,7 +117,10 @@ void bfs(raft::handle_t const &handle,
         static_cast<unsigned>(0));
 
     //3. Create output frontier from input frontier
-    lb.run(bfs_op, input_frontier.data().get(), stream);
+    lb.run(bfs_op, input_frontier.data().get());
+
+    //3a. Combine output frontier from all GPUs
+    bfs_comm.allreduce(output_frontier);
 
     //4. 'Remove' all vertices in output frontier
     //that are already visited

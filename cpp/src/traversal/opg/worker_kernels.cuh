@@ -40,7 +40,7 @@ __global__ void kernel_per_vertex_worker_weightless(
     VT source = vertex_ids[current_vertex_index];
     ET offset_begin = graph.offsets()[source];
     ET offset_end = graph.offsets()[source+1];
-    for (ET edge_index = offset_begin;
+    for (ET edge_index = tid + offset_begin;
         edge_index < offset_end;
         edge_index += stride) {
       op(source, graph.indices()[edge_index]);
@@ -76,9 +76,8 @@ __global__ void block_per_vertex_worker_weightless(
     return;
   }
 
-  ET tid = threadIdx.x;
   VT source = vertex_ids[current_vertex_index];
-  for (ET edge_index = graph.offsets()[source];
+  for (ET edge_index = threadIdx.x + graph.offsets()[source];
       edge_index < graph.offsets()[source+1];
       edge_index += blockDim.x) {
     op(source, graph.indices()[edge_index]);

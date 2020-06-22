@@ -42,7 +42,7 @@ class LogDistribution
   LogDistribution(
       rmm::device_vector<ET>& vertex_id,
       rmm::device_vector<ET>& bin_offsets) :
-    vertex_id_begin_(vertex_id.data.get()), bin_offsets_(bin_offsets) {}
+    vertex_id_begin_(vertex_id.data().get()), bin_offsets_(bin_offsets) {}
 
   DegreeBucket<VT, ET> degreeRange(
       ET ceilLogDegreeStart, ET ceilLogDegreeEnd) {
