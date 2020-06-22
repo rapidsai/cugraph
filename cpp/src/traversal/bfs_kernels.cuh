@@ -1005,7 +1005,6 @@ __global__ void topdown_expand_kernel(
           // May have bank conflicts
           IndexType frontier_candidate = vec_frontier_candidate[iv];
 
-          //if (frontier_candidate != -1) {
           if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
             shared_local_new_frontier_candidates[thread_frontier_candidate_offset] =
               frontier_candidate;
@@ -1038,7 +1037,6 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           const int idx_shared             = iv * blockDim.x + threadIdx.x;
-          //vec_frontier_accepted_vertex[iv] = -1;
 
           if (idx_shared < block_n_frontier_candidates) {
             IndexType v = shared_local_new_frontier_candidates[idx_shared];  // popping
