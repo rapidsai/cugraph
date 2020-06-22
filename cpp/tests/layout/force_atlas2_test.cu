@@ -12,17 +12,23 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <layout/trust_worthiness.h>
+#include <utilities/high_res_clock.h>
+#include <utilities/test_utilities.hpp>
+
 #include <algorithms.hpp>
-#include <fstream>
 #include <graph.hpp>
-#include <iostream>
+
+#include <rmm/thrust_rmm_allocator.h>
+#include <raft/error.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
-#include "high_res_clock.h"
-#include "test_utils.h"
-#include "trust_worthiness.h"
+
+#include <cuda_profiler_api.h>
+
+#include <gtest/gtest.h>
+
+#include <fstream>
+#include <iostream>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -38,7 +44,7 @@ typedef struct Force_Atlas2_Usecase_t {
   Force_Atlas2_Usecase_t(const std::string& a, const float b)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
@@ -83,7 +89,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     std::stringstream ss;
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") +
                           std::string(test_info->name()) + std::string("_") +
-                          getFileName(param.matrix_file) + std::string("_") + ss.str().c_str();
+                          cugraph::test::getFileName(param.matrix_file) + std::string("_") +
+                          ss.str().c_str();
 
     int m, k, nnz;
     MM_typecode mc;
@@ -92,7 +99,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     FILE* fpin = fopen(param.matrix_file.c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
-    ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
+    ASSERT_EQ(cugraph::test::mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
       << "could not read Matrix Market file properties"
       << "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
@@ -111,7 +118,9 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     float* d_force_atlas2 = force_atlas2_vector.data().get();
 
     // Read
-    ASSERT_EQ((mm_to_coo<int, T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)), 0)
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
+              0)
       << "could not read matrix data"
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
@@ -132,6 +141,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     int* dests = dests_v.data().get();
     T* weights = weights_v.data().get();
 
+    // FIXME: RAFT error handling mechanism should be used instead
     CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
@@ -199,8 +209,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     // Copy pos to host
     std::vector<float> h_pos(m * 2);
-    CUDA_RT_CALL(
-      cudaMemcpy(&h_pos[0], d_force_atlas2, sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(&h_pos[0], d_force_atlas2, sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
 
     // Transpose the data
     std::vector<std::vector<double>> C_contiguous_embedding(m, std::vector<double>(2));
@@ -224,11 +233,11 @@ TEST_P(Tests_Force_Atlas2, CheckFP64_T) { run_current_test<double>(GetParam()); 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Force_Atlas2,
-                        ::testing::Values(Force_Atlas2_Usecase("test/datasets/karate.mtx", 0.74),
-                                          Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0.70),
-                                          Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0.77),
+                        ::testing::Values(Force_Atlas2_Usecase("test/datasets/karate.mtx", 0.73),
+                                          Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0.69),
+                                          Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0.76),
                                           Force_Atlas2_Usecase("test/datasets/netscience.mtx",
-                                                               0.81)));
+                                                               0.80)));
 
 int main(int argc, char** argv)
 {

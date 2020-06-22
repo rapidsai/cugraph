@@ -47,12 +47,26 @@ def createGraph(csvFileName, graphType=None):
         renumber=True)
 
 
+# Record the current RMM settings so reinitialize() will be called only when a
+# change is needed (RMM defaults both values to False). This allows the
+# --no-rmm-reinit option to prevent reinitialize() from being called at all
+# (see conftest.py for details).
+RMM_SETTINGS = {"managed_mem": False,
+                "pool_alloc": False}
+
+
 def reinitRMM(managed_mem, pool_alloc):
-    rmm.reinitialize(
-        managed_memory=managed_mem,
-        pool_allocator=pool_alloc,
-        initial_pool_size=2 << 27
-    )
+
+    if (managed_mem != RMM_SETTINGS["managed_mem"]) or \
+       (pool_alloc != RMM_SETTINGS["pool_alloc"]):
+
+        rmm.reinitialize(
+            managed_memory=managed_mem,
+            pool_allocator=pool_alloc,
+            initial_pool_size=2 << 27
+        )
+        RMM_SETTINGS.update(managed_mem=managed_mem,
+                            pool_alloc=pool_alloc)
 
 
 ###############################################################################
@@ -78,8 +92,7 @@ def edgelistCreated(request):
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
 
     csvFileName = request.param[0]
-    if len(request.param) > 1:
-        reinitRMM(request.param[1], request.param[2])
+    reinitRMM(request.param[1], request.param[2])
     return utils.read_csv_file(csvFileName)
 
 
@@ -92,8 +105,7 @@ def graphWithAdjListComputed(request):
     """
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
     csvFileName = request.param[0]
-    if len(request.param) > 1:
-        reinitRMM(request.param[1], request.param[2])
+    reinitRMM(request.param[1], request.param[2])
 
     G = createGraph(csvFileName, cugraph.structure.graph.Graph)
     G.view_adj_list()
@@ -109,8 +121,7 @@ def anyGraphWithAdjListComputed(request):
     """
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
     csvFileName = request.param[0]
-    if len(request.param) > 1:
-        reinitRMM(request.param[1], request.param[2])
+    reinitRMM(request.param[1], request.param[2])
 
     G = createGraph(csvFileName)
     G.view_adj_list()
@@ -126,8 +137,7 @@ def anyGraphWithTransposedAdjListComputed(request):
     """
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
     csvFileName = request.param[0]
-    if len(request.param) > 1:
-        reinitRMM(request.param[1], request.param[2])
+    reinitRMM(request.param[1], request.param[2])
 
     G = createGraph(csvFileName)
     G.view_transposed_adj_list()
@@ -232,4 +242,10 @@ def bench_graph_degrees(gpubenchmark, anyGraphWithAdjListComputed):
 
 def bench_betweenness_centrality(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.betweenness_centrality,
+                 anyGraphWithAdjListComputed, k=10, seed=123)
+
+
+def bench_edge_betweenness_centrality(gpubenchmark,
+                                      anyGraphWithAdjListComputed):
+    gpubenchmark(cugraph.edge_betweenness_centrality,
                  anyGraphWithAdjListComputed, k=10, seed=123)

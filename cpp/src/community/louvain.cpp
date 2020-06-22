@@ -17,16 +17,20 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <nvgraph/include/nvlouvain.cuh>
-#include "utilities/error_utils.h"
+#include <rmm/thrust_rmm_allocator.h>
+
+#include <thrust/sequence.h>
+
+#include <community/louvain_kernels.hpp>
+
+#include "utilities/error.hpp"
 
 namespace cugraph {
-namespace nvgraph {
 
 template <typename VT, typename ET, typename WT>
 void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
              WT *final_modularity,
-             VT *num_level,
+             int *num_level,
              VT *louvain_parts,
              int max_iter)
 {
@@ -35,38 +39,12 @@ void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
   CUGRAPH_EXPECTS(num_level != nullptr, "API error, num_level is null");
   CUGRAPH_EXPECTS(louvain_parts != nullptr, "API error, louvain_parts is null");
 
-  std::ostream log(0);
-
-  bool weighted{true};
-
-  WT mod{0.0};
-  VT n_level{0};
-
-  nvlouvain::louvain<VT, WT>(graph.offsets,
-                             graph.indices,
-                             graph.edge_data,
-                             graph.number_of_vertices,
-                             graph.number_of_edges,
-                             weighted,
-                             false,
-                             nullptr,
-                             mod,
-                             louvain_parts,
-                             n_level,
-                             max_iter,
-                             log);
-
-  *final_modularity = mod;
-  *num_level        = n_level;
+  detail::louvain<VT, ET, WT>(graph, final_modularity, num_level, louvain_parts, max_iter);
 }
 
 template void louvain(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &, float *, int32_t *, int32_t *, int);
-template void louvain(experimental::GraphCSRView<int32_t, int32_t, double> const &,
-                      double *,
-                      int32_t *,
-                      int32_t *,
-                      int);
+  experimental::GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int);
+template void louvain(
+  experimental::GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int);
 
-}  // namespace nvgraph
 }  // namespace cugraph

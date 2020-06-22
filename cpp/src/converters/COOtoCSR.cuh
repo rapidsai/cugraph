@@ -31,7 +31,7 @@
 #include <algorithm>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
@@ -176,10 +176,10 @@ void coo_to_csr_inplace(experimental::GraphCOOView<VT, ET, WT>& graph,
     graph.src_indices, result.offsets, graph.number_of_vertices, graph.number_of_edges, stream);
 
   CUDA_TRY(cudaMemcpy(
-    graph.dst_indices, result.indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDefault));
+    result.indices, graph.dst_indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDefault));
   if (graph.has_data())
     CUDA_TRY(cudaMemcpy(
-      graph.edge_data, result.edge_data, sizeof(WT) * graph.number_of_edges, cudaMemcpyDefault));
+      result.edge_data, graph.edge_data, sizeof(WT) * graph.number_of_edges, cudaMemcpyDefault));
 }
 
 }  // namespace cugraph

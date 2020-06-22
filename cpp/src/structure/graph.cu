@@ -16,7 +16,7 @@
 
 #include <graph.hpp>
 #include "utilities/cuda_utils.cuh"
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 #include "utilities/graph_utils.cuh"
 
 namespace {
@@ -36,7 +36,7 @@ void degree_from_offsets(vertex_t number_of_vertices,
 }
 
 template <typename vertex_t, typename edge_t>
-void degree_from_vertex_ids(const cugraph::experimental::Comm &comm,
+void degree_from_vertex_ids(const raft::handle_t &handle,
                             vertex_t number_of_vertices,
                             edge_t number_of_edges,
                             vertex_t const *indices,
@@ -48,7 +48,10 @@ void degree_from_vertex_ids(const cugraph::experimental::Comm &comm,
     thrust::make_counting_iterator<edge_t>(0),
     thrust::make_counting_iterator<edge_t>(number_of_edges),
     [indices, degree] __device__(edge_t e) { cugraph::atomicAdd(degree + indices[e], 1); });
-  comm.allreduce(number_of_vertices, degree, degree, cugraph::experimental::ReduceOp::SUM);
+  if (handle.comms_initialized()) {
+    auto &comm = handle.get_comms();
+    comm.allreduce(degree, degree, number_of_vertices, raft::comms::op_t::SUM, stream);
+  }
 }
 
 }  // namespace
@@ -82,10 +85,10 @@ void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) con
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    if (GraphViewBase<VT, ET, WT>::comm.get_p())  // FIXME retrieve global source
-                                                  // indexing for the allreduce work
+    if (GraphViewBase<VT, ET, WT>::handle->comms_initialized())  // FIXME retrieve global source
+                                                                 // indexing for the allreduce work
       CUGRAPH_FAIL("OPG degree not implemented for OUT degree");
-    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::handle[0],
                            GraphViewBase<VT, ET, WT>::number_of_vertices,
                            GraphViewBase<VT, ET, WT>::number_of_edges,
                            src_indices,
@@ -94,7 +97,7 @@ void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) con
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::handle[0],
                            GraphViewBase<VT, ET, WT>::number_of_vertices,
                            GraphViewBase<VT, ET, WT>::number_of_edges,
                            dst_indices,
@@ -115,7 +118,7 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET *degree, DegreeDirecti
   cudaStream_t stream{nullptr};
 
   if (direction != DegreeDirection::IN) {
-    if (GraphViewBase<VT, ET, WT>::comm.get_p())
+    if (GraphViewBase<VT, ET, WT>::handle->comms_initialized())
       CUGRAPH_FAIL("OPG degree not implemented for OUT degree");  // FIXME retrieve global
                                                                   // source indexing for
                                                                   // the allreduce to work
@@ -123,7 +126,7 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET *degree, DegreeDirecti
   }
 
   if (direction != DegreeDirection::OUT) {
-    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::comm,
+    degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::handle[0],
                            GraphViewBase<VT, ET, WT>::number_of_vertices,
                            GraphViewBase<VT, ET, WT>::number_of_edges,
                            indices,

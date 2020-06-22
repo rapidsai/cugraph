@@ -12,9 +12,9 @@
 // connected components tests
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
+#include <utilities/high_res_clock.h>
 #include "cuda_profiler_api.h"
 #include "gtest/gtest.h"
-#include "high_res_clock.h"
 
 #include <algorithm>
 #include <algorithms.hpp>
@@ -22,7 +22,8 @@
 #include <graph.hpp>
 #include <iterator>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "test_utils.h"
+
+#include "utilities/test_utilities.hpp"
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -34,7 +35,7 @@ struct Usecase {
   explicit Usecase(const std::string& a)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
@@ -71,9 +72,10 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
     const ::testing::TestInfo* const test_info =
       ::testing::UnitTest::GetInstance()->current_test_info();
     std::stringstream ss;
-    std::string test_id =
-      std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) +
-      std::string("_") + getFileName(param.get_matrix_file()) + std::string("_") + ss.str().c_str();
+    std::string test_id = std::string(test_info->test_case_name()) + std::string(".") +
+                          std::string(test_info->name()) + std::string("_") +
+                          cugraph::test::getFileName(param.get_matrix_file()) + std::string("_") +
+                          ss.str().c_str();
 
     int m, k, nnz;  //
     MM_typecode mc;
@@ -84,7 +86,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
     FILE* fpin = fopen(param.get_matrix_file().c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.get_matrix_file() << ") failure.";
 
-    ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
+    ASSERT_EQ(cugraph::test::mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
       << "could not read Matrix Market file properties"
       << "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
@@ -104,7 +106,8 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
 
     // Read: COO Format
     //
-    ASSERT_EQ((mm_to_coo<int, int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)),
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, int>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)),
               0)
       << "could not read matrix data"
       << "\n";

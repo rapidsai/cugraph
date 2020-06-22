@@ -165,7 +165,7 @@ void fill_unvisited_queue(int *visited_bmap,
 
   fill_unvisited_queue_kernel<<<grid, block, 0, m_stream>>>(
     visited_bmap, visited_bmap_nints, n, unvisited, unvisited_cnt);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 //
@@ -224,7 +224,7 @@ void count_unvisited_edges(const IndexType *potentially_unvisited,
 
   count_unvisited_edges_kernel<<<grid, block, 0, m_stream>>>(
     potentially_unvisited, potentially_unvisited_size, visited_bmap, node_degree, mu);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 //
@@ -495,7 +495,7 @@ void bottom_up_main(IndexType *unvisited,
   dim3 grid, block;
   block.x = MAIN_BOTTOMUP_DIMX;
 
-  grid.x = min((IndexType)MAXBLOCKS, ((unvisited_size + block.x - 1)) / block.x);
+  grid.x = min((IndexType)MAXBLOCKS, ((unvisited_size + block.x)) / block.x);
 
   main_bottomup_kernel<<<grid, block, 0, m_stream>>>(unvisited,
                                                      unvisited_size,
@@ -510,7 +510,7 @@ void bottom_up_main(IndexType *unvisited,
                                                      distances,
                                                      predecessors,
                                                      edge_mask);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 //
@@ -622,7 +622,7 @@ void bottom_up_large(IndexType *left_unvisited,
                                                               distances,
                                                               predecessors,
                                                               edge_mask);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 //
@@ -1117,7 +1117,7 @@ void frontier_expand(const IndexType *row_ptr,
     edge_mask,
     isolated_bmap,
     directed);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 template <typename IndexType>
@@ -1233,7 +1233,7 @@ void flag_isolated_vertices(IndexType n,
 
   flag_isolated_vertices_kernel<<<grid, block, 0, m_stream>>>(
     n, isolated_bmap, row_ptr, degrees, nisolated);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 }  // namespace bfs_kernels

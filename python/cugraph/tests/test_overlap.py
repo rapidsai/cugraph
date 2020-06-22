@@ -82,16 +82,8 @@ def cpu_call(M, first, second):
     return result
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/netscience.csv']
-#  Too slow to run on CPU
-#            '../datasets/email-Eu-core.csv']
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_overlap(graph_file):
     gc.collect()
 
@@ -119,8 +111,8 @@ def test_overlap(graph_file):
             assert diff < 1.0e-6
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_overlap_edge_vals(graph_file):
     gc.collect()
 

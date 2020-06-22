@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
 #include <graph.hpp>
+#include <utilities/error.hpp>
 #include "converters/COOtoCSR.cuh"
 #include "utilities/graph_utils.cuh"
 
@@ -44,30 +44,37 @@ struct permutation_functor {
 template <typename vertex_t, typename edge_t, typename weight_t>
 void permute_graph(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t const *permutation,
-                   experimental::GraphCSRView<vertex_t, edge_t, weight_t> result)
+                   experimental::GraphCSRView<vertex_t, edge_t, weight_t> result,
+                   cudaStream_t stream = 0)
 {
   //  Create a COO out of the CSR
   rmm::device_vector<vertex_t> src_vertices_v(graph.number_of_edges);
   rmm::device_vector<vertex_t> dst_vertices_v(graph.number_of_edges);
+  rmm::device_vector<weight_t> weights_v(graph.number_of_edges);
 
-  vertex_t *d_src = src_vertices_v.data().get();
-  vertex_t *d_dst = dst_vertices_v.data().get();
+  vertex_t *d_src     = src_vertices_v.data().get();
+  vertex_t *d_dst     = dst_vertices_v.data().get();
+  weight_t *d_weights = weights_v.data().get();
 
   graph.get_source_indices(d_src);
 
-  thrust::copy(rmm::exec_policy(nullptr)->on(nullptr),
-               graph.indices,
-               graph.indices + graph.number_of_edges,
-               d_dst);
+  if (graph.has_data())
+    thrust::copy(rmm::exec_policy(stream)->on(stream),
+                 graph.edge_data,
+                 graph.edge_data + graph.number_of_edges,
+                 d_weights);
 
   // Permute the src_indices
   permutation_functor<vertex_t> pf(permutation);
   thrust::transform(
-    rmm::exec_policy(nullptr)->on(nullptr), d_src, d_src + graph.number_of_edges, d_src, pf);
+    rmm::exec_policy(stream)->on(stream), d_src, d_src + graph.number_of_edges, d_src, pf);
 
   // Permute the destination indices
-  thrust::transform(
-    rmm::exec_policy(nullptr)->on(nullptr), d_dst, d_dst + graph.number_of_edges, d_dst, pf);
+  thrust::transform(rmm::exec_policy(stream)->on(stream),
+                    graph.indices,
+                    graph.indices + graph.number_of_edges,
+                    d_dst,
+                    pf);
 
   cugraph::experimental::GraphCOOView<vertex_t, edge_t, weight_t> graph_coo;
 
@@ -75,6 +82,12 @@ void permute_graph(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const 
   graph_coo.number_of_edges    = graph.number_of_edges;
   graph_coo.src_indices        = d_src;
   graph_coo.dst_indices        = d_dst;
+
+  if (graph.has_data()) {
+    graph_coo.edge_data = d_weights;
+  } else {
+    graph_coo.edge_data = nullptr;
+  }
 
   cugraph::coo_to_csr_inplace(graph_coo, result);
 }

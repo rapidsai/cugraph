@@ -12,15 +12,21 @@
 // Pagerank solver tests
 // Author: Alex Fender afender@nvidia.com
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <utilities/high_res_clock.h>
+#include <utilities/test_utilities.hpp>
+
 #include <algorithms.hpp>
-#include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
+
+#include <raft/error.hpp>
+#include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
+
 #include "cuda_profiler_api.h"
+
 #include "gtest/gtest.h"
-#include "high_res_clock.h"
-#include "test_utils.h"
+
+#include <cmath>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -36,7 +42,7 @@ typedef struct Pagerank_Usecase_t {
   Pagerank_Usecase_t(const std::string& a, const std::string& b)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
@@ -81,7 +87,8 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     std::stringstream ss;
     std::string test_id = std::string(test_info->test_case_name()) + std::string(".") +
                           std::string(test_info->name()) + std::string("_") +
-                          getFileName(param.matrix_file) + std::string("_") + ss.str().c_str();
+                          cugraph::test::getFileName(param.matrix_file) + std::string("_") +
+                          ss.str().c_str();
 
     int m, k, nnz;
     MM_typecode mc;
@@ -101,7 +108,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     FILE* fpin = fopen(param.matrix_file.c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
 
-    ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
+    ASSERT_EQ(cugraph::test::mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
       << "could not read Matrix Market file properties"
       << "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
@@ -114,11 +121,13 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     std::vector<T> cooVal(nnz), pagerank(m);
 
     // device alloc
-    rmm::device_vector<T> pagerank_vector(m);
-    T* d_pagerank = thrust::raw_pointer_cast(pagerank_vector.data());
+    rmm::device_uvector<T> pagerank_vector(static_cast<size_t>(m), nullptr);
+    T* d_pagerank = pagerank_vector.data();
 
     // Read
-    ASSERT_EQ((mm_to_coo<int, T>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)), 0)
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
+              0)
       << "could not read matrix data"
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
@@ -137,14 +146,14 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-        cugraph::pagerank<int, int, T>(G, d_pagerank);
+        cugraph::pagerank<int, int, T>(G.handle[0], G, d_pagerank);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       pagerank_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();
-      cugraph::pagerank<int, int, T>(G, d_pagerank);
+      cugraph::pagerank<int, int, T>(G.handle[0], G, d_pagerank);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
@@ -153,14 +162,13 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (param.result_file.length() > 0) {
       std::vector<T> calculated_res(m);
 
-      CUDA_RT_CALL(
-        cudaMemcpy(&calculated_res[0], d_pagerank, sizeof(T) * m, cudaMemcpyDeviceToHost));
+      CUDA_TRY(cudaMemcpy(&calculated_res[0], d_pagerank, sizeof(T) * m, cudaMemcpyDeviceToHost));
       std::sort(calculated_res.begin(), calculated_res.end());
       fpin = fopen(param.result_file.c_str(), "rb");
       ASSERT_TRUE(fpin != NULL) << " Cannot read file with reference data: " << param.result_file
                                 << std::endl;
       std::vector<T> expected_res(m);
-      ASSERT_EQ(read_binary_vector(fpin, m, expected_res), 0);
+      ASSERT_EQ(cugraph::test::read_binary_vector(fpin, m, expected_res), 0);
       fclose(fpin);
       T err;
       int n_err = 0;

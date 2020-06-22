@@ -21,6 +21,10 @@ from libcpp.memory cimport unique_ptr
 
 from rmm._lib.device_buffer cimport device_buffer
 
+cdef extern from "raft/handle.hpp" namespace "raft":
+    cdef cppclass handle_t:
+        handle_t() except +
+
 cdef extern from "graph.hpp" namespace "cugraph::experimental":
 
     ctypedef enum PropType:
@@ -43,10 +47,15 @@ cdef extern from "graph.hpp" namespace "cugraph::experimental":
 
     cdef cppclass GraphViewBase[VT,ET,WT]:
         WT *edge_data
+        handle_t *handle;
         GraphProperties prop
         VT number_of_vertices
         ET number_of_edges
-
+        VT* local_vertices
+        ET* local_edges
+        VT* local_offsets
+        void set_handle(handle_t*)
+        void set_local_data(VT* local_vertices_, ET* local_edges_, VT* local_offsets_)
         void get_vertex_identifiers(VT *) const
 
         GraphViewBase(WT*,VT,ET)

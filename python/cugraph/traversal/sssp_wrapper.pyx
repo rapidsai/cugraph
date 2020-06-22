@@ -71,7 +71,7 @@ def sssp(input_graph, source):
 
     # Step 4: Setup number of vertices and number of edges
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     # Step 5: Handle the case our graph had to be renumbered
     #         Our source index might no longer be valid
@@ -148,5 +148,5 @@ def sssp(input_graph, source):
             df = unrenumbered_df[cols[1:n_cols + 1] + [cols[0]] + cols[n_cols:]]
         else: # Simple renumbering
             df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-            df['predecessor'][df['predecessor'] >- 1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor'] >- 1]]
+            df['predecessor'][df['predecessor'] >- 1] = input_graph.edgelist.renumber_map.iloc[df['predecessor'][df['predecessor'] >- 1]]
     return df

@@ -73,13 +73,7 @@ def compare_k_truss(graph_file, k, ground_truth_file):
     return True
 
 
-DATASETS = [('../datasets/polbooks.csv',
-             '../datasets/ref/ktruss/polbooks.csv'),
-            ('../datasets/netscience.csv',
-             '../datasets/ref/ktruss/netscience.csv')]
-
-
-@pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
+@pytest.mark.parametrize('graph_file, nx_ground_truth', utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     gc.collect()
 

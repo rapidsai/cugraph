@@ -19,11 +19,11 @@
 from cugraph.structure.graph_new cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void louvain[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
         WT *final_modularity,
-        VT *num_level,
+        int *num_level,
         VT *louvain_parts,
         int max_iter) except +

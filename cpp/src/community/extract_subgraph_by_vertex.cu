@@ -20,7 +20,7 @@
 #include <utilities/cuda_utils.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 namespace {
 

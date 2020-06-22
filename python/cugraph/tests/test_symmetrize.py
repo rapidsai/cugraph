@@ -26,10 +26,6 @@ def test_version():
     cugraph.__version__
 
 
-DATASETS = ['../datasets/karate',
-            '../datasets/email-Eu-core']
-
-
 def compare(src1, dst1, val1, src2, dst2, val2):
     #
     #  We will do comparison computations by using dataframe
@@ -149,16 +145,16 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+# Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_symmetrize_unweighted(graph_file):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
 
     sym_sources, sym_destinations = cugraph.symmetrize(cu_M['0'], cu_M['1'])
 
@@ -184,16 +180,16 @@ def test_symmetrize_unweighted(graph_file):
             sym_df['src_s'], sym_df['dst_s'], None)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+# Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_symmetrize_weighted(graph_file):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
 
     sym_src, sym_dst, sym_w = cugraph.symmetrize(cu_M['0'],
                                                  cu_M['1'],
@@ -202,16 +198,16 @@ def test_symmetrize_weighted(graph_file):
     compare(cu_M['0'], cu_M['1'], cu_M['2'], sym_src, sym_dst, sym_w)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+# Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_symmetrize_df(graph_file):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
     sym_df = cugraph.symmetrize_df(cu_M, '0', '1')
 
     compare(cu_M['0'], cu_M['1'], cu_M['2'],

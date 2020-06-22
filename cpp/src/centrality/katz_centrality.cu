@@ -24,7 +24,7 @@
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
 #include <graph.hpp>
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 
 namespace cugraph {
 

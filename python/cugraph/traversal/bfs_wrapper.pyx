@@ -60,7 +60,7 @@ def bfs(input_graph, start, directed=True,
 
     # Step 4: Setup number of vertices and edges
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     # Step 5: Handle the case the graph has been renumbered
     #         The source given as input has to be renumbered
@@ -113,5 +113,5 @@ def bfs(input_graph, start, directed=True,
             df = unrenumbered_df[cols[1:n_cols + 1] + [cols[0]] + cols[n_cols:]]
         else: # Simple renumbering
             df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-            df['predecessor'][df['predecessor'] > -1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor'] > -1]]
+            df['predecessor'][df['predecessor'] > -1] = input_graph.edgelist.renumber_map.iloc[df['predecessor'][df['predecessor'] > -1]]
     return df

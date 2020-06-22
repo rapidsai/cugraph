@@ -80,7 +80,7 @@ cdef GraphCSRViewType get_csr_graph_view(input_graph, bool weighted=True, GraphC
         c_weights = input_graph.adjlist.weights.__cuda_array_interface__['data'][0]
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(input_graph.adjlist.indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
     cdef GraphCSRViewType in_graph
     if GraphCSRViewType is GraphCSRViewFloat:
         in_graph = GraphCSRViewFloat(<int*>c_off, <int*>c_ind, <float*>c_weights, num_verts, num_edges)
@@ -101,7 +101,7 @@ cdef GraphCOOViewType get_coo_graph_view(input_graph, bool weighted=True, GraphC
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(input_graph.edgelist.edgelist_df)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
     cdef GraphCOOViewType in_graph
     if GraphCOOViewType is GraphCOOViewFloat:
         in_graph = GraphCOOViewFloat(<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)

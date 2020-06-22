@@ -11,7 +11,7 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Centrality      |                                                              |                                                              |
 |                 | [Katz](centrality/Katz.ipynb)                                | Compute the Katz centrality for every vertex                 |
-|                 | [Betweenness](centrality/Betweenness.ipynb)                  | Compute the Betweenness centrality for every vertex          |
+|                 | [Betweenness](centrality/Betweenness.ipynb)                  | Compute both Edge and Vertex Betweenness centrality          |
 | Community       |                                                              |                                                              |
 |                 | [Louvain](community/Louvain.ipynb)                           | Identify clusters in a graph using the Louvain algorithm     |
 |                 | [ECG](community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
@@ -26,6 +26,7 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 |                 | [K-Truss](cores/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
 | Link Analysis   |                                                              |                                                              |
 |                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
+|                 | [HITS](link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
 | Link Prediction |                                                              |                                                              |
 |                 | [Jacard Similarity](link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
 |                 | [Overlap Similarity](link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
