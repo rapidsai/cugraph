@@ -77,10 +77,10 @@ __global__ void for_all_frontier_row_for_all_nbr_col_low_out_degree(
     auto nbr_offset_first = *(graph_offset_first + row_offset);
     auto nbr_offset_last  = *(graph_offset_first + (row_offset + 1));
     for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
-      auto nbr_vid    = *(graph_index_first + nbr_offset);
-      auto col_offset = graph_device_view.get_this_partition_col_offset_from_col_nocheck(nbr_vid);
+      auto nbr_vid = *(graph_index_first + nbr_offset);
       // FIXME: weight_first != nullptr is not idiomatic
-      weight_t w = (graph_weight_first != nullptr) ? *(graph_weight_first + col_offset) : 1.0;
+      weight_t w      = (graph_weight_first != nullptr) ? *(graph_weight_first + nbr_offset) : 1.0;
+      auto col_offset = graph_device_view.get_this_partition_col_offset_from_col_nocheck(nbr_vid);
       auto e_op_result =
         cugraph::experimental::detail::evaluate_edge_op<GraphType,
                                                         EdgeOp,
@@ -154,14 +154,14 @@ size_t reduce_buffer_elements(HandleType& handle,
                                     reduce_op);
     auto num_reduced_buffer_elements =
       static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
-    thrust::copy(
-      thrust::cuda::par.on(handle.get_stream()),
-      keys.begin(), keys.begin() + num_reduced_buffer_elements,
-      buffer_key_output_first);
-    thrust::copy(
-      thrust::cuda::par.on(handle.get_stream()),
-      values.begin(), values.begin() + num_reduced_buffer_elements,
-      buffer_payload_output_first);
+    thrust::copy(thrust::cuda::par.on(handle.get_stream()),
+                 keys.begin(),
+                 keys.begin() + num_reduced_buffer_elements,
+                 buffer_key_output_first);
+    thrust::copy(thrust::cuda::par.on(handle.get_stream()),
+                 values.begin(),
+                 values.begin() + num_reduced_buffer_elements,
+                 buffer_payload_output_first);
     return num_reduced_buffer_elements;
   }
 }

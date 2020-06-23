@@ -19,8 +19,8 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <raft/handle.hpp>
 #include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -34,27 +34,29 @@
 
 // Dijkstra's algorithm
 template <typename VertexIterator, typename EdgeIterator, typename WeightIterator>
-void sssp_reference(EdgeIterator offset_first,
-                    VertexIterator index_first,
-                    WeightIterator weight_first,
-                    WeightIterator distance_first,
-                    VertexIterator predecessor_first,
-                    typename std::iterator_traits<VertexIterator>::value_type num_vertices,
-                    typename std::iterator_traits<VertexIterator>::value_type source,
-                    typename std::iterator_traits<WeightIterator>::value_type cutoff =
-                      std::numeric_limits<typename std::iterator_traits<WeightIterator>::value_type>::max())
+void sssp_reference(
+  EdgeIterator offset_first,
+  VertexIterator index_first,
+  WeightIterator weight_first,
+  WeightIterator distance_first,
+  VertexIterator predecessor_first,
+  typename std::iterator_traits<VertexIterator>::value_type num_vertices,
+  typename std::iterator_traits<VertexIterator>::value_type source,
+  typename std::iterator_traits<WeightIterator>::value_type cutoff =
+    std::numeric_limits<typename std::iterator_traits<WeightIterator>::value_type>::max())
 {
-  using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
-  using weight_t = typename std::iterator_traits<WeightIterator>::value_type;
+  using vertex_t      = typename std::iterator_traits<VertexIterator>::value_type;
+  using weight_t      = typename std::iterator_traits<WeightIterator>::value_type;
   using queue_iterm_t = std::tuple<weight_t, vertex_t>;
 
-  std::fill(distance_first, distance_first + num_vertices, std::numeric_limits<vertex_t>::max());
+  std::fill(distance_first, distance_first + num_vertices, std::numeric_limits<weight_t>::max());
   std::fill(predecessor_first,
             predecessor_first + num_vertices,
             cugraph::experimental::invalid_vertex_id<vertex_t>::value);
 
   *(distance_first + source) = static_cast<weight_t>(0.0);
-  std::priority_queue<queue_iterm_t, std::vector<queue_iterm_t>, std::greater<queue_iterm_t>> queue{};
+  std::priority_queue<queue_iterm_t, std::vector<queue_iterm_t>, std::greater<queue_iterm_t>>
+    queue{};
   queue.push(std::make_tuple(static_cast<weight_t>(0.0), source));
 
   while (queue.size() > 0) {
@@ -66,11 +68,11 @@ void sssp_reference(EdgeIterator offset_first,
     auto nbr_offset_first = *(offset_first + row);
     auto nbr_offset_last  = *(offset_first + row + 1);
     for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
-      auto nbr = *(index_first + nbr_offset);
+      auto nbr          = *(index_first + nbr_offset);
       auto new_distance = distance + *(weight_first + nbr_offset);
-      auto threshold = std::min(*(distance_first + nbr), cutoff);
+      auto threshold    = std::min(*(distance_first + nbr), cutoff);
       if (new_distance < threshold) {
-        *(distance_first + nbr) = new_distance;
+        *(distance_first + nbr)    = new_distance;
         *(predecessor_first + nbr) = row;
         queue.push(std::make_tuple(new_distance, nbr));
       }
@@ -181,15 +183,19 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                         cudaMemcpyDeviceToHost));
 
     auto max_weight_element = std::max_element(h_weights.begin(), h_weights.end());
-    auto epsilon = *max_weight_element * static_cast<weight_t>(1e-6);
-    auto nearly_equal = [epsilon](auto lhs, auto rhs) {
-      return std::fabs(lhs - rhs) < epsilon;
-    };
+    auto epsilon            = *max_weight_element * static_cast<weight_t>(1e-6);
+    auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
 
-    ASSERT_TRUE(
-      std::equal(
-        h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin(),
-        nearly_equal))
+    for (size_t i = 0; i < h_reference_distances.size(); ++i) {
+      if (h_reference_distances[i] != h_cugraph_distances[i]) {
+        std::cout << "i=" << i << " ref=" << h_reference_distances[i]
+                  << " cugraph=" << h_cugraph_distances[i] << "\n";
+      }
+    }
+    ASSERT_TRUE(std::equal(h_reference_distances.begin(),
+                           h_reference_distances.end(),
+                           h_cugraph_distances.begin(),
+                           nearly_equal))
       << "distances do not match with the reference values.";
 
     for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
@@ -208,7 +214,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
             }
           }
         }
-        ASERT_TRUE(found) << "no edge from the predecessor vertex to this vertex with the matching weight.";
+        ASSERT_TRUE(found)
+          << "no edge from the predecessor vertex to this vertex with the matching weight.";
       }
     }
   }
