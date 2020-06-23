@@ -38,11 +38,11 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename VertexIterator, typename WeightIterator>
+template <typename GraphType>
 void sssp_this_partition(raft::handle_t &handle,
                          GraphType const &csr_graph,
-                         WeightIterator distance_first,
-                         VertexIterator predecessor_first,
+                         typename GraphType::weight_type *distances,
+                         typename GraphType::vertex_type *predecessors,
                          typename GraphType::vertex_type start_vertex,
                          typename GraphType::weight_type cutoff,
                          bool do_expensive_check)
@@ -51,12 +51,6 @@ void sssp_this_partition(raft::handle_t &handle,
   using weight_t = typename GraphType::weight_type;
 
   static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
-  static_assert(
-    std::is_same<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>::value,
-    "GraphType::vertex_type and VertexIterator mismatch.");
-  static_assert(
-    std::is_same<typename std::iterator_traits<WeightIterator>::value_type, weight_t>::value,
-    "GraphType::weight_type and WeightIterator mismatch.");
   static_assert(GraphType::is_row_major, "GraphType should be CSR.");
 
   auto p_graph_device_view = graph_compressed_sparse_device_view_t<GraphType>::create(csr_graph);
@@ -85,7 +79,7 @@ void sssp_this_partition(raft::handle_t &handle,
   auto constexpr invalid_distance = std::numeric_limits<weight_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first));
+  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors));
   thrust::transform(thrust::cuda::par.on(handle.get_stream()),
                     graph_device_view.this_partition_vertex_begin(),
                     graph_device_view.this_partition_vertex_end(),
@@ -146,6 +140,8 @@ void sssp_this_partition(raft::handle_t &handle,
       graph_device_view.get_number_of_this_partition_adj_matrix_rows(),
       std::numeric_limits<weight_t>::max());
   }
+  auto row_distances =
+    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data().get() : distances;
 
   if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(start_vertex)) {
     adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(start_vertex);
@@ -167,7 +163,7 @@ void sssp_this_partition(raft::handle_t &handle,
       return thrust::make_tuple(idx, thrust::get<0>(pushed_val), thrust::get<1>(pushed_val));
     };
 
-    auto e_op = [graph_device_view, distance_first, cutoff] __device__(
+    auto e_op = [graph_device_view, distances, cutoff] __device__(
                   auto row_val, auto col_val, weight_t w) {
       auto push         = true;
       auto new_distance = thrust::get<0>(row_val) + w;
@@ -175,25 +171,26 @@ void sssp_this_partition(raft::handle_t &handle,
       if (graph_device_view.in_this_partition_vertex_range_nocheck(col_val)) {
         auto this_partition_vertex_offset =
           graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
-        auto old_distance = *(distance_first + this_partition_vertex_offset);
+        auto old_distance = *(distances + this_partition_vertex_offset);
         threshold         = old_distance < threshold ? old_distance : threshold;
       }
       if (new_distance >= threshold) { push = false; }
       return thrust::make_tuple(push, new_distance, thrust::get<1>(row_val));
     };
 
+    // FIXME: the only difference in these two cases is adj_matrix_row_value_output_first, better
+    // avoid code replication.
     if (!vertex_and_adj_matrix_row_ranges_coincide) {
       expand_row_and_transform_if_v_push_if_e(
         handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
-        thrust::make_zip_iterator(
-          thrust::make_tuple(adj_matrix_row_distances.begin(),
-                             graph_device_view.this_partition_adj_matrix_row_begin())),
+        thrust::make_zip_iterator(thrust::make_tuple(
+          row_distances, graph_device_view.this_partition_adj_matrix_row_begin())),
         graph_device_view.this_partition_adj_matrix_col_begin(),
-        distance_first,
-        thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first)),
+        distances,
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors)),
         thrust::make_zip_iterator(
           thrust::make_tuple(adj_matrix_row_distances.begin(), thrust::make_discard_iterator())),
         thrust::make_discard_iterator(),
@@ -208,10 +205,10 @@ void sssp_this_partition(raft::handle_t &handle,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
         thrust::make_zip_iterator(thrust::make_tuple(
-          distance_first, graph_device_view.this_partition_adj_matrix_row_begin())),
+          row_distances, graph_device_view.this_partition_adj_matrix_row_begin())),
         graph_device_view.this_partition_adj_matrix_col_begin(),
-        distance_first,
-        thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first)),
+        distances,
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors)),
         thrust::make_discard_iterator(),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
@@ -230,18 +227,12 @@ void sssp_this_partition(raft::handle_t &handle,
       auto old_near_far_threshold = near_far_threshold;
       near_far_threshold += delta;
 
-      auto row_distance_first = !vertex_and_adj_matrix_row_ranges_coincide
-                                  ? adj_matrix_row_distances.begin()
-                                  : distance_first;
-
       while (true) {
         adj_matrix_row_frontier.split_bucket(
           static_cast<size_t>(Bucket::far),
-          [graph_device_view,
-           row_distance_first,
-           old_near_far_threshold,
-           near_far_threshold] __device__(auto v) {
-            auto dist = *(row_distance_first +
+          [graph_device_view, row_distances, old_near_far_threshold, near_far_threshold] __device__(
+            auto v) {
+            auto dist = *(row_distances +
                           graph_device_view.get_this_partition_row_offset_from_row_nocheck(v));
             if (dist < old_near_far_threshold) {
               return AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
