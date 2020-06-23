@@ -98,7 +98,7 @@ void sssp_this_partition(raft::handle_t &handle,
                       return thrust::make_tuple(distance, invalid_vertex);
                     });
 
-  if (num_edges > 0) { return; }
+  if (num_edges == 0) { return; }
 
   // 3. update delta
 

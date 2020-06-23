@@ -272,6 +272,8 @@ class graph_compressed_sparse_device_view_t<
     return thrust::make_counting_iterator(this->number_of_vertices_);
   }
 
+  // FIXME: this API does not work if a single process holds more than one rectangular partitions
+  // of the adjacency matrix.
   auto this_partition_adj_matrix_row_begin() const
   {
     return thrust::make_counting_iterator(static_cast<vertex_type>(0));

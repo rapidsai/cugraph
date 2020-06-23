@@ -154,9 +154,14 @@ size_t reduce_buffer_elements(HandleType& handle,
                                     reduce_op);
     auto num_reduced_buffer_elements =
       static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
-    thrust::copy(keys.begin(), keys.begin() + num_reduced_buffer_elements, buffer_key_output_first);
     thrust::copy(
-      values.begin(), values.begin() + num_reduced_buffer_elements, buffer_payload_output_first);
+      thrust::cuda::par.on(handle.get_stream()),
+      keys.begin(), keys.begin() + num_reduced_buffer_elements,
+      buffer_key_output_first);
+    thrust::copy(
+      thrust::cuda::par.on(handle.get_stream()),
+      values.begin(), values.begin() + num_reduced_buffer_elements,
+      buffer_payload_output_first);
     return num_reduced_buffer_elements;
   }
 }

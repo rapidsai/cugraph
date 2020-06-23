@@ -66,6 +66,7 @@ struct plus_thrust_tuple_impl {
   __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const
   {
     thrust::get<I>(lhs) += thrust::get<I>(rhs);
+    plus_thrust_tuple_impl<TupleType, I + 1, N>().compute(lhs, rhs);
   }
 };
 
