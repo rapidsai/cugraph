@@ -133,8 +133,15 @@ void sssp_this_partition(raft::handle_t &handle,
 
   // 5. SSSP iteration
 
+  bool vertex_and_adj_matrix_row_ranges_coincide =
+    (graph_device_view.this_partition_vertex_begin() ==
+     graph_device_view.this_partition_adj_matrix_row_begin()) &&
+        (graph_device_view.this_partition_vertex_end() ==
+         graph_device_view.this_partition_adj_matrix_row_end())
+      ? true
+      : false;
   rmm::device_vector<weight_t> adj_matrix_row_distances{};
-  if (graph_device_view.get_number_of_this_partition_adj_matrix_rows() != num_vertices) {
+  if (!vertex_and_adj_matrix_row_ranges_coincide) {
     adj_matrix_row_distances.assign(
       graph_device_view.get_number_of_this_partition_adj_matrix_rows(),
       std::numeric_limits<weight_t>::max());
@@ -160,7 +167,22 @@ void sssp_this_partition(raft::handle_t &handle,
       return thrust::make_tuple(idx, thrust::get<0>(pushed_val), thrust::get<1>(pushed_val));
     };
 
-    if (adj_matrix_row_distances.size() > 0) {
+    auto e_op = [graph_device_view, distance_first, cutoff] __device__(
+                  auto row_val, auto col_val, weight_t w) {
+      auto push         = true;
+      auto new_distance = thrust::get<0>(row_val) + w;
+      auto threshold    = cutoff;
+      if (graph_device_view.in_this_partition_vertex_range_nocheck(col_val)) {
+        auto this_partition_vertex_offset =
+          graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
+        auto old_distance = *(distance_first + this_partition_vertex_offset);
+        threshold         = old_distance < threshold ? old_distance : threshold;
+      }
+      if (new_distance >= threshold) { push = false; }
+      return thrust::make_tuple(push, new_distance, thrust::get<1>(row_val));
+    };
+
+    if (!vertex_and_adj_matrix_row_ranges_coincide) {
       expand_row_and_transform_if_v_push_if_e(
         handle,
         graph_device_view,
@@ -176,20 +198,7 @@ void sssp_this_partition(raft::handle_t &handle,
           thrust::make_tuple(adj_matrix_row_distances.begin(), thrust::make_discard_iterator())),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
-        [graph_device_view, distance_first, cutoff] __device__(
-          auto row_val, auto col_val, weight_t w) {
-          auto push         = true;
-          auto new_distance = thrust::get<0>(row_val) + w;
-          auto threshold    = cutoff;
-          if (graph_device_view.in_this_partition_vertex_range_nocheck(col_val)) {
-            auto this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
-            auto old_distance = *(distance_first + this_partition_vertex_offset);
-            threshold         = old_distance < threshold ? old_distance : threshold;
-          }
-          if (new_distance >= threshold) { push = false; }
-          return thrust::make_tuple(push, new_distance, thrust::get<1>(row_val));
-        },
+        e_op,
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         v_op);
     } else {
@@ -198,34 +207,15 @@ void sssp_this_partition(raft::handle_t &handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
-        graph_device_view.this_partition_adj_matrix_row_begin(),
+        thrust::make_zip_iterator(thrust::make_tuple(
+          distance_first, graph_device_view.this_partition_adj_matrix_row_begin())),
         graph_device_view.this_partition_adj_matrix_col_begin(),
         distance_first,
         thrust::make_zip_iterator(thrust::make_tuple(distance_first, predecessor_first)),
         thrust::make_discard_iterator(),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
-        [graph_device_view, distance_first, cutoff] __device__(
-          auto row_val, auto col_val, weight_t w) {
-          auto push         = true;
-          auto new_distance = invalid_distance;
-          auto threshold    = cutoff;
-          if (graph_device_view.in_this_partition_vertex_range_nocheck(row_val)) {
-            auto row_this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(row_val);
-            new_distance = *(distance_first + row_this_partition_vertex_offset) + w;
-          } else {
-            assert(0);  // should not be reached.
-          }
-          if (graph_device_view.in_this_partition_vertex_range_nocheck(col_val)) {
-            auto this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
-            auto old_distance = *(distance_first + this_partition_vertex_offset);
-            threshold         = old_distance < threshold ? old_distance : threshold;
-          }
-          if (new_distance >= threshold) { push = false; }
-          return thrust::make_tuple(push, new_distance, row_val);
-        },
+        e_op,
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         v_op);
     }
@@ -235,60 +225,42 @@ void sssp_this_partition(raft::handle_t &handle,
         0) {
       adj_matrix_row_frontier.swap_buckets(static_cast<size_t>(Bucket::cur_near),
                                            static_cast<size_t>(Bucket::new_near));
-    } else {  // near queue is empty, split the far queue
+    } else if (adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::far))
+                 .aggregate_size() > 0) {  // near queue is empty, split the far queue
       auto old_near_far_threshold = near_far_threshold;
       near_far_threshold += delta;
 
+      auto row_distance_first = !vertex_and_adj_matrix_row_ranges_coincide
+                                  ? adj_matrix_row_distances.begin()
+                                  : distance_first;
+
       while (true) {
-        if (adj_matrix_row_distances.size() > 0) {
-          auto adj_matrix_row_distance_first = adj_matrix_row_distances.begin();
-          adj_matrix_row_frontier.split_bucket(
-            static_cast<size_t>(Bucket::far),
-            [graph_device_view,
-             adj_matrix_row_distance_first,
-             old_near_far_threshold,
-             near_far_threshold] __device__(auto v) {
-              auto dist = *(adj_matrix_row_distance_first +
-                            graph_device_view.get_this_partition_row_offset_from_row_nocheck(v));
-              if (dist < old_near_far_threshold) {
-                return AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
-                  kInvalidBucketIdx;
-              } else if (dist < near_far_threshold) {
-                return static_cast<size_t>(Bucket::cur_near);
-              } else {
-                return static_cast<size_t>(Bucket::far);
-              }
-            });
-        } else {
-          adj_matrix_row_frontier.split_bucket(
-            static_cast<size_t>(Bucket::far),
-            [graph_device_view,
-             distance_first,
-             old_near_far_threshold,
-             near_far_threshold] __device__(auto v) {
-              auto dist =
-                *(distance_first +
-                  graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(v));
-              if (dist < old_near_far_threshold) {
-                return AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
-                  kInvalidBucketIdx;
-              } else if (dist < near_far_threshold) {
-                return static_cast<size_t>(Bucket::cur_near);
-              } else {
-                return static_cast<size_t>(Bucket::far);
-              }
-            });
-        }
+        adj_matrix_row_frontier.split_bucket(
+          static_cast<size_t>(Bucket::far),
+          [graph_device_view,
+           row_distance_first,
+           old_near_far_threshold,
+           near_far_threshold] __device__(auto v) {
+            auto dist = *(row_distance_first +
+                          graph_device_view.get_this_partition_row_offset_from_row_nocheck(v));
+            if (dist < old_near_far_threshold) {
+              return AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
+                kInvalidBucketIdx;
+            } else if (dist < near_far_threshold) {
+              return static_cast<size_t>(Bucket::cur_near);
+            } else {
+              return static_cast<size_t>(Bucket::far);
+            }
+          });
         if (adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near))
               .aggregate_size() > 0) {
           break;
-        } else if (adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::far))
-                     .aggregate_size() > 0) {
-          near_far_threshold += delta;
         } else {
-          return;
+          near_far_threshold += delta;
         }
       }
+    } else {
+      break;
     }
   }
 
