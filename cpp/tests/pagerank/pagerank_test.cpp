@@ -27,6 +27,8 @@
 #include "gtest/gtest.h"
 
 #include <cmath>
+#include <raft/handle.hpp>
+#include "utilities/test_utilities.hpp"
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -133,6 +135,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     ASSERT_EQ(fclose(fpin), 0);
 
     //  Pagerank runs on CSC, so feed COOtoCSR the row/col backwards.
+    raft::handle_t handle;
     cugraph::experimental::GraphCOOView<int, int, T> G_coo(
       &cooColInd[0], &cooRowInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);

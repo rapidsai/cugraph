@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <unistd.h>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
