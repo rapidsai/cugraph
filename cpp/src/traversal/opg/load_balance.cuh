@@ -38,12 +38,22 @@ class LoadBalanceExecution {
   LoadBalanceExecution(raft::handle_t const & handle,
       cugraph::experimental::GraphCSRView<VT, ET, WT>& graph) :
     handle_(handle),
-    graph_(graph),
-    reorganized_vertices_(graph.local_vertices[handle_.get_comms().get_rank()]),
-    vertex_begin_(graph.local_offsets[handle_.get_comms().get_rank()]),
-    vertex_end_(graph.local_offsets[handle_.get_comms().get_rank()] +
-        graph.local_vertices[handle_.get_comms().get_rank()])
-  {}
+    graph_(graph)
+  {
+    bool is_opg = (handle.comms_initialized() &&
+        (graph.local_vertices != nullptr) &&
+        (graph.local_offsets != nullptr));
+    if (is_opg) {
+      reorganized_vertices_.resize(graph.local_vertices[handle_.get_comms().get_rank()]);
+      vertex_begin_ = graph.local_offsets[handle_.get_comms().get_rank()];
+      vertex_end_ = graph.local_offsets[handle_.get_comms().get_rank()] +
+          graph.local_vertices[handle_.get_comms().get_rank()];
+    } else {
+      reorganized_vertices_.resize(graph.number_of_vertices);
+      vertex_begin_ = 0;
+      vertex_end_ = graph.number_of_vertices;
+    }
+  }
 
   template <typename Operator>
   void run(
