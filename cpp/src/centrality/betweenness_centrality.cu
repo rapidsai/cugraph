@@ -410,16 +410,50 @@ void BC<VT, ET, WT, result_t>::rescale_by_total_sources_used(VT total_number_of_
 }  // namespace detail
 
 namespace opg {
-template <typename result_t>
-void setup(const raft::handle_t &handle, result_t *result_ptr)
+template <typename VT, typename ET, typename WT, typename result_t>
+void get_graph_csr_view(const raft::handle_t &handle,
+                        experimental::GraphCSRView<VT, ET, WT> const *original_graph)  //,
+// experimental::GraphCSRView<VT, ET, WT> const &graph)
+{
+  int rank           = handle.get_comms().get_rank();
+  auto &communicator = handle.get_comms();
+  ET offsets_size    = 0;
+  VT indices_size    = 0;
+  thrust::device_vector<ET> d_offsets_size(1, 0);
+  thrust::device_vector<VT> d_indices_size(1, 0);
+  if (original_graph) {
+    offsets_size = original_graph->number_of_vertices + 1;
+    indices_size = original_graph->number_of_edges;
+    CUDA_TRY(
+      cudaMemcpy(d_offsets_size.data().get(), &offsets_size, sizeof(ET), cudaMemcpyHostToDevice));
+
+    CUDA_TRY(
+      cudaMemcpy(d_indices_size.data().get(), &indices_size, sizeof(VT), cudaMemcpyHostToDevice));
+  }
+  communicator.bcast(d_offsets_size.data().get(), 1, 0, 0);
+  communicator.bcast(d_indices_size.data().get(), 1, 0, 0);
+
+  CUDA_TRY(
+    cudaMemcpy(&offsets_size, d_offsets_size.data().get(), sizeof(ET), cudaMemcpyDeviceToHost));
+  CUDA_TRY(
+    cudaMemcpy(&indices_size, d_indices_size.data().get(), sizeof(VT), cudaMemcpyDeviceToHost));
+
+  printf("[DBG][OPG] Rank(%d) offsets_size = %d\n", rank, offsets_size);
+  printf("[DBG][OPG] Rank(%d) indices_size = %d\n", rank, indices_size);
+  // experimental::GraphCSRView<VT, ET, WT> graph()
+}
+template <typename VT, typename ET, typename WT, typename result_t>
+void setup(const raft::handle_t &handle,
+           experimental::GraphCSRView<VT, ET, WT> const *original_graph,
+           const result_t *result_ptr)
 {
   // printf("[DBG][OPG] Setup\n");
   int rank      = handle.get_comms().get_rank();
   int device_id = handle.get_device();
-  // printf("[DBG][OPG] Rank(%d)\n", rank);
-  // printf("[DBG][OPG] Device(%d)\n", device_id);
+  printf("[DBG][OPG] Rank(%d)\n", rank);
+  printf("[DBG][OPG] Graph is not Null(%d)\n", original_graph == nullptr);
+  get_graph_csr_view<VT, ET, WT, result_t>(handle, original_graph);
 }
-
 void receive_output_destination() {}
 
 void get_batch() {}  // printf("[DBG][OPG] Get Batch\n"); }
@@ -441,7 +475,7 @@ void combine(const raft::handle_t &handle, result_t *src_result, result_t *dst_r
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(const raft::handle_t &handle,
-                            experimental::GraphCSRView<VT, ET, WT> const &graph,
+                            experimental::GraphCSRView<VT, ET, WT> const *graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -459,11 +493,12 @@ void betweenness_centrality(const raft::handle_t &handle,
     // printf("[DBG][OPG] total_number_of_sources_used %d\n", total_number_of_sources_used);
     // TODO(xcadet) Through this approach we need an extra |V| device memory,
     //              should probaly directly use the allocated data for rank 0
-    rmm::device_vector<result_t> betweenness(graph.number_of_vertices, 0);
-    opg::setup<result_t>(handle, result);
-    opg::get_batch();
+    opg::setup<VT, ET, WT, result_t>(handle, graph, result);
+    // rmm::device_vector<result_t> betweenness(graph->number_of_vertices, 0);
+    // opg::get_batch();
+    /*
     detail::betweenness_centrality_impl(handle,
-                                        graph,
+                                        *graph,
                                         betweenness.data().get(),
                                         normalize,
                                         endpoints,
@@ -472,12 +507,15 @@ void betweenness_centrality(const raft::handle_t &handle,
                                         vertices,
                                         total_number_of_sources_used);
     opg::process();
-    opg::combine<VT, result_t>(handle, betweenness.data().get(), result, graph.number_of_vertices);
-    // printf("[DBG][OPG] End of computation\n");
+    opg::combine<VT, result_t>(handle, betweenness.data().get(), result, graph->number_of_vertices);
+    */
+    int rank = handle.get_comms().get_rank();
+    printf("[DBG][OPG] Rank(%d)\n", rank);
+    printf("[DBG][OPG] End of computation\n");
   } else {
     printf("[DBG][OPG] Started Regular-BC\n");
     detail::betweenness_centrality_impl(handle,
-                                        graph,
+                                        *graph,
                                         result,
                                         normalize,
                                         endpoints,
@@ -490,7 +528,7 @@ void betweenness_centrality(const raft::handle_t &handle,
 
 template void betweenness_centrality<int, int, float, float>(
   const raft::handle_t &,
-  experimental::GraphCSRView<int, int, float> const &,
+  experimental::GraphCSRView<int, int, float> const *,
   float *,
   bool,
   bool,
@@ -500,7 +538,7 @@ template void betweenness_centrality<int, int, float, float>(
   int);
 template void betweenness_centrality<int, int, double, double>(
   const raft::handle_t &,
-  experimental::GraphCSRView<int, int, double> const &,
+  experimental::GraphCSRView<int, int, double> const *,
   double *,
   bool,
   bool,

@@ -36,8 +36,7 @@ from cugraph.raft.dask.common.utils import default_client
 import dask.distributed
 
 
-def get_output_df(input_graph, result_dtype):
-    number_of_vertices = input_graph.number_of_vertices()
+def get_output_df(number_of_vertices, result_dtype):
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(number_of_vertices, dtype=np.int32))
     df['betweenness_centrality'] = cudf.Series(np.zeros(number_of_vertices,
@@ -70,37 +69,70 @@ def run_work(input_graph, normalized, endpoints, vertices, result_dtype, session
 
 # TODO(xcadet) Look for a way to refactor run_work_function
 def run_work_float32(input_graph, normalized, endpoints, vertices, result_dtype, session_id):
-    df = get_output_df(input_graph, result_dtype)
+    cdef GraphCSRViewFloat *graph_float = NULL
+    cdef GraphCSRViewFloat graph_float_value
     session_state = worker_state(session_id)
     number_of_workers = session_state['nworkers']
     worker_id = session_state['wid']
-
-    cdef GraphCSRViewFloat graph_float = get_graph_view[GraphCSRViewFloat](input_graph, False)
-    graph_float.prop.directed = type(input_graph) is DiGraph
+    print("[DBG] Worker {}/{} handing graph: {}".format(worker_id + 1, number_of_workers, input_graph))
+    is_master = worker_id == 0
+    if is_master:
+        assert type(input_graph) in [cugraph.Graph, cugraph.DiGraph] # TODO(xcadet) more specific
+    else :
+        assert type(input_graph) is int # TODO(xcadet) more specific
+    output_size = (input_graph.number_of_vertices() if is_master else input_graph)
+    df = get_output_df(output_size, result_dtype)
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_batch = <uintptr_t> NULL
 
-    batch = get_batch(vertices, number_of_workers, worker_id)
-    number_of_sources_in_batch = len(batch)
-    # print("[DBG] Worker {}/{} has to process batch({}) = {}".format(worker_id + 1, number_of_workers, number_of_sources_in_batch, batch))
-    c_batch = batch.__array_interface__['data'][0]
+    if is_master:
+        graph_float_value = get_graph_view[GraphCSRViewFloat](input_graph, False)
+        graph_float = &graph_float_value
+        graph_float.prop.directed = type(input_graph) is DiGraph
 
-    handle = session_state['handle']
-    c_handle = <handle_t*><size_t> handle.getHandle()
-    c_betweenness_centrality[int, int, float, float](c_handle[0],
-                                                     graph_float,
-                                                     <float*> c_betweenness,
-                                                     normalized,
-                                                     endpoints,
-                                                     <float*> NULL,
-                                                     number_of_sources_in_batch,
-                                                     <int*> c_batch,
-                                                     len(vertices))
-    graph_float.get_vertex_identifiers(<int*> c_identifier)
+        batch = get_batch(vertices, number_of_workers, worker_id)
+        number_of_sources_in_batch = len(batch)
+        # print("[DBG] Worker {}/{} has to process batch({}) = {}".format(worker_id + 1, number_of_workers, number_of_sources_in_batch, batch))
+        c_batch = batch.__array_interface__['data'][0]
 
-    if worker_id == 0:
+        handle = session_state['handle']
+        c_handle = <handle_t*><size_t> handle.getHandle()
+        c_betweenness_centrality[int, int, float, float](c_handle[0],
+                                                        <GraphCSRView[int, int, float]*> graph_float,
+                                                        <float*> c_betweenness,
+                                                        normalized,
+                                                        endpoints,
+                                                        <float*> NULL,
+                                                        number_of_sources_in_batch,
+                                                        <int*> c_batch,
+                                                        len(vertices))
+        graph_float_value.get_vertex_identifiers(<int*> c_identifier)
+        print("[DBG] Node-Master {}/{} is done".format(worker_id + 1, number_of_workers))
+    else:
+        batch = get_batch(vertices, number_of_workers, worker_id)
+        number_of_sources_in_batch = len(batch)
+        # print("[DBG] Worker {}/{} has to process batch({}) = {}".format(worker_id + 1, number_of_workers, number_of_sources_in_batch, batch))
+        c_batch = batch.__array_interface__['data'][0]
+
+        handle = session_state['handle']
+        c_handle = <handle_t*><size_t> handle.getHandle()
+        c_betweenness_centrality[int, int, float, float](c_handle[0],
+                                                        <GraphCSRView[int, int, float]*> graph_float,
+                                                        <float*> c_betweenness,
+                                                        normalized,
+                                                        endpoints,
+                                                        <float*> NULL,
+                                                        number_of_sources_in_batch,
+                                                        <int*> c_batch,
+                                                        len(vertices))
+        print("[DBG] Regular Worker {}/{} is done".format(worker_id + 1, number_of_workers))
+    print("[DBG] Worker {}/{} is done".format(worker_id + 1, number_of_workers))
+    if is_master:
+        print("[DBG] Node-Master {}/{} is returning df".format(worker_id + 1, number_of_workers))
         return df
+    else:
+        return None
 
 
 def run_work_float64(input_graph, normalized, endpoints, vertices, result_dtype, session_id):
@@ -109,7 +141,8 @@ def run_work_float64(input_graph, normalized, endpoints, vertices, result_dtype,
     number_of_workers = session_state['nworkers']
     worker_id = session_state['wid']
 
-    cdef GraphCSRViewDouble graph_double = get_graph_view[GraphCSRViewDouble](input_graph, False)
+    cdef GraphCSRViewDouble *graph_double = NULL
+    graph_double[0] = get_graph_view[GraphCSRViewDouble](input_graph, False)
     graph_double.prop.directed = type(input_graph) is DiGraph
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
@@ -123,7 +156,7 @@ def run_work_float64(input_graph, normalized, endpoints, vertices, result_dtype,
     handle = session_state['handle']
     c_handle = <handle_t*><size_t> handle.getHandle()
     c_betweenness_centrality[int, int, double, double](c_handle[0],
-                                                       graph_double,
+                                                       <GraphCSRView[int, int, double]*> graph_double,
                                                        <double*> c_betweenness,
                                                        normalized,
                                                        endpoints,
@@ -208,11 +241,14 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight,
     if result_dtype == np.float32:
         if comms is not None:
             with CommsContext(comms):
-                futures = [client.submit(run_work, input_graph, normalized,
+                print(comms.worker_addresses)
+                futures = [client.submit(run_work, input_graph if worker_idx == 0 else input_graph.number_of_vertices(), normalized,
                                          endpoints, numpy_vertices,
                                          result_dtype, comms.sessionId,
-                                         workers=[worker_id]) for worker_id in comms.worker_addresses]
+                                         workers=[worker_address]) for worker_idx, worker_address in enumerate(comms.worker_addresses)]
+                print("[DBG] Waiting for futures")
                 dask.distributed.wait(futures)
+                print("[DBG] Done waiting for futures")
                 df = futures[0].result()
         else:
             df = get_output_df(input_graph, result_dtype)
@@ -226,7 +262,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight,
             c_handle = <handle_t*><size_t> handle.getHandle()
             total_number_of_sources_used = len(numpy_vertices)
             c_betweenness_centrality[int, int, float, float](c_handle[0],
-                                                            graph_float,
+                                                            &graph_float,
                                                             <float*> c_betweenness,
                                                             normalized, endpoints,
                                                             <float*> c_weight,
@@ -256,7 +292,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight,
             c_handle = <handle_t*><size_t> handle.getHandle()
             total_number_of_sources_used = len(numpy_vertices)
             c_betweenness_centrality[int, int, double, double](c_handle[0],
-                                                               graph_double,
+                                                               &graph_double,
                                                                <double*> c_betweenness,
                                                                normalized, endpoints,
                                                                <double*> c_weight,
