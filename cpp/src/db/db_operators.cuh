@@ -38,10 +38,10 @@ namespace db {
  *  values to those variables.
  */
 template <typename idx_t>
-db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
-                             db_table<idx_t>& table,
-                             idx_t* frontier,
-                             idx_t frontier_size,
-                             int indexPosition);
+db_result<idx_t> find_matches(db_pattern<idx_t>& pattern,
+                              db_table<idx_t>& table,
+                              idx_t* frontier,
+                              idx_t frontier_size,
+                              int indexPosition);
 }  // namespace db
 }  // namespace cugraph

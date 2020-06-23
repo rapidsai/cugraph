@@ -30,8 +30,8 @@ template <typename idx_t>
 class db_result {
   std::vector<rmm::device_buffer> columns;
   std::vector<std::string> names;
-  bool dataValid;
-  idx_t columnSize;
+  bool data_valid;
+  idx_t column_size;
 
  public:
   db_result();
@@ -41,18 +41,18 @@ class db_result {
   ~db_result()                      = default;
   db_result& operator               =(db_result&& other);
   db_result& operator=(const db_result& other) = delete;
-  idx_t getSize();
-  idx_t* getData(std::string idx);
-  void addColumn(std::string columnName);
-  void allocateColumns(idx_t size);
-  std::string getIdentifier();
-  bool hasVariable(std::string name);
-  std::vector<idx_t>&& getHostColumn(std::string name);
+  idx_t get_size();
+  idx_t* get_data(std::string idx);
+  void add_column(std::string columnName);
+  void allocate_columns(idx_t size);
+  std::string get_identifier();
+  bool has_variable(std::string name);
+  std::vector<idx_t>&& get_host_column(std::string name);
   /**
    * For debugging purposes
    * @return Human readable representation
    */
-  std::string toString();
+  std::string to_string();
 };
 
 /**

@@ -54,30 +54,6 @@ TEST_F(Test_Parser, printOut)
   cugraph::db::printOutAst(input);
   std::cout << "\n";
 
-  //  std::string input = "LOAD CSV WITH HEADERS FROM 'file:///persons.csv' AS csvLine";
-  //  std::cout << input << "\n";
-  //  cugraph::db::printOutAst(input);
-  //  std::cout << "\n";
-  //
-  //  input = "MATCH (p:Person {name: 'James'})-[:HasPet]->(z:Pet)\nRETURN z.name";
-  //  std::cout << input << "\n";
-  //  cugraph::db::printOutAst(input);
-  //  std::cout << "\n";
-  //
-  //  input = "CREATE (p:Person {name: 'James'})";
-  //  std::cout << input << "\n";
-  //  cugraph::db::printOutAst(input);
-  //  std::cout << "\n";
-  //
-  //  input = "LOAD CSV WITH HEADERS FROM 'file:///persons.csv' AS csvLine\nCREATE (n:Person {name:
-  //  csvLine.name})"; std::cout << input << "\n"; cugraph::db::printOutAst(input); std::cout <<
-  //  "\n";
-  //
-  //  input = "LOAD CSV WITH HEADERS FROM 'file:///persons.csv' AS csvLine\nMATCH (person:Person
-  //  {id: csvLine.personId}),(movie:Movie {id: csvLine.movieId})\nCREATE (person)-[:Played {role:
-  //  csvLine.role}]->(movie)"; std::cout << input << "\n"; cugraph::db::printOutAst(input);
-  //  std::cout << "\n";
-  //
   input =
     "MATCH (p:Person)-[:FriendsWith]-(i:Person)-[:FriendsWith]-(q:Person)\nRETURN p.name, q.name";
   std::cout << input << "\n";

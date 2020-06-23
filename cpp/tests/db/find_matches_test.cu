@@ -77,14 +77,14 @@ TEST_F(Test_FindMatches, firstTest)
   p.addEntry(p2);
   p.addEntry(p3);
   cugraph::db::db_result<int32_t> result =
-    cugraph::db::findMatches<int32_t>(p, table, nullptr, 0, 1);
-  ASSERT_EQ(result.getSize(), 1);
-  std::vector<int32_t> resultA(result.getSize());
-  std::vector<int32_t> resultB(result.getSize());
+    cugraph::db::find_matches<int32_t>(p, table, nullptr, 0, 1);
+  ASSERT_EQ(result.get_size(), 1);
+  std::vector<int32_t> resultA(result.get_size());
+  std::vector<int32_t> resultB(result.get_size());
   CUDA_TRY(cudaMemcpy(
-    resultA.data(), result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultA.data(), result.get_data("a"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
   CUDA_TRY(cudaMemcpy(
-    resultB.data(), result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultB.data(), result.get_data("b"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
   ASSERT_EQ(resultA[0], 1);
   ASSERT_EQ(resultB[0], 2);
 }
@@ -108,17 +108,17 @@ TEST_F(Test_FindMatches, secondTest)
   q.addEntry(q3);
 
   cugraph::db::db_result<int32_t> result =
-    cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 2);
+    cugraph::db::find_matches<int32_t>(q, table, nullptr, 0, 2);
 
-  std::cout << result.toString();
+  std::cout << result.to_string();
 
-  ASSERT_EQ(result.getSize(), 2);
-  std::vector<int32_t> resultA(result.getSize());
-  std::vector<int32_t> resultB(result.getSize());
+  ASSERT_EQ(result.get_size(), 2);
+  std::vector<int32_t> resultA(result.get_size());
+  std::vector<int32_t> resultB(result.get_size());
   CUDA_TRY(cudaMemcpy(
-    resultA.data(), result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultA.data(), result.get_data("a"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
   CUDA_TRY(cudaMemcpy(
-    resultB.data(), result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultB.data(), result.get_data("b"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
 
   ASSERT_EQ(resultA[0], 1);
   ASSERT_EQ(resultB[0], 1);
@@ -145,14 +145,14 @@ TEST_F(Test_FindMatches, thirdTest)
   thrust::fill(thrust::device, frontier_ptr, frontier_ptr + 1, 0);
 
   cugraph::db::db_result<int32_t> result =
-    cugraph::db::findMatches<int32_t>(q, table, frontier_ptr, 1, 0);
+    cugraph::db::find_matches<int32_t>(q, table, frontier_ptr, 1, 0);
 
-  ASSERT_EQ(result.getSize(), 1);
-  std::vector<int32_t> resultA(result.getSize());
+  ASSERT_EQ(result.get_size(), 1);
+  std::vector<int32_t> resultA(result.get_size());
   CUDA_TRY(cudaMemcpy(
-    resultA.data(), result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultA.data(), result.get_data("a"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
 
-  std::cout << result.toString();
+  std::cout << result.to_string();
 
   ASSERT_EQ(resultA[0], 0);
 }
@@ -174,17 +174,17 @@ TEST_F(Test_FindMatches, fourthTest)
   q.addEntry(q4);
 
   cugraph::db::db_result<int32_t> result =
-    cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 0);
-  std::cout << result.toString();
-  ASSERT_EQ(result.getSize(), 3);
+    cugraph::db::find_matches<int32_t>(q, table, nullptr, 0, 0);
+  std::cout << result.to_string();
+  ASSERT_EQ(result.get_size(), 3);
 
-  std::vector<int32_t> resultA(result.getSize());
-  std::vector<int32_t> resultR(result.getSize());
+  std::vector<int32_t> resultA(result.get_size());
+  std::vector<int32_t> resultR(result.get_size());
 
   CUDA_TRY(cudaMemcpy(
-    resultA.data(), result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultA.data(), result.get_data("a"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
   CUDA_TRY(cudaMemcpy(
-    resultR.data(), result.getData("r"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultR.data(), result.get_data("r"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
 
   ASSERT_EQ(resultA[0], 0);
   ASSERT_EQ(resultA[1], 1);
@@ -210,17 +210,17 @@ TEST_F(Test_FindMatches, fifthTest)
   q.addEntry(q3);
 
   cugraph::db::db_result<int32_t> result =
-    cugraph::db::findMatches<int32_t>(q, table, nullptr, 0, 1);
-  std::cout << result.toString();
+    cugraph::db::find_matches<int32_t>(q, table, nullptr, 0, 1);
+  std::cout << result.to_string();
 
-  ASSERT_EQ(result.getSize(), 2);
-  std::vector<int32_t> resultA(result.getSize());
-  std::vector<int32_t> resultB(result.getSize());
+  ASSERT_EQ(result.get_size(), 2);
+  std::vector<int32_t> resultA(result.get_size());
+  std::vector<int32_t> resultB(result.get_size());
 
   CUDA_TRY(cudaMemcpy(
-    resultA.data(), result.getData("a"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultA.data(), result.get_data("a"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
   CUDA_TRY(cudaMemcpy(
-    resultB.data(), result.getData("b"), sizeof(int32_t) * result.getSize(), cudaMemcpyDefault));
+    resultB.data(), result.get_data("b"), sizeof(int32_t) * result.get_size(), cudaMemcpyDefault));
 
   ASSERT_EQ(resultA[0], 0);
   ASSERT_EQ(resultA[1], 0);

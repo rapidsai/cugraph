@@ -21,10 +21,20 @@
 class Test_Parser : public ::testing::Test {
 };
 
-TEST_F(Test_Parser, printOut)
+TEST_F(Test_Parser, checkToSTring)
 {
+  std::string expected =
+    "Database:\nEncoder:\nEncoder object with 5 encoded values and 2 allocated ids:\n"
+    "2 == Person\n3 == name\n4 == George\n5 == FriendsWith\n6 == Henry\n"
+    "Relationships Table:\nTable with 3 columns of length 1\nbegin end type \n0 5 1 \n"
+    "Node Labels Table:\nTable with 2 columns of length 2\nnodeId LabelId \n0 2 \n1 2 \n"
+    "Node Properties Table:\nTable with 3 columns of length 2\nnodeId propertyLabel value \n"
+    "0 3 4 \n1 3 6 \nRelationship Properties Table:\nTable with 3 columns of length 0\n"
+    "id name value \n";
+
   cugraph::db::db_object<int32_t> obj;
   std::string input = "CREATE (:Person {name:'George'})-[:FriendsWith]->(:Person {name : 'Henry'})";
   obj.query(input);
-  std::cout << obj.toString();
+  std::string actual = obj.toString();
+  ASSERT_EQ(actual, expected);
 }

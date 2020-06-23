@@ -24,7 +24,7 @@
 namespace cugraph {
 namespace db {
 
-std::string execution_typeToString(execution_type type)
+std::string execution_type_to_string(execution_type type)
 {
   switch (type) {
     case execution_type::LoadCsv: {
@@ -77,25 +77,6 @@ void load_csv_node<idx_t>::execute(context<idx_t>& ctx)
 }
 
 template <typename idx_t>
-string_table& load_csv_node<idx_t>::getStringResult()
-{
-  CUGRAPH_EXPECTS(executed, "Can't get result before execution");
-  return result;
-}
-
-template <typename idx_t>
-db_result<idx_t>& load_csv_node<idx_t>::getGPUResult()
-{
-  CUGRAPH_FAIL("Load CSV node does not support GPU result");
-}
-
-template <typename idx_t>
-std::string load_csv_node<idx_t>::getResultIdentifier()
-{
-  return identifier;
-}
-
-template <typename idx_t>
 execution_type load_csv_node<idx_t>::type()
 {
   return execution_type::LoadCsv;
@@ -124,25 +105,6 @@ match_node<idx_t>::match_node(const cypher_astnode_t* astNode, context<idx_t>& c
     const cypher_astnode_t* child = cypher_astnode_get_child(p_node, i);
     paths.emplace_back(child, ctx);
   }
-}
-
-template <typename idx_t>
-string_table& match_node<idx_t>::getStringResult()
-{
-  CUGRAPH_FAIL("Match node does not have a string table result");
-}
-
-template <typename idx_t>
-db_result<idx_t>& match_node<idx_t>::getGPUResult()
-{
-  return result;
-}
-
-template <typename idx_t>
-std::string match_node<idx_t>::getResultIdentifier()
-{
-  CUGRAPH_EXPECTS(executed, "Must execute node before getting the result identifier.");
-  return result.getIdentifier();
 }
 
 template <typename idx_t>
@@ -181,24 +143,6 @@ create_node<idx_t>::create_node(const cypher_astnode_t* astNode, context<idx_t>&
     const cypher_astnode_t* child = cypher_astnode_get_child(p_node, i);
     paths.emplace_back(child, ctx);
   }
-}
-
-template <typename idx_t>
-string_table& create_node<idx_t>::getStringResult()
-{
-  CUGRAPH_FAIL("Create node has no string result.");
-}
-
-template <typename idx_t>
-db_result<idx_t>& create_node<idx_t>::getGPUResult()
-{
-  CUGRAPH_FAIL("Create node has no GPU result.");
-}
-
-template <typename idx_t>
-std::string create_node<idx_t>::getResultIdentifier()
-{
-  CUGRAPH_FAIL("Create node has no result.");
 }
 
 template <typename idx_t>
@@ -764,14 +708,12 @@ query_plan<idx_t>::query_plan(query_plan&& other)
 {
   ctx        = std::move(other.ctx);
   plan_nodes = std::move(other.plan_nodes);
-  other.plan_nodes.clear();
 }
 
 template <typename idx_t>
 query_plan<idx_t>::~query_plan()
 {
   for (size_t i = 0; i < plan_nodes.size(); i++) delete plan_nodes[i];
-  plan_nodes.clear();
 }
 
 template <typename idx_t>
@@ -781,7 +723,6 @@ query_plan<idx_t>& query_plan<idx_t>::operator=(query_plan<idx_t>&& other)
     ctx = std::move(other.ctx);
     for (size_t i = 0; i < plan_nodes.size(); i++) delete plan_nodes[i];
     plan_nodes = std::move(other.plan_nodes);
-    other.plan_nodes.clear();
   }
   return *this;
 }
@@ -789,6 +730,7 @@ query_plan<idx_t>& query_plan<idx_t>::operator=(query_plan<idx_t>&& other)
 template <typename idx_t>
 std::string query_plan<idx_t>::execute()
 {
+  std::stringstream ss;
   for (size_t i = 0; i < plan_nodes.size(); i++) {
     execution_type type = plan_nodes[i]->type();
     switch (type) {
@@ -804,17 +746,16 @@ std::string query_plan<idx_t>::execute()
         break;
       }
       case execution_type::Create: {
-        std::cout << "Calling create_node<idx_t>::execute()\n";
         create_node<idx_t>* c_node = reinterpret_cast<create_node<idx_t>*>(plan_nodes[i]);
         c_node->execute(ctx);
         break;
       }
       case execution_type::Return: {
+        // Content will be added to ss here once fully implemented
         break;
       }
     }
   }
-  std::stringstream ss;
   return ss.str();
 }
 

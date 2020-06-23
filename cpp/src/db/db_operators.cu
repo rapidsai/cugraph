@@ -158,11 +158,11 @@ __global__ void findMatchesKernel(idx_t inputSize,
 }
 
 template <typename idx_t>
-db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
-                             db_table<idx_t>& table,
-                             idx_t* frontier,
-                             idx_t frontier_size,
-                             int indexPosition)
+db_result<idx_t> find_matches(db_pattern<idx_t>& pattern,
+                              db_table<idx_t>& table,
+                              idx_t* frontier,
+                              idx_t frontier_size,
+                              int indexPosition)
 {
   // Find out if the indexPosition is a variable or constant
   bool indexConstant = !pattern.getEntry(indexPosition).isVariable();
@@ -367,10 +367,10 @@ db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
 
   // Put together the result to return
   db_result<idx_t> result;
-  for (size_t i = 0; i < names.size(); i++) { result.addColumn(names[i]); }
-  result.allocateColumns(compactSize_h);
+  for (size_t i = 0; i < names.size(); i++) { result.add_column(names[i]); }
+  result.allocate_columns(compactSize_h);
   for (size_t i = 0; i < columns.size(); i++) {
-    idx_t* outputPtr = result.getData(names[i]);
+    idx_t* outputPtr = result.get_data(names[i]);
     idx_t* inputPtr  = columns[i];
     CUDA_TRY(cudaMemcpy(outputPtr, inputPtr, sizeof(idx_t) * compactSize_h, cudaMemcpyDefault));
   }
@@ -379,15 +379,15 @@ db_result<idx_t> findMatches(db_pattern<idx_t>& pattern,
   return result;
 }
 
-template db_result<int32_t> findMatches(db_pattern<int32_t>& pattern,
-                                        db_table<int32_t>& table,
-                                        int32_t* frontier,
-                                        int32_t frontier_size,
-                                        int indexPosition);
-template db_result<int64_t> findMatches(db_pattern<int64_t>& pattern,
-                                        db_table<int64_t>& table,
-                                        int64_t* frontier,
-                                        int64_t frontier_size,
-                                        int indexPosition);
+template db_result<int32_t> find_matches(db_pattern<int32_t>& pattern,
+                                         db_table<int32_t>& table,
+                                         int32_t* frontier,
+                                         int32_t frontier_size,
+                                         int indexPosition);
+template db_result<int64_t> find_matches(db_pattern<int64_t>& pattern,
+                                         db_table<int64_t>& table,
+                                         int64_t* frontier,
+                                         int64_t frontier_size,
+                                         int indexPosition);
 }  // namespace db
 }  // namespace cugraph

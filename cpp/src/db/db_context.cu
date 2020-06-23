@@ -207,16 +207,16 @@ std::vector<idx_t>&& context<idx_t>::get_variable_column(std::string name)
 {
   int pos = -1;
   for (size_t i = 0; i < variables.size(); i++)
-    if (variables[i].hasVariable(name)) pos = i;
+    if (variables[i].has_variable(name)) pos = i;
   CUGRAPH_EXPECTS(pos > 0, "Variable not found");
-  return variables[pos].getHostColumn(name);
+  return variables[pos].get_host_column(name);
 }
 
 template <typename idx_t>
 bool context<idx_t>::has_variable(std::string name)
 {
   for (size_t i = 0; i < variables.size(); i++) {
-    if (variables[i].hasVariable(name)) return true;
+    if (variables[i].has_variable(name)) return true;
   }
   return false;
 }

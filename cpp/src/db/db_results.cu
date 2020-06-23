@@ -26,39 +26,36 @@ namespace db {
 template <typename idx_t>
 db_result<idx_t>::db_result()
 {
-  dataValid  = false;
-  columnSize = 0;
+  data_valid  = false;
+  column_size = 0;
 }
 
 template <typename idx_t>
 db_result<idx_t>::db_result(db_result&& other)
 {
-  dataValid       = other.dataValid;
-  columns         = std::move(other.columns);
-  names           = std::move(other.names);
-  other.dataValid = false;
+  *this = std::move(other);
 }
 
 template <typename idx_t>
 db_result<idx_t>& db_result<idx_t>::operator=(db_result<idx_t>&& other)
 {
-  dataValid       = other.dataValid;
-  columns         = std::move(other.columns);
-  names           = std::move(other.names);
-  other.dataValid = false;
+  data_valid       = other.data_valid;
+  columns          = std::move(other.columns);
+  names            = std::move(other.names);
+  other.data_valid = false;
   return *this;
 }
 
 template <typename idx_t>
-idx_t db_result<idx_t>::getSize()
+idx_t db_result<idx_t>::get_size()
 {
-  return columnSize;
+  return column_size;
 }
 
 template <typename idx_t>
-idx_t* db_result<idx_t>::getData(std::string idx)
+idx_t* db_result<idx_t>::get_data(std::string idx)
 {
-  CUGRAPH_EXPECTS(dataValid, "Data not valid");
+  CUGRAPH_EXPECTS(data_valid, "Data not valid");
 
   idx_t* returnPtr = nullptr;
   for (size_t i = 0; i < names.size(); i++)
@@ -67,27 +64,27 @@ idx_t* db_result<idx_t>::getData(std::string idx)
 }
 
 template <typename idx_t>
-void db_result<idx_t>::addColumn(std::string columnName)
+void db_result<idx_t>::add_column(std::string columnName)
 {
-  CUGRAPH_EXPECTS(!dataValid, "Cannot add a column to an allocated result.");
+  CUGRAPH_EXPECTS(!data_valid, "Cannot add a column to an allocated result.");
   names.push_back(columnName);
 }
 
 template <typename idx_t>
-void db_result<idx_t>::allocateColumns(idx_t size)
+void db_result<idx_t>::allocate_columns(idx_t size)
 {
-  CUGRAPH_EXPECTS(!dataValid, "Already allocated columns");
+  CUGRAPH_EXPECTS(!data_valid, "Already allocated columns");
 
   for (size_t i = 0; i < names.size(); i++) {
     rmm::device_buffer col(sizeof(idx_t) * size);
     columns.push_back(std::move(col));
   }
-  dataValid  = true;
-  columnSize = size;
+  data_valid  = true;
+  column_size = size;
 }
 
 template <typename idx_t>
-std::string db_result<idx_t>::getIdentifier()
+std::string db_result<idx_t>::get_identifier()
 {
   std::stringstream ss;
   for (size_t i = 0; i < names.size() - 1; i++) ss << names[i] << ",";
@@ -96,7 +93,7 @@ std::string db_result<idx_t>::getIdentifier()
 }
 
 template <typename idx_t>
-bool db_result<idx_t>::hasVariable(std::string name)
+bool db_result<idx_t>::has_variable(std::string name)
 {
   for (size_t i = 0; i < names.size(); i++)
     if (names[i] == name) return true;
@@ -104,34 +101,34 @@ bool db_result<idx_t>::hasVariable(std::string name)
 }
 
 template <typename idx_t>
-std::vector<idx_t>&& db_result<idx_t>::getHostColumn(std::string name)
+std::vector<idx_t>&& db_result<idx_t>::get_host_column(std::string name)
 {
   int pos = -1;
   for (size_t i = 0; i < names.size(); i++) {
     if (names[i] == name) pos = i;
   }
   CUGRAPH_EXPECTS(pos > 0, "Given variable name not found");
-  std::vector<idx_t> result(columnSize);
+  std::vector<idx_t> result(column_size);
   CUDA_TRY(
-    cudaMemcpy(result.data(), columns[pos].data(), sizeof(idx_t) * columnSize, cudaMemcpyDefault));
+    cudaMemcpy(result.data(), columns[pos].data(), sizeof(idx_t) * column_size, cudaMemcpyDefault));
   return std::move(result);
 }
 
 template <typename idx_t>
-std::string db_result<idx_t>::toString()
+std::string db_result<idx_t>::to_string()
 {
   std::stringstream ss;
-  ss << "db_result with " << columns.size() << " columns of length " << columnSize << "\n";
+  ss << "db_result with " << columns.size() << " columns of length " << column_size << "\n";
   for (size_t i = 0; i < columns.size(); i++) ss << names[i] << " ";
   ss << "\n";
   std::vector<std::vector<idx_t>> hostColumns;
   hostColumns.resize(columns.size());
   for (size_t i = 0; i < columns.size(); i++) {
-    hostColumns[i].resize(columnSize);
+    hostColumns[i].resize(column_size);
     CUDA_TRY(cudaMemcpy(
-      hostColumns[i].data(), columns[i].data(), sizeof(idx_t) * columnSize, cudaMemcpyDefault));
+      hostColumns[i].data(), columns[i].data(), sizeof(idx_t) * column_size, cudaMemcpyDefault));
   }
-  for (idx_t i = 0; i < columnSize; i++) {
+  for (idx_t i = 0; i < column_size; i++) {
     for (size_t j = 0; j < hostColumns.size(); j++) ss << hostColumns[j][i] << " ";
     ss << "\n";
   }
@@ -141,11 +138,7 @@ std::string db_result<idx_t>::toString()
 template class db_result<int32_t>;
 template class db_result<int64_t>;
 
-string_table::string_table(string_table&& other)
-{
-  this->names   = std::move(other.names);
-  this->columns = std::move(other.columns);
-}
+string_table::string_table(string_table&& other) { *this = std::move(other); }
 
 string_table::string_table(std::string csvFile, bool with_headers, std::string delim)
 {
