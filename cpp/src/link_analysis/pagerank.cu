@@ -22,8 +22,9 @@
 #include <string>
 #include "cub/cub.cuh"
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <graph.hpp>
 #include "utilities/graph_utils.cuh"
@@ -141,7 +142,8 @@ int pagerankSolver(IndexType n,
   rmm::device_vector<WT> tmp(n);
   tmp_d = pr.data().get();
 #endif
-  CUDA_CHECK_LAST();
+  // FIXME: this should take a passed CUDA strema instead of default nullptr
+  CHECK_CUDA(nullptr);
 
   if (!has_guess) {
     fill(n, pagerank_vector, randomProbability);

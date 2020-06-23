@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include <utilities/error_utils.h>
+#include <raft/cudart_utils.h>
 #include <db/db_results.cuh>
 #include <fstream>
 #include <sstream>
+#include <utilities/error.hpp>
 
 namespace cugraph {
 namespace db {

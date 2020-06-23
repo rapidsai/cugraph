@@ -27,37 +27,37 @@ namespace db {
 
 template <typename idx_t>
 class encoder {
-  std::map<idx_t, std::string> idToString;
-  std::map<std::string, idx_t> stringToId;
-  idx_t nextId;
+  std::map<idx_t, std::string> id_to_string;
+  std::map<std::string, idx_t> string_to_id;
+  idx_t next_id;
 
  public:
   encoder();
   idx_t encode(std::string val);
   std::string decode(idx_t val);
-  idx_t getId();
+  idx_t get_id();
 
   /**
    * For debugging purposes only
    * @return A human representation of the encoder's content
    */
-  std::string toString();
+  std::string to_string();
 };
 
 template <typename idx_t>
 class context {
   encoder<idx_t>* coder;
-  db_table<idx_t>* relationshipsTable;
-  db_table<idx_t>* nodeLabelsTable;
-  db_table<idx_t>* nodePropertiesTable;
-  db_table<idx_t>* relationshipPropertiesTable;
-  idx_t nextId;
-  std::vector<string_table> namedResults;
-  std::vector<std::string> resultNames;
+  db_table<idx_t>* relationships_table;
+  db_table<idx_t>* node_labels_table;
+  db_table<idx_t>* node_properties_table;
+  db_table<idx_t>* relationship_properties_table;
+  idx_t next_id;
+  std::vector<string_table> named_results;
+  std::vector<std::string> result_names;
   std::vector<db_result<idx_t>> variables;
 
  public:
-  context();
+  context() = default;
   context(encoder<idx_t>* e,
           db_table<idx_t>* rt,
           db_table<idx_t>* nlt,
@@ -67,20 +67,20 @@ class context {
   context(context&& other);
   context& operator=(const context& other) = delete;
   context& operator                        =(context&& other);
-  std::string getUniqueId();
-  db_table<idx_t>* getRelationshipsTable();
-  db_table<idx_t>* getNodeLabelsTable();
-  db_table<idx_t>* getNodePropertiesTable();
-  db_table<idx_t>* getRelationshipPropertiesTable();
-  encoder<idx_t>* getEncoder();
-  void registerNamedResult(std::string name, string_table&& result);
-  void registerVariables(db_result<idx_t>&& result);
-  std::string getNamedEntry(std::string name, std::string colname, idx_t row);
-  std::string getNamedEntry(std::string name, idx_t colId, idx_t row);
-  idx_t getNamedRows(std::string name);
-  std::vector<idx_t>&& getVariableColumn(std::string name);
-  bool hasVariable(std::string name);
-  bool hasNamed(std::string name);
+  std::string get_unique_id();
+  db_table<idx_t>* get_relationships_table();
+  db_table<idx_t>* get_node_labels_table();
+  db_table<idx_t>* get_node_properties_table();
+  db_table<idx_t>* get_relationship_properties_table();
+  encoder<idx_t>* get_encoder();
+  void register_named_result(std::string name, string_table&& result);
+  void register_variables(db_result<idx_t>&& result);
+  std::string get_named_entry(std::string name, std::string colname, idx_t row);
+  std::string get_named_entry(std::string name, idx_t colId, idx_t row);
+  idx_t get_named_rows(std::string name);
+  std::vector<idx_t>&& get_variable_column(std::string name);
+  bool has_variable(std::string name);
+  bool has_named(std::string name);
 };
 
 }  // namespace db

@@ -20,9 +20,9 @@
  * ---------------------------------------------------------------------------**/
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
 #include <algorithms.hpp>
 #include <graph.hpp>
+#include <utilities/error.hpp>
 #include "two_hop_neighbors.cuh"
 
 #include <thrust/execution_policy.h>

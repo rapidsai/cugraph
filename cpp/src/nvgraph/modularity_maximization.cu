@@ -26,6 +26,8 @@
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
 
+#include <raft/cudart_utils.h>
+
 #include "include/debug_macros.h"
 #include "include/kmeans.hxx"
 #include "include/lanczos.hxx"
@@ -269,7 +271,7 @@ NVGRAPH_ERROR modularity_maximization(
                  nEigVecs,
                  work.raw(),
                  nEigVecs);
-    CHECK_CUDA(cudaMemcpyAsync(
+    CUDA_TRY(cudaMemcpyAsync(
       eigVecs, work.raw(), nEigVecs * n * sizeof(weight_t), cudaMemcpyDeviceToDevice));
   }
 

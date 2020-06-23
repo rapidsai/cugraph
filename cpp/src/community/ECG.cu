@@ -18,9 +18,9 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
-#include <utilities/error_utils.h>
 #include <converters/permute_graph.cuh>
 #include <ctime>
+#include <utilities/error.hpp>
 #include "utilities/graph_utils.cuh"
 
 namespace {

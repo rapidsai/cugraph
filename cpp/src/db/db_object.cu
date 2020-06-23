@@ -15,8 +15,11 @@
  */
 
 #include <cypher-parser.h>
+#include <raft/cudart_utils.h>
 #include <db/db_execution.cuh>
 #include <db/db_object.cuh>
+#include <utilities/error.hpp>
+
 #include <sstream>
 
 namespace cugraph {
@@ -76,7 +79,7 @@ std::string db_object<idx_t>::toString()
   std::stringstream ss;
   ss << "Database:\n";
   ss << "Encoder:\n";
-  ss << idEncoder.toString();
+  ss << idEncoder.to_string();
   ss << "Relationships Table:\n";
   ss << relationshipsTable.toString();
   ss << "Node Labels Table:\n";

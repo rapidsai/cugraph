@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/error_utils.h>
 #include <db/db_context.cuh>
 #include <sstream>
+#include <utilities/error.hpp>
 
 namespace cugraph {
 namespace db {
@@ -24,19 +24,19 @@ namespace db {
 template <typename idx_t>
 encoder<idx_t>::encoder()
 {
-  nextId = 0;
+  next_id = 0;
 }
 
 template <typename idx_t>
 idx_t encoder<idx_t>::encode(std::string val)
 {
-  if (stringToId.count(val) == 1) {
-    return stringToId[val];
+  if (string_to_id.count(val) == 1) {
+    return string_to_id[val];
   } else {
-    idx_t myId = nextId;
-    ++nextId;
-    idToString[myId] = val;
-    stringToId[val]  = myId;
+    idx_t myId = next_id;
+    ++next_id;
+    id_to_string[myId] = val;
+    string_to_id[val]  = myId;
     return myId;
   }
 }
@@ -44,29 +44,29 @@ idx_t encoder<idx_t>::encode(std::string val)
 template <typename idx_t>
 std::string encoder<idx_t>::decode(idx_t val)
 {
-  if (idToString.count(val) == 1) {
-    return idToString[val];
+  if (id_to_string.count(val) == 1) {
+    return id_to_string[val];
   } else {
     return std::string("");
   }
 }
 
 template <typename idx_t>
-idx_t encoder<idx_t>::getId()
+idx_t encoder<idx_t>::get_id()
 {
-  idx_t myId = nextId;
-  ++nextId;
+  idx_t myId = next_id;
+  ++next_id;
   return myId;
 }
 
 template <typename idx_t>
-std::string encoder<idx_t>::toString()
+std::string encoder<idx_t>::to_string()
 {
   std::stringstream ss;
-  idx_t encoded = idToString.size();
-  idx_t ids     = nextId - encoded;
+  idx_t encoded = id_to_string.size();
+  idx_t ids     = next_id - encoded;
   ss << "Encoder object with " << encoded << " encoded values and " << ids << " allocated ids:\n";
-  for (auto it = idToString.begin(); it != idToString.end(); it++) {
+  for (auto it = id_to_string.begin(); it != id_to_string.end(); it++) {
     ss << it->first << " == " << it->second << "\n";
   }
   return ss.str();
@@ -76,158 +76,134 @@ template class encoder<int32_t>;
 template class encoder<int64_t>;
 
 template <typename idx_t>
-context<idx_t>::context()
-{
-  coder                       = nullptr;
-  relationshipsTable          = nullptr;
-  nodeLabelsTable             = nullptr;
-  nodePropertiesTable         = nullptr;
-  relationshipPropertiesTable = nullptr;
-  nextId                      = 0;
-}
-
-template <typename idx_t>
 context<idx_t>::context(encoder<idx_t>* e,
                         db_table<idx_t>* rt,
                         db_table<idx_t>* nlt,
                         db_table<idx_t>* npt,
                         db_table<idx_t>* rpt)
 {
-  coder                       = e;
-  relationshipsTable          = rt;
-  nodeLabelsTable             = nlt;
-  nodePropertiesTable         = npt;
-  relationshipPropertiesTable = rpt;
-  nextId                      = 0;
+  coder                         = e;
+  relationships_table           = rt;
+  node_labels_table             = nlt;
+  node_properties_table         = npt;
+  relationship_properties_table = rpt;
+  next_id                       = 0;
 }
 
 template <typename idx_t>
 context<idx_t>::context(context<idx_t>&& other)
 {
-  coder                             = other.coder;
-  other.coder                       = nullptr;
-  relationshipsTable                = other.relationshipsTable;
-  other.relationshipsTable          = nullptr;
-  nodeLabelsTable                   = other.nodeLabelsTable;
-  other.nodeLabelsTable             = nullptr;
-  nodePropertiesTable               = other.nodePropertiesTable;
-  other.nodePropertiesTable         = nullptr;
-  relationshipPropertiesTable       = other.relationshipPropertiesTable;
-  other.relationshipPropertiesTable = nullptr;
-  nextId                            = other.nextId;
-  namedResults                      = std::move(other.namedResults);
-  resultNames                       = std::move(other.resultNames);
-  variables                         = std::move(other.variables);
+  *this = std::move(other);
 }
 
 template <typename idx_t>
 context<idx_t>& context<idx_t>::operator=(context<idx_t>&& other)
 {
   if (this != &other) {
-    coder                             = other.coder;
-    other.coder                       = nullptr;
-    relationshipsTable                = other.relationshipsTable;
-    other.relationshipsTable          = nullptr;
-    nodeLabelsTable                   = other.nodeLabelsTable;
-    other.nodeLabelsTable             = nullptr;
-    nodePropertiesTable               = other.nodePropertiesTable;
-    other.nodePropertiesTable         = nullptr;
-    relationshipPropertiesTable       = other.relationshipPropertiesTable;
-    other.relationshipPropertiesTable = nullptr;
-    nextId                            = other.nextId;
-    namedResults                      = std::move(other.namedResults);
-    resultNames                       = std::move(other.resultNames);
-    variables                         = std::move(other.variables);
+    coder                               = other.coder;
+    other.coder                         = nullptr;
+    relationships_table                 = other.relationships_table;
+    other.relationships_table           = nullptr;
+    node_labels_table                   = other.node_labels_table;
+    other.node_labels_table             = nullptr;
+    node_properties_table               = other.node_properties_table;
+    other.node_properties_table         = nullptr;
+    relationship_properties_table       = other.relationship_properties_table;
+    other.relationship_properties_table = nullptr;
+    next_id                             = other.next_id;
+    named_results                       = std::move(other.named_results);
+    result_names                        = std::move(other.result_names);
+    variables                           = std::move(other.variables);
   }
   return *this;
 }
 
 template <typename idx_t>
-std::string context<idx_t>::getUniqueId()
+std::string context<idx_t>::get_unique_id()
 {
   std::stringstream ss;
-  ss << "UniqueIdentifier_" << nextId++;
+  ss << "UniqueIdentifier_" << next_id++;
   return ss.str();
 }
 
 template <typename idx_t>
-db_table<idx_t>* context<idx_t>::getRelationshipsTable()
+db_table<idx_t>* context<idx_t>::get_relationships_table()
 {
-  return relationshipsTable;
+  return relationships_table;
 }
 
 template <typename idx_t>
-db_table<idx_t>* context<idx_t>::getNodeLabelsTable()
+db_table<idx_t>* context<idx_t>::get_node_labels_table()
 {
-  return nodeLabelsTable;
+  return node_labels_table;
 }
 
 template <typename idx_t>
-db_table<idx_t>* context<idx_t>::getNodePropertiesTable()
+db_table<idx_t>* context<idx_t>::get_node_properties_table()
 {
-  return nodePropertiesTable;
+  return node_properties_table;
 }
 
 template <typename idx_t>
-db_table<idx_t>* context<idx_t>::getRelationshipPropertiesTable()
+db_table<idx_t>* context<idx_t>::get_relationship_properties_table()
 {
-  return relationshipPropertiesTable;
+  return relationship_properties_table;
 }
 
 template <typename idx_t>
-encoder<idx_t>* context<idx_t>::getEncoder()
+encoder<idx_t>* context<idx_t>::get_encoder()
 {
   return coder;
 }
 
 template <typename idx_t>
-void context<idx_t>::registerNamedResult(std::string name, string_table&& result)
+void context<idx_t>::register_named_result(std::string name, string_table&& result)
 {
-  resultNames.push_back(name);
-  namedResults.push_back(std::move(result));
+  result_names.push_back(name);
+  named_results.push_back(std::move(result));
 }
 
 template <typename idx_t>
-void context<idx_t>::registerVariables(db_result<idx_t>&& result)
+void context<idx_t>::register_variables(db_result<idx_t>&& result)
 {
   variables.push_back(std::move(result));
 }
 
 template <typename idx_t>
-std::string context<idx_t>::getNamedEntry(std::string name, std::string colname, idx_t row)
+std::string context<idx_t>::get_named_entry(std::string name, std::string colname, idx_t row)
 {
   int pos = -1;
-  for (size_t i = 0; i < resultNames.size(); i++) {
-    if (resultNames[i] == name) pos = i;
+  for (size_t i = 0; i < result_names.size(); i++) {
+    if (result_names[i] == name) pos = i;
   }
   CUGRAPH_EXPECTS(pos > 0, "Named result not found");
-  return namedResults[pos][colname][row];
+  return named_results[pos][colname][row];
 }
 
 template <typename idx_t>
-std::string context<idx_t>::getNamedEntry(std::string name, idx_t col, idx_t row)
+std::string context<idx_t>::get_named_entry(std::string name, idx_t col, idx_t row)
 {
   int pos = -1;
-  for (size_t i = 0; i < resultNames.size(); i++) {
-    if (resultNames[i] == name) pos = i;
+  for (size_t i = 0; i < result_names.size(); i++) {
+    if (result_names[i] == name) pos = i;
   }
   CUGRAPH_EXPECTS(pos > 0, "Named result not found");
-  return namedResults[pos][col][row];
+  return named_results[pos][col][row];
 }
 
 template <typename idx_t>
-idx_t context<idx_t>::getNamedRows(std::string name)
+idx_t context<idx_t>::get_named_rows(std::string name)
 {
   int pos = -1;
-  for (size_t i = 0; i < resultNames.size(); i++) {
-    if (resultNames[i] == name) pos = i;
+  for (size_t i = 0; i < result_names.size(); i++) {
+    if (result_names[i] == name) pos = i;
   }
   CUGRAPH_EXPECTS(pos > 0, "Named result not found");
-  return namedResults[pos][0].size();
+  return named_results[pos][0].size();
 }
 
 template <typename idx_t>
-std::vector<idx_t>&& context<idx_t>::getVariableColumn(std::string name)
+std::vector<idx_t>&& context<idx_t>::get_variable_column(std::string name)
 {
   int pos = -1;
   for (size_t i = 0; i < variables.size(); i++)
@@ -237,7 +213,7 @@ std::vector<idx_t>&& context<idx_t>::getVariableColumn(std::string name)
 }
 
 template <typename idx_t>
-bool context<idx_t>::hasVariable(std::string name)
+bool context<idx_t>::has_variable(std::string name)
 {
   for (size_t i = 0; i < variables.size(); i++) {
     if (variables[i].hasVariable(name)) return true;
@@ -246,10 +222,10 @@ bool context<idx_t>::hasVariable(std::string name)
 }
 
 template <typename idx_t>
-bool context<idx_t>::hasNamed(std::string name)
+bool context<idx_t>::has_named(std::string name)
 {
-  for (size_t i = 0; i < resultNames.size(); i++) {
-    if (resultNames[i] == name) return true;
+  for (size_t i = 0; i < result_names.size(); i++) {
+    if (result_names[i] == name) return true;
   }
   return false;
 }

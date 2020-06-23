@@ -15,45 +15,16 @@
  */
 #pragma once
 
-#include "functions.hpp"
+#include <functions.hpp>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include <gtest/gtest.h>
 
 extern "C" {
 #include "mmio.h"
 }
-#include <nccl.h>
 
 #include <cstdio>
 #include <string>
-
-// FIXME: RAFT error handling macros should be used instead
-#ifndef CUDA_RT_CALL
-#define CUDA_RT_CALL(call)                                                               \
-  {                                                                                      \
-    cudaError_t cudaStatus = call;                                                       \
-    if (cudaSuccess != cudaStatus) {                                                     \
-      fprintf(stderr,                                                                    \
-              "ERROR: CUDA RT call \"%s\" in line %d of file %s failed with %s (%d).\n", \
-              #call,                                                                     \
-              __LINE__,                                                                  \
-              __FILE__,                                                                  \
-              cudaGetErrorString(cudaStatus),                                            \
-              cudaStatus);                                                               \
-    }                                                                                    \
-  }
-#endif
-
-// FIXME: RAFT error handling macros should be used instead
-#define NCCLCHECK(cmd)                                                                          \
-  {                                                                                             \
-    ncclResult_t nccl_status = cmd;                                                             \
-    if (nccl_status != ncclSuccess) {                                                           \
-      printf("NCCL failure %s:%d '%s'\n", __FILE__, __LINE__, ncclGetErrorString(nccl_status)); \
-      FAIL();                                                                                   \
-    }                                                                                           \
-  }
 
 #define MPICHECK(cmd)                                                  \
   {                                                                    \

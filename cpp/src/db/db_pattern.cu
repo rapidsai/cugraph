@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include <utilities/error_utils.h>
 #include <db/db_pattern.cuh>
 #include <db/parser_helpers.cuh>
 #include <sstream>
+#include <utilities/error.hpp>
 
 namespace cugraph {
 namespace db {
@@ -92,7 +92,7 @@ node_pattern<idx_t>::node_pattern(const cypher_astnode_t* astNode, context<idx_t
   // Get the identifier for the node
   const cypher_astnode_t* id = cypher_ast_node_pattern_get_identifier(astNode);
   if (id == nullptr) {
-    identifier = ctx.getUniqueId();
+    identifier = ctx.get_unique_id();
   } else {
     identifier = cypher_ast_identifier_get_name(id);
   }
@@ -214,7 +214,7 @@ relationship_pattern<idx_t>::relationship_pattern(const cypher_astnode_t* astNod
   if (id != nullptr) {
     identifier = cypher_ast_identifier_get_name(id);
   } else {
-    identifier = ctx.getUniqueId();
+    identifier = ctx.get_unique_id();
   }
 
   // Extract the relationship types
@@ -416,7 +416,7 @@ bool pattern_path<idx_t>::hasBoundVariables(context<idx_t>& ctx)
 {
   for (size_t i = 0; i < path.size(); i++) {
     std::string nodeId = path[i]->getIdentifier();
-    if (path[i]->type() == pattern_type::Node && ctx.hasVariable(nodeId)) return true;
+    if (path[i]->type() == pattern_type::Node && ctx.has_variable(nodeId)) return true;
   }
   return false;
 }

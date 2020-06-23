@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include <utilities/error_utils.h>
 #include <db/db_execution.cuh>
 #include <db/parser_helpers.cuh>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <utilities/error.hpp>
 
 namespace cugraph {
 namespace db {
@@ -73,7 +73,7 @@ void load_csv_node<idx_t>::execute(context<idx_t>& ctx)
   size_t pos       = file.find(toErase);
   if (pos != std::string::npos) file.erase(pos, toErase.length());
   string_table temp(file, with_headers, delimiter);
-  ctx.registerNamedResult(identifier, std::move(temp));
+  ctx.register_named_result(identifier, std::move(temp));
 }
 
 template <typename idx_t>
@@ -218,7 +218,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
       for (size_t j = 0; j < path.getPathNodes().size(); j++) {
         if (path.getPathNodes()[j]->type() == pattern_type::Node) {
           std::string id = path.getPathNodes()[j]->getIdentifier();
-          idx_t eid      = ctx.getEncoder()->getId();
+          idx_t eid      = ctx.get_encoder()->get_id();
           translated[id] = eid;
         }
       }
@@ -234,22 +234,22 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
           // Insert entries into the node labels table
           for (size_t j = 0; j < node->getLabels().size(); j++) {
             std::string label = node->getLabels()[j];
-            idx_t elabel      = ctx.getEncoder()->encode(label);
+            idx_t elabel      = ctx.get_encoder()->encode(label);
             db_pattern_entry<idx_t> p1(eNodeId);
             db_pattern_entry<idx_t> p2(elabel);
             db_pattern<idx_t> pat;
             pat.addEntry(p1);
             pat.addEntry(p2);
-            auto table = ctx.getNodeLabelsTable();
+            auto table = ctx.get_node_labels_table();
             table->addEntry(pat);
           }
 
           // Insert entries into the node properties table
           for (auto it = node->getProperties().begin(); it != node->getProperties().end(); it++) {
             std::string propName  = it->first;
-            idx_t ePropName       = ctx.getEncoder()->encode(propName);
+            idx_t ePropName       = ctx.get_encoder()->encode(propName);
             std::string propValue = it->second.getIdentifier();
-            idx_t ePropValue      = ctx.getEncoder()->encode(propValue);
+            idx_t ePropValue      = ctx.get_encoder()->encode(propValue);
             db_pattern_entry<idx_t> p1(eNodeId);
             db_pattern_entry<idx_t> p2(ePropName);
             db_pattern_entry<idx_t> p3(ePropValue);
@@ -257,7 +257,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             pat.addEntry(p1);
             pat.addEntry(p2);
             pat.addEntry(p3);
-            auto table = ctx.getNodePropertiesTable();
+            auto table = ctx.get_node_properties_table();
             table->addEntry(pat);
           }
         } else {
@@ -268,7 +268,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
 
           idx_t numTypes = rel->getTypes().size();
           CUGRAPH_EXPECTS(numTypes == 1, "Relationships must have one type and one type only");
-          idx_t eType = ctx.getEncoder()->encode(rel->getTypes()[0].getIdentifier());
+          idx_t eType = ctx.get_encoder()->encode(rel->getTypes()[0].getIdentifier());
           db_pattern_entry<idx_t> p1(eStart);
           db_pattern_entry<idx_t> p2(eType);
           db_pattern_entry<idx_t> p3(eEnd);
@@ -276,14 +276,14 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
           pat.addEntry(p1);
           pat.addEntry(p2);
           pat.addEntry(p3);
-          auto table = ctx.getRelationshipsTable();
+          auto table = ctx.get_relationships_table();
           table->addEntry(pat);
 
           // Insert entries into relationship properties table
           idx_t relId = table->getLastRowId();
           for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
-            idx_t ePropName  = ctx.getEncoder()->encode(it->first);
-            idx_t ePropValue = ctx.getEncoder()->encode(it->second.getIdentifier());
+            idx_t ePropName  = ctx.get_encoder()->encode(it->first);
+            idx_t ePropValue = ctx.get_encoder()->encode(it->second.getIdentifier());
             db_pattern_entry<idx_t> t1(relId);
             db_pattern_entry<idx_t> t2(ePropName);
             db_pattern_entry<idx_t> t3(ePropValue);
@@ -291,7 +291,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             tat.addEntry(t1);
             tat.addEntry(t2);
             tat.addEntry(t3);
-            auto relProp = ctx.getRelationshipPropertiesTable();
+            auto relProp = ctx.get_relationship_properties_table();
             relProp->addEntry(tat);
           }
         }
@@ -309,8 +309,8 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
           node_pattern<idx_t>* node =
             reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[k]);
           std::string id = node->getIdentifier();
-          if (ctx.hasVariable(id)) {
-            localVariables[id] = ctx.getVariableColumn(id);
+          if (ctx.has_variable(id)) {
+            localVariables[id] = ctx.get_variable_column(id);
           } else {
             CUGRAPH_FAIL("Create statement with unbound nodes found");
           }
@@ -333,7 +333,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             idx_t eEnd     = localVariables[rel->getEnd()][j];
             idx_t numTypes = rel->getTypes().size();
             CUGRAPH_EXPECTS(numTypes == 1, "Relationships must have one type and one type only");
-            idx_t eType = ctx.getEncoder()->encode(rel->getTypes()[0].getIdentifier());
+            idx_t eType = ctx.get_encoder()->encode(rel->getTypes()[0].getIdentifier());
             db_pattern_entry<idx_t> p1(eStart);
             db_pattern_entry<idx_t> p2(eType);
             db_pattern_entry<idx_t> p3(eEnd);
@@ -341,14 +341,14 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             pat.addEntry(p1);
             pat.addEntry(p2);
             pat.addEntry(p3);
-            auto table = ctx.getRelationshipsTable();
+            auto table = ctx.get_relationships_table();
             table->addEntry(pat);
 
             // Adding any relationship properties
             idx_t relId = table->getLastRowId();
             for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
-              idx_t ePropName  = ctx.getEncoder()->encode(it->first);
-              idx_t ePropValue = ctx.getEncoder()->encode(it->second.getIdentifier());
+              idx_t ePropName  = ctx.get_encoder()->encode(it->first);
+              idx_t ePropValue = ctx.get_encoder()->encode(it->second.getIdentifier());
               db_pattern_entry<idx_t> t1(relId);
               db_pattern_entry<idx_t> t2(ePropName);
               db_pattern_entry<idx_t> t3(ePropValue);
@@ -356,7 +356,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
               tat.addEntry(t1);
               tat.addEntry(t2);
               tat.addEntry(t3);
-              auto relProp = ctx.getRelationshipPropertiesTable();
+              auto relProp = ctx.get_relationship_properties_table();
               relProp->addEntry(tat);
             }
           }
@@ -376,8 +376,8 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             if (it->second.type() == value_type::Array_Access ||
                 it->second.type() == value_type::Property_Access) {
               std::string id = it->second.getIdentifier();
-              if (ctx.hasNamed(id)) {
-                idx_t rowCount = ctx.getNamedRows(id);
+              if (ctx.has_named(id)) {
+                idx_t rowCount = ctx.get_named_rows(id);
                 if (numRows == 0) { numRows = rowCount; }
                 if (numRows != rowCount) { CUGRAPH_FAIL("Inconsistent row count in named result"); }
               }
@@ -390,8 +390,8 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             if (it->second.type() == value_type::Array_Access ||
                 it->second.type() == value_type::Property_Access) {
               std::string id = it->second.getIdentifier();
-              if (ctx.hasNamed(id)) {
-                idx_t rowCount = ctx.getNamedRows(id);
+              if (ctx.has_named(id)) {
+                idx_t rowCount = ctx.get_named_rows(id);
                 if (numRows == 0) { numRows = rowCount; }
                 if (numRows != rowCount) { CUGRAPH_FAIL("Inconsistent row count in named result"); }
               }
@@ -407,7 +407,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
         for (size_t j = 0; j < path.getPathNodes().size(); j++) {
           if (path.getPathNodes()[j]->type() == pattern_type::Node) {
             std::string id = path.getPathNodes()[j]->getIdentifier();
-            idx_t eid      = ctx.getEncoder()->getId();
+            idx_t eid      = ctx.get_encoder()->get_id();
             translated[id] = eid;
           }
         }
@@ -423,20 +423,20 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             // Insert entries into the node labels table
             for (size_t j = 0; j < node->getLabels().size(); j++) {
               std::string label = node->getLabels()[j];
-              idx_t elabel      = ctx.getEncoder()->encode(label);
+              idx_t elabel      = ctx.get_encoder()->encode(label);
               db_pattern_entry<idx_t> p1(eNodeId);
               db_pattern_entry<idx_t> p2(elabel);
               db_pattern<idx_t> pat;
               pat.addEntry(p1);
               pat.addEntry(p2);
-              auto table = ctx.getNodeLabelsTable();
+              auto table = ctx.get_node_labels_table();
               table->addEntry(pat);
             }
 
             // Insert entries into the node properties table
             for (auto it = node->getProperties().begin(); it != node->getProperties().end(); it++) {
               std::string propName = it->first;
-              idx_t ePropName      = ctx.getEncoder()->encode(propName);
+              idx_t ePropName      = ctx.get_encoder()->encode(propName);
               idx_t ePropValue     = 0;
 
               // Appropriately handle lookups into the named values of the context
@@ -444,20 +444,20 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
                 case value_type::Array_Access: {
                   std::string name     = it->second.getIdentifier();
                   uint32_t idx         = it->second.getArrayIndex();
-                  std::string lookedUp = ctx.getNamedEntry(name, idx, row);
-                  ePropValue           = ctx.getEncoder()->encode(lookedUp);
+                  std::string lookedUp = ctx.get_named_entry(name, idx, row);
+                  ePropValue           = ctx.get_encoder()->encode(lookedUp);
                   break;
                 }
                 case value_type::Property_Access: {
                   std::string name     = it->second.getIdentifier();
                   std::string pname    = it->second.getPropertyName();
-                  std::string lookedup = ctx.getNamedEntry(name, pname, row);
-                  ePropValue           = ctx.getEncoder()->encode(lookedup);
+                  std::string lookedup = ctx.get_named_entry(name, pname, row);
+                  ePropValue           = ctx.get_encoder()->encode(lookedup);
                   break;
                 }
                 default: {
                   std::string propValue = it->second.getIdentifier();
-                  ePropValue            = ctx.getEncoder()->encode(propValue);
+                  ePropValue            = ctx.get_encoder()->encode(propValue);
                   break;
                 }
               }
@@ -469,7 +469,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
               pat.addEntry(p1);
               pat.addEntry(p2);
               pat.addEntry(p3);
-              auto table = ctx.getNodePropertiesTable();
+              auto table = ctx.get_node_properties_table();
               table->addEntry(pat);
             }
           } else {
@@ -480,7 +480,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
 
             idx_t numTypes = rel->getTypes().size();
             CUGRAPH_EXPECTS(numTypes == 1, "Relationships must have one type and one type only");
-            idx_t eType = ctx.getEncoder()->encode(rel->getTypes()[0].getIdentifier());
+            idx_t eType = ctx.get_encoder()->encode(rel->getTypes()[0].getIdentifier());
             db_pattern_entry<idx_t> p1(eStart);
             db_pattern_entry<idx_t> p2(eType);
             db_pattern_entry<idx_t> p3(eEnd);
@@ -488,32 +488,32 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             pat.addEntry(p1);
             pat.addEntry(p2);
             pat.addEntry(p3);
-            auto table = ctx.getRelationshipsTable();
+            auto table = ctx.get_relationships_table();
             table->addEntry(pat);
 
             // Insert entries into relationship properties table
             idx_t relId = table->getLastRowId();
             for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
-              idx_t ePropName  = ctx.getEncoder()->encode(it->first);
+              idx_t ePropName  = ctx.get_encoder()->encode(it->first);
               idx_t ePropValue = 0;
               switch (it->second.type()) {
                 case value_type::Array_Access: {
                   std::string name     = it->second.getIdentifier();
                   uint32_t idx         = it->second.getArrayIndex();
-                  std::string lookedUp = ctx.getNamedEntry(name, idx, row);
-                  ePropValue           = ctx.getEncoder()->encode(lookedUp);
+                  std::string lookedUp = ctx.get_named_entry(name, idx, row);
+                  ePropValue           = ctx.get_encoder()->encode(lookedUp);
                   break;
                 }
                 case value_type::Property_Access: {
                   std::string name     = it->second.getIdentifier();
                   std::string pname    = it->second.getPropertyName();
-                  std::string lookedup = ctx.getNamedEntry(name, pname, row);
-                  ePropValue           = ctx.getEncoder()->encode(lookedup);
+                  std::string lookedup = ctx.get_named_entry(name, pname, row);
+                  ePropValue           = ctx.get_encoder()->encode(lookedup);
                   break;
                 }
                 default: {
                   std::string propValue = it->second.getIdentifier();
-                  ePropValue            = ctx.getEncoder()->encode(propValue);
+                  ePropValue            = ctx.get_encoder()->encode(propValue);
                   break;
                 }
               }
@@ -524,7 +524,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
               tat.addEntry(t1);
               tat.addEntry(t2);
               tat.addEntry(t3);
-              auto relProp = ctx.getRelationshipPropertiesTable();
+              auto relProp = ctx.get_relationship_properties_table();
               relProp->addEntry(tat);
             }
           }
@@ -542,8 +542,8 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
           node_pattern<idx_t>* node =
             reinterpret_cast<node_pattern<idx_t>*>(path.getPathNodes()[j]);
           std::string id = node->getIdentifier();
-          if (ctx.hasVariable(id)) {
-            localVariables[id] = ctx.getVariableColumn(id);
+          if (ctx.has_variable(id)) {
+            localVariables[id] = ctx.get_variable_column(id);
           } else {
             CUGRAPH_FAIL("All pattern nodes must be bound to variables if any are.");
           }
@@ -551,8 +551,8 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             if (it->second.type() == value_type::Array_Access ||
                 it->second.type() == value_type::Property_Access) {
               std::string id = it->second.getIdentifier();
-              if (ctx.hasNamed(id)) {
-                idx_t rowCount = ctx.getNamedRows(id);
+              if (ctx.has_named(id)) {
+                idx_t rowCount = ctx.get_named_rows(id);
                 if (numRows == 0) { numRows = rowCount; }
                 if (numRows != rowCount) { CUGRAPH_FAIL("Inconsistent row count in named result"); }
               }
@@ -565,8 +565,8 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             if (it->second.type() == value_type::Array_Access ||
                 it->second.type() == value_type::Property_Access) {
               std::string id = it->second.getIdentifier();
-              if (ctx.hasNamed(id)) {
-                idx_t rowCount = ctx.getNamedRows(id);
+              if (ctx.has_named(id)) {
+                idx_t rowCount = ctx.get_named_rows(id);
                 if (numRows == 0) { numRows = rowCount; }
                 if (numRows != rowCount) { CUGRAPH_FAIL("Inconsistent row count in named result"); }
               }
@@ -582,7 +582,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
         for (size_t j = 0; j < path.getPathNodes().size(); j++) {
           if (path.getPathNodes()[j]->type() == pattern_type::Node) {
             std::string id = path.getPathNodes()[j]->getIdentifier();
-            idx_t eid      = ctx.getEncoder()->getId();
+            idx_t eid      = ctx.get_encoder()->get_id();
             translated[id] = eid;
           }
         }
@@ -598,20 +598,20 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             // Insert entries into the node labels table
             for (size_t j = 0; j < node->getLabels().size(); j++) {
               std::string label = node->getLabels()[j];
-              idx_t elabel      = ctx.getEncoder()->encode(label);
+              idx_t elabel      = ctx.get_encoder()->encode(label);
               db_pattern_entry<idx_t> p1(eNodeId);
               db_pattern_entry<idx_t> p2(elabel);
               db_pattern<idx_t> pat;
               pat.addEntry(p1);
               pat.addEntry(p2);
-              auto table = ctx.getNodeLabelsTable();
+              auto table = ctx.get_node_labels_table();
               table->addEntry(pat);
             }
 
             // Insert entries into the node properties table
             for (auto it = node->getProperties().begin(); it != node->getProperties().end(); it++) {
               std::string propName = it->first;
-              idx_t ePropName      = ctx.getEncoder()->encode(propName);
+              idx_t ePropName      = ctx.get_encoder()->encode(propName);
               idx_t ePropValue     = 0;
 
               // Appropriately handle lookups into the named values of the context
@@ -619,20 +619,20 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
                 case value_type::Array_Access: {
                   std::string name     = it->second.getIdentifier();
                   uint32_t idx         = it->second.getArrayIndex();
-                  std::string lookedUp = ctx.getNamedEntry(name, idx, row);
-                  ePropValue           = ctx.getEncoder()->encode(lookedUp);
+                  std::string lookedUp = ctx.get_named_entry(name, idx, row);
+                  ePropValue           = ctx.get_encoder()->encode(lookedUp);
                   break;
                 }
                 case value_type::Property_Access: {
                   std::string name     = it->second.getIdentifier();
                   std::string pname    = it->second.getPropertyName();
-                  std::string lookedup = ctx.getNamedEntry(name, pname, row);
-                  ePropValue           = ctx.getEncoder()->encode(lookedup);
+                  std::string lookedup = ctx.get_named_entry(name, pname, row);
+                  ePropValue           = ctx.get_encoder()->encode(lookedup);
                   break;
                 }
                 default: {
                   std::string propValue = it->second.getIdentifier();
-                  ePropValue            = ctx.getEncoder()->encode(propValue);
+                  ePropValue            = ctx.get_encoder()->encode(propValue);
                   break;
                 }
               }
@@ -644,7 +644,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
               pat.addEntry(p1);
               pat.addEntry(p2);
               pat.addEntry(p3);
-              auto table = ctx.getNodePropertiesTable();
+              auto table = ctx.get_node_properties_table();
               table->addEntry(pat);
             }
           } else {
@@ -655,7 +655,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
 
             idx_t numTypes = rel->getTypes().size();
             CUGRAPH_EXPECTS(numTypes == 1, "Relationships must have one type and one type only");
-            idx_t eType = ctx.getEncoder()->encode(rel->getTypes()[0].getIdentifier());
+            idx_t eType = ctx.get_encoder()->encode(rel->getTypes()[0].getIdentifier());
             db_pattern_entry<idx_t> p1(eStart);
             db_pattern_entry<idx_t> p2(eType);
             db_pattern_entry<idx_t> p3(eEnd);
@@ -663,32 +663,32 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
             pat.addEntry(p1);
             pat.addEntry(p2);
             pat.addEntry(p3);
-            auto table = ctx.getRelationshipsTable();
+            auto table = ctx.get_relationships_table();
             table->addEntry(pat);
 
             // Insert entries into relationship properties table
             idx_t relId = table->getLastRowId();
             for (auto it = rel->getProperties().begin(); it != rel->getProperties().end(); it++) {
-              idx_t ePropName  = ctx.getEncoder()->encode(it->first);
+              idx_t ePropName  = ctx.get_encoder()->encode(it->first);
               idx_t ePropValue = 0;
               switch (it->second.type()) {
                 case value_type::Array_Access: {
                   std::string name     = it->second.getIdentifier();
                   uint32_t idx         = it->second.getArrayIndex();
-                  std::string lookedUp = ctx.getNamedEntry(name, idx, row);
-                  ePropValue           = ctx.getEncoder()->encode(lookedUp);
+                  std::string lookedUp = ctx.get_named_entry(name, idx, row);
+                  ePropValue           = ctx.get_encoder()->encode(lookedUp);
                   break;
                 }
                 case value_type::Property_Access: {
                   std::string name     = it->second.getIdentifier();
                   std::string pname    = it->second.getPropertyName();
-                  std::string lookedup = ctx.getNamedEntry(name, pname, row);
-                  ePropValue           = ctx.getEncoder()->encode(lookedup);
+                  std::string lookedup = ctx.get_named_entry(name, pname, row);
+                  ePropValue           = ctx.get_encoder()->encode(lookedup);
                   break;
                 }
                 default: {
                   std::string propValue = it->second.getIdentifier();
-                  ePropValue            = ctx.getEncoder()->encode(propValue);
+                  ePropValue            = ctx.get_encoder()->encode(propValue);
                   break;
                 }
               }
@@ -699,7 +699,7 @@ void create_node<idx_t>::execute(context<idx_t>& ctx)
               tat.addEntry(t1);
               tat.addEntry(t2);
               tat.addEntry(t3);
-              auto relProp = ctx.getRelationshipPropertiesTable();
+              auto relProp = ctx.get_relationship_properties_table();
               relProp->addEntry(tat);
             }
           }

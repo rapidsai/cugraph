@@ -27,6 +27,8 @@
 #include <cuda.h>
 #include <curand.h>
 
+#include <raft/cudart_utils.h>
+
 #include "include/debug_macros.h"
 #include "include/nvgraph_cublas.hxx"
 #include "include/nvgraph_error.hxx"
@@ -105,7 +107,7 @@ static int performLanczosIteration(const Matrix<IndexType_, ValueType_> *A,
 
     // Apply matrix
     if (shift != 0)
-      CHECK_CUDA(cudaMemcpyAsync(
+      CUDA_TRY(cudaMemcpyAsync(
         lanczosVecs_dev + n, lanczosVecs_dev, n * sizeof(ValueType_), cudaMemcpyDeviceToDevice));
     A->mv(1, lanczosVecs_dev, shift, lanczosVecs_dev + n);
 
@@ -130,10 +132,10 @@ static int performLanczosIteration(const Matrix<IndexType_, ValueType_> *A,
 
     // Apply matrix
     if (shift != 0)
-      CHECK_CUDA(cudaMemcpyAsync(lanczosVecs_dev + (*iter) * n,
-                                 lanczosVecs_dev + (*iter - 1) * n,
-                                 n * sizeof(ValueType_),
-                                 cudaMemcpyDeviceToDevice));
+      CUDA_TRY(cudaMemcpyAsync(lanczosVecs_dev + (*iter) * n,
+                               lanczosVecs_dev + (*iter - 1) * n,
+                               n * sizeof(ValueType_),
+                               cudaMemcpyDeviceToDevice));
     A->mv(1, lanczosVecs_dev + IDX(0, *iter - 1, n), shift, lanczosVecs_dev + IDX(0, *iter, n));
 
     // Full reorthogonalization
@@ -161,10 +163,10 @@ static int performLanczosIteration(const Matrix<IndexType_, ValueType_> *A,
                    &one,
                    lanczosVecs_dev + IDX(0, *iter, n),
                    1);
-      CHECK_CUDA(cudaMemcpyAsync(alpha_host + (*iter - 1),
-                                 work_dev + (*iter - 1),
-                                 sizeof(ValueType_),
-                                 cudaMemcpyDeviceToHost));
+      CUDA_TRY(cudaMemcpyAsync(alpha_host + (*iter - 1),
+                               work_dev + (*iter - 1),
+                               sizeof(ValueType_),
+                               cudaMemcpyDeviceToHost));
       Cublas::gemv(true,
                    n,
                    *iter,
@@ -220,7 +222,7 @@ static int performLanczosIteration(const Matrix<IndexType_, ValueType_> *A,
     Cublas::scal(n, 1 / beta_host[*iter - 1], lanczosVecs_dev + IDX(0, *iter, n), 1);
   }
 
-  CHECK_CUDA(cudaDeviceSynchronize());
+  CUDA_TRY(cudaDeviceSynchronize());
 
   return 0;
 }
@@ -558,7 +560,7 @@ static int lanczosRestart(IndexType_ n,
       WARNING("error in implicitly shifted QR algorithm");
 
   // Obtain new residual
-  CHECK_CUDA(
+  CUDA_TRY(
     cudaMemcpyAsync(V_dev, V_host, iter * iter * sizeof(ValueType_), cudaMemcpyHostToDevice));
 
   beta_host[iter - 1] = beta_host[iter - 1] * V_host[IDX(iter - 1, iter_new - 1, iter)];
@@ -578,14 +580,14 @@ static int lanczosRestart(IndexType_ n,
   Cublas::gemm(
     false, false, n, iter_new, iter, &one, lanczosVecs_dev, n, V_dev, iter, &zero, work_dev, n);
 
-  CHECK_CUDA(cudaMemcpyAsync(
+  CUDA_TRY(cudaMemcpyAsync(
     lanczosVecs_dev, work_dev, n * iter_new * sizeof(ValueType_), cudaMemcpyDeviceToDevice));
 
   // Normalize residual to obtain new Lanczos vector
-  CHECK_CUDA(cudaMemcpyAsync(lanczosVecs_dev + IDX(0, iter_new, n),
-                             lanczosVecs_dev + IDX(0, iter, n),
-                             n * sizeof(ValueType_),
-                             cudaMemcpyDeviceToDevice));
+  CUDA_TRY(cudaMemcpyAsync(lanczosVecs_dev + IDX(0, iter_new, n),
+                           lanczosVecs_dev + IDX(0, iter, n),
+                           n * sizeof(ValueType_),
+                           cudaMemcpyDeviceToDevice));
   beta_host[iter_new - 1] = Cublas::nrm2(n, lanczosVecs_dev + IDX(0, iter_new, n), 1);
   Cublas::scal(n, 1 / beta_host[iter_new - 1], lanczosVecs_dev + IDX(0, iter_new, n), 1);
 
@@ -877,15 +879,15 @@ NVGRAPH_ERROR computeSmallestEigenvectors(const Matrix<IndexType_, ValueType_> *
   for (i = *effIter; i < nEigVecs; ++i) work_host[i + 2 * (*effIter)] = 0;
 
   // Copy results to device memory
-  CHECK_CUDA(cudaMemcpy(eigVals_dev,
-                        work_host + 2 * (*effIter),
-                        nEigVecs * sizeof(ValueType_),
-                        cudaMemcpyHostToDevice));
+  CUDA_TRY(cudaMemcpy(eigVals_dev,
+                      work_host + 2 * (*effIter),
+                      nEigVecs * sizeof(ValueType_),
+                      cudaMemcpyHostToDevice));
   // for (int i = 0; i < nEigVecs; ++i)
   //{
   //  std::cout <<*(work_host+(2*(*effIter)+i))<< std::endl;
   //}
-  CHECK_CUDA(cudaMemcpy(
+  CUDA_TRY(cudaMemcpy(
     work_dev, Z_host, (*effIter) * nEigVecs * sizeof(ValueType_), cudaMemcpyHostToDevice));
 
   // Convert eigenvectors from Lanczos basis to standard basis
@@ -1296,16 +1298,16 @@ NVGRAPH_ERROR computeLargestEigenvectors(const Matrix<IndexType_, ValueType_> *A
 
   // Copy results to device memory
   // skip smallest eigenvalue if needed
-  CHECK_CUDA(cudaMemcpy(eigVals_dev,
-                        work_host + 2 * (*effIter) + top_eigenparis_idx_offset,
-                        nEigVecs * sizeof(ValueType_),
-                        cudaMemcpyHostToDevice));
+  CUDA_TRY(cudaMemcpy(eigVals_dev,
+                      work_host + 2 * (*effIter) + top_eigenparis_idx_offset,
+                      nEigVecs * sizeof(ValueType_),
+                      cudaMemcpyHostToDevice));
 
   // skip smallest eigenvector if needed
-  CHECK_CUDA(cudaMemcpy(work_dev,
-                        Z_host + (top_eigenparis_idx_offset * (*effIter)),
-                        (*effIter) * nEigVecs * sizeof(ValueType_),
-                        cudaMemcpyHostToDevice));
+  CUDA_TRY(cudaMemcpy(work_dev,
+                      Z_host + (top_eigenparis_idx_offset * (*effIter)),
+                      (*effIter) * nEigVecs * sizeof(ValueType_),
+                      cudaMemcpyHostToDevice));
 
   // Convert eigenvectors from Lanczos basis to standard basis
   Cublas::gemm(false,
