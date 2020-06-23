@@ -104,13 +104,6 @@ set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
 
-option(BUILD_MPI "Build with MPI" OFF)
-if (BUILD_MPI)
-    find_package(MPI REQUIRED)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
-endif(BUILD_MPI)
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
@@ -278,7 +271,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           2487eb0c12f374729043baa5448c0d309c921e60
+    GIT_TAG           3038c773636540941b8bf9e30c487f20bddc3cdc
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
@@ -305,8 +298,10 @@ add_library(cugraph SHARED
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/cusparse_helper.cu
+    src/utilities/spmv_1D.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/pagerank_1D.cu
     src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/opg/frontier_expansion.cu
@@ -347,10 +342,6 @@ add_library(cugraph SHARED
 add_dependencies(cugraph cugunrock)
 add_dependencies(cugraph raft)
 
-if (BUILD_MPI)
-    add_compile_definitions(ENABLE_OPG=1)
-endif (BUILD_MPI)
-
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
@@ -368,7 +359,6 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUGUNROCK_DIR}/include"
     "${NCCL_INCLUDE_DIRS}"
-    "${MPI_CXX_INCLUDE_PATH}"
     "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"

@@ -17,7 +17,7 @@
 #pragma once
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <stdio.h>
 #include <converters/COOtoCSR.cuh>
@@ -74,8 +74,9 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   int *bottomd      = d_bottomd.data().get();
   float *radiusd    = d_radiusd.data().get();
 
+  // FIXME: this should work on "stream"
   InitializationKernel<<<1, 1>>>(limiter, maxdepthd, radiusd);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 
   const int FOUR_NNODES     = 4 * nnodes;
   const int FOUR_N          = 4 * n;
@@ -149,9 +150,10 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   // Sort COO for coalesced memory access.
   cudaStream_t stream = {nullptr};
   sort(graph, stream);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
+  // FIXME: this should work on "stream"
   graph.degree(massl, cugraph::experimental::DegreeDirection::OUT);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 
   const vertex_t *row = graph.src_indices;
   const vertex_t *col = graph.dst_indices;
@@ -194,9 +196,11 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     fill(n, swinging, 0.f);
     fill(n, traction, 0.f);
 
+    // FIXME: this should work on "stream"
     ResetKernel<<<1, 1>>>(radiusd_squared, bottomd, NNODES, radiusd);
-    CUDA_CHECK_LAST();
+    CHECK_CUDA(stream);
 
+    // FIXME: this should work on "stream"
     // Compute bounding box arround all bodies
     BoundingBoxKernel<<<blocks * FACTOR1, THREADS1>>>(startl,
                                                       childl,
@@ -212,28 +216,34 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                                                       n,
                                                       limiter,
                                                       radiusd);
-    CUDA_CHECK_LAST();
+    CHECK_CUDA(stream);
 
+    // FIXME: this should work on "stream"
     ClearKernel1<<<blocks, 1024>>>(childl, FOUR_NNODES, FOUR_N);
-    CUDA_CHECK_LAST();
+    CHECK_CUDA(stream);
 
+    // FIXME: this should work on "stream"
     // Build quadtree
     TreeBuildingKernel<<<blocks * FACTOR2, THREADS2>>>(
       childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, maxdepthd, bottomd, radiusd);
-    CUDA_CHECK_LAST();
+    CHECK_CUDA(stream);
 
+    // FIXME: this should work on "stream"
     ClearKernel2<<<blocks, 1024>>>(startl, massl, NNODES, bottomd);
-    CUDA_CHECK_LAST();
+    CHECK_CUDA(stream);
 
+    // FIXME: this should work on "stream"
     // Summarizes mass and position for each cell, bottom up approach
     SummarizationKernel<<<blocks * FACTOR3, THREADS3>>>(
       countl, childl, massl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, bottomd);
-    CUDA_CHECK_LAST();
+    CHECK_CUDA(stream);
 
+    // FIXME: this should work on "stream"
     // Group closed bodies together, used to speed up Repulsion kernel
     SortKernel<<<blocks * FACTOR4, THREADS4>>>(sortl, countl, startl, childl, NNODES, n, bottomd);
-    CUDA_CHECK_LAST();
+    CHECK_CUDA(stream);
 
+    // FIXME: this should work on "stream"
     // Force computation O(n . log(n))
     RepulsionKernel<<<blocks * FACTOR5, THREADS5>>>(scaling_ratio,
                                                     theta,
@@ -251,7 +261,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                                                     n,
                                                     radiusd_squared,
                                                     maxdepthd);
-    CUDA_CHECK_LAST();
+    CHECK_CUDA(stream);
 
     apply_gravity<vertex_t>(nodes_pos,
                             nodes_pos + nnodes + 1,

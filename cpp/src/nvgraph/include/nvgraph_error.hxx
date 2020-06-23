@@ -118,17 +118,6 @@ int NVGRAPH_GetErrorString( NVGRAPH_ERROR error, char* buffer, int buf_len);
     }
 #endif
 
-#define CHECK_CUDA(call)                                                      \
-    {                                                                         \
-        cudaError_t _e = (call);                                              \
-        if (_e != cudaSuccess)                                                \
-        {                                                                     \
-            std::stringstream _error;                                         \
-            _error << "CUDA Runtime failure: '#" << _e << "'";                \
-            FatalError(_error.str(), NVGRAPH_ERR_CUDA_FAILURE);               \
-        }                                                                     \
-    }
-
 #define CHECK_CURAND(call)                                                    \
     {                                                                         \
         curandStatus_t _e = (call);                                           \

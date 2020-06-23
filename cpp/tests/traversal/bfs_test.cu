@@ -21,7 +21,6 @@
 #include <algorithms.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
 
 #include "gtest/gtest.h"
 
@@ -96,7 +95,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = directed;
-    CUDA_CHECK_LAST();
 
     ASSERT_TRUE(configuration.source_ >= 0 && configuration.source_ <= G.number_of_vertices)
       << "Starting sources should be >= 0 and"

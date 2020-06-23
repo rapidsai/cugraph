@@ -25,7 +25,9 @@
 #include <stdexcept>
 #include <string>
 
-#include <utilities/error_utils.h>
+#include <raft/cudart_utils.h>
+
+#include <utilities/error.hpp>
 
 namespace MLCommon {
 
@@ -77,35 +79,6 @@ class Exception : public std::exception {
   }
 };
 
-/** macro to throw a runtime error */
-#define THROW(fmt, ...)                                                               \
-  do {                                                                                \
-    std::string msg;                                                                  \
-    char errMsg[2048];                                                                \
-    std::sprintf(errMsg, "Exception occured! file=%s line=%d: ", __FILE__, __LINE__); \
-    msg += errMsg;                                                                    \
-    std::sprintf(errMsg, fmt, ##__VA_ARGS__);                                         \
-    msg += errMsg;                                                                    \
-    throw MLCommon::Exception(msg);                                                   \
-  } while (0)
-
-/** macro to check for a conditional and assert on failure */
-#define ASSERT(check, fmt, ...)              \
-  do {                                       \
-    if (!(check)) THROW(fmt, ##__VA_ARGS__); \
-  } while (0)
-
-/** check for cuda runtime API errors and assert accordingly */
-#define CUDA_CHECK(call)                                                                         \
-  do {                                                                                           \
-    cudaError_t status = call;                                                                   \
-    ASSERT(                                                                                      \
-      status == cudaSuccess, "FAIL: call='%s'. Reason:%s\n", #call, cudaGetErrorString(status)); \
-  } while (0)
-
-///@todo: add a similar CUDA_CHECK_NO_THROW
-/// (Ref: https://github.com/rapidsai/cuml/issues/229)
-
 /**
  * @brief Generic copy method for all kinds of transfers
  * @tparam Type data type
@@ -117,7 +90,7 @@ class Exception : public std::exception {
 template <typename Type>
 void copy(Type* dst, const Type* src, size_t len, cudaStream_t stream)
 {
-  CUDA_CHECK(cudaMemcpyAsync(dst, src, len * sizeof(Type), cudaMemcpyDefault, stream));
+  CUDA_TRY(cudaMemcpyAsync(dst, src, len * sizeof(Type), cudaMemcpyDefault, stream));
 }
 
 /**
@@ -143,7 +116,7 @@ void updateHost(Type* hPtr, const Type* dPtr, size_t len, cudaStream_t stream)
 template <typename Type>
 void copyAsync(Type* dPtr1, const Type* dPtr2, size_t len, cudaStream_t stream)
 {
-  CUDA_CHECK(cudaMemcpyAsync(dPtr1, dPtr2, len * sizeof(Type), cudaMemcpyDeviceToDevice, stream));
+  CUDA_TRY(cudaMemcpyAsync(dPtr1, dPtr2, len * sizeof(Type), cudaMemcpyDeviceToDevice, stream));
 }
 /** @} */
 
@@ -214,8 +187,7 @@ void myPrintDevVector(const char* variableName,
                       OutStream& out)
 {
   std::vector<T> hostMem(componentsCount);
-  CUDA_CHECK(
-    cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
+  CUDA_TRY(cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
   myPrintHostVector(variableName, hostMem.data(), componentsCount, out);
 }
 
