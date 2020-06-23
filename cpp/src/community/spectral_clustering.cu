@@ -145,16 +145,8 @@ void balancedCutClustering_impl(experimental::GraphCSRView<vertex_t, edge_t, wei
 
   int restartIter_lanczos = 15 + n_eig_vects;
 
-  // restartIter_lanczos,
-  //   evs_tol,
-  //   kmean_max_it,
-  //   kmean_tol,
-  //   clustering,
-  //   eig_vals,
-  //   eig_vects
-
   unsigned long long seed{1234567};
-  bool reorthog{true};  // TODO: set to what nvgraph was using
+  bool reorthog{false};
 
   raft::matrix::GraphCSRView<vertex_t, edge_t, weight_t> const r_graph{
     graph.offsets, graph.indices, graph.edge_data, graph.number_of_vertices, graph.number_of_edges};
