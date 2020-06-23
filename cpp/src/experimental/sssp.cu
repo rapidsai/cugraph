@@ -38,6 +38,7 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
+// FIXME: check predecessors == nullptr and update only if predeessors != nullptr
 template <typename GraphType>
 void sssp_this_partition(raft::handle_t &handle,
                          GraphType const &csr_graph,
