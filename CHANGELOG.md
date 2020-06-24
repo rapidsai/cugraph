@@ -25,6 +25,7 @@
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
 - PR #938 Quote conda installs to avoid bash interpretation
+- PR #966 Fix build error (debug mode)
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
