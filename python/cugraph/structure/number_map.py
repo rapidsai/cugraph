@@ -12,28 +12,46 @@
 # limitations under the License.
 
 import cugraph
+import cudf
+import dask_cudf
+import numpy as np
 
 class NumberMap:
     class SingleGPU:
         def __init__(self, df, col_names):
-            # TODO: Fill in implementation
-            pass
+            self.col_names = NumberMap.compute_vals(col_names)
+            tmp = df[col_names].groupby(col_names).count().reset_index()
+            self.df = tmp.rename(dict(zip(col_names, self.col_names)))
+            self.numbered = False
 
         def append(self, df, col_names):
-            # TODO: Fill in implementation
-            pass
+            if self.numbered:
+                raise Exception("Can't append data once the compute function has been called")
+
+            newdf = type(self.df)()
+            tmp = df[col_names].groupby(col_names).count().reset_index()
+            for newname, oldname in zip(self.col_names, col_names):
+                newdf[newname] = self.df[newname].append(tmp[oldname])
+
+            self.df = newdf
 
         def compute(self):
-            # TODO: Fill in implementation
-            pass
+            if not self.numbered:
+                tmp = self.df.groupby(self.col_names).count().reset_index()
+                tmp['id'] = tmp.index.astype(np.int32)
+                self.df = tmp
+                self.numbered = True
 
-        def to_vertex_id(df, col_names):
-            # TODO: Fill in implementation
-            pass
+        def to_vertex_id(self, df, col_names):
+            tmp_df = df[col_names].rename(dict(zip(col_names, self.col_names)))
+            tmp_df['index'] = tmp_df.index
+            return tmp_df.merge(self.df, on=self.col_names, how='left').sort_values('index').drop(['index']).reset_index()['id']
 
-        def from_vertex_id(series):
-            # TODO: Fill in implementation
-            pass
+        def from_vertex_id(self, series):
+            tmp_df = cudf.DataFrame()
+            tmp_df['id'] = series
+            tmp_df['index'] = tmp_df.index
+            return tmp_df.merge(self.df, on=['id'], how='left').sort_values('index').drop(['index', 'id']).reset_index()[self.col_names]
 
     class MultiGPU:
         def __init__(self, ddf, col_names):
@@ -48,11 +66,11 @@ class NumberMap:
             # TODO: Fill in implementation
             pass
 
-        def to_vertex_id():
+        def to_vertex_id(self, df, col_names):
             # TODO: Fill in implementation
             pass
 
-        def from_vertex_id():
+        def from_vertex_id(self, series):
             # TODO: Fill in implementation
             pass
 
@@ -66,34 +84,7 @@ class NumberMap:
         """
         return [str(i) for i in range(len(column_names))]
 
-    def from_dataframe(self, df, col_names):
-        """
-        Populate the numbering map with vertices from the specified
-        columns of the provided data frame.
-
-        Parameters
-        ----------
-        df : cudf.DataFrame or dask_cudf.DataFrame
-            Contains a list of external vertex identifiers that will be
-            numbered by the NumberMap class.
-        col_names: list of strings
-            This list of 1 or more strings contain the names
-            of the columns that uniquely identify an external
-            vertex identifier
-        """
-        if self.implementation is not None:
-            raise Exception('NumberMap is already populated')
-
-        if type(df) is cudf.DataFrame:
-            self.implementation = NumberMap.SingleGPU(df, col_names)
-        elif type(df) is dask_cudf.DataFrame:
-            self.implementation = NumberMap.MultiGPU(df, col_names)
-        else:
-            raise Exception('df must be cudf.DataFrame or dask_cudf.DataFrame')
-
-        self.implementation.compute()
-
-    def from_cudf_dataframe(self, df, src_col_names, dst_col_names):
+    def from_dataframe(self, df, src_col_names, dst_col_names=None):
         """
         Populate the numbering map with vertices from the specified
         columns of the provided data frame.
@@ -115,7 +106,7 @@ class NumberMap:
         if self.implementation is not None:
             raise Exception('NumberMap is already populated')
 
-        if len(src_col_names) != len(dst_col_names):
+        if dst_col_names is not None and len(src_col_names) != len(dst_col_names):
             raise Exception('src_col_names must have same length as dst_col_names')
 
         if type(df) is cudf.DataFrame:
@@ -125,37 +116,12 @@ class NumberMap:
         else:
             raise Exception('df must be cudf.DataFrame or dask_cudf.DataFrame')
 
-        self.implementation.append(df, dst_col_names)
-        self.implementation.compute()
-
-    def from_cudf_series(self, series):
-        """
-        Populate the numbering map with vertices from the specified
-        series
-
-        Parameters
-        ----------
-        series : cudf.Series or dask_cudf.Series
-            Contains a list of external vertex identifiers that will be
-            numbered by the NumberMap class.
-        """
-        if self.implementation is not None:
-            raise Exception('NumberMap is already populated')
-
-        if type(series) is cudf.Series:
-            df = cudf.DataFrame()
-            df['0'] = series
-            self.implementation = NumberMap.SingleGPU(series)
-        elif type(series) is dask_cudf.Series:
-            df = dask_cudf.DataFrame()
-            df['0'] = series
-            self.implementation = NumberMap.MultiGPU(series)
-        else:
-            raise Exception('series must be cudf.Series or dask_cudf.Series')
+        if dst_col_names is not None:
+            self.implementation.append(df, dst_col_names)
 
         self.implementation.compute()
 
-    def from_cudf_series(self, src_series, dst_series):
+    def from_cudf_series(self, src_series, dst_series=None):
         """
         Populate the numbering map with vertices from the specified
         pair of series objects, one for the source and one for
@@ -173,26 +139,27 @@ class NumberMap:
         if self.implementation is not None:
             raise Exception('NumberMap is already populated')
 
-        if type(src_series) != type(dst_series):
+        if dst_series is not None and type(src_series) != type(dst_series):
             raise Exception('src_series and dst_series must have same type')
 
         if type(src_series) is cudf.Series:
             df = cudf.DataFrame()
             df['s'] = src_series
-            df['d'] = dst_series
             self.implementation = NumberMap.SingleGPU(df, ['s'])
         elif type(src_series) is dask_cudf.Series:
             df = dask_cudf.DataFrame()
             df['s'] = src_series
-            df['d'] = dst_series
             self.implementation = NumberMap.MultiGPU(df, ['s'])
         else:
             raise Exception('src_series must be cudf.Series or dask_cudf.Series')
 
-        self.implementation.append(df, ['d'])
+        if dst_seris is not None:
+            df['d'] = dst_series
+            self.implementation.append(df, ['d'])
+
         self.implementation.compute()
 
-    def to_vertex_id(self, df, col_names):
+    def to_vertex_id(self, df, col_names=None):
         """
         Given a collection of external vertex ids, return the internal vertex ids
 
@@ -213,34 +180,19 @@ class NumberMap:
             The vertex identifiers
 
         """
-        return self.implementation.to_vertex_id(df, col_names)
-
-    def to_vertex_id(self, series):
-        """
-        Given a collection of external vertex ids, return the internal vertex ids
-
-        Parameters
-        ----------
-        series: cudf.Series or dask_cudf.Series
-            Contains a list of external vertex identifiers that will be
-            converted into internal vertex identifiers
-
-        Returns
-        ---------
-        vertex_ids : cudf.Series or dask_cudf.Series
-            The vertex identifiers
-
-        """
-        if type(series) is cudf.Series:
-            df = cudf.DataFrame()
-            df['0'] = series
-        elif type(series) is dask_cudf.Series:
-            df = dask_cudf.DataFrame()
-            df['0'] = src_series
+        tmp_df = None
+        if type(df) is cudf.Series:
+            tmp_df = cudf.DataFrame()
+            tmp_df['0'] = df
+            col_names = ['0']
+        elif type(df) is dask_cudf.Series:
+            tmp_df = dask_cudf.DataFrame()
+            tmp_df['0'] = df
+            col_names = ['0']
         else:
-            raise Exception('series must be cudf.Series or dask_cudf.Series')
-
-        return self.implementation.to_vertex_id(df, ['0'])
+            tmp_df = df
+            
+        return self.implementation.to_vertex_id(tmp_df, col_names)
 
     def from_vertex_id(self, series):
         """

@@ -56,19 +56,6 @@ def symmetrize_df(df, src_name, dst_name):
     gdf = cudf.DataFrame()
 
     #
-    #  NOTE: if there are values then we can't use drop_duplicates - in
-    #        case the values are different in different directions.  To
-    #        address this, we will use groupby if there are values.  If
-    #        there are no values then groupby won't eliminate the duplicate
-    #        keys.  Believe this is a bug, see
-    #        https://github.com/rapidsai/cudf/issues/2730.  Once this
-    #        is resolved we should be able to just use groupby.
-    #
-    #  We will use drop_duplicates if there are no non-key fields
-    #
-    use_groupby = False
-
-    #
     #  Now append the columns.  We add sources to the end of destinations,
     #  and destinations to the end of sources.  Otherwise we append a
     #  column onto itself.
@@ -82,12 +69,8 @@ def symmetrize_df(df, src_name, dst_name):
                                                 ignore_index=True)
         else:
             gdf[name] = df[name].append(df[name], ignore_index=True)
-            use_groupby = True
 
-    if use_groupby:
-        return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
-    else:
-        return gdf.drop_duplicates(subset=[src_name, dst_name], keep='first')
+    return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
 
 
 def symmetrize(source_col, dest_col, value_col=None):
