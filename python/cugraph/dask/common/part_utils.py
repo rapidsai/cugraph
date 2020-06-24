@@ -24,6 +24,7 @@ from dask.array.core import Array as daskArray
 from dask_cudf.core import DataFrame as daskDataFrame
 from dask_cudf.core import Series as daskSeries
 
+
 '''
 def hosts_to_parts(futures):
     """
@@ -157,7 +158,7 @@ def create_dict(futures):
     for w, k, p in futures:
         if w not in w_to_p_map:
             w_to_p_map[w] = []
-        w_to_p_map[w].append([p,k])
+        w_to_p_map[w].append([p, k])
     return w_to_p_map
 
 
@@ -174,15 +175,19 @@ def repartition(ddf, cumsum):
     import math
     npartitions = ddf.npartitions
     count = math.ceil(len(ddf)/npartitions)
-    new_divisions=[0]
+    new_divisions = [0]
     move_count = 0
     for i in range(npartitions-1):
         index = -1
         while(cumsum[i].iloc[index] > count - move_count > cumsum[i].iloc[0]):
             index = index - 1
-        new_divisions.append(new_divisions[i]+cumsum[i].iloc[index] + move_count)
+        new_divisions.append(new_divisions[i] +
+                             cumsum[i].iloc[index] +
+                             move_count)
         move_count = cumsum[i].iloc[-1] - cumsum[i].iloc[index]
-    new_divisions.append(new_divisions[i+1] + cumsum[-1].iloc[-1] + move_count - 1)
+    new_divisions.append(new_divisions[i+1] +
+                         cumsum[-1].iloc[-1] +
+                         move_count - 1)
     return ddf.repartition(divisions=tuple(new_divisions))
 
 
@@ -196,7 +201,8 @@ def load_balance_func(ddf_, by, client=None):
 
     who_has = client.who_has(parts)
     key_to_part = [(str(part.key), part) for part in parts]
-    gpu_fututres=[(first(who_has[key]), part.key[1], part) for key, part in key_to_part]
+    gpu_fututres = [(first(who_has[key]),
+                     part.key[1], part) for key, part in key_to_part]
     worker_to_data = create_dict(gpu_fututres)
 
     cumsum_parts = [client.submit(get_cumsum,
@@ -209,18 +215,18 @@ def load_balance_func(ddf_, by, client=None):
     for cumsum in cumsum_parts:
         num_rows.append(cumsum.iloc[-1])
 
-    divisions=[sum(num_rows[0:x:1]) for x in range(0, len(num_rows)+1)]
-    divisions[-1]=divisions[-1]-1
-    divisions=tuple(divisions)
+    divisions = [sum(num_rows[0:x:1]) for x in range(0, len(num_rows) + 1)]
+    divisions[-1] = divisions[-1] - 1
+    divisions = tuple(divisions)
 
-    futures=[client.submit(set_global_index,
-            wf[1][0][0],
-            divisions[wf[1][0][1]],
-            workers=[wf[0]])
-            for idx, wf in enumerate(worker_to_data.items())]
+    futures = [client.submit(set_global_index,
+               wf[1][0][0],
+               divisions[wf[1][0][1]],
+               workers=[wf[0]])
+               for idx, wf in enumerate(worker_to_data.items())]
     wait(futures)
 
     ddf = dc.from_delayed(futures)
-    ddf.divisions=divisions
+    ddf.divisions = divisions
     ddf = repartition(ddf, cumsum_parts)
     return ddf
