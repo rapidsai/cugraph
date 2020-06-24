@@ -410,38 +410,70 @@ void BC<VT, ET, WT, result_t>::rescale_by_total_sources_used(VT total_number_of_
 }  // namespace detail
 
 namespace opg {
-template <typename VT, typename ET, typename WT, typename result_t>
-void get_graph_csr_view(const raft::handle_t &handle,
-                        experimental::GraphCSRView<VT, ET, WT> const *original_graph)  //,
-// experimental::GraphCSRView<VT, ET, WT> const &graph)
+template <typename VT, typename ET, typename WT, typename scalar_t>
+void distribute_data_get_number_of_vertices(
+  const raft::handle_t &handle,
+  experimental::GraphCSRView<VT, ET, WT> const *original_graph,
+  VT &number_of_vertices)
 {
-  int rank           = handle.get_comms().get_rank();
-  auto &communicator = handle.get_comms();
-  ET offsets_size    = 0;
-  VT indices_size    = 0;
-  thrust::device_vector<ET> d_offsets_size(1, 0);
-  thrust::device_vector<VT> d_indices_size(1, 0);
+  rmm::device_vector<VT> d_vertices(1, 0);
   if (original_graph) {
-    offsets_size = original_graph->number_of_vertices + 1;
-    indices_size = original_graph->number_of_edges;
-    CUDA_TRY(
-      cudaMemcpy(d_offsets_size.data().get(), &offsets_size, sizeof(ET), cudaMemcpyHostToDevice));
-
-    CUDA_TRY(
-      cudaMemcpy(d_indices_size.data().get(), &indices_size, sizeof(VT), cudaMemcpyHostToDevice));
+    VT local_number_of_vertices = original_graph->number_of_vertices;
+    CUDA_TRY(cudaMemcpy(
+      d_vertices.data().get(), &local_number_of_vertices, sizeof(VT), cudaMemcpyHostToDevice));
   }
-  communicator.bcast(d_offsets_size.data().get(), 1, 0, 0);
-  communicator.bcast(d_indices_size.data().get(), 1, 0, 0);
-
+  handle.get_comms().bcast(d_vertices.data().get(), d_vertices.size(), 0, 0);
   CUDA_TRY(
-    cudaMemcpy(&offsets_size, d_offsets_size.data().get(), sizeof(ET), cudaMemcpyDeviceToHost));
-  CUDA_TRY(
-    cudaMemcpy(&indices_size, d_indices_size.data().get(), sizeof(VT), cudaMemcpyDeviceToHost));
-
-  printf("[DBG][OPG] Rank(%d) offsets_size = %d\n", rank, offsets_size);
-  printf("[DBG][OPG] Rank(%d) indices_size = %d\n", rank, indices_size);
-  // experimental::GraphCSRView<VT, ET, WT> graph()
+    cudaMemcpy(&number_of_vertices, d_vertices.data().get(), sizeof(VT), cudaMemcpyDeviceToHost));
 }
+
+template <typename VT, typename ET, typename WT, typename scalar_t>
+void distribute_data_get_number_of_edges(
+  const raft::handle_t &handle,
+  experimental::GraphCSRView<VT, ET, WT> const *original_graph,
+  ET &number_of_edges)
+{
+  rmm::device_vector<ET> d_edges(1, 0);
+  if (original_graph) {
+    CUDA_TRY(cudaMemcpy(d_edges.data().get(),
+                        &(original_graph->number_of_edges),
+                        sizeof(ET),
+                        cudaMemcpyHostToDevice));
+  }
+  handle.get_comms().bcast(d_edges.data().get(), d_edges.size(), 0, 0);
+  CUDA_TRY(cudaMemcpy(&number_of_edges, d_edges.data().get(), sizeof(ET), cudaMemcpyDeviceToHost));
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void distribute_data_get_graph_info(const raft::handle_t &handle,
+                                    experimental::GraphCSRView<VT, ET, WT> const *original_graph,
+                                    VT &number_of_vertices,
+                                    ET &number_of_edges,
+                                    rmm::device_vector<VT> &d_indices_vec,
+                                    rmm::device_vector<ET> &d_offsets_vec,
+                                    rmm::device_vector<WT> &d_edges_data_vec)
+{
+  distribute_data_get_number_of_vertices<VT, ET, WT, result_t>(
+    handle, original_graph, number_of_vertices);
+  distribute_data_get_number_of_edges<VT, ET, WT, result_t>(
+    handle, original_graph, number_of_edges);
+  d_offsets_vec.resize(number_of_vertices + 1);
+  d_indices_vec.resize(number_of_edges);
+  if (original_graph) {  // TODO(xcadet) We may should be able to avoid copying?
+    thrust::copy(original_graph->offsets,
+                 original_graph->offsets + d_offsets_vec.size(),
+                 d_offsets_vec.begin());
+    thrust::copy(original_graph->indices,
+                 original_graph->indices + d_indices_vec.size(),
+                 d_indices_vec.begin());
+  }
+  // TODO(xcadet) Reactivate weights
+  handle.get_comms().bcast(d_offsets_vec.data().get(), d_offsets_vec.size(), 0, 0);
+  handle.get_comms().bcast(d_indices_vec.data().get(), d_indices_vec.size(), 0, 0);
+  // TODO(xcadet) Reactivate
+  // handle.get_comms().bcast(d_edges_data_vec.data().get(), d_edges_data_vec.size(), 0, 0);
+}
+
 template <typename VT, typename ET, typename WT, typename result_t>
 void setup(const raft::handle_t &handle,
            experimental::GraphCSRView<VT, ET, WT> const *original_graph,
@@ -452,7 +484,6 @@ void setup(const raft::handle_t &handle,
   int device_id = handle.get_device();
   printf("[DBG][OPG] Rank(%d)\n", rank);
   printf("[DBG][OPG] Graph is not Null(%d)\n", original_graph == nullptr);
-  get_graph_csr_view<VT, ET, WT, result_t>(handle, original_graph);
 }
 void receive_output_destination() {}
 
@@ -494,11 +525,30 @@ void betweenness_centrality(const raft::handle_t &handle,
     // TODO(xcadet) Through this approach we need an extra |V| device memory,
     //              should probaly directly use the allocated data for rank 0
     opg::setup<VT, ET, WT, result_t>(handle, graph, result);
-    // rmm::device_vector<result_t> betweenness(graph->number_of_vertices, 0);
+    VT number_of_vertices = 0;
+    ET number_of_edges    = 0;
+    rmm::device_vector<VT> d_indices_vec;
+    rmm::device_vector<ET> d_offsets_vec;
+    rmm::device_vector<WT> d_edges_data_vec;
+
+    opg::distribute_data_get_graph_info<VT, ET, WT, result_t>(handle,
+                                                              graph,
+                                                              number_of_vertices,
+                                                              number_of_edges,
+                                                              d_indices_vec,
+                                                              d_offsets_vec,
+                                                              d_edges_data_vec);
+    experimental::GraphCSRView<VT, ET, WT> local_graph(
+      d_offsets_vec.data().get(),
+      d_indices_vec.data().get(),
+      nullptr,
+      number_of_vertices,
+      number_of_edges);  // TODO(xcadet) Re enable edge_data
+
+    rmm::device_vector<result_t> betweenness(number_of_vertices, 0);
     // opg::get_batch();
-    /*
     detail::betweenness_centrality_impl(handle,
-                                        *graph,
+                                        local_graph,
                                         betweenness.data().get(),
                                         normalize,
                                         endpoints,
@@ -506,9 +556,11 @@ void betweenness_centrality(const raft::handle_t &handle,
                                         k,
                                         vertices,
                                         total_number_of_sources_used);
-    opg::process();
-    opg::combine<VT, result_t>(handle, betweenness.data().get(), result, graph->number_of_vertices);
-    */
+    thrust::copy(
+      betweenness.begin(), betweenness.end(), std::ostream_iterator<result_t>(std::cout, ", "));
+    std::cout << std::endl;
+    // opg::process();
+    opg::combine<VT, result_t>(handle, betweenness.data().get(), result, number_of_vertices);
     int rank = handle.get_comms().get_rank();
     printf("[DBG][OPG] Rank(%d)\n", rank);
     printf("[DBG][OPG] End of computation\n");
