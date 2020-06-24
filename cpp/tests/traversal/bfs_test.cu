@@ -96,7 +96,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = directed;
 
-    ASSERT_TRUE(configuration.source_ >= 0 && configuration.source_ <= G.number_of_vertices)
+    ASSERT_TRUE(configuration.source_ >= 0 && (VT)configuration.source_ < G.number_of_vertices)
       << "Starting sources should be >= 0 and"
       << " less than the number of vertices in the graph";
 
@@ -171,7 +171,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // that the predecessor obtained with the GPU implementation is one of the
       // predecessors obtained during the C++ BFS traversal
       VT pred = cugraph_pred[i];  // It could be equal to -1 if the node is never reached
-      if (pred == -1) {
+      if (pred == ~VT(0)) {
         EXPECT_TRUE(ref_bfs_pred[i].empty())
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph had not predecessor,"
           << "while c++ ref found at least one.";
@@ -198,16 +198,15 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 // ============================================================================
 // Tests
 // ============================================================================
-TEST_P(Tests_BFS, CheckFP32_NO_SP_COUNTER) { run_current_test<int, int, float, false>(GetParam()); }
 
-TEST_P(Tests_BFS, CheckFP64_NO_SP_COUNTER)
-{
-  run_current_test<int, int, double, false>(GetParam());
-}
+//We don't need to test WT for both float and double since it's anyway ignored in BFS
+TEST_P(Tests_BFS, CheckUnsigned_NO_SP_COUNTER) { run_current_test<unsigned, unsigned, float, false>(GetParam()); }
+TEST_P(Tests_BFS, CheckInt_NO_SP_COUNTER) { run_current_test<int, int, float, false>(GetParam()); }
+TEST_P(Tests_BFS, CheckLong_NO_SP_COUNTER) { run_current_test<long, long, float, false>(GetParam()); }
 
-TEST_P(Tests_BFS, CheckFP32_SP_COUNTER) { run_current_test<int, int, float, true>(GetParam()); }
-
-TEST_P(Tests_BFS, CheckFP64_SP_COUNTER) { run_current_test<int, int, double, true>(GetParam()); }
+TEST_P(Tests_BFS, CheckUnsigned_SP_COUNTER) { run_current_test<unsigned, unsigned, float, true>(GetParam()); }
+TEST_P(Tests_BFS, CheckInt_SP_COUNTER) { run_current_test<int, int, float, true>(GetParam()); }
+TEST_P(Tests_BFS, CheckLong_SP_COUNTER) { run_current_test<long, long, float, true>(GetParam()); }
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_BFS,
