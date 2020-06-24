@@ -18,9 +18,11 @@ from cugraph.dask.common.input_utils import DistributedDataHandler
 from dask.distributed import wait, default_client
 from cugraph.raft.dask.common.comms import worker_state
 from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
+from dask.delayed import delayed
+from cugraph.dask.common.part_utils import load_balance_func
+import warnings
 
-
-def common_func(sID, data, local_data, alpha, max_iter, tol, personalization, nstart):
+def call_pagerank(sID, data, local_data, alpha, max_iter, tol, personalization, nstart):
     sessionstate = worker_state(sID)
     return mg_pagerank.mg_pagerank(data[0],
                                    local_data,
@@ -32,32 +34,36 @@ def common_func(sID, data, local_data, alpha, max_iter, tol, personalization, ns
                                    nstart)
 
 
-
 def pagerank(input_graph,
              alpha=0.85,
              personalization=None,
              max_iter=100,
              tol=1.0e-5,
-             nstart=None):
+             nstart=None,
+             load_balance=True):
+
     if tol != 1.0e-5:
-        raise Warning("Tolerance is currently not supported. Setting it to default 1.0e-5")
+        warnings.warn("Tolerance is currently not supported. Setting it to default 1.0e-5")
     tol = 1.0e-5
     if personalization is not None or nstart is not None:
-        raise Warning("personalization and nstart currently not supported. Setting them to None")
+        warnings.warn("personalization and nstart currently not supported. Setting them to None")
     personalization = None
     nstart = None
 
     client = default_client()
     _ddf = input_graph.edgelist.edgelist_df
     ddf = _ddf.sort_values(by='dst', ignore_index=True)
+
+    if load_balance:
+        ddf = load_balance_func(ddf, by='dst')
+
     data = DistributedDataHandler.create(data=ddf)
     comms = Comms(comms_p2p=False)
     comms.init(data.workers)
     local_data = data.calculate_local_data(comms)
-
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
-            common_func,
+            call_pagerank,
             comms.sessionId,
             wf[1],
             local_data,
@@ -71,3 +77,4 @@ def pagerank(input_graph,
     wait(result)
 
     return result[0].result()
+
