@@ -112,11 +112,17 @@ fi
 
 logger "Running Benchmarks..."
 set +e
-time pytest -v -m "small and managedmem_on and poolallocator_on" --benchmark-gpu-device=0 --benchmark-gpu-max-rounds=3 --benchmark-asv-metadata="machineName=${NODE_NAME}, commitBranch=branch-${MINOR_VERSION}" --benchmark-asv-output-dir=${ASVRESULTS_DIR}
+time pytest -v -m "small and managedmem_on and poolallocator_on" \
+    --benchmark-gpu-device=0 \ # gpuCI container only sees 1 gpu, device number always 0
+    --benchmark-gpu-max-rounds=3 \
+    --benchmark-asv-metadata="machineName=${NODE_NAME}, commitBranch=branch-${MINOR_VERSION}" \
+    --benchmark-asv-output-dir=${ASVRESULTS_DIR}
+
 EXITCODE=$?
 
+set -e
 JOBEXITCODE=0
-# TODO: Add notification based on failures
+# TODO: Add notification based on failures this should most likely move to the Jenkins job itself
 if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
     if (( ${EXITCODE} == 1 )); then
         #There were some benchmark failures, send notification
@@ -125,5 +131,16 @@ if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
         JOBEXITCODE=${EXITCODE}
     fi
 fi
+
+##########################################
+# Push Results to S3                     #
+##########################################
+
+if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
+    #TODO: Move results from $ASVRESULTS_DIR to nightly S3 folder
+else # PR Build
+    #TODO: Move results from $ASVRESULTS_DIR to PR S3 folder
+fi
+
 
 exit $JOBEXITCODE
