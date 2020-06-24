@@ -339,6 +339,8 @@ add_library(cugraph SHARED
     src/nvgraph/partition.cu
     src/experimental/bfs.cu
     src/experimental/sssp.cu
+    src/experimental/pagerank.cu
+    src/experimental/katz_centrality.cu
 )
 
 #

@@ -226,6 +226,23 @@ void pagerank_this_partition(
   return;
 }
 
+}  // namespace detail
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+void pagerank(raft::handel_t &handle,
+  GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  vertex_t* personalization_vertices,
+  result_t* personalization_values,
+  size_t personalization vector_size,
+  result_t* pagerank_values,
+  double alpha,
+  double epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool personalize,
+  bool do_expensive_check) {
+  pagerank_this_partition(handle, )
+}
 // explicit instantiation
 
 template void pagerank_this_partition(raft::Handle handle,
@@ -242,6 +259,6 @@ template void pagerank_this_partition(raft::Handle handle,
                                       bool personalize,
                                       bool do_expensive_check);
 
-}  // namespace detail
+
 }  // namespace experimental
 }  // namespace cugraph
