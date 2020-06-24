@@ -138,10 +138,12 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     std::vector<VT> cugraph_pred(number_of_vertices);
     std::vector<double> cugraph_sigmas(number_of_vertices);
 
+    //Don't pass valid sp_sp_counter ptr unless needed because it disables
+    //the bottom up flow
     cugraph::bfs<VT, ET, WT>(G,
                              d_cugraph_dist.data().get(),
                              d_cugraph_pred.data().get(),
-                             d_cugraph_sigmas.data().get(),
+                             (return_sp_counter) ? d_cugraph_sigmas.data().get(): nullptr,
                              source,
                              G.prop.directed);
     CUDA_TRY(cudaMemcpy(cugraph_dist.data(),
@@ -152,10 +154,13 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                         d_cugraph_pred.data().get(),
                         sizeof(VT) * d_cugraph_pred.size(),
                         cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
-                        d_cugraph_sigmas.data().get(),
-                        sizeof(double) * d_cugraph_sigmas.size(),
-                        cudaMemcpyDeviceToHost));
+    
+    if (return_sp_counter) {
+      CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
+	    d_cugraph_sigmas.data().get(),
+	    sizeof(double) * d_cugraph_sigmas.size(),
+	    cudaMemcpyDeviceToHost));
+    }
 
     for (VT i = 0; i < number_of_vertices; ++i) {
       // Check distances: should be an exact match as we use signed int 32-bit
@@ -179,10 +184,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph = " << cugraph_sigmas[i]
           << " , c++ ref did not consider it as a predecessor.";
       }
-      EXPECT_TRUE(
-        compare_close(cugraph_sigmas[i], ref_bfs_sigmas[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
-        << "[MISMATCH] vaid = " << i << ", cugraph = " << cugraph_sigmas[i]
-        << " c++ ref = " << ref_bfs_sigmas[i];
 
       if (return_sp_counter) {
         EXPECT_TRUE(
