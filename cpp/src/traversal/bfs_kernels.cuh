@@ -300,8 +300,6 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
     IndexType visited_bmap_index[1];  // this is an array of size 1 because CUB
                                       // needs one
     
-    // It's ok for this to be -1 or max unsigned since valid values cannot
-    // exceed (unvisited_vertex / INT_SIZE) which is < max_unsigned
     visited_bmap_index[0] = ~IndexType(0);
     IndexType unvisited_vertex = ~IndexType(0);
 
@@ -558,20 +556,16 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
     // is know with inactive threads
     for (IndexType i_edge = first_i_edge + logical_lane_id; i_edge < end_i_edge;
          i_edge += BOTTOM_UP_LOGICAL_WARP_SIZE) {
-      bool has_valid_parent = false;
-      IndexType valid_parent;
+      IndexType valid_parent = ~IndexType(0);
 
       if (!edge_mask || edge_mask[i_edge]) {
         IndexType u     = col_ind[i_edge];
         IndexType lvl_u = distances[u];
 
-        if (lvl_u == (lvl - 1)) { 
-          has_valid_parent = true;
-          valid_parent = u; 
-        }
+        if (lvl_u == (lvl - 1)) { valid_parent = u; }
       }
 
-      unsigned int warp_valid_p_ballot = cugraph::detail::utils::ballot((has_valid_parent));
+      unsigned int warp_valid_p_ballot = cugraph::detail::utils::ballot(valid_parent != ~IndexType(0));
       
       int logical_warp_id_in_warp = (threadIdx.x % WARP_SIZE) / BOTTOM_UP_LOGICAL_WARP_SIZE;
       unsigned int mask           = (1 << BOTTOM_UP_LOGICAL_WARP_SIZE) - 1;
@@ -824,17 +818,8 @@ __global__ void topdown_expand_kernel(
         IndexType vec_u[TOP_DOWN_BATCH_SIZE];
         IndexType local_buf1[TOP_DOWN_BATCH_SIZE];
         IndexType local_buf2[TOP_DOWN_BATCH_SIZE];
-	
-	// Bitmask to store validity for the current edge 
-	int valid_mask[(TOP_DOWN_BATCH_SIZE + INT_SIZE - 1)/INT_SIZE];
 
-	#pragma unroll
-	for (int i = 0; i < (TOP_DOWN_BATCH_SIZE + INT_SIZE - 1)/INT_SIZE; i++){
-	  valid_mask[i] = 0;
-	} 
-	
-	IndexType *vec_frontier_degrees_exclusive_sum_index = &local_buf2[0];
-
+        IndexType *vec_frontier_degrees_exclusive_sum_index = &local_buf2[0];
 
 #pragma unroll
         for (IndexType iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
@@ -853,7 +838,9 @@ __global__ void topdown_expand_kernel(
                           frontier_degrees_exclusive_sum_block_offset;
             vec_u[iv]                                    = frontier[k];  // origin of this edge
             vec_frontier_degrees_exclusive_sum_index[iv] = frontier_degrees_exclusive_sum[k];
-            valid_mask[iv/INT_SIZE] |= (1 << (iv % INT_SIZE));
+          } else {
+            vec_u[iv]                                    = ~IndexType(0);
+            vec_frontier_degrees_exclusive_sum_index[iv] = ~IndexType(0);
           }
         }
 
@@ -862,9 +849,7 @@ __global__ void topdown_expand_kernel(
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           IndexType u = vec_u[iv];
           // row_ptr for this vertex origin u
-          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
-            vec_row_ptr_u[iv] = row_ptr[u];
-          }
+          vec_row_ptr_u[iv] = (u != ~IndexType(0)) ? row_ptr[u] : ~IndexType(0);
         }
 
         // We won't need row_ptr after that, reusing pointer
@@ -875,19 +860,19 @@ __global__ void topdown_expand_kernel(
           IndexType thread_item_index = left + item_index + iv;
           IndexType gid               = block_offset + thread_item_index * blockDim.x + threadIdx.x;
 
-          // Need this check so that we don't use invalid values of edge to index
-          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
-            IndexType row_ptr_u = vec_row_ptr_u[iv];
-            IndexType edge      = row_ptr_u + gid - vec_frontier_degrees_exclusive_sum_index[iv];
+          IndexType row_ptr_u = vec_row_ptr_u[iv];
+	  // Need this check so that we don't use invalid values of edge to index
+	  if (row_ptr_u != ~IndexType(0)){
+	    IndexType edge      = row_ptr_u + gid - vec_frontier_degrees_exclusive_sum_index[iv];
 
-            if (edge_mask && !edge_mask[edge]){
-              // Mask this edge out in the valid mask
-              valid_mask[iv/INT_SIZE] &= ~(1 << (iv % INT_SIZE)); 
-            }else{
-              // Destination of this edge
-              vec_dest_v[iv] = col_ind[edge];
-            }
-          }
+	    if (edge_mask && !edge_mask[edge]){
+	      // Disabling edge
+	      row_ptr_u = ~IndexType(0);
+	    }else{
+	      // Destination of this edge
+	      vec_dest_v[iv] = col_ind[edge];
+	    }
+	  }
         }
 
         // We don't need vec_frontier_degrees_exclusive_sum_index anymore
@@ -897,15 +882,12 @@ __global__ void topdown_expand_kernel(
         // frontier if we actually process every edge (shortest path counting)
         // otherwise we can read and update from the same bmap
 #pragma unroll
-        for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-          IndexType v = vec_dest_v[iv];
-          
-          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
-            vec_v_visited_bmap[iv] = previous_bmap[v / INT_SIZE];
-          }else{
-            vec_v_visited_bmap[iv] = (~0);  // will look visited
-          }
-        }
+	for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
+	  IndexType v = vec_dest_v[iv];
+	  vec_v_visited_bmap[iv] = 
+	    (v != ~IndexType(0)) ? 
+	    previous_bmap[v / INT_SIZE] : (~int(0));  // will look visited
+	}
 
         // From now on we will consider v as a frontier candidate
         // If for some reason vec_candidate[iv] should be put in the
@@ -914,15 +896,12 @@ __global__ void topdown_expand_kernel(
 
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-          // If the edge was already masked out, it doesn't matter
-          // So we don't need to check the valid_mask here
           IndexType v = vec_frontier_candidate[iv];
           int m       = 1 << (v % INT_SIZE);
-          bool is_visited = vec_v_visited_bmap[iv] & m;
-          if (is_visited){
-            // Mask this edge out in the valid mask
-            valid_mask[iv/INT_SIZE] &= ~(1 << (iv % INT_SIZE)); 
-          }
+
+          int is_visited = vec_v_visited_bmap[iv] & m;
+
+          if (is_visited) vec_frontier_candidate[iv] = ~IndexType(0);
         }
 
         // Each source should update the destination shortest path counter
@@ -931,7 +910,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType dst = vec_frontier_candidate[iv];
-            if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
+            if (dst != ~IndexType(0)){
               IndexType src = vec_u[iv];
               atomicAdd(&sp_counters[dst], sp_counters[src]);
             }
@@ -945,13 +924,8 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType v              = vec_frontier_candidate[iv];
-
-            if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
-              vec_is_isolated_bmap[iv] = isolated_bmap[v / INT_SIZE] ;
-            }else{
-              vec_is_isolated_bmap[iv] = ~(0);
-            } 
-
+            vec_is_isolated_bmap[iv] = 
+	      (v != ~IndexType(0)) ? isolated_bmap[v / INT_SIZE] : ~int(0);
           }
 
 #pragma unroll
@@ -967,7 +941,7 @@ __global__ void topdown_expand_kernel(
             // visited, and save distance and predecessor here. Not need to
             // check return value of atomicOr
 
-            if (is_isolated && (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE)))){
+            if (is_isolated && v != ~IndexType(0)){
               int m = 1 << (v % INT_SIZE);
               atomicOr(&bmap[v / INT_SIZE], m);
               if (distances) distances[v] = lvl;
@@ -975,7 +949,7 @@ __global__ void topdown_expand_kernel(
               if (predecessors) predecessors[v] = vec_u[iv];
 
               // This is no longer a candidate, neutralize it
-              valid_mask[iv/INT_SIZE] &= ~(1 << (iv % INT_SIZE)); 
+              vec_frontier_candidate[iv] = ~IndexType(0);
             }
           }
         }
@@ -985,9 +959,8 @@ __global__ void topdown_expand_kernel(
 
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
-            ++thread_n_frontier_candidates;
-          }
+          IndexType v = vec_frontier_candidate[iv];
+          if (v != ~IndexType(0)) ++thread_n_frontier_candidates;
         }
 
         // We need to have all nfrontier_candidates to be ready before doing the
@@ -1005,7 +978,7 @@ __global__ void topdown_expand_kernel(
           // May have bank conflicts
           IndexType frontier_candidate = vec_frontier_candidate[iv];
 
-          if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
+          if (frontier_candidate != ~IndexType(0)){
             shared_local_new_frontier_candidates[thread_frontier_candidate_offset] =
               frontier_candidate;
             shared_local_new_frontier_predecessors[thread_frontier_candidate_offset] = vec_u[iv];
@@ -1023,13 +996,6 @@ __global__ void topdown_expand_kernel(
         // broadcast block_n_frontier_candidates
         __syncthreads();
 
-        
-        // Repurpose valid_mask for accepted candidates
-        #pragma unroll
-        for (int i = 0; i < (TOP_DOWN_BATCH_SIZE + INT_SIZE - 1)/INT_SIZE; i++){
-          valid_mask[i] = 0;
-        }
-        
         IndexType naccepted_vertices = 0;
         // We won't need vec_frontier_candidate after that
         IndexType *vec_frontier_accepted_vertex = vec_frontier_candidate;
@@ -1037,6 +1003,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           const int idx_shared             = iv * blockDim.x + threadIdx.x;
+          vec_frontier_accepted_vertex[iv] = ~IndexType(0);
 
           if (idx_shared < block_n_frontier_candidates) {
             IndexType v = shared_local_new_frontier_candidates[idx_shared];  // popping
@@ -1045,7 +1012,6 @@ __global__ void topdown_expand_kernel(
             int q = atomicOr(&bmap[v / INT_SIZE], m);  // atomicOr returns old
 
             if (!(m & q)) {  // if this thread was the first to discover this node
-              
               if (distances) distances[v] = lvl;
 
               if (predecessors) {
@@ -1054,7 +1020,6 @@ __global__ void topdown_expand_kernel(
               }
 
               vec_frontier_accepted_vertex[iv] = v;
-              valid_mask[iv/INT_SIZE] |= (1 << (iv % INT_SIZE));
               ++naccepted_vertices;
             }
           }
@@ -1084,7 +1049,7 @@ __global__ void topdown_expand_kernel(
           if (idx_shared < block_n_frontier_candidates) {
             IndexType new_frontier_vertex = vec_frontier_accepted_vertex[iv];
 
-            if (valid_mask[iv/INT_SIZE] & (1 << (iv % INT_SIZE))){
+            if (new_frontier_vertex != ~IndexType(0)){
               IndexType off     = frontier_common_block_offset + thread_new_frontier_offset++;
               new_frontier[off] = new_frontier_vertex;
             }
