@@ -113,7 +113,7 @@ fi
 logger "Running Benchmarks..."
 set +e
 time pytest -v -m "small and managedmem_on and poolallocator_on" \
-    --benchmark-gpu-device=0 \ # gpuCI container only sees 1 gpu, device number always 0
+    --benchmark-gpu-device=0 \
     --benchmark-gpu-max-rounds=3 \
     --benchmark-asv-metadata="machineName=${NODE_NAME}, commitBranch=branch-${MINOR_VERSION}" \
     --benchmark-asv-output-dir=${ASVRESULTS_DIR}
