@@ -410,77 +410,130 @@ void BC<VT, ET, WT, result_t>::rescale_by_total_sources_used(VT total_number_of_
 }  // namespace detail
 
 namespace opg {
-template <typename VT, typename ET, typename WT, typename scalar_t>
-void distribute_data_get_number_of_vertices(
-  const raft::handle_t &handle,
-  experimental::GraphCSRView<VT, ET, WT> const *original_graph,
-  VT &number_of_vertices)
-{
-  rmm::device_vector<VT> d_vertices(1, 0);
-  if (original_graph) {
-    VT local_number_of_vertices = original_graph->number_of_vertices;
-    CUDA_TRY(cudaMemcpy(
-      d_vertices.data().get(), &local_number_of_vertices, sizeof(VT), cudaMemcpyHostToDevice));
+// TODO(xcadet) Move it to own file
+template <typename VT, typename ET, typename WT>
+class OPGBatchGraphCSRDistributor {
+ public:
+  OPGBatchGraphCSRDistributor(const raft::handle_t &handle,
+                              experimental::GraphCSRView<VT, ET, WT> &graph)
+    : handle_(handle), graph_(graph)
+  {
+    rank_ = handle.get_comms().get_rank();
   }
-  handle.get_comms().bcast(d_vertices.data().get(), d_vertices.size(), 0, 0);
-  CUDA_TRY(
-    cudaMemcpy(&number_of_vertices, d_vertices.data().get(), sizeof(VT), cudaMemcpyDeviceToHost));
-}
 
-template <typename VT, typename ET, typename WT, typename scalar_t>
-void distribute_data_get_number_of_edges(
-  const raft::handle_t &handle,
-  experimental::GraphCSRView<VT, ET, WT> const *original_graph,
-  ET &number_of_edges)
-{
-  rmm::device_vector<ET> d_edges(1, 0);
-  if (original_graph) {
-    CUDA_TRY(cudaMemcpy(d_edges.data().get(),
-                        &(original_graph->number_of_edges),
-                        sizeof(ET),
-                        cudaMemcpyHostToDevice));
-  }
-  handle.get_comms().bcast(d_edges.data().get(), d_edges.size(), 0, 0);
-  CUDA_TRY(cudaMemcpy(&number_of_edges, d_edges.data().get(), sizeof(ET), cudaMemcpyDeviceToHost));
-}
+  ~OPGBatchGraphCSRDistributor() {}
+  void distribute(rmm::device_vector<ET> *d_offsets,
+                  rmm::device_vector<VT> *d_indices,
+                  rmm::device_vector<WT> *d_edge_data)
+  {
+    distribute_graph_info();
+    if (rank_ != 0) {
+      CUGRAPH_EXPECTS(d_offsets != nullptr,
+                      "A pointer to a resizable device vector must be provided");
+      CUGRAPH_EXPECTS(graph_.offsets == nullptr, "graph's offsets is already assigned");
+      CUGRAPH_EXPECTS(d_indices != nullptr,
+                      "A pointer to a resizable device vector must be provided");
+      CUGRAPH_EXPECTS(graph_.indices == nullptr, "graph's indices is already assigned");
 
-// TODO(xcadet) Need to also transfer graph  properties
-template <typename VT, typename ET, typename WT, typename result_t>
-void distribute_data_get_graph_info(const raft::handle_t &handle,
-                                    experimental::GraphCSRView<VT, ET, WT> const *original_graph,
-                                    VT &number_of_vertices,
-                                    ET &number_of_edges,
-                                    rmm::device_vector<VT> &d_indices_vec,
-                                    rmm::device_vector<ET> &d_offsets_vec,
-                                    rmm::device_vector<WT> &d_edges_data_vec)
-{
-  distribute_data_get_number_of_vertices<VT, ET, WT, result_t>(
-    handle, original_graph, number_of_vertices);
-  distribute_data_get_number_of_edges<VT, ET, WT, result_t>(
-    handle, original_graph, number_of_edges);
-  d_offsets_vec.resize(number_of_vertices +
-                       1);  // TODO(xcadet) Extraneous allocation on Main Worker
-  d_indices_vec.resize(number_of_edges);
-  ET *d_offsets_dst = d_offsets_vec.data().get();
-  VT *d_indices_dst = d_indices_vec.data().get();
-  if (original_graph) {  // TODO(xcadet) We may should be able to avoid copying?
-    d_offsets_dst = original_graph->offsets;
-    d_indices_dst = original_graph->indices;
-    /*
-    thrust::copy(original_graph->offsets,
-                 original_graph->offsets + d_offsets_vec.size(),
-                 d_offsets_vec.begin());
-    thrust::copy(original_graph->indices,
-                 original_graph->indices + d_indices_vec.size(),
-                 d_indices_vec.begin());
-                 */
+      d_offsets->resize(graph_.number_of_vertices + 1);
+      graph_.offsets = d_offsets->data().get();
+
+      d_indices->resize(graph_.number_of_edges);
+      graph_.indices = d_indices->data().get();
+
+      if (d_edge_data) {
+        CUGRAPH_EXPECTS(graph_.edge_data == nullptr, "graph's edge_data is already assigned");
+        d_edge_data->resize(graph_.number_of_edges);
+        graph_.edge_data = d_edge_data->data().get();
+      }
+    }
+    distribute_graph_offsets();
+    distribute_graph_indices();
+    if (d_edge_data) { distribute_graph_edge_data(); }
+    CUDA_TRY(cudaStreamSynchronize(handle_.get_stream()));
   }
-  // TODO(xcadet) Reactivate weights
-  handle.get_comms().bcast(d_offsets_dst, d_offsets_vec.size(), 0, 0);
-  handle.get_comms().bcast(d_indices_dst, d_indices_vec.size(), 0, 0);
-  // TODO(xcadet) Reactivate
-  // handle.get_comms().bcast(d_edges_data_vec.data().get(), d_edges_data_vec.size(), 0, 0);
-}
+
+  void distribute_graph_info()
+  {
+    initalize_graph_data_storage();
+    if (rank_ == 0) { fill_graph_data_storage(); }
+    handle_.get_comms().bcast(
+      d_graph_data_storage_.data().get(), d_graph_data_storage_.size(), 0, handle_.get_stream());
+    if (rank_ != 0) { read_from_graph_data_storage(); }
+  }
+
+  void distribute_graph_indices()
+  {
+    size_t indices_size = graph_.number_of_edges;
+    handle_.get_comms().bcast(graph_.indices, indices_size, 0, handle_.get_stream());
+  }
+
+  void distribute_graph_offsets()
+  {
+    size_t offsets_size = graph_.number_of_vertices + 1;
+    handle_.get_comms().bcast(graph_.offsets, offsets_size, 0, handle_.get_stream());
+  }
+
+  void distribute_graph_edge_data()
+  {
+    size_t edge_data_size = graph_.number_of_edges;
+    handle_.get_comms().bcast(graph_.edge_data, edge_data_size, 0, handle_.get_stream());
+  }
+
+  size_t get_required_size_for_graph_data()
+  {
+    size_t required_size_for_number_of_vertices = sizeof(int);
+    size_t required_size_for_number_of_edges    = sizeof(int);
+    size_t required_size_for_graph_properties   = sizeof(experimental::GraphProperties);
+    size_t total_required_size                  = required_size_for_number_of_vertices +
+                                 required_size_for_number_of_edges +
+                                 required_size_for_graph_properties;
+    return total_required_size;
+  }
+
+ private:
+  void initalize_graph_data_storage()
+  {
+    size_t required_size_for_graph_data = get_required_size_for_graph_data();
+    h_graph_data_storage_.resize(required_size_for_graph_data);
+    d_graph_data_storage_.resize(required_size_for_graph_data);
+  }
+
+  void fill_graph_data_storage()
+  {
+    CUGRAPH_EXPECTS(rank_ == 0, "Only the Node with rank == 0 should fill the graph_data_storage");
+    size_t position = 0;
+    memcpy(h_graph_data_storage_.data() + position, &graph_.number_of_vertices, sizeof(VT));
+    position += sizeof(VT);
+    memcpy(h_graph_data_storage_.data() + position, &graph_.number_of_edges, sizeof(ET));
+    position += sizeof(ET);
+    memcpy(
+      h_graph_data_storage_.data() + position, &graph_.prop, sizeof(experimental::GraphProperties));
+    thrust::copy(
+      h_graph_data_storage_.begin(), h_graph_data_storage_.end(), d_graph_data_storage_.begin());
+  }
+
+  void read_from_graph_data_storage()
+  {
+    CUGRAPH_EXPECTS(rank_ != 0, "Only the Node with rank != 0 should read the graph_data_storage");
+    thrust::copy(
+      d_graph_data_storage_.begin(), d_graph_data_storage_.end(), h_graph_data_storage_.begin());
+    size_t position           = 0;
+    char *storage_start       = h_graph_data_storage_.data();
+    graph_.number_of_vertices = *reinterpret_cast<VT *>(storage_start + position);
+    position += sizeof(VT);
+    graph_.number_of_edges = *reinterpret_cast<ET *>(storage_start + position);
+    position += sizeof(ET);
+    graph_.prop = *reinterpret_cast<experimental::GraphProperties *>(storage_start + position);
+  }
+
+  experimental::GraphCSRView<VT, ET, WT> &graph_;
+  int rank_;
+  // TODO(xcadet) Look into a way to make is more flexible
+  const raft::handle_t &handle_;
+  thrust::host_vector<char> h_graph_data_storage_;
+  rmm::device_vector<char> d_graph_data_storage_;
+};
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void setup(const raft::handle_t &handle,
@@ -502,12 +555,6 @@ void process() {}  // printf("[DBG][OPG] Process\n"); }
 template <typename VT, typename result_t>
 void combine(const raft::handle_t &handle, result_t *src_result, result_t *dst_result, VT size)
 {
-  // printf("[DBG][OPG] Combine\n");
-  // TODO(xcadet) Use handle stream as last parameter ?
-  // printf("[DBG][OPG] Trying to reduce_sum from %p to %p with %d elements\n",
-  // src_result,
-  // dst_result,
-  // size);
   handle.get_comms().reduce(src_result, dst_result, size, raft::comms::op_t::SUM, 0, 0);
 }
 }  // namespace opg
@@ -528,64 +575,38 @@ void betweenness_centrality(const raft::handle_t &handle,
 {
   if (handle.comms_initialized()) {
     printf("[DBG][OPG] Started BATCH-OPG-BC\n");
-    // printf("[DBG][OPG] Pointer within C++ %p\n", result);
-    // printf("[DBG][OPG] Normalize  %d\n", normalize);
-    // printf("[DBG][OPG] endpoints  %d\n", endpoints);
-    // printf("[DBG][OPG] k  %d\n", k);
-    // printf("[DBG][OPG] total_number_of_sources_used %d\n", total_number_of_sources_used);
+    int rank = handle.get_comms().get_rank();
+    experimental::GraphCSRView<VT, ET, WT> local_graph;
+    if (graph) { local_graph = *graph; }
+    opg::OPGBatchGraphCSRDistributor<VT, ET, WT> distributor(handle, local_graph);
+    rmm::device_vector<ET> d_local_offsets;
+    rmm::device_vector<VT> d_local_indices;
+    rmm::device_vector<WT> d_local_edge_data;
+    if (graph) {
+      distributor.distribute(nullptr, nullptr, nullptr);
+    } else {
+      // TODO(xcadet) Enable edge_data transfer
+      distributor.distribute(&d_local_offsets, &d_local_indices, nullptr /*&d_local_edge_data*/);
+    }
     // TODO(xcadet) Through this approach we need an extra |V| device memory,
     //              should probaly directly use the allocated data for rank 0
-    opg::setup<VT, ET, WT, result_t>(handle, graph, result);
-    VT number_of_vertices = 0;
-    ET number_of_edges    = 0;
-    rmm::device_vector<VT> d_indices_vec;
-    rmm::device_vector<ET> d_offsets_vec;
-    rmm::device_vector<WT> d_edges_data_vec;
-
-    auto t1 = std::chrono::high_resolution_clock::now();
-    opg::distribute_data_get_graph_info<VT, ET, WT, result_t>(handle,
-                                                              graph,
-                                                              number_of_vertices,
-                                                              number_of_edges,
-                                                              d_indices_vec,
-                                                              d_offsets_vec,
-                                                              d_edges_data_vec);
-    auto t2                                 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> time_span = t2 - t1;
-    printf("[PROF][DBG] time_span %lf\n", time_span.count());
-    rmm::device_vector<result_t> betweenness(number_of_vertices, 0);
+    // auto t1                                 = std::chrono::high_resolution_clock::now();
+    // auto t2                                 = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> time_span = t2 - t1;
+    // printf("[PROF][DBG] time_span %lf\n", time_span.count());
+    rmm::device_vector<result_t> betweenness(local_graph.number_of_vertices, 0);
     // opg::get_batch();
-    if (graph) {
-      detail::betweenness_centrality_impl(handle,
-                                          *graph,
-                                          betweenness.data().get(),
-                                          normalize,
-                                          endpoints,
-                                          weight,
-                                          k,
-                                          vertices,
-                                          total_number_of_sources_used);
-
-    } else {
-      experimental::GraphCSRView<VT, ET, WT> local_graph(
-        d_offsets_vec.data().get(),
-        d_indices_vec.data().get(),
-        nullptr,
-        number_of_vertices,
-        number_of_edges);  // TODO(xcadet) Re enable edge_data
-      detail::betweenness_centrality_impl(handle,
-                                          local_graph,
-                                          betweenness.data().get(),
-                                          normalize,
-                                          endpoints,
-                                          weight,
-                                          k,
-                                          vertices,
-                                          total_number_of_sources_used);
-    }
-    // opg::process();
-    opg::combine<VT, result_t>(handle, betweenness.data().get(), result, number_of_vertices);
-    int rank = handle.get_comms().get_rank();
+    detail::betweenness_centrality_impl(handle,
+                                        local_graph,
+                                        betweenness.data().get(),
+                                        normalize,
+                                        endpoints,
+                                        weight,
+                                        k,
+                                        vertices,
+                                        total_number_of_sources_used);
+    opg::combine<VT, result_t>(
+      handle, betweenness.data().get(), result, local_graph.number_of_vertices);
     printf("[DBG][OPG] Rank(%d)\n", rank);
     printf("[DBG][OPG] End of computation\n");
   } else {
@@ -600,7 +621,7 @@ void betweenness_centrality(const raft::handle_t &handle,
                                         vertices,
                                         total_number_of_sources_used);
   }
-}
+}  // namespace cugraph
 
 template void betweenness_centrality<int, int, float, float>(
   const raft::handle_t &,
