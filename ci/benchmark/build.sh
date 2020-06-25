@@ -42,6 +42,7 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 # Set Benchmark Vars
 export DATASETS_DIR=${WORKSPACE}/datasets
 export ASVRESULT_DIR=${WORKSPACE}/asvresults
+export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
 
 ##########################################
 # Pull Build Artifacts from S3           #
@@ -100,9 +101,8 @@ $WORKSPACE/build.sh clean libcugraph cugraph
 # Run Benchmarks                         #
 ##########################################
 
-cd $DATASETS_DIR
-
 logger "Downloading Datasets for Benchmarks..."
+cd $DATASETS_DIR
 bash ./get_test_data.sh --benchmarks
 ERRORCODE=$((ERRORCODE | $?))
 # Exit if dataset download failed
@@ -111,6 +111,7 @@ if (( ${ERRORCODE} != 0 )); then
 fi
 
 logger "Running Benchmarks..."
+cd $BENCHMARKS_DIR
 set +e
 time pytest -v -m "small and managedmem_on and poolallocator_on" \
     --benchmark-gpu-device=0 \
@@ -125,7 +126,7 @@ JOBEXITCODE=0
 # TODO: Add notification based on failures this should most likely move to the Jenkins job itself
 if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
     if (( ${EXITCODE} == 1 )); then
-        #There were some benchmark failures, send notification
+        sleep 1 #There were some benchmark failures, send notification
     else
         #There was a FATAL error during the benchmark runs, abort entirely and send notification
         JOBEXITCODE=${EXITCODE}
@@ -137,9 +138,9 @@ fi
 ##########################################
 
 if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
-    #TODO: Move results from $ASVRESULTS_DIR to nightly S3 folder
+    sleep 1 #TODO: Move results from $ASVRESULTS_DIR to nightly S3 folder
 else # PR Build
-    #TODO: Move results from $ASVRESULTS_DIR to PR S3 folder
+    sleep 1 #TODO: Move results from $ASVRESULTS_DIR to PR S3 folder
 fi
 
 
