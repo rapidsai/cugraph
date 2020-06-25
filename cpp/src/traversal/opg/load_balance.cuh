@@ -19,6 +19,7 @@
 
 #include "vertex_binning.cuh"
 #include "worker_kernels.cuh"
+#include <raft/cudart_utils.h>
 #include <graph.hpp>
 
 namespace detail {
@@ -58,7 +59,7 @@ class LoadBalanceExecution {
   template <typename Operator>
   void run(
       Operator op,
-      unsigned *active_bitmap) {
+      unsigned *active_bitmap = nullptr) {
     cudaStream_t stream = handle_.get_stream();
     dist_.setup(graph_.offsets, active_bitmap, vertex_begin_, vertex_end_);
     auto distribution = dist_.run(reorganized_vertices_, stream);

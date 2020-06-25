@@ -45,9 +45,12 @@ class LogDistribution
     vertex_id_begin_(vertex_id.data().get()), bin_offsets_(bin_offsets) {}
 
   DegreeBucket<VT, ET> degreeRange(
-      ET ceilLogDegreeStart, ET ceilLogDegreeEnd) {
+      ET ceilLogDegreeStart, ET ceilLogDegreeEnd = std::numeric_limits<ET>::max()) {
     if (ceilLogDegreeStart < static_cast<ET>(0)) {
       ceilLogDegreeStart = 0;
+    }
+    if (ceilLogDegreeEnd > static_cast<ET>(bin_offsets_.size()) - 2) {
+      ceilLogDegreeEnd = bin_offsets_.size() - 2;
     }
     return DegreeBucket<VT, ET>{
       vertex_id_begin_ + bin_offsets_[ceilLogDegreeStart + 1],
@@ -55,10 +58,6 @@ class LogDistribution
       ceilLogDegreeStart, ceilLogDegreeEnd};
   }
 
-  DegreeBucket<VT, ET> degreeRange(
-      ET ceilLogDegreeStart) {
-    return degreeRange(ceilLogDegreeStart, bin_offsets_.size() - 1);
-  }
 };
 
 template <typename VT, typename ET>

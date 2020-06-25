@@ -58,11 +58,13 @@ void large_vertex_worker(
   GraphCSRDeviceView<VT, ET, WT> graph_device_view(graph);
   int block_size = 32;
   int block_count = 1024;
-  kernel_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
-      graph_device_view,
-      bucket.vertexIds,
-      bucket.numberOfVertices,
-      op);
+  if (bucket.numberOfVertices != 0) {
+    kernel_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
+        graph_device_view,
+        bucket.vertexIds,
+        bucket.numberOfVertices,
+        op);
+  }
 }
 
 template <typename VT, typename ET, typename WT, typename Operator>
@@ -94,11 +96,13 @@ void medium_vertex_worker(
   GraphCSRDeviceView<VT, ET, WT> graph_device_view(graph);
   int block_size = 1024;
   int block_count = bucket.numberOfVertices;
-  block_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
-      graph_device_view,
-      bucket.vertexIds,
-      bucket.numberOfVertices,
-      op);
+  if (block_count != 0) {
+    block_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
+        graph_device_view,
+        bucket.vertexIds,
+        bucket.numberOfVertices,
+        op);
+  }
 }
 
 template <typename VT, typename ET, typename WT, typename Operator>
@@ -114,11 +118,13 @@ void small_vertex_worker(
   else if (bucket.ceilLogDegreeEnd < 10)  { block_size = 128; }
   else if (bucket.ceilLogDegreeEnd < 12)  { block_size = 512; }
   int block_count = bucket.numberOfVertices;
-  block_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
-      graph_device_view,
-      bucket.vertexIds,
-      bucket.numberOfVertices,
-      op);
+  if (block_count != 0) {
+    block_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
+        graph_device_view,
+        bucket.vertexIds,
+        bucket.numberOfVertices,
+        op);
+  }
 }
 
 }//namespace opg
