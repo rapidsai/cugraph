@@ -43,7 +43,7 @@ def calc_core_number(graph_file):
     nc = nx.core_number(Gnx)
     pdf = [nc[k] for k in sorted(nc.keys())]
     cn['nx_core_number'] = pdf
-    cn = cn.rename({'core_number': 'cu_core_number'})
+    cn = cn.rename(columns={'core_number': 'cu_core_number'}, copy=False)
     return cn
 
 
