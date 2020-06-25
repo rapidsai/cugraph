@@ -248,6 +248,7 @@ void analyzeBalancedCut_impl(experimental::GraphCSRView<vertex_t, edge_t, weight
                              weight_t *edgeCut,
                              weight_t *ratioCut)
 {
+#ifdef OLD_NVGRAPH_CODE
   CUGRAPH_EXPECTS(n_clusters <= graph.number_of_vertices,
                   "API error: number of clusters must be <= number of vertices");
   CUGRAPH_EXPECTS(n_clusters > 0, "API error: number of clusters must be > 0)");
@@ -258,6 +259,31 @@ void analyzeBalancedCut_impl(experimental::GraphCSRView<vertex_t, edge_t, weight
 
   *edgeCut  = edge_cut;
   *ratioCut = ratio_cut;
+#else
+  raft::handle_t handle;
+  auto stream  = handle.get_stream();
+  auto exec    = rmm::exec_policy(stream);
+  auto t_exe_p = exec->on(stream);
+
+  RAFT_EXPECTS(n_clusters <= graph.number_of_vertices,
+               "API error: number of clusters must be <= number of vertices");
+  RAFT_EXPECTS(n_clusters > 0, "API error: number of clusters must be > 0)");
+
+  weight_t edge_cut;
+  weight_t cost{0};
+
+  raft::matrix::GraphCSRView<vertex_t, edge_t, weight_t> const r_graph{
+    graph.offsets, graph.indices, graph.edge_data, graph.number_of_vertices, graph.number_of_edges};
+
+  using index_type = vertex_t;
+  using value_type = weight_t;
+
+  raft::spectral::analyzePartition(
+    handle, t_exe_p, r_graph, n_clusters, clustering, edge_cut, cost);
+
+  *edgeCut  = edge_cut;
+  *ratioCut = cost;
+#endif
 }
 
 }  // namespace detail
