@@ -103,7 +103,7 @@ $WORKSPACE/build.sh clean libcugraph cugraph
 
 logger "Downloading Datasets for Benchmarks..."
 cd $DATASETS_DIR
-bash ./get_test_data.sh --benchmarks
+bash ./get_test_data.sh --benchmark
 ERRORCODE=$((ERRORCODE | $?))
 # Exit if dataset download failed
 if (( ${ERRORCODE} != 0 )); then
