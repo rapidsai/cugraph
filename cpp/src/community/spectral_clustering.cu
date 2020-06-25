@@ -180,6 +180,7 @@ void spectralModularityMaximization_impl(
   weight_t *eig_vals,
   weight_t *eig_vects)
 {
+#ifdef OLD_NVGRAPH_CODE
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
   CUGRAPH_EXPECTS(evs_tolerance >= weight_t{0.0},
                   "API error, evs_tolerance must be between 0.0 and 1.0");
@@ -227,6 +228,72 @@ void spectralModularityMaximization_impl(
                                                                  eig_vects,
                                                                  iters_lanczos,
                                                                  iters_kmeans);
+#else
+  RAFT_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
+  RAFT_EXPECTS(evs_tolerance >= weight_t{0.0},
+               "API error, evs_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(evs_tolerance < weight_t{1.0},
+               "API error, evs_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(kmean_tolerance >= weight_t{0.0},
+               "API error, kmean_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(kmean_tolerance < weight_t{1.0},
+               "API error, kmean_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(n_clusters > 1, "API error, must specify more than 1 cluster");
+  RAFT_EXPECTS(n_clusters < graph.number_of_vertices,
+               "API error, number of clusters must be smaller than number of vertices");
+  RAFT_EXPECTS(n_eig_vects <= n_clusters,
+               "API error, cannot specify more eigenvectors than clusters");
+  RAFT_EXPECTS(clustering != nullptr, "API error, must specify valid clustering");
+  RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
+  RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
+
+  raft::handle_t handle;
+  auto stream  = handle.get_stream();
+  auto exec    = rmm::exec_policy(stream);
+  auto t_exe_p = exec->on(stream);
+
+  int evs_max_it{4000};
+  int kmean_max_it{200};
+  weight_t evs_tol{1.0E-3};
+  weight_t kmean_tol{1.0E-2};
+
+  if (evs_max_iter > 0) evs_max_it = evs_max_iter;
+
+  if (evs_tolerance > weight_t{0.0}) evs_tol = evs_tolerance;
+
+  if (kmean_max_iter > 0) kmean_max_it = kmean_max_iter;
+
+  if (kmean_tolerance > weight_t{0.0}) kmean_tol = kmean_tolerance;
+
+  int restartIter_lanczos = 15 + n_eig_vects;
+
+  unsigned long long seed{123456};
+  bool reorthog{false};
+
+  raft::matrix::GraphCSRView<vertex_t, edge_t, weight_t> const r_graph{
+    graph.offsets, graph.indices, graph.edge_data, graph.number_of_vertices, graph.number_of_edges};
+
+  using index_type = vertex_t;
+  using value_type = weight_t;
+
+  raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
+    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
+  raft::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
+
+  raft::cluster_solver_config_t<index_type, value_type> clust_cfg{
+    n_clusters, kmean_max_it, kmean_tol, seed};
+  raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
+
+  // not returned...
+  // auto result =
+  raft::spectral::modularity_maximization(
+    handle, t_exe_p, r_graph, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
+
+  // not returned...
+  // int iters_lanczos, iters_kmeans;
+  // iters_lanczos = std::get<0>(result);
+  // iters_kmeans  = std::get<2>(result);
+#endif
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
