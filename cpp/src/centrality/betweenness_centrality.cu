@@ -444,6 +444,7 @@ void distribute_data_get_number_of_edges(
   CUDA_TRY(cudaMemcpy(&number_of_edges, d_edges.data().get(), sizeof(ET), cudaMemcpyDeviceToHost));
 }
 
+// TODO(xcadet) Need to also transfer graph  properties
 template <typename VT, typename ET, typename WT, typename result_t>
 void distribute_data_get_graph_info(const raft::handle_t &handle,
                                     experimental::GraphCSRView<VT, ET, WT> const *original_graph,
@@ -457,19 +458,26 @@ void distribute_data_get_graph_info(const raft::handle_t &handle,
     handle, original_graph, number_of_vertices);
   distribute_data_get_number_of_edges<VT, ET, WT, result_t>(
     handle, original_graph, number_of_edges);
-  d_offsets_vec.resize(number_of_vertices + 1);
+  d_offsets_vec.resize(number_of_vertices +
+                       1);  // TODO(xcadet) Extraneous allocation on Main Worker
   d_indices_vec.resize(number_of_edges);
+  ET *d_offsets_dst = d_offsets_vec.data().get();
+  VT *d_indices_dst = d_indices_vec.data().get();
   if (original_graph) {  // TODO(xcadet) We may should be able to avoid copying?
+    d_offsets_dst = original_graph->offsets;
+    d_indices_dst = original_graph->indices;
+    /*
     thrust::copy(original_graph->offsets,
                  original_graph->offsets + d_offsets_vec.size(),
                  d_offsets_vec.begin());
     thrust::copy(original_graph->indices,
                  original_graph->indices + d_indices_vec.size(),
                  d_indices_vec.begin());
+                 */
   }
   // TODO(xcadet) Reactivate weights
-  handle.get_comms().bcast(d_offsets_vec.data().get(), d_offsets_vec.size(), 0, 0);
-  handle.get_comms().bcast(d_indices_vec.data().get(), d_indices_vec.size(), 0, 0);
+  handle.get_comms().bcast(d_offsets_dst, d_offsets_vec.size(), 0, 0);
+  handle.get_comms().bcast(d_indices_dst, d_indices_vec.size(), 0, 0);
   // TODO(xcadet) Reactivate
   // handle.get_comms().bcast(d_edges_data_vec.data().get(), d_edges_data_vec.size(), 0, 0);
 }
@@ -483,7 +491,7 @@ void setup(const raft::handle_t &handle,
   int rank      = handle.get_comms().get_rank();
   int device_id = handle.get_device();
   printf("[DBG][OPG] Rank(%d)\n", rank);
-  printf("[DBG][OPG] Graph is not Null(%d)\n", original_graph == nullptr);
+  printf("[DBG][OPG] Graph is Null(%d)\n", original_graph == nullptr);
 }
 void receive_output_destination() {}
 
@@ -503,6 +511,9 @@ void combine(const raft::handle_t &handle, result_t *src_result, result_t *dst_r
   handle.get_comms().reduce(src_result, dst_result, size, raft::comms::op_t::SUM, 0, 0);
 }
 }  // namespace opg
+#include <chrono>
+#include <ctime>
+#include <ratio>
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(const raft::handle_t &handle,
@@ -531,6 +542,7 @@ void betweenness_centrality(const raft::handle_t &handle,
     rmm::device_vector<ET> d_offsets_vec;
     rmm::device_vector<WT> d_edges_data_vec;
 
+    auto t1 = std::chrono::high_resolution_clock::now();
     opg::distribute_data_get_graph_info<VT, ET, WT, result_t>(handle,
                                                               graph,
                                                               number_of_vertices,
@@ -538,27 +550,39 @@ void betweenness_centrality(const raft::handle_t &handle,
                                                               d_indices_vec,
                                                               d_offsets_vec,
                                                               d_edges_data_vec);
-    experimental::GraphCSRView<VT, ET, WT> local_graph(
-      d_offsets_vec.data().get(),
-      d_indices_vec.data().get(),
-      nullptr,
-      number_of_vertices,
-      number_of_edges);  // TODO(xcadet) Re enable edge_data
-
+    auto t2                                 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time_span = t2 - t1;
+    printf("[PROF][DBG] time_span %lf\n", time_span.count());
     rmm::device_vector<result_t> betweenness(number_of_vertices, 0);
     // opg::get_batch();
-    detail::betweenness_centrality_impl(handle,
-                                        local_graph,
-                                        betweenness.data().get(),
-                                        normalize,
-                                        endpoints,
-                                        weight,
-                                        k,
-                                        vertices,
-                                        total_number_of_sources_used);
-    thrust::copy(
-      betweenness.begin(), betweenness.end(), std::ostream_iterator<result_t>(std::cout, ", "));
-    std::cout << std::endl;
+    if (graph) {
+      detail::betweenness_centrality_impl(handle,
+                                          *graph,
+                                          betweenness.data().get(),
+                                          normalize,
+                                          endpoints,
+                                          weight,
+                                          k,
+                                          vertices,
+                                          total_number_of_sources_used);
+
+    } else {
+      experimental::GraphCSRView<VT, ET, WT> local_graph(
+        d_offsets_vec.data().get(),
+        d_indices_vec.data().get(),
+        nullptr,
+        number_of_vertices,
+        number_of_edges);  // TODO(xcadet) Re enable edge_data
+      detail::betweenness_centrality_impl(handle,
+                                          local_graph,
+                                          betweenness.data().get(),
+                                          normalize,
+                                          endpoints,
+                                          weight,
+                                          k,
+                                          vertices,
+                                          total_number_of_sources_used);
+    }
     // opg::process();
     opg::combine<VT, result_t>(handle, betweenness.data().get(), result, number_of_vertices);
     int rank = handle.get_comms().get_rank();
