@@ -1,6 +1,7 @@
 # cuGraph 0.15.0 (Date TBD)
 
 ## New Features
+- PR #940 Add Batch OPG BC
 - PR #937 Add wrapper for gunrock HITS algorithm
 
 ## Improvements
