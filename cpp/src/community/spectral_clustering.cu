@@ -303,9 +303,23 @@ void analyzeModularityClustering_impl(
   vertex_t const *clustering,
   weight_t *modularity)
 {
+#ifdef OLD_NVGRAPH_CODE
   weight_t mod;
   ::nvgraph::analyzeModularity(graph, n_clusters, clustering, mod);
   *modularity = mod;
+#else
+  raft::handle_t handle;
+  auto stream  = handle.get_stream();
+  auto exec    = rmm::exec_policy(stream);
+  auto t_exe_p = exec->on(stream);
+
+  raft::matrix::GraphCSRView<vertex_t, edge_t, weight_t> const r_graph{
+    graph.offsets, graph.indices, graph.edge_data, graph.number_of_vertices, graph.number_of_edges};
+
+  weight_t mod;
+  raft::spectral::analyzeModularity(handle, t_exe_p, r_graph, n_clusters, clustering, mod);
+  *modularity = mod;
+#endif
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
