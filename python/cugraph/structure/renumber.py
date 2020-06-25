@@ -128,49 +128,41 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
         raise ValueError(
             'Source and Destination column lists are not the same size')
 
-    # ---------------------------------------------------
-    # get the source column names and map to indexes
-    _src_map = OrderedDict()
-    for i in range(len(source_cols_names)):
-        _src_map.update({source_cols_names[i]: str(i)})
+    tmp_df_src = cudf.DataFrame()
+    tmp_df_dst = cudf.DataFrame()
+    vals = []
 
-    _tmp_df_src = _df[source_cols_names].rename(_src_map).reset_index()
+    # ---------------------------------------------------
+    # Populate source df
+    for i in range(len(source_cols_names)):
+        nm = str(i)
+        tmp_df_src[nm] = _df[source_cols_names[i]]
+        vals.append(nm)
 
     # --------------------------------------------------------
-    # get the destination column names and map to indexes
-    _dst_map = OrderedDict()
+    # Populate dest df
     for i in range(len(dest_cols_names)):
-        _dst_map.update({dest_cols_names[i]: str(i)})
+        tmp_df_dst[str(i)] = _df[dest_cols_names[i]]
 
-    _tmp_df_dst = _df[dest_cols_names].rename(_dst_map).reset_index()
+    s = tmp_df_src.groupby(vals).count().reset_index()
+    d = tmp_df_dst.groupby(vals).count().reset_index()
 
-    _vals = list(_src_map.values())
+    new_df = cudf.DataFrame()
+    for i in vals:
+        new_df[i] = s[i].append(d[i])
 
-    # ------------------------------------
-    _s = _tmp_df_src.drop('index').drop_duplicates()
-    _d = _tmp_df_dst.drop('index').drop_duplicates()
+    tmp = new_df.groupby(vals).count().reset_index()
 
-    _tmp_df = cudf.concat([_s, _d])
-    _tmp_df = _tmp_df.drop_duplicates().reset_index().drop('index')
+    numbering_map = cudf.DataFrame()
+    for i in vals:
+        numbering_map[i] = tmp[i]
 
-    if len(_tmp_df) > np.iinfo(np.int32).max:
-        raise ValueError('dataset is larger than int32')
+    numbering_map['id'] = numbering_map.index.astype(np.int32)
 
-    _tmp_df['id'] = _tmp_df.index.astype(np.int32)
+    tmp_df_src['index'] = tmp_df_src.index
+    tmp_df_dst['index'] = tmp_df_dst.index
 
-    del _s
-    del _d
+    src = tmp_df_src.merge(numbering_map, on=vals, how='left').sort_values('index').drop('index').reset_index() #['id']
+    dst = tmp_df_dst.merge(numbering_map, on=vals, how='left').sort_values('index').drop('index').reset_index() #['id']
 
-    _src_ids = _tmp_df_src.merge(
-        _tmp_df, on=_vals, how='left').drop(_vals).sort_values(by='index')
-
-    _dst_ids = _tmp_df_dst.merge(
-        _tmp_df, on=_vals, how='left').drop(_vals).sort_values(by='index')
-
-    _s_id = cudf.Series(_src_ids['id']).reset_index(drop=True)
-    _d_id = cudf.Series(_dst_ids['id']).reset_index(drop=True)
-
-    del _src_ids
-    del _dst_ids
-
-    return _s_id, _d_id, _tmp_df
+    return src['id'], dst['id'], numbering_map

@@ -20,7 +20,6 @@ from cugraph.centrality.betweenness_centrality cimport edge_betweenness_centrali
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph import DiGraph, Graph
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 import cudf
@@ -109,8 +108,11 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
     # Same as Betweenness Centrality unrenumber resuls might be organized
     # in buckets
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'src')
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
+        # FIXME: multi-column vertex support
+        src = input_graph.edgelist.renumber_map.from_vertex_id(df['src'])
+        dst = input_graph.edgelist.renumber_map.from_vertex_id(df['dst'])
+        df['src'] = src['0']
+        df['dst'] = dst['0']
 
     if type(input_graph) is Graph:
         lower_triangle = df['src'] >= df['dst']

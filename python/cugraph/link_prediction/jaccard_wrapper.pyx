@@ -19,7 +19,6 @@
 from cugraph.link_prediction.jaccard cimport jaccard as c_jaccard
 from cugraph.link_prediction.jaccard cimport jaccard_list as c_jaccard_list
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
 from cugraph.structure import graph_new_wrapper
 from libc.stdint cimport uintptr_t
 from cython cimport floating
@@ -84,25 +83,15 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
         df = cudf.DataFrame()
         df['jaccard_coeff'] = result
 
-        if input_graph.renumbered is True:
-            # FIXME: multi column support
-            df['source'] = vertex_pair['first']
-            df['destination'] = vertex_pair['second']
+        cols = vertex_pair.columns.to_list()
+        first = vertex_pair[cols[0]].astype(np.int32)
+        second = vertex_pair[cols[1]].astype(np.int32)
 
-            first = input_graph.edgelist.renumber_map.to_vertex_id(vertex_pair, ['first'])
-            second = input_graph.edgelist.renumber_map.to_vertex_id(vertex_pair, ['second'])
-            c_first_col = first.__cuda_array_interface__['data'][0]
-            c_second_col = second.__cuda_array_interface__['data'][0]
-        else:
-            cols = vertex_pair.columns.to_list()
-            first = vertex_pair[cols[0]].astype(np.int32)
-            second = vertex_pair[cols[1]].astype(np.int32)
-            # FIXME: multi column support
-            df['source'] = first
-            df['destination'] = second
-            c_first_col = first.__cuda_array_interface__['data'][0]
-            c_second_col = second.__cuda_array_interface__['data'][0]
-
+        # FIXME: multi column support
+        df['source'] = first
+        df['destination'] = second
+        c_first_col = first.__cuda_array_interface__['data'][0]
+        c_second_col = second.__cuda_array_interface__['data'][0]
 
         if weight_type == np.float32:
             graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
@@ -165,11 +154,4 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
 
             graph_double.get_source_indices(<int*>c_src_index_col)
             
-        if input_graph.renumbered:
-            tmp_src = input_graph.edgelist.renumber_map.from_vertex_id(df['source'])
-            tmp_dst = input_graph.edgelist.renumber_map.from_vertex_id(df['destination'])
-            # FIXME: multi column support
-            df['source'] = tmp_src['0']
-            df['destination'] = tmp_dst['0']
-
         return df

@@ -66,9 +66,4 @@ def hits(input_graph, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
                           normalized, <float*>c_hubs, <float*>c_authorities);
     graph_float.get_vertex_identifiers(<int*>c_identifier)
 
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
-
     return df

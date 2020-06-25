@@ -19,7 +19,6 @@
 #cimport cugraph.link_analysis.pagerank as c_pagerank
 from cugraph.link_analysis.pagerank cimport pagerank as c_pagerank
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_new_wrapper
@@ -51,13 +50,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     if nstart is not None:
         if len(nstart) != num_verts:
             raise ValueError('nstart must have initial guess for all vertices')
-        if input_graph.renumbered is True:
-            # FIXME: Support multi-column vertices
-            guess = nstart
-            guess['id'] = input_graph.edgelist.renumber_map.to_vertex_id(nstart, ['vertex'])
-            df['pagerank'][guess['id']] = guess['values']
-        else:
-            df['pagerank'][nstart['vertex']] = nstart['values']
+        df['pagerank'][nstart['vertex']] = nstart['values']
         has_guess = <bool> 1
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
@@ -83,14 +76,8 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         sz = personalization['vertex'].shape[0]
         personalization['vertex'] = personalization['vertex'].astype(np.int32)
         personalization['values'] = personalization['values'].astype(df['pagerank'].dtype)
-
+        c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
-
-        if input_graph.renumbered is True:
-            personalization_id_series = input_graph.edgelist.renumber_map.to_vertex_id(personalization, ['vertex'])
-            c_pers_vtx = personalization_id_series.__cuda_array_interface__['data'][0]
-        else:
-            c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
     
     if (df['pagerank'].dtype == np.float32): 
         graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
@@ -103,10 +90,5 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         c_pagerank[int,int,double](graph_double.handle[0], graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, has_guess)
         graph_double.get_vertex_identifiers(<int*>c_identifier)
-
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
 
     return df

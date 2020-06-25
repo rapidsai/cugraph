@@ -13,6 +13,7 @@
 
 import random
 import numpy as np
+import cudf
 from cugraph.centrality import betweenness_centrality_wrapper
 from cugraph.centrality import edge_betweenness_centrality_wrapper
 
@@ -250,8 +251,7 @@ def _initialize_vertices_from_identifiers_list(G, identifiers):
     # FIXME: There might be a cleaner way to obtain the inverse mapping
     vertices = identifiers
     if G.renumbered:
-        vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map ==
-                                            vert].index[0] for vert in
-                    vertices]
+        vertices = G.edgelist.renumber_map.to_vertex_id(cudf.Series(vertices)).to_array()
+
     k = len(vertices)
     return vertices, k

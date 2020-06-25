@@ -71,23 +71,14 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
         df = cudf.DataFrame()
         df['overlap_coeff'] = result
         
-        if input_graph.renumbered is True:
-            # FIXME: multi column support
-            df['source'] = vertex_pair['first']
-            df['destination'] = vertex_pair['second']
+        first = vertex_pair['first']
+        second = vertex_pair['second']
 
-            first = input_graph.edgelist.renumber_map.to_vertex_id(vertex_pair, ['first'])
-            second = input_graph.edgelist.renumber_map.to_vertex_id(vertex_pair, ['second'])
-            c_first_col = first.__cuda_array_interface__['data'][0]
-            c_second_col = second.__cuda_array_interface__['data'][0]
-        else:
-            first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
-            second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
-            # FIXME: multi column support
-            df['source'] = first
-            df['destination'] = second
-            c_first_col = first.__cuda_array_interface__['data'][0]
-            c_second_col = second.__cuda_array_interface__['data'][0]
+        # FIXME: multi column support
+        df['source'] = first
+        df['destination'] = second
+        c_first_col = first.__cuda_array_interface__['data'][0]
+        c_second_col = second.__cuda_array_interface__['data'][0]
 
         if weight_type == np.float32:
             graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
@@ -150,11 +141,4 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
 
             graph_double.get_source_indices(<int*>c_src_index_col)
             
-        if input_graph.renumbered:
-            tmp_src = input_graph.edgelist.renumber_map.from_vertex_id(df['source'])
-            tmp_dst = input_graph.edgelist.renumber_map.from_vertex_id(df['destination'])
-            # FIXME: multi column support
-            df['source'] = tmp_src['0']
-            df['destination'] = tmp_dst['0']
-
         return df

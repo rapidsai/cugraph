@@ -94,6 +94,12 @@ def pagerank(G,
     if personalization is not None:
         null_check(personalization['vertex'])
         null_check(personalization['values'])
+        if G.renumbered is True:
+            personalization['vertex'] = G.edgelist.renumber_map.to_vertex_id(personalization['vertex'])
+
+    if nstart is not None:
+        if G.renumbered is True:
+            nstart['vertex'] = G.edgelist.renumber_map.to_vertex_id(nstart['vertex'])
 
     df = pagerank_wrapper.pagerank(G,
                                    alpha,
@@ -101,5 +107,15 @@ def pagerank(G,
                                    max_iter,
                                    tol,
                                    nstart)
+
+    if G.renumbered:
+        # FIXME: multi-column vertex support
+        tmp = G.edgelist.renumber_map.from_vertex_id(df['vertex'])
+        if len(tmp.columns) == 1:
+            df['vertex'] = tmp['0']
+        else:
+            df = df.drop('vertex')
+            for col in tmp.columns:
+                df[col] = tmp[col]
 
     return df

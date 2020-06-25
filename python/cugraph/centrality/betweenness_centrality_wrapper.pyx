@@ -20,7 +20,6 @@ from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph import DiGraph
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 import cudf
@@ -109,6 +108,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
     # 8192 ...
     # Instead of having  the sources in ascending order
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        # FIXME: multi-column vertex support
+        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
+        df['vertex'] = tmp['0']
 
     return df

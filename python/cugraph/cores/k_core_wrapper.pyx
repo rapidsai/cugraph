@@ -54,7 +54,6 @@ def k_core(input_graph, k, core_number):
     """
     Call k_core
     """
-
     if graph_new_wrapper.weight_type(input_graph) == np.float64:
         return k_core_double(input_graph, k, core_number)
     else:

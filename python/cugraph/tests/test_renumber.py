@@ -20,7 +20,13 @@ import pytest
 
 import cudf
 import cugraph
+from cugraph.structure.number_map import NumberMap
 from cugraph.tests import utils
+
+from dask.distributed import Client, wait
+from dask_cuda import LocalCUDACluster
+import dask_cudf
+import dask
 
 
 def test_renumber_ips():
@@ -44,12 +50,16 @@ def test_renumber_ips():
     gdf['source_as_int'] = gdf['source_list'].str.ip2int()
     gdf['dest_as_int'] = gdf['dest_list'].str.ip2int()
 
-    src, dst, numbering = cugraph.renumber(gdf['source_as_int'],
-                                           gdf['dest_as_int'])
+    numbering = NumberMap()
+    numbering.from_series(gdf['source_as_int'], gdf['dest_as_int'])
+    src = numbering.to_vertex_id(gdf['source_as_int'])
+    dst = numbering.to_vertex_id(gdf['dest_as_int'])
 
-    for i in range(len(gdf)):
-        assert numbering[src[i]] == gdf['source_as_int'][i]
-        assert numbering[dst[i]] == gdf['dest_as_int'][i]
+    check_src = numbering.from_vertex_id(src)['0']
+    check_dst = numbering.from_vertex_id(dst)['0']
+
+    assert check_src.equals(gdf['source_as_int'])
+    assert check_dst.equals(gdf['dest_as_int'])
 
 
 def test_renumber_ips_cols():
@@ -73,12 +83,16 @@ def test_renumber_ips_cols():
     gdf['source_as_int'] = gdf['source_list'].str.ip2int()
     gdf['dest_as_int'] = gdf['dest_list'].str.ip2int()
 
-    src, dst, number_df = cugraph.renumber_from_cudf(
-        gdf, ['source_as_int'], ['dest_as_int'])
+    numbering = NumberMap()
+    numbering.from_dataframe(gdf, ['source_as_int'], ['dest_as_int'])
+    src = numbering.to_vertex_id(gdf['source_as_int'])
+    dst = numbering.to_vertex_id(gdf['dest_as_int'])
 
-    for i in range(len(gdf)):
-        assert number_df['0'][src[i]] == gdf['source_as_int'][i]
-        assert number_df['0'][dst[i]] == gdf['dest_as_int'][i]
+    check_src = numbering.from_vertex_id(src)['0']
+    check_dst = numbering.from_vertex_id(dst)['0']
+
+    assert check_src.equals(gdf['source_as_int'])
+    assert check_dst.equals(gdf['dest_as_int'])
 
 
 @pytest.mark.skip(reason='temporarily dropped string support')
@@ -100,12 +114,16 @@ def test_renumber_ips_str_cols():
 
     gdf = cudf.from_pandas(pdf)
 
-    src, dst, number_df = cugraph.renumber_from_cudf(
-        gdf, ['source_list'], ['dest_list'])
+    numbering = NumberMap()
+    numbering.from_dataframe(gdf, ['source_list'], ['dest_list'])
+    src = numbering.to_vertex_id(gdf['source_list'])
+    dst = numbering.to_vertex_id(gdf['dest_list'])
 
-    for i in range(len(gdf)):
-        assert number_df['0'][src[i]] == gdf['source_list'][i]
-        assert number_df['0'][dst[i]] == gdf['dest_list'][i]
+    check_src = numbering.from_vertex_id(src)['0']
+    check_dst = numbering.from_vertex_id(dst)['0']
+
+    assert check_src.equals(gdf['source_list'])
+    assert check_dst.equals(gdf['dest_list'])
 
 
 def test_renumber_negative():
@@ -119,12 +137,16 @@ def test_renumber_negative():
 
     gdf = cudf.DataFrame.from_pandas(df[['source_list', 'dest_list']])
 
-    src, dst, numbering = cugraph.renumber(gdf['source_list'],
-                                           gdf['dest_list'])
+    numbering = NumberMap()
+    numbering.from_dataframe(gdf, ['source_list'], ['dest_list'])
+    src = numbering.to_vertex_id(gdf['source_list'])
+    dst = numbering.to_vertex_id(gdf['dest_list'])
 
-    for i in range(len(source_list)):
-        assert source_list[i] == numbering[src[i]]
-        assert dest_list[i] == numbering[dst[i]]
+    check_src = numbering.from_vertex_id(src)['0']
+    check_dst = numbering.from_vertex_id(dst)['0']
+
+    assert check_src.equals(gdf['source_list'])
+    assert check_dst.equals(gdf['dest_list'])
 
 
 def test_renumber_negative_col():
@@ -138,12 +160,16 @@ def test_renumber_negative_col():
 
     gdf = cudf.DataFrame.from_pandas(df[['source_list', 'dest_list']])
 
-    src, dst, numbering = cugraph.renumber_from_cudf(
-        gdf, ['source_list'], ['dest_list'])
+    numbering = NumberMap()
+    numbering.from_dataframe(gdf, ['source_list'], ['dest_list'])
+    src = numbering.to_vertex_id(gdf['source_list'])
+    dst = numbering.to_vertex_id(gdf['dest_list'])
 
-    for i in range(len(source_list)):
-        assert source_list[i] == numbering['0'][src[i]]
-        assert dest_list[i] == numbering['0'][dst[i]]
+    check_src = numbering.from_vertex_id(src)['0']
+    check_dst = numbering.from_vertex_id(dst)['0']
+
+    assert check_src.equals(gdf['source_list'])
+    assert check_dst.equals(gdf['dest_list'])
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -161,11 +187,16 @@ def test_renumber_files(graph_file):
     source_translated = cudf.Series([x + translate for x in sources])
     dest_translated = cudf.Series([x + translate for x in destinations])
 
-    src, dst, numbering = cugraph.renumber(source_translated, dest_translated)
+    numbering = NumberMap()
+    numbering.from_series(source_translated, dest_translated)
+    src = numbering.to_vertex_id(source_translated)
+    dst = numbering.to_vertex_id(dest_translated)
 
-    for i in range(len(sources)):
-        assert sources[i] == (numbering[src[i]] - translate)
-        assert destinations[i] == (numbering[dst[i]] - translate)
+    check_src = numbering.from_vertex_id(src)['0']
+    check_dst = numbering.from_vertex_id(dst)['0']
+
+    assert check_src.equals(source_translated)
+    assert check_dst.equals(dest_translated)
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -183,11 +214,16 @@ def test_renumber_files_col(graph_file):
     gdf['src'] = cudf.Series([x + translate for x in sources])
     gdf['dst'] = cudf.Series([x + translate for x in destinations])
 
-    src, dst, numbering = cugraph.renumber_from_cudf(gdf, ['src'], ['dst'])
+    numbering = NumberMap()
+    numbering.from_dataframe(gdf, ['src'], ['dst'])
+    src = numbering.to_vertex_id(gdf['src'])
+    dst = numbering.to_vertex_id(gdf['dst'])
 
-    for i in range(len(gdf)):
-        assert sources[i] == (numbering['0'].iloc[src[i]] - translate)
-        assert destinations[i] == (numbering['0'].iloc[dst[i]] - translate)
+    check_src = numbering.from_vertex_id(src)['0']
+    check_dst = numbering.from_vertex_id(dst)['0']
+
+    assert check_src.equals(gdf['src'])
+    assert check_dst.equals(gdf['dst'])
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
@@ -207,9 +243,57 @@ def test_renumber_files_multi_col(graph_file):
     gdf['src'] = sources + translate
     gdf['dst'] = destinations + translate
 
-    src, dst, numbering = cugraph.renumber_from_cudf(
-        gdf, ['src', 'src_old'], ['dst', 'dst_old'])
+    numbering = NumberMap()
+    numbering.from_dataframe(gdf, ['src', 'src_old'], ['dst', 'dst_old'])
+    src = numbering.to_vertex_id(gdf, ['src', 'src_old'])
+    dst = numbering.to_vertex_id(gdf, ['dst', 'dst_old'])
+
+    check_src = numbering.from_vertex_id(src)
+    check_dst = numbering.from_vertex_id(dst)
+
+    assert check_src['0'].equals(gdf['src'])
+    assert check_src['1'].equals(gdf['src_old'])
+    assert check_dst['0'].equals(gdf['dst'])
+    assert check_dst['1'].equals(gdf['dst_old'])
+
+        
+@pytest.fixture()
+def client_setup():
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    client
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_opg_renumber(graph_file, client_setup):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    sources = cudf.Series(M['0'])
+    destinations = cudf.Series(M['1'])
+
+    translate = 1000
+
+    gdf = cudf.DataFrame()
+    gdf['src_old'] = sources
+    gdf['dst_old'] = destinations
+    gdf['src'] = sources + translate
+    gdf['dst'] = destinations + translate
+
+    #ddf = dask_cudf.dataframe.from_pandas(gdf, npartitions=2)
+    ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
+
+    numbering = NumberMap()
+    numbering.from_dataframe(ddf, ['src', 'src_old'], ['dst', 'dst_old'])
+    src = numbering.to_vertex_id(ddf, ['src', 'src_old'])
+    dst = numbering.to_vertex_id(ddf, ['dst', 'dst_old'])
+
+    check_src = numbering.from_vertex_id(src)
+    check_dst = numbering.from_vertex_id(dst)
 
     for i in range(len(gdf)):
-        assert sources[i] == (numbering['0'].iloc[src[i]] - translate)
-        assert destinations[i] == (numbering['0'].iloc[dst[i]] - translate)
+        assert check_src['0'][i] == ddf['src'][i]
+        assert check_src['1'][i] == ddf['src_old'][i]
+        assert check_dst['0'][i] == ddf['dst'][i]
+        assert check_dst['1'][i] == ddf['dst_old'][i]

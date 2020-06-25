@@ -74,6 +74,10 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     if (type(vertex_pair) == cudf.DataFrame):
         null_check(vertex_pair[vertex_pair.columns[0]])
         null_check(vertex_pair[vertex_pair.columns[1]])
+
+        for col in vertex_pair.columns:
+            vertex_pair[col] = input_graph.edgelist.renumber_map.to_vertex_id(vertex_pair[col])
+
     elif vertex_pair is None:
         pass
     else:
@@ -81,5 +85,12 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
 
     df = jaccard_wrapper.jaccard(input_graph,
                                  weights, vertex_pair)
+
+    if input_graph.renumbered:
+        tmp_src = input_graph.edgelist.renumber_map.from_vertex_id(df['source'])
+        tmp_dst = input_graph.edgelist.renumber_map.from_vertex_id(df['destination'])
+        # FIXME: multi column support
+        df['source'] = tmp_src['0']
+        df['destination'] = tmp_dst['0']
 
     return df

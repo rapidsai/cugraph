@@ -23,7 +23,6 @@ from cugraph.structure import graph_new_wrapper
 from libc.stdint cimport uintptr_t
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.graph import Graph as type_Graph
-from cugraph.utilities.unrenumber import unrenumber
 
 import cudf
 import numpy as np
@@ -75,7 +74,9 @@ def weakly_connected_components(input_graph):
     g.get_vertex_identifiers(<int*>c_identifier)
 
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
+        # FIXME: multi-column vertex support
+        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertices'])
+        df['vertices'] = tmp['0']
 
     return df
 
@@ -111,6 +112,8 @@ def strongly_connected_components(input_graph):
     g.get_vertex_identifiers(<int*>c_identifier)
 
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
+        # FIXME: multi-column vertex support
+        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertices'])
+        df['vertices'] = tmp['0']
 
     return df

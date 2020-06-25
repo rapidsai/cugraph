@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.cores import core_number_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 
 
 def core_number(G):
@@ -54,6 +53,8 @@ def core_number(G):
     df = core_number_wrapper.core_number(G)
 
     if G.renumbered:
-        df = unrenumber(G.edgelist.renumber_map, df, 'vertex')
+        # FIXME: multi-column vertex support
+        tmp = G.edgelist.renumber_map.from_vertex_id(df['vertex'])
+        df['vertex'] = tmp['0']
 
     return df

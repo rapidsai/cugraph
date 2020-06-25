@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.community import ktruss_subgraph_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from cugraph.structure.graph import Graph
 
 
@@ -83,8 +82,11 @@ def ktruss_subgraph(G, k, use_weights=True):
 
     subgraph_df = ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights)
     if G.renumbered:
-        subgraph_df = unrenumber(G.edgelist.renumber_map, subgraph_df, 'src')
-        subgraph_df = unrenumber(G.edgelist.renumber_map, subgraph_df, 'dst')
+        # FIXME: multi-column vertex support
+        src = G.edgelist.renumber_map.from_vertex_id(subgraph_df['src'])
+        dst = G.edgelist.renumber_map.from_vertex_id(subgraph_df['dst'])
+        subgraph_df['src'] = src['0']
+        subgraph_df['dst'] = dst['0']
 
     if G.edgelist.weights:
         KTrussSubgraph.from_cudf_edgelist(subgraph_df,

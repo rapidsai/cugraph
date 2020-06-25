@@ -53,7 +53,8 @@ def calc_k_cores(graph_file, directed=True):
 
 def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
-    src, dest = edgelist_df['src'], edgelist_df['dst'],
+    src, dest = edgelist_df['src'], edgelist_df['dst']
+
     assert cg.edgelist.weights is False
     assert len(src) == nxg.size()
     for i in range(len(src)):

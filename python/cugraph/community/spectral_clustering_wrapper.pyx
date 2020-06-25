@@ -23,7 +23,6 @@ from cugraph.community.spectral_clustering cimport analyzeClustering_edge_cut as
 from cugraph.community.spectral_clustering cimport analyzeClustering_ratio_cut as c_analyze_clustering_ratio_cut
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
@@ -103,7 +102,9 @@ def spectralBalancedCutClustering(input_graph,
                                   <int*>c_cluster)
 
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        # FIXME: multi-column vertex support
+        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
+        df['vertex'] = tmp['0']
 
     return df
 
@@ -174,7 +175,9 @@ def spectralModularityMaximizationClustering(input_graph,
                                            <int*>c_cluster)
 
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        # FIXME: multi-column vertex support
+        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
+        df['vertex'] = tmp['0']
 
     return df
 

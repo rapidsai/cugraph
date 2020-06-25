@@ -19,7 +19,6 @@
 from cugraph.community.louvain cimport louvain as c_louvain
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -90,6 +89,8 @@ def louvain(input_graph, max_iter=100):
         final_modularity = final_modularity_double
 
     if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+        # FIXME: multi-column vertex support
+        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
+        df['vertex'] = tmp['0']
 
     return df, final_modularity

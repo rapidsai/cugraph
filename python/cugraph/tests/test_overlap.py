@@ -78,7 +78,6 @@ def cpu_call(M, first, second):
     result = []
     for i in range(len(first)):
         result.append(overlap(first[i], second[i], M))
-    print(result)
     return result
 
 

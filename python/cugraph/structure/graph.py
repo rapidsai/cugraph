@@ -184,11 +184,12 @@ class Graph:
             renumber_map = NumberMap()
             if type(source) is list:
                 renumber_map.from_dataframe(input_df, source, destination)
+                source_col = renumber_map.to_vertex_id(input_df, source)
+                dest_col = renumber_map.to_vertex_id(input_df, destination)
             else:
                 renumber_map.from_dataframe(input_df, [source], [destination])
-
-            source_col = renumber_map.to_vertex_id(input_df, [source])
-            dest_col = renumber_map.to_vertex_id(input_df, [destination])
+                source_col = renumber_map.to_vertex_id(input_df, [source])
+                dest_col = renumber_map.to_vertex_id(input_df, [destination])
 
             self.renumbered = True
         else:
@@ -273,19 +274,17 @@ class Graph:
             src_df = self.edgelist.renumber_map.from_vertex_id(edgelist_df['src'])
             dst_df = self.edgelist.renumber_map.from_vertex_id(edgelist_df['dst'])
 
-            df = cudf.DataFrame()
-
             if len(src_df.columns) == 1:
-                df["src"] = src_df["0"]
-                df["dst"] = dst_df["0"]
+                edgelist_df["src"] = src_df["0"]
+                edgelist_df["dst"] = dst_df["0"]
             else:
                 for c in src_df.columns:
-                    df[c + "_src"] = src_df[c]
+                    edgelist_df[c + "_src"] = src_df[c]
 
                 for c in dst_df.columns:
-                    df[c + "_dst"] = dst_df[c]
+                    edgelist_df[c + "_dst"] = dst_df[c]
 
-            return df
+            return edgelist_df
         else:
             return edgelist_df
 

@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
+
 from cugraph.traversal import bfs_wrapper
 from cugraph.structure.graph import Graph
 
@@ -59,6 +61,15 @@ def bfs(G, start, return_sp_counter=False):
     else:
         directed = True
 
+    if G.renumbered is True:
+        start = source = G.edgelist.renumber_map.to_vertex_id(cudf.Series([start]))[0]
+
     df = bfs_wrapper.bfs(G, start, directed, return_sp_counter)
 
+    if G.renumbered:
+        # FIXME: multi-column vertex support
+        tmp = G.edgelist.renumber_map.from_vertex_id(df['vertex'])
+        df['vertex'] = tmp['0']
+        df['predecessor'][df['predecessor'] > -1] = G.edgelist.renumber_map.\
+                                                    from_vertex_id(df['predecessor'][df['predecessor'] >- 1])['0']
     return df

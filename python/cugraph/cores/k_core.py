@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.cores import k_core_wrapper, core_number_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 
 import cudf
 import numpy as np
@@ -67,13 +66,7 @@ def k_core(G,
 
     if core_number is not None:
         if G.renumbered is True:
-            renumber_df = cudf.DataFrame()
-            renumber_df['map'] = G.edgelist.renumber_map
-            renumber_df['id'] = G.edgelist.renumber_map.index.astype(np.int32)
-            core_number = core_number.merge(renumber_df,
-                                            left_on='vertex',
-                                            right_on='map',
-                                            how='left').drop('map')
+            core_number['vertex'] = G.edgelist.renumber_map.to_vertex_id(core_number['vertex'])
     else:
         core_number = core_number_wrapper.core_number(G)
         core_number = core_number.rename(columns={"core_number": "values"})
@@ -84,8 +77,11 @@ def k_core(G,
     k_core_df = k_core_wrapper.k_core(G, k, core_number)
 
     if G.renumbered:
-        k_core_df = unrenumber(G.edgelist.renumber_map, k_core_df, 'src')
-        k_core_df = unrenumber(G.edgelist.renumber_map, k_core_df, 'dst')
+        # FIXME: multi-column vertex support
+        src = G.edgelist.renumber_map.from_vertex_id(k_core_df['src'])
+        dst = G.edgelist.renumber_map.from_vertex_id(k_core_df['dst'])
+        k_core_df['src'] = src['0']
+        k_core_df['dst'] = dst['0']
 
     if G.edgelist.weights:
         KCoreGraph.from_cudf_edgelist(k_core_df,

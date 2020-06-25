@@ -13,6 +13,7 @@
 
 from cugraph.traversal import sssp_wrapper
 import numpy as np
+import cudf
 
 
 def sssp(G, source):
@@ -52,7 +53,25 @@ def sssp(G, source):
     >>> distances = cugraph.sssp(G, 0)
     """
 
+    if G.renumbered is True:
+        source = G.edgelist.renumber_map.to_vertex_id(cudf.Series([source]))[0]
+
     df = sssp_wrapper.sssp(G, source)
+
+    if G.renumbered:
+        # FIXME: multi-column vertex support
+        tmp = G.edgelist.renumber_map.from_vertex_id(df['vertex'])
+        df['vertex'] = tmp['0']
+        df['predecessor'][df['predecessor'] > -1] = G.edgelist.renumber_map.\
+                                                    from_vertex_id(df['predecessor'][df['predecessor'] >- 1])['0']
+
+        #if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame): # Multicolumns renumbering
+        #    n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
+        #    unrenumbered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
+        #    unrenumbered_df = unrenumbered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
+        #    unrenumbered_df.columns = ['distance'] + ['vertex_' + str(i) for i in range(n_cols)] + ['predecessor_' + str(i) for i in range(n_cols)]
+        #    cols = unrenumbered_df.columns.to_list()
+        #    df = unrenumbered_df[cols[1:n_cols + 1] + [cols[0]] + cols[n_cols:]]
 
     return df
 
@@ -84,4 +103,4 @@ def filter_unreachable(df):
         max_val = np.finfo(df['distance'].dtype).max
         return df[df.distance != max_val]
     else:
-        raise TypeError("distace type unsupported")
+        raise TypeError("distance type unsupported")

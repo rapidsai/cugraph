@@ -121,7 +121,7 @@ class NumberMap:
 
         self.implementation.compute()
 
-    def from_cudf_series(self, src_series, dst_series=None):
+    def from_series(self, src_series, dst_series=None):
         """
         Populate the numbering map with vertices from the specified
         pair of series objects, one for the source and one for
@@ -153,7 +153,7 @@ class NumberMap:
         else:
             raise Exception('src_series must be cudf.Series or dask_cudf.Series')
 
-        if dst_seris is not None:
+        if dst_series is not None:
             df['d'] = dst_series
             self.implementation.append(df, ['d'])
 
@@ -165,11 +165,11 @@ class NumberMap:
 
         Parameters
         ----------
-        df: cudf.DataFrame or dask_cudf.DataFrame
+        df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
             Contains a list of external vertex identifiers that will be
             converted into internal vertex identifiers
 
-        col_names: list of strings
+        col_names: (optional) list of strings
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier
@@ -181,18 +181,20 @@ class NumberMap:
 
         """
         tmp_df = None
+        tmp_colnames = None
         if type(df) is cudf.Series:
             tmp_df = cudf.DataFrame()
             tmp_df['0'] = df
-            col_names = ['0']
+            tmp_col_names = ['0']
         elif type(df) is dask_cudf.Series:
             tmp_df = dask_cudf.DataFrame()
             tmp_df['0'] = df
-            col_names = ['0']
+            tmp_col_names = ['0']
         else:
             tmp_df = df
+            tmp_col_names = col_names
             
-        return self.implementation.to_vertex_id(tmp_df, col_names)
+        return self.implementation.to_vertex_id(tmp_df, tmp_col_names)
 
     def from_vertex_id(self, series):
         """
