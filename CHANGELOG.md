@@ -5,6 +5,7 @@
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 OPG pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
+- PR #979 Add hypergraph implementation to convert DataFrames into Graphs
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
