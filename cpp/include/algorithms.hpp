@@ -865,7 +865,7 @@ void bfs(raft::handle_t &handle,
          vertex_t *predecessors,
          vertex_t start_vertex,
          bool direction_optimizing = false,
-         size_t depth_limit        = std::numeric_limits<size_t>::max(),
+         vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
          bool do_expensive_check   = false);
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -876,6 +876,33 @@ void sssp(raft::handle_t &handle,
           vertex_t source_vertex,
           weight_t cutoff         = std::numeric_limits<weight_t>::max(),
           bool do_expensive_check = false);
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+void pagerank(raft::handle_t &handle,
+              GraphCSCView<vertex_t, edge_t, weight_t> const &graph,
+              weight_t *adj_matrix_col_out_weight_sums,  // should be set to the vertex out-degrees
+                                                         // for an unweighted graph
+              vertex_t *personalization_vertices,
+              result_t *personalization_values,
+              vertex_t personalization_vector_size,
+              result_t *pageranks,
+              result_t alpha,
+              result_t epsilon,
+              size_t max_iterations   = 500,
+              bool has_initial_guess  = false,
+              bool do_expensive_check = false);
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+void katz_centrality(raft::handle_t &handle,
+                     GraphCSCView<vertex_t, edge_t, weight_t> const &graph,
+                     result_t *betas,
+                     result_t *katz_centralities,
+                     result_t alpha,
+                     result_t epsilon,
+                     size_t max_iterations   = 500,
+                     bool has_initial_guess  = false,
+                     bool normalize          = false,
+                     bool do_expensive_check = false);
 
 }  // namespace experimental
 
