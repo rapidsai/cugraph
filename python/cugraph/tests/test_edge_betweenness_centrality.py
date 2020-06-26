@@ -147,10 +147,10 @@ def _calc_bc_subset(G, Gnx, normalized, weight, k, seed,
                                                 seed=seed)
 
     nx_df = generate_nx_result(nx_bc_dict, type(Gnx) is nx.DiGraph) \
-        .rename({"betweenness_centrality": "ref_bc"})
+        .rename(columns={"betweenness_centrality": "ref_bc"})
 
     sorted_df = df.sort_values(["src", "dst"])      \
-        .rename({"betweenness_centrality": "cu_bc"})
+        .rename(columns={"betweenness_centrality": "cu_bc"})
 
     sorted_df = cudf.concat([sorted_df, nx_df["ref_bc"]],
                             axis=1, sort=False)
@@ -188,9 +188,9 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed,
                                               result_dtype=result_dtype)
 
     sorted_df = df.sort_values(["src", "dst"])      \
-        .rename({"betweenness_centrality": "cu_bc"})
+        .rename(columns={"betweenness_centrality": "cu_bc"})
     sorted_df2 = df2.sort_values(["src", "dst"]) \
-        .rename({"betweenness_centrality": "ref_bc"})
+        .rename(columns={"betweenness_centrality": "ref_bc"})
 
     sorted_df = cudf.concat([sorted_df, sorted_df2["ref_bc"]],
                             axis=1, sort=False)
@@ -214,10 +214,10 @@ def _calc_bc_full(G, Gnx, normalized, weight, k, seed, result_dtype):
                                                 weight=weight)
 
     nx_df = generate_nx_result(nx_bc_dict, type(Gnx) is nx.DiGraph) \
-        .rename({"betweenness_centrality": "ref_bc"})
+        .rename(columns={"betweenness_centrality": "ref_bc"})
 
     sorted_df = df.sort_values(["src", "dst"])      \
-        .rename({"betweenness_centrality": "cu_bc"})
+        .rename(columns={"betweenness_centrality": "cu_bc"})
 
     sorted_df = cudf.concat([sorted_df, nx_df["ref_bc"]],
                             axis=1, sort=False)

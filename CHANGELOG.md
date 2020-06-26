@@ -25,6 +25,7 @@
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
 - PR #938 Quote conda installs to avoid bash interpretation
+- PR #974 Update dataframe column renaming
 
 # cuGraph 0.14.0 (03 Jun 2020)
 

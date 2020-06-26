@@ -143,8 +143,8 @@ def _calc_bc_subset(G, Gnx, normalized, weight, endpoints, k, seed,
                                         weight=weight,
                                         endpoints=endpoints,
                                         result_dtype=result_dtype)
-    sorted_df = df.sort_values("vertex").rename({"betweenness_centrality":
-                                                 "cu_bc"})
+    sorted_df = df.sort_values("vertex") \
+        .rename(columns={"betweenness_centrality": "cu_bc"})
 
     nx_bc = nx.betweenness_centrality(Gnx,
                                       k=k,
@@ -179,8 +179,8 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed,
                                         endpoints=endpoints,
                                         seed=seed,
                                         result_dtype=result_dtype)
-    sorted_df = df.sort_values("vertex").rename({"betweenness_centrality":
-                                                 "cu_bc"})
+    sorted_df = df.sort_values("vertex") \
+        .rename(columns={"betweenness_centrality": "cu_bc"})
 
     # The second call is going to process source that were already sampled
     # We set seed to None as k : int, seed : not none should not be normal
@@ -192,8 +192,8 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed,
                                          endpoints=endpoints,
                                          seed=None,
                                          result_dtype=result_dtype)
-    sorted_df2 = df2.sort_values("vertex").rename({"betweenness_centrality":
-                                                   "ref_bc"})
+    sorted_df2 = df2.sort_values("vertex") \
+        .rename(columns={"betweenness_centrality": "ref_bc"})
 
     merged_sorted_df = cudf.concat([sorted_df, sorted_df2["ref_bc"]], axis=1,
                                    sort=False)
@@ -218,8 +218,8 @@ def _calc_bc_full(G, Gnx, normalized, weight, endpoints,
                                       weight=weight,
                                       endpoints=endpoints)
 
-    sorted_df = df.sort_values("vertex").rename({"betweenness_centrality":
-                                                 "cu_bc"})
+    sorted_df = df.sort_values("vertex") \
+        .rename(columns={"betweenness_centrality": "cu_bc"})
     _, nx_bc = zip(*sorted(nx_bc.items()))
     nx_df = cudf.DataFrame({"ref_bc": nx_bc})
 
