@@ -41,7 +41,7 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 
 # Set Benchmark Vars
 export DATASETS_DIR=${WORKSPACE}/datasets
-export ASVRESULT_DIR=${WORKSPACE}/asvresults
+export ASVRESULTS_DIR=${WORKSPACE}/asvresults
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
 
 ##########################################
