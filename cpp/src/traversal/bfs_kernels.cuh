@@ -299,8 +299,8 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
     // by different in in visited_bmap)
     IndexType visited_bmap_index[1];  // this is an array of size 1 because CUB
                                       // needs one
-    
-    visited_bmap_index[0] = ~IndexType(0);
+
+    visited_bmap_index[0]      = ~IndexType(0);
     IndexType unvisited_vertex = ~IndexType(0);
 
     // local_visited_bmap gives info on the visited bit of unvisited_vertex
@@ -565,8 +565,9 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
         if (lvl_u == (lvl - 1)) { valid_parent = u; }
       }
 
-      unsigned int warp_valid_p_ballot = cugraph::detail::utils::ballot(valid_parent != ~IndexType(0));
-      
+      unsigned int warp_valid_p_ballot =
+        cugraph::detail::utils::ballot(valid_parent != ~IndexType(0));
+
       int logical_warp_id_in_warp = (threadIdx.x % WARP_SIZE) / BOTTOM_UP_LOGICAL_WARP_SIZE;
       unsigned int mask           = (1 << BOTTOM_UP_LOGICAL_WARP_SIZE) - 1;
       unsigned int logical_warp_valid_p_ballot =
@@ -704,11 +705,11 @@ __global__ void topdown_expand_kernel(
     shared_local_new_frontier_predecessors[TOP_DOWN_BATCH_SIZE * TOP_DOWN_EXPAND_DIMX];
   __shared__ IndexType block_n_frontier_candidates;
 
-  IndexType block_offset = (blockDim.x * blockIdx.x) * max_items_per_thread;
+  IndexType block_offset            = (blockDim.x * blockIdx.x) * max_items_per_thread;
   IndexType n_items_per_thread_left = 0;
- 
-  if (totaldegree > block_offset){
-    n_items_per_thread_left = 
+
+  if (totaldegree > block_offset) {
+    n_items_per_thread_left =
       (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX;
   }
 
@@ -717,7 +718,8 @@ __global__ void topdown_expand_kernel(
   for (; (n_items_per_thread_left > 0) && (block_offset < totaldegree);
 
        block_offset += MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD * blockDim.x,
-       n_items_per_thread_left -= min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD)) {
+       n_items_per_thread_left -=
+       min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD)) {
     // In this loop, we will process batch_set_size batches
     IndexType nitems_per_thread =
       min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD);
@@ -861,18 +863,18 @@ __global__ void topdown_expand_kernel(
           IndexType gid               = block_offset + thread_item_index * blockDim.x + threadIdx.x;
 
           IndexType row_ptr_u = vec_row_ptr_u[iv];
-	  // Need this check so that we don't use invalid values of edge to index
-	  if (row_ptr_u != ~IndexType(0)){
-	    IndexType edge      = row_ptr_u + gid - vec_frontier_degrees_exclusive_sum_index[iv];
+          // Need this check so that we don't use invalid values of edge to index
+          if (row_ptr_u != ~IndexType(0)) {
+            IndexType edge = row_ptr_u + gid - vec_frontier_degrees_exclusive_sum_index[iv];
 
-	    if (edge_mask && !edge_mask[edge]){
-	      // Disabling edge
-	      row_ptr_u = ~IndexType(0);
-	    }else{
-	      // Destination of this edge
-	      vec_dest_v[iv] = col_ind[edge];
-	    }
-	  }
+            if (edge_mask && !edge_mask[edge]) {
+              // Disabling edge
+              row_ptr_u = ~IndexType(0);
+            } else {
+              // Destination of this edge
+              vec_dest_v[iv] = col_ind[edge];
+            }
+          }
         }
 
         // We don't need vec_frontier_degrees_exclusive_sum_index anymore
@@ -882,12 +884,11 @@ __global__ void topdown_expand_kernel(
         // frontier if we actually process every edge (shortest path counting)
         // otherwise we can read and update from the same bmap
 #pragma unroll
-	for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-	  IndexType v = vec_dest_v[iv];
-	  vec_v_visited_bmap[iv] = 
-	    (v != ~IndexType(0)) ? 
-	    previous_bmap[v / INT_SIZE] : (~int(0));  // will look visited
-	}
+        for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
+          IndexType v = vec_dest_v[iv];
+          vec_v_visited_bmap[iv] =
+            (v != ~IndexType(0)) ? previous_bmap[v / INT_SIZE] : (~int(0));  // will look visited
+        }
 
         // From now on we will consider v as a frontier candidate
         // If for some reason vec_candidate[iv] should be put in the
@@ -910,7 +911,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType dst = vec_frontier_candidate[iv];
-            if (dst != ~IndexType(0)){
+            if (dst != ~IndexType(0)) {
               IndexType src = vec_u[iv];
               atomicAdd(&sp_counters[dst], sp_counters[src]);
             }
@@ -924,8 +925,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType v              = vec_frontier_candidate[iv];
-            vec_is_isolated_bmap[iv] = 
-	      (v != ~IndexType(0)) ? isolated_bmap[v / INT_SIZE] : ~int(0);
+            vec_is_isolated_bmap[iv] = (v != ~IndexType(0)) ? isolated_bmap[v / INT_SIZE] : ~int(0);
           }
 
 #pragma unroll
@@ -941,7 +941,7 @@ __global__ void topdown_expand_kernel(
             // visited, and save distance and predecessor here. Not need to
             // check return value of atomicOr
 
-            if (is_isolated && v != ~IndexType(0)){
+            if (is_isolated && v != ~IndexType(0)) {
               int m = 1 << (v % INT_SIZE);
               atomicOr(&bmap[v / INT_SIZE], m);
               if (distances) distances[v] = lvl;
@@ -978,7 +978,7 @@ __global__ void topdown_expand_kernel(
           // May have bank conflicts
           IndexType frontier_candidate = vec_frontier_candidate[iv];
 
-          if (frontier_candidate != ~IndexType(0)){
+          if (frontier_candidate != ~IndexType(0)) {
             shared_local_new_frontier_candidates[thread_frontier_candidate_offset] =
               frontier_candidate;
             shared_local_new_frontier_predecessors[thread_frontier_candidate_offset] = vec_u[iv];
@@ -1049,7 +1049,7 @@ __global__ void topdown_expand_kernel(
           if (idx_shared < block_n_frontier_candidates) {
             IndexType new_frontier_vertex = vec_frontier_accepted_vertex[iv];
 
-            if (new_frontier_vertex != ~IndexType(0)){
+            if (new_frontier_vertex != ~IndexType(0)) {
               IndexType off     = frontier_common_block_offset + thread_new_frontier_offset++;
               new_frontier[off] = new_frontier_vertex;
             }

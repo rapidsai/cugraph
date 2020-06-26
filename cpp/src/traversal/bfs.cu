@@ -476,18 +476,15 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          const VT start_vertex,
          bool directed)
 {
-  static_assert(std::is_same<VT, unsigned>::value ||
-      std::is_same<VT, int>::value || 
-      std::is_same<VT, long>::value, 
-      "Unsupported vertex id data type, please use unsigned, int, or long");
-  
-  static_assert(std::is_same<VT, ET>::value,
-      "VT and ET should be the same time");
+  static_assert(std::is_same<VT, unsigned>::value || std::is_same<VT, int>::value ||
+                  std::is_same<VT, long>::value,
+                "Unsupported vertex id data type, please use unsigned, int, or long");
 
-  static_assert(std::is_same<WT, float>::value ||
-      std::is_same<WT, double>::value,
-      "Unsupported weight data type, please use float or double");
-  
+  static_assert(std::is_same<VT, ET>::value, "VT and ET should be the same time");
+
+  static_assert(std::is_same<WT, float>::value || std::is_same<WT, double>::value,
+                "Unsupported weight data type, please use float or double");
+
   VT number_of_vertices = graph.number_of_vertices;
   ET number_of_edges    = graph.number_of_edges;
 
@@ -503,20 +500,21 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
   bfs.traverse(start_vertex);
 }
 
+template void bfs<unsigned, unsigned, float>(
+  experimental::GraphCSRView<unsigned, unsigned, float> const &graph,
+  unsigned *distances,
+  unsigned *predecessors,
+  double *sp_counters,
+  const unsigned source_vertex,
+  bool directed);
 
-template void bfs<unsigned, unsigned, float>(experimental::GraphCSRView<unsigned, unsigned, float> const &graph,
-                                   unsigned *distances,
-                                   unsigned *predecessors,
-                                   double *sp_counters,
-                                   const unsigned source_vertex,
-                                   bool directed);
-
-template void bfs<unsigned, unsigned, double>(experimental::GraphCSRView<unsigned, unsigned, double> const &graph,
-                                   unsigned *distances,
-                                   unsigned *predecessors,
-                                   double *sp_counters,
-                                   const unsigned source_vertex,
-                                   bool directed);
+template void bfs<unsigned, unsigned, double>(
+  experimental::GraphCSRView<unsigned, unsigned, double> const &graph,
+  unsigned *distances,
+  unsigned *predecessors,
+  double *sp_counters,
+  const unsigned source_vertex,
+  bool directed);
 
 template void bfs<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
                                    int *distances,
@@ -533,17 +531,17 @@ template void bfs<int, int, double>(experimental::GraphCSRView<int, int, double>
                                     bool directed);
 
 template void bfs<long, long, float>(experimental::GraphCSRView<long, long, float> const &graph,
-                                   long *distances,
-                                   long *predecessors,
-                                   double *sp_counters,
-                                   const long source_vertex,
-                                   bool directed);
+                                     long *distances,
+                                     long *predecessors,
+                                     double *sp_counters,
+                                     const long source_vertex,
+                                     bool directed);
 
 template void bfs<long, long, double>(experimental::GraphCSRView<long, long, double> const &graph,
-                                   long *distances,
-                                   long *predecessors,
-                                   double *sp_counters,
-                                   const long source_vertex,
-                                   bool directed);
+                                      long *distances,
+                                      long *predecessors,
+                                      double *sp_counters,
+                                      const long source_vertex,
+                                      bool directed);
 
 }  // namespace cugraph

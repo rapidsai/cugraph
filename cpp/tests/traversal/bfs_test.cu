@@ -138,12 +138,12 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     std::vector<VT> cugraph_pred(number_of_vertices);
     std::vector<double> cugraph_sigmas(number_of_vertices);
 
-    //Don't pass valid sp_sp_counter ptr unless needed because it disables
-    //the bottom up flow
+    // Don't pass valid sp_sp_counter ptr unless needed because it disables
+    // the bottom up flow
     cugraph::bfs<VT, ET, WT>(G,
                              d_cugraph_dist.data().get(),
                              d_cugraph_pred.data().get(),
-                             (return_sp_counter) ? d_cugraph_sigmas.data().get(): nullptr,
+                             (return_sp_counter) ? d_cugraph_sigmas.data().get() : nullptr,
                              source,
                              G.prop.directed);
     CUDA_TRY(cudaMemcpy(cugraph_dist.data(),
@@ -154,12 +154,12 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                         d_cugraph_pred.data().get(),
                         sizeof(VT) * d_cugraph_pred.size(),
                         cudaMemcpyDeviceToHost));
-    
+
     if (return_sp_counter) {
       CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
-	    d_cugraph_sigmas.data().get(),
-	    sizeof(double) * d_cugraph_sigmas.size(),
-	    cudaMemcpyDeviceToHost));
+                          d_cugraph_sigmas.data().get(),
+                          sizeof(double) * d_cugraph_sigmas.size(),
+                          cudaMemcpyDeviceToHost));
     }
 
     for (VT i = 0; i < number_of_vertices; ++i) {
@@ -199,12 +199,21 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 // Tests
 // ============================================================================
 
-//We don't need to test WT for both float and double since it's anyway ignored in BFS
-TEST_P(Tests_BFS, CheckUnsigned_NO_SP_COUNTER) { run_current_test<unsigned, unsigned, float, false>(GetParam()); }
+// We don't need to test WT for both float and double since it's anyway ignored in BFS
+TEST_P(Tests_BFS, CheckUnsigned_NO_SP_COUNTER)
+{
+  run_current_test<unsigned, unsigned, float, false>(GetParam());
+}
 TEST_P(Tests_BFS, CheckInt_NO_SP_COUNTER) { run_current_test<int, int, float, false>(GetParam()); }
-TEST_P(Tests_BFS, CheckLong_NO_SP_COUNTER) { run_current_test<long, long, float, false>(GetParam()); }
+TEST_P(Tests_BFS, CheckLong_NO_SP_COUNTER)
+{
+  run_current_test<long, long, float, false>(GetParam());
+}
 
-TEST_P(Tests_BFS, CheckUnsigned_SP_COUNTER) { run_current_test<unsigned, unsigned, float, true>(GetParam()); }
+TEST_P(Tests_BFS, CheckUnsigned_SP_COUNTER)
+{
+  run_current_test<unsigned, unsigned, float, true>(GetParam());
+}
 TEST_P(Tests_BFS, CheckInt_SP_COUNTER) { run_current_test<int, int, float, true>(GetParam()); }
 TEST_P(Tests_BFS, CheckLong_SP_COUNTER) { run_current_test<long, long, float, true>(GetParam()); }
 

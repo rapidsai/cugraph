@@ -218,14 +218,17 @@ binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexT
   }
 }
 
-template < typename T>
-__device__ static __forceinline__ T atomicAdd(T* addr, T val){
-	return ::atomicAdd(addr, val);
+template <typename T>
+__device__ static __forceinline__ T atomicAdd(T* addr, T val)
+{
+  return ::atomicAdd(addr, val);
 }
 
-template<>
-__device__ __forceinline__ long atomicAdd<long>(long* addr, long val){
-	return ::atomicAdd(reinterpret_cast<unsigned long long *>(addr), static_cast<unsigned long long>(val));
+template <>
+__device__ __forceinline__ long atomicAdd<long>(long* addr, long val)
+{
+  return ::atomicAdd(reinterpret_cast<unsigned long long*>(addr),
+                     static_cast<unsigned long long>(val));
 }
 
 __device__ static __forceinline__ float atomicMin(float* addr, float val)

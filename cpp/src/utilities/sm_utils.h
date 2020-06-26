@@ -15,7 +15,6 @@
  */
 #pragma once
 
-
 #ifdef _MSC_VER
 #include <stdint.h>
 #else
@@ -66,13 +65,9 @@ static __device__ __forceinline__ unsigned int ballot(int p, int mask = DEFAULT_
 #endif
 }
 
-template <typename T>                                                           
-static __device__ __forceinline__ T shfl(
-    T r, 
-    int lane, 
-    int bound = 32, 
-    int mask = DEFAULT_MASK
-    ){
+template <typename T>
+static __device__ __forceinline__ T shfl(T r, int lane, int bound = 32, int mask = DEFAULT_MASK)
+{
   return __shfl_sync(mask, r, lane, bound);
 }
 
