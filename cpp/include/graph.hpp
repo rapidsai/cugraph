@@ -296,8 +296,8 @@ class GraphCSCView : public GraphCompressedSparseBaseView<VT, ET, WT> {
   using vertex_type                     = VT;
   using edge_type                       = ET;
   using weight_type                     = WT;
-  static constexpr bool is_row_major    = true;
-  static constexpr bool is_column_major = false;
+  static constexpr bool is_row_major    = false;
+  static constexpr bool is_column_major = true;
 
   /**
    * @brief      Default constructor
@@ -628,8 +628,8 @@ class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
   using vertex_type                     = VT;
   using edge_type                       = ET;
   using weight_type                     = WT;
-  static constexpr bool is_row_major    = true;
-  static constexpr bool is_column_major = false;
+  static constexpr bool is_row_major    = false;
+  static constexpr bool is_column_major = true;
 
   /**
    * @brief      Default constructor
