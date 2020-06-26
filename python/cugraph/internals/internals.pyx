@@ -46,7 +46,6 @@ cdef class PyCallback:
     def get_numba_matrix(self, positions, shape, typestr):
 
         sizeofType = 4 if typestr == "float32" else 8
-        print(shape)
         desc = {
             'shape': shape,
             'strides': (sizeofType, shape[0]*sizeofType),
