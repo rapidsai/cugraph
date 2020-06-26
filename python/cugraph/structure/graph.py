@@ -263,12 +263,14 @@ class Graph:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 df = cudf.DataFrame()
                 ncols = len(edgelist_df.columns) - 2
-                unrnb_df_ = edgelist_df.merge(self.edgelist.renumber_map,
-                                              left_on='src', right_on='id',
-                                              how='left').drop(['id', 'src'])
-                unrnb_df = unrnb_df_.merge(self.edgelist.renumber_map,
-                                           left_on='dst', right_on='id',
-                                           how='left').drop(['id', 'dst'])
+                unrnb_df = edgelist_df.merge(
+                    self.edgelist.renumber_map,
+                    left_on='src', right_on='id', how='left'
+                ).drop(['id', 'src']).rename(columns={'0': 'src'}, copy=False)
+                unrnb_df = unrnb_df.merge(
+                    self.edgelist.renumber_map,
+                    left_on='dst', right_on='id', how='left'
+                ).drop(['id', 'dst']).rename(columns={'0': 'dst'}, copy=False)
                 cols = unrnb_df.columns.to_list()
                 df = unrnb_df[cols[ncols:]+cols[0:ncols]]
             else:
