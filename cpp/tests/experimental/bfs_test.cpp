@@ -153,7 +153,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                                d_predecessors.begin(),
                                static_cast<vertex_t>(configuration.source_),
                                false,
-                               std::numeric_limits<size_t>::max(),
+                               std::numeric_limits<vertex_t>::max(),
                                false);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
