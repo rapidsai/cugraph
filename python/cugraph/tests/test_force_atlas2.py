@@ -66,18 +66,23 @@ DATASETS = [('../datasets/karate.csv', 0.70),
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
 
+
 class TestCallback(GraphBasedDimRedCallback):
     def __init__(self):
         super(TestCallback, self).__init__()
         self.on_preprocess_end_called_count = 0
         self.on_epoch_end_called_count = 0
         self.on_train_end_called_count = 0
+
     def on_preprocess_end(self, positions):
         self.on_preprocess_end_called_count += 1
+
     def on_epoch_end(self, positions):
         self.on_epoch_end_called_count += 1
+
     def on_train_end(self, positions):
         self.on_train_end_called_count += 1
+
 
 @pytest.mark.parametrize('graph_file, score', DATASETS)
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
