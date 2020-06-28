@@ -724,18 +724,17 @@ __global__ void topdown_expand_kernel(
     shared_local_new_frontier_predecessors[TOP_DOWN_BATCH_SIZE * TOP_DOWN_EXPAND_DIMX];
   __shared__ IndexType block_n_frontier_candidates;
 
-  IndexType block_offset            = (blockDim.x * blockIdx.x) * max_items_per_thread;
-  IndexType n_items_per_thread_left = 0;
+  IndexType block_offset = (blockDim.x * blockIdx.x) * max_items_per_thread;
 
   // When this kernel is converted to support different VT and ET, this
   // will likely split into invalid_vid and invalid_eid
   // This is equivalent to ~IndexType(0) (i.e., all bits set to 1)
   constexpr IndexType invalid_idx = cugraph::experimental::invalid_idx<IndexType>::value;
 
-  if (totaldegree > block_offset) {
-    n_items_per_thread_left =
-      (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX;
-  }
+  IndexType n_items_per_thread_left =
+    (totaldegree > block_offset)
+      ? (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX
+      : 0;
 
   n_items_per_thread_left = std::min(max_items_per_thread, n_items_per_thread_left);
 
