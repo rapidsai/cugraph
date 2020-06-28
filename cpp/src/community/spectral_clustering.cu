@@ -29,18 +29,8 @@
 #include <graph.hpp>
 #include <utilities/error.hpp>
 
-#ifdef OLD_NVGRAPH_CODE
-#include <nvgraph/include/sm_utils.h>
-#include <nvgraph/include/modularity_maximization.hxx>
-#include <nvgraph/include/nvgraph_cublas.hxx>
-#include <nvgraph/include/nvgraph_cusparse.hxx>
-#include <nvgraph/include/nvgraph_error.hxx>
-#include <nvgraph/include/partition.hxx>
-#include <nvgraph/include/spectral_matrix.hxx>
-#else
 #include <raft/spectral/modularity_maximization.hpp>
 #include <raft/spectral/partition.hpp>
-#endif
 
 namespace cugraph {
 
@@ -60,52 +50,6 @@ void balancedCutClustering_impl(experimental::GraphCSRView<vertex_t, edge_t, wei
                                 weight_t *eig_vals,
                                 weight_t *eig_vects)
 {
-#ifdef OLD_NVGRAPH_CODE
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
-  CUGRAPH_EXPECTS(evs_tolerance >= weight_t{0.0},
-                  "API error, evs_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(evs_tolerance < weight_t{1.0},
-                  "API error, evs_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(kmean_tolerance >= weight_t{0.0},
-                  "API error, kmean_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(kmean_tolerance < weight_t{1.0},
-                  "API error, kmean_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(n_clusters > 1, "API error, must specify more than 1 cluster");
-  CUGRAPH_EXPECTS(n_clusters < graph.number_of_vertices,
-                  "API error, number of clusters must be smaller than number of vertices");
-  CUGRAPH_EXPECTS(n_eig_vects <= n_clusters,
-                  "API error, cannot specify more eigenvectors than clusters");
-  CUGRAPH_EXPECTS(clustering != nullptr, "API error, must specify valid clustering");
-  CUGRAPH_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
-  CUGRAPH_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
-
-  int evs_max_it{4000};
-  int kmean_max_it{200};
-  weight_t evs_tol{1.0E-3};
-  weight_t kmean_tol{1.0E-2};
-
-  if (evs_max_iter > 0) evs_max_it = evs_max_iter;
-
-  if (evs_tolerance > weight_t{0.0}) evs_tol = evs_tolerance;
-
-  if (kmean_max_iter > 0) kmean_max_it = kmean_max_iter;
-
-  if (kmean_tolerance > weight_t{0.0}) kmean_tol = kmean_tolerance;
-
-  int restartIter_lanczos = 15 + n_eig_vects;
-
-  ::nvgraph::partition<vertex_t, edge_t, weight_t>(graph,
-                                                   n_clusters,
-                                                   n_eig_vects,
-                                                   evs_max_it,
-                                                   restartIter_lanczos,
-                                                   evs_tol,
-                                                   kmean_max_it,
-                                                   kmean_tol,
-                                                   clustering,
-                                                   eig_vals,
-                                                   eig_vects);
-#else
   RAFT_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
   RAFT_EXPECTS(evs_tolerance >= weight_t{0.0},
                "API error, evs_tolerance must be between 0.0 and 1.0");
@@ -163,7 +107,6 @@ void balancedCutClustering_impl(experimental::GraphCSRView<vertex_t, edge_t, wei
 
   raft::spectral::partition(
     handle, t_exe_p, r_graph, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
-#endif
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -179,55 +122,6 @@ void spectralModularityMaximization_impl(
   weight_t *eig_vals,
   weight_t *eig_vects)
 {
-#ifdef OLD_NVGRAPH_CODE
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
-  CUGRAPH_EXPECTS(evs_tolerance >= weight_t{0.0},
-                  "API error, evs_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(evs_tolerance < weight_t{1.0},
-                  "API error, evs_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(kmean_tolerance >= weight_t{0.0},
-                  "API error, kmean_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(kmean_tolerance < weight_t{1.0},
-                  "API error, kmean_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(n_clusters > 1, "API error, must specify more than 1 cluster");
-  CUGRAPH_EXPECTS(n_clusters < graph.number_of_vertices,
-                  "API error, number of clusters must be smaller than number of vertices");
-  CUGRAPH_EXPECTS(n_eig_vects <= n_clusters,
-                  "API error, cannot specify more eigenvectors than clusters");
-  CUGRAPH_EXPECTS(clustering != nullptr, "API error, must specify valid clustering");
-  CUGRAPH_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
-  CUGRAPH_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
-
-  int evs_max_it{4000};
-  int kmean_max_it{200};
-  weight_t evs_tol{1.0E-3};
-  weight_t kmean_tol{1.0E-2};
-
-  int iters_lanczos, iters_kmeans;
-
-  if (evs_max_iter > 0) evs_max_it = evs_max_iter;
-
-  if (evs_tolerance > weight_t{0.0}) evs_tol = evs_tolerance;
-
-  if (kmean_max_iter > 0) kmean_max_it = kmean_max_iter;
-
-  if (kmean_tolerance > weight_t{0.0}) kmean_tol = kmean_tolerance;
-
-  int restartIter_lanczos = 15 + n_eig_vects;
-  ::nvgraph::modularity_maximization<vertex_t, edge_t, weight_t>(graph,
-                                                                 n_clusters,
-                                                                 n_eig_vects,
-                                                                 evs_max_it,
-                                                                 restartIter_lanczos,
-                                                                 evs_tol,
-                                                                 kmean_max_it,
-                                                                 kmean_tol,
-                                                                 clustering,
-                                                                 eig_vals,
-                                                                 eig_vects,
-                                                                 iters_lanczos,
-                                                                 iters_kmeans);
-#else
   RAFT_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
   RAFT_EXPECTS(evs_tolerance >= weight_t{0.0},
                "API error, evs_tolerance must be between 0.0 and 1.0");
@@ -292,7 +186,6 @@ void spectralModularityMaximization_impl(
   // int iters_lanczos, iters_kmeans;
   // iters_lanczos = std::get<0>(result);
   // iters_kmeans  = std::get<2>(result);
-#endif
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -302,11 +195,6 @@ void analyzeModularityClustering_impl(
   vertex_t const *clustering,
   weight_t *modularity)
 {
-#ifdef OLD_NVGRAPH_CODE
-  weight_t mod;
-  ::nvgraph::analyzeModularity(graph, n_clusters, clustering, mod);
-  *modularity = mod;
-#else
   raft::handle_t handle;
   auto stream  = handle.get_stream();
   auto exec    = rmm::exec_policy(stream);
@@ -318,7 +206,6 @@ void analyzeModularityClustering_impl(
   weight_t mod;
   raft::spectral::analyzeModularity(handle, t_exe_p, r_graph, n_clusters, clustering, mod);
   *modularity = mod;
-#endif
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -328,18 +215,6 @@ void analyzeBalancedCut_impl(experimental::GraphCSRView<vertex_t, edge_t, weight
                              weight_t *edgeCut,
                              weight_t *ratioCut)
 {
-#ifdef OLD_NVGRAPH_CODE
-  CUGRAPH_EXPECTS(n_clusters <= graph.number_of_vertices,
-                  "API error: number of clusters must be <= number of vertices");
-  CUGRAPH_EXPECTS(n_clusters > 0, "API error: number of clusters must be > 0)");
-
-  weight_t edge_cut, ratio_cut;
-
-  ::nvgraph::analyzePartition(graph, n_clusters, clustering, edge_cut, ratio_cut);
-
-  *edgeCut  = edge_cut;
-  *ratioCut = ratio_cut;
-#else
   raft::handle_t handle;
   auto stream  = handle.get_stream();
   auto exec    = rmm::exec_policy(stream);
@@ -363,7 +238,6 @@ void analyzeBalancedCut_impl(experimental::GraphCSRView<vertex_t, edge_t, weight
 
   *edgeCut  = edge_cut;
   *ratioCut = cost;
-#endif
 }
 
 }  // namespace detail
