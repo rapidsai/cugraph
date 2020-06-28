@@ -707,6 +707,9 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
  * @param[out] clustering            Pointer to device memory where the resulting clustering will be
  * stored
  */
+}  // namespace nvgraph
+
+namespace ext_raft {
 template <typename VT, typename ET, typename WT>
 void balancedCutClustering(experimental::GraphCSRView<VT, ET, WT> const &graph,
                            VT num_clusters,
@@ -814,7 +817,7 @@ void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &g
                                  VT const *clustering,
                                  WT *score);
 
-}  // namespace nvgraph
+}  // namespace ext_raft
 
 namespace gunrock {
 

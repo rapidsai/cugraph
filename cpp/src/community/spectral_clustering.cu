@@ -34,7 +34,7 @@
 
 namespace cugraph {
 
-namespace nvgraph {
+namespace ext_raft {
 
 namespace detail {
 
@@ -342,5 +342,5 @@ template void analyzeClustering_ratio_cut<int, int, float>(
 template void analyzeClustering_ratio_cut<int, int, double>(
   experimental::GraphCSRView<int, int, double> const &, int, int const *, double *);
 
-}  // namespace nvgraph
+}  // namespace ext_raft
 }  // namespace cugraph
