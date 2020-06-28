@@ -365,7 +365,7 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
 
       // If we haven't found a parent and there's more edge to check
       if (!found && degree > MAIN_BOTTOMUP_MAX_EDGES) {
-        left_unvisited_off = traversal::atomicAdd(left_unvisited_cnt, (IndexType)1);
+        left_unvisited_off = traversal::atomicAdd(left_unvisited_cnt, static_cast<IndexType>(1));
         more_to_visit      = 1;
       }
     }
@@ -595,7 +595,7 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
 
       if (chosen_thread == logical_lane_id) {
         // Using only one valid parent (reduce bw)
-        IndexType off = traversal::atomicAdd(new_frontier_cnt, (IndexType)1);
+        IndexType off = traversal::atomicAdd(new_frontier_cnt, static_cast<IndexType>(1));
         int m         = 1 << (v % INT_SIZE);
         atomicOr(&visited[v / INT_SIZE], m);
         distances[v] = lvl;
