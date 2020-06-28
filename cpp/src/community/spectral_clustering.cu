@@ -26,22 +26,21 @@
 #include <thrust/transform.h>
 #include <ctime>
 
-//#ifdef OLD_NVGRAPH_CODE
-#include <nvgraph/include/sm_utils.h>
 #include <graph.hpp>
-#include <nvgraph/include/nvgraph_error.hxx>
 #include <utilities/error.hpp>
 
+#ifdef OLD_NVGRAPH_CODE
+#include <nvgraph/include/sm_utils.h>
 #include <nvgraph/include/modularity_maximization.hxx>
 #include <nvgraph/include/nvgraph_cublas.hxx>
 #include <nvgraph/include/nvgraph_cusparse.hxx>
+#include <nvgraph/include/nvgraph_error.hxx>
 #include <nvgraph/include/partition.hxx>
-
 #include <nvgraph/include/spectral_matrix.hxx>
-//#else
+#else
 #include <raft/spectral/modularity_maximization.hpp>
 #include <raft/spectral/partition.hpp>
-//#endif
+#endif
 
 namespace cugraph {
 
