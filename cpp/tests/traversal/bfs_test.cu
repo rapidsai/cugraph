@@ -200,22 +200,25 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 // ============================================================================
 
 // We don't need to test WT for both float and double since it's anyway ignored in BFS
-TEST_P(Tests_BFS, CheckUnsigned_NO_SP_COUNTER)
+TEST_P(Tests_BFS, CheckUint32_NO_SP_COUNTER)
 {
-  run_current_test<unsigned, unsigned, float, false>(GetParam());
+  run_current_test<uint32_t, uint32_t, float, false>(GetParam());
 }
 TEST_P(Tests_BFS, CheckInt_NO_SP_COUNTER) { run_current_test<int, int, float, false>(GetParam()); }
-TEST_P(Tests_BFS, CheckLong_NO_SP_COUNTER)
+TEST_P(Tests_BFS, CheckInt64_NO_SP_COUNTER)
 {
-  run_current_test<long, long, float, false>(GetParam());
+  run_current_test<int64_t, int64_t, float, false>(GetParam());
 }
 
-TEST_P(Tests_BFS, CheckUnsigned_SP_COUNTER)
+TEST_P(Tests_BFS, CheckUint32_SP_COUNTER)
 {
-  run_current_test<unsigned, unsigned, float, true>(GetParam());
+  run_current_test<uint32_t, uint32_t, float, true>(GetParam());
 }
 TEST_P(Tests_BFS, CheckInt_SP_COUNTER) { run_current_test<int, int, float, true>(GetParam()); }
-TEST_P(Tests_BFS, CheckLong_SP_COUNTER) { run_current_test<long, long, float, true>(GetParam()); }
+TEST_P(Tests_BFS, CheckLong_SP_COUNTER)
+{
+  run_current_test<int64_t, int64_t, float, true>(GetParam());
+}
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_BFS,

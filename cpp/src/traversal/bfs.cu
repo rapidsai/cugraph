@@ -461,9 +461,11 @@ void BFS<IndexType>::clean()
   // the vectors have a destructor that takes care of cleaning
 }
 
-template class BFS<long>;
-template class BFS<unsigned>;
+// Explicit Instantiation
+template class BFS<uint32_t>;
 template class BFS<int>;
+template class BFS<int64_t>;
+
 }  // namespace detail
 
 // NOTE: SP counter increase extremely fast on large graph
@@ -476,14 +478,11 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          const VT start_vertex,
          bool directed)
 {
-  static_assert(std::is_same<VT, unsigned>::value || std::is_same<VT, int>::value ||
-                  std::is_same<VT, long>::value,
-                "Unsupported vertex id data type, please use unsigned, int, or long");
-
-  static_assert(std::is_same<VT, ET>::value, "VT and ET should be the same time");
-
-  static_assert(std::is_same<WT, float>::value || std::is_same<WT, double>::value,
-                "Unsupported weight data type, please use float or double");
+  static_assert(std::is_integral<VT>::value, "Unsupported vertex id data type. Use integral types");
+  static_assert(std::is_integral<ET>::value, "Unsupported edge id data type. Use integral types");
+  static_assert(std::is_floating_point<WT>::value,
+                "Unsupported edge weight type. Use floating point types");  // actually, this is
+                                                                            // unnecessary for BFS
 
   VT number_of_vertices = graph.number_of_vertices;
   ET number_of_edges    = graph.number_of_edges;
@@ -500,22 +499,25 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
   bfs.traverse(start_vertex);
 }
 
-template void bfs<unsigned, unsigned, float>(
-  experimental::GraphCSRView<unsigned, unsigned, float> const &graph,
-  unsigned *distances,
-  unsigned *predecessors,
+// Explicit Instantiation
+template void bfs<uint32_t, uint32_t, float>(
+  experimental::GraphCSRView<uint32_t, uint32_t, float> const &graph,
+  uint32_t *distances,
+  uint32_t *predecessors,
   double *sp_counters,
-  const unsigned source_vertex,
+  const uint32_t source_vertex,
   bool directed);
 
-template void bfs<unsigned, unsigned, double>(
-  experimental::GraphCSRView<unsigned, unsigned, double> const &graph,
-  unsigned *distances,
-  unsigned *predecessors,
+// Explicit Instantiation
+template void bfs<uint32_t, uint32_t, double>(
+  experimental::GraphCSRView<uint32_t, uint32_t, double> const &graph,
+  uint32_t *distances,
+  uint32_t *predecessors,
   double *sp_counters,
-  const unsigned source_vertex,
+  const uint32_t source_vertex,
   bool directed);
 
+// Explicit Instantiation
 template void bfs<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
                                    int *distances,
                                    int *predecessors,
@@ -523,6 +525,7 @@ template void bfs<int, int, float>(experimental::GraphCSRView<int, int, float> c
                                    const int source_vertex,
                                    bool directed);
 
+// Explicit Instantiation
 template void bfs<int, int, double>(experimental::GraphCSRView<int, int, double> const &graph,
                                     int *distances,
                                     int *predecessors,
@@ -530,18 +533,22 @@ template void bfs<int, int, double>(experimental::GraphCSRView<int, int, double>
                                     const int source_vertex,
                                     bool directed);
 
-template void bfs<long, long, float>(experimental::GraphCSRView<long, long, float> const &graph,
-                                     long *distances,
-                                     long *predecessors,
-                                     double *sp_counters,
-                                     const long source_vertex,
-                                     bool directed);
+// Explicit Instantiation
+template void bfs<int64_t, int64_t, float>(
+  experimental::GraphCSRView<int64_t, int64_t, float> const &graph,
+  int64_t *distances,
+  int64_t *predecessors,
+  double *sp_counters,
+  const int64_t source_vertex,
+  bool directed);
 
-template void bfs<long, long, double>(experimental::GraphCSRView<long, long, double> const &graph,
-                                      long *distances,
-                                      long *predecessors,
-                                      double *sp_counters,
-                                      const long source_vertex,
-                                      bool directed);
+// Explicit Instantiation
+template void bfs<int64_t, int64_t, double>(
+  experimental::GraphCSRView<int64_t, int64_t, double> const &graph,
+  int64_t *distances,
+  int64_t *predecessors,
+  double *sp_counters,
+  const int64_t source_vertex,
+  bool directed);
 
 }  // namespace cugraph

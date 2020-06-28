@@ -218,6 +218,8 @@ binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexT
   }
 }
 
+// FIXME: The atomicAdd wrappers should be moved to RAFT
+
 template <typename T>
 __device__ static __forceinline__ T atomicAdd(T* addr, T val)
 {
@@ -225,8 +227,11 @@ __device__ static __forceinline__ T atomicAdd(T* addr, T val)
 }
 
 template <>
-__device__ __forceinline__ long atomicAdd<long>(long* addr, long val)
+__device__ __forceinline__ int64_t atomicAdd<int64_t>(int64_t* addr, int64_t val)
 {
+  static_assert(sizeof(int64_t) == sizeof(unsigned long long),
+                "sizeof(int64_t) != sizeof(unsigned long long). Can't use atomicAdd");
+
   return ::atomicAdd(reinterpret_cast<unsigned long long*>(addr),
                      static_cast<unsigned long long>(val));
 }

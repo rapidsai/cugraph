@@ -17,6 +17,8 @@
 
 #include <utilities/sm_utils.h>
 #include <cub/cub.cuh>
+
+#include "graph.hpp"
 #include "traversal_common.cuh"
 
 namespace cugraph {
@@ -161,7 +163,8 @@ void fill_unvisited_queue(int *visited_bmap,
   dim3 grid, block;
   block.x = FILL_UNVISITED_QUEUE_DIMX;
 
-  grid.x = min((IndexType)MAXBLOCKS, (visited_bmap_nints + block.x - 1) / block.x);
+  grid.x = std::min(static_cast<size_t>(MAXBLOCKS),
+                    (static_cast<size_t>(visited_bmap_nints) + block.x - 1) / block.x);
 
   fill_unvisited_queue_kernel<<<grid, block, 0, m_stream>>>(
     visited_bmap, visited_bmap_nints, n, unvisited, unvisited_cnt);
@@ -220,7 +223,8 @@ void count_unvisited_edges(const IndexType *potentially_unvisited,
 {
   dim3 grid, block;
   block.x = COUNT_UNVISITED_EDGES_DIMX;
-  grid.x  = min((IndexType)MAXBLOCKS, (potentially_unvisited_size + block.x - 1) / block.x);
+  grid.x  = std::min(static_cast<size_t>(MAXBLOCKS),
+                    (static_cast<size_t>(potentially_unvisited_size) + block.x - 1) / block.x);
 
   count_unvisited_edges_kernel<<<grid, block, 0, m_stream>>>(
     potentially_unvisited, potentially_unvisited_size, visited_bmap, node_degree, mu);
@@ -285,6 +289,11 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
   const int warpid = threadIdx.x / WARP_SIZE;
   const int laneid = threadIdx.x % WARP_SIZE;
 
+  // When this kernel is converted to support different VT and ET, this
+  // will likely split into invalid_vid and invalid_eid
+  // This is equivalent to ~IndexType(0) (i.e., all bits set to 1)
+  constexpr IndexType invalid_idx = cugraph::experimental::invalid_idx<IndexType>::value;
+
   // we will call __syncthreads inside the loop
   // we need to keep complete block active
   for (IndexType block_off = blockIdx.x * blockDim.x; block_off < unvisited_size;
@@ -300,8 +309,8 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
     IndexType visited_bmap_index[1];  // this is an array of size 1 because CUB
                                       // needs one
 
-    visited_bmap_index[0]      = ~IndexType(0);
-    IndexType unvisited_vertex = ~IndexType(0);
+    visited_bmap_index[0]      = invalid_idx;
+    IndexType unvisited_vertex = invalid_idx;
 
     // local_visited_bmap gives info on the visited bit of unvisited_vertex
     //
@@ -330,7 +339,9 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
 
       IndexType degree = edge_end - edge_begin;
 
-      for (IndexType edge = edge_begin; edge < min(edge_end, edge_begin + MAIN_BOTTOMUP_MAX_EDGES);
+      for (IndexType edge = edge_begin;
+           edge < std::min(static_cast<size_t>(edge_end),
+                           static_cast<size_t>(edge_begin) + MAIN_BOTTOMUP_MAX_EDGES);
            ++edge) {
         if (edge_mask && !edge_mask[edge]) continue;
 
@@ -438,8 +449,8 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
       // we dont know about the rest - we have to be neutral about elts > last_v
 
       // the destination thread of the __shfl is active
-      int laneid_max =
-        min((IndexType)(WARP_SIZE - 1), (unvisited_size - (block_off + 32 * warpid)));
+      int laneid_max = std::min(static_cast<IndexType>(WARP_SIZE - 1),
+                                (unvisited_size - (block_off + 32 * warpid)));
       IndexType last_v =
         cugraph::detail::utils::shfl(unvisited_vertex, laneid_max, WARP_SIZE, __activemask());
 
@@ -496,7 +507,8 @@ void bottom_up_main(IndexType *unvisited,
   dim3 grid, block;
   block.x = MAIN_BOTTOMUP_DIMX;
 
-  grid.x = min((IndexType)MAXBLOCKS, ((unvisited_size + block.x)) / block.x);
+  grid.x = std::min(static_cast<size_t>(MAXBLOCKS),
+                    (static_cast<size_t>(unvisited_size) + block.x) / block.x);
 
   main_bottomup_kernel<<<grid, block, 0, m_stream>>>(unvisited,
                                                      unvisited_size,
@@ -536,6 +548,11 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
   int logical_warp_id         = threadIdx.x / BOTTOM_UP_LOGICAL_WARP_SIZE;
   int logical_warps_per_block = blockDim.x / BOTTOM_UP_LOGICAL_WARP_SIZE;
 
+  // When this kernel is converted to support different VT and ET, this
+  // will likely split into invalid_vid and invalid_eid
+  // This is equivalent to ~IndexType(0) (i.e., all bits set to 1)
+  constexpr IndexType invalid_idx = cugraph::experimental::invalid_idx<IndexType>::value;
+
   // Inactive threads are not a pb for __ballot (known behaviour)
   for (IndexType idx = logical_warps_per_block * blockIdx.x + logical_warp_id;
        idx < left_unvisited_size;
@@ -556,7 +573,7 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
     // is know with inactive threads
     for (IndexType i_edge = first_i_edge + logical_lane_id; i_edge < end_i_edge;
          i_edge += BOTTOM_UP_LOGICAL_WARP_SIZE) {
-      IndexType valid_parent = ~IndexType(0);
+      IndexType valid_parent = invalid_idx;
 
       if (!edge_mask || edge_mask[i_edge]) {
         IndexType u     = col_ind[i_edge];
@@ -566,7 +583,7 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
       }
 
       unsigned int warp_valid_p_ballot =
-        cugraph::detail::utils::ballot(valid_parent != ~IndexType(0));
+        cugraph::detail::utils::ballot(valid_parent != invalid_idx);
 
       int logical_warp_id_in_warp = (threadIdx.x % WARP_SIZE) / BOTTOM_UP_LOGICAL_WARP_SIZE;
       unsigned int mask           = (1 << BOTTOM_UP_LOGICAL_WARP_SIZE) - 1;
@@ -610,8 +627,10 @@ void bottom_up_large(IndexType *left_unvisited,
 {
   dim3 grid, block;
   block.x = LARGE_BOTTOMUP_DIMX;
-  grid.x  = min((IndexType)MAXBLOCKS,
-               ((left_unvisited_size + block.x - 1) * BOTTOM_UP_LOGICAL_WARP_SIZE) / block.x);
+  grid.x  = std::min(
+    static_cast<size_t>(MAXBLOCKS),
+    ((static_cast<size_t>(left_unvisited_size) + block.x - 1) * BOTTOM_UP_LOGICAL_WARP_SIZE) /
+      block.x);
 
   bottom_up_large_degree_kernel<<<grid, block, 0, m_stream>>>(left_unvisited,
                                                               left_unvisited_size,
@@ -708,21 +727,26 @@ __global__ void topdown_expand_kernel(
   IndexType block_offset            = (blockDim.x * blockIdx.x) * max_items_per_thread;
   IndexType n_items_per_thread_left = 0;
 
+  // When this kernel is converted to support different VT and ET, this
+  // will likely split into invalid_vid and invalid_eid
+  // This is equivalent to ~IndexType(0) (i.e., all bits set to 1)
+  constexpr IndexType invalid_idx = cugraph::experimental::invalid_idx<IndexType>::value;
+
   if (totaldegree > block_offset) {
     n_items_per_thread_left =
       (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX;
   }
 
-  n_items_per_thread_left = min(max_items_per_thread, n_items_per_thread_left);
+  n_items_per_thread_left = std::min(max_items_per_thread, n_items_per_thread_left);
 
   for (; (n_items_per_thread_left > 0) && (block_offset < totaldegree);
 
        block_offset += MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD * blockDim.x,
-       n_items_per_thread_left -=
-       min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD)) {
+       n_items_per_thread_left -= std::min(
+         n_items_per_thread_left, static_cast<IndexType>(MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD))) {
     // In this loop, we will process batch_set_size batches
-    IndexType nitems_per_thread =
-      min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD);
+    IndexType nitems_per_thread = std::min(
+      n_items_per_thread_left, static_cast<IndexType>(MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD));
 
     // Loading buckets offset (see compute_bucket_offsets_kernel)
 
@@ -810,8 +834,9 @@ __global__ void topdown_expand_kernel(
         // We process TOP_DOWN_BATCH_SIZE edge in parallel (instruction
         // parallism) Reduces latency
 
-        IndexType current_max_edge_index =
-          min(block_offset + (left + nitems_per_thread_for_this_load) * blockDim.x, totaldegree);
+        IndexType current_max_edge_index = std::min(
+          static_cast<size_t>(block_offset) + (left + nitems_per_thread_for_this_load) * blockDim.x,
+          static_cast<size_t>(totaldegree));
 
         // We will need vec_u (source of the edge) until the end if we need to
         // save the predecessors For others informations, we will reuse pointers
@@ -841,8 +866,8 @@ __global__ void topdown_expand_kernel(
             vec_u[iv]                                    = frontier[k];  // origin of this edge
             vec_frontier_degrees_exclusive_sum_index[iv] = frontier_degrees_exclusive_sum[k];
           } else {
-            vec_u[iv]                                    = ~IndexType(0);
-            vec_frontier_degrees_exclusive_sum_index[iv] = ~IndexType(0);
+            vec_u[iv]                                    = invalid_idx;
+            vec_frontier_degrees_exclusive_sum_index[iv] = invalid_idx;
           }
         }
 
@@ -851,7 +876,7 @@ __global__ void topdown_expand_kernel(
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           IndexType u = vec_u[iv];
           // row_ptr for this vertex origin u
-          vec_row_ptr_u[iv] = (u != ~IndexType(0)) ? row_ptr[u] : ~IndexType(0);
+          vec_row_ptr_u[iv] = (u != invalid_idx) ? row_ptr[u] : invalid_idx;
         }
 
         // We won't need row_ptr after that, reusing pointer
@@ -864,12 +889,12 @@ __global__ void topdown_expand_kernel(
 
           IndexType row_ptr_u = vec_row_ptr_u[iv];
           // Need this check so that we don't use invalid values of edge to index
-          if (row_ptr_u != ~IndexType(0)) {
+          if (row_ptr_u != invalid_idx) {
             IndexType edge = row_ptr_u + gid - vec_frontier_degrees_exclusive_sum_index[iv];
 
             if (edge_mask && !edge_mask[edge]) {
               // Disabling edge
-              row_ptr_u = ~IndexType(0);
+              row_ptr_u = invalid_idx;
             } else {
               // Destination of this edge
               vec_dest_v[iv] = col_ind[edge];
@@ -887,7 +912,7 @@ __global__ void topdown_expand_kernel(
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           IndexType v = vec_dest_v[iv];
           vec_v_visited_bmap[iv] =
-            (v != ~IndexType(0)) ? previous_bmap[v / INT_SIZE] : (~int(0));  // will look visited
+            (v != invalid_idx) ? previous_bmap[v / INT_SIZE] : (~int(0));  // will look visited
         }
 
         // From now on we will consider v as a frontier candidate
@@ -902,7 +927,7 @@ __global__ void topdown_expand_kernel(
 
           int is_visited = vec_v_visited_bmap[iv] & m;
 
-          if (is_visited) vec_frontier_candidate[iv] = ~IndexType(0);
+          if (is_visited) vec_frontier_candidate[iv] = invalid_idx;
         }
 
         // Each source should update the destination shortest path counter
@@ -911,7 +936,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType dst = vec_frontier_candidate[iv];
-            if (dst != ~IndexType(0)) {
+            if (dst != invalid_idx) {
               IndexType src = vec_u[iv];
               atomicAdd(&sp_counters[dst], sp_counters[src]);
             }
@@ -925,7 +950,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
             IndexType v              = vec_frontier_candidate[iv];
-            vec_is_isolated_bmap[iv] = (v != ~IndexType(0)) ? isolated_bmap[v / INT_SIZE] : ~int(0);
+            vec_is_isolated_bmap[iv] = (v != invalid_idx) ? isolated_bmap[v / INT_SIZE] : ~int(0);
           }
 
 #pragma unroll
@@ -941,7 +966,7 @@ __global__ void topdown_expand_kernel(
             // visited, and save distance and predecessor here. Not need to
             // check return value of atomicOr
 
-            if (is_isolated && v != ~IndexType(0)) {
+            if (is_isolated && v != invalid_idx) {
               int m = 1 << (v % INT_SIZE);
               atomicOr(&bmap[v / INT_SIZE], m);
               if (distances) distances[v] = lvl;
@@ -949,7 +974,7 @@ __global__ void topdown_expand_kernel(
               if (predecessors) predecessors[v] = vec_u[iv];
 
               // This is no longer a candidate, neutralize it
-              vec_frontier_candidate[iv] = ~IndexType(0);
+              vec_frontier_candidate[iv] = invalid_idx;
             }
           }
         }
@@ -960,7 +985,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           IndexType v = vec_frontier_candidate[iv];
-          if (v != ~IndexType(0)) ++thread_n_frontier_candidates;
+          if (v != invalid_idx) ++thread_n_frontier_candidates;
         }
 
         // We need to have all nfrontier_candidates to be ready before doing the
@@ -978,7 +1003,7 @@ __global__ void topdown_expand_kernel(
           // May have bank conflicts
           IndexType frontier_candidate = vec_frontier_candidate[iv];
 
-          if (frontier_candidate != ~IndexType(0)) {
+          if (frontier_candidate != invalid_idx) {
             shared_local_new_frontier_candidates[thread_frontier_candidate_offset] =
               frontier_candidate;
             shared_local_new_frontier_predecessors[thread_frontier_candidate_offset] = vec_u[iv];
@@ -1003,7 +1028,7 @@ __global__ void topdown_expand_kernel(
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           const int idx_shared             = iv * blockDim.x + threadIdx.x;
-          vec_frontier_accepted_vertex[iv] = ~IndexType(0);
+          vec_frontier_accepted_vertex[iv] = invalid_idx;
 
           if (idx_shared < block_n_frontier_candidates) {
             IndexType v = shared_local_new_frontier_candidates[idx_shared];  // popping
@@ -1049,7 +1074,7 @@ __global__ void topdown_expand_kernel(
           if (idx_shared < block_n_frontier_candidates) {
             IndexType new_frontier_vertex = vec_frontier_accepted_vertex[iv];
 
-            if (new_frontier_vertex != ~IndexType(0)) {
+            if (new_frontier_vertex != invalid_idx) {
               IndexType off     = frontier_common_block_offset + thread_new_frontier_offset++;
               new_frontier[off] = new_frontier_vertex;
             }
@@ -1097,12 +1122,14 @@ void frontier_expand(const IndexType *row_ptr,
   dim3 block;
   block.x = TOP_DOWN_EXPAND_DIMX;
 
-  IndexType max_items_per_thread = (totaldegree + MAXBLOCKS * block.x - 1) / (MAXBLOCKS * block.x);
+  IndexType max_items_per_thread =
+    (static_cast<size_t>(totaldegree) + MAXBLOCKS * block.x - 1) / (MAXBLOCKS * block.x);
 
   dim3 grid;
-  grid.x =
-    min((totaldegree + max_items_per_thread * block.x - 1) / (max_items_per_thread * block.x),
-        (IndexType)MAXBLOCKS);
+  grid.x = std::min((static_cast<size_t>(totaldegree) + max_items_per_thread * block.x - 1) /
+                      (max_items_per_thread * block.x),
+                    static_cast<size_t>(MAXBLOCKS));
+
   // Shortest Path counting (Betweenness Centrality)
   // We need to keep track of the previously visited bmap
 
