@@ -13,12 +13,10 @@
 # limitations under the License.
 #
 
-from cugraph.raft.dask.common.comms import Comms
-from cugraph.dask.common.input_utils import DistributedDataHandler
 from dask.distributed import wait, default_client
+from cugraph.dask.common.input_utils import get_local_data
 from cugraph.raft.dask.common.comms import worker_state
 from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
-from cugraph.dask.common.part_utils import load_balance_func
 import warnings
 
 
@@ -27,6 +25,7 @@ def call_pagerank(sID, data, local_data, alpha, max_iter,
     sessionstate = worker_state(sID)
     return mg_pagerank.mg_pagerank(data[0],
                                    local_data,
+                                   sessionstate['wid'],
                                    sessionstate['handle'],
                                    alpha,
                                    max_iter,
@@ -107,22 +106,20 @@ supported. Setting them to None")
     nstart = None
 
     client = default_client()
-    _ddf = input_graph.edgelist.edgelist_df
-    ddf = _ddf.sort_values(by='dst', ignore_index=True)
 
-    if load_balance:
-        ddf = load_balance_func(ddf, by='dst')
+    if(input_graph.local_data is not None and
+       input_graph.local_data['by'] == 'dst'):
+        data = input_graph.local_data['data']
+        comms = input_graph.local_data['comms']
+    else:
+        data, comms = get_local_data(input_graph, by='dst')
 
-    data = DistributedDataHandler.create(data=ddf)
-    comms = Comms(comms_p2p=False)
-    comms.init(data.workers)
-    local_data = data.calculate_local_data(comms)
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
             call_pagerank,
             comms.sessionId,
             wf[1],
-            local_data,
+            data.local_data,
             alpha,
             max_iter,
             tol,

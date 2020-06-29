@@ -21,9 +21,8 @@ from dask_cuda import LocalCUDACluster
 
 
 def test_dask_pagerank():
-
     gc.collect()
-    cluster = LocalCUDACluster(protocol="tcp", scheduler_port=0)
+    cluster = LocalCUDACluster()
     client = Client(cluster)
 
     input_data_path = r"../datasets/karate.csv"
@@ -46,14 +45,19 @@ def test_dask_pagerank():
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf)
 
-    expected_pr = cugraph.pagerank(g)
-    result_pr = dcg.pagerank(dg)
+    # Pre compute local data
+    # dg.compute_local_data(by='dst')
 
+    expected_pr = cugraph.pagerank(g)
+    result_pr = dcg.pagerank(dg, tol=4)
+    print(result_pr)
     err = 0
     tol = 1.0e-05
+
     assert len(expected_pr) == len(result_pr)
     for i in range(len(result_pr)):
-        if(abs(result_pr['pagerank'].iloc[i]-expected_pr['pagerank'].iloc[i]) > tol*1.1):
+        if(abs(result_pr['pagerank'].iloc[i]-expected_pr['pagerank'].iloc[i])
+           > tol*1.1):
             err = err + 1
     print("Mismatches:", err)
     assert err == 0

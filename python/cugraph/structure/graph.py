@@ -15,7 +15,9 @@ from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
+from cugraph.dask.common.input_utils import get_local_data
 import cudf
+import dask_cudf
 import numpy as np
 import warnings
 
@@ -84,6 +86,7 @@ class Graph:
         self.renumbered = False
         self.bipartite = bipartite
         self.multi = multi
+        self.distributed = False
         self.dynamic = dynamic
         self.edgelist = None
         self.adjlist = None
@@ -212,7 +215,24 @@ class Graph:
             self.from_cudf_edgelist(input_df)
 
     def from_dask_cudf_edgelist(self, input_ddf):
-        self.edgelist = self.EdgeList(input_ddf)
+        if self.edgelist is not None or self.adjlist is not None:
+            raise Exception('Graph already has values')
+        if isinstance(input_ddf, dask_cudf.DataFrame):
+            self.distributed = True
+            self.local_data = None
+            self.edgelist = self.EdgeList(input_ddf)
+        else:
+            raise Exception('input should be a dask_cudf dataFrame')
+
+    def compute_local_data(self, by):
+        if self.distributed:
+            data, comms = get_local_data(self, by)
+            self.local_data = {}
+            self.local_data['data'] = data
+            self.local_data['comms'] = comms
+            self.local_data['by'] = by
+        else:
+            raise Exception('Graph should be a distributed graph')
 
     def view_edge_list(self):
         """
@@ -701,7 +721,8 @@ class Graph:
 
     def _degree(self, vertex_subset, x=0):
         vertex_col, degree_col = graph_new_wrapper._degree(self, x)
-
+        print(vertex_col)
+        print(degree_col)
         df = cudf.DataFrame()
         if vertex_subset is None:
             if self.renumbered is True:
