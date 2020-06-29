@@ -16,6 +16,7 @@
 #include <raft/handle.hpp>
 #include <graph.hpp>
 
+namespace cugraph {
 
 namespace detail {
 
@@ -104,3 +105,5 @@ class BFSCommunicator {
 }//namespace opg
 
 }//namespace detail
+
+}//namespace cugraph

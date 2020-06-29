@@ -22,6 +22,8 @@
 #include <raft/cudart_utils.h>
 #include <graph.hpp>
 
+namespace cugraph {
+
 namespace detail {
 
 namespace opg {
@@ -65,6 +67,7 @@ class LoadBalanceExecution {
     auto distribution = dist_.run(reorganized_vertices_, stream);
 
     DegreeBucket<VT, ET> large_bucket = distribution.degreeRange(16);
+    //TODO : Use other streams from handle_
     large_vertex_worker(graph_, large_bucket, op, stream);
 
     DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
@@ -86,5 +89,7 @@ class LoadBalanceExecution {
 }//namespace opg
 
 }//namespace detail
+
+}//namespace cugraph
 
 #endif //LB_CUH

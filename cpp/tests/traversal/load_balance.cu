@@ -86,7 +86,7 @@ class Tests_LB : public ::testing::TestWithParam<LB_Usecase> {
     rmm::device_vector<ET> in_degree_lb(G.number_of_vertices, 0);
 
     raft::handle_t handle;
-    detail::opg::LoadBalanceExecution<VT, ET, WT> lb(handle, G);
+    cugraph::detail::opg::LoadBalanceExecution<VT, ET, WT> lb(handle, G);
     CUDA_TRY(cudaGetLastError());
     in_degree<VT, ET> in_degree_op(in_degree_lb.data().get());
     lb.run(in_degree_op);

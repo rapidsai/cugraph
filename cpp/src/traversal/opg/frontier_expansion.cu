@@ -18,6 +18,8 @@
 #include "load_balance.cuh"
 #include "bfs_comms.cuh"
 
+namespace cugraph {
+
 namespace detail {
 
 namespace opg {
@@ -150,3 +152,5 @@ template void bfs(raft::handle_t const &handle,
 }//namespace opg
 
 }//namespace detail
+
+}//namespace cugraph

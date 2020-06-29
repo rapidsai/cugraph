@@ -19,6 +19,8 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
+namespace cugraph {
+
 namespace detail {
 
 namespace opg {
@@ -55,6 +57,7 @@ exclusive_scan(T* data, T* out) {
   }
 }
 
+//Return true if the nth bit of an array is set to 1
 template <typename T>
 __device__
 bool is_nth_bit_set(
@@ -63,6 +66,10 @@ bool is_nth_bit_set(
   return bitmap[index/BitsPWrd<unsigned>] & (unsigned{1} << (index % BitsPWrd<unsigned>));
 }
 
+//Given the CSR offsets of vertices and the related active bit map
+//count the number of vertices that belong to a particular bin where
+//vertex with degree d such that 2^x < d <= 2^x+1 belong to bin (x+1)
+//Vertices with degree 0 are counted in bin 0
 template <typename VT, typename ET>
 __global__
 void count_bin_sizes(
@@ -91,6 +98,10 @@ void count_bin_sizes(
   }
 }
 
+//Given the CSR offsets of vertices count the number of vertices that
+//belong to a particular bin where vertex with degree d such that
+//2^x < d <= 2^x+1 belong to bin (x+1). Vertices with degree 0 are counted in
+//bin 0
 template <typename VT, typename ET>
 __global__
 void count_bin_sizes(
@@ -116,6 +127,8 @@ void count_bin_sizes(
   }
 }
 
+//Bin vertices to the appropriate bins by taking into account
+//the starting offsets calculated by count_bin_sizes
 template <typename VT, typename ET>
 __global__
 void create_vertex_bins(
@@ -155,6 +168,8 @@ void create_vertex_bins(
   }
 }
 
+//Bin vertices to the appropriate bins by taking into account
+//the starting offsets calculated by count_bin_sizes
 template <typename VT, typename ET>
 __global__
 void create_vertex_bins(
@@ -247,5 +262,7 @@ void bin_vertices(
 }//namespace opg
 
 }//namespace detail
+
+}//namespace cugraph
 
 #endif //BIN_KERNELS_CUH

@@ -19,6 +19,8 @@
 
 #include "vertex_binning_kernels.cuh"
 
+namespace cugraph {
+
 namespace detail {
 
 namespace opg {
@@ -115,5 +117,7 @@ VertexBinner<VT, ET>::run(
 }//namespace opg
 
 }//namespace detail
+
+}//namespace cugraph
 
 #endif //VERTEX_BINNING_CUH

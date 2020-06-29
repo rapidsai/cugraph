@@ -21,6 +21,8 @@
 #include "vertex_binning.cuh"
 #include <graph.hpp>
 
+namespace cugraph {
+
 namespace detail {
 
 namespace opg {
@@ -126,5 +128,7 @@ void small_vertex_worker(
 }//namespace opg
 
 }//namespace detail
+
+}//namespace cugraph
 
 #endif //WORKER_KERNELS_CUH
