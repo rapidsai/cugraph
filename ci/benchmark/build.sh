@@ -119,7 +119,7 @@ logger "Running Benchmarks..."
 cd $BENCHMARKS_DIR
 set +e
 time pytest -v -m "small and managedmem_on and poolallocator_on" \
-    --benchmark-gpu-device=0 \
+    --benchmark-gpu-device=${EXECUTOR_NUMBER} \
     --benchmark-gpu-max-rounds=3 \
     --benchmark-asv-metadata="machineName=${NODE_NAME}, commitBranch=branch-${MINOR_VERSION}" \
     --benchmark-asv-output-dir=${ASVRESULTS_DIR}
