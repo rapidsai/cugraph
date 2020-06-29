@@ -22,6 +22,7 @@
 - PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
 - PR #954 Update cuGraph error handling to use RAFT
 - PR #975 Upgrade GitHub template
+- PR #976 Fix error in Graph.edges(), update cuDF rename() calls
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
