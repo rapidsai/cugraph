@@ -59,8 +59,8 @@ for i in range(len(df_page)):
 |              | Pagerank                               | Single-GPU   |                     |
 |              | Personal Pagerank                      | Single-GPU   |                     |
 | Link Prediction |                                     |              |                     |
-|              | Jacard Similarity                      | Single-GPU   |                     |
-|              | Weighted Jacard Similarity             | Single-GPU   |                     |
+|              | Jaccard Similarity                     | Single-GPU   |                     |
+|              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
 | Traversal    |                                        |              |                     |
 |              | Breadth First Search (BFS)             | Single-GPU   |                     |
