@@ -721,8 +721,6 @@ class Graph:
 
     def _degree(self, vertex_subset, x=0):
         vertex_col, degree_col = graph_new_wrapper._degree(self, x)
-        print(vertex_col)
-        print(degree_col)
         df = cudf.DataFrame()
         if vertex_subset is None:
             if self.renumbered is True:
