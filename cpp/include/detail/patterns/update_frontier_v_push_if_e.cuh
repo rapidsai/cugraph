@@ -19,7 +19,6 @@
 #include <detail/patterns/reduce_op.cuh>
 #include <detail/utilities/cuda.cuh>
 #include <detail/utilities/thrust_tuple_utils.cuh>
-#include <graph.hpp>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -38,8 +37,8 @@
 namespace {
 
 // FIXME: block size requires tuning
-int32_t constexpr expand_and_transform_if_v_push_if_e_for_all_low_out_degree_block_size = 128;
-int32_t constexpr expand_and_transform_if_v_push_if_e_update_block_size                 = 128;
+int32_t constexpr update_frontier_v_push_if_e_for_all_low_out_degree_block_size = 128;
+int32_t constexpr update_frontier_v_push_if_e_update_block_size                 = 128;
 
 template <typename GraphType,
           typename RowIterator,
@@ -48,7 +47,7 @@ template <typename GraphType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_row_for_all_nbr_col_low_out_degree(
+__global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
   GraphType graph_device_view,
   RowIterator row_first,
   RowIterator row_last,
@@ -59,28 +58,26 @@ __global__ void for_all_frontier_row_for_all_nbr_col_low_out_degree(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
+  using vertex_t = typename GraphType::vertex_type;
   using weight_t = typename GraphType::weight_type;
 
-  static_assert(GraphType::is_row_major);
+  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
 
   auto num_rows  = static_cast<size_t>(thrust::distance(row_first, row_last));
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   size_t idx     = tid;
 
-  auto graph_offset_first = graph_device_view.offset_data();
-  auto graph_index_first  = graph_device_view.index_data();
-  auto graph_weight_first = graph_device_view.weight_data();
-
   while (idx < num_rows) {
-    auto row_offset =
-      graph_device_view.get_this_partition_row_offset_from_row_nocheck(*(row_first + idx));
-    auto nbr_offset_first = *(graph_offset_first + row_offset);
-    auto nbr_offset_last  = *(graph_offset_first + (row_offset + 1));
-    for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
-      auto nbr_vid = *(graph_index_first + nbr_offset);
-      // FIXME: weight_first != nullptr is not idiomatic
-      weight_t w      = (graph_weight_first != nullptr) ? *(graph_weight_first + nbr_offset) : 1.0;
-      auto col_offset = graph_device_view.get_this_partition_col_offset_from_col_nocheck(nbr_vid);
+    auto row        = *(row_first + idx);
+    auto row_offset = graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(row);
+    vertex_t const* indices{nullptr};
+    weight_t const* weights{nullptr};
+    vertex_t local_out_degree{};
+    thrust::tie(indices, weights, local_out_degree) = graph_device_view.get_local_edges(row);
+    for (vertex_t i = 0; i < local_out_degree; ++i) {
+      auto dst_vid    = indices[i];
+      auto weight     = weights != nullptr ? weights[i] : 1.0;
+      auto col_offset = graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(dst_vid);
       auto e_op_result =
         cugraph::experimental::detail::evaluate_edge_op<GraphType,
                                                         EdgeOp,
@@ -88,7 +85,7 @@ __global__ void for_all_frontier_row_for_all_nbr_col_low_out_degree(
                                                         AdjMatrixColValueInputIterator>()
           .compute(*(adj_matrix_row_value_input_first + row_offset),
                    *(adj_matrix_col_value_input_first + col_offset),
-                   w,
+                   weight,
                    e_op);
       if (thrust::get<0>(e_op_result) == true) {
         // FIXME: This atomicInc serializes execution. If we renumber vertices to insure that rows
@@ -193,7 +190,7 @@ __global__ void update_frontier_and_vertex_output_values(
   // FIXME: it might be more performant to process more than one element per thread
   auto num_blocks = (num_buffer_elements + blockDim.x - 1) / blockDim.x;
 
-  using BlockScan = cub::BlockScan<size_t, expand_and_transform_if_v_push_if_e_update_block_size>;
+  using BlockScan = cub::BlockScan<size_t, update_frontier_v_push_if_e_update_block_size>;
   __shared__ typename BlockScan::TempStorage temp_storage;
 
   __shared__ size_t bucket_block_start_offsets[num_buckets];
@@ -259,9 +256,9 @@ namespace detail {
 template <typename HandleType,
           typename GraphType,
           typename RowIterator,
+          typename VertexValueInputIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
-          typename VertexValueInputIterator,
           typename VertexValueOutputIterator,
           typename AdjMatrixRowValueOutputIterator,
           typename AdjMatrixColValueOutputIterator,
@@ -269,23 +266,22 @@ template <typename HandleType,
           typename EdgeOp,
           typename ReduceOp,
           typename VertexOp>
-void expand_row_and_transform_if_v_push_if_e(
-  HandleType& handle,
-  GraphType const& graph_device_view,
-  RowIterator row_first,
-  RowIterator row_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexValueInputIterator vertex_value_input_first,
-  VertexValueOutputIterator vertex_value_output_first,
-  AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
-  AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
-  RowFrontierType& row_frontier,
-  EdgeOp e_op,
-  ReduceOp reduce_op,
-  VertexOp v_op)
+void update_frontier_v_push_if_e(HandleType& handle,
+                                 GraphType const& graph_device_view,
+                                 RowIterator row_first,
+                                 RowIterator row_last,
+                                 VertexValueInputIterator vertex_value_input_first,
+                                 AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+                                 AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+                                 VertexValueOutputIterator vertex_value_output_first,
+                                 AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
+                                 AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
+                                 RowFrontierType& row_frontier,
+                                 EdgeOp e_op,
+                                 ReduceOp reduce_op,
+                                 VertexOp v_op)
 {
-  static_assert(GraphType::is_row_major);
+  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
 
   using vertex_t          = typename GraphType::vertex_type;
   using reduce_op_input_t = typename ReduceOp::type;
@@ -295,10 +291,7 @@ void expand_row_and_transform_if_v_push_if_e(
     row_first,
     row_last,
     [graph_device_view] __device__(auto row) {
-      auto graph_offset_first = graph_device_view.offset_data();
-      auto row_offset = graph_device_view.get_this_partition_row_offset_from_row_nocheck(row);
-      return static_cast<size_t>(*(graph_offset_first + row_offset + 1) -
-                                 *(graph_offset_first + row_offset));
+      return graph_device_view.get_local_out_degree_nocheck(row);
     },
     static_cast<size_t>(0),
     thrust::plus<size_t>());
@@ -315,16 +308,16 @@ void expand_row_and_transform_if_v_push_if_e(
 
   grid_1d_thread_t for_all_low_out_degree_grid(
     thrust::distance(row_first, row_last),
-    expand_and_transform_if_v_push_if_e_for_all_low_out_degree_block_size,
+    update_frontier_v_push_if_e_for_all_low_out_degree_block_size,
     get_max_num_blocks_1D());
 
   // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
   // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
   // order, we will apply this kernel only to low out-degree vertices.
-  for_all_frontier_row_for_all_nbr_col_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                        for_all_low_out_degree_grid.block_size,
-                                                        0,
-                                                        handle.get_stream()>>>(
+  for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
+                                                    for_all_low_out_degree_grid.block_size,
+                                                    0,
+                                                    handle.get_stream()>>>(
     graph_device_view,
     row_first,
     row_last,
@@ -344,7 +337,7 @@ void expand_row_and_transform_if_v_push_if_e(
   }
 
   grid_1d_thread_t update_grid(thrust::distance(row_first, row_last),
-                               expand_and_transform_if_v_push_if_e_update_block_size,
+                               update_frontier_v_push_if_e_update_block_size,
                                get_max_num_blocks_1D());
 
   auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;

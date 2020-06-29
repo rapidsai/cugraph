@@ -880,7 +880,7 @@ void sssp(raft::handle_t &handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void pagerank(raft::handle_t &handle,
               GraphCSCView<vertex_t, edge_t, weight_t> const &graph,
-              weight_t *adj_matrix_col_out_weight_sums,  // should be set to the vertex out-degrees
+              weight_t *adj_matrix_row_out_weight_sums,  // should be set to the vertex out-degrees
                                                          // for an unweighted graph
               vertex_t *personalization_vertices,
               result_t *personalization_values,

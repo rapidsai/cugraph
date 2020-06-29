@@ -21,6 +21,7 @@
 #include <rmm/device_buffer.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/tuple.h>
 
 #include <functional>
 #include <memory>
@@ -29,34 +30,26 @@
 namespace cugraph {
 namespace experimental {
 
-template <typename GraphType, typename Enable = void>
-class graph_compressed_sparse_base_device_view_t;
-
 // Common for both OPG and single-GPU versions
 template <typename GraphType>
-class graph_compressed_sparse_base_device_view_t<
-  GraphType,
-  std::enable_if_t<GraphType::is_row_major || GraphType::is_column_major>> {
+class graph_base_device_view_t {
  public:
-  using vertex_type                     = typename GraphType::vertex_type;
-  using edge_type                       = typename GraphType::edge_type;
-  using weight_type                     = typename GraphType::weight_type;
-  static constexpr bool is_row_major    = GraphType::is_row_major;
-  static constexpr bool is_column_major = GraphType::is_row_major;
-  static constexpr bool is_opg          = GraphType::is_opg;
+  using vertex_type                              = typename GraphType::vertex_type;
+  using edge_type                                = typename GraphType::edge_type;
+  using weight_type                              = typename GraphType::weight_type;
+  static constexpr bool is_adj_matrix_transposed = GraphType::is_adj_matrix_transposed;
+  static constexpr bool is_opg                   = GraphType::is_opg;
 
-  graph_compressed_sparse_base_device_view_t()  = delete;
-  ~graph_compressed_sparse_base_device_view_t() = default;
-  graph_compressed_sparse_base_device_view_t(graph_compressed_sparse_base_device_view_t const&) =
-    default;
-  graph_compressed_sparse_base_device_view_t(graph_compressed_sparse_base_device_view_t&&) =
-    default;
-  graph_compressed_sparse_base_device_view_t& operator =(
-    graph_compressed_sparse_base_device_view_t const&) = default;
-  graph_compressed_sparse_base_device_view_t& operator =(
-    graph_compressed_sparse_base_device_view_t&&) = default;
+  graph_base_device_view_t()                                = delete;
+  ~graph_base_device_view_t()                               = default;
+  graph_base_device_view_t(graph_base_device_view_t const&) = default;
+  graph_base_device_view_t(graph_base_device_view_t&&)      = default;
+  graph_base_device_view_t& operator=(graph_base_device_view_t const&) = default;
+  graph_base_device_view_t& operator=(graph_base_device_view_t&&) = default;
 
   __host__ __device__ bool is_symmetric() const noexcept { return is_symmetric_; }
+
+  __host__ __device__ bool is_weighted() const noexcept { return weights_ptr_ != nullptr; }
 
   __host__ __device__ vertex_type get_number_of_vertices() const noexcept
   {
@@ -65,10 +58,18 @@ class graph_compressed_sparse_base_device_view_t<
 
   __host__ __device__ vertex_type get_number_of_edges() const noexcept { return number_of_edges_; }
 
-  __host__ __device__ constexpr bool in_vertex_range(vertex_type v) const noexcept
+  template <typename vertex_t = vertex_type>
+  __host__ __device__ std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(
+    vertex_type v) const noexcept
   {
-    // FIXME: need to check
-    return true;
+    return ((v >= 0) && (v < number_of_vertices_));
+  }
+
+  template <typename vertex_t = vertex_type>
+  __host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is_valid_vertex(
+    vertex_type v) const noexcept
+  {
+    return (v < number_of_vertices_);
   }
 
  protected:
@@ -80,7 +81,7 @@ class graph_compressed_sparse_base_device_view_t<
   vertex_type const* indices_ptr_{nullptr};
   weight_type const* weights_ptr_{nullptr};
 
-  graph_compressed_sparse_base_device_view_t(GraphType const& graph)
+  graph_base_device_view_t(GraphType const& graph)
   {
     // FIXME: better not directly access graph member variables, and directed is a misnomer.
     is_symmetric_       = !graph.prop.directed;
@@ -94,45 +95,37 @@ class graph_compressed_sparse_base_device_view_t<
 };
 
 template <typename GraphType, typename Enable = void>
-class graph_compressed_sparse_device_view_t;
+class graph_device_view_t;
 
 // OPG version
 template <typename GraphType>
-class graph_compressed_sparse_device_view_t<
-  GraphType,
-  std::enable_if_t<GraphType::is_opg && (GraphType::is_row_major || GraphType::is_column_major)>>
-  : public graph_compressed_sparse_base_device_view_t<GraphType> {
+class graph_device_view_t<GraphType, std::enable_if_t<GraphType::is_opg>>
+  : public graph_base_device_view_t<GraphType> {
  public:
-  using vertex_type                     = typename GraphType::vertex_type;
-  using edge_type                       = typename GraphType::edge_type;
-  using weight_type                     = typename GraphType::weight_type;
-  static constexpr bool is_row_major    = GraphType::is_row_major;
-  static constexpr bool is_column_major = GraphType::is_column_major;
-  static constexpr bool is_opg          = GraphType::is_opg;
+  using vertex_type                              = typename GraphType::vertex_type;
+  using edge_type                                = typename GraphType::edge_type;
+  using weight_type                              = typename GraphType::weight_type;
+  static constexpr bool is_adj_matrix_transposed = GraphType::is_adj_matrix_transposed;
+  static constexpr bool is_opg                   = true;
 
-  graph_compressed_sparse_device_view_t()                                             = delete;
-  ~graph_compressed_sparse_device_view_t()                                            = default;
-  graph_compressed_sparse_device_view_t(graph_compressed_sparse_device_view_t const&) = default;
-  graph_compressed_sparse_device_view_t(graph_compressed_sparse_device_view_t&&)      = default;
-  graph_compressed_sparse_device_view_t& operator=(graph_compressed_sparse_device_view_t const&) =
-    default;
-  graph_compressed_sparse_device_view_t& operator=(graph_compressed_sparse_device_view_t&&) =
-    default;
+  graph_device_view_t()                           = delete;
+  ~graph_device_view_t()                          = default;
+  graph_device_view_t(graph_device_view_t const&) = default;
+  graph_device_view_t(graph_device_view_t&&)      = default;
+  graph_device_view_t& operator=(graph_device_view_t const&) = default;
+  graph_device_view_t& operator=(graph_device_view_t&&) = default;
 
-  graph_compressed_sparse_device_view_t(GraphType const& graph, void* d_ptr)
-    : graph_compressed_sparse_base_device_view_t<GraphType>(graph)
+  graph_device_view_t(GraphType const& graph, void* d_ptr)
+    : graph_base_device_view_t<GraphType>(graph)
   {
     CUGRAPH_FAIL("unimplemented.");
   }
 
-  void destroy()
-  {  // only for the create() function
-    delete this;
-  }
+  // only for the create() function
+  void destroy() { delete this; }
 
-  static std::unique_ptr<graph_compressed_sparse_device_view_t,
-                         std::function<void(graph_compressed_sparse_device_view_t*)>>
-  create(GraphType const& graph)
+  static std::unique_ptr<graph_device_view_t, std::function<void(graph_device_view_t*)>> create(
+    GraphType const& graph)
   {
     // FIXME: If we partition a graph with a graph partitioning algorithm, block-diagonal parts
     // of an adjacency matrix have more non-zeros. For load balancing, we need to evenly distribute
@@ -140,158 +133,162 @@ class graph_compressed_sparse_device_view_t<
     // purpose.
     // See E. Boman, K. Devine, and S. Rajamanickam, "Scalable matrix computation on large
     // scale-free graphs using 2D graph partitioning," 2013.
-    auto num_this_partition_adj_matrix_segments = 1;
+    auto num_local_adj_matrix_partitions = 1;
     rmm::device_buffer* buffer_ptr =
-      new rmm::device_buffer(num_this_partition_adj_matrix_segments * sizeof(vertex_type) * 2);
-    auto deleter = [buffer_ptr](graph_compressed_sparse_device_view_t* graph_device_view) {
+      new rmm::device_buffer(num_local_adj_matrix_partitions * sizeof(vertex_type) * 2);
+    auto deleter = [buffer_ptr](graph_device_view_t* graph_device_view) {
       graph_device_view->destroy();
       delete buffer_ptr;
     };
-    std::unique_ptr<graph_compressed_sparse_device_view_t, decltype(deleter)> graph_device_view_ptr(
-      new graph_compressed_sparse_device_view_t(graph, buffer_ptr->data()), deleter);
+    std::unique_ptr<graph_device_view_t, decltype(deleter)> graph_device_view_ptr(
+      new graph_device_view_t(graph, buffer_ptr->data()), deleter);
 
     return graph_device_view_ptr;
   }
 
  private:
-  vertex_type const* this_partition_adj_matrix_segment_firsts_ptr_{nullptr};
-  vertex_type const* this_partition_adj_matrix_segment_lasts_ptr_{nullptr};
-  size_t num_this_partition_adj_matrix_offset_ranges_{0};
+  vertex_type const* local_adj_matrix_partition_firsts_{nullptr};
+  vertex_type const* local_adj_matrix_partition_lasts_{nullptr};
+  size_t num_local_adj_matrix_partitions_{0};
 };
 
 // single GPU version
 template <typename GraphType>
-class graph_compressed_sparse_device_view_t<
-  GraphType,
-  std::enable_if_t<!GraphType::is_opg && (GraphType::is_row_major || GraphType::is_column_major)>>
-  : public graph_compressed_sparse_base_device_view_t<GraphType> {
+class graph_device_view_t<GraphType, std::enable_if_t<!GraphType::is_opg>>
+  : public graph_base_device_view_t<GraphType> {
  public:
-  using vertex_type                     = typename GraphType::vertex_type;
-  using edge_type                       = typename GraphType::edge_type;
-  using weight_type                     = typename GraphType::weight_type;
-  static constexpr bool is_row_major    = GraphType::is_row_major;
-  static constexpr bool is_column_major = GraphType::is_column_major;
-  static constexpr bool is_opg          = GraphType::is_opg;
+  using vertex_type                              = typename GraphType::vertex_type;
+  using edge_type                                = typename GraphType::edge_type;
+  using weight_type                              = typename GraphType::weight_type;
+  static constexpr bool is_adj_matrix_transposed = GraphType::is_adj_matrix_transposed;
+  static constexpr bool is_opg                   = false;
 
-  graph_compressed_sparse_device_view_t()                                             = delete;
-  ~graph_compressed_sparse_device_view_t()                                            = default;
-  graph_compressed_sparse_device_view_t(graph_compressed_sparse_device_view_t const&) = default;
-  graph_compressed_sparse_device_view_t(graph_compressed_sparse_device_view_t&&)      = default;
-  graph_compressed_sparse_device_view_t& operator=(graph_compressed_sparse_device_view_t const&) =
-    default;
-  graph_compressed_sparse_device_view_t& operator=(graph_compressed_sparse_device_view_t&&) =
-    default;
+  graph_device_view_t()                           = delete;
+  ~graph_device_view_t()                          = default;
+  graph_device_view_t(graph_device_view_t const&) = default;
+  graph_device_view_t(graph_device_view_t&&)      = default;
+  graph_device_view_t& operator=(graph_device_view_t const&) = default;
+  graph_device_view_t& operator=(graph_device_view_t&&) = default;
 
-  graph_compressed_sparse_device_view_t(GraphType const& graph)
-    : graph_compressed_sparse_base_device_view_t<GraphType>(graph)
+  graph_device_view_t(GraphType const& graph) : graph_base_device_view_t<GraphType>(graph) {}
+
+  static std::unique_ptr<graph_device_view_t, std::function<void(graph_device_view_t*)>> create(
+    GraphType const& graph)
   {
+    return std::make_unique<graph_device_view_t>(graph);
   }
 
-  static std::unique_ptr<graph_compressed_sparse_device_view_t,
-                         std::function<void(graph_compressed_sparse_device_view_t*)>>
-  create(GraphType const& graph)
-  {
-    return std::make_unique<graph_compressed_sparse_device_view_t>(graph);
-  }
-
-  // FIXME: better replace offset_data(), index_data(), and weight_data() with functions returning
-  // a single value. This will abstract out graph data structure internals if adopt more complex
-  // data structure than CSR/CSC (e.g. for 2D partitioning with a very large number of processes
-  // CSR/CSC representations can become hyper-sparse for low degree vertices; in this case,
-  // DCSR/DCSC will save memory, also we can skip storing offsets for 0 degree vertices)
-  __host__ __device__ edge_type const* offset_data() const noexcept { return this->offsets_ptr_; }
-
-  __host__ __device__ vertex_type const* index_data() const noexcept { return this->indices_ptr_; }
-
-  __host__ __device__ weight_type const* weight_data() const noexcept { return this->weights_ptr_; }
-
-  __host__ __device__ vertex_type get_number_of_this_partition_vertices() const noexcept
+  __host__ __device__ vertex_type get_number_of_local_vertices() const noexcept
   {
     return this->number_of_vertices_;
   }
 
-  __host__ __device__ vertex_type get_number_of_this_partition_adj_matrix_rows() const noexcept
+  __host__ __device__ vertex_type get_number_of_adj_matrix_local_rows() const noexcept
   {
     return this->number_of_vertices_;
   }
 
-  __host__ __device__ vertex_type get_number_of_this_partition_adj_matrix_cols() const noexcept
+  __host__ __device__ vertex_type get_number_of_adj_matrix_local_cols() const noexcept
   {
     return this->number_of_vertices_;
   }
 
-  __host__ __device__ constexpr bool in_this_partition_vertex_range_nocheck(vertex_type v) const
-    noexcept
+  __host__ __device__ constexpr bool is_local_vertex_nocheck(vertex_type v) const noexcept
   {
     return true;
   }
 
-  __host__ __device__ constexpr bool in_this_partition_adj_matrix_row_range_nocheck(
-    vertex_type v) const noexcept
+  __host__ __device__ constexpr bool is_adj_matrix_local_row_nocheck(vertex_type row) const noexcept
   {
     return true;
   }
 
-  __host__ __device__ constexpr bool in_this_partition_adj_matrxi_col_range_nocheck(
-    vertex_type v) const noexcept
+  __host__ __device__ constexpr bool is_adj_matrix_local_col_nocheck(vertex_type col) const noexcept
   {
     return true;
   }
 
   __host__ __device__ vertex_type
-  get_vertex_from_this_partition_vertex_offset_nocheck(vertex_type offset) const noexcept
+  get_vertex_from_local_vertex_offset_nocheck(vertex_type offset) const noexcept
   {
     return offset;
   }
 
-  __host__ __device__ vertex_type
-  get_this_partition_vertex_offset_from_vertex_nocheck(vertex_type v) const noexcept
+  __host__ __device__ vertex_type get_local_vertex_offset_from_vertex_nocheck(vertex_type v) const
+    noexcept
   {
     return v;
   }
 
   __host__ __device__ vertex_type
-  get_this_partition_row_offset_from_row_nocheck(vertex_type row) const noexcept
+  get_adj_matrix_local_row_offset_from_row_nocheck(vertex_type row) const noexcept
   {
     return row;
   }
 
   __host__ __device__ vertex_type
-  get_this_partition_col_offset_from_col_nocheck(vertex_type col) const noexcept
+  get_adj_matrix_local_col_offset_from_col_nocheck(vertex_type col) const noexcept
   {
     return col;
   }
 
-  auto this_partition_vertex_begin() const
+  auto local_vertex_begin() const
   {
     return thrust::make_counting_iterator(static_cast<vertex_type>(0));
   }
 
-  auto this_partition_vertex_end() const
+  auto local_vertex_end() const
   {
     return thrust::make_counting_iterator(this->number_of_vertices_);
   }
 
   // FIXME: this API does not work if a single process holds more than one rectangular partitions
   // of the adjacency matrix.
-  auto this_partition_adj_matrix_row_begin() const
+  auto adj_matrix_local_row_begin() const
   {
     return thrust::make_counting_iterator(static_cast<vertex_type>(0));
   }
 
-  auto this_partition_adj_matrix_row_end() const
+  auto adj_matrix_local_row_end() const
   {
     return thrust::make_counting_iterator(this->number_of_vertices_);
   }
 
-  auto this_partition_adj_matrix_col_begin() const
+  auto adj_matrix_local_col_begin() const
   {
     return thrust::make_counting_iterator(static_cast<vertex_type>(0));
   }
 
-  auto this_partition_adj_matrix_col_end() const
+  auto adj_matrix_local_col_end() const
   {
     return thrust::make_counting_iterator(this->number_of_vertices_);
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  __device__ std::enable_if_t<transposed, edge_type> get_local_in_degree_nocheck(
+    vertex_type row) const noexcept
+  {
+    auto row_offset = get_adj_matrix_local_row_offset_from_row_nocheck(row);
+    return *(this->offsets_ptr_ + row_offset + 1) - *(this->offsets_ptr_ + row_offset);
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  __device__ std::enable_if_t<!transposed, edge_type> get_local_out_degree_nocheck(
+    vertex_type row) const noexcept
+  {
+    auto row_offset = get_adj_matrix_local_row_offset_from_row_nocheck(row);
+    return *(this->offsets_ptr_ + row_offset + 1) - *(this->offsets_ptr_ + row_offset);
+  }
+
+  __device__ thrust::tuple<vertex_type const*, weight_type const*, vertex_type> get_local_edges(
+    vertex_type row) const noexcept
+  {
+    auto row_offset   = get_adj_matrix_local_row_offset_from_row_nocheck(row);
+    auto edge_offset  = *(this->offsets_ptr_ + row_offset);
+    auto local_degree = *(this->offsets_ptr_ + row_offset + 1) - edge_offset;
+    auto indices      = this->indices_ptr_ + edge_offset;
+    auto weights      = this->weights_ptr_ != nullptr ? this->weights_ptr_ + edge_offset : nullptr;
+    return thrust::make_tuple(indices, weights, local_degree);
   }
 };
 

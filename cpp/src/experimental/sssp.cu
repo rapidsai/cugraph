@@ -15,9 +15,10 @@
  */
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/adj_matrix_row_frontier.cuh>
-#include <detail/patterns/expand_row_and_transform_if_e.cuh>
+#include <detail/patterns/count_if_e.cuh>
 #include <detail/patterns/reduce_op.cuh>
 #include <detail/patterns/transform_reduce_e.cuh>
+#include <detail/patterns/update_frontier_v_push_if_e.cuh>
 #include <detail/utilities/cuda.cuh>
 #include <graph.hpp>
 #include <utilities/error.hpp>
@@ -38,23 +39,22 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-// FIXME: check predecessors == nullptr and update only if predeessors != nullptr
-template <typename GraphType>
-void sssp_this_partition(raft::handle_t &handle,
-                         GraphType const &csr_graph,
-                         typename GraphType::weight_type *distances,
-                         typename GraphType::vertex_type *predecessors,
-                         typename GraphType::vertex_type start_vertex,
-                         typename GraphType::weight_type cutoff,
-                         bool do_expensive_check)
+template <typename GraphType, typename PredecessorIterator>
+void sssp(raft::handle_t &handle,
+          GraphType const &push_graph,
+          typename GraphType::weight_type *distances,
+          PredecessorIterator predecessor_first,
+          typename GraphType::vertex_type start_vertex,
+          typename GraphType::weight_type cutoff,
+          bool do_expensive_check)
 {
   using vertex_t = typename GraphType::vertex_type;
   using weight_t = typename GraphType::weight_type;
 
   static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
-  static_assert(GraphType::is_row_major, "GraphType should be CSR.");
+  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
 
-  auto p_graph_device_view = graph_compressed_sparse_device_view_t<GraphType>::create(csr_graph);
+  auto p_graph_device_view     = graph_device_view_t<GraphType>::create(push_graph);
   auto const graph_device_view = *p_graph_device_view;
 
   auto const num_vertices = graph_device_view.get_number_of_vertices();
@@ -67,12 +67,18 @@ void sssp_this_partition(raft::handle_t &handle,
 
   // 1. check input arguments
 
-  CUGRAPH_EXPECTS(graph_device_view.in_vertex_range(start_vertex),
-                  "Invalid input argument: starting vertex out-of-range.");
+  CUGRAPH_EXPECTS(graph_device_view.is_valid_vertex(start_vertex),
+                  "Invalid input argument: start vertex out-of-range.");
 
   if (do_expensive_check) {
-    // FIXME: need to check weights are non-negative.
-    // nothing to do
+    auto num_negative_edge_weights =
+      count_if_e(handle,
+                 graph_device_view,
+                 thrust::make_constant_iterator(0) /* dummy */,
+                 thrust::make_constant_iterator(0) /* dummy */,
+                 [] __device__(auto src_val, auto dst_val, weight_t w) { return w < 0.0; });
+    CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
+                    "Invalid input argument: input graph should have non-negative edge weights.");
   }
 
   // 2. initialize distances and predecessors
@@ -80,16 +86,14 @@ void sssp_this_partition(raft::handle_t &handle,
   auto constexpr invalid_distance = std::numeric_limits<weight_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors));
+  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
   thrust::transform(thrust::cuda::par.on(handle.get_stream()),
-                    graph_device_view.this_partition_vertex_begin(),
-                    graph_device_view.this_partition_vertex_end(),
+                    graph_device_view.local_vertex_begin(),
+                    graph_device_view.local_vertex_end(),
                     val_first,
                     [graph_device_view, start_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
-                      auto v =
-                        graph_device_view.get_vertex_from_this_partition_vertex_offset_nocheck(val);
-                      if (v == start_vertex) { distance = static_cast<weight_t>(0.0); }
+                      if (val == start_vertex) { distance = static_cast<weight_t>(0.0); }
                       return thrust::make_tuple(distance, invalid_vertex);
                     });
 
@@ -116,9 +120,9 @@ void sssp_this_partition(raft::handle_t &handle,
   // 4. initialize SSSP frontier
 
   enum class Bucket { cur_near, new_near, far, num_buckets };
-  std::vector<size_t> bucket_sizes(
-    static_cast<size_t>(Bucket::num_buckets),
-    graph_device_view.get_number_of_this_partition_adj_matrix_rows());
+  // FIXME: need to double check the bucket sizes are sufficient
+  std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
+                                   graph_device_view.get_number_of_adj_matrix_local_rows());
   AdjMatrixRowFrontier<raft::handle_t,
                        thrust::tuple<weight_t, vertex_t>,
                        vertex_t,
@@ -129,25 +133,22 @@ void sssp_this_partition(raft::handle_t &handle,
   // 5. SSSP iteration
 
   bool vertex_and_adj_matrix_row_ranges_coincide =
-    (graph_device_view.this_partition_vertex_begin() ==
-     graph_device_view.this_partition_adj_matrix_row_begin()) &&
-        (graph_device_view.this_partition_vertex_end() ==
-         graph_device_view.this_partition_adj_matrix_row_end())
+    (graph_device_view.local_vertex_begin() == graph_device_view.adj_matrix_local_row_begin()) &&
+        (graph_device_view.local_vertex_end() == graph_device_view.adj_matrix_local_row_end())
       ? true
       : false;
   rmm::device_vector<weight_t> adj_matrix_row_distances{};
   if (!vertex_and_adj_matrix_row_ranges_coincide) {
-    adj_matrix_row_distances.assign(
-      graph_device_view.get_number_of_this_partition_adj_matrix_rows(),
-      std::numeric_limits<weight_t>::max());
+    adj_matrix_row_distances.assign(graph_device_view.get_number_of_adj_matrix_local_rows(),
+                                    std::numeric_limits<weight_t>::max());
   }
   auto row_distances =
     !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data().get() : distances;
 
-  if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(start_vertex)) {
+  if (graph_device_view.is_adj_matrix_local_row_nocheck(start_vertex)) {
     adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(start_vertex);
-    if (adj_matrix_row_distances.size() > 0) {
-      adj_matrix_row_distances[graph_device_view.get_this_partition_row_offset_from_row_nocheck(
+    if (!vertex_and_adj_matrix_row_ranges_coincide) {
+      adj_matrix_row_distances[graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(
         start_vertex)] = static_cast<weight_t>(0.0);
     }
   }
@@ -165,33 +166,33 @@ void sssp_this_partition(raft::handle_t &handle,
     };
 
     auto e_op = [graph_device_view, distances, cutoff] __device__(
-                  auto row_val, auto col_val, weight_t w) {
+                  auto src_val, auto dst_val, weight_t w) {
       auto push         = true;
-      auto new_distance = thrust::get<0>(row_val) + w;
+      auto new_distance = thrust::get<0>(src_val) + w;
       auto threshold    = cutoff;
-      if (graph_device_view.in_this_partition_vertex_range_nocheck(col_val)) {
-        auto this_partition_vertex_offset =
-          graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
-        auto old_distance = *(distances + this_partition_vertex_offset);
+      if (graph_device_view.is_local_vertex_nocheck(dst_val)) {
+        auto local_vertex_offset =
+          graph_device_view.get_local_vertex_offset_from_vertex_nocheck(dst_val);
+        auto old_distance = *(distances + local_vertex_offset);
         threshold         = old_distance < threshold ? old_distance : threshold;
       }
       if (new_distance >= threshold) { push = false; }
-      return thrust::make_tuple(push, new_distance, thrust::get<1>(row_val));
+      return thrust::make_tuple(push, new_distance, thrust::get<1>(src_val));
     };
 
     // FIXME: the only difference in these two cases is adj_matrix_row_value_output_first, better
     // avoid code replication.
     if (!vertex_and_adj_matrix_row_ranges_coincide) {
-      expand_row_and_transform_if_v_push_if_e(
+      update_frontier_v_push_if_e(
         handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
-        thrust::make_zip_iterator(thrust::make_tuple(
-          row_distances, graph_device_view.this_partition_adj_matrix_row_begin())),
-        graph_device_view.this_partition_adj_matrix_col_begin(),
         distances,
-        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors)),
+        thrust::make_zip_iterator(
+          thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
+        graph_device_view.adj_matrix_local_col_begin(),
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         thrust::make_zip_iterator(
           thrust::make_tuple(adj_matrix_row_distances.begin(), thrust::make_discard_iterator())),
         thrust::make_discard_iterator(),
@@ -200,16 +201,16 @@ void sssp_this_partition(raft::handle_t &handle,
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         v_op);
     } else {
-      expand_row_and_transform_if_v_push_if_e(
+      update_frontier_v_push_if_e(
         handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
-        thrust::make_zip_iterator(thrust::make_tuple(
-          row_distances, graph_device_view.this_partition_adj_matrix_row_begin())),
-        graph_device_view.this_partition_adj_matrix_col_begin(),
         distances,
-        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors)),
+        thrust::make_zip_iterator(
+          thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
+        graph_device_view.adj_matrix_local_col_begin(),
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         thrust::make_discard_iterator(),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
@@ -234,7 +235,7 @@ void sssp_this_partition(raft::handle_t &handle,
           [graph_device_view, row_distances, old_near_far_threshold, near_far_threshold] __device__(
             auto v) {
             auto dist = *(row_distances +
-                          graph_device_view.get_this_partition_row_offset_from_row_nocheck(v));
+                          graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(v));
             if (dist < old_near_far_threshold) {
               return AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
                 kInvalidBucketIdx;
@@ -270,8 +271,17 @@ void sssp(raft::handle_t &handle,
           weight_t cutoff,
           bool do_expensive_check)
 {
-  detail::sssp_this_partition(
-    handle, graph, distances, predecessors, start_vertex, cutoff, do_expensive_check);
+  if (predecessors != nullptr) {
+    detail::sssp(handle, graph, distances, predecessors, start_vertex, cutoff, do_expensive_check);
+  } else {
+    detail::sssp(handle,
+                 graph,
+                 distances,
+                 thrust::make_discard_iterator(),
+                 start_vertex,
+                 cutoff,
+                 do_expensive_check);
+  }
 }
 
 // explicit instantiation

@@ -16,8 +16,8 @@
 #include <algorithms.hpp>
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/adj_matrix_row_frontier.cuh>
-#include <detail/patterns/expand_row_and_transform_if_e.cuh>
 #include <detail/patterns/reduce_op.cuh>
+#include <detail/patterns/update_frontier_v_push_if_e.cuh>
 #include <graph.hpp>
 #include <utilities/error.hpp>
 
@@ -39,23 +39,22 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-// FIXME: check predecessors == nullptr and update only if predeessors != nullptr
-template <typename GraphType>
-void bfs_this_partition(raft::handle_t &handle,
-                        GraphType const &csr_graph,
-                        typename GraphType::vertex_type *distances,
-                        typename GraphType::vertex_type *predecessors,
-                        typename GraphType::vertex_type start_vertex,
-                        bool direction_optimizing,
-                        size_t depth_limit,
-                        bool do_expensive_check)
+template <typename GraphType, typename PredecessorIterator>
+void bfs(raft::handle_t &handle,
+         GraphType const &push_graph,
+         typename GraphType::vertex_type *distances,
+         PredecessorIterator predecessor_first,
+         typename GraphType::vertex_type start_vertex,
+         bool direction_optimizing,
+         typename GraphType::vertex_type depth_limit,
+         bool do_expensive_check)
 {
   using vertex_t = typename GraphType::vertex_type;
 
   static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
-  static_assert(GraphType::is_row_major, "GraphType should be CSR.");
+  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
 
-  auto p_graph_device_view = graph_compressed_sparse_device_view_t<GraphType>::create(csr_graph);
+  auto p_graph_device_view     = graph_device_view_t<GraphType>::create(push_graph);
   auto const graph_device_view = *p_graph_device_view;
 
   auto const num_vertices = graph_device_view.get_number_of_vertices();
@@ -66,8 +65,8 @@ void bfs_this_partition(raft::handle_t &handle,
   CUGRAPH_EXPECTS(
     graph_device_view.is_symmetric() || !direction_optimizing,
     "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
-  CUGRAPH_EXPECTS(graph_device_view.in_vertex_range(start_vertex),
-                  "Invalid input argument: starting vertex out-of-range.");
+  CUGRAPH_EXPECTS(graph_device_view.is_valid_vertex(start_vertex),
+                  "Invalid input argument: start vertex out-of-range.");
 
   if (do_expensive_check) {
     // nothing to do
@@ -78,25 +77,22 @@ void bfs_this_partition(raft::handle_t &handle,
   auto constexpr invalid_distance = std::numeric_limits<vertex_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors));
+  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
   thrust::transform(thrust::cuda::par.on(handle.get_stream()),
-                    graph_device_view.this_partition_vertex_begin(),
-                    graph_device_view.this_partition_vertex_end(),
+                    graph_device_view.local_vertex_begin(),
+                    graph_device_view.local_vertex_end(),
                     val_first,
                     [graph_device_view, start_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
-                      auto v =
-                        graph_device_view.get_vertex_from_this_partition_vertex_offset_nocheck(val);
-                      if (v == start_vertex) { distance = static_cast<vertex_t>(0); }
+                      if (val == start_vertex) { distance = static_cast<vertex_t>(0); }
                       return thrust::make_tuple(distance, invalid_vertex);
                     });
 
   // 3. initialize BFS frontier
 
   enum class Bucket { cur, num_buckets };
-  std::vector<size_t> bucket_sizes(
-    static_cast<size_t>(Bucket::num_buckets),
-    graph_device_view.get_number_of_this_partition_adj_matrix_rows());
+  std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
+                                   graph_device_view.get_number_of_adj_matrix_local_rows());
   AdjMatrixRowFrontier<raft::handle_t,
                        thrust::tuple<vertex_t>,
                        vertex_t,
@@ -104,14 +100,14 @@ void bfs_this_partition(raft::handle_t &handle,
                        static_cast<size_t>(Bucket::num_buckets)>
     adj_matrix_row_frontier(handle, bucket_sizes);
 
-  if (graph_device_view.in_this_partition_adj_matrix_row_range_nocheck(start_vertex)) {
+  if (graph_device_view.is_adj_matrix_local_row_nocheck(start_vertex)) {
     adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(start_vertex);
   }
 
   // 4. BFS iteration
 
   vertex_t depth{0};
-  auto cur_adj_matrix_row_frontier_first =
+  auto cur_adj_matrix_local_row_frontier_first =
     adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();
   auto cur_adj_matrix_row_frontier_aggregate_size =
     adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size();
@@ -119,38 +115,37 @@ void bfs_this_partition(raft::handle_t &handle,
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
-      auto cur_adj_matrix_row_frontier_last =
+      auto cur_adj_matrix_local_row_frontier_last =
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
-      expand_row_and_transform_if_v_push_if_e(
+      update_frontier_v_push_if_e(
         handle,
         graph_device_view,
-        cur_adj_matrix_row_frontier_first,
-        cur_adj_matrix_row_frontier_last,
-        graph_device_view.this_partition_adj_matrix_row_begin(),
-        graph_device_view.this_partition_adj_matrix_col_begin(),
+        cur_adj_matrix_local_row_frontier_first,
+        cur_adj_matrix_local_row_frontier_last,
         distances,
-        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessors)),
+        graph_device_view.adj_matrix_local_row_begin(),
+        graph_device_view.adj_matrix_local_col_begin(),
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         thrust::make_discard_iterator(),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
-        [graph_device_view, distances] __device__(auto row_val, auto col_val) {
+        [graph_device_view, distances] __device__(auto src_val, auto dst_val) {
           uint32_t push = true;
-          bool local    = graph_device_view.in_this_partition_vertex_range_nocheck(row_val);
-          if (local) {
-            auto this_partition_vertex_offset =
-              graph_device_view.get_this_partition_vertex_offset_from_vertex_nocheck(col_val);
-            auto distance = *(distances + this_partition_vertex_offset);
+          if (graph_device_view.is_local_vertex_nocheck(dst_val)) {
+            auto distance =
+              *(distances + graph_device_view.get_local_vertex_offset_from_vertex_nocheck(dst_val));
             if (distance != invalid_distance) { push = false; }
           }
           // FIXME: need to test this works properly if payload size is 0 (returns a tuple of size
           // 1)
-          return thrust::make_tuple(push, row_val);
+          return thrust::make_tuple(push, src_val);
         },
         reduce_op::any<thrust::tuple<vertex_t>>(),
         [depth] __device__(auto v_val, auto pushed_val) {
-          auto idx = AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
-            kInvalidBucketIdx;
-          if (v_val == invalid_distance) { idx = static_cast<size_t>(Bucket::cur); }
+          auto idx = (v_val == invalid_distance)
+                       ? static_cast<size_t>(Bucket::cur)
+                       : AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
+                           kInvalidBucketIdx;
           return thrust::make_tuple(idx, depth + 1, thrust::get<0>(pushed_val));
         });
 
@@ -159,12 +154,12 @@ void bfs_this_partition(raft::handle_t &handle,
         cur_adj_matrix_row_frontier_aggregate_size;
       if (new_adj_matrix_row_frontier_aggregate_size == 0) { break; }
 
-      cur_adj_matrix_row_frontier_first = cur_adj_matrix_row_frontier_last;
+      cur_adj_matrix_local_row_frontier_first = cur_adj_matrix_local_row_frontier_last;
       cur_adj_matrix_row_frontier_aggregate_size += new_adj_matrix_row_frontier_aggregate_size;
     }
 
     depth++;
-    if (static_cast<size_t>(depth) >= depth_limit) { break; }
+    if (depth >= depth_limit) { break; }
   }
 
   return;
@@ -179,17 +174,28 @@ void bfs(raft::handle_t &handle,
          vertex_t *predecessors,
          vertex_t start_vertex,
          bool direction_optimizing,
-         size_t depth_limit,
+         vertex_t depth_limit,
          bool do_expensive_check)
 {
-  detail::bfs_this_partition(handle,
-                             graph,
-                             distances,
-                             predecessors,
-                             start_vertex,
-                             direction_optimizing,
-                             depth_limit,
-                             do_expensive_check);
+  if (predecessors != nullptr) {
+    detail::bfs(handle,
+                graph,
+                distances,
+                predecessors,
+                start_vertex,
+                direction_optimizing,
+                depth_limit,
+                do_expensive_check);
+  } else {
+    detail::bfs(handle,
+                graph,
+                distances,
+                thrust::make_discard_iterator(),
+                start_vertex,
+                direction_optimizing,
+                depth_limit,
+                do_expensive_check);
+  }
 }
 
 // explicit instantiation
@@ -200,7 +206,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t *predecessors,
                   int32_t start_vertex,
                   bool direction_optimizing,
-                  size_t depth_limit,
+                  int32_t depth_limit,
                   bool do_expensive_check);
 
 }  // namespace experimental

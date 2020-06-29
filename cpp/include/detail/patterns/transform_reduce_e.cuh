@@ -15,9 +15,13 @@
  */
 #pragma once
 
+#include <detail/graph_device_view.cuh>
 #include <detail/patterns/edge_op_utils.cuh>
 #include <detail/utilities/cuda.cuh>
-#include <graph.hpp>
+#include <utilities/error.hpp>
+
+#include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
 #include <thrust/tuple.h>
 #include <cub/cub.cuh>
@@ -69,7 +73,7 @@ template <typename GraphType,
           typename BlockResultIterator,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_low_out_degree(
-  GraphType graph_device_view,
+  GraphType const& graph_device_view,
   MajorIterator major_first,
   MajorIterator major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -77,38 +81,33 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
   BlockResultIterator block_result_first,
   EdgeOp e_op)
 {
-  using e_op_result_t = typename std::iterator_traits<BlockResultIterator>::value_type;
+  using vertex_t      = typename GraphType::vertex_type;
   using weight_t      = typename GraphType::weight_type;
+  using e_op_result_t = typename std::iterator_traits<BlockResultIterator>::value_type;
 
-  static_assert(GraphType::is_row_major || GraphType::is_column_major);
-
-  auto num_major_elements = static_cast<size_t>(thrust::distance(major_first, major_last));
-  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
-  size_t idx              = tid;
-
-  auto graph_offset_first = graph_device_view.offset_data();
-  auto graph_index_first  = graph_device_view.index_data();
-  auto graph_weight_first = graph_device_view.weight_data();
+  auto num_majors = static_cast<size_t>(thrust::distance(major_first, major_last));
+  auto const tid  = threadIdx.x + blockIdx.x * blockDim.x;
+  size_t idx      = tid;
 
   e_op_result_t e_op_result_sum{};
-  while (idx < num_major_elements) {
+  while (idx < num_majors) {
     auto major_offset =
-      GraphType::is_row_major
-        ? graph_device_view.get_this_partition_row_offset_from_row_nocheck(*(major_first + idx))
-        : graph_device_view.get_this_partition_col_offset_from_col_nocheck(*(major_first + idx));
-    auto nbr_offset_first = *(graph_offset_first + major_offset);
-    auto nbr_offset_last  = *(graph_offset_first + (major_offset + 1));
-
-    for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
-      auto nbr_vid = *(graph_index_first + nbr_offset);
-      auto nbr_offset =
-        GraphType::is_row_major
-          ? graph_device_view.get_this_partition_col_offset_from_col_nocheck(nbr_vid)
-          : graph_device_view.get_this_partition_row_offset_from_row_nocheck(nbr_vid);
-      // FIXME: weight_first != nullptr is not idiomatic
-      weight_t w      = (graph_weight_first != nullptr) ? *(graph_weight_first + nbr_offset) : 1.0;
-      auto row_offset = GraphType::is_row_major ? major_offset : nbr_offset;
-      auto col_offset = GraphType::is_row_major ? nbr_offset : major_offset;
+      GraphType::is_adj_matrix_transposed
+        ? graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(*(major_first + idx))
+        : graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(*(major_first + idx));
+    vertex_t const* indices{nullptr};
+    weight_t const* weights{nullptr};
+    vertex_t local_degree{};
+    thrust::tie(indices, weights, local_degree) = graph_device_view.get_local_edges(major_offset);
+    for (vertex_t i = 0; i < local_degree; ++i) {
+      auto minor_vid = indices[i];
+      auto weight    = weights != nullptr ? weights[i] : 1.0;
+      auto minor_offset =
+        GraphType::is_adj_matrix_transposed
+          ? graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(minor_vid)
+          : graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(minor_vid);
+      auto row_offset = GraphType::is_adj_matrix_transposed ? minor_offset : major_offset;
+      auto col_offset = GraphType::is_adj_matrix_transposed ? major_offset : minor_offset;
       auto e_op_result =
         cugraph::experimental::detail::evaluate_edge_op<GraphType,
                                                         EdgeOp,
@@ -116,7 +115,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
                                                         AdjMatrixColValueInputIterator>()
           .compute(*(adj_matrix_row_value_input_first + row_offset),
                    *(adj_matrix_col_value_input_first + col_offset),
-                   w,
+                   weight,
                    e_op);
       e_op_result_sum = plus_edge_op_result(e_op_result_sum, e_op_result);
     }
@@ -129,7 +128,6 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       .compute(e_op_result_sum);
   if (threadIdx.x == 0) { *(block_result_first + blockIdx.x) = e_op_result_sum; }
 }
-// SFINAE: tuple or arithemetic scalar,
 
 }  // namespace
 
@@ -150,26 +148,25 @@ T transform_reduce_e(HandleType& handle,
                      EdgeOp e_op,
                      T init)
 {
-  static_assert(GraphType::is_row_major || GraphType::is_column_major);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  grid_1d_thread_t update_grid(GraphType::is_row_major
-                                 ? graph_device_view.get_number_of_this_partition_adj_matrix_rows()
-                                 : graph_device_view.get_number_of_this_partition_adj_matrix_cols(),
+  grid_1d_thread_t update_grid(GraphType::is_adj_matrix_transposed
+                                 ? graph_device_view.get_number_of_adj_matrix_local_cols()
+                                 : graph_device_view.get_number_of_adj_matrix_local_rows(),
                                transform_reduce_e_for_all_low_out_degree_block_size,
                                get_max_num_blocks_1D());
 
-  thrust::device_vector<T> block_results(update_grid.num_blocks);
+  rmm::device_vector<T> block_results(update_grid.num_blocks);
 
   for_all_major_for_all_nbr_low_out_degree<<<update_grid.num_blocks,
                                              update_grid.block_size,
                                              0,
                                              handle.get_stream()>>>(
     graph_device_view,
-    GraphType::is_row_major ? graph_device_view.this_partition_adj_matrix_row_begin()
-                            : graph_device_view.this_partition_adj_matrix_col_begin(),
-    GraphType::is_row_major ? graph_device_view.this_partition_adj_matrix_row_end()
-                            : graph_device_view.this_partition_adj_matrix_col_end(),
+    GraphType::is_adj_matrix_transposed ? graph_device_view.adj_matrix_local_col_begin()
+                                        : graph_device_view.adj_matrix_local_row_begin(),
+    GraphType::is_adj_matrix_transposed ? graph_device_view.adj_matrix_local_col_end()
+                                        : graph_device_view.adj_matrix_local_row_end(),
     adj_matrix_row_value_input_first,
     adj_matrix_col_value_input_first,
     block_results.data(),

@@ -43,21 +43,8 @@ struct is_valid_edge_op<
 template <typename GraphType,
           typename EdgeOp,
           typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename Enable = void>
-struct evaluate_edge_op {
-};
-
-template <typename GraphType,
-          typename EdgeOp,
-          typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator>
-struct evaluate_edge_op<
-  GraphType,
-  EdgeOp,
-  AdjMatrixRowValueInputIterator,
-  AdjMatrixColValueInputIterator,
-  typename std::enable_if_t<GraphType::is_row_major || GraphType::is_column_major>> {
+struct evaluate_edge_op {
   using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
   using col_value_type = typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
   using weight_type    = typename GraphType::weight_type;
