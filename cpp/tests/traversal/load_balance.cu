@@ -50,15 +50,6 @@ struct in_degree {
 };
 
 template <typename VT, typename ET>
-struct out_degree {
-  ET * out_degree_counter_;
-  out_degree(ET * out_degree_counter) : out_degree_counter_(out_degree_counter) {}
-  __device__ void operator()(VT src, VT dst) {
-    atomicAdd(out_degree_counter_ + src, 1);
-  }
-};
-
-template <typename VT, typename ET>
 struct in_degree_simple {
   ET * in_degree_counter_;
   in_degree_simple(ET * in_degree_counter) : in_degree_counter_(in_degree_counter) {}
@@ -97,59 +88,33 @@ class Tests_LB : public ::testing::TestWithParam<LB_Usecase> {
     raft::handle_t handle;
     detail::opg::LoadBalanceExecution<VT, ET, WT> lb(handle, G);
     CUDA_TRY(cudaGetLastError());
-    //in_degree<VT, ET> in_degree_op(in_degree_lb.data().get());
-    out_degree<VT, ET> out_degree_op(in_degree_lb.data().get());
-    lb.run(out_degree_op);
+    in_degree<VT, ET> in_degree_op(in_degree_lb.data().get());
+    lb.run(in_degree_op);
     CUDA_TRY(cudaGetLastError());
 
     cudaStream_t stream = 0;
-    //////Simple Calculation//////
-    //rmm::device_vector<ET> gold_indegree(G.number_of_vertices, 0);
 
-    //rmm::device_vector<VT> destinations(G.number_of_edges);
-    //CUDA_TRY(cudaMemcpy(destinations.data().get(), G.indices,
-    //    sizeof(VT) * destinations.size(),
-    //    cudaMemcpyDeviceToDevice));
-    //thrust::for_each(rmm::exec_policy(stream)->on(stream),
-    //    destinations.begin(), destinations.end(),
-    //    in_degree_simple<VT, ET>(gold_indegree.data().get())
-    //    );
-
-    //bool is_result_equal = thrust::equal(rmm::exec_policy(stream)->on(stream),
-    //    in_degree_lb.begin(), in_degree_lb.end(),
-    //    gold_indegree.begin());
-
-    rmm::device_vector<ET> out_degree(G.number_of_vertices, 0);
-    thrust::transform(rmm::exec_policy(stream)->on(stream),
-        G.offsets + 1, G.offsets + G.number_of_vertices + 1,
-        G.offsets,
-        out_degree.begin(),
-        thrust::minus<ET>());
+    //Calculate the in degree of destinations
+    rmm::device_vector<ET> gold_indegree(G.number_of_vertices, 0);
+    rmm::device_vector<VT> destinations(G.number_of_edges);
+    CUDA_TRY(cudaMemcpy(destinations.data().get(), G.indices,
+        sizeof(VT) * destinations.size(),
+        cudaMemcpyDeviceToDevice));
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+        destinations.begin(), destinations.end(),
+        in_degree_simple<VT, ET>(gold_indegree.data().get())
+        );
 
     bool is_result_equal = thrust::equal(rmm::exec_policy(stream)->on(stream),
         in_degree_lb.begin(), in_degree_lb.end(),
-        out_degree.begin());
+        gold_indegree.begin());
 
-    //if (!is_result_equal) {
-    //  for (int i = 0; i < G.number_of_vertices; ++i) {
-    //    if (out_degree[i] != in_degree_lb[i]) {
-    //      std::cout<<i<<": \t"<<out_degree[i]<<"\t"<<in_degree_lb[i];
-    //      //if (gold_indegree[i] != in_degree_lb[i]) { std::cout<<"\tE"; }
-    //      std::cout<<"\n";
-    //    }
-    //  }
-    //}
     EXPECT_TRUE(is_result_equal);
   }
 };
 
 TEST_P(Tests_LB, CheckFP32_SP_COUNTER) { run_current_test<int, int, float>(GetParam()); }
 
-#if 1
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_LB,
-                        ::testing::Values(LB_Usecase("test/datasets/wiki-Talk.mtx")));
-#else
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_LB,
                         ::testing::Values(LB_Usecase("test/datasets/karate.mtx"),
@@ -158,8 +123,6 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           LB_Usecase("test/datasets/netscience.mtx"),
                                           LB_Usecase("test/datasets/wiki2003.mtx"),
                                           LB_Usecase("test/datasets/wiki-Talk.mtx")));
-#endif
-
 
 int main(int argc, char **argv)
 {

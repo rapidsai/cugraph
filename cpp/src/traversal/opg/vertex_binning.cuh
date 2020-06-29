@@ -42,7 +42,11 @@ class LogDistribution
   LogDistribution(
       rmm::device_vector<ET>& vertex_id,
       rmm::device_vector<ET>& bin_offsets) :
-    vertex_id_begin_(vertex_id.data().get()), bin_offsets_(bin_offsets) {}
+    vertex_id_begin_(vertex_id.data().get()), bin_offsets_(bin_offsets) {
+      //If bin_offsets_ is smaller than NumberBins<ET> then resize it
+      //so that the last element is repeated
+      bin_offsets_.resize(NumberBins<ET>, bin_offsets_.back());
+    }
 
   DegreeBucket<VT, ET> degreeRange(
       ET ceilLogDegreeStart, ET ceilLogDegreeEnd = std::numeric_limits<ET>::max()) {

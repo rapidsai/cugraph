@@ -79,6 +79,7 @@ class LoadBalanceExecution {
     small_vertex_worker(graph_, small_bucket_1, op, stream);
     small_vertex_worker(graph_, small_bucket_2, op, stream);
     small_vertex_worker(graph_, small_bucket_3, op, stream);
+
   }
 };
 

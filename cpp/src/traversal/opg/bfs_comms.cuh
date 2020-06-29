@@ -52,6 +52,9 @@ void reduce_bitwise_or(
   }
 }
 
+//FIXME : This class is a stand in till nccl allreduce works with bitwise OR
+//Once bitwise OR reduction is placed in raft this communicator class should
+//be removed
 template <typename VT, typename ET, typename WT>
 class BFSCommunicator {
   raft::handle_t const &handle_;

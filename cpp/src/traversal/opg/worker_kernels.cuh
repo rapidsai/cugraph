@@ -19,7 +19,6 @@
 #define WORKER_KERNELS_CUH
 
 #include "vertex_binning.cuh"
-#include "graph_csr_device_view.cuh"
 #include <graph.hpp>
 
 namespace detail {
@@ -28,7 +27,7 @@ namespace opg {
 
 template <typename VT, typename ET, typename WT, typename Operator>
 __global__ void kernel_per_vertex_worker_weightless(
-    GraphCSRDeviceView<VT, ET, WT> graph,
+    cugraph::experimental::GraphCSRView<VT, ET, WT> graph,
     VT *vertex_ids,
     VT number_of_vertices,
     Operator op) {
@@ -38,12 +37,12 @@ __global__ void kernel_per_vertex_worker_weightless(
 
   while (current_vertex_index < number_of_vertices) {
     VT source = vertex_ids[current_vertex_index];
-    ET offset_begin = graph.offsets()[source];
-    ET offset_end = graph.offsets()[source+1];
+    ET offset_begin = graph.offsets[source];
+    ET offset_end = graph.offsets[source+1];
     for (ET edge_index = tid + offset_begin;
         edge_index < offset_end;
         edge_index += stride) {
-      op(source, graph.indices()[edge_index]);
+      op(source, graph.indices[edge_index]);
     }
     current_vertex_index++;
   }
@@ -55,12 +54,11 @@ void large_vertex_worker(
     DegreeBucket<VT, ET>& bucket,
     Operator op,
     cudaStream_t stream) {
-  GraphCSRDeviceView<VT, ET, WT> graph_device_view(graph);
   int block_size = 32;
   int block_count = 1024;
   if (bucket.numberOfVertices != 0) {
     kernel_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
-        graph_device_view,
+        graph,
         bucket.vertexIds,
         bucket.numberOfVertices,
         op);
@@ -69,7 +67,7 @@ void large_vertex_worker(
 
 template <typename VT, typename ET, typename WT, typename Operator>
 __global__ void block_per_vertex_worker_weightless(
-    GraphCSRDeviceView<VT, ET, WT> graph,
+    cugraph::experimental::GraphCSRView<VT, ET, WT> graph,
     VT *vertex_ids,
     VT number_of_vertices,
     Operator op) {
@@ -79,10 +77,10 @@ __global__ void block_per_vertex_worker_weightless(
   }
 
   VT source = vertex_ids[current_vertex_index];
-  for (ET edge_index = threadIdx.x + graph.offsets()[source];
-      edge_index < graph.offsets()[source+1];
+  for (ET edge_index = threadIdx.x + graph.offsets[source];
+      edge_index < graph.offsets[source+1];
       edge_index += blockDim.x) {
-    op(source, graph.indices()[edge_index]);
+    op(source, graph.indices[edge_index]);
   }
 
 }
@@ -93,12 +91,11 @@ void medium_vertex_worker(
     DegreeBucket<VT, ET>& bucket,
     Operator op,
     cudaStream_t stream) {
-  GraphCSRDeviceView<VT, ET, WT> graph_device_view(graph);
   int block_size = 1024;
   int block_count = bucket.numberOfVertices;
   if (block_count != 0) {
     block_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
-        graph_device_view,
+        graph,
         bucket.vertexIds,
         bucket.numberOfVertices,
         op);
@@ -111,7 +108,6 @@ void small_vertex_worker(
     DegreeBucket<VT, ET>& bucket,
     Operator op,
     cudaStream_t stream) {
-  GraphCSRDeviceView<VT, ET, WT> graph_device_view(graph);
   int block_size = 512;
   if (bucket.ceilLogDegreeEnd < 6)        { block_size =  32; }
   else if (bucket.ceilLogDegreeEnd <  8)  { block_size =  64; }
@@ -120,7 +116,7 @@ void small_vertex_worker(
   int block_count = bucket.numberOfVertices;
   if (block_count != 0) {
     block_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
-        graph_device_view,
+        graph,
         bucket.vertexIds,
         bucket.numberOfVertices,
         op);
