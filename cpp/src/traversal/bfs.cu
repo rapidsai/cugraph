@@ -478,8 +478,10 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
          const VT start_vertex,
          bool directed)
 {
-  static_assert(std::is_integral<VT>::value, "Unsupported vertex id data type. Use integral types");
-  static_assert(std::is_integral<ET>::value, "Unsupported edge id data type. Use integral types");
+  static_assert(std::is_integral<VT>::value && sizeof(VT) >= sizeof(int32_t),
+                "Unsupported vertex id data type. Use integral types of size >= sizeof(int32_t)");
+  static_assert(std::is_same<VT, ET>::value,
+                "VT and ET should be the same time for the current BFS implementation");
   static_assert(std::is_floating_point<WT>::value,
                 "Unsupported edge weight type. Use floating point types");  // actually, this is
                                                                             // unnecessary for BFS

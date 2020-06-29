@@ -340,8 +340,8 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
       IndexType degree = edge_end - edge_begin;
 
       for (IndexType edge = edge_begin;
-           edge < std::min(static_cast<size_t>(edge_end),
-                           static_cast<size_t>(edge_begin) + MAIN_BOTTOMUP_MAX_EDGES);
+           edge < min(static_cast<size_t>(edge_end),
+                      static_cast<size_t>(edge_begin) + MAIN_BOTTOMUP_MAX_EDGES);
            ++edge) {
         if (edge_mask && !edge_mask[edge]) continue;
 
@@ -449,8 +449,8 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
       // we dont know about the rest - we have to be neutral about elts > last_v
 
       // the destination thread of the __shfl is active
-      int laneid_max = std::min(static_cast<IndexType>(WARP_SIZE - 1),
-                                (unvisited_size - (block_off + 32 * warpid)));
+      int laneid_max =
+        min(static_cast<IndexType>(WARP_SIZE - 1), (unvisited_size - (block_off + 32 * warpid)));
       IndexType last_v =
         cugraph::detail::utils::shfl(unvisited_vertex, laneid_max, WARP_SIZE, __activemask());
 
@@ -736,16 +736,16 @@ __global__ void topdown_expand_kernel(
       ? (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX
       : 0;
 
-  n_items_per_thread_left = std::min(max_items_per_thread, n_items_per_thread_left);
+  n_items_per_thread_left = min(max_items_per_thread, n_items_per_thread_left);
 
   for (; (n_items_per_thread_left > 0) && (block_offset < totaldegree);
 
        block_offset += MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD * blockDim.x,
-       n_items_per_thread_left -= std::min(
+       n_items_per_thread_left -= min(
          n_items_per_thread_left, static_cast<IndexType>(MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD))) {
     // In this loop, we will process batch_set_size batches
-    IndexType nitems_per_thread = std::min(
-      n_items_per_thread_left, static_cast<IndexType>(MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD));
+    IndexType nitems_per_thread =
+      min(n_items_per_thread_left, static_cast<IndexType>(MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD));
 
     // Loading buckets offset (see compute_bucket_offsets_kernel)
 
@@ -833,7 +833,7 @@ __global__ void topdown_expand_kernel(
         // We process TOP_DOWN_BATCH_SIZE edge in parallel (instruction
         // parallism) Reduces latency
 
-        IndexType current_max_edge_index = std::min(
+        IndexType current_max_edge_index = min(
           static_cast<size_t>(block_offset) + (left + nitems_per_thread_for_this_load) * blockDim.x,
           static_cast<size_t>(totaldegree));
 

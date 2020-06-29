@@ -171,7 +171,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // that the predecessor obtained with the GPU implementation is one of the
       // predecessors obtained during the C++ BFS traversal
       VT pred = cugraph_pred[i];  // It could be equal to -1 if the node is never reached
-      if (pred == ~VT(0)) {
+      constexpr VT invalid_vid = cugraph::experimental::invalid_vertex_id<VT>::value;
+      if (pred == invalid_vid) {
         EXPECT_TRUE(ref_bfs_pred[i].empty())
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph had not predecessor,"
           << "while c++ ref found at least one.";
