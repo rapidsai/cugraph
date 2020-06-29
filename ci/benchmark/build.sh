@@ -43,6 +43,11 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 export DATASETS_DIR=${WORKSPACE}/datasets
 export ASVRESULTS_DIR=${WORKSPACE}/asvresults
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
+if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
+    export S3_ASV_DIR='s3://gpuci-cache/rapidsai/cugraph/branch/branch-0.15/asv'
+else
+    export S3_ASV_DIR='s3://gpuci-cache/rapidsai/cugraph/pull-request/${PR_ID}/asv'
+fi
 
 ##########################################
 # Pull Build Artifacts from S3           #
@@ -137,11 +142,6 @@ fi
 # Push Results to S3                     #
 ##########################################
 
-if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
-    sleep 1 #TODO: Move results from $ASVRESULTS_DIR to nightly S3 folder
-else # PR Build
-    sleep 1 #TODO: Move results from $ASVRESULTS_DIR to PR S3 folder
-fi
-
+#aws s3 cp ${ASVRESULTS_DIR} ${S3_ASV_DIR} --recursive
 
 exit $JOBEXITCODE
