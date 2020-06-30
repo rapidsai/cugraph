@@ -3,7 +3,8 @@
 ## New Features
 - PR #937 Add wrapper for gunrock HITS algorithm
 - PR #939 Updated Notebooks to include new features and benchmarks
-- PR #944 opg pagerank dask
+- PR #944 OPG pagerank (dask)
+- PR #947 OPG pagerank (CUDA)
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
@@ -20,11 +21,15 @@
 - PR #952 Updated get_test_data.sh to also (optionally) download and install datasets for benchmark runs
 - PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
 - PR #954 Update cuGraph error handling to use RAFT
-- PR #959 Add support for unsigned and long types for BFS (cpp side)
+- PR #959 Add support for uint32_t and int64_t types for BFS (cpp side)
+- PR #975 Upgrade GitHub template
+- PR #976 Fix error in Graph.edges(), update cuDF rename() calls
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
 - PR #938 Quote conda installs to avoid bash interpretation
+- PR #966 Fix build error (debug mode)
+- PR #983 Fix offset calculation in COO to CSR
 
 # cuGraph 0.14.0 (03 Jun 2020)
 

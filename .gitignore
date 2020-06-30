@@ -77,3 +77,6 @@ cpp/doxygen/html
 # Raft symlink
 python/cugraph/raft
 python/_external_repositories/
+
+# created by Dask tests
+python/dask-worker-space

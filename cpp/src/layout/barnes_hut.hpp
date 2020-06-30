@@ -74,6 +74,8 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   int *bottomd      = d_bottomd.data().get();
   float *radiusd    = d_radiusd.data().get();
 
+  cudaStream_t stream = {nullptr};
+
   // FIXME: this should work on "stream"
   InitializationKernel<<<1, 1>>>(limiter, maxdepthd, radiusd);
   CHECK_CUDA(stream);
@@ -148,7 +150,6 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   traction   = d_traction.data().get();
 
   // Sort COO for coalesced memory access.
-  cudaStream_t stream = {nullptr};
   sort(graph, stream);
   CHECK_CUDA(stream);
   // FIXME: this should work on "stream"
