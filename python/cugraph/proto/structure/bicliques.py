@@ -180,7 +180,7 @@ def _count_features(_gdf, sort=True):
 
     c = _gdf.groupby(['dst'], as_index=False).agg(aggs)
 
-    c = c.rename(columns={'count_dst': 'count'})
+    c = c.rename(columns={'count_dst': 'count'}, copy=False)
 
     if (sort):
         c = c.sort_values(by='count', ascending=False)

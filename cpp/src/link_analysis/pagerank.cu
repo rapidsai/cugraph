@@ -27,6 +27,7 @@
 #include <utilities/error.hpp>
 
 #include <graph.hpp>
+#include "pagerank_1D.cuh"
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {
@@ -352,23 +353,27 @@ void pagerank(raft::handle_t const &handle,
               bool has_guess)
 {
   CUGRAPH_EXPECTS(pagerank != nullptr, "Invalid API parameter: Pagerank array should be of size V");
-
+  // Multi-GPU
   if (handle.comms_initialized()) {
-    std::cout << "\nINSIDE CPP\n";
-    auto &comm = handle.get_comms();
-    std::cout << comm.get_rank() << "\n";
-    std::cout << comm.get_size() << "\n";
-    return;
-  }
-  return detail::pagerank_impl<VT, ET, WT>(graph,
-                                           pagerank,
-                                           personalization_subset_size,
-                                           personalization_subset,
-                                           personalization_values,
-                                           alpha,
-                                           tolerance,
-                                           max_iter,
-                                           has_guess);
+    CUGRAPH_EXPECTS(personalization_subset == nullptr,
+                    "Invalid API parameter: Multi-GPU Pagerank does not support Personalized "
+                    "variant currently, please use the single GPU version for this feature. The "
+                    "multi-GPU support is comming.");
+    CUGRAPH_EXPECTS(has_guess == false,
+                    "Invalid API parameter: Multi-GPU Pagerank does not guess, please use the "
+                    "single GPU version for this feature");
+    CUGRAPH_EXPECTS(max_iter > 0, "The number of iteration must be positive");
+    return cugraph::opg::pagerank<VT, ET, WT>(handle, graph, pagerank, alpha, max_iter);
+  } else  // Single GPU
+    return detail::pagerank_impl<VT, ET, WT>(graph,
+                                             pagerank,
+                                             personalization_subset_size,
+                                             personalization_subset,
+                                             personalization_values,
+                                             alpha,
+                                             tolerance,
+                                             max_iter,
+                                             has_guess);
 }
 
 // explicit instantiation

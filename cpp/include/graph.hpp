@@ -18,6 +18,7 @@
 #include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
 
+#include <unistd.h>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>

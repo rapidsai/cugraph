@@ -18,6 +18,7 @@ import pytest
 
 import scipy
 import cudf
+from cudf.tests.utils import assert_eq
 import cugraph
 from cugraph.tests import utils
 
@@ -292,6 +293,46 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     with pytest.raises(Exception):
         G.from_cudf_adjlist(offsets, indices, None)
     G.delete_adj_list()
+
+
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_edges_for_Graph(graph_file):
+    gc.collect()
+
+    cu_M = utils.read_csv_file(graph_file)
+
+    # Create nx Graph
+    pdf = cu_M.to_pandas()[['0', '1']]
+    nx_graph = nx.from_pandas_edgelist(pdf, source='0',
+                                       target='1',
+                                       create_using=nx.Graph)
+    nx_edges = nx_graph.edges()
+
+    # Create Cugraph Graph from DataFrame
+    # Force it to use renumber_from_cudf
+    G = cugraph.from_cudf_edgelist(cu_M, source=['0'],
+                                   destination=['1'],
+                                   create_using=cugraph.Graph)
+    cu_edge_list = G.edges()
+
+    # Check if number of Edges is same
+    assert len(nx_edges) == len(cu_edge_list)
+    assert nx_graph.number_of_edges() == G.number_of_edges()
+
+    # Compare nx and cugraph edges when viewing edgelist
+    edges = []
+    for edge in nx_edges:
+        if edge[0] > edge[1]:
+            edges.append([edge[1], edge[0]])
+        else:
+            edges.append([edge[0], edge[1]])
+    nx_edge_list = cudf.DataFrame(list(edges), columns=['src', 'dst'])
+    assert_eq(
+        nx_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
+        cu_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
+        check_dtype=False
+    )
 
 
 # Test

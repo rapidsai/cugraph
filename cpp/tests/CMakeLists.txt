@@ -34,6 +34,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
         "${CUDF_INCLUDE}/libcudf/libcudacxx"
+        "${NCCL_INCLUDE_DIRS}"
         "${CUB_INCLUDE_DIR}"
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio"
         "${CMAKE_SOURCE_DIR}/include"
@@ -44,12 +45,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS} cudart cuda cublas cusolver cusparse)
-    if (BUILD_MPI)
-        include_directories(include ${MPI_CXX_INCLUDE_PATH} ${NCCL_INCLUDE_DIRS})
-        target_link_libraries(${CMAKE_TEST_NAME} PRIVATE ${MPI_C_LIBRARIES} ${NCCL_LIBRARIES} )
-        target_compile_options(${CMAKE_TEST_NAME} PUBLIC ${MPI_C_COMPILE_FLAGS})
-    endif(BUILD_MPI)
+        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS}  ${NCCL_LIBRARIES} cudart cuda cublas cusparse cusolver curand)
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
