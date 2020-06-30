@@ -15,14 +15,13 @@
  */
 #pragma once
 
+#include <detail/utilities/thrust_tuple_utils.cuh>
+
 #include <thrust/tuple.h>
 #include <cub/cub.cuh>
 
 #include <array>
 #include <type_traits>
-
-namespace {
-}  // namespace
 
 namespace cugraph {
 namespace experimental {
@@ -71,6 +70,20 @@ struct evaluate_edge_op {
     return e(r, c);
   }
 };
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, T> plus_edge_op_result(T const& lhs,
+                                                                                 T const& rhs)
+{
+  return lhs + rhs;
+}
+
+template <typename T>
+__device__ std::enable_if_t<cugraph::experimental::detail::is_thrust_tuple<T>::value, T>
+plus_edge_op_result(T const& lhs, T const& rhs)
+{
+  return cugraph::experimental::detail::plus_thrust_tuple<T>()(lhs, rhs);
+}
 
 }  // namespace detail
 }  // namespace experimental

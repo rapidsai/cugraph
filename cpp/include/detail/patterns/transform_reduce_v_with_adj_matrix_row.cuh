@@ -20,8 +20,9 @@
 
 #include <raft/handle.hpp>
 
-#include <thrust/copy.h>
 #include <thrust/execution_policy.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/transform_reduce.h>
 
 namespace cugraph {
 namespace experimental {
@@ -30,21 +31,33 @@ namespace detail {
 template <typename HandleType,
           typename GraphType,
           typename VertexValueInputIterator,
-          typename AdjMatrixRowValueOutputIterator>
-void copy_to_adj_matrix_row(HandleType& handle,
-                            GraphType const& graph_device_view,
-                            VertexValueInputIterator vertex_value_input_first,
-                            AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
+          typename AdjMatrixRowValueInputIterator,
+          typename VertexOp,
+          typename T>
+T transform_reduce_v_with_adj_matrix_row(
+  HandleType& handle,
+  GraphType const& graph_device_view,
+  VertexValueInputIterator vertex_value_input_first,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  VertexOp v_op,
+  T init)
 {
   if (GraphType::is_opg) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
     assert(graph_device_view.get_number_of_local_vertices() ==
            graph_device_view.get_number_of_adj_matrix_local_rows());
-    thrust::copy(thrust::cuda::par.on(handle.get_stream()),
-                 vertex_value_input_first,
-                 vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
-                 adj_matrix_row_value_output_first);
+    auto input_first = thrust::make_zip_iterator(
+      thrust::make_tuple(vertex_value_input_first, adj_matrix_row_value_input_first));
+    auto v_op_wrapper = [v_op] __device__(auto v_and_row_val) {
+      return v_op(thrust::get<0>(v_and_row_val), thrust::get<1>(v_and_row_val));
+    };
+    return thrust::transform_reduce(thrust::cuda::par.on(handle.get_stream()),
+                                    input_first,
+                                    input_first + graph_device_view.get_number_of_local_vertices(),
+                                    v_op_wrapper,
+                                    init,
+                                    thrust::plus<T>());
   }
 }
 

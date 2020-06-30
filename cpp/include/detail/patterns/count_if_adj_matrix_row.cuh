@@ -20,7 +20,7 @@
 
 #include <raft/handle.hpp>
 
-#include <thrust/copy.h>
+#include <thrust/count.h>
 #include <thrust/execution_policy.h>
 
 namespace cugraph {
@@ -29,23 +29,24 @@ namespace detail {
 
 template <typename HandleType,
           typename GraphType,
-          typename VertexValueInputIterator,
-          typename AdjMatrixRowValueOutputIterator>
-void copy_to_adj_matrix_row(HandleType& handle,
-                            GraphType const& graph_device_view,
-                            VertexValueInputIterator vertex_value_input_first,
-                            AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
+          typename AdjMatrixRowValueInputIterator,
+          typename RowOp>
+typename GraphType::vertex_type count_if_adj_matrix_row(
+  HandleType& handle,
+  GraphType const& graph_device_view,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  RowOp row_op)
 {
+  auto count = thrust::count_if(thrust::cuda::par.on(handle.get_stream()),
+                                adj_matrix_row_value_input_first,
+                                adj_matrix_row_value_input_first +
+                                  graph_device_view.get_number_of_adj_matrix_local_rows(),
+                                row_op);
   if (GraphType::is_opg) {
+    // need to reduce count
     CUGRAPH_FAIL("unimplemented.");
-  } else {
-    assert(graph_device_view.get_number_of_local_vertices() ==
-           graph_device_view.get_number_of_adj_matrix_local_rows());
-    thrust::copy(thrust::cuda::par.on(handle.get_stream()),
-                 vertex_value_input_first,
-                 vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
-                 adj_matrix_row_value_output_first);
   }
+  return count;
 }
 
 }  // namespace detail
