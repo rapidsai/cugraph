@@ -60,10 +60,9 @@ def sssp(G, source):
 
     if G.renumbered:
         # FIXME: multi-column vertex support
-        tmp = G.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
-        df['predecessor'][df['predecessor'] > -1] = G.edgelist.renumber_map.\
-                                                    from_vertex_id(df['predecessor'][df['predecessor'] >- 1])['0']
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename({'0': 'vertex'})
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'predecessor').drop({'predecessor'}).rename({'0': 'predecessor'})
+        df['predecessor'].fillna(-1, inplace=True)
 
         #if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame): # Multicolumns renumbering
         #    n_cols = len(input_graph.edgelist.renumber_map.columns) - 1

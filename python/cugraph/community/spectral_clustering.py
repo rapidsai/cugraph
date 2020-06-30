@@ -78,6 +78,11 @@ def spectralBalancedCutClustering(G,
              kmean_tolerance,
              kmean_max_iter)
 
+    if G.renumbered:
+        # FIXME: multi-column vertex support
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename({'0': 'vertex'})
+        df = df.sort_values('vertex').reset_index(drop=True)
+
     return df
 
 
@@ -141,6 +146,11 @@ def spectralModularityMaximizationClustering(G,
              evs_max_iter,
              kmean_tolerance,
              kmean_max_iter)
+
+    if G.renumbered:
+        # FIXME: multi-column vertex support
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename({'0': 'vertex'})
+        df = df.sort_values('vertex').reset_index(drop=True)
 
     return df
 

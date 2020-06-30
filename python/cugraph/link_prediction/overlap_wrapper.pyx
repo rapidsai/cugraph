@@ -19,7 +19,6 @@
 from cugraph.link_prediction.overlap cimport overlap as c_overlap
 from cugraph.link_prediction.overlap cimport overlap_list as c_overlap_list
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
 from cugraph.structure import graph_new_wrapper
 from libc.stdint cimport uintptr_t
 from cython cimport floating

@@ -68,8 +68,8 @@ def bfs(G, start, return_sp_counter=False):
 
     if G.renumbered:
         # FIXME: multi-column vertex support
-        tmp = G.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
-        df['predecessor'][df['predecessor'] > -1] = G.edgelist.renumber_map.\
-                                                    from_vertex_id(df['predecessor'][df['predecessor'] >- 1])['0']
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop({'vertex'}).rename({'0': 'vertex'})
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'predecessor').drop({'predecessor'}).rename({'0': 'predecessor'})
+        df['predecessor'].fillna(-1, inplace=True)
+
     return df

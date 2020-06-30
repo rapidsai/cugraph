@@ -62,7 +62,7 @@ def compare_offsets(offset0, offset1):
 # vertices in one graph to the vertices in the other graph is identity AND two
 # graphs are automorphic; no permutations of vertices are allowed).
 def compare_graphs(nx_graph, cu_graph):
-    edgelist_df = cu_graph.view_edge_list()
+    edgelist_df = cu_graph.view_edge_list().reset_index(drop=True)
 
     df = cudf.DataFrame()
     df['source'] = edgelist_df['src']
@@ -80,8 +80,11 @@ def compare_graphs(nx_graph, cu_graph):
 
     # first compare nodes
 
-    ds0 = pd.Series(nx_graph.nodes)
-    ds1 = pd.Series(cu_to_nx_graph.nodes)
+    #  FIXME: Once using pandas 1.0
+    #ds0 = pd.Series(nx_graph.nodes).sort_values(ignore_index=True)
+    #ds1 = pd.Series(cu_to_nx_graph.nodes).sort_values(ignore_index=True)
+    ds0 = pd.Series(nx_graph.nodes).sort_values().reset_index(drop=True)
+    ds1 = pd.Series(cu_to_nx_graph.nodes).sort_values().reset_index(drop=True)
 
     if not ds0.equals(ds1):
         return False
@@ -312,7 +315,7 @@ def test_view_edge_list_for_Graph(graph_file):
     G = cugraph.from_cudf_edgelist(cu_M, source='0',
                                    destination='1',
                                    create_using=cugraph.Graph)
-    cu_edge_list = G.view_edge_list()
+    cu_edge_list = G.view_edge_list().sort_values(['src', 'dst'])
 
     # Check if number of Edges is same
     assert len(nx_edges) == len(cu_edge_list)
@@ -330,7 +333,9 @@ def test_view_edge_list_for_Graph(graph_file):
     nx_edge_list = cudf.DataFrame(edges, columns=['src', 'dst'])
 
     # Compare nx and cugraph edges when viewing edgelist
-    assert cu_edge_list.equals(nx_edge_list)
+    #assert cu_edge_list.equals(nx_edge_list)
+    assert (cu_edge_list['src'].to_array() == nx_edge_list['src'].to_array()).all()
+    assert (cu_edge_list['dst'].to_array() == nx_edge_list['dst'].to_array()).all()
 
 
 # Test
@@ -582,7 +587,6 @@ def test_neighbors(graph_file):
 
     cu_M = utils.read_csv_file(graph_file)
     nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
-    print(nodes)
     M = utils.read_csv_for_nx(graph_file)
 
     G = cugraph.Graph()
@@ -591,7 +595,6 @@ def test_neighbors(graph_file):
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
                                   create_using=nx.Graph())
     for n in nodes:
-        print("NODE: ", n)
         cu_neighbors = G.neighbors(n).tolist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
         cu_neighbors.sort()

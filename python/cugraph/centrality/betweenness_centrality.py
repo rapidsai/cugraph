@@ -116,6 +116,10 @@ def betweenness_centrality(G, k=None, normalized=True,
                                                                weight,
                                                                k, vertices,
                                                                result_dtype)
+
+    if G.renumbered:
+        return G.edgelist.renumber_map.from_vertex_id(df, 'vertex').rename({'0' : 'vertex'})
+
     return df
 
 
@@ -215,6 +219,12 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
     df = edge_betweenness_centrality_wrapper                                  \
         .edge_betweenness_centrality(G, normalized, weight, k, vertices,
                                      result_dtype)
+
+    if G.renumbered:
+        # FIXME:  multi-column support... currently only names 1 column
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'src').rename({'0': 'src'})
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'dst').rename({'0': 'dst'})
+
     return df
 
 

@@ -29,7 +29,6 @@ import dask_cudf
 import dask
 
 
-@pytest.mark.skip(reason='debug')
 def test_renumber_ips():
 
     source_list = ['192.168.1.1',
@@ -63,7 +62,6 @@ def test_renumber_ips():
     assert check_dst.equals(gdf['dest_as_int'])
 
 
-@pytest.mark.skip(reason='debug')
 def test_renumber_ips_cols():
 
     source_list = ['192.168.1.1',
@@ -128,7 +126,6 @@ def test_renumber_ips_str_cols():
     assert check_dst.equals(gdf['dest_list'])
 
 
-@pytest.mark.skip(reason='debug')
 def test_renumber_negative():
     source_list = [4, 6, 8, -20, 1]
     dest_list = [1, 29, 35, 0, 77]
@@ -152,7 +149,6 @@ def test_renumber_negative():
     assert check_dst.equals(gdf['dest_list'])
 
 
-@pytest.mark.skip(reason='debug')
 def test_renumber_negative_col():
     source_list = [4, 6, 8, -20, 1]
     dest_list = [1, 29, 35, 0, 77]
@@ -179,7 +175,6 @@ def test_renumber_negative_col():
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
-@pytest.mark.skip(reason='debug')
 def test_renumber_files(graph_file):
     gc.collect()
 
@@ -189,24 +184,25 @@ def test_renumber_files(graph_file):
 
     translate = 1000
 
-    source_translated = cudf.Series([x + translate for x in sources])
-    dest_translated = cudf.Series([x + translate for x in destinations])
+    df = cudf.DataFrame()
+    df['src'] = cudf.Series([x + translate for x in sources])
+    df['dst'] = cudf.Series([x + translate for x in destinations])
 
     numbering = NumberMap()
-    numbering.from_series(source_translated, dest_translated)
-    src = numbering.to_vertex_id(source_translated)
-    dst = numbering.to_vertex_id(dest_translated)
+    numbering.from_series(df['src'], df['dst'])
 
-    check_src = numbering.from_vertex_id(src)['0']
-    check_dst = numbering.from_vertex_id(dst)['0']
+    renumbered_df = numbering.add_vertex_id(numbering.add_vertex_id(df, 'src_id', ['src']),
+                                            'dst_id', ['dst'])
 
-    assert check_src.equals(source_translated)
-    assert check_dst.equals(dest_translated)
+    check_src = numbering.from_vertex_id(renumbered_df, 'src_id')
+    check_dst = numbering.from_vertex_id(renumbered_df, 'dst_id')
+
+    assert check_src['src'].equals(check_src['0'])
+    assert check_dst['dst'].equals(check_dst['0'])
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
-@pytest.mark.skip(reason='debug')
 def test_renumber_files_col(graph_file):
     gc.collect()
 
@@ -222,19 +218,19 @@ def test_renumber_files_col(graph_file):
 
     numbering = NumberMap()
     numbering.from_dataframe(gdf, ['src'], ['dst'])
-    src = numbering.to_vertex_id(gdf['src'])
-    dst = numbering.to_vertex_id(gdf['dst'])
 
-    check_src = numbering.from_vertex_id(src)['0']
-    check_dst = numbering.from_vertex_id(dst)['0']
+    renumbered_df = numbering.add_vertex_id(numbering.add_vertex_id(gdf, 'src_id', ['src']),
+                                            'dst_id', ['dst'])
 
-    assert check_src.equals(gdf['src'])
-    assert check_dst.equals(gdf['dst'])
+    check_src = numbering.from_vertex_id(renumbered_df, 'src_id')
+    check_dst = numbering.from_vertex_id(renumbered_df, 'dst_id')
+
+    assert check_src['src'].equals(check_src['0'])
+    assert check_dst['dst'].equals(check_dst['0'])
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
-@pytest.mark.skip(reason='debug')
 def test_renumber_files_multi_col(graph_file):
     gc.collect()
 
@@ -252,18 +248,19 @@ def test_renumber_files_multi_col(graph_file):
 
     numbering = NumberMap()
     numbering.from_dataframe(gdf, ['src', 'src_old'], ['dst', 'dst_old'])
-    src = numbering.to_vertex_id(gdf, ['src', 'src_old'])
-    dst = numbering.to_vertex_id(gdf, ['dst', 'dst_old'])
 
-    check_src = numbering.from_vertex_id(src)
-    check_dst = numbering.from_vertex_id(dst)
+    renumbered_df = numbering.add_vertex_id(numbering.add_vertex_id(gdf, 'src_id', ['src', 'src_old']),
+                                            'dst_id', ['dst', 'dst_old'])
 
-    assert check_src['0'].equals(gdf['src'])
-    assert check_src['1'].equals(gdf['src_old'])
-    assert check_dst['0'].equals(gdf['dst'])
-    assert check_dst['1'].equals(gdf['dst_old'])
+    check_src = numbering.from_vertex_id(renumbered_df, 'src_id')
+    check_dst = numbering.from_vertex_id(renumbered_df, 'dst_id')
 
-        
+    assert check_src['src'].equals(check_src['0'])
+    assert check_src['src_old'].equals(check_src['1'])
+    assert check_dst['dst'].equals(check_dst['0'])
+    assert check_dst['dst_old'].equals(check_dst['1'])
+
+
 @pytest.fixture()
 def client_setup():
     cluster = LocalCUDACluster()
@@ -288,21 +285,17 @@ def test_opg_renumber(graph_file, client_setup):
     gdf['src'] = sources + translate
     gdf['dst'] = destinations + translate
 
-    #ddf = dask_cudf.dataframe.from_pandas(gdf, npartitions=2)
     ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
 
     numbering = NumberMap()
     numbering.from_dataframe(ddf, ['src', 'src_old'], ['dst', 'dst_old'])
-    src = numbering.to_vertex_id(ddf, ['src', 'src_old'])
-    dst = numbering.to_vertex_id(ddf, ['dst', 'dst_old'])
+    renumbered_df = numbering.add_vertex_id(numbering.add_vertex_id(ddf, 'src_id', ['src', 'src_old']),
+                                            'dst_id', ['dst', 'dst_old'])
 
-    check_src = numbering.from_vertex_id(src).compute()
-    check_dst = numbering.from_vertex_id(dst).compute()
+    check_src = numbering.from_vertex_id(renumbered_df, 'src_id').compute()
+    check_dst = numbering.from_vertex_id(renumbered_df, 'dst_id').compute()
 
-    print('gdf = ', gdf)
-    print('check_src (type: ', type(check_src), ') = ', check_src)
-
-    assert check_src['0'].to_pandas().equals(gdf['src'].to_pandas())
-    assert check_src['1'].to_pandas().equals(gdf['src_old'].to_pandas())
-    assert check_dst['0'].to_pandas().equals(gdf['dst'].to_pandas())
-    assert check_dst['1'].to_pandas().equals(gdf['dst_old'].to_pandas())
+    assert check_src['0'].to_pandas().equals(check_src['src'].to_pandas())
+    assert check_src['1'].to_pandas().equals(check_src['src_old'].to_pandas())
+    assert check_dst['0'].to_pandas().equals(check_dst['dst'].to_pandas())
+    assert check_dst['1'].to_pandas().equals(check_dst['dst_old'].to_pandas())

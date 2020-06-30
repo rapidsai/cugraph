@@ -28,10 +28,8 @@ from cugraph.structure import (
     Graph,
     DiGraph,
     from_cudf_edgelist,
-    renumber,
     symmetrize,
-    symmetrize_df,
-    renumber_from_cudf
+    symmetrize_df
 )
 
 from cugraph.centrality import (

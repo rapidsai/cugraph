@@ -88,9 +88,4 @@ def louvain(input_graph, max_iter=100):
                   max_iter)
         final_modularity = final_modularity_double
 
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
-
     return df, final_modularity

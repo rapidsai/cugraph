@@ -105,15 +105,6 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
         raise TypeError("result type for betweenness centrality can only be "
                         "float or double")
 
-    # Same as Betweenness Centrality unrenumber resuls might be organized
-    # in buckets
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        src = input_graph.edgelist.renumber_map.from_vertex_id(df['src'])
-        dst = input_graph.edgelist.renumber_map.from_vertex_id(df['dst'])
-        df['src'] = src['0']
-        df['dst'] = dst['0']
-
     if type(input_graph) is Graph:
         lower_triangle = df['src'] >= df['dst']
         df[["src", "dst"]][lower_triangle] = df[["dst", "src"]][lower_triangle]

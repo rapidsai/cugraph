@@ -71,9 +71,4 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
 
         c_ecg[int,int,double](graph_double, min_weight, ensemble_size, <int*> c_partition)
 
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
-
     return df

@@ -24,6 +24,8 @@ from cugraph.tests import utils
 def cugraph_call(G, partitions):
     df = cugraph.spectralBalancedCutClustering(G, partitions,
                                                num_eigen_vects=partitions)
+
+    df = df.sort_values('vertex')
     score = cugraph.analyzeClustering_edge_cut(G, partitions, df['cluster'])
     return set(df['vertex'].to_array()), score
 

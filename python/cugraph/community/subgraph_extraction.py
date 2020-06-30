@@ -61,10 +61,8 @@ def subgraph(G, vertices):
 
     if G.renumbered:
         # FIXME: multi-column vertex support
-        src = G.edgelist.renumber_map.from_vertex_id(df['src'])
-        dst = G.edgelist.renumber_map.from_vertex_id(df['dst'])
-        df['src'] = src['0']
-        df['dst'] = dst['0']
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'src').drop({'src'}).rename({'0': 'src'})
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'dst').drop({'dst'}).rename({'0': 'dst'})
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='weight')

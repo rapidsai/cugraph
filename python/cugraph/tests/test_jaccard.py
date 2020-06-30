@@ -46,7 +46,9 @@ def cugraph_call(cu_M, edgevals=False):
     df = cugraph.jaccard(G)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-    print(df)
+
+    df = df.sort_values(['source', 'destination']).reset_index(drop=True)
+
     return df['source'].to_array(), df['destination'].to_array(),\
         df['jaccard_coeff'].to_array()
 
@@ -141,8 +143,7 @@ def test_jaccard_two_hop(graph_file):
                                   create_using=nx.Graph())
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    pairs = G.get_two_hop_neighbors()
-    print(pairs)
+    pairs = G.get_two_hop_neighbors().sort_values(['first', 'second']).reset_index(drop=True)
     nx_pairs = []
     for i in range(len(pairs)):
         nx_pairs.append((pairs['first'].iloc[i], pairs['second'].iloc[i]))
@@ -151,7 +152,7 @@ def test_jaccard_two_hop(graph_file):
     for u, v, p in preds:
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs)
-    df = df.sort_values(by=['source', 'destination'])
+    df = df.sort_values(by=['source', 'destination']).reset_index(drop=True)
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'].iloc[i])
@@ -170,7 +171,9 @@ def test_jaccard_two_hop_edge_vals(graph_file):
                                   edge_attr='weight', create_using=nx.Graph())
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
-    pairs = G.get_two_hop_neighbors()
+
+    pairs = G.get_two_hop_neighbors().sort_values(['first', 'second']).reset_index(drop=True)
+
     nx_pairs = []
     for i in range(len(pairs)):
         nx_pairs.append((pairs['first'].iloc[i], pairs['second'].iloc[i]))
@@ -179,7 +182,7 @@ def test_jaccard_two_hop_edge_vals(graph_file):
     for u, v, p in preds:
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs)
-    df = df.sort_values(by=['source', 'destination'])
+    df = df.sort_values(by=['source', 'destination']).reset_index(drop=True)
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df['jaccard_coeff'].iloc[i])

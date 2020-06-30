@@ -107,11 +107,9 @@ def jaccard(input_graph, vertex_pair=None):
         raise Exception("input graph must be undirected")
 
     if (type(vertex_pair) == cudf.DataFrame):
-        null_check(vertex_pair[vertex_pair.columns[0]])
-        null_check(vertex_pair[vertex_pair.columns[1]])
-
         for col in vertex_pair.columns:
-            vertex_pair[col] = input_graph.edgelist.renumber_map.to_vertex_id(vertex_pair[col])
+            null_check(vertex_pair[col])
+            vertex_pair = input_graph.edgelist.renumber_map.add_vertex_id(vertex_pair, 'id', col).drop(col).rename({'id': col})
 
     elif vertex_pair is None:
         pass
@@ -121,10 +119,8 @@ def jaccard(input_graph, vertex_pair=None):
     df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
 
     if input_graph.renumbered:
-        tmp_src = input_graph.edgelist.renumber_map.from_vertex_id(df['source'])
-        tmp_dst = input_graph.edgelist.renumber_map.from_vertex_id(df['destination'])
         # FIXME: multi column support
-        df['source'] = tmp_src['0']
-        df['destination'] = tmp_dst['0']
+        df = input_graph.edgelist.renumber_map.from_vertex_id(df, 'source').drop('source').rename({'0': 'source'})
+        df = input_graph.edgelist.renumber_map.from_vertex_id(df, 'destination').drop('destination').rename({'0': 'destination'})
 
     return df

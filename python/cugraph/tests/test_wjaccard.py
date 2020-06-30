@@ -47,7 +47,9 @@ def cugraph_call(cu_M):
     df = cugraph.jaccard_w(G, weights_arr)
     t2 = time.time() - t1
     print('Time : '+str(t2))
-    print(df)
+
+    df = df.sort_values(['source', 'destination']).reset_index(drop=True)
+
     return df['jaccard_coeff']
 
 

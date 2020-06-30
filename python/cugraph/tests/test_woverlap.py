@@ -96,7 +96,7 @@ def test_woverlap(graph_file):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    pairs = G.get_two_hop_neighbors()
+    pairs = G.get_two_hop_neighbors().sort_values(['first', 'second']).reset_index(drop=True)
 
     cu_coeff = cugraph_call(cu_M, pairs)
     cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])

@@ -13,8 +13,6 @@
 
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
-from cugraph.structure.renumber import renumber as rnb
-from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
 from cugraph.structure.number_map import NumberMap
 import cudf
 import numpy as np
@@ -262,31 +260,25 @@ class Graph:
         if self.edgelist is None:
             src, dst, weights = graph_new_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
-        if type(self) is Graph:
-            edgelist_df = self.edgelist.edgelist_df[self.edgelist.edgelist_df[
-                          'src'] <= self.edgelist.edgelist_df['dst']].\
-                          reset_index(drop=True)
-            self.edge_count = len(edgelist_df)
-        else:
-            edgelist_df = self.edgelist.edgelist_df
+
+        edgelist_df = self.edgelist.edgelist_df
 
         if self.renumbered:
-            src_df = self.edgelist.renumber_map.from_vertex_id(edgelist_df['src'])
-            dst_df = self.edgelist.renumber_map.from_vertex_id(edgelist_df['dst'])
+            src_name_mapping = { '0' : 'src' }
+            dst_name_mapping = { '0' : 'dst' }
+            if len(self.edgelist.renumber_map.column_names()) > 1:
+                for name in self.edgelist.renumber_map.column_names():
+                    src_name_mapping[name] = name + "_src"
+                    dst_name_mapping[name] = name + "_dst"
 
-            if len(src_df.columns) == 1:
-                edgelist_df["src"] = src_df["0"]
-                edgelist_df["dst"] = dst_df["0"]
-            else:
-                for c in src_df.columns:
-                    edgelist_df[c + "_src"] = src_df[c]
+            edgelist_df = self.edgelist.renumber_map.from_vertex_id(edgelist_df, 'src').drop('src').rename(src_name_mapping)
+            edgelist_df = self.edgelist.renumber_map.from_vertex_id(edgelist_df, 'dst').drop('dst').rename(dst_name_mapping)
 
-                for c in dst_df.columns:
-                    edgelist_df[c + "_dst"] = dst_df[c]
+        if type(self) is Graph:
+            edgelist_df = edgelist_df[edgelist_df['src'] <= edgelist_df['dst']].reset_index(drop=True)
+            self.edge_count = len(edgelist_df)
 
-            return edgelist_df
-        else:
-            return edgelist_df
+        return edgelist_df
 
     def delete_edge_list(self):
         """
@@ -454,23 +446,16 @@ class Graph:
         """
         df = graph_new_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
-            first = self.edgelist.renumber_map.from_vertex_id(df['first'])
-            second = self.edgelist.renumber_map.from_vertex_id(df['second'])
+            first_name_mapping = { '0' : 'first' }
+            second_name_mapping = { '0' : 'second' }
+            if len(self.edgelist.renumber_map.column_names()) > 1:
+                for name in self.edgelist.renumber_map.column_names():
+                    first_name_mapping[name] = name + "_first"
+                    second_name_mapping[name] = name + "_second"
+
+            df = self.edgelist.renumber_map.from_vertex_id(df, 'first').drop('first').rename(first_name_mapping)
+            df = self.edgelist.renumber_map.from_vertex_id(df, 'second').drop('second').rename(second_name_mapping)
             
-            df = cudf.DataFrame()
-
-            if len(first.columns) == 1:
-                df["first"] = first["0"]
-                df["second"] = second["0"]
-            else:
-                for c in first.columns:
-                    df[c + "_first"] = src_df[c]
-
-                for c in second.columns:
-                    df[c + "_second"] = dst_df[c]
-
-            return df
-
         return df
 
     def number_of_vertices(self):
@@ -679,41 +664,20 @@ class Graph:
                                                         self)
 
         df = cudf.DataFrame()
-        if vertex_subset is None:
-            if self.renumbered is True:
-                tmp = self.edgelist.renumber_map.from_vertex_id(vertex_col) 
+        df['vertex'] = vertex_col
+        df['in_degree'] = in_degree_col
+        df['out_degree'] = out_degree_col
 
-                if len(tmp.columns) == 1:
-                    df['vertex'] = tmp['0']
-                else:
-                    for c in tmp.columns:
-                        df[c + "_vertex"] = tmp[c]
-            else:
-                df['vertex'] = vertex_col
-            df['in_degree'] = in_degree_col
-            df['out_degree'] = out_degree_col
-        else:
-            if self.renumbered is True:
-                tmp_df = cudf.DataFrame()
-                tmp_df['vertex'] = cudf.Series(
-                    np.asarray(vertex_subset, dtype=np.int32))
-                tmp_df['id'] = self.edgelist.renumber_map.to_vertex_id(tmp_df['vertex'])
+        if self.renumbered is True:
+            name_mapping = { '0' : 'vertex' }
+            if len(self.edgelist.renumber_map.column_names()) > 1:
+                for name in self.edgelist.renumber_map.column_names():
+                    name_mapping[name] = name + "_vertex"
 
-                degree_df = cudf.DataFrame()
-                degree_df['id'] = vertex_col
-                degree_df['in_degree'] = in_degree_col
-                degree_df['out_degree'] = out_degree_col
+            df = self.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename(name_mapping)
 
-                df = tmp_df.merge(degree_df, on='id').drop('id')
-            else:
-                df['vertex'] = cudf.Series(
-                    np.asarray(vertex_subset, dtype=np.int32))
-                df['in_degree'] = cudf.Series(
-                    np.asarray([in_degree_col[i] for i in vertex_subset],
-                               dtype=np.int32))
-                df['out_degree'] = cudf.Series(
-                    np.asarray([out_degree_col[i] for i in vertex_subset],
-                               dtype=np.int32))
+        if vertex_subset is not None:
+            df = df.query('`vertex` in @vertex_subset')
 
         return df
 
@@ -721,37 +685,19 @@ class Graph:
         vertex_col, degree_col = graph_new_wrapper._degree(self, x)
 
         df = cudf.DataFrame()
-        if vertex_subset is None:
-            if self.renumbered is True:
-                tmp = self.edgelist.renumber_map.from_vertex_id(vertex_col) 
+        df['vertex'] = vertex_col
+        df['degree'] = degree_col
 
-                if len(tmp.columns) == 1:
-                    df['vertex'] = tmp['0']
-                else:
-                    for c in tmp.columns:
-                        df[c + "_vertex"] = tmp[c]
-            else:
-                df['vertex'] = vertex_col
-            df['degree'] = degree_col
-        else:
-            if self.renumbered is True:
-                tmp_df = cudf.DataFrame()
-                tmp_df['vertex'] = cudf.Series(
-                    np.asarray(vertex_subset, dtype=np.int32))
-                tmp_df['id'] = self.edgelist.renumber_map.to_vertex_id(tmp_df['vertex'])
+        if self.renumbered is True:
+            name_mapping = { '0' : 'vertex' }
+            if len(self.edgelist.renumber_map.column_names()) > 1:
+                for name in self.edgelist.renumber_map.column_names():
+                    name_mapping[name] = name + "_vertex"
 
-                degree_df = cudf.DataFrame()
-                degree_df['id'] = vertex_col
-                degree_df['degree'] = degree_col
+            df = self.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename(name_mapping)
 
-                df = tmp_df.merge(degree_df, on='id').drop('id')
-            else:
-                df['vertex'] = cudf.Series(np.asarray(
-                    vertex_subset, dtype=np.int32
-                ))
-                df['degree'] = cudf.Series(np.asarray(
-                    [degree_col[i] for i in vertex_subset], dtype=np.int32
-                ))
+        if vertex_subset is not None:
+            df = df.query('`vertex` in @vertex_subset')
 
         return df
 

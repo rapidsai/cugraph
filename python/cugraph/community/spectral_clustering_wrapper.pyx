@@ -101,11 +101,6 @@ def spectralBalancedCutClustering(input_graph,
                                   kmean_max_iter,
                                   <int*>c_cluster)
 
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
-
     return df
 
 def spectralModularityMaximizationClustering(input_graph,
@@ -173,11 +168,6 @@ def spectralModularityMaximizationClustering(input_graph,
                                            kmean_tolerance,
                                            kmean_max_iter,
                                            <int*>c_cluster)
-
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
 
     return df
 

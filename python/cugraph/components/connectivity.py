@@ -48,6 +48,10 @@ def weakly_connected_components(G):
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
+    if G.renumbered:
+        # FIXME: multi-column vertex support
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertices').drop({'vertices'}).rename({'0': 'vertices'})
+
     return df
 
 
@@ -84,5 +88,9 @@ def strongly_connected_components(G):
     """
 
     df = connectivity_wrapper.strongly_connected_components(G)
+
+    if G.renumbered:
+        # FIXME: multi-column vertex support
+        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertices').drop({'vertices'}).rename({'0': 'vertices'})
 
     return df

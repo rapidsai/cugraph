@@ -99,17 +99,4 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         raise TypeError("result type for betweenness centrality can only be "
                         "float or double")
 
-    # For large graph unrenumbering produces a dataframe organized
-    #       in buckets, i.e, if they are 3 buckets
-    # 0
-    # 8191
-    # 16382
-    # 1
-    # 8192 ...
-    # Instead of having  the sources in ascending order
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
-
     return df

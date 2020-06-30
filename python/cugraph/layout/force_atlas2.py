@@ -125,4 +125,9 @@ def force_atlas2(input_graph,
             gravity=gravity,
             verbose=verbose,
             callback=callback)
+
+    if pos_list is None and input_graph.renumbered:
+        # FIXME: multi column support
+        pos = input_graph.edgelist.renumber_map.from_vertex_id(pos, 'vertex').drop('vertex').rename({'0': 'vertex'})
+
     return pos

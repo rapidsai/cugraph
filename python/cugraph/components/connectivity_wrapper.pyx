@@ -73,11 +73,6 @@ def weakly_connected_components(input_graph):
 
     g.get_vertex_identifiers(<int*>c_identifier)
 
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertices'])
-        df['vertices'] = tmp['0']
-
     return df
 
 
@@ -110,10 +105,5 @@ def strongly_connected_components(input_graph):
     connected_components(g, <cugraph_cc_t>connect_type, <int *>c_labels_val)
 
     g.get_vertex_identifiers(<int*>c_identifier)
-
-    if input_graph.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = input_graph.edgelist.renumber_map.from_vertex_id(df['vertices'])
-        df['vertices'] = tmp['0']
 
     return df

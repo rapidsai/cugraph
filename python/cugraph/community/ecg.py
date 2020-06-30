@@ -65,4 +65,9 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
 
     parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
 
+    if input_graph.renumbered:
+        # FIXME: multi-column vertex support
+        parts = input_graph.edgelist.renumber_map.from_vertex_id(parts, 'vertex').drop('vertex').rename({'0': 'vertex'})
+
+
     return parts

@@ -15,8 +15,5 @@ from cugraph.structure.graph import (Graph,
                                      DiGraph
                                     )
 from cugraph.structure.number_map import NumberMap
-from cugraph.structure.renumber import renumber
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df
-from cugraph.structure.renumber import renumber_from_cudf
-from cugraph.structure.opg_renumber import renumber_dask_dataframe
 from cugraph.structure.convert_matrix import from_cudf_edgelist
