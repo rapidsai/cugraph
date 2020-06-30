@@ -216,7 +216,7 @@ TEST_P(Tests_BFS, CheckUint32_SP_COUNTER)
   run_current_test<uint32_t, uint32_t, float, true>(GetParam());
 }
 TEST_P(Tests_BFS, CheckInt_SP_COUNTER) { run_current_test<int, int, float, true>(GetParam()); }
-TEST_P(Tests_BFS, CheckLong_SP_COUNTER)
+TEST_P(Tests_BFS, CheckInt64_SP_COUNTER)
 {
   run_current_test<int64_t, int64_t, float, true>(GetParam());
 }
