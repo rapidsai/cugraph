@@ -45,7 +45,7 @@ template <typename GraphType,
           typename ResultValueOutputIterator,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_low_out_degree(
-  GraphType const& graph_device_view,
+  GraphType graph_device_view,
   MajorIterator major_first,
   MajorIterator major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,

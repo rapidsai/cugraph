@@ -285,7 +285,7 @@ class graph_device_view_t<GraphType, std::enable_if_t<!GraphType::is_opg>>
   {
     auto row_offset   = get_adj_matrix_local_row_offset_from_row_nocheck(row);
     auto edge_offset  = *(this->offsets_ptr_ + row_offset);
-    auto local_degree = *(this->offsets_ptr_ + row_offset + 1) - edge_offset;
+    auto local_degree = *(this->offsets_ptr_ + (row_offset + 1)) - edge_offset;
     auto indices      = this->indices_ptr_ + edge_offset;
     auto weights      = this->weights_ptr_ != nullptr ? this->weights_ptr_ + edge_offset : nullptr;
     return thrust::make_tuple(indices, weights, local_degree);
