@@ -113,7 +113,7 @@ void fill_offset(
                    });
   thrust::device_ptr<VT> src = thrust::device_pointer_cast(source);
   thrust::device_ptr<ET> off = thrust::device_pointer_cast(offsets);
-  off[src[0]]                = static_cast<ET>(0);
+  off[src[0]]                = ET{0};
 
   auto iter = thrust::make_reverse_iterator(offsets + number_of_vertices + 1);
   thrust::inclusive_scan(rmm::exec_policy(stream)->on(stream),
