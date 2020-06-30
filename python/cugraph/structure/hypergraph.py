@@ -39,7 +39,10 @@ import numpy as np
 from cugraph.structure.graph import Graph
 
 
-_empty_cat_dt = cudf.core.dtypes.CategoricalDtype(ordered=False)
+# An empty categorical string dtype
+_empty_cat_dt = cudf.core.dtypes.CategoricalDtype(
+    categories=np.array([], dtype="str"), ordered=False
+)
 
 
 def hypergraph(
@@ -50,7 +53,7 @@ def hypergraph(
     graph_class=Graph,
     categories=dict(),
     drop_edge_attrs=False,
-    categorical_metadata=False,
+    categorical_metadata=True,
     SKIP=None,
     EDGES=None,
     DELIM="::",
@@ -64,6 +67,91 @@ def hypergraph(
     NODETYPE="node_type",
     EDGETYPE="edge_type",
 ):
+    """
+    Creates a hypergraph out of the given dataframe, returning the graph
+    components as dataframes. The transform reveals relationships between the
+    rows and unique values. This transform is useful for lists of events,
+    samples, relationships, and other structured high-dimensional data.
+
+    The transform creates a node for every row, and turns a row's column
+    entries into node attributes. If direct=False (default), every unique
+    value within a column is also turned into a node. Edges are added to
+    connect a row's nodes to each of its column nodes, or if direct=True, to
+    one another. Nodes are given the attribute specified by ``NODETYPE``
+    that corresponds to the originating column name, or if a row ``EVENTID``.
+
+    Consider a list of events. Each row represents a distinct event, and each
+    column some metadata about an event. If multiple events have common
+    metadata, they will be transitively connected through those metadata
+    values. Conversely, if an event has unique metadata, the unique metadata
+    will turn into nodes that only have connections to the event node.
+
+    For best results, set ``EVENTID`` to a row's unique ID, ``SKIP`` to all
+    non-categorical columns (or ``columns`` to all categorical columns),
+    and ``categories`` to group columns with the same kinds of values.
+
+    Parameters
+    ----------
+    values : cudf.DataFrame
+        The input Dataframe to transform into a hypergraph.
+    columns : sequence, optional, default ``values.columns``
+        An optional sequence of column names to process.
+    dropna : bool, optional, default True
+        If True, do not include "null" values in the graph.
+    direct : bool, optional, default False
+        If True, omit hypernodes and instead strongly connect nodes for each
+        row with each other.
+    categories : dict, optional
+        Dictionary mapping column names to distinct categories. If the same
+        value appears columns mapped to the same category, the transform will
+        generate one node for it, instead of one for each column.
+    drop_edge_attrs : bool, optional, default False
+        If True, exclude each row's attributes from its edges (default: False)
+    categorical_metadata : bool, optional, default True
+        Whether to use cudf.CategoricalDtype for the ``CATEGORY``,
+        ``NODETYPE``, and ``EDGETYPE`` columns. These columns are typically
+        large string columns with with low cardinality, and using categorical
+        dtypes can save a significant amount of memory.
+    SKIP : sequence, optional
+        A sequence of column names not to transform into nodes.
+    EDGES : dict, optional
+        When ``direct=True``, select column pairs instead of making all edges.
+    DELIM : str, optional, default "::"
+        The delimiter to use when joining column names, categories, and ids.
+    SOURCE : str, optional, default "src"
+        The name to use as the source column in the graph and edge DF.
+    TARGET : str, optional, default "dst"
+        The name to use as the target column in the graph and edge DF.
+    WEIGHTS : str, optional, default None
+        The column name from the input DF to map as the graph's edge weights.
+    NODEID : str, optional, default "node_id"
+        The name to use as the node id column in the graph and node DFs.
+    EVENTID : str, optional, default "event_id"
+        The name to use as the event id column in the graph and node DFs.
+    ATTRIBID : str, optional, default "attrib_id"
+        The name to use as the attribute id column in the graph and node DFs.
+    CATEGORY : str, optional, default "category"
+        The name to use as the category column in the graph and DFs.
+    NODETYPE : str, optional, default "node_type"
+        The name to use as the node type column in the graph and node DFs.
+    EDGETYPE : str, optional, default "edge_type"
+        The name to use as the edge type column in the graph and edge DF.
+
+    Returns
+    -------
+    result : dict {"nodes", "edges", "graph", "events", "entities"}
+        nodes : cudf.DataFrame
+            A DataFrame of found entity and hyper node attributes.
+        edges : cudf.DataFrame
+            A DataFrame of edge attributes.
+        graph : cugraph.Graph
+            A Graph of the found entity nodes, hyper nodes, and edges.
+        events : cudf.DataFrame
+            If direct=True, a DataFrame of hyper node attributes, else empty.
+        entities : cudf.DataFrame
+            A DataFrame of the found entity node attributes.
+    """
+
     columns = values.columns if columns is None else columns
     columns = sorted(list(columns if SKIP is None else [
         x for x in columns if x not in SKIP
@@ -71,10 +159,6 @@ def hypergraph(
 
     events = values.copy(deep=False)
     events.reset_index(drop=True, inplace=True)
-
-    for key, col in events[columns].iteritems():
-        if cudf.utils.dtypes.is_categorical_dtype(col.dtype):
-            events[columns] = col.astype(col.cat.categories.dtype)
 
     if EVENTID not in events.columns:
         events[EVENTID] = cudf.core.index.RangeIndex(len(events))
@@ -188,8 +272,12 @@ def _create_entity_nodes(
 ):
     nodes = [cudf.DataFrame(dict([
         (NODEID, cudf.core.column.column_empty(0, "str")),
-        (CATEGORY, cudf.core.column.column_empty(0, _empty_cat_dt)),
-        (NODETYPE, cudf.core.column.column_empty(0, _empty_cat_dt))
+        (CATEGORY, cudf.core.column.column_empty(
+            0, "str" if not categorical_metadata else _empty_cat_dt
+        )),
+        (NODETYPE, cudf.core.column.column_empty(
+            0, "str" if not categorical_metadata else _empty_cat_dt
+        ))
     ] + [
         (key, cudf.core.column.column_empty(0, col.dtype))
         for key, col in events[columns].iteritems()
@@ -205,7 +293,7 @@ def _create_entity_nodes(
             key: cudf.core.column.as_column(col),
             NODEID: _prepend_str(col, cat + DELIM),
             CATEGORY: cat if not categorical_metadata
-            else _str_scalar_to_category(len(events), cat),
+            else _str_scalar_to_category(len(col), cat),
             NODETYPE: key if not categorical_metadata
             else _str_scalar_to_category(len(col), key),
         }))
@@ -260,10 +348,14 @@ def _create_hyper_edges(
         ([
             (EVENTID, cudf.core.column.column_empty(0, "str")),
             (ATTRIBID, cudf.core.column.column_empty(0, "str")),
-            (EDGETYPE, cudf.core.column.column_empty(0, _empty_cat_dt))
+            (EDGETYPE, cudf.core.column.column_empty(
+                0, "str" if not categorical_metadata else _empty_cat_dt
+            ))
         ]) +
         ([] if len(categories) == 0 else [
-            (CATEGORY, cudf.core.column.column_empty(0, _empty_cat_dt))
+            (CATEGORY, cudf.core.column.column_empty(
+                0, "str" if not categorical_metadata else _empty_cat_dt
+            ))
         ]) +
         ([] if drop_edge_attrs else [
             (key, cudf.core.column.column_empty(0, col.dtype))
@@ -303,7 +395,7 @@ def _create_direct_edges(
     columns,
     dropna=True,
     categories=dict(),
-    edge_shape=dict(),
+    edge_shape=None,
     drop_edge_attrs=False,
     categorical_metadata=False,
     DELIM="::",
@@ -325,10 +417,14 @@ def _create_direct_edges(
             (EVENTID, cudf.core.column.column_empty(0, "str")),
             (SOURCE, cudf.core.column.column_empty(0, "str")),
             (TARGET, cudf.core.column.column_empty(0, "str")),
-            (EDGETYPE, cudf.core.column.column_empty(0, _empty_cat_dt))
+            (EDGETYPE, cudf.core.column.column_empty(
+                0, "str" if not categorical_metadata else _empty_cat_dt
+            ))
         ]) +
         ([] if len(categories) == 0 else [
-            (CATEGORY, cudf.core.column.column_empty(0, _empty_cat_dt))
+            (CATEGORY, cudf.core.column.column_empty(
+                0, "str" if not categorical_metadata else _empty_cat_dt
+            ))
         ]) +
         ([] if drop_edge_attrs else [
             (key, cudf.core.column.column_empty(0, col.dtype))
