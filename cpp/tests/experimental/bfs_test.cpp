@@ -19,8 +19,8 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <raft/handle.hpp>
 #include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -30,37 +30,35 @@
 #include <limits>
 #include <vector>
 
-template <typename VertexIterator, typename EdgeIterator>
-void bfs_reference(EdgeIterator offset_first,
-                   VertexIterator index_first,
-                   VertexIterator distance_first,
-                   VertexIterator predecessor_first,
-                   typename std::iterator_traits<VertexIterator>::value_type num_vertices,
-                   typename std::iterator_traits<VertexIterator>::value_type source,
-                   size_t depth_limit = std::numeric_limits<size_t>::max())
+template <typename vertex_t, typename edge_t>
+void bfs_reference(edge_t* offsets,
+                   vertex_t* indices,
+                   vertex_t* distances,
+                   vertex_t* predecessors,
+                   vertex_t num_vertices,
+                   vertex_t source,
+                   vertex_t depth_limit = std::numeric_limits<vertex_t>::max())
 {
-  using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
+  vertex_t depth{0};
 
-  size_t depth{0};
-
-  std::fill(distance_first, distance_first + num_vertices, std::numeric_limits<vertex_t>::max());
-  std::fill(predecessor_first,
-            predecessor_first + num_vertices,
+  std::fill(distances, distances + num_vertices, std::numeric_limits<vertex_t>::max());
+  std::fill(predecessors,
+            predecessors + num_vertices,
             cugraph::experimental::invalid_vertex_id<vertex_t>::value);
 
-  *(distance_first + source) = depth;
+  *(distances + source) = depth;
   std::vector<vertex_t> cur_frontier_rows{source};
   std::vector<vertex_t> new_frontier_rows{};
 
   while (cur_frontier_rows.size() > 0) {
     for (auto const row : cur_frontier_rows) {
-      auto nbr_offset_first = *(offset_first + row);
-      auto nbr_offset_last  = *(offset_first + row + 1);
+      auto nbr_offset_first = *(offsets + row);
+      auto nbr_offset_last  = *(offsets + row + 1);
       for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
-        auto nbr = *(index_first + nbr_offset);
-        if (*(distance_first + nbr) == std::numeric_limits<vertex_t>::max()) {
-          *(distance_first + nbr)    = depth + 1;
-          *(predecessor_first + nbr) = row;
+        auto nbr = *(indices + nbr_offset);
+        if (*(distances + nbr) == std::numeric_limits<vertex_t>::max()) {
+          *(distances + nbr)    = depth + 1;
+          *(predecessors + nbr) = row;
           new_frontier_rows.push_back(nbr);
         }
       }
@@ -79,7 +77,7 @@ typedef struct BFS_Usecase_t {
   std::string graph_file_full_path_;
   size_t source_;
 
-  BFS_Usecase_t(std::string const &graph_file_path, size_t source)
+  BFS_Usecase_t(std::string const& graph_file_path, size_t source)
     : graph_file_path_(graph_file_path), source_(source)
   {
     if ((graph_file_path_.length() > 0) && (graph_file_path[0] != '/')) {
@@ -100,7 +98,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t>
-  void run_current_test(BFS_Usecase const &configuration)
+  void run_current_test(BFS_Usecase const& configuration)
   {
     // FIXME: directed is a misnomer.
     bool directed{false};
@@ -130,13 +128,13 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                         sizeof(vertex_t) * h_indices.size(),
                         cudaMemcpyDeviceToHost));
 
-    bfs_reference(h_offsets.begin(),
-                  h_indices.begin(),
-                  h_reference_distances.begin(),
-                  h_reference_predecessors.begin(),
+    bfs_reference(h_offsets.data(),
+                  h_indices.data(),
+                  h_reference_distances.data(),
+                  h_reference_predecessors.data(),
                   csr_graph_view.number_of_vertices,
                   static_cast<vertex_t>(configuration.source_),
-                  std::numeric_limits<size_t>::max());
+                  std::numeric_limits<vertex_t>::max());
 
     raft::handle_t handle{};
 
@@ -207,7 +205,7 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
                                           BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000)));
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);
   auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();

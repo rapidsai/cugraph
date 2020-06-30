@@ -33,28 +33,24 @@
 #include <vector>
 
 // Dijkstra's algorithm
-template <typename VertexIterator, typename EdgeIterator, typename WeightIterator>
-void sssp_reference(
-  EdgeIterator offset_first,
-  VertexIterator index_first,
-  WeightIterator weight_first,
-  WeightIterator distance_first,
-  VertexIterator predecessor_first,
-  typename std::iterator_traits<VertexIterator>::value_type num_vertices,
-  typename std::iterator_traits<VertexIterator>::value_type source,
-  typename std::iterator_traits<WeightIterator>::value_type cutoff =
-    std::numeric_limits<typename std::iterator_traits<WeightIterator>::value_type>::max())
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_reference(edge_t* offsets,
+                    vertex_t* indices,
+                    weight_t* weights,
+                    weight_t* distances,
+                    vertex_t* predecessors,
+                    vertex_t num_vertices,
+                    vertex_t source,
+                    weight_t cutoff = std::numeric_limits<weight_t>::max())
 {
-  using vertex_t      = typename std::iterator_traits<VertexIterator>::value_type;
-  using weight_t      = typename std::iterator_traits<WeightIterator>::value_type;
   using queue_iterm_t = std::tuple<weight_t, vertex_t>;
 
-  std::fill(distance_first, distance_first + num_vertices, std::numeric_limits<weight_t>::max());
-  std::fill(predecessor_first,
-            predecessor_first + num_vertices,
+  std::fill(distances, distances + num_vertices, std::numeric_limits<weight_t>::max());
+  std::fill(predecessors,
+            predecessors + num_vertices,
             cugraph::experimental::invalid_vertex_id<vertex_t>::value);
 
-  *(distance_first + source) = static_cast<weight_t>(0.0);
+  *(distances + source) = static_cast<weight_t>(0.0);
   std::priority_queue<queue_iterm_t, std::vector<queue_iterm_t>, std::greater<queue_iterm_t>>
     queue{};
   queue.push(std::make_tuple(static_cast<weight_t>(0.0), source));
@@ -64,16 +60,16 @@ void sssp_reference(
     vertex_t row{};
     std::tie(distance, row) = queue.top();
     queue.pop();
-    if (distance > *(distance_first + row)) { continue; }
-    auto nbr_offset_first = *(offset_first + row);
-    auto nbr_offset_last  = *(offset_first + row + 1);
-    for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
-      auto nbr          = *(index_first + nbr_offset);
-      auto new_distance = distance + *(weight_first + nbr_offset);
-      auto threshold    = std::min(*(distance_first + nbr), cutoff);
+    if (distance > *(distances + row)) { continue; }
+    auto nbr_offsets     = *(offsets + row);
+    auto nbr_offset_last = *(offsets + row + 1);
+    for (auto nbr_offset = nbr_offsets; nbr_offset != nbr_offset_last; ++nbr_offset) {
+      auto nbr          = *(indices + nbr_offset);
+      auto new_distance = distance + *(weights + nbr_offset);
+      auto threshold    = std::min(*(distances + nbr), cutoff);
       if (new_distance < threshold) {
-        *(distance_first + nbr)    = new_distance;
-        *(predecessor_first + nbr) = row;
+        *(distances + nbr)    = new_distance;
+        *(predecessors + nbr) = row;
         queue.push(std::make_tuple(new_distance, nbr));
       }
     }
@@ -87,7 +83,7 @@ typedef struct SSSP_Usecase_t {
   std::string graph_file_full_path_;
   size_t source_;
 
-  SSSP_Usecase_t(std::string const &graph_file_path, size_t source)
+  SSSP_Usecase_t(std::string const& graph_file_path, size_t source)
     : graph_file_path_(graph_file_path), source_(source)
   {
     if ((graph_file_path_.length() > 0) && (graph_file_path[0] != '/')) {
@@ -108,7 +104,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(SSSP_Usecase const &configuration)
+  void run_current_test(SSSP_Usecase const& configuration)
   {
     // FIXME: directed is a misnomer.
     bool directed{false};
@@ -143,11 +139,11 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                         sizeof(weight_t) * h_weights.size(),
                         cudaMemcpyDeviceToHost));
 
-    sssp_reference(h_offsets.begin(),
-                   h_indices.begin(),
-                   h_weights.begin(),
-                   h_reference_distances.begin(),
-                   h_reference_predecessors.begin(),
+    sssp_reference(h_offsets.data(),
+                   h_indices.data(),
+                   h_weights.data(),
+                   h_reference_distances.data(),
+                   h_reference_predecessors.data(),
                    csr_graph_view.number_of_vertices,
                    static_cast<vertex_t>(configuration.source_));
 
@@ -230,7 +226,7 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           SSSP_Usecase("test/datasets/dblp.mtx", 0),
                                           SSSP_Usecase("test/datasets/wiki2003.mtx", 1000)));
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);
   auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
