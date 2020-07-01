@@ -37,8 +37,8 @@
 namespace {
 
 // FIXME: block size requires tuning
-int32_t constexpr update_frontier_v_push_if_e_for_all_low_out_degree_block_size = 128;
-int32_t constexpr update_frontier_v_push_if_e_update_block_size                 = 128;
+int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size = 128;
+int32_t constexpr update_frontier_v_push_if_out_nbr_update_block_size                 = 128;
 
 template <typename GraphType,
           typename RowIterator,
@@ -190,7 +190,7 @@ __global__ void update_frontier_and_vertex_output_values(
   // FIXME: it might be more performant to process more than one element per thread
   auto num_blocks = (num_buffer_elements + blockDim.x - 1) / blockDim.x;
 
-  using BlockScan = cub::BlockScan<size_t, update_frontier_v_push_if_e_update_block_size>;
+  using BlockScan = cub::BlockScan<size_t, update_frontier_v_push_if_out_nbr_update_block_size>;
   __shared__ typename BlockScan::TempStorage temp_storage;
 
   __shared__ size_t bucket_block_start_offsets[num_buckets];
@@ -266,20 +266,21 @@ template <typename HandleType,
           typename EdgeOp,
           typename ReduceOp,
           typename VertexOp>
-void update_frontier_v_push_if_e(HandleType& handle,
-                                 GraphType const& graph_device_view,
-                                 RowIterator row_first,
-                                 RowIterator row_last,
-                                 VertexValueInputIterator vertex_value_input_first,
-                                 AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-                                 AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-                                 VertexValueOutputIterator vertex_value_output_first,
-                                 AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
-                                 AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
-                                 RowFrontierType& row_frontier,
-                                 EdgeOp e_op,
-                                 ReduceOp reduce_op,
-                                 VertexOp v_op)
+void update_frontier_v_push_if_out_nbr(
+  HandleType& handle,
+  GraphType const& graph_device_view,
+  RowIterator row_first,
+  RowIterator row_last,
+  VertexValueInputIterator vertex_value_input_first,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  VertexValueOutputIterator vertex_value_output_first,
+  AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
+  AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
+  RowFrontierType& row_frontier,
+  EdgeOp e_op,
+  ReduceOp reduce_op,
+  VertexOp v_op)
 {
   static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
 
@@ -308,7 +309,7 @@ void update_frontier_v_push_if_e(HandleType& handle,
 
   grid_1d_thread_t for_all_low_out_degree_grid(
     thrust::distance(row_first, row_last),
-    update_frontier_v_push_if_e_for_all_low_out_degree_block_size,
+    update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
     get_max_num_blocks_1D());
 
   // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
@@ -337,7 +338,7 @@ void update_frontier_v_push_if_e(HandleType& handle,
   }
 
   grid_1d_thread_t update_grid(thrust::distance(row_first, row_last),
-                               update_frontier_v_push_if_e_update_block_size,
+                               update_frontier_v_push_if_out_nbr_update_block_size,
                                get_max_num_blocks_1D());
 
   auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;

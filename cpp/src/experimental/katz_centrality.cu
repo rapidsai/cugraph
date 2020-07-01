@@ -16,7 +16,7 @@
 #include <algorithms.hpp>
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/copy_to_adj_matrix_row.cuh>
-#include <detail/patterns/copy_v_transform_reduce_e.cuh>
+#include <detail/patterns/copy_v_transform_reduce_nbr.cuh>
 #include <detail/patterns/count_if_v.cuh>
 #include <detail/patterns/transform_reduce_v.cuh>
 #include <detail/patterns/transform_reduce_v_with_adj_matrix_row.cuh>
@@ -94,13 +94,13 @@ void katz_centrality(raft::handle_t &handle,
   // old katz centrality values
   rmm::device_vector<result_t> adj_matrix_row_katz_centralities(graph_device_view.get_number_of_adj_matrix_local_rows(),
                                                                 static_cast<result_t>(0.0));
-  size_t iter = 0;
+  size_t iter{0};
   while (true) {
     copy_to_adj_matrix_row(
       handle, graph_device_view, katz_centralities, adj_matrix_row_katz_centralities.begin());
 
     if (graph_device_view.is_weighted()) {
-      copy_v_transform_reduce_e(
+      copy_v_transform_reduce_in_nbr(
         handle,
         graph_device_view,
         adj_matrix_row_katz_centralities.begin(),
@@ -111,7 +111,7 @@ void katz_centrality(raft::handle_t &handle,
         },
         static_cast<result_t>(0.0));
     } else {
-      copy_v_transform_reduce_e(
+      copy_v_transform_reduce_in_nbr(
         handle,
         graph_device_view,
         thrust::make_constant_iterator(0) /* dummy */,

@@ -17,7 +17,7 @@
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/adj_matrix_row_frontier.cuh>
 #include <detail/patterns/reduce_op.cuh>
-#include <detail/patterns/update_frontier_v_push_if_e.cuh>
+#include <detail/patterns/update_frontier_v_push_if_out_nbr.cuh>
 #include <graph.hpp>
 #include <utilities/error.hpp>
 
@@ -117,7 +117,7 @@ void bfs(raft::handle_t &handle,
     } else {
       auto cur_adj_matrix_local_row_frontier_last =
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
-      update_frontier_v_push_if_e(
+      update_frontier_v_push_if_out_nbr(
         handle,
         graph_device_view,
         cur_adj_matrix_local_row_frontier_first,

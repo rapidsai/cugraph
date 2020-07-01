@@ -18,7 +18,7 @@
 #include <detail/patterns/count_if_e.cuh>
 #include <detail/patterns/reduce_op.cuh>
 #include <detail/patterns/transform_reduce_e.cuh>
-#include <detail/patterns/update_frontier_v_push_if_e.cuh>
+#include <detail/patterns/update_frontier_v_push_if_out_nbr.cuh>
 #include <detail/utilities/cuda.cuh>
 #include <graph.hpp>
 #include <utilities/error.hpp>
@@ -183,7 +183,7 @@ void sssp(raft::handle_t &handle,
     // FIXME: the only difference in these two cases is adj_matrix_row_value_output_first, better
     // avoid code replication.
     if (!vertex_and_adj_matrix_row_ranges_coincide) {
-      update_frontier_v_push_if_e(
+      update_frontier_v_push_if_out_nbr(
         handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
@@ -201,7 +201,7 @@ void sssp(raft::handle_t &handle,
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         v_op);
     } else {
-      update_frontier_v_push_if_e(
+      update_frontier_v_push_if_out_nbr(
         handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),

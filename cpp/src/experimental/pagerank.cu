@@ -16,7 +16,7 @@
 #include <algorithms.hpp>
 #include <detail/graph_device_view.cuh>
 #include <detail/patterns/copy_to_adj_matrix_row.cuh>
-#include <detail/patterns/copy_v_transform_reduce_e.cuh>
+#include <detail/patterns/copy_v_transform_reduce_nbr.cuh>
 #include <detail/patterns/count_if_adj_matrix_row.cuh>
 #include <detail/patterns/count_if_e.cuh>
 #include <detail/patterns/count_if_v.cuh>
