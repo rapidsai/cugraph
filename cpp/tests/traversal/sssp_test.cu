@@ -16,7 +16,7 @@
 #include <queue>
 #include <unordered_map>
 #include <utility>
-#include "high_res_clock.h"
+#include "utilities/high_res_clock.h"
 
 #include "utilities/test_utilities.hpp"
 

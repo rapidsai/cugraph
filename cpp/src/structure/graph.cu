@@ -16,7 +16,7 @@
 
 #include <graph.hpp>
 #include "utilities/cuda_utils.cuh"
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 #include "utilities/graph_utils.cuh"
 
 namespace {

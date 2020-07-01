@@ -84,8 +84,8 @@ def subgraph(input_graph, vertices, subgraph):
     vertices_df['v'] = vertices_renumbered
     vertices_df = vertices_df.reset_index(drop=True).reset_index()
 
-    df = df.merge(vertices_df, left_on='src', right_on='index', how='left').drop(['src', 'index']).rename({'v': 'src'})
-    df = df.merge(vertices_df, left_on='dst', right_on='index', how='left').drop(['dst', 'index']).rename({'v': 'dst'})
+    df = df.merge(vertices_df, left_on='src', right_on='index', how='left').drop(['src', 'index']).rename(columns={'v': 'src'}, copy=False)
+    df = df.merge(vertices_df, left_on='dst', right_on='index', how='left').drop(['dst', 'index']).rename(columns={'v': 'dst'}, copy=False)
     
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'src')

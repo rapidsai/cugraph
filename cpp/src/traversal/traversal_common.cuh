@@ -17,7 +17,7 @@
 #pragma once
 
 #include <cub/cub.cuh>
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 
 #define MAXBLOCKS 65535
 #define WARP_SIZE 32
@@ -108,6 +108,20 @@ struct vec_t<int> {
 };
 
 template <>
+struct vec_t<long> {
+  typedef long4 vec4;
+  typedef long2 vec2;
+  static const long max = std::numeric_limits<long>::max();
+};
+
+template <>
+struct vec_t<unsigned> {
+  typedef uint4 vec4;
+  typedef uint2 vec2;
+  static const unsigned max = std::numeric_limits<unsigned>::max();
+};
+
+template <>
 struct vec_t<long long int> {
   typedef longlong4 vec4;
   typedef longlong2 vec2;
@@ -184,7 +198,7 @@ void fill_vec(ValueType* vec, SizeType n, ValueType val, cudaStream_t stream)
   grid.x  = (n + block.x - 1) / block.x;
 
   fill_vec_kernel<<<grid, block, 0, stream>>>(vec, n, val);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename IndexType>
@@ -202,6 +216,24 @@ binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexT
     else
       low = mid;
   }
+}
+
+// FIXME: The atomicAdd wrappers should be moved to RAFT
+
+template <typename T>
+__device__ static __forceinline__ T atomicAdd(T* addr, T val)
+{
+  return ::atomicAdd(addr, val);
+}
+
+template <>
+__device__ __forceinline__ int64_t atomicAdd<int64_t>(int64_t* addr, int64_t val)
+{
+  static_assert(sizeof(int64_t) == sizeof(unsigned long long),
+                "sizeof(int64_t) != sizeof(unsigned long long). Can't use atomicAdd");
+
+  return ::atomicAdd(reinterpret_cast<unsigned long long*>(addr),
+                     static_cast<unsigned long long>(val));
 }
 
 __device__ static __forceinline__ float atomicMin(float* addr, float val)
@@ -286,7 +318,7 @@ __global__ void flag_isolated_vertices_kernel(IndexType n,
 
     int local_isolated_bmap = 0;
 
-    IndexType imax = (n - thread_off);
+    IndexType imax = (n > thread_off) ? (n - thread_off) : 0;
 
     IndexType local_degree[FLAG_ISOLATED_VERTICES_VERTICES_PER_THREAD];
 
@@ -314,7 +346,7 @@ __global__ void flag_isolated_vertices_kernel(IndexType n,
 
     IndexType total_nisolated = BlockReduce(block_reduce_temp_storage).Sum(local_nisolated);
 
-    if (threadIdx.x == 0 && total_nisolated) { atomicAdd(nisolated, total_nisolated); }
+    if (threadIdx.x == 0 && total_nisolated) { traversal::atomicAdd(nisolated, total_nisolated); }
 
     int logicalwarpid = threadIdx.x / FLAG_ISOLATED_VERTICES_THREADS_PER_INT;
 
@@ -347,7 +379,7 @@ void flag_isolated_vertices(IndexType n,
 
   flag_isolated_vertices_kernel<<<grid, block, 0, m_stream>>>(
     n, isolated_bmap, row_ptr, degrees, nisolated);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 template <typename IndexType>
@@ -374,7 +406,7 @@ void set_frontier_degree(IndexType* frontier_degree,
   block.x = 256;
   grid.x  = min((n + block.x - 1) / block.x, (IndexType)MAXBLOCKS);
   set_frontier_degree_kernel<<<grid, block, 0, m_stream>>>(frontier_degree, frontier, degree, n);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 
 template <typename IndexType>
@@ -439,7 +471,7 @@ void compute_bucket_offsets(IndexType* cumul,
 
   compute_bucket_offsets_kernel<<<grid, block, 0, m_stream>>>(
     cumul, bucket_offsets, frontier_size, total_degree);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 }  // namespace traversal
 }  // namespace detail

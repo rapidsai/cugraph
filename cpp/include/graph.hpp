@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <unistd.h>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -634,6 +635,31 @@ class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
                                     GraphCompressedSparseBase<VT, ET, WT>::number_of_vertices(),
                                     GraphCompressedSparseBase<VT, ET, WT>::number_of_edges());
   }
+};
+
+template <typename T, typename Enable = void>
+struct invalid_idx;
+
+template <typename T>
+struct invalid_idx<
+  T,
+  typename std::enable_if_t<std::is_integral<T>::value && std::is_signed<T>::value>>
+  : std::integral_constant<T, -1> {
+};
+
+template <typename T>
+struct invalid_idx<
+  T,
+  typename std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value>>
+  : std::integral_constant<T, std::numeric_limits<T>::max()> {
+};
+
+template <typename VT>
+struct invalid_vertex_id : invalid_idx<VT> {
+};
+
+template <typename ET>
+struct invalid_edge_id : invalid_idx<ET> {
 };
 
 }  // namespace experimental

@@ -112,7 +112,7 @@ supported. Setting them to None")
         data = input_graph.local_data['data']
         comms = input_graph.local_data['comms']
     else:
-        data, comms = get_local_data(input_graph, by='dst')
+        data, comms = get_local_data(input_graph, by='dst', load_balance=False)
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(

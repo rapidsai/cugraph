@@ -112,7 +112,7 @@ void apply_attraction(const vertex_t *restrict row,
                             edge_weight_influence,
                             coef);
 
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 template <typename vertex_t>
@@ -183,7 +183,7 @@ void apply_gravity(const float *restrict x_pos,
   else
     linear_gravity_kernel<vertex_t>
       <<<nblocks, nthreads>>>(x_pos, y_pos, attract_x, attract_y, mass, gravity, n);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 template <typename vertex_t>
@@ -232,7 +232,7 @@ void compute_local_speed(const float *restrict repel_x,
 
   local_speed_kernel<<<nblocks, nthreads>>>(
     repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 template <typename vertex_t>
@@ -321,7 +321,7 @@ void apply_forces(float *restrict x_pos,
 
   update_positions_kernel<vertex_t><<<nblocks, nthreads>>>(
     x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, speed, n);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 }  // namespace detail

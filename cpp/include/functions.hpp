@@ -32,7 +32,7 @@ namespace cugraph {
  * @tparam ET                 type of edge index
  * @tparam WT                 type of the edge weight
  *
- * @param[in]  graph          cuGRAPH graph in coordinate format
+ * @param[in]  graph          cuGraph graph in coordinate format
  * @param[in]  mr             Memory resource used to allocate the returned graph
  *
  * @return                    Unique pointer to generate Compressed Sparse Row graph
