@@ -335,7 +335,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   copy(n, nodes_pos, pos);
   copy(n, nodes_pos + nnodes + 1, pos + n);
 
-  if (callback) callback->on_epoch_end(nodes_pos);
+  if (callback) callback->on_train_end(nodes_pos);
 }
 
 }  // namespace detail
