@@ -96,7 +96,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = directed;
 
-    ASSERT_TRUE(configuration.source_ >= 0 && configuration.source_ <= G.number_of_vertices)
+    ASSERT_TRUE(configuration.source_ >= 0 && (VT)configuration.source_ < G.number_of_vertices)
       << "Starting sources should be >= 0 and"
       << " less than the number of vertices in the graph";
 
@@ -138,10 +138,12 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     std::vector<VT> cugraph_pred(number_of_vertices);
     std::vector<double> cugraph_sigmas(number_of_vertices);
 
+    // Don't pass valid sp_sp_counter ptr unless needed because it disables
+    // the bottom up flow
     cugraph::bfs<VT, ET, WT>(G,
                              d_cugraph_dist.data().get(),
                              d_cugraph_pred.data().get(),
-                             d_cugraph_sigmas.data().get(),
+                             (return_sp_counter) ? d_cugraph_sigmas.data().get() : nullptr,
                              source,
                              G.prop.directed);
     CUDA_TRY(cudaMemcpy(cugraph_dist.data(),
@@ -152,10 +154,13 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                         d_cugraph_pred.data().get(),
                         sizeof(VT) * d_cugraph_pred.size(),
                         cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
-                        d_cugraph_sigmas.data().get(),
-                        sizeof(double) * d_cugraph_sigmas.size(),
-                        cudaMemcpyDeviceToHost));
+
+    if (return_sp_counter) {
+      CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
+                          d_cugraph_sigmas.data().get(),
+                          sizeof(double) * d_cugraph_sigmas.size(),
+                          cudaMemcpyDeviceToHost));
+    }
 
     for (VT i = 0; i < number_of_vertices; ++i) {
       // Check distances: should be an exact match as we use signed int 32-bit
@@ -166,7 +171,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // that the predecessor obtained with the GPU implementation is one of the
       // predecessors obtained during the C++ BFS traversal
       VT pred = cugraph_pred[i];  // It could be equal to -1 if the node is never reached
-      if (pred == -1) {
+      constexpr VT invalid_vid = cugraph::experimental::invalid_vertex_id<VT>::value;
+      if (pred == invalid_vid) {
         EXPECT_TRUE(ref_bfs_pred[i].empty())
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph had not predecessor,"
           << "while c++ ref found at least one.";
@@ -179,10 +185,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph = " << cugraph_sigmas[i]
           << " , c++ ref did not consider it as a predecessor.";
       }
-      EXPECT_TRUE(
-        compare_close(cugraph_sigmas[i], ref_bfs_sigmas[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
-        << "[MISMATCH] vaid = " << i << ", cugraph = " << cugraph_sigmas[i]
-        << " c++ ref = " << ref_bfs_sigmas[i];
 
       if (return_sp_counter) {
         EXPECT_TRUE(
@@ -197,16 +199,27 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 // ============================================================================
 // Tests
 // ============================================================================
-TEST_P(Tests_BFS, CheckFP32_NO_SP_COUNTER) { run_current_test<int, int, float, false>(GetParam()); }
 
-TEST_P(Tests_BFS, CheckFP64_NO_SP_COUNTER)
+// We don't need to test WT for both float and double since it's anyway ignored in BFS
+TEST_P(Tests_BFS, CheckUint32_NO_SP_COUNTER)
 {
-  run_current_test<int, int, double, false>(GetParam());
+  run_current_test<uint32_t, uint32_t, float, false>(GetParam());
+}
+TEST_P(Tests_BFS, CheckInt_NO_SP_COUNTER) { run_current_test<int, int, float, false>(GetParam()); }
+TEST_P(Tests_BFS, CheckInt64_NO_SP_COUNTER)
+{
+  run_current_test<int64_t, int64_t, float, false>(GetParam());
 }
 
-TEST_P(Tests_BFS, CheckFP32_SP_COUNTER) { run_current_test<int, int, float, true>(GetParam()); }
-
-TEST_P(Tests_BFS, CheckFP64_SP_COUNTER) { run_current_test<int, int, double, true>(GetParam()); }
+TEST_P(Tests_BFS, CheckUint32_SP_COUNTER)
+{
+  run_current_test<uint32_t, uint32_t, float, true>(GetParam());
+}
+TEST_P(Tests_BFS, CheckInt_SP_COUNTER) { run_current_test<int, int, float, true>(GetParam()); }
+TEST_P(Tests_BFS, CheckInt64_SP_COUNTER)
+{
+  run_current_test<int64_t, int64_t, float, true>(GetParam());
+}
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_BFS,

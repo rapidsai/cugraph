@@ -100,15 +100,14 @@ int mm_properties(FILE* f, int tg, MM_typecode* t, IndexType_* m, IndexType_* n,
   // Find total number of non-zero entries
   if (tg && !mm_is_general(*t)) {
     // Non-diagonal entries should be counted twice
-    IndexType_ nnzOld = *nnz;
     *nnz *= 2;
 
     // Diagonal entries should not be double-counted
-    int i;
     int st;
-    for (i = 0; i < nnzOld; ++i) {
+    for (int i = 0; i < nnzint; ++i) {
       // Read matrix entry
-      IndexType_ row, col;
+      // MTX only supports int for row and col idx
+      int row, col;
       double rval, ival;
       if (mm_is_pattern(*t))
         st = fscanf(f, "%d %d\n", &row, &col);
@@ -183,8 +182,8 @@ int mm_to_coo(FILE* f,
   }
 
   // Add each matrix entry in file to COO format matrix
-  IndexType_ i;      // Entry index in Matrix Market file
-  IndexType_ j = 0;  // Entry index in COO format matrix
+  int i;      // Entry index in Matrix Market file; can only be int in the MTX format
+  int j = 0;  // Entry index in COO format matrix; can only be int in the MTX format
   for (i = 0; i < nnzOld; ++i) {
     // Read entry from file
     int row, col;
