@@ -178,9 +178,14 @@ def repartition(ddf, cumsum):
     new_divisions = [0]
     move_count = 0
     for i in range(npartitions-1):
-        index = -1
-        while(cumsum[i].iloc[index] > count - move_count > cumsum[i].iloc[0]):
-            index = index - 1
+        search_val = count - move_count
+        index = cumsum[i].searchsorted(search_val)
+        if index == len(cumsum[i]):
+            index = -1
+        elif index > 0:
+            left = cumsum[i].iloc[index-1]
+            right = cumsum[i].iloc[index]
+            index -= search_val - left < right - search_val
         new_divisions.append(new_divisions[i] +
                              cumsum[i].iloc[index] +
                              move_count)
