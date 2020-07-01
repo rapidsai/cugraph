@@ -134,7 +134,9 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     for i in range(len(source_cols_names)):
         _src_map.update({source_cols_names[i]: str(i)})
 
-    _tmp_df_src = _df[source_cols_names].rename(_src_map).reset_index()
+    _tmp_df_src = _df[source_cols_names] \
+        .rename(columns=_src_map, copy=False) \
+        .reset_index()
 
     # --------------------------------------------------------
     # get the destination column names and map to indexes
@@ -142,7 +144,9 @@ def renumber_from_cudf(_df, source_cols_names, dest_cols_names):
     for i in range(len(dest_cols_names)):
         _dst_map.update({dest_cols_names[i]: str(i)})
 
-    _tmp_df_dst = _df[dest_cols_names].rename(_dst_map).reset_index()
+    _tmp_df_dst = _df[dest_cols_names] \
+        .rename(columns=_dst_map, copy=False) \
+        .reset_index()
 
     _vals = list(_src_map.values())
 
