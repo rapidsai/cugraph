@@ -31,7 +31,7 @@
 #include <algorithm>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
@@ -111,8 +111,10 @@ void fill_offset(
                      VT id = source[index];
                      if (id != source[index - 1]) { offsets[id] = index; }
                    });
-  ET zero = 0;
-  CUDA_TRY(cudaMemcpy(offsets, &zero, sizeof(ET), cudaMemcpyDefault));
+  thrust::device_ptr<VT> src = thrust::device_pointer_cast(source);
+  thrust::device_ptr<ET> off = thrust::device_pointer_cast(offsets);
+  off[src[0]]                = ET{0};
+
   auto iter = thrust::make_reverse_iterator(offsets + number_of_vertices + 1);
   thrust::inclusive_scan(rmm::exec_policy(stream)->on(stream),
                          iter,

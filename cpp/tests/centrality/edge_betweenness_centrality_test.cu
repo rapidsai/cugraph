@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include <traversal/bfs_ref.h>
+#include <utilities/test_utilities.hpp>
+
+#include <raft/error.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <thrust/device_vector.h>
-#include <utility>
-#include "utilities/test_utilities.hpp"
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
 
+#include <fstream>
 #include <queue>
 #include <stack>
-
-#include <fstream>
-
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "traversal/bfs_ref.h"
+#include <utility>
 
 #ifndef TEST_EPSILON
 #define TEST_EPSILON 0.0001
@@ -250,7 +251,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     cudaDeviceSynchronize();
     cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = is_directed;
-    CUDA_RT_CALL(cudaGetLastError());
+    CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_edges, 0);
     std::vector<result_t> expected(G.number_of_edges, 0);
 
@@ -280,10 +281,10 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
                                          static_cast<WT *>(nullptr),
                                          configuration.number_of_sources_,
                                          sources_ptr);
-    CUDA_RT_CALL(cudaMemcpy(result.data(),
-                            d_result.data().get(),
-                            sizeof(result_t) * G.number_of_edges,
-                            cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(result.data(),
+                        d_result.data().get(),
+                        sizeof(result_t) * G.number_of_edges,
+                        cudaMemcpyDeviceToHost));
     for (int i = 0; i < G.number_of_edges; ++i)
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))
         << "[MISMATCH] vaid = " << i << ", cugraph = " << result[i]

@@ -17,10 +17,9 @@
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include "db/db_operators.cuh"
 #include "gtest/gtest.h"
-#include "high_res_clock.h"
 #include "rmm/device_buffer.hpp"
-#include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
+#include "utilities/high_res_clock.h"
 #include "utilities/test_utilities.hpp"
 
 class Test_FindMatches : public ::testing::Test {

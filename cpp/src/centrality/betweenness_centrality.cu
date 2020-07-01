@@ -18,10 +18,11 @@
 
 #include <thrust/transform.h>
 
+#include <raft/cudart_utils.h>
+
 #include <algorithms.hpp>
 #include <graph.hpp>
-
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
 #include "betweenness_centrality.cuh"

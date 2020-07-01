@@ -1,8 +1,4 @@
 # pytest customizations specific to these benchmarks
-import sys
-from os import path
-import importlib
-
 
 def pytest_addoption(parser):
     parser.addoption("--no-rmm-reinit", action="store_true", default=False,
@@ -11,21 +7,19 @@ def pytest_addoption(parser):
 
 
 def pytest_sessionstart(session):
-    # if the --no-rmm-reinit option is given, import the benchmark's "params"
-    # module and change the FIXTURE_PARAMS accordingly.
+    # if the --no-rmm-reinit option is given, set (or add to) the CLI "mark
+    # expression" (-m) the markers for no managedmem and no poolallocator. This
+    # will cause the RMM reinit() function to not be called.
     if session.config.getoption("no_rmm_reinit"):
-        paramsPyFile = path.join(path.dirname(path.abspath(__file__)),
-                                 "params.py")
+        newMarkexpr = "managedmem_off and poolallocator_off"
+        currentMarkexpr = session.config.getoption("markexpr")
 
-        # A simple "import" statement will not find the modules here (unless if
-        # this package is on the import path) since pytest evaluates this from
-        # a different location.
-        spec = importlib.util.spec_from_file_location("params", paramsPyFile)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        if ("managedmem" in currentMarkexpr) or \
+           ("poolallocator" in currentMarkexpr):
+            raise RuntimeError("managedmem and poolallocator markers cannot "
+                               "be used with --no-rmm-reinit")
 
-        module.FIXTURE_PARAMS = module.NO_RMMREINIT_FIXTURE_PARAMS
+        if currentMarkexpr:
+            newMarkexpr = f"({currentMarkexpr}) and ({newMarkexpr})"
 
-        # If "benchmarks.params" is registered in sys.modules, all future
-        # imports of the module will simply refer to this one.
-        sys.modules["benchmarks.params"] = module
+        session.config.option.markexpr = newMarkexpr

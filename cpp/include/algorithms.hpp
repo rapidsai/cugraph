@@ -29,6 +29,7 @@ namespace cugraph {
  * when the tolerance descreases and/or alpha increases toward the limiting value of 1.
  * The user is free to use default values or to provide inputs for the initial guess,
  * tolerance and maximum number of iterations.
+
  *
  * @throws                           cugraph::logic_error with a custom message when an error
  occurs.
@@ -39,7 +40,9 @@ namespace cugraph {
  32-bit)
  * @tparam WT                        Type of edge weights. Supported value : float or double.
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * @param[in] handle                 Library handle (RAFT). If a communicator is set in the handle,
+ the multi GPU version will be selected.
+ * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  information as a transposed adjacency list (CSC). Edge weights are not used for this algorithm.
  * @param[in] alpha                  The damping factor alpha represents the probability to follow
  an outgoing edge, standard value is 0.85. Thus, 1.0-alpha is the probability to “teleport” to a
@@ -49,36 +52,38 @@ namespace cugraph {
  * @param[in] pagerank               Array of size V. Should contain the initial guess if
  has_guess=true. In this case the initial guess cannot be the vector of 0s. Memory is provided and
  owned by the caller.
- * @param[in] personalization_subset_size (optional) The number of vertices for to personalize.
- Initialized to 0 by default.
- * @param[in] personalization_subset (optional) Array of size personalization_subset_size containing
- vertices for running personalized pagerank. Initialized to nullptr by default. Memory is provided
- and owned by the caller.
- * @param[in] personalization_values (optional) Array of size personalization_subset_size containing
- values associated with personalization_subset vertices. Initialized to nullptr by default. Memory
- is provided and owned by the caller.
- * @param[in] tolerance              Set the tolerance the approximation, this parameter should be a
- small magnitude value.
+ * @param[in] personalization_subset_size (optional) Supported on single-GPU, on the roadmap for
+ Multi-GPU. The number of vertices for to personalize. Initialized to 0 by default.
+ * @param[in] personalization_subset (optional) Supported on single-GPU, on the roadmap for
+ Multi-GPU..= Array of size personalization_subset_size containing vertices for running personalized
+ pagerank. Initialized to nullptr by default. Memory is provided and owned by the caller.
+ * @param[in] personalization_values (optional) Supported on single-GPU, on the roadmap for
+ Multi-GPU. Array of size personalization_subset_size containing values associated with
+ personalization_subset vertices. Initialized to nullptr by default. Memory is provided and owned by
+ the caller.
+ * @param[in] tolerance              Supported on single-GPU. Set the tolerance the approximation,
+ this parameter should be a small magnitude value.
  *                                   The lower the tolerance the better the approximation. If this
- value is 0.0f, cuGRAPH will use the default value which is 1.0E-5.
+ value is 0.0f, cuGraph will use the default value which is 1.0E-5.
  *                                   Setting too small a tolerance can lead to non-convergence due
  to numerical roundoff. Usually values between 0.01 and 0.00001 are acceptable.
  * @param[in] max_iter               (optional) The maximum number of iterations before an answer is
  returned. This can be used to limit the execution time and do an early exit before the solver
  reaches the convergence tolerance.
- *                                   If this value is lower or equal to 0 cuGRAPH will use the
+ *                                   If this value is lower or equal to 0 cuGraph will use the
  default value, which is 500.
- * @param[in] has_guess              (optional) This parameter is used to notify cuGRAPH if it
- should use a user-provided initial guess. False means the user does not have a guess, in this case
- cuGRAPH will use a uniform vector set to 1/V.
- *                                   If the value is True, cuGRAPH will read the pagerank parameter
+ * @param[in] has_guess              (optional) Supported on single-GPU. This parameter is used to
+ notify cuGraph if it should use a user-provided initial guess. False means the user does not have a
+ guess, in this case cuGraph will use a uniform vector set to 1/V.
+ *                                   If the value is True, cuGraph will read the pagerank parameter
  and use this as an initial guess.
  * @param[out] *pagerank             The PageRank : pagerank[i] is the PageRank of vertex i. Memory
  remains provided and owned by the caller.
  *
  */
 template <typename VT, typename ET, typename WT>
-void pagerank(experimental::GraphCSCView<VT, ET, WT> const &graph,
+void pagerank(raft::handle_t const &handle,
+              experimental::GraphCSCView<VT, ET, WT> const &graph,
               WT *pagerank,
               VT personalization_subset_size = 0,
               VT *personalization_subset     = nullptr,
@@ -204,7 +209,7 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @tparam WT                                   Type of edge weights. Supported values : float or
  * double.
  *
- * @param[in] graph                             cuGRAPH graph descriptor, should contain the
+ * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
  * algorithm and set to 1 by default.
  * @param[out] pos                              Device array (2, n) containing x-axis and y-axis
@@ -330,7 +335,7 @@ void betweenness_centrality(const raft::handle_t &handle,
  * @tparam result_t                  Type of computed result.  Supported values :  float or double
  * (double only supported in default implementation)
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  * information as a CSR
  * @param[out] result                Device array of centrality scores
  * @param[in] normalized             If true, return normalized scores, if false return unnormalized
@@ -380,7 +385,7 @@ enum class cugraph_cc_t {
  * @tparam ET                     Type of edge identifiers.  Supported value : int (signed, 32-bit)
  * @tparam WT                     Type of edge weights. Supported values : float or double.
  *
- * @param[in] graph               cuGRAPH graph descriptor, should contain the connectivity
+ * @param[in] graph               cuGraph graph descriptor, should contain the connectivity
  * information as a CSR
  * @param[in] connectivity_type   STRONG or WEAK
  * @param[out] labels             Device array of component labels (labels[i] indicates the label
@@ -408,7 +413,7 @@ void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  * information as a COO
  * @param[in] k                      The order of the truss
  * @param[in] mr                     Memory resource used to allocate the returned graph
@@ -434,7 +439,7 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  * @tparam result_t                  Type of computed result.  Supported values :  float
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  * information as a CSR
  * @param[out] result                Device array of centrality scores
  * @param[in] alpha                  Attenuation factor with a default value of 0.1. Alpha is set to
@@ -465,7 +470,7 @@ void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
 /**
  * @brief         Compute the Core Number for the nodes of the graph G
  *
- * @param[in]  graph                cuGRAPH graph descriptor with a valid edgeList or adjList
+ * @param[in]  graph                cuGraph graph descriptor with a valid edgeList or adjList
  * @param[out] core_number          Populated by the core number of every vertex in the graph
  *
  * @throws     cugraph::logic_error when an error occurs.
@@ -485,7 +490,7 @@ void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_n
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
- * @param[in]  graph                 cuGRAPH graph in coordinate format
+ * @param[in]  graph                 cuGraph graph in coordinate format
  * @param[in]  k                     Order of the core. This value must not be negative.
  * @param[in]  vertex_id             User specified vertex identifiers for which core number values
  * are supplied
@@ -536,7 +541,7 @@ std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>> get_two_hop_neighbo
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  * information as a CSR
  *
  * @param[out] distances            If set to a valid pointer, array of size V populated by distance
@@ -569,7 +574,7 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : int (signed, 32-bit)
  *
- * @param[in] graph                  cuGRAPH graph descriptor, should contain the connectivity
+ * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  * information as a CSR
  *
  * @param[out] distances             If set to a valid pointer, this is populated by distance of

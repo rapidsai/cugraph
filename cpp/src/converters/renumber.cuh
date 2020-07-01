@@ -27,10 +27,11 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/scan.h>
 
+#include <raft/cudart_utils.h>
 #include <rmm/device_buffer.hpp>
 
+#include <utilities/error.hpp>
 #include "sort/bitonic.cuh"
-#include "utilities/error_utils.h"
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {

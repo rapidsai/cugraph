@@ -14,7 +14,7 @@
 
 #include "cuda_profiler_api.h"
 #include "gtest/gtest.h"
-#include "high_res_clock.h"
+#include "utilities/high_res_clock.h"
 
 #include <thrust/sequence.h>
 #include <thrust/unique.h>

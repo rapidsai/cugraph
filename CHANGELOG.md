@@ -3,6 +3,9 @@
 ## New Features
 - PR #940 Add Batch OPG BC
 - PR #937 Add wrapper for gunrock HITS algorithm
+- PR #939 Updated Notebooks to include new features and benchmarks
+- PR #944 OPG pagerank (dask)
+- PR #947 OPG pagerank (CUDA)
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
@@ -12,11 +15,23 @@
 - PR #933 Update opg_degree to use raft, add python tests
 - PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
 - PR #934 Update conda dev environment.yml dependencies to 0.15
+- PR #942 Removed references to deprecated RMM headers.
 - PR #941 Regression python/cudf fix
+- PR #945 Simplified benchmark --no-rmm-reinit option, updated default options
+- PR #946 Install meta packages for dependencies
+- PR #952 Updated get_test_data.sh to also (optionally) download and install datasets for benchmark runs
+- PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
+- PR #954 Update cuGraph error handling to use RAFT
+- PR #959 Add support for uint32_t and int64_t types for BFS (cpp side)
+- PR #975 Upgrade GitHub template
+- PR #976 Fix error in Graph.edges(), update cuDF rename() calls
+- PR #977 Update force_atlas2 to call on_train_end after iterating
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
 - PR #938 Quote conda installs to avoid bash interpretation
+- PR #966 Fix build error (debug mode)
+- PR #983 Fix offset calculation in COO to CSR
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
@@ -70,6 +85,7 @@
 - PR #897 Remove RMM ALLOC calls
 - PR #899 Update include paths to remove deleted cudf headers
 - PR #906 Update Louvain notebook
+- PR #948 Move doc customization scripts to Jenkins
 
 ## Bug Fixes
 - PR #927 Update scikit learn dependency
@@ -91,7 +107,8 @@
 - PR #911 Env and changelog update
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash
 - PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
-- PR 935 Merge 
+- PR 935 Merge
+- PR #956 Use new gpuCI image in local build script
 
 # cuGraph 0.13.0 (31 Mar 2020)
 
