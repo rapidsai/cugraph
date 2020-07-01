@@ -91,11 +91,10 @@ void balancedCutClustering_impl(experimental::GraphCSRView<vertex_t, edge_t, wei
   unsigned long long seed{1234567};
   bool reorthog{false};
 
-  raft::matrix::GraphCSRView<vertex_t, edge_t, weight_t> const r_graph{
-    graph.offsets, graph.indices, graph.edge_data, graph.number_of_vertices, graph.number_of_edges};
-
   using index_type = vertex_t;
   using value_type = weight_t;
+
+  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
   raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
     n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
@@ -106,7 +105,7 @@ void balancedCutClustering_impl(experimental::GraphCSRView<vertex_t, edge_t, wei
   raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
 
   raft::spectral::partition(
-    handle, t_exe_p, r_graph, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
+    handle, t_exe_p, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -163,11 +162,10 @@ void spectralModularityMaximization_impl(
   unsigned long long seed{123456};
   bool reorthog{false};
 
-  raft::matrix::GraphCSRView<vertex_t, edge_t, weight_t> const r_graph{
-    graph.offsets, graph.indices, graph.edge_data, graph.number_of_vertices, graph.number_of_edges};
-
   using index_type = vertex_t;
   using value_type = weight_t;
+
+  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
   raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
     n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
@@ -180,7 +178,7 @@ void spectralModularityMaximization_impl(
   // not returned...
   // auto result =
   raft::spectral::modularity_maximization(
-    handle, t_exe_p, r_graph, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
+    handle, t_exe_p, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
 
   // not returned...
   // int iters_lanczos, iters_kmeans;
@@ -200,11 +198,13 @@ void analyzeModularityClustering_impl(
   auto exec    = rmm::exec_policy(stream);
   auto t_exe_p = exec->on(stream);
 
-  raft::matrix::GraphCSRView<vertex_t, edge_t, weight_t> const r_graph{
-    graph.offsets, graph.indices, graph.edge_data, graph.number_of_vertices, graph.number_of_edges};
+  using index_type = vertex_t;
+  using value_type = weight_t;
+
+  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
   weight_t mod;
-  raft::spectral::analyzeModularity(handle, t_exe_p, r_graph, n_clusters, clustering, mod);
+  raft::spectral::analyzeModularity(handle, t_exe_p, r_csr_m, n_clusters, clustering, mod);
   *modularity = mod;
 }
 
@@ -227,14 +227,13 @@ void analyzeBalancedCut_impl(experimental::GraphCSRView<vertex_t, edge_t, weight
   weight_t edge_cut;
   weight_t cost{0};
 
-  raft::matrix::GraphCSRView<vertex_t, edge_t, weight_t> const r_graph{
-    graph.offsets, graph.indices, graph.edge_data, graph.number_of_vertices, graph.number_of_edges};
-
   using index_type = vertex_t;
   using value_type = weight_t;
 
+  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+
   raft::spectral::analyzePartition(
-    handle, t_exe_p, r_graph, n_clusters, clustering, edge_cut, cost);
+    handle, t_exe_p, r_csr_m, n_clusters, clustering, edge_cut, cost);
 
   *edgeCut  = edge_cut;
   *ratioCut = cost;
