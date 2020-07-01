@@ -62,10 +62,10 @@ def sssp(G, source):
         # FIXME: multi-column vertex support
         df = G.edgelist.renumber_map.from_vertex_id(
             df, "vertex", drop=True
-        ).rename({"0": "vertex"})
+        ).rename(columns={"0": "vertex"}, copy=False)
         df = G.edgelist.renumber_map.from_vertex_id(
             df, "predecessor", drop=True
-        ).rename({"0": "predecessor"})
+        ).rename(columns={"0": "predecessor"}, copy=False)
         df["predecessor"].fillna(-1, inplace=True)
 
     return df

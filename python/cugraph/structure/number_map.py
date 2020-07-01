@@ -28,7 +28,10 @@ class NumberMap:
                 .groupby(src_col_names)
                 .count()
                 .reset_index()
-                .rename(dict(zip(src_col_names, self.col_names)))
+                .rename(
+                    columns=dict(zip(src_col_names, self.col_names)),
+                    copy=False,
+                )
             )
 
             if dst_col_names is not None:
@@ -51,7 +54,9 @@ class NumberMap:
                 self.numbered = True
 
         def to_vertex_id(self, df, col_names):
-            tmp_df = df[col_names].rename(dict(zip(col_names, self.col_names)))
+            tmp_df = df[col_names].rename(
+                columns=dict(zip(col_names, self.col_names)), copy=False
+            )
             tmp_df["index"] = tmp_df.index
             return (
                 tmp_df.merge(self.df, on=self.col_names, how="left")
@@ -63,7 +68,7 @@ class NumberMap:
         def add_vertex_id(self, df, id_column_name, col_names):
             if col_names is None:
                 return df.merge(self.df, on=self.col_names, how="left").rename(
-                    {"id": id_column_name}
+                    columns={"id": id_column_name}, copy=False
                 )
             else:
                 return (
@@ -74,7 +79,7 @@ class NumberMap:
                         how="left",
                     )
                     .drop(self.col_names)
-                    .rename({"id": id_column_name})
+                    .rename(columns={"id": id_column_name}, copy=False)
                 )
 
         def from_vertex_id(
@@ -92,7 +97,8 @@ class NumberMap:
                 return tmp_df
             else:
                 return tmp_df.rename(
-                    dict(zip(self.col_names, external_column_names))
+                    columns=dict(zip(self.col_names, external_column_names)),
+                    copy=False,
                 )
 
     class MultiGPU:
@@ -104,7 +110,10 @@ class NumberMap:
                 .groupby(src_col_names)
                 .count()
                 .reset_index()
-                .rename(dict(zip(src_col_names, internal_col_names)))
+                .rename(
+                    columns=dict(zip(src_col_names, internal_col_names)),
+                    copy=False,
+                )
             )
             d = None
 
@@ -114,7 +123,10 @@ class NumberMap:
                     .groupby(dst_col_names)
                     .count()
                     .reset_index()
-                    .rename(dict(zip(dst_col_names, internal_col_names)))
+                    .rename(
+                        columns=dict(zip(dst_col_names, internal_col_names)),
+                        copy=False,
+                    )
                 )
 
             reply = cudf.DataFrame()
@@ -242,7 +254,7 @@ class NumberMap:
                     self.ddf, left_on=col_names, right_on=self.col_names
                 ).map_partitions(
                     lambda df: df.drop(self.col_names).rename(
-                        {"global_id": id_column_name}
+                        columns={"global_id": id_column_name}, copy=False
                     )
                 )
 
@@ -260,7 +272,8 @@ class NumberMap:
                 return tmp_df
             else:
                 return tmp_df.rename(
-                    dict(zip(self.col_names, external_column_names))
+                    columns=dict(zip(self.col_names, external_column_names)),
+                    copy=False,
                 )
 
     def __init__(self):

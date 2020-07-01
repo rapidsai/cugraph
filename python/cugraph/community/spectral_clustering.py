@@ -86,7 +86,7 @@ def spectralBalancedCutClustering(
         df = (
             G.edgelist.renumber_map.from_vertex_id(df, "vertex")
             .drop("vertex")
-            .rename({"0": "vertex"})
+            .rename(columns={"0": "vertex"}, copy=False)
         )
         df = df.sort_values("vertex").reset_index(drop=True)
 
@@ -162,7 +162,7 @@ def spectralModularityMaximizationClustering(
         df = (
             G.edgelist.renumber_map.from_vertex_id(df, "vertex")
             .drop("vertex")
-            .rename({"0": "vertex"})
+            .rename(columns={"0": "vertex"}, copy=False)
         )
         df = df.sort_values("vertex").reset_index(drop=True)
 

@@ -100,18 +100,13 @@ def compare_graphs(nx_graph, cu_graph):
         )
 
     # first compare nodes
-
-    #  FIXME: Once using pandas 1.0
-    # ds0 = pd.Series(nx_graph.nodes).sort_values(ignore_index=True)
-    # ds1 = pd.Series(cu_to_nx_graph.nodes).sort_values(ignore_index=True)
-    ds0 = pd.Series(nx_graph.nodes).sort_values().reset_index(drop=True)
-    ds1 = pd.Series(cu_to_nx_graph.nodes).sort_values().reset_index(drop=True)
+    ds0 = pd.Series(list(nx_graph.nodes)).sort_values(ignore_index=True)
+    ds1 = pd.Series(list(cu_to_nx_graph.nodes)).sort_values(ignore_index=True)
 
     if not ds0.equals(ds1):
         return False
 
     # second compare edges
-
     diff = nx.difference(nx_graph, cu_to_nx_graph)
 
     if diff.number_of_edges() > 0:

@@ -72,6 +72,6 @@ def louvain(input_graph, max_iter=100):
         # FIXME: multi-column vertex support
         parts = input_graph.edgelist.renumber_map.from_vertex_id(
             parts, "vertex", drop=True
-        ).rename({"0": "vertex"})
+        ).rename(columns={"0": "vertex"}, copy=False)
 
     return parts, modularity_score

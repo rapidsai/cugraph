@@ -52,7 +52,7 @@ def weakly_connected_components(G):
         # FIXME: multi-column vertex support
         df = G.edgelist.renumber_map.from_vertex_id(
             df, "vertices", drop=True
-        ).rename({"0": "vertices"})
+        ).rename(columns={"0": "vertices"}, copy=False)
 
     return df
 
@@ -95,6 +95,6 @@ def strongly_connected_components(G):
         # FIXME: multi-column vertex support
         df = G.edgelist.renumber_map.from_vertex_id(
             df, "vertices", drop=True
-        ).rename({"0": "vertices"})
+        ).rename(columns={"0": "vertices"}, copy=False)
 
     return df

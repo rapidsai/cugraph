@@ -292,10 +292,10 @@ class Graph:
 
             edgelist_df = self.edgelist.renumber_map.from_vertex_id(
                 edgelist_df, "src", drop=True
-            ).rename(src_name_mapping)
+            ).rename(columns=src_name_mapping, copy=False)
             edgelist_df = self.edgelist.renumber_map.from_vertex_id(
                 edgelist_df, "dst", drop=True
-            ).rename(dst_name_mapping)
+            ).rename(columns=dst_name_mapping, copy=False)
 
         if type(self) is Graph:
             edgelist_df = edgelist_df[edgelist_df["src"] <= edgelist_df["dst"]]
@@ -490,12 +490,12 @@ class Graph:
             df = (
                 self.edgelist.renumber_map.from_vertex_id(df, "first")
                 .drop("first")
-                .rename(first_name_mapping)
+                .rename(columns=first_name_mapping, copy=False)
             )
             df = (
                 self.edgelist.renumber_map.from_vertex_id(df, "second")
                 .drop("second")
-                .rename(second_name_mapping)
+                .rename(columns=second_name_mapping, copy=False)
             )
 
         return df
@@ -722,7 +722,7 @@ class Graph:
             df = (
                 self.edgelist.renumber_map.from_vertex_id(df, "vertex")
                 .drop("vertex")
-                .rename(name_mapping)
+                .rename(columns=name_mapping, copy=False)
             )
 
         if vertex_subset is not None:
@@ -746,7 +746,7 @@ class Graph:
             df = (
                 self.edgelist.renumber_map.from_vertex_id(df, "vertex")
                 .drop("vertex")
-                .rename(name_mapping)
+                .rename(columns=name_mapping, copy=False)
             )
 
         if vertex_subset is not None:

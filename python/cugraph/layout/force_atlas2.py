@@ -131,10 +131,8 @@ def force_atlas2(
 
     if pos_list is None and input_graph.renumbered:
         # FIXME: multi column support
-        pos = (
-            input_graph.edgelist.renumber_map.from_vertex_id(pos, "vertex")
-            .drop("vertex")
-            .rename({"0": "vertex"})
-        )
+        pos = input_graph.edgelist.renumber_map.from_vertex_id(
+            pos, "vertex", drop=True
+        ).rename(columns={"0": "vertex"}, copy=False)
 
     return pos

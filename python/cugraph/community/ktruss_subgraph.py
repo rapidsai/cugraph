@@ -85,10 +85,10 @@ def ktruss_subgraph(G, k, use_weights=True):
         # FIXME: multi-column vertex support
         subgraph_df = G.edgelist.renumber_map.from_vertex_id(
             subgraph_df, "src", drop=True
-        ).rename({"0": "src"})
+        ).rename(columns={"0": "src"}, copy=False)
         subgraph_df = G.edgelist.renumber_map.from_vertex_id(
             subgraph_df, "dst", drop=True
-        ).rename({"0": "dst"})
+        ).rename(columns={"0": "dst"}, copy=False)
 
     if G.edgelist.weights:
         KTrussSubgraph.from_cudf_edgelist(

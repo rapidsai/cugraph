@@ -18,7 +18,7 @@ from cugraph.centrality import betweenness_centrality_wrapper
 from cugraph.centrality import edge_betweenness_centrality_wrapper
 
 
-# NOTE: result_type=float could ne an intuitive way to indicate the result type
+# NOTE: result_type=float could be an intuitive way to indicate the result type
 def betweenness_centrality(
     G,
     k=None,
@@ -124,9 +124,9 @@ def betweenness_centrality(
     )
 
     if G.renumbered:
-        return G.edgelist.renumber_map.from_vertex_id(df, "vertex").rename(
-            {"0": "vertex"}
-        )
+        return G.edgelist.renumber_map.from_vertex_id(
+            df, "vertex", drop=True
+        ).rename(columns={"0": "vertex"}, copy=False)
 
     return df
 
@@ -232,12 +232,12 @@ def edge_betweenness_centrality(
 
     if G.renumbered:
         # FIXME:  multi-column support... currently only names 1 column
-        df = G.edgelist.renumber_map.from_vertex_id(df, "src").rename(
-            {"0": "src"}
-        )
-        df = G.edgelist.renumber_map.from_vertex_id(df, "dst").rename(
-            {"0": "dst"}
-        )
+        df = G.edgelist.renumber_map.from_vertex_id(
+            df, "src", drop=True
+        ).rename(columns={"0": "src"}, copy=False)
+        df = G.edgelist.renumber_map.from_vertex_id(
+            df, "dst", drop=True
+        ).rename(columns={"0": "dst"}, copy=False)
 
     return df
 

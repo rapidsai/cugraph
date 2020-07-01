@@ -63,10 +63,12 @@ def k_core(G, k=None, core_number=None):
         if G.renumbered is True:
             core_number = G.edgelist.renumber_map.add_vertex_id(
                 core_number, "id", "vertex", drop=True
-            ).rename({"id": "vertex"})
+            ).rename(columns={"id": "vertex"}, copy=False)
     else:
         core_number = core_number_wrapper.core_number(G)
-        core_number = core_number.rename(columns={"core_number": "values"})
+        core_number = core_number.rename(
+            columns={"core_number": "values"}, copy=False
+        )
 
     if k is None:
         k = core_number["values"].max()
@@ -77,10 +79,10 @@ def k_core(G, k=None, core_number=None):
         # FIXME: multi-column vertex support
         k_core_df = G.edgelist.renumber_map.from_vertex_id(
             k_core_df, "src", drop=True
-        ).rename({"0": "src"})
+        ).rename(columns={"0": "src"}, copy=False)
         k_core_df = G.edgelist.renumber_map.from_vertex_id(
             k_core_df, "dst", drop=True
-        ).rename({"0": "dst"})
+        ).rename(columns={"0": "dst"}, copy=False)
 
     if G.edgelist.weights:
         KCoreGraph.from_cudf_edgelist(

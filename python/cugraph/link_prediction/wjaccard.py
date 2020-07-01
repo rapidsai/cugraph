@@ -82,7 +82,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
             if input_graph.renumbered:
                 vertex_pair = renumber_map.add_vertex_id(
                     vertex_pair, "id", col, drop=True
-                ).rename({"id": col})
+                ).rename(columns={"id": col}, copy=False)
     elif vertex_pair is None:
         pass
     else:
@@ -93,10 +93,10 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     if input_graph.renumbered:
         # FIXME: multi column support
         df = renumber_map.from_vertex_id(df, "source", drop=True).rename(
-            {"0": "source"}
+            columns={"0": "source"}, copy=False
         )
         df = renumber_map.from_vertex_id(df, "destination", drop=True).rename(
-            {"0": "destination"}
+            columns={"0": "destination"}, copy=False
         )
 
     return df
