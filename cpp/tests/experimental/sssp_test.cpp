@@ -109,7 +109,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     // FIXME: directed is a misnomer.
     bool directed{false};
     auto p_csr_graph =
-      cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, float /* weight_t, dummy */>(
+      cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
         directed, configuration.graph_file_full_path_);
     auto csr_graph_view = p_csr_graph->view();
     // FIXME: this shouldn't be necessary
@@ -182,12 +182,6 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     auto epsilon            = *max_weight_element * static_cast<weight_t>(1e-6);
     auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
 
-    for (size_t i = 0; i < h_reference_distances.size(); ++i) {
-      if (h_reference_distances[i] != h_cugraph_distances[i]) {
-        std::cout << "i=" << i << " ref=" << h_reference_distances[i]
-                  << " cugraph=" << h_cugraph_distances[i] << "\n";
-      }
-    }
     ASSERT_TRUE(std::equal(h_reference_distances.begin(),
                            h_reference_distances.end(),
                            h_cugraph_distances.begin(),
