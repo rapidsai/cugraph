@@ -20,6 +20,7 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
+#include <raft/handle.hpp>
 #include <raft/error.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -276,6 +277,7 @@ typedef struct BC_Usecase_t {
 } BC_Usecase;
 
 class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
+  raft::handle_t handle;
  public:
   Tests_BC() {}
   static void SetupTestCase() {}
@@ -328,7 +330,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
     thrust::device_vector<result_t> d_result(G.number_of_vertices);
-    cugraph::betweenness_centrality(G,
+    cugraph::betweenness_centrality(handle,
+                                    G,
                                     d_result.data().get(),
                                     normalize,
                                     endpoints,
