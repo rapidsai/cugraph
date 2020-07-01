@@ -154,7 +154,8 @@ def _calc_bc_subset(
         result_dtype=result_dtype,
     )
     sorted_df = df.sort_values("vertex").rename(
-        {"betweenness_centrality": "cu_bc"}
+        {"betweenness_centrality": "cu_bc"},
+        copy=False
     )
 
     nx_bc = nx.betweenness_centrality(
@@ -165,6 +166,7 @@ def _calc_bc_subset(
         endpoints=endpoints,
         seed=seed,
     )
+
     _, nx_bc = zip(*sorted(nx_bc.items()))
     nx_df = cudf.DataFrame({"ref_bc": nx_bc})
 
@@ -198,7 +200,8 @@ def _calc_bc_subset_fixed(
         result_dtype=result_dtype,
     )
     sorted_df = df.sort_values("vertex").rename(
-        {"betweenness_centrality": "cu_bc"}
+        {"betweenness_centrality": "cu_bc"},
+        copy=False
     )
 
     # The second call is going to process source that were already sampled
@@ -214,7 +217,8 @@ def _calc_bc_subset_fixed(
         result_dtype=result_dtype,
     )
     sorted_df2 = df2.sort_values("vertex").rename(
-        {"betweenness_centrality": "ref_bc"}
+        {"betweenness_centrality": "ref_bc"},
+        copy=False
     )
 
     merged_sorted_df = cudf.concat(
@@ -243,7 +247,8 @@ def _calc_bc_full(
     )
 
     sorted_df = df.sort_values("vertex").rename(
-        {"betweenness_centrality": "cu_bc"}
+        {"betweenness_centrality": "cu_bc"},
+        copy=False
     )
     _, nx_bc = zip(*sorted(nx_bc.items()))
     nx_df = cudf.DataFrame({"ref_bc": nx_bc})

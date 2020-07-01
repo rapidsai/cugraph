@@ -32,7 +32,7 @@ namespace detail {
 #define USE_CG 1
 //#define DEBUG 1
 #define CUDA_MAX_BLOCKS 65535
-#define CUDA_MAX_KERNEL_THREADS 256  // kernefgdfl will launch at most 256 threads per block
+#define CUDA_MAX_KERNEL_THREADS 256  // kernel will launch at most 256 threads per block
 #define DEFAULT_MASK 0xffffffff
 #define US
 

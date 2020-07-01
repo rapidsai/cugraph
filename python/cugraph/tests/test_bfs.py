@@ -200,7 +200,9 @@ def _compare_bfs_spc(G, Gnx, source):
     # the vertices.
     # There is no guarantee when we get `df` that the vertices are sorted
     # thus we enforce the order so that we can leverage faster comparison after
-    sorted_df = df.sort_values("vertex").rename({"sp_counter": "cu_spc"})
+    sorted_df = df.sort_values("vertex").rename(
+        {"sp_counter": "cu_spc"}, copy=False
+    )
 
     # This will allows to detect vertices identifier that could have been
     # wrongly present multiple times
