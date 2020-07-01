@@ -21,7 +21,7 @@ from cugraph.community import (
     analyzeClustering_edge_cut,
     analyzeClustering_ratio_cut,
     subgraph,
-    triangles
+    triangles,
 )
 
 from cugraph.structure import (
@@ -29,23 +29,27 @@ from cugraph.structure import (
     DiGraph,
     from_cudf_edgelist,
     symmetrize,
-    symmetrize_df
+    symmetrize_df,
 )
 
 from cugraph.centrality import (
     betweenness_centrality,
     edge_betweenness_centrality,
-    katz_centrality
+    katz_centrality,
 )
 
 from cugraph.cores import core_number, k_core
-from cugraph.components import weakly_connected_components, strongly_connected_components
+from cugraph.components import (
+    weakly_connected_components,
+    strongly_connected_components,
+)
 from cugraph.link_analysis import pagerank, hits
 
 from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
 from cugraph.traversal import bfs, sssp, filter_unreachable
+
 # from cugraph.utilities import grmat_gen
-#from cugraph.utilities import device_of_gpu_pointer
+# from cugraph.utilities import device_of_gpu_pointer
 from cugraph.utilities import utils
 
 from cugraph.bsp.traversal import bfs_df_pregel
@@ -60,5 +64,6 @@ from cugraph.opg.link_analysis.mg_pagerank_wrapper import mg_pagerank
 
 # Versioneer
 from ._version import get_versions
-__version__ = get_versions()['version']
+
+__version__ = get_versions()["version"]
 del get_versions

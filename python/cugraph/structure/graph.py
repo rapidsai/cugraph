@@ -15,17 +15,15 @@ from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cudf
-import numpy as np
 import warnings
 
 
 def null_check(col):
     if col.null_count != 0:
-        raise ValueError('Series contains NULL values')
+        raise ValueError("Series contains NULL values")
 
 
 class Graph:
-
     class EdgeList:
         def __init__(self, *args):
             if len(args) == 1:
@@ -33,12 +31,13 @@ class Graph:
             else:
                 self.__from_cudf(*args)
 
-        def __from_cudf(self, source, destination, edge_attr=None,
-                        renumber_map=None):
+        def __from_cudf(
+            self, source, destination, edge_attr=None, renumber_map=None
+        ):
             self.renumber_map = renumber_map
             self.edgelist_df = cudf.DataFrame()
-            self.edgelist_df['src'] = source
-            self.edgelist_df['dst'] = destination
+            self.edgelist_df["src"] = source
+            self.edgelist_df["dst"] = destination
             self.weights = False
             if edge_attr is not None:
                 self.weights = True
@@ -46,7 +45,7 @@ class Graph:
                     for k in edge_attr.keys():
                         self.edgelist_df[k] = edge_attr[k]
                 else:
-                    self.edgelist_df['weights'] = edge_attr
+                    self.edgelist_df["weights"] = edge_attr
 
         def __from_dask_cudf(self, ddf):
             self.renumber_map = None
@@ -62,12 +61,21 @@ class Graph:
     class transposedAdjList:
         def __init__(self, offsets, indices, value=None):
             Graph.AdjList.__init__(self, offsets, indices, value)
+
     """
     cuGraph graph class containing basic graph creation and transformation
     operations.
     """
-    def __init__(self, m_graph=None, edge_attr=None, symmetrized=False,
-                 bipartite=False, multi=False, dynamic=False):
+
+    def __init__(
+        self,
+        m_graph=None,
+        edge_attr=None,
+        symmetrized=False,
+        bipartite=False,
+        multi=False,
+        dynamic=False,
+    ):
         """
         Returns
         -------
@@ -90,12 +98,15 @@ class Graph:
         self.edge_count = None
         self.node_count = None
         if m_graph is not None:
-            if ((type(self) is Graph and type(m_graph) is MultiGraph)
-               or (type(self) is DiGraph and type(m_graph) is MultiDiGraph)):
-                self.from_cudf_edgelist(m_graph.edgelist.edgelist_df,
-                                        source='src',
-                                        destination='dst',
-                                        edge_attr=edge_attr)
+            if (type(self) is Graph and type(m_graph) is MultiGraph) or (
+                type(self) is DiGraph and type(m_graph) is MultiDiGraph
+            ):
+                self.from_cudf_edgelist(
+                    m_graph.edgelist.edgelist_df,
+                    source="src",
+                    destination="dst",
+                    edge_attr=edge_attr,
+                )
                 self.renumbered = m_graph.renumbered
                 self.edgelist.renumber_map = m_graph.edgelist.renumber_map
             else:
@@ -112,9 +123,14 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
 
-    def from_cudf_edgelist(self, input_df, source='source',
-                           destination='destination',
-                           edge_attr=None, renumber=True):
+    def from_cudf_edgelist(
+        self,
+        input_df,
+        source="source",
+        destination="destination",
+        edge_attr=None,
+        renumber=True,
+    ):
         """
         Initialize a graph from the edge list. It is an error to call this
         method on an initialized Graph object. The passed input_df argument
@@ -160,16 +176,16 @@ class Graph:
 
         """
         if self.edgelist is not None or self.adjlist is not None:
-            raise Exception('Graph already has values')
+            raise Exception("Graph already has values")
 
-        source_col=None
-        dest_col=None
-        value_col=None
+        source_col = None
+        dest_col = None
+        value_col = None
         renumber_map = None
-        
+
         if self.multi:
             if type(edge_attr) is not list:
-                raise Exception('edge_attr should be a list of column names')
+                raise Exception("edge_attr should be a list of column names")
             value_col = {}
             for col_name in edge_attr:
                 value_col[col_name] = input_df[col_name]
@@ -192,31 +208,34 @@ class Graph:
             self.renumbered = True
         else:
             if type(source) is list and type(destination) is list:
-                raise Exception('set renumber to True for multi column ids')
+                raise Exception("set renumber to True for multi column ids")
             else:
                 source_col = input_df[source]
                 dest_col = input_df[destination]
 
         if not self.symmetrized and not self.multi:
             if value_col is not None:
-                source_col, dest_col, value_col = symmetrize(source_col,
-                                                             dest_col,
-                                                             value_col)
+                source_col, dest_col, value_col = symmetrize(
+                    source_col, dest_col, value_col
+                )
             else:
                 source_col, dest_col = symmetrize(source_col, dest_col)
 
-        self.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
-                                       renumber_map)
+        self.edgelist = Graph.EdgeList(
+            source_col, dest_col, value_col, renumber_map
+        )
 
     def add_edge_list(self, source, destination, value=None):
-        warnings.warn('add_edge_list will be deprecated in next release.\
- Use from_cudf_edgelist instead')
+        warnings.warn(
+            "add_edge_list will be deprecated in next release.\
+ Use from_cudf_edgelist instead"
+        )
         input_df = cudf.DataFrame()
-        input_df['source'] = source
-        input_df['destination'] = destination
+        input_df["source"] = source
+        input_df["destination"] = destination
         if value is not None:
-            input_df['weights'] = value
-            self.from_cudf_edgelist(input_df, edge_attr='weights')
+            input_df["weights"] = value
+            self.from_cudf_edgelist(input_df, edge_attr="weights")
         else:
             self.from_cudf_edgelist(input_df)
 
@@ -264,18 +283,23 @@ class Graph:
         edgelist_df = self.edgelist.edgelist_df
 
         if self.renumbered:
-            src_name_mapping = { '0' : 'src' }
-            dst_name_mapping = { '0' : 'dst' }
+            src_name_mapping = {"0": "src"}
+            dst_name_mapping = {"0": "dst"}
             if len(self.edgelist.renumber_map.column_names()) > 1:
                 for name in self.edgelist.renumber_map.column_names():
                     src_name_mapping[name] = name + "_src"
                     dst_name_mapping[name] = name + "_dst"
 
-            edgelist_df = self.edgelist.renumber_map.from_vertex_id(edgelist_df, 'src').drop('src').rename(src_name_mapping)
-            edgelist_df = self.edgelist.renumber_map.from_vertex_id(edgelist_df, 'dst').drop('dst').rename(dst_name_mapping)
+            edgelist_df = self.edgelist.renumber_map.from_vertex_id(
+                edgelist_df, "src", drop=True
+            ).rename(src_name_mapping)
+            edgelist_df = self.edgelist.renumber_map.from_vertex_id(
+                edgelist_df, "dst", drop=True
+            ).rename(dst_name_mapping)
 
         if type(self) is Graph:
-            edgelist_df = edgelist_df[edgelist_df['src'] <= edgelist_df['dst']].reset_index(drop=True)
+            edgelist_df = edgelist_df[edgelist_df["src"] <= edgelist_df["dst"]]
+            edgelist_df = edgelist_df.reset_index(drop=True)
             self.edge_count = len(edgelist_df)
 
         return edgelist_df
@@ -336,12 +360,14 @@ class Graph:
 
         """
         if self.edgelist is not None or self.adjlist is not None:
-            raise Exception('Graph already has values')
+            raise Exception("Graph already has values")
         self.adjlist = Graph.AdjList(offset_col, index_col, value_col)
 
     def add_adj_list(self, offset_col, index_col, value_col=None):
-        warnings.warn('add_adj_list will be deprecated in next release.\
- Use from_cudf_adjlist instead')
+        warnings.warn(
+            "add_adj_list will be deprecated in next release.\
+ Use from_cudf_adjlist instead"
+        )
         self.from_cudf_adjlist(offset_col, index_col, value_col)
 
     def view_adj_list(self):
@@ -370,9 +396,11 @@ class Graph:
         """
         if self.adjlist is None:
             if self.transposedadjlist is not None and type(self) is Graph:
-                off, ind, vals = (self.transposedadjlist.offsets,
-                                  self.transposedadjlist.indices,
-                                  self.transposedadjlist.weights)
+                off, ind, vals = (
+                    self.transposedadjlist.offsets,
+                    self.transposedadjlist.indices,
+                    self.transposedadjlist.weights,
+                )
             else:
                 off, ind, vals = graph_new_wrapper.view_adj_list(self)
             self.adjlist = self.AdjList(off, ind, vals)
@@ -405,15 +433,21 @@ class Graph:
         """
         if self.transposedadjlist is None:
             if self.adjlist is not None and type(self) is Graph:
-                off, ind, vals = (self.adjlist.offsets, self.adjlist.indices,
-                                  self.adjlist.weights)
+                off, ind, vals = (
+                    self.adjlist.offsets,
+                    self.adjlist.indices,
+                    self.adjlist.weights,
+                )
             else:
-                off, ind, vals = graph_new_wrapper.\
-                                 view_transposed_adj_list(self)
+                off, ind, vals = graph_new_wrapper.view_transposed_adj_list(
+                    self
+                )
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
-        return (self.transposedadjlist.offsets,
-                self.transposedadjlist.indices,
-                self.transposedadjlist.weights)
+        return (
+            self.transposedadjlist.offsets,
+            self.transposedadjlist.indices,
+            self.transposedadjlist.weights,
+        )
 
     def delete_adj_list(self):
         """
@@ -446,16 +480,24 @@ class Graph:
         """
         df = graph_new_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
-            first_name_mapping = { '0' : 'first' }
-            second_name_mapping = { '0' : 'second' }
+            first_name_mapping = {"0": "first"}
+            second_name_mapping = {"0": "second"}
             if len(self.edgelist.renumber_map.column_names()) > 1:
                 for name in self.edgelist.renumber_map.column_names():
                     first_name_mapping[name] = name + "_first"
                     second_name_mapping[name] = name + "_second"
 
-            df = self.edgelist.renumber_map.from_vertex_id(df, 'first').drop('first').rename(first_name_mapping)
-            df = self.edgelist.renumber_map.from_vertex_id(df, 'second').drop('second').rename(second_name_mapping)
-            
+            df = (
+                self.edgelist.renumber_map.from_vertex_id(df, "first")
+                .drop("first")
+                .rename(first_name_mapping)
+            )
+            df = (
+                self.edgelist.renumber_map.from_vertex_id(df, "second")
+                .drop("second")
+                .rename(second_name_mapping)
+            )
+
         return df
 
     def number_of_vertices(self):
@@ -465,11 +507,11 @@ class Graph:
         """
         if self.node_count is None:
             if self.adjlist is not None:
-                self.node_count = len(self.adjlist.offsets)-1
+                self.node_count = len(self.adjlist.offsets) - 1
             elif self.transposedadjlist is not None:
-                self.node_count = len(self.transposedadjlist.offsets)-1
+                self.node_count = len(self.transposedadjlist.offsets) - 1
             elif self.edgelist is not None:
-                df = self.edgelist.edgelist_df[['src', 'dst']]
+                df = self.edgelist.edgelist_df[["src", "dst"]]
                 self.node_count = df.max().max() + 1
         return self.node_count
 
@@ -491,10 +533,12 @@ class Graph:
         if self.edge_count is None:
             if self.edgelist is not None:
                 if type(self) is Graph:
-                    self.edge_count = len(self.edgelist.edgelist_df[
-                                          self.edgelist.edgelist_df['src']
-                                          >= self.edgelist.edgelist_df['dst']]
-                                          )
+                    self.edge_count = len(
+                        self.edgelist.edgelist_df[
+                            self.edgelist.edgelist_df["src"]
+                            >= self.edgelist.edgelist_df["dst"]
+                        ]
+                    )
                 else:
                     self.edge_count = len(self.edgelist.edgelist_df)
             elif self.adjlist is not None:
@@ -502,7 +546,7 @@ class Graph:
             elif self.transposedadjlist is not None:
                 self.edge_count = len(self.transposedadjlist.indices)
             else:
-                raise ValueError('Graph is Empty')
+                raise ValueError("Graph is Empty")
         return self.edge_count
 
     def in_degree(self, vertex_subset=None):
@@ -661,23 +705,28 @@ class Graph:
 
         """
         vertex_col, in_degree_col, out_degree_col = graph_new_wrapper._degrees(
-                                                        self)
+            self
+        )
 
         df = cudf.DataFrame()
-        df['vertex'] = vertex_col
-        df['in_degree'] = in_degree_col
-        df['out_degree'] = out_degree_col
+        df["vertex"] = vertex_col
+        df["in_degree"] = in_degree_col
+        df["out_degree"] = out_degree_col
 
         if self.renumbered is True:
-            name_mapping = { '0' : 'vertex' }
+            name_mapping = {"0": "vertex"}
             if len(self.edgelist.renumber_map.column_names()) > 1:
                 for name in self.edgelist.renumber_map.column_names():
                     name_mapping[name] = name + "_vertex"
 
-            df = self.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename(name_mapping)
+            df = (
+                self.edgelist.renumber_map.from_vertex_id(df, "vertex")
+                .drop("vertex")
+                .rename(name_mapping)
+            )
 
         if vertex_subset is not None:
-            df = df.query('`vertex` in @vertex_subset')
+            df = df.query("`vertex` in @vertex_subset")
 
         return df
 
@@ -685,19 +734,23 @@ class Graph:
         vertex_col, degree_col = graph_new_wrapper._degree(self, x)
 
         df = cudf.DataFrame()
-        df['vertex'] = vertex_col
-        df['degree'] = degree_col
+        df["vertex"] = vertex_col
+        df["degree"] = degree_col
 
         if self.renumbered is True:
-            name_mapping = { '0' : 'vertex' }
+            name_mapping = {"0": "vertex"}
             if len(self.edgelist.renumber_map.column_names()) > 1:
                 for name in self.edgelist.renumber_map.column_names():
                     name_mapping[name] = name + "_vertex"
 
-            df = self.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename(name_mapping)
+            df = (
+                self.edgelist.renumber_map.from_vertex_id(df, "vertex")
+                .drop("vertex")
+                .rename(name_mapping)
+            )
 
         if vertex_subset is not None:
-            df = df.query('`vertex` in @vertex_subset')
+            df = df.query("`vertex` in @vertex_subset")
 
         return df
 
@@ -760,15 +813,15 @@ class Graph:
             df = self.edgelist.edgelist_df
             G.renumbered = self.renumbered
             if self.edgelist.weights:
-                source_col, dest_col, value_col = symmetrize(df['src'],
-                                                             df['dst'],
-                                                             df['weights'])
+                source_col, dest_col, value_col = symmetrize(
+                    df["src"], df["dst"], df["weights"]
+                )
             else:
-                source_col, dest_col = symmetrize(df['src'],
-                                                  df['dst'])
+                source_col, dest_col = symmetrize(df["src"], df["dst"])
                 value_col = None
-            G.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
-                                        self.edgelist.renumber_map)
+            G.edgelist = Graph.EdgeList(
+                source_col, dest_col, value_col, self.edgelist.renumber_map
+            )
 
             return G
 
@@ -784,11 +837,10 @@ class Graph:
         """
 
         if self.renumbered:
-            tmp = self.edgelist.renumber_map.to_vertex_id(
-                cudf.Series([n]))
-            return (tmp[0] >= 0)
+            tmp = self.edgelist.renumber_map.to_vertex_id(cudf.Series([n]))
+            return tmp[0] >= 0
         else:
-            df = self.edgelist.edgelist_df[['src', 'dst']]
+            df = self.edgelist.edgelist_df[["src", "dst"]]
             return (df == n).any().any()
 
     def has_edge(self, u, v):
@@ -797,14 +849,13 @@ class Graph:
         """
 
         if self.renumbered:
-            tmp = self.edgelist.renumber_map.to_vertex_id(
-                cudf.Series([u, v]))
+            tmp = self.edgelist.renumber_map.to_vertex_id(cudf.Series([u, v]))
 
             u = tmp[0]
             v = tmp[1]
 
         df = self.edgelist.edgelist_df
-        return ((df['src'] == u) & (df['dst'] == v)).any()
+        return ((df["src"] == u) & (df["dst"] == v)).any()
 
     def edges(self):
         """
@@ -812,7 +863,7 @@ class Graph:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        return self.view_edge_list()[['src', 'dst']]
+        return self.view_edge_list()[["src", "dst"]]
 
     def nodes(self):
         """
@@ -820,34 +871,37 @@ class Graph:
         """
         df = self.edgelist.edgelist_df
         if self.renumbered:
-            # FIXME: If vertices are multicolumn this needs to return a dataframe
-            # FIXME: This relies un current implementation of NumberMap, should
-            #        not really expose this, perhaps add a method to NumberMap
-            return self.edgelist.renumber_map.df['0']
+            # FIXME: If vertices are multicolumn
+            #        this needs to return a dataframe
+            # FIXME: This relies un current implementation
+            #        of NumberMap, should not really expose
+            #        this, perhaps add a method to NumberMap
+            return self.edgelist.renumber_map.df["0"]
         else:
-            return cudf.concat([df['src'], df['dst']]).unique()
+            return cudf.concat([df["src"], df["dst"]]).unique()
 
     def neighbors(self, n):
 
         if self.renumbered:
             node = self.edgelist.renumber_map.to_vertex_id(cudf.Series([n]))
             if len(node) == 0:
-                return cudf.Series(dtype='int')
+                return cudf.Series(dtype="int")
             n = node[0]
 
         df = self.edgelist.edgelist_df
-        neighbors = df[df['src'] == n]['dst'].reset_index(drop=True)
+        neighbors = df[df["src"] == n]["dst"].reset_index(drop=True)
         if self.renumbered:
             # FIXME:  Multi-column vertices
-            return self.edgelist.renumber_map.from_vertex_id(neighbors)['0']
+            return self.edgelist.renumber_map.from_vertex_id(neighbors)["0"]
         else:
             return neighbors
 
 
 class DiGraph(Graph):
     def __init__(self, m_graph=None, edge_attr=None):
-        super().__init__(m_graph=m_graph, edge_attr=edge_attr,
-                         symmetrized=True)
+        super().__init__(
+            m_graph=m_graph, edge_attr=edge_attr, symmetrized=True
+        )
 
 
 class MultiGraph(Graph):

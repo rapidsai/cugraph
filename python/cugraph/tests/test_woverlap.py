@@ -24,19 +24,20 @@ import numpy as np
 
 def cugraph_call(cu_M, pairs):
     # Device data
-    weights_arr = cudf.Series(np.ones(max(cu_M['0'].max(),
-                              cu_M['1'].max())+1, dtype=np.float32))
+    weights_arr = cudf.Series(
+        np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
+    )
 
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # cugraph Overlap Call
     t1 = time.time()
     df = cugraph.overlap_w(G, weights_arr, pairs)
     t2 = time.time() - t1
-    print('Time : '+str(t2))
-    df = df.sort_values(by=['source', 'destination'])
-    return df['overlap_coeff'].to_array()
+    print("Time : " + str(t2))
+    df = df.sort_values(by=["source", "destination"])
+    return df["overlap_coeff"].to_array()
 
 
 def intersection(a, b, M):
@@ -44,7 +45,7 @@ def intersection(a, b, M):
     a_idx = M.indptr[a]
     b_idx = M.indptr[b]
 
-    while (a_idx < M.indptr[a+1]) and (b_idx < M.indptr[b+1]):
+    while (a_idx < M.indptr[a + 1]) and (b_idx < M.indptr[b + 1]):
         a_vertex = M.indices[a_idx]
         b_vertex = M.indices[b_idx]
 
@@ -61,13 +62,13 @@ def intersection(a, b, M):
 
 
 def degree(a, M):
-    return M.indptr[a+1] - M.indptr[a]
+    return M.indptr[a + 1] - M.indptr[a]
 
 
 def overlap(a, b, M):
     b_sum = degree(b, M)
     if b_sum == 0:
-        return float('NaN')
+        return float("NaN")
 
     i = intersection(a, b, M)
     a_sum = degree(a, M)
@@ -84,22 +85,28 @@ def cpu_call(M, first, second):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_woverlap(graph_file):
     gc.collect()
 
     Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx['0']), max(Mnx['1'])) + 1
-    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx['0'], Mnx['1'])),
-                                shape=(N, N))
+    N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
+    M = scipy.sparse.csr_matrix(
+        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
+    )
 
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    pairs = G.get_two_hop_neighbors().sort_values(['first', 'second']).reset_index(drop=True)
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    pairs = (
+        G.get_two_hop_neighbors()
+        .sort_values(["first", "second"])
+        .reset_index(drop=True)
+    )
 
     cu_coeff = cugraph_call(cu_M, pairs)
-    cpu_coeff = cpu_call(M, pairs['first'], pairs['second'])
+    cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
         if np.isnan(cpu_coeff[i]):

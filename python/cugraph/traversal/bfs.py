@@ -62,14 +62,18 @@ def bfs(G, start, return_sp_counter=False):
         directed = True
 
     if G.renumbered is True:
-        start = source = G.edgelist.renumber_map.to_vertex_id(cudf.Series([start]))[0]
+        start = G.edgelist.renumber_map.to_vertex_id(cudf.Series([start]))[0]
 
     df = bfs_wrapper.bfs(G, start, directed, return_sp_counter)
 
     if G.renumbered:
         # FIXME: multi-column vertex support
-        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop({'vertex'}).rename({'0': 'vertex'})
-        df = G.edgelist.renumber_map.from_vertex_id(df, 'predecessor').drop({'predecessor'}).rename({'0': 'predecessor'})
-        df['predecessor'].fillna(-1, inplace=True)
+        df = G.edgelist.renumber_map.from_vertex_id(
+            df, "vertex", drop=True
+        ).rename({"0": "vertex"})
+        df = G.edgelist.renumber_map.from_vertex_id(
+            df, "predecessor", drop=True
+        ).rename({"0": "predecessor"})
+        df["predecessor"].fillna(-1, inplace=True)
 
     return df

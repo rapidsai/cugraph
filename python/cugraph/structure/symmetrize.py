@@ -61,12 +61,14 @@ def symmetrize_df(df, src_name, dst_name):
     #  column onto itself.
     #
     for idx, name in enumerate(df.columns):
-        if (name == src_name):
-            gdf[src_name] = df[src_name].append(df[dst_name],
-                                                ignore_index=True)
-        elif (name == dst_name):
-            gdf[dst_name] = df[dst_name].append(df[src_name],
-                                                ignore_index=True)
+        if name == src_name:
+            gdf[src_name] = df[src_name].append(
+                df[dst_name], ignore_index=True
+            )
+        elif name == dst_name:
+            gdf[dst_name] = df[dst_name].append(
+                df[src_name], ignore_index=True
+            )
         else:
             gdf[name] = df[name].append(df[name], ignore_index=True)
 
@@ -114,18 +116,19 @@ def symmetrize(source_col, dest_col, value_col=None):
     csg.null_check(source_col)
     csg.null_check(dest_col)
 
-    input_df = cudf.DataFrame({'source': source_col,
-                               'destination': dest_col})
+    input_df = cudf.DataFrame({"source": source_col, "destination": dest_col})
 
     if value_col is not None:
         csg.null_check(value_col)
-        input_df.insert(len(input_df.columns), 'value', value_col)
+        input_df.insert(len(input_df.columns), "value", value_col)
 
-    output_df = symmetrize_df(input_df, 'source', 'destination')
+    output_df = symmetrize_df(input_df, "source", "destination")
 
     if value_col is not None:
-        return (output_df['source'],
-                output_df['destination'],
-                output_df['value'])
+        return (
+            output_df["source"],
+            output_df["destination"],
+            output_df["value"],
+        )
 
-    return output_df['source'], output_df['destination']
+    return output_df["source"], output_df["destination"]

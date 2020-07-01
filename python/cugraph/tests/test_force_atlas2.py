@@ -27,64 +27,80 @@ import scipy.io
 # relocated in the third-party group once this gets fixed.
 
 
-def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
-                 lin_log_mode, prevent_overlapping, edge_weight_influence,
-                 jitter_tolerance, barnes_hut_theta, barnes_hut_optimize,
-                 scaling_ratio, strong_gravity_mode, gravity):
+def cugraph_call(
+    cu_M,
+    max_iter,
+    pos_list,
+    outbound_attraction_distribution,
+    lin_log_mode,
+    prevent_overlapping,
+    edge_weight_influence,
+    jitter_tolerance,
+    barnes_hut_theta,
+    barnes_hut_optimize,
+    scaling_ratio,
+    strong_gravity_mode,
+    gravity,
+):
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2',
-                         renumber=False)
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", edge_attr="2", renumber=False
+    )
 
     # cugraph Force Atlas 2 Call
     t1 = time.time()
     pos = cugraph.force_atlas2(
-            G,
-            max_iter=max_iter,
-            pos_list=pos_list,
-            outbound_attraction_distribution=outbound_attraction_distribution,
-            lin_log_mode=lin_log_mode,
-            prevent_overlapping=prevent_overlapping,
-            edge_weight_influence=edge_weight_influence,
-            jitter_tolerance=jitter_tolerance,
-            barnes_hut_optimize=barnes_hut_optimize,
-            barnes_hut_theta=barnes_hut_theta,
-            scaling_ratio=scaling_ratio,
-            strong_gravity_mode=strong_gravity_mode,
-            gravity=gravity)
+        G,
+        max_iter=max_iter,
+        pos_list=pos_list,
+        outbound_attraction_distribution=outbound_attraction_distribution,
+        lin_log_mode=lin_log_mode,
+        prevent_overlapping=prevent_overlapping,
+        edge_weight_influence=edge_weight_influence,
+        jitter_tolerance=jitter_tolerance,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=barnes_hut_theta,
+        scaling_ratio=scaling_ratio,
+        strong_gravity_mode=strong_gravity_mode,
+        gravity=gravity,
+    )
     t2 = time.time() - t1
-    print('Cugraph Time : ' + str(t2))
+    print("Cugraph Time : " + str(t2))
     return pos
 
 
-DATASETS = [('../datasets/karate.csv', 0.70),
-            ('../datasets/polbooks.csv', 0.75),
-            ('../datasets/dolphins.csv', 0.66),
-            ('../datasets/netscience.csv', 0.66)]
+DATASETS = [
+    ("../datasets/karate.csv", 0.70),
+    ("../datasets/polbooks.csv", 0.75),
+    ("../datasets/dolphins.csv", 0.66),
+    ("../datasets/netscience.csv", 0.66),
+]
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
 
 
-@pytest.mark.parametrize('graph_file, score', DATASETS)
-@pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
-@pytest.mark.parametrize('barnes_hut_optimize', BARNES_HUT_OPTIMIZE)
-def test_force_atlas2(graph_file, score, max_iter,
-                      barnes_hut_optimize):
+@pytest.mark.parametrize("graph_file, score", DATASETS)
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
+def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     cu_M = utils.read_csv_file(graph_file)
-    cu_pos = cugraph_call(cu_M,
-                          max_iter=max_iter,
-                          pos_list=None,
-                          outbound_attraction_distribution=True,
-                          lin_log_mode=False,
-                          prevent_overlapping=False,
-                          edge_weight_influence=1.0,
-                          jitter_tolerance=1.0,
-                          barnes_hut_optimize=False,
-                          barnes_hut_theta=0.5,
-                          scaling_ratio=2.0,
-                          strong_gravity_mode=False,
-                          gravity=1.0)
-    '''
+    cu_pos = cugraph_call(
+        cu_M,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=False,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=1.0,
+    )
+    """
         Trustworthiness score can be used for Force Atlas 2 as the algorithm
         optimizes modularity. The final layout will result in
         different communities being drawn out. We consider here the n x n
@@ -94,11 +110,11 @@ def test_force_atlas2(graph_file, score, max_iter,
         or neighbors are close to each other in the final embedding.
         Thresholds are based on the best score that is achived after 500
         iterations on a given graph.
-    '''
+    """
 
-    matrix_file = graph_file[:-4] + '.mtx'
+    matrix_file = graph_file[:-4] + ".mtx"
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
-    cu_trust = trustworthiness(M, cu_pos[['x', 'y']].to_pandas())
+    cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score

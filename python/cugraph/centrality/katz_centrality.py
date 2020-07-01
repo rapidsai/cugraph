@@ -14,12 +14,9 @@
 from cugraph.centrality import katz_centrality_wrapper
 
 
-def katz_centrality(G,
-                    alpha=None,
-                    max_iter=100,
-                    tol=1.0e-6,
-                    nstart=None,
-                    normalized=True):
+def katz_centrality(
+    G, alpha=None, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
+):
     """
     Compute the Katz centrality for the nodes of the graph G. cuGraph does not
     currently support the 'beta' and 'weight' parameters as seen in the
@@ -95,14 +92,17 @@ def katz_centrality(G,
 
     if nstart is not None:
         if G.renumbered is True:
-            nstart['vertex'] = G.edgelist.renumber_map.to_vertex_id(nstart['vertex'])
+            nstart["vertex"] = G.edgelist.renumber_map.to_vertex_id(
+                nstart["vertex"]
+            )
 
-    df = katz_centrality_wrapper.katz_centrality(G, alpha, max_iter,
-                                                 tol, nstart, normalized)
+    df = katz_centrality_wrapper.katz_centrality(
+        G, alpha, max_iter, tol, nstart, normalized
+    )
 
     if G.renumbered:
         # FIXME: multi-column vertex support
-        tmp = G.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
+        tmp = G.edgelist.renumber_map.from_vertex_id(df["vertex"])
+        df["vertex"] = tmp["0"]
 
     return df

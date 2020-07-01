@@ -14,11 +14,7 @@
 from cugraph.link_analysis import hits_wrapper
 
 
-def hits(G,
-         max_iter=100,
-         tol=1.0e-5,
-         nstart=None,
-         normalized=True):
+def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     """
     Compute HITS hubs and authorities values for each vertex
 
@@ -80,8 +76,7 @@ def hits(G,
 
     if G.renumbered:
         # FIXME: multi-column vertex support
-        tmp = G.edgelist.renumber_map.from_vertex_id(df['vertex'])
-        df['vertex'] = tmp['0']
-
+        tmp = G.edgelist.renumber_map.from_vertex_id(df["vertex"])
+        df["vertex"] = tmp["0"]
 
     return df

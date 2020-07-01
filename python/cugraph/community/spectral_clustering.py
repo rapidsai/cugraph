@@ -14,13 +14,15 @@
 from cugraph.community import spectral_clustering_wrapper
 
 
-def spectralBalancedCutClustering(G,
-                                  num_clusters,
-                                  num_eigen_vects=2,
-                                  evs_tolerance=.00001,
-                                  evs_max_iter=100,
-                                  kmean_tolerance=.00001,
-                                  kmean_max_iter=100):
+def spectralBalancedCutClustering(
+    G,
+    num_clusters,
+    num_eigen_vects=2,
+    evs_tolerance=0.00001,
+    evs_max_iter=100,
+    kmean_tolerance=0.00001,
+    kmean_max_iter=100,
+):
     """
     Compute a clustering/partitioning of the given graph using the spectral
     balanced cut method.
@@ -70,29 +72,36 @@ def spectralBalancedCutClustering(G,
     """
 
     df = spectral_clustering_wrapper.spectralBalancedCutClustering(
-             G,
-             num_clusters,
-             num_eigen_vects,
-             evs_tolerance,
-             evs_max_iter,
-             kmean_tolerance,
-             kmean_max_iter)
+        G,
+        num_clusters,
+        num_eigen_vects,
+        evs_tolerance,
+        evs_max_iter,
+        kmean_tolerance,
+        kmean_max_iter,
+    )
 
     if G.renumbered:
         # FIXME: multi-column vertex support
-        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename({'0': 'vertex'})
-        df = df.sort_values('vertex').reset_index(drop=True)
+        df = (
+            G.edgelist.renumber_map.from_vertex_id(df, "vertex")
+            .drop("vertex")
+            .rename({"0": "vertex"})
+        )
+        df = df.sort_values("vertex").reset_index(drop=True)
 
     return df
 
 
-def spectralModularityMaximizationClustering(G,
-                                             num_clusters,
-                                             num_eigen_vects=2,
-                                             evs_tolerance=.00001,
-                                             evs_max_iter=100,
-                                             kmean_tolerance=.00001,
-                                             kmean_max_iter=100):
+def spectralModularityMaximizationClustering(
+    G,
+    num_clusters,
+    num_eigen_vects=2,
+    evs_tolerance=0.00001,
+    evs_max_iter=100,
+    kmean_tolerance=0.00001,
+    kmean_max_iter=100,
+):
     """
     Compute a clustering/partitioning of the given graph using the spectral
     modularity maximization method.
@@ -139,18 +148,23 @@ def spectralModularityMaximizationClustering(G,
     """
 
     df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
-             G,
-             num_clusters,
-             num_eigen_vects,
-             evs_tolerance,
-             evs_max_iter,
-             kmean_tolerance,
-             kmean_max_iter)
+        G,
+        num_clusters,
+        num_eigen_vects,
+        evs_tolerance,
+        evs_max_iter,
+        kmean_tolerance,
+        kmean_max_iter,
+    )
 
     if G.renumbered:
         # FIXME: multi-column vertex support
-        df = G.edgelist.renumber_map.from_vertex_id(df, 'vertex').drop('vertex').rename({'0': 'vertex'})
-        df = df.sort_values('vertex').reset_index(drop=True)
+        df = (
+            G.edgelist.renumber_map.from_vertex_id(df, "vertex")
+            .drop("vertex")
+            .rename({"0": "vertex"})
+        )
+        df = df.sort_values("vertex").reset_index(drop=True)
 
     return df
 
@@ -186,9 +200,8 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
-                G,
-                n_clusters,
-                clustering)
+        G, n_clusters, clustering
+    )
 
     return score
 
@@ -224,9 +237,8 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
-                G,
-                n_clusters,
-                clustering)
+        G, n_clusters, clustering
+    )
 
     return score
 
@@ -262,8 +274,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
-                G,
-                n_clusters,
-                clustering)
+        G, n_clusters, clustering
+    )
 
     return score

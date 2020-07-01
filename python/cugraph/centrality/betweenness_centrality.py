@@ -19,9 +19,15 @@ from cugraph.centrality import edge_betweenness_centrality_wrapper
 
 
 # NOTE: result_type=float could ne an intuitive way to indicate the result type
-def betweenness_centrality(G, k=None, normalized=True,
-                           weight=None, endpoints=False,
-                           seed=None, result_dtype=np.float64):
+def betweenness_centrality(
+    G,
+    k=None,
+    normalized=True,
+    weight=None,
+    endpoints=False,
+    seed=None,
+    result_dtype=np.float64,
+):
     """
     Compute the betweenness centrality for all nodes of the graph G from a
     sample of 'k' sources.
@@ -105,27 +111,29 @@ def betweenness_centrality(G, k=None, normalized=True,
     vertices, k = _initialize_vertices(G, k, seed)
 
     if weight is not None:
-        raise NotImplementedError("weighted implementation of betweenness "
-                                  "centrality not currently supported")
+        raise NotImplementedError(
+            "weighted implementation of betweenness "
+            "centrality not currently supported"
+        )
 
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
 
-    df = betweenness_centrality_wrapper.betweenness_centrality(G, normalized,
-                                                               endpoints,
-                                                               weight,
-                                                               k, vertices,
-                                                               result_dtype)
+    df = betweenness_centrality_wrapper.betweenness_centrality(
+        G, normalized, endpoints, weight, k, vertices, result_dtype
+    )
 
     if G.renumbered:
-        return G.edgelist.renumber_map.from_vertex_id(df, 'vertex').rename({'0' : 'vertex'})
+        return G.edgelist.renumber_map.from_vertex_id(df, "vertex").rename(
+            {"0": "vertex"}
+        )
 
     return df
 
 
-def edge_betweenness_centrality(G, k=None, normalized=True,
-                                weight=None, seed=None,
-                                result_dtype=np.float64):
+def edge_betweenness_centrality(
+    G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
+):
     """
     Compute the edge betweenness centrality for all edges of the graph G from a
     sample of 'k' sources.
@@ -211,19 +219,25 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
 
     vertices, k = _initialize_vertices(G, k, seed)
     if weight is not None:
-        raise NotImplementedError("weighted implementation of betweenness "
-                                  "centrality not currently supported")
+        raise NotImplementedError(
+            "weighted implementation of betweenness "
+            "centrality not currently supported"
+        )
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
 
-    df = edge_betweenness_centrality_wrapper                                  \
-        .edge_betweenness_centrality(G, normalized, weight, k, vertices,
-                                     result_dtype)
+    df = edge_betweenness_centrality_wrapper.edge_betweenness_centrality(
+        G, normalized, weight, k, vertices, result_dtype
+    )
 
     if G.renumbered:
         # FIXME:  multi-column support... currently only names 1 column
-        df = G.edgelist.renumber_map.from_vertex_id(df, 'src').rename({'0': 'src'})
-        df = G.edgelist.renumber_map.from_vertex_id(df, 'dst').rename({'0': 'dst'})
+        df = G.edgelist.renumber_map.from_vertex_id(df, "src").rename(
+            {"0": "src"}
+        )
+        df = G.edgelist.renumber_map.from_vertex_id(df, "dst").rename(
+            {"0": "dst"}
+        )
 
     return df
 
@@ -261,7 +275,9 @@ def _initialize_vertices_from_identifiers_list(G, identifiers):
     # FIXME: There might be a cleaner way to obtain the inverse mapping
     vertices = identifiers
     if G.renumbered:
-        vertices = G.edgelist.renumber_map.to_vertex_id(cudf.Series(vertices)).to_array()
+        vertices = G.edgelist.renumber_map.to_vertex_id(
+            cudf.Series(vertices)
+        ).to_array()
 
     k = len(vertices)
     return vertices, k

@@ -28,21 +28,22 @@ from cugraph.tests import utils
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 
 def cudify(d):
     if d is None:
         return None
 
-    k = np.fromiter(d.keys(), dtype='int32')
-    v = np.fromiter(d.values(), dtype='float32')
-    cuD = cudf.DataFrame({'vertex': k, 'values': v})
+    k = np.fromiter(d.keys(), dtype="int32")
+    v = np.fromiter(d.values(), dtype="float32")
+    cuD = cudf.DataFrame({"vertex": k, "values": v})
     return cuD
 
 
@@ -51,10 +52,10 @@ def cugraph_call(cu_M, max_iter, tol):
 
     t1 = time.time()
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
     df = cugraph.hits(G, max_iter, tol)
     t2 = time.time() - t1
-    print('Cugraph Time : '+str(t2))
+    print("Cugraph Time : " + str(t2))
 
     return df
 
@@ -64,27 +65,27 @@ def cugraph_call(cu_M, max_iter, tol):
 def networkx_call(M, max_iter, tol):
     # in NVGRAPH tests we read as CSR and feed as CSC,
     # so here we do this explicitly
-    print('Format conversion ... ')
+    print("Format conversion ... ")
 
     # Networkx Hits Call
-    print('Solving... ')
+    print("Solving... ")
     t1 = time.time()
 
     # Directed NetworkX graph
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
 
     # same parameters as in NVGRAPH
     pr = nx.hits(Gnx, max_iter, tol, normalized=True)
     t2 = time.time() - t1
 
-    print('Networkx Time : ' + str(t2))
+    print("Networkx Time : " + str(t2))
 
     return pr
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv']
+DATASETS = ["../datasets/dolphins.csv", "../datasets/karate.csv"]
 
 MAX_ITERATIONS = [50]
 TOLERANCE = [1.0e-06]
@@ -92,9 +93,10 @@ TOLERANCE = [1.0e-06]
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
-@pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
-@pytest.mark.parametrize('tol', TOLERANCE)
+
+@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("tol", TOLERANCE)
 def test_hits(graph_file, max_iter, tol):
     gc.collect()
 
@@ -115,24 +117,24 @@ def test_hits(graph_file, max_iter, tol):
     #  which should match.  We'll allow 6 digits to right
     #  of decimal point accuracy
     #
-    pdf = pd.DataFrame.from_dict(hubs, orient='index').sort_index()
+    pdf = pd.DataFrame.from_dict(hubs, orient="index").sort_index()
     pdf = pdf.multiply(1000000).floordiv(1)
-    cugraph_hits['nx_hubs'] = cudf.Series.from_pandas(pdf[0])
+    cugraph_hits["nx_hubs"] = cudf.Series.from_pandas(pdf[0])
 
-    pdf = pd.DataFrame.from_dict(authorities, orient='index').sort_index()
+    pdf = pd.DataFrame.from_dict(authorities, orient="index").sort_index()
     pdf = pdf.multiply(1000000).floordiv(1)
-    cugraph_hits['nx_authorities'] = cudf.Series.from_pandas(pdf[0])
+    cugraph_hits["nx_authorities"] = cudf.Series.from_pandas(pdf[0])
 
     #
     #  Sort by hubs (cugraph) in descending order.  Then we'll
     #  check to make sure all scores are in descending order.
     #
-    cugraph_hits = cugraph_hits.sort_values('hubs', False)
+    cugraph_hits = cugraph_hits.sort_values("hubs", False)
 
-    assert cugraph_hits['hubs'].is_monotonic_decreasing
-    assert cugraph_hits['nx_hubs'].is_monotonic_decreasing
+    assert cugraph_hits["hubs"].is_monotonic_decreasing
+    assert cugraph_hits["nx_hubs"].is_monotonic_decreasing
 
-    cugraph_hits = cugraph_hits.sort_values('authorities', False)
+    cugraph_hits = cugraph_hits.sort_values("authorities", False)
 
-    assert cugraph_hits['authorities'].is_monotonic_decreasing
-    assert cugraph_hits['nx_authorities'].is_monotonic_decreasing
+    assert cugraph_hits["authorities"].is_monotonic_decreasing
+    assert cugraph_hits["nx_authorities"].is_monotonic_decreasing

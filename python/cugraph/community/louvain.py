@@ -64,11 +64,14 @@ def louvain(input_graph, max_iter=100):
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
 
-    parts, modularity_score = louvain_wrapper.louvain(input_graph,
-                                                      max_iter=max_iter)
+    parts, modularity_score = louvain_wrapper.louvain(
+        input_graph, max_iter=max_iter
+    )
 
     if input_graph.renumbered:
         # FIXME: multi-column vertex support
-        parts = input_graph.edgelist.renumber_map.from_vertex_id(parts, 'vertex').drop('vertex').rename({'0' : 'vertex'})
+        parts = input_graph.edgelist.renumber_map.from_vertex_id(
+            parts, "vertex", drop=True
+        ).rename({"0": "vertex"})
 
     return parts, modularity_score

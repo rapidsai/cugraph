@@ -25,33 +25,35 @@ from cugraph.tests import utils
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 
 def networkx_weak_call(M):
-    '''M = M.tocsr()
+    """M = M.tocsr()
     if M is None:
         raise TypeError('Could not read the input graph')
     if M.shape[0] != M.shape[1]:
         raise TypeError('Shape is not square')
 
-    Gnx = nx.DiGraph(M)'''
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.DiGraph())
+    Gnx = nx.DiGraph(M)"""
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
 
     # Weakly Connected components call:
-    print('Solving... ')
+    print("Solving... ")
     t1 = time.time()
 
     # same parameters as in NVGRAPH
     result = nx.weakly_connected_components(Gnx)
     t2 = time.time() - t1
-    print('Time : ' + str(t2))
+    print("Time : " + str(t2))
 
     labels = sorted(result)
     return labels
@@ -60,31 +62,32 @@ def networkx_weak_call(M):
 def cugraph_weak_call(cu_M):
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
     t1 = time.time()
     df = cugraph.weakly_connected_components(G)
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print("Time : " + str(t2))
 
     label_vertex_dict = defaultdict(list)
     for i in range(len(df)):
-        label_vertex_dict[df['labels'][i]].append(df['vertices'][i])
+        label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
     return label_vertex_dict
 
 
 def networkx_strong_call(M):
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
 
     # Weakly Connected components call:
-    print('Solving... ')
+    print("Solving... ")
     t1 = time.time()
 
     # same parameters as in NVGRAPH
     result = nx.strongly_connected_components(Gnx)
     t2 = time.time() - t1
 
-    print('Time : ' + str(t2))
+    print("Time : " + str(t2))
 
     labels = sorted(result)
     return labels
@@ -93,20 +96,20 @@ def networkx_strong_call(M):
 def cugraph_strong_call(cu_M):
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
     t1 = time.time()
     df = cugraph.strongly_connected_components(G)
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print("Time : " + str(t2))
 
     label_vertex_dict = defaultdict(list)
     for i in range(len(df)):
-        label_vertex_dict[df['labels'][i]].append(df['vertices'][i])
+        label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
     return label_vertex_dict
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_weak_cc(graph_file):
     gc.collect()
 
@@ -145,7 +148,8 @@ def test_weak_cc(graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', utils.STRONGDATASETS)
+
+@pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
 def test_strong_cc(graph_file):
     gc.collect()
 

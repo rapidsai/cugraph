@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
 import cudf
 import dask_cudf
 import numpy as np
 import bisect
+
 
 class NumberMap:
     class SingleGPU:
@@ -23,11 +23,21 @@ class NumberMap:
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.df = cudf.DataFrame()
 
-            tmp = df[src_col_names].groupby(src_col_names).count().reset_index().\
-                  rename(dict(zip(src_col_names, self.col_names)))
+            tmp = (
+                df[src_col_names]
+                .groupby(src_col_names)
+                .count()
+                .reset_index()
+                .rename(dict(zip(src_col_names, self.col_names)))
+            )
 
             if dst_col_names is not None:
-                tmp_dst = df[dst_col_names].groupby(dst_col_names).count().reset_index()
+                tmp_dst = (
+                    df[dst_col_names]
+                    .groupby(dst_col_names)
+                    .count()
+                    .reset_index()
+                )
                 for newname, oldname in zip(self.col_names, dst_col_names):
                     self.df[newname] = tmp[newname].append(tmp_dst[oldname])
 
@@ -36,40 +46,76 @@ class NumberMap:
         def compute(self):
             if not self.numbered:
                 tmp = self.df.groupby(self.col_names).count().reset_index()
-                tmp['id'] = tmp.index.astype(np.int32)
+                tmp["id"] = tmp.index.astype(np.int32)
                 self.df = tmp
                 self.numbered = True
 
         def to_vertex_id(self, df, col_names):
             tmp_df = df[col_names].rename(dict(zip(col_names, self.col_names)))
-            tmp_df['index'] = tmp_df.index
-            return tmp_df.merge(self.df, on=self.col_names, how='left').sort_values('index').drop(['index']).reset_index()['id']
+            tmp_df["index"] = tmp_df.index
+            return (
+                tmp_df.merge(self.df, on=self.col_names, how="left")
+                .sort_values("index")
+                .drop(["index"])
+                .reset_index()["id"]
+            )
 
         def add_vertex_id(self, df, id_column_name, col_names):
             if col_names is None:
-                return df.merge(self.df, on=self.col_names, how='left').rename({'id': id_column_name})
+                return df.merge(self.df, on=self.col_names, how="left").rename(
+                    {"id": id_column_name}
+                )
             else:
-                return df.merge(self.df, left_on=col_names, right_on=self.col_names, how='left').rename({'id': id_column_name}).drop(self.col_names)
+                return (
+                    df.merge(
+                        self.df,
+                        left_on=col_names,
+                        right_on=self.col_names,
+                        how="left",
+                    )
+                    .drop(self.col_names)
+                    .rename({"id": id_column_name})
+                )
 
-
-        def from_vertex_id(self, df, internal_column_name, external_column_names):
-            tmp_df = df.merge(self.df, left_on=internal_column_name, right_on='id', how='left')
+        def from_vertex_id(
+            self, df, internal_column_name, external_column_names
+        ):
+            tmp_df = df.merge(
+                self.df,
+                left_on=internal_column_name,
+                right_on="id",
+                how="left",
+            )
             if internal_column_name != "id":
-                tmp_df = tmp_df.drop(['id'])
+                tmp_df = tmp_df.drop(["id"])
             if external_column_names is None:
                 return tmp_df
             else:
-                return tmp_df.rename(dict(zip(self.col_names, external_column_names)))
+                return tmp_df.rename(
+                    dict(zip(self.col_names, external_column_names))
+                )
 
     class MultiGPU:
-        def extract_vertices(df, src_col_names, dst_col_names, internal_col_names):
-            s = df[src_col_names].groupby(src_col_names).count().reset_index().\
-                rename(dict(zip(src_col_names, internal_col_names)))
+        def extract_vertices(
+            df, src_col_names, dst_col_names, internal_col_names
+        ):
+            s = (
+                df[src_col_names]
+                .groupby(src_col_names)
+                .count()
+                .reset_index()
+                .rename(dict(zip(src_col_names, internal_col_names)))
+            )
             d = None
 
             if dst_col_names is not None:
-                d = df[dst_col_names].groupby(dst_col_names).count().reset_index().\
-                    rename(dict(zip(dst_col_names, internal_col_names)))
+                d = (
+                    df[dst_col_names]
+                    .groupby(dst_col_names)
+                    .count()
+                    .reset_index()
+                    .rename(dict(zip(dst_col_names, internal_col_names)))
+                )
 
             reply = cudf.DataFrame()
 
@@ -84,7 +130,13 @@ class NumberMap:
         def __init__(self, ddf, src_col_names, dst_col_names):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.val_types = NumberMap.compute_vals_types(ddf, src_col_names)
-            self.ddf = ddf.map_partitions(NumberMap.MultiGPU.extract_vertices, src_col_names, dst_col_names, self.col_names, meta=self.val_types)
+            self.ddf = ddf.map_partitions(
+                NumberMap.MultiGPU.extract_vertices,
+                src_col_names,
+                dst_col_names,
+                self.col_names,
+                meta=self.val_types,
+            )
             self.numbered = False
 
         # Function to compute partitions based on known divisions of the
@@ -92,73 +144,124 @@ class NumberMap:
         def compute_partition(df, divisions):
             sample = df.index[0]
             partition_id = bisect.bisect_right(divisions, sample) - 1
-            return df.assign(partition = partition_id)
+            return df.assign(partition=partition_id)
 
-        def assign_internal_identifiers_kernel(local_id, partition, global_id, base_addresses):
+        def assign_internal_identifiers_kernel(
+            local_id, partition, global_id, base_addresses
+        ):
             for i in range(len(local_id)):
                 global_id[i] = local_id[i] + base_addresses[partition[i]]
 
+        def assign_internal_identifiers(df, base_addresses):
+            df = df.assign(local_id=df.index.astype(np.int64))
+            df = df.apply_rows(
+                NumberMap.MultiGPU.assign_internal_identifiers_kernel,
+                incols=["local_id", "partition"],
+                outcols={"global_id": np.int64},
+                kwargs={"base_addresses": base_addresses},
+            )
+
+            return df.drop(["local_id", "hash", "partition"])
+
+        def assign_global_id(self, ddf, base_addresses, val_types):
+            val_types["global_id"] = np.int32
+            del val_types["hash"]
+            del val_types["partition"]
+
+            ddf = ddf.map_partitions(
+                lambda df: NumberMap.MultiGPU.assign_internal_identifiers(
+                    df, base_addresses
+                ),
+                meta=val_types,
+            )
+            return ddf
+
         def compute(self):
             if not self.numbered:
-                val_types  = self.val_types
-                val_types['hash'] = np.int32
+                val_types = self.val_types
+                val_types["hash"] = np.int32
 
-                vertices = self.ddf.map_partitions(lambda df: df.assign(hash = df.hash_columns(self.col_names)), meta=val_types)
+                vertices = self.ddf.map_partitions(
+                    lambda df: df.assign(hash=df.hash_columns(self.col_names)),
+                    meta=val_types,
+                )
 
                 # Redistribute the ddf based on the hash values
-                rehashed = vertices.set_index('hash', drop=False)
+                rehashed = vertices.set_index("hash", drop=False)
 
                 # Compute the local partition id (obsolete once
                 #   https://github.com/dask/dask/issues/3707 is completed)
-                val_types['partition'] = np.int32
-                rehashed_with_partition_id = rehashed.map_partitions(NumberMap.MultiGPU.compute_partition, rehashed.divisions, meta=val_types)
+                val_types["partition"] = np.int32
+                rehashed_with_partition_id = rehashed.map_partitions(
+                    NumberMap.MultiGPU.compute_partition,
+                    rehashed.divisions,
+                    meta=val_types,
+                )
 
-                numbering_map = rehashed_with_partition_id.map_partitions(lambda df: df.groupby(self.col_names).min().reset_index())
+                numbering_map = rehashed_with_partition_id.map_partitions(
+                    lambda df: df.groupby(self.col_names).min().reset_index()
+                )
 
                 #
                 #  Compute base address for each partition
                 #
-                counts = numbering_map.map_partitions(lambda df: df.groupby('partition').count()).compute()['hash']
-                base_addresses = cudf.Series(np.zeros(len(counts) + 1, np.int64))
+                counts = numbering_map.map_partitions(
+                    lambda df: df.groupby("partition").count()
+                ).compute()["hash"]
+                base_addresses = cudf.Series(
+                    np.zeros(len(counts) + 1, np.int64)
+                )
                 for i in range(len(counts)):
-                    base_addresses[i+1] = base_addresses[i] + counts[i]
+                    base_addresses[i + 1] = base_addresses[i] + counts[i]
 
                 #
                 #  Update each partition with the base address
                 #
-                val_types['global_id'] = np.int32
-                del val_types['hash']
-                del val_types['partition']
-                numbering_map = numbering_map.map_partitions(lambda df:
-                                                             df.assign(local_id = df.index.astype(np.int64)).
-                                                             apply_rows(NumberMap.MultiGPU.assign_internal_identifiers_kernel,
-                                                                        incols=['local_id', 'partition'],
-                                                                        outcols={'global_id': np.int64},
-                                                                        kwargs={'base_addresses': base_addresses}).drop(['local_id', 'hash', 'partition']),
-                                                             meta=val_types)
+                numbering_map = self.assign_global_id(
+                    numbering_map, base_addresses, val_types
+                )
 
                 self.ddf = numbering_map
                 self.numbered = True
 
         def to_vertex_id(self, ddf, col_names):
-            return ddf.merge(self.ddf, left_on=col_names, right_on=self.col_names, how='left')['global_id']
+            return ddf.merge(
+                self.ddf,
+                left_on=col_names,
+                right_on=self.col_names,
+                how="left",
+            )["global_id"]
 
         def add_vertex_id(self, ddf, id_column_name, col_names):
             if col_names is None:
-                return ddf.merge(self.ddf, on=self.col_names, how='left').reset_index()
+                return ddf.merge(
+                    self.ddf, on=self.col_names, how="left"
+                ).reset_index(drop=True)
             else:
-                return ddf.merge(self.ddf, left_on=col_names, right_on=self.col_names).\
-                    map_partitions(lambda df: df.drop(self.col_names).rename({'global_id' : id_column_name}))
+                return ddf.merge(
+                    self.ddf, left_on=col_names, right_on=self.col_names
+                ).map_partitions(
+                    lambda df: df.drop(self.col_names).rename(
+                        {"global_id": id_column_name}
+                    )
+                )
 
-
-        def from_vertex_id(self, df, internal_column_name, external_column_names):
-            tmp_df = df.merge(self.ddf, left_on=internal_column_name, right_on='global_id', how='left')\
-                       .map_partitions(lambda df: df.drop('global_id'))
+        def from_vertex_id(
+            self, df, internal_column_name, external_column_names
+        ):
+            tmp_df = df.merge(
+                self.ddf,
+                left_on=internal_column_name,
+                right_on="global_id",
+                how="left",
+            ).map_partitions(lambda df: df.drop("global_id"))
 
             if external_column_names is None:
                 return tmp_df
             else:
-                return tmp_df.rename(dict(zip(self.col_names, external_column_names)))
+                return tmp_df.rename(
+                    dict(zip(self.col_names, external_column_names))
+                )
 
     def __init__(self):
         self.implementation = None
@@ -167,11 +270,14 @@ class NumberMap:
         """
         Helper function to compute internal column names and types
         """
-        return {str(i): df[column_names[i]].dtype  for i in range(len(column_names))}
-                                          
+        return {
+            str(i): df[column_names[i]].dtype for i in range(len(column_names))
+        }
+
     def compute_vals(column_names):
         """
-        Helper function to compute internal column names based on external column names
+        Helper function to compute internal column names based on external
+        column names
         """
         return [str(i) for i in range(len(column_names))]
 
@@ -195,17 +301,25 @@ class NumberMap:
             vertex identifier for destination vertices
         """
         if self.implementation is not None:
-            raise Exception('NumberMap is already populated')
+            raise Exception("NumberMap is already populated")
 
-        if dst_col_names is not None and len(src_col_names) != len(dst_col_names):
-            raise Exception('src_col_names must have same length as dst_col_names')
+        if dst_col_names is not None and len(src_col_names) != len(
+            dst_col_names
+        ):
+            raise Exception(
+                "src_col_names must have same length " "as dst_col_names"
+            )
 
         if type(df) is cudf.DataFrame:
-            self.implementation = NumberMap.SingleGPU(df, src_col_names, dst_col_names)
+            self.implementation = NumberMap.SingleGPU(
+                df, src_col_names, dst_col_names
+            )
         elif type(df) is dask_cudf.DataFrame:
-            self.implementation = NumberMap.MultiGPU(df, src_col_names, dst_col_names)
+            self.implementation = NumberMap.MultiGPU(
+                df, src_col_names, dst_col_names
+            )
         else:
-            raise Exception('df must be cudf.DataFrame or dask_cudf.DataFrame')
+            raise Exception("df must be cudf.DataFrame or dask_cudf.DataFrame")
 
         self.implementation.compute()
 
@@ -225,35 +339,42 @@ class NumberMap:
             numbered by the NumberMap class.
         """
         if self.implementation is not None:
-            raise Exception('NumberMap is already populated')
+            raise Exception("NumberMap is already populated")
 
         if dst_series is not None and type(src_series) != type(dst_series):
-            raise Exception('src_series and dst_series must have same type')
+            raise Exception("src_series and dst_series must have same type")
 
         if type(src_series) is cudf.Series:
             dst_series_list = None
             df = cudf.DataFrame()
-            df['s'] = src_series
+            df["s"] = src_series
             if dst_series is not None:
-                df['d'] = dst_series
-                dst_series_list = ['d']
-            self.implementation = NumberMap.SingleGPU(df, ['s'], dst_series_list)
+                df["d"] = dst_series
+                dst_series_list = ["d"]
+            self.implementation = NumberMap.SingleGPU(
+                df, ["s"], dst_series_list
+            )
         elif type(src_series) is dask_cudf.Series:
             dst_series_list = None
             df = dask_cudf.DataFrame()
-            df['s'] = src_series
+            df["s"] = src_series
             if dst_series is not None:
-                df['d'] = dst_series
-                dst_series_list = ['d']
-            self.implementation = NumberMap.MultiGPU(df, ['s'], dst_series_list)
+                df["d"] = dst_series
+                dst_series_list = ["d"]
+            self.implementation = NumberMap.MultiGPU(
+                df, ["s"], dst_series_list
+            )
         else:
-            raise Exception('src_series must be cudf.Series or dask_cudf.Series')
+            raise Exception(
+                "src_series must be cudf.Series or " "dask_cudf.Series"
+            )
 
         self.implementation.compute()
 
     def to_vertex_id(self, df, col_names=None):
         """
-        Given a collection of external vertex ids, return the internal vertex ids
+        Given a collection of external vertex ids, return the internal
+        vertex ids
 
         Parameters
         ----------
@@ -265,7 +386,7 @@ class NumberMap:
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier
-        
+
         Returns
         ---------
         vertex_ids : cudf.Series or dask_cudf.Series
@@ -275,28 +396,31 @@ class NumberMap:
 
         """
         tmp_df = None
-        tmp_colnames = None
+        tmp_col_names = None
         if type(df) is cudf.Series:
             tmp_df = cudf.DataFrame()
-            tmp_df['0'] = df
-            tmp_col_names = ['0']
+            tmp_df["0"] = df
+            tmp_col_names = ["0"]
         elif type(df) is dask_cudf.Series:
             tmp_df = dask_cudf.DataFrame()
-            tmp_df['0'] = df
-            tmp_col_names = ['0']
+            tmp_df["0"] = df
+            tmp_col_names = ["0"]
         else:
             tmp_df = df
             tmp_col_names = col_names
-            
+
         return self.implementation.to_vertex_id(tmp_df, tmp_col_names)
 
-    def add_vertex_id(self, df, id_column_name='id', col_names=None):
+    def add_vertex_id(
+        self, df, id_column_name="id", col_names=None, drop=False
+    ):
         """
-        Given a collection of external vertex ids, return the internal vertex ids
-        combined with the input data.
+        Given a collection of external vertex ids, return the internal vertex
+        ids combined with the input data.
 
-        If a series-type input is provided then the series will be in a column named '0'.
-        Otherwise the input column names in the data frame will be preserved.
+        If a series-type input is provided then the series will be in a column
+        named '0'. Otherwise the input column names in the data frame will be
+        preserved.
 
         Parameters
         ----------
@@ -312,7 +436,11 @@ class NumberMap:
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier
-        
+
+        drop: (optional) boolean
+            If True, drop the column names specified in col_names from
+            the returned data frame.  Defaults to False.
+
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
@@ -323,20 +451,36 @@ class NumberMap:
 
         """
         tmp_df = None
-        tmp_colnames = None
+        tmp_col_names = None
+        can_drop = True
         if type(df) is cudf.Series:
-            tmp_df = df.to_frame('0')
-            tmp_col_names = ['0']
+            tmp_df = df.to_frame("0")
+            tmp_col_names = ["0"]
+            can_drop = False
         elif type(df) is dask_cudf.Series:
-            tmp_df = df.to_frame('0')
-            tmp_col_names = ['0']
+            tmp_df = df.to_frame("0")
+            tmp_col_names = ["0"]
+            can_drop = False
         else:
             tmp_df = df
             tmp_col_names = col_names
-            
-        return self.implementation.add_vertex_id(tmp_df, id_column_name, tmp_col_names)
 
-    def from_vertex_id(self, df, internal_column_name=None, external_column_names=None):
+        output_df = self.implementation.add_vertex_id(
+            tmp_df, id_column_name, tmp_col_names
+        )
+
+        if drop and can_drop:
+            return output_df.drop(tmp_col_names)
+
+        return output_df
+
+    def from_vertex_id(
+        self,
+        df,
+        internal_column_name=None,
+        external_column_names=None,
+        drop=False,
+    ):
         """
         Given a collection of internal vertex ids, return a data frame of
         the external vertex ids
@@ -351,28 +495,56 @@ class NumberMap:
             then internal_column_name should identify which column corresponds
             the the internal vertex id that should be converted
 
+        internal_column_name: (optional) string
+            Name of the column name containing the internal vertex id.
+            If df is a series then this parameter is ignored.  If df is
+            a data frame this parameter is required.
+
+        external_column_names: (optional) string or list of strings
+            Name of the columns that define an external vertex id.
+            If not specified, columns will be labeled '0', '1,', ..., 'n-1'
+
+        drop: (optional) boolean
+            If True the internal column name will be dropped from the
+            data frame.  Defaults to False.
+
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
             The original data frame columns exist unmodified.  Columns
-            are added to the data frame to identify the external vertex identifiers.
-            If external_columns is specified, these names are used as the names
-            of the output columns.  If external_columns is not specifed the
-            columns are labeled '0', ... 'n-1' based on the number of columns
-            identifying the external vertex identifiers.
+            are added to the data frame to identify the external vertex
+            identifiers. If external_columns is specified, these names
+            are used as the names of the output columns.  If external_columns
+            is not specifed the columns are labeled '0', ... 'n-1' based on
+            the number of columns identifying the external vertex identifiers.
         """
         tmp_df = None
-        tmp_colnames = None
+        can_drop = True
         if type(df) is cudf.Series:
-            tmp_df = df.to_frame('id')
-            internal_column_name = 'id'
+            tmp_df = df.to_frame("id")
+            internal_column_name = "id"
+            can_drop = False
         elif type(df) is dask_cudf.Series:
-            tmp_df = df.to_frame('id')
-            internal_column_name = 'id'
+            tmp_df = df.to_frame("id")
+            internal_column_name = "id"
+            can_drop = False
         else:
             tmp_df = df
-            
-        return self.implementation.from_vertex_id(tmp_df, internal_column_name, external_column_names)
+
+        output_df = self.implementation.from_vertex_id(
+            tmp_df, internal_column_name, external_column_names
+        )
+        if drop and can_drop:
+            return output_df.drop(internal_column_name)
+
+        return output_df
 
     def column_names(self):
+        """
+        Return the list of internal column names
+
+        Returns
+        ----------
+            List of column names ('0', '1', ..., 'n-1')
+        """
         return self.implementation.col_names
