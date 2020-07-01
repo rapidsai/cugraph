@@ -54,7 +54,7 @@ DEFAULT_EPSILON = 0.0001
 # FIXME: Should we check 1 and 3 ?
 # 1 could be automatically disabled and fallback on regular path
 # even if there is a cluster?
-OPG_DEVICE_COUNT_OPTIONS = [1, 2, 4]
+OPG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/netscience.csv']
@@ -356,7 +356,9 @@ def test_opg_betweenness_centrality(opg_device_count,
                                     subset_seed,
                                     result_dtype):
     prepare_test()
-    if opg_device_count > len(os.environ["CUDA_VISIBLE_DEVICES"]):
+    visible_devices = os.environ["CUDA_VISIBLE_DEVICES"].strip().split(",")
+    number_of_visible_devices = len(visible_devices)
+    if opg_device_count > number_of_visible_devices:
         pytest.skip("Not enough devices available to test OPG")
     with OPGContext(opg_device_count):
         sorted_df = calc_betweenness_centrality(graph_file,

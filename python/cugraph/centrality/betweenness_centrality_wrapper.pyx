@@ -96,7 +96,7 @@ def run_organizer_work(handle, input_graph, normalized, endpoints, batch,
     cdef uintptr_t c_weights = <uintptr_t> NULL
     cdef uintptr_t c_betweenness = <uintptr_t> NULL
     cdef uintptr_t c_batch = <uintptr_t> NULL
-    # TODO(xcadet) look into a way to merge them
+
     cdef GraphCSRViewDouble graph_double
     cdef GraphCSRViewFloat graph_float
 
@@ -246,23 +246,11 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     """
     Call betweenness centrality
     """
-    cdef GraphCSRViewFloat graph_float
-    cdef GraphCSRViewDouble graph_double
-    cdef uintptr_t c_identifier = <uintptr_t> NULL
-    cdef uintptr_t c_betweenness = <uintptr_t> NULL
-    cdef uintptr_t c_vertices = <uintptr_t> NULL
-    cdef uintptr_t c_weights = <uintptr_t> NULL
-    cdef handle_t *c_handle
 
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    if weights is not None:
-        c_weights = weights.__cuda_array_interface__['data'][0]
-
     numpy_vertices =  get_numpy_vertices(vertices, input_graph.number_of_vertices())
-    c_vertices = numpy_vertices.__array_interface__['data'][0]
-    k  = len(numpy_vertices)
 
     # TODO(xcadet) Check if there is a better way to do this
     # NOTE: The current implementation only has <int, int, float, float> and
@@ -271,81 +259,25 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     #       as <int, int, float> or <int, int double> even if weights is null
     client = opg_get_client()
     comms = opg_get_comms_using_client(client)
-    if result_dtype == np.float32:
-        if comms is not None:
-            with CommsContext(comms):
+    df = None
+    if comms:
+        with CommsContext(comms):
+            if len(comms.worker_addresses) > 1: # Fall back to regular BC otherwise
                 main_worker = comms.worker_addresses[0]
-                future_pointer_to_input_graph = client.scatter(input_graph, workers=[main_worker])
-                futures = [client.submit(run_work,
-                                         future_pointer_to_input_graph if worker_idx == 0 else input_graph.number_of_vertices(),
-                                         normalized,
-                                         endpoints,
-                                         numpy_vertices,
-                                         weights,
-                                         result_dtype, comms.sessionId,
-                                         workers=[worker_address]) for worker_idx, worker_address in enumerate(comms.worker_addresses)]
-                dask.distributed.wait(futures)
-                df = futures[0].result()
-        else:
-            df = get_output_df(input_graph, result_dtype)
-
-            c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
-            c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
-
-            graph_float = get_graph_view[GraphCSRViewFloat](input_graph, False)
-            graph_float.prop.directed = type(input_graph) is DiGraph
-            handle = cugraph.raft.common.handle.Handle() #  if handle is None else handle
-            c_handle = <handle_t*><size_t> handle.getHandle()
-            total_number_of_sources_used = len(numpy_vertices)
-            c_betweenness_centrality[int, int, float, float](c_handle[0],
-                                                            &graph_float,
-                                                            <float*> c_betweenness,
-                                                            normalized, endpoints,
-                                                            <float*> c_weights,
-                                                            k,
-                                                            <int*> c_vertices,
-                                                            total_number_of_sources_used)
-            graph_float.get_vertex_identifiers(<int*> c_identifier)
-
-    elif result_dtype == np.float64:
-        if comms is not None:
-            with CommsContext(comms):
-                main_worker = comms.worker_addresses[0]
-                future_pointer_to_input_graph = client.scatter(input_graph, workers=[main_worker])
-                futures = [client.submit(run_work,
-                                         future_pointer_to_input_graph if worker_idx == 0 else input_graph.number_of_vertices(),
-                                         normalized,
-                                         endpoints,
-                                         numpy_vertices,
-                                         weights,
-                                         result_dtype, comms.sessionId,
-                                         workers=[worker_address]) for worker_idx, worker_address in enumerate(comms.worker_addresses)]
-                dask.distributed.wait(futures)
-                df = futures[0].result()
-        else:
-            df = get_output_df(input_graph, result_dtype)
-
-            c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
-            c_betweenness = df['betweenness_centrality'].__cuda_array_interface__['data'][0]
-
-            graph_double = get_graph_view[GraphCSRViewDouble](input_graph, False)
-            graph_double.prop.directed = type(input_graph) is DiGraph
-            handle = cugraph.raft.common.handle.Handle() #  if handle is None else handle
-            c_handle = <handle_t*><size_t> handle.getHandle()
-            total_number_of_sources_used = len(numpy_vertices)
-            c_betweenness_centrality[int, int, double, double](c_handle[0],
-                                                               &graph_double,
-                                                               <double*> c_betweenness,
-                                                               normalized, endpoints,
-                                                               <double*> c_weights,
-                                                               k,
-                                                               <int*> c_vertices,
-                                                               total_number_of_sources_used)
-            graph_double.get_vertex_identifiers(<int*> c_identifier)
-
-    else:
-        raise TypeError("result type for betweenness centrality can only be "
-                        "float or double")
+                future_pointer_to_input_graph =  client.scatter(input_graph, workers=[main_worker])
+                future_input_data = [idx for idx in enumerate(comms.worker_addresses)]
+                future_input_data[0] = future_pointer_to_input_graph
+                work_futures =  [client.submit(run_work, input_data, normalized,
+                                            endpoints, numpy_vertices,
+                                            weights, result_dtype,
+                                            comms.sessionId,
+                                            workers=[worker_address]) for
+                                (worker_idx, worker_address), input_data in zip(enumerate(comms.worker_addresses), future_input_data)]
+                dask.distributed.wait(work_futures)
+                df = work_futures[0].result()
+    if df is None:
+        handle = cugraph.raft.common.handle.Handle() #  if handle is None else handle
+        df = run_organizer_work(handle, input_graph, normalized, endpoints, numpy_vertices, weights, len(numpy_vertices), result_dtype)
 
     # For large graph unrenumbering produces a dataframe organized
     #       in buckets, i.e, if they are 3 buckets
