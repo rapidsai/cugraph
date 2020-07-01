@@ -38,11 +38,11 @@ struct remove_visited {
 };
 
 template <typename VT>
-struct bitwise_atomic_or {
+struct bfs_frontier_pred {
   unsigned * output_frontier_;
   VT * predecessors_;
 
-  bitwise_atomic_or(
+  bfs_frontier_pred(
       unsigned * output_frontier,
       VT * predecessors) :
     output_frontier_(output_frontier),
@@ -55,6 +55,35 @@ struct bitwise_atomic_or {
     //If this thread activates the frontier bitmap for a destination
     //then the source is the predecessor of that destination
     if (prev_word & active_bit == 0) {
+      predecessors_[dst] = src;
+    }
+  }
+};
+
+template <typename VT>
+struct bfs_frontier_pred_dist {
+  unsigned * output_frontier_;
+  VT * predecessors_;
+  VT * distances_;
+  VT level_;
+
+  bfs_frontier_pred_dist(
+      unsigned * output_frontier,
+      VT * predecessors,
+      VT * distances, VT level) :
+    output_frontier_(output_frontier),
+    predecessors_(predecessors),
+    distances_(distances),
+    level_(level) {}
+
+  __device__ void operator()(VT src, VT dst) {
+    unsigned active_bit = static_cast<unsigned>(1)<<(dst % BitsPWrd<unsigned>);
+    unsigned prev_word =
+      atomicOr(output_frontier_ + (dst/BitsPWrd<unsigned>), active_bit);
+    //If this thread activates the frontier bitmap for a destination
+    //then the source is the predecessor of that destination
+    if (prev_word & active_bit == 0) {
+      distances_[dst] = level_;
       predecessors_[dst] = src;
     }
   }
@@ -74,6 +103,7 @@ struct is_not_equal {
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
     cugraph::experimental::GraphCSRView<VT, ET, WT>& graph,
+    VT *distances,
     VT *predecessors,
     const VT start_vertex) {
 
@@ -89,13 +119,22 @@ void bfs(raft::handle_t const &handle,
   //Load balancer for calls to bfs functors
   LoadBalanceExecution<VT, ET, WT> lb(handle, graph);
 
-  //BFS Functor for frontier calculation
-  bitwise_atomic_or<VT> bfs_op(output_frontier.data().get(), predecessors);
-
   //Functor to check if frontier is empty
   is_not_equal neq(static_cast<unsigned>(0), frontier_not_empty.data().get());
 
   cudaStream_t stream = handle.get_stream();
+
+  //Fill predecessors with an invalid vertex id
+  thrust::fill(rmm::exec_policy(stream)->on(stream),
+      predecessors, predecessors + graph.number_of_vertices,
+      graph.number_of_vertices);
+
+  VT level = 0;
+  if (distances != nullptr) {
+    thrust::fill(rmm::exec_policy(stream)->on(stream),
+        distances, distances + graph.number_of_vertices,
+        std::numeric_limits<VT>::max());
+  }
 
   //BFS communications wrapper
   BFSCommunicator<VT, ET, WT> bfs_comm(handle, word_count);
@@ -119,7 +158,17 @@ void bfs(raft::handle_t const &handle,
         static_cast<unsigned>(0));
 
     //3. Create output frontier from input frontier
-    lb.run(bfs_op, input_frontier.data().get());
+    if (distances != nullptr) {
+      //BFS Functor for frontier calculation
+      bfs_frontier_pred_dist<VT> bfs_op(
+          output_frontier.data().get(), predecessors, distances, level++);
+      lb.run(bfs_op, input_frontier.data().get());
+    } else {
+      //BFS Functor for frontier calculation
+      bfs_frontier_pred<VT> bfs_op(
+          output_frontier.data().get(), predecessors);
+      lb.run(bfs_op, input_frontier.data().get());
+    }
 
     //3a. Combine output frontier from all GPUs
     bfs_comm.allreduce(output_frontier);
@@ -141,15 +190,43 @@ void bfs(raft::handle_t const &handle,
         input_frontier.begin(), input_frontier.end(),
         neq);
   } while (frontier_not_empty[0] == 1);
+
+  //In place reduce to collect predecessors
+  handle.get_comms().allreduce(
+      predecessors, predecessors,
+      graph.number_of_vertices,
+      raft::comms::op_t::MIN,
+      handle.get_stream());
+
+  //If the bfs loop does not assign a predecessor for a vertex
+  //then its value will be graph.number_of_vertices. This needs to be
+  //replaced by invalid vertex id to denote that a vertex does have
+  //a predecessor
+  thrust::replace(rmm::exec_policy(stream)->on(stream),
+      predecessors, predecessors + graph.number_of_vertices,
+      graph.number_of_vertices,
+      cugraph::experimental::invalid_vertex_id<VT>::value);
+
+  if (distances != nullptr) {
+    //In place reduce to collect predecessors
+    handle.get_comms().allreduce(
+        distances, distances,
+        graph.number_of_vertices,
+        raft::comms::op_t::MIN,
+        handle.get_stream());
+  }
+
 }
 
 template void bfs(raft::handle_t const &handle,
     cugraph::experimental::GraphCSRView<int, int, float> &graph,
+    int *distances,
     int *predecessors,
     const int start_vertex);
 
 template void bfs(raft::handle_t const &handle,
     cugraph::experimental::GraphCSRView<int, int, double> &graph,
+    int *distances,
     int *predecessors,
     const int start_vertex);
 
