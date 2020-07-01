@@ -19,12 +19,42 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <type_traits>
 
 namespace cugraph {
 namespace experimental {
 namespace detail {
 
 // FIXME: Better move this to RAFT
+
+template <typename T>
+struct is_atomically_addable {
+  static constexpr bool value = std::is_floating_point<T>::value ||
+                         (std::is_integral<T>::value && ((sizeof(T) == 4) || (sizeof(T) == 8)));
+};
+
+template <typename T>
+__device__ std::enable_if_t<std::is_floating_point<T>::value, T> atomic_add(T* ptr, T val)
+{
+  return atomicAdd(ptr, val);
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_integral<T>::value && (sizeof(T) == 4), T> atomic_add(T* ptr,
+                                                                                         T val)
+{
+  static_assert(sizeof(unsigned int) == 4);
+  return T{atomicAdd(reinterpret_cast<unsigned int*>(ptr), static_cast<unsigned int>(val))};
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_integral<T>::value && (sizeof(T) == 8), T> atomic_add(T* ptr,
+                                                                                          T val)
+{
+  static_assert(sizeof(unsigned long long) == 8);
+  return T{atomicAdd(reinterpret_cast<unsigned long long int*>(ptr),
+                     static_cast<unsigned long long int>(val))};
+}
 
 /**
  * @brief Size of a warp in a CUDA kernel.
