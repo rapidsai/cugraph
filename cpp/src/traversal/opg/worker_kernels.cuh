@@ -57,7 +57,7 @@ void large_vertex_worker(
     Operator op,
     cudaStream_t stream) {
   int block_size = 32;
-  int block_count = 1024;
+  int block_count = bucket.numberOfVertices * (1<<(bucket.ceilLogDegreeStart - 5));
   if (bucket.numberOfVertices != 0) {
     kernel_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(
         graph,
@@ -93,6 +93,8 @@ void medium_vertex_worker(
     DegreeBucket<VT, ET>& bucket,
     Operator op,
     cudaStream_t stream) {
+  //Vertices with degrees 2^12 <= d < 2^16 are handled by this kernel
+  //Block size of 1024 is chosen to reduce wasted threads for a vertex
   int block_size = 1024;
   int block_count = bucket.numberOfVertices;
   if (block_count != 0) {
@@ -115,6 +117,11 @@ void small_vertex_worker(
   else if (bucket.ceilLogDegreeEnd <  8)  { block_size =  64; }
   else if (bucket.ceilLogDegreeEnd < 10)  { block_size = 128; }
   else if (bucket.ceilLogDegreeEnd < 12)  { block_size = 512; }
+  //For vertices with degree <= 32 block size of 32 is chosen
+  //For all vertices with degree d such that 2^x <= d < 2^x+1
+  //the block size is chosen to be 2^x. This is done so that
+  //vertices with degrees 1.5*2^x are also handled in a load
+  //balanced way
   int block_count = bucket.numberOfVertices;
   if (block_count != 0) {
     block_per_vertex_worker_weightless<<<block_count,block_size,0,stream>>>(

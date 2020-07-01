@@ -148,6 +148,11 @@ template void bfs(raft::handle_t const &handle,
     int *predecessors,
     const int start_vertex);
 
+template void bfs(raft::handle_t const &handle,
+    cugraph::experimental::GraphCSRView<int, int, double> &graph,
+    int *predecessors,
+    const int start_vertex);
+
 
 }//namespace opg
 
