@@ -102,7 +102,7 @@ def betweenness_centrality(G, k=None, normalized=True,
     # workaround.
 
     # TODO(xcadet): Get rid of the k parameter after updating edge betweenness
-    vertices, _= _initialize_vertices(G, k, seed)
+    vertices, _ = _initialize_vertices(G, k, seed)
 
     if weight is not None:
         raise NotImplementedError("weighted implementation of betweenness "

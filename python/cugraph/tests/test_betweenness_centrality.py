@@ -24,7 +24,6 @@ import random
 import numpy as np
 import cupy
 import cudf
-import rmm
 
 # TODO(xcadet): Unable to access the get_visible devices from
 # cugraph.dask.pagerank.core, remove os import later and os.environ call
