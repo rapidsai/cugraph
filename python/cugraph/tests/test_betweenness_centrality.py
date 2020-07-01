@@ -25,11 +25,6 @@ import numpy as np
 import cupy
 import cudf
 
-# TODO(xcadet): Unable to access the get_visible devices from
-# cugraph.dask.pagerank.core, remove os import later and os.environ call
-import os
-
-
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
@@ -40,8 +35,6 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-# NOTE: Endpoint parameter is not currently being tested, there could be a test
-#       to verify that python raise an error if it is used
 # =============================================================================
 # Parameters
 # =============================================================================
@@ -49,11 +42,6 @@ DIRECTED_GRAPH_OPTIONS = [False, True]
 ENDPOINTS_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
-
-# FIXME: Should we check 1 and 3 ?
-# 1 could be automatically disabled and fallback on regular path
-# even if there is a cluster?
-OPG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 
 DATASETS = ['../datasets/karate.csv',
             '../datasets/netscience.csv']
@@ -331,48 +319,9 @@ class OPGContext:
         if self._client is not None:
             self._client.close()
         if self._cluster is not None:
-            # TODO: Sometimes it crashes on a close due to a timeout on the
+            # FIXME: Sometimes it crashes on a close due to a timeout on the
             #       cluster
-            try:
-                self._cluster.close()
-            except IOError as e:
-                print("[ERR] There is an issue when trying "
-                      "to close the cluster", e)
-
-
-@pytest.mark.parametrize('opg_device_count', OPG_DEVICE_COUNT_OPTIONS)
-@pytest.mark.parametrize('graph_file', DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
-@pytest.mark.parametrize('normalized', NORMALIZED_OPTIONS)
-@pytest.mark.parametrize('weight', [None])
-@pytest.mark.parametrize('endpoints', ENDPOINTS_OPTIONS)
-@pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
-@pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-def test_opg_betweenness_centrality(opg_device_count,
-                                    graph_file,
-                                    directed,
-                                    subset_size,
-                                    normalized,
-                                    weight,
-                                    endpoints,
-                                    subset_seed,
-                                    result_dtype):
-    prepare_test()
-    visible_devices = os.environ["CUDA_VISIBLE_DEVICES"].strip().split(",")
-    number_of_visible_devices = len(visible_devices)
-    if opg_device_count > number_of_visible_devices:
-        pytest.skip("Not enough devices available to test OPG")
-    with OPGContext(opg_device_count):
-        sorted_df = calc_betweenness_centrality(graph_file,
-                                                directed=directed,
-                                                normalized=normalized,
-                                                k=subset_size,
-                                                weight=weight,
-                                                endpoints=endpoints,
-                                                seed=subset_seed,
-                                                result_dtype=result_dtype)
-        compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
+            self._cluster.close()
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
@@ -494,7 +443,7 @@ def test_betweenness_invalid_dtype(graph_file,
                                    endpoints,
                                    subset_seed,
                                    result_dtype):
-    """Test calls edge_betwenness_centrality an invalid type"""
+    """Test calls betwenness_centrality an invalid type"""
 
     prepare_test()
     with pytest.raises(TypeError):
