@@ -56,7 +56,7 @@ done
 
 echo "Python py.test for cuGraph..."
 cd ${CUGRAPH_ROOT}/python
-py.test --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term
+py.test --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v
 ERRORCODE=$((ERRORCODE | $?))
 
 exit ${ERRORCODE}
