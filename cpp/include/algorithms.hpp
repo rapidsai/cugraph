@@ -642,7 +642,7 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
          VT ensemble_size,
          VT *ecg_parts);
 
-namespace nvgraph {
+namespace triangle {
 
 /**
  * @brief             Count the number of triangles in the graph
@@ -707,7 +707,7 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
  * @param[out] clustering            Pointer to device memory where the resulting clustering will be
  * stored
  */
-}  // namespace nvgraph
+}  // namespace triangle
 
 namespace ext_raft {
 template <typename VT, typename ET, typename WT>

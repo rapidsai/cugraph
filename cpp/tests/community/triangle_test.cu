@@ -55,11 +55,8 @@ TEST(triangle, dolphin)
 
   uint64_t count{0};
 
-  // ASSERT_NO_THROW((count = cugraph::nvgraph::triangle_count<int32_t, int32_t,
-  // float>(graph_csr)));
-
   try {
-    count = cugraph::nvgraph::triangle_count<int32_t, int32_t, float>(graph_csr);
+    count = cugraph::triangle::triangle_count<int32_t, int32_t, float>(graph_csr);
   } catch (std::exception& e) {
     std::cout << "Exception: " << e.what() << std::endl;
   }
