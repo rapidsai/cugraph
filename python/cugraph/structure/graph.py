@@ -15,7 +15,9 @@ from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
+from cugraph.dask.common.input_utils import get_local_data
 import cudf
+import dask_cudf
 import numpy as np
 import warnings
 
@@ -84,6 +86,7 @@ class Graph:
         self.renumbered = False
         self.bipartite = bipartite
         self.multi = multi
+        self.distributed = False
         self.dynamic = dynamic
         self.edgelist = None
         self.adjlist = None
@@ -212,7 +215,52 @@ class Graph:
             self.from_cudf_edgelist(input_df)
 
     def from_dask_cudf_edgelist(self, input_ddf):
-        self.edgelist = self.EdgeList(input_ddf)
+        """
+        Initializes the distributed graph from the dask_cudf.DataFrame
+        edgelist. Renumbering and undirected Graphs are not currently
+        supported.
+        Parameters
+        ----------
+        input_ddf : dask_cudf.DataFrame
+            The edgelist as a dask_cudf.DataFrame
+        """
+        if self.edgelist is not None or self.adjlist is not None:
+            raise Exception('Graph already has values')
+        if type(self) is Graph:
+            raise Exception('Undirected distributed graph not supported')
+        if isinstance(input_ddf, dask_cudf.DataFrame):
+            self.distributed = True
+            self.local_data = None
+            self.edgelist = self.EdgeList(input_ddf)
+        else:
+            raise Exception('input should be a dask_cudf dataFrame')
+
+    def compute_local_data(self, by, load_balance=True):
+        """
+        Compute the local edges, vertices and offsets for a distributed
+        graph stored as a dask-cudf dataframe and initialize the
+        communicator. Performs global sorting and load_balancing.
+
+        Parameters
+        ----------
+        by : str
+            by argument is the column by which we want to sort and
+            partition. It should be the source column name for generating
+            CSR format and destination column name for generating CSC
+            format.
+        load_balance : bool
+            Set as True to perform load_balancing after global sorting of
+            dask-cudf DataFrame. This ensures that the data is uniformly
+            distributed among multiple GPUs to avoid over-loading.
+        """
+        if self.distributed:
+            data, comms = get_local_data(self, by, load_balance)
+            self.local_data = {}
+            self.local_data['data'] = data
+            self.local_data['comms'] = comms
+            self.local_data['by'] = by
+        else:
+            raise Exception('Graph should be a distributed graph')
 
     def view_edge_list(self):
         """
@@ -248,6 +296,10 @@ class Graph:
             For weighted graphs, dataframe contains 'weight' column
             containing the weight value for each edge.
         """
+        if self.distributed:
+            if self.edgelist is None:
+                raise Exception("Graph has no Edgelist.")
+            return self.edgelist.edgelist_df
         if self.edgelist is None:
             src, dst, weights = graph_new_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
@@ -263,12 +315,14 @@ class Graph:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
                 df = cudf.DataFrame()
                 ncols = len(edgelist_df.columns) - 2
-                unrnb_df_ = edgelist_df.merge(self.edgelist.renumber_map,
-                                              left_on='src', right_on='id',
-                                              how='left').drop(['id', 'src'])
-                unrnb_df = unrnb_df_.merge(self.edgelist.renumber_map,
-                                           left_on='dst', right_on='id',
-                                           how='left').drop(['id', 'dst'])
+                unrnb_df = edgelist_df.merge(
+                    self.edgelist.renumber_map,
+                    left_on='src', right_on='id', how='left'
+                ).drop(['id', 'src']).rename(columns={'0': 'src'}, copy=False)
+                unrnb_df = unrnb_df.merge(
+                    self.edgelist.renumber_map,
+                    left_on='dst', right_on='id', how='left'
+                ).drop(['id', 'dst']).rename(columns={'0': 'dst'}, copy=False)
                 cols = unrnb_df.columns.to_list()
                 df = unrnb_df[cols[ncols:]+cols[0:ncols]]
             else:
@@ -371,6 +425,8 @@ class Graph:
             The expected type of the gdf_column element is floating point
             number.
         """
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
         if self.adjlist is None:
             if self.transposedadjlist is not None and type(self) is Graph:
                 off, ind, vals = (self.transposedadjlist.offsets,
@@ -406,6 +462,8 @@ class Graph:
             number.
 
         """
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
         if self.transposedadjlist is None:
             if self.adjlist is not None and type(self) is Graph:
                 off, ind, vals = (self.adjlist.offsets, self.adjlist.indices,
@@ -438,6 +496,8 @@ class Graph:
                 the second vertex id of a pair.
 
         """
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
         df = graph_new_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
             if isinstance(self.edgelist.renumber_map, cudf.DataFrame):
@@ -469,13 +529,21 @@ class Graph:
 
         """
         if self.node_count is None:
-            if self.adjlist is not None:
+            if self.distributed:
+                if self.edgelist is not None:
+                    ddf = self.edgelist.edgelist_df[['src', 'dst']]
+                    self.node_count = ddf.max().max().compute() + 1
+                else:
+                    raise Exception("Graph is Empty")
+            elif self.adjlist is not None:
                 self.node_count = len(self.adjlist.offsets)-1
             elif self.transposedadjlist is not None:
                 self.node_count = len(self.transposedadjlist.offsets)-1
             elif self.edgelist is not None:
                 df = self.edgelist.edgelist_df[['src', 'dst']]
                 self.node_count = df.max().max() + 1
+            else:
+                raise Exception("Graph is Empty")
         return self.node_count
 
     def number_of_nodes(self):
@@ -491,6 +559,11 @@ class Graph:
         Get the number of edges in the graph.
 
         """
+        if self.distributed:
+            if self.edgelist is not None:
+                return len(self.edgelist.edgelist_df)
+            else:
+                raise ValueError('Graph is Empty')
         if directed_edges and self.edgelist is not None:
             return len(self.edgelist.edgelist_df)
         if self.edge_count is None:
@@ -588,6 +661,8 @@ class Graph:
         >>> df = G.out_degree([0,9,12])
 
         """
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
         return self._degree(vertex_subset, x=2)
 
     def degree(self, vertex_subset=None):
@@ -627,6 +702,8 @@ class Graph:
         >>> df = G.degree([0,9,12])
 
         """
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
         return self._degree(vertex_subset)
 
     def degrees(self, vertex_subset=None):
@@ -664,6 +741,8 @@ class Graph:
         >>> df = G.degrees([0,9,12])
 
         """
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
         vertex_col, in_degree_col, out_degree_col = graph_new_wrapper._degrees(
                                                         self)
 
@@ -701,7 +780,6 @@ class Graph:
 
     def _degree(self, vertex_subset, x=0):
         vertex_col, degree_col = graph_new_wrapper._degree(self, x)
-
         df = cudf.DataFrame()
         if vertex_subset is None:
             if self.renumbered is True:
@@ -749,7 +827,8 @@ class Graph:
         >>> DiG = G.to_directed()
 
         """
-
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
         if type(self) is DiGraph:
             return self
         if type(self) is Graph:
@@ -779,7 +858,8 @@ class Graph:
         >>> G = DiG.to_undirected()
 
         """
-
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
         if type(self) is Graph:
             return self
         if type(self) is DiGraph:
@@ -809,7 +889,11 @@ class Graph:
         """
         Returns True if the graph contains the node n.
         """
-
+        if self.edgelist is None:
+            raise Exception("Graph has no Edgelist.")
+        if self.distributed:
+            ddf = self.edgelist.edgelist_df[['src', 'dst']]
+            return (ddf == n).any().any().compute()
         if self.renumbered:
             return (self.edgelist.renumber_map == n).any()
         else:
@@ -820,7 +904,8 @@ class Graph:
         """
         Returns True if the graph contains the edge (u,v).
         """
-
+        if self.edgelist is None:
+            raise Exception("Graph has no Edgelist.")
         if self.renumbered:
             src = self.edgelist.renumber_map.index[self.edgelist.
                                                    renumber_map == u]
@@ -832,6 +917,8 @@ class Graph:
                 u = src[0]
                 v = dst[0]
         df = self.edgelist.edgelist_df
+        if self.distributed:
+            return ((df['src'] == u) & (df['dst'] == v)).any().compute()
         return ((df['src'] == u) & (df['dst'] == v)).any()
 
     def edges(self):
@@ -846,6 +933,10 @@ class Graph:
         """
         Returns all the nodes in the graph as a cudf.Series
         """
+        if self.distributed:
+            raise Exception("Not supported for distributed graph")
+        if self.edgelist is None:
+            raise Exception("Graph has no Edgelist.")
         df = self.edgelist.edgelist_df
         n = cudf.concat([df['src'], df['dst']]).unique()
         if self.renumbered:
@@ -854,7 +945,11 @@ class Graph:
             return n
 
     def neighbors(self, n):
-
+        if self.edgelist is None:
+            raise Exception("Graph has no Edgelist.")
+        if self.distributed:
+            ddf = self.edgelist.edgelist_df
+            return ddf[ddf['src'] == n]['dst'].reset_index(drop=True)
         if self.renumbered:
             node = self.edgelist.renumber_map.index[self.edgelist.
                                                     renumber_map == n]

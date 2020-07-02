@@ -21,8 +21,10 @@ from collections import OrderedDict
 from dask_cudf.core import DataFrame as dcDataFrame
 from dask_cudf.core import Series as daskSeries
 
+from cugraph.raft.dask.common.comms import Comms
 from cugraph.raft.dask.common.utils import get_client
-from cugraph.dask.common.part_utils import _extract_partitions
+from cugraph.dask.common.part_utils import (_extract_partitions,
+                                            load_balance_func)
 from dask.distributed import default_client
 from toolz import first
 
@@ -58,6 +60,7 @@ class DistributedDataHandler:
         self.total_rows = None
         self.ranks = None
         self.parts_to_sizes = None
+        self.local_data = None
 
     @classmethod
     def get_client(cls, client=None):
@@ -132,15 +135,16 @@ class DistributedDataHandler:
 
             self.total_rows += total
 
-    def calculate_local_data(self, comms):
+    def calculate_local_data(self, comms, by):
 
         if self.worker_info is None and comms is not None:
             self.calculate_worker_and_rank_info(comms)
 
         local_data = dict([(self.worker_info[wf[0]]["rank"],
                             self.client.submit(
-                            get_local_data,
+                            _get_local_data,
                             wf[1],
+                            by,
                             workers=[wf[0]]))
                           for idx, wf in enumerate(self.worker_to_parts.items()
                                                    )])
@@ -160,7 +164,7 @@ class DistributedDataHandler:
                                               dtype=np.int32)
         local_data_dict['verts'] = np.array(local_data_dict['verts'],
                                             dtype=np.int32)
-        return local_data_dict
+        self.local_data = local_data_dict
 
 
 """ Internal methods, API subject to change """
@@ -187,9 +191,23 @@ def _get_rows(objs, multiple):
     return total, reduce(lambda a, b: a + b, total)
 
 
-def get_local_data(df):
+def _get_local_data(df, by):
     df = df[0]
     num_local_edges = len(df)
-    local_offset = df['dst'].min()
-    num_local_verts = df['dst'].max() - local_offset + 1
+    local_offset = df[by].min()
+    num_local_verts = df[by].max() - local_offset + 1
     return num_local_edges, local_offset, num_local_verts
+
+
+def get_local_data(input_graph, by, load_balance=True):
+    _ddf = input_graph.edgelist.edgelist_df
+    ddf = _ddf.sort_values(by=by, ignore_index=True)
+
+    if load_balance:
+        ddf = load_balance_func(ddf, by=by)
+
+    data = DistributedDataHandler.create(data=ddf)
+    comms = Comms(comms_p2p=False)
+    comms.init(data.workers)
+    data.calculate_local_data(comms, by)
+    return data, comms

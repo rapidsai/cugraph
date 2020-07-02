@@ -13,37 +13,120 @@
 # limitations under the License.
 #
 
-from cugraph.raft.dask.common.comms import Comms
-from cugraph.dask.common.input_utils import DistributedDataHandler
 from dask.distributed import wait, default_client
+from cugraph.dask.common.input_utils import get_local_data
 from cugraph.raft.dask.common.comms import worker_state
 from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
+import warnings
 
 
-def common_func(sID, data, local_data):
-    print("Dataframe: ", data)
-    print("local data: ", local_data)
+def call_pagerank(sID, data, local_data, alpha, max_iter,
+                  tol, personalization, nstart):
     sessionstate = worker_state(sID)
-    mg_pagerank.mg_pagerank(data[0], local_data, sessionstate['handle'])
-    return 1
+    return mg_pagerank.mg_pagerank(data[0],
+                                   local_data,
+                                   sessionstate['wid'],
+                                   sessionstate['handle'],
+                                   alpha,
+                                   max_iter,
+                                   tol,
+                                   personalization,
+                                   nstart)
 
 
-def pagerank(input_graph):
-    print("INSIDE DASK PAGERANK")
+def pagerank(input_graph,
+             alpha=0.85,
+             personalization=None,
+             max_iter=100,
+             tol=1.0e-5,
+             nstart=None,
+             load_balance=True):
+
+    """
+    Find the PageRank values for each vertex in a graph using multiple GPUs.
+    cuGraph computes an approximation of the Pagerank using the power method.
+    The input graph must contain edge list as  dask-cudf dataframe with
+    one partition per GPU.
+
+    Parameters
+    ----------
+    graph : cugraph.DiGraph
+        cuGraph graph descriptor, should contain the connectivity information
+        as dask cudf edge list dataframe(edge weights are not used for this
+        algorithm). Undirected Graph not currently supported.
+    alpha : float
+        The damping factor alpha represents the probability to follow an
+        outgoing edge, standard value is 0.85.
+        Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
+        Alpha should be greater than 0.0 and strictly lower than 1.0.
+    max_iter : int
+        The maximum number of iterations before an answer is returned.
+        If this value is lower or equal to 0 cuGraph will use the default
+        value, which is 30.
+    tolerance : float
+        Currently not supported. Set to default value 1.0e-5.
+    personalization : cudf.Dataframe
+        GPU Dataframe containing the personalizatoin information.
+        Currently not supported.
+    nstart : cudf.Dataframe
+        GPU Dataframe containing the initial guess for pagerank.
+        Currently not supported.
+
+    Returns
+    -------
+    PageRank : cudf.DataFrame
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding PageRank values.
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df['pagerank'] : cudf.Series
+            Contains the PageRank score
+
+    Examples
+    --------
+    >>> import cugraph.dask as dcg
+    >>> chunksize = dcg.get_chunksize(input_data_path)
+    >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
+                                 delimiter=' ',
+                                 names=['src', 'dst', 'value'],
+                                 dtype=['int32', 'int32', 'float32'])
+    >>> dg = cugraph.DiGraph()
+    >>> dg.from_dask_cudf_edgelist(ddf)
+    >>> pr = dcg.pagerank(dg)
+    """
+
+    if tol != 1.0e-5:
+        warnings.warn("Tolerance is currently not supported. \
+Setting it to default 1.0e-5")
+    tol = 1.0e-5
+    if personalization is not None or nstart is not None:
+        warnings.warn("personalization and nstart currently not \
+supported. Setting them to None")
+    personalization = None
+    nstart = None
+
     client = default_client()
-    _ddf = input_graph.edgelist.edgelist_df
-    ddf = _ddf.sort_values(by='dst', ignore_index=True)
-    data = DistributedDataHandler.create(data=ddf)
-    comms = Comms(comms_p2p=False)
-    comms.init(data.workers)
-    local_data = data.calculate_local_data(comms)
-    print("Calling function")
+
+    if(input_graph.local_data is not None and
+       input_graph.local_data['by'] == 'dst'):
+        data = input_graph.local_data['data']
+        comms = input_graph.local_data['comms']
+    else:
+        data, comms = get_local_data(input_graph, by='dst')
+
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
-            common_func,
+            call_pagerank,
             comms.sessionId,
             wf[1],
-            local_data,
+            data.local_data,
+            alpha,
+            max_iter,
+            tol,
+            personalization,
+            nstart,
             workers=[wf[0]]))
             for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
+
+    return result[0].result()

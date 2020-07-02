@@ -127,12 +127,12 @@ def test_hits(graph_file, max_iter, tol):
     #  Sort by hubs (cugraph) in descending order.  Then we'll
     #  check to make sure all scores are in descending order.
     #
-    cugraph_hits = cugraph_hits.sort_values('hubs', False)
+    cugraph_hits = cugraph_hits.sort_values('hubs', ascending=False)
 
     assert cugraph_hits['hubs'].is_monotonic_decreasing
     assert cugraph_hits['nx_hubs'].is_monotonic_decreasing
 
-    cugraph_hits = cugraph_hits.sort_values('authorities', False)
+    cugraph_hits = cugraph_hits.sort_values('authorities', ascending=False)
 
     assert cugraph_hits['authorities'].is_monotonic_decreasing
     assert cugraph_hits['nx_authorities'].is_monotonic_decreasing
