@@ -215,6 +215,15 @@ class Graph:
             self.from_cudf_edgelist(input_df)
 
     def from_dask_cudf_edgelist(self, input_ddf):
+        """
+        Initializes the distributed graph from the dask_cudf.DataFrame
+        edgelist. Renumbering and undirected Graphs are not currently
+        supported.
+        Parameters
+        ----------
+        input_ddf : dask_cudf.DataFrame
+            The edgelist as a dask_cudf.DataFrame
+        """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
         if type(self) is Graph:
@@ -226,9 +235,26 @@ class Graph:
         else:
             raise Exception('input should be a dask_cudf dataFrame')
 
-    def compute_local_data(self, by):
+    def compute_local_data(self, by, load_balance=True):
+        """
+        Compute the local edges, vertices and offsets for a distributed
+        graph stored as a dask-cudf dataframe and initialize the
+        communicator. Performs global sorting and load_balancing.
+
+        Parameters
+        ----------
+        by : str
+            by argument is the column by which we want to sort and
+            partition. It should be the source column name for generating
+            CSR format and destination column name for generating CSC
+            format.
+        load_balance : bool
+            Set as True to perform load_balancing after global sorting of
+            dask-cudf DataFrame. This ensures that the data is uniformly
+            distributed among multiple GPUs to avoid over-loading.
+        """
         if self.distributed:
-            data, comms = get_local_data(self, by)
+            data, comms = get_local_data(self, by, load_balance)
             self.local_data = {}
             self.local_data['data'] = data
             self.local_data['comms'] = comms

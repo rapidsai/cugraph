@@ -172,6 +172,9 @@ def get_cumsum(df, by):
 
 
 def repartition(ddf, cumsum):
+    # Calculate new optimal divisions and repartition the data
+    # for load balancing.
+
     import math
     npartitions = ddf.npartitions
     count = math.ceil(len(ddf)/npartitions)
@@ -193,10 +196,14 @@ def repartition(ddf, cumsum):
     new_divisions.append(new_divisions[i+1] +
                          cumsum[-1].iloc[-1] +
                          move_count - 1)
+
     return ddf.repartition(divisions=tuple(new_divisions))
 
 
 def load_balance_func(ddf_, by, client=None):
+    # Load balances the sorted dask_cudf DataFrame.
+    # Input is a dask_cudf dataframe ddf_ which is sorted by
+    # the column name passed as the 'by' argument.
 
     client = default_client() if client is None else client
 
@@ -210,6 +217,7 @@ def load_balance_func(ddf_, by, client=None):
                      part.key[1], part) for key, part in key_to_part]
     worker_to_data = create_dict(gpu_fututres)
 
+    # Calculate cumulative sum in each dataframe partition
     cumsum_parts = [client.submit(get_cumsum,
                     wf[1][0][0],
                     by,
@@ -220,10 +228,13 @@ def load_balance_func(ddf_, by, client=None):
     for cumsum in cumsum_parts:
         num_rows.append(cumsum.iloc[-1])
 
+    # Calculate current partition divisions
     divisions = [sum(num_rows[0:x:1]) for x in range(0, len(num_rows) + 1)]
     divisions[-1] = divisions[-1] - 1
     divisions = tuple(divisions)
 
+    # Set global index from 0 to len(dask_cudf_dataframe) so that global
+    # indexing of divisions can be used for repartitioning.
     futures = [client.submit(set_global_index,
                wf[1][0][0],
                divisions[wf[1][0][1]],
@@ -233,5 +244,8 @@ def load_balance_func(ddf_, by, client=None):
 
     ddf = dc.from_delayed(futures)
     ddf.divisions = divisions
+
+    # Repartition the data
     ddf = repartition(ddf, cumsum_parts)
+
     return ddf
