@@ -661,7 +661,9 @@ namespace triangle {
  */
 template <typename VT, typename ET, typename WT>
 uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph);
+}  // namespace triangle
 
+namespace subgraph {
 /**
  * @brief             Extract subgraph by vertices
  *
@@ -707,7 +709,7 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
  * @param[out] clustering            Pointer to device memory where the resulting clustering will be
  * stored
  */
-}  // namespace triangle
+}  // namespace subgraph
 
 namespace ext_raft {
 template <typename VT, typename ET, typename WT>
