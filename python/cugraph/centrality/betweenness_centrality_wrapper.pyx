@@ -236,6 +236,7 @@ class CommsContext:
 
     def __enter__(self):
         self._comms.init()
+        return self
 
     def __exit__(self, type, value, traceback):
         self._comms.destroy()
@@ -260,6 +261,7 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     client = opg_get_client()
     comms = opg_get_comms_using_client(client)
     df = None
+    print("[DBG] Client:", client)
     if comms:
         with CommsContext(comms):
             if len(comms.worker_addresses) > 1: # Fall back to regular BC otherwise

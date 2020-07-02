@@ -298,6 +298,7 @@ class OPGContext:
 
     def __enter__(self):
         self._prepare_opg(self._number_of_devices)
+        return self
 
     def __exit__(self, type, value, traceback):
         self._close()
