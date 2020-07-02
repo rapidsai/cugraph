@@ -15,9 +15,6 @@ import gc
 
 import pytest
 
-import dask_cuda
-import dask.distributed
-
 import cugraph
 from cugraph.tests import utils
 import random
@@ -285,44 +282,6 @@ def test_betweenness_centrality(graph_file,
                                             seed=subset_seed,
                                             result_dtype=result_dtype)
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
-
-
-# TODO(xcadet) This should probably be moved to an util file
-# TODO(xcadet) After roughly 100 calls  one of the calls ends up hanging
-class OPGContext:
-    def __init__(self, number_of_devices, dashboard_address=8081):
-        self._number_of_devices = number_of_devices
-        self._cluster = None
-        self._client = None
-        self._dashboard_address = dashboard_address
-
-    def __enter__(self):
-        self._prepare_opg(self._number_of_devices)
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self._close()
-
-    def _prepare_opg(self, opg_device_count):
-        if opg_device_count > 0:
-            self._prepare_cluster()
-            self._prepare_client()
-
-    def _prepare_cluster(self):
-        self._cluster = dask_cuda.LocalCUDACluster(
-            n_workers=self._number_of_devices,
-            dashboard_address=self._dashboard_address)
-
-    def _prepare_client(self):
-        self._client = dask.distributed.Client(self._cluster)
-
-    def _close(self):
-        if self._client is not None:
-            self._client.close()
-        if self._cluster is not None:
-            # FIXME: Sometimes it crashes on a close due to a timeout on the
-            #       cluster
-            self._cluster.close()
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
