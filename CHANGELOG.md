@@ -22,6 +22,7 @@
 - PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
 - PR #954 Update cuGraph error handling to use RAFT
 - PR #959 Add support for uint32_t and int64_t types for BFS (cpp side)
+- PR #962 Update dask pagerank
 - PR #975 Upgrade GitHub template
 - PR #976 Fix error in Graph.edges(), update cuDF rename() calls
 - PR #977 Update force_atlas2 to call on_train_end after iterating
