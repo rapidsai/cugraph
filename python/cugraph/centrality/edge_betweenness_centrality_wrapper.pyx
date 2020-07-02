@@ -81,7 +81,8 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
         graph_float.prop.directed = type(input_graph) is DiGraph
 
         c_edge_betweenness_centrality[int, int,
-                                      float, float](graph_float,
+                                      float, float](get_default_raft_handle(),
+                                                    graph_float,
                                                     <float*> c_betweenness,
                                                     normalized,
                                                     <float*> c_weight,
@@ -95,7 +96,8 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
         graph_double.prop.directed = type(input_graph) is DiGraph
 
         c_edge_betweenness_centrality[int, int,
-                                      double, double](graph_double,
+                                      double, double](get_default_raft_handle(),
+                                                      graph_double,
                                                       <double*> c_betweenness,
                                                       normalized,
                                                       <double*> c_weight,

@@ -79,7 +79,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         # FIXME: There might be a way to avoid manually setting the Graph property
         graph_float.prop.directed = type(input_graph) is DiGraph
 
-        c_betweenness_centrality[int, int, float, float](graph_float,
+        c_betweenness_centrality[int, int, float, float](get_default_raft_handle(),
+                                                         graph_float,
                                                          <float*> c_betweenness,
                                                          normalized, endpoints,
                                                          <float*> c_weight, c_k,
@@ -90,7 +91,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         # FIXME: There might be a way to avoid manually setting the Graph property
         graph_double.prop.directed = type(input_graph) is DiGraph
 
-        c_betweenness_centrality[int, int, double, double](graph_double,
+        c_betweenness_centrality[int, int, double, double](get_default_raft_handle(),
+                                                           graph_double,
                                                            <double*> c_betweenness,
                                                            normalized, endpoints,
                                                            <double*> c_weight, c_k,

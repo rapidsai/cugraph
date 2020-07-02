@@ -94,7 +94,8 @@ def bfs(input_graph, start, directed=True,
                                             num_edges)
     graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
     # Different pathing wether shortest_path_counting is required or not
-    c_bfs.bfs[int, int, float](graph_float,
+    c_bfs.bfs[int, int, float](get_default_raft_handle(),
+                               graph_float,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
                                <double*> c_sp_counter_ptr,
