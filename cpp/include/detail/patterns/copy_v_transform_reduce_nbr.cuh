@@ -45,8 +45,7 @@ __device__ std::enable_if_t<update_major, void> accumulate_edge_op_result(T& lhs
 }
 
 template <bool update_major, typename T>
-__device__ std::enable_if_t<!update_major, void>
-accumulate_edge_op_result(T& lhs, T const& rhs)
+__device__ std::enable_if_t<!update_major, void> accumulate_edge_op_result(T& lhs, T const& rhs)
 {
   cugraph::experimental::detail::atomic_add(&lhs, rhs);
 }
@@ -65,7 +64,9 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   ResultValueOutputIterator result_value_output_first,
-  EdgeOp e_op)
+  EdgeOp e_op,
+  typename std::iterator_traits<ResultValueOutputIterator>::value_type
+    init /* relevent only if update_major == true */)
 {
   using vertex_t      = typename GraphType::vertex_type;
   using weight_t      = typename GraphType::weight_type;
@@ -85,7 +86,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
     weight_t const* weights{nullptr};
     vertex_t local_degree{};
     thrust::tie(indices, weights, local_degree) = graph_device_view.get_local_edges(major_offset);
-    e_op_result_t e_op_result_sum{};  //
+    e_op_result_t e_op_result_sum{init};  // relevent only if update_major == true
     for (vertex_t i = 0; i < local_degree; ++i) {
       auto minor_vid = indices[i];
       auto weight    = weights != nullptr ? weights[i] : weight_t{1.0};
@@ -107,7 +108,8 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       if (update_major) {
         accumulate_edge_op_result<update_major>(e_op_result_sum, e_op_result);
       } else {
-        accumulate_edge_op_result<update_major>(*(result_value_output_first + minor_offset), e_op_result);
+        accumulate_edge_op_result<update_major>(*(result_value_output_first + minor_offset),
+                                                e_op_result);
       }
     }
     if (update_major) { *(result_value_output_first + idx) = e_op_result_sum; }
@@ -126,16 +128,18 @@ template <typename HandleType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename VertexValueOutputIterator,
-          typename EdgeOp,
-          typename T>
-void copy_v_transform_reduce_in_nbr(HandleType& handle,
-                                    GraphType const& graph_device_view,
-                                    AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-                                    AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-                                    VertexValueOutputIterator vertex_value_output_first,
-                                    EdgeOp e_op,
-                                    T init)
+          typename EdgeOp>
+void copy_v_transform_reduce_in_nbr(
+  HandleType& handle,
+  GraphType const& graph_device_view,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  VertexValueOutputIterator vertex_value_output_first,
+  EdgeOp e_op,
+  typename std::iterator_traits<VertexValueOutputIterator>::value_type init)
 {
+  using T = typename std::iterator_traits<VertexValueOutputIterator>::value_type;
+
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(GraphType::is_adj_matrix_transposed ||
                 cugraph::experimental::detail::is_atomically_addable<T>::value);
@@ -151,7 +155,7 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
       thrust::fill(thrust::cuda::par.on(handle.get_stream()),
                    vertex_value_output_first,
                    vertex_value_output_first + graph_device_view.get_number_of_local_vertices(),
-                   T{});
+                   init);
     }
 
     assert(graph_device_view.get_number_of_local_vertices() ==
@@ -166,7 +170,8 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
         adj_matrix_row_value_input_first,
         adj_matrix_col_value_input_first,
         vertex_value_output_first,
-        e_op);
+        e_op,
+        init);
   }
 }
 
@@ -175,8 +180,7 @@ template <typename HandleType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename VertexValueOutputIterator,
-          typename EdgeOp,
-          typename T>
+          typename EdgeOp>
 void copy_v_transform_reduce_out_nbr(
   HandleType& handle,
   GraphType const& graph_device_view,
@@ -184,8 +188,10 @@ void copy_v_transform_reduce_out_nbr(
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   VertexValueOutputIterator vertex_value_output_first,
   EdgeOp e_op,
-  T init)
+  typename std::iterator_traits<VertexValueOutputIterator>::value_type init)
 {
+  using T = typename std::iterator_traits<VertexValueOutputIterator>::value_type;
+
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(!GraphType::is_adj_matrix_transposed ||
                 cugraph::experimental::detail::is_atomically_addable<T>::value);
@@ -201,7 +207,7 @@ void copy_v_transform_reduce_out_nbr(
       thrust::fill(thrust::cuda::par.on(handle.get_stream()),
                    vertex_value_output_first,
                    vertex_value_output_first + graph_device_view.get_number_of_local_vertices(),
-                   T{});
+                   init);
     }
 
     assert(graph_device_view.get_number_of_local_vertices() ==
@@ -216,7 +222,8 @@ void copy_v_transform_reduce_out_nbr(
         adj_matrix_row_value_input_first,
         adj_matrix_col_value_input_first,
         vertex_value_output_first,
-        e_op);
+        e_op,
+        init);
   }
 }
 
