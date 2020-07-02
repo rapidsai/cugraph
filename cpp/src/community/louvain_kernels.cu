@@ -17,7 +17,6 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <nvgraph/include/util.cuh>
 #include <utilities/cuda_utils.cuh>
 #include <utilities/graph_utils.cuh>
 
@@ -29,6 +28,10 @@
 
 namespace cugraph {
 namespace detail {
+
+namespace {  // anonym.
+constexpr int BLOCK_SIZE_1D = 64;
+}
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 __global__  // __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
