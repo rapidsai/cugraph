@@ -41,20 +41,8 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 
 # Set Benchmark Vars
 export DATASETS_DIR=${WORKSPACE}/datasets
-export ASVRESULTS_DIR=${WORKSPACE}/asvresults
+export ASVRESULTS_DIR=${WORKSPACE}/ci/artifacts/asv/results
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
-if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
-    export S3_ASV_DIR='s3://gpuci-cache/rapidsai/cugraph/branch/branch-0.15/asv'
-else
-    export S3_ASV_DIR='s3://gpuci-cache/rapidsai/cugraph/pull-request/${PR_ID}/asv'
-fi
-
-##########################################
-# Pull Build Artifacts from S3           #
-##########################################
-
-# TODO: Implement once gpuCI supports
-
 
 ##########################################
 # Environment Setup                      #
@@ -138,10 +126,5 @@ if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
     fi
 fi
 
-##########################################
-# Push Results to S3                     #
-##########################################
-
-#aws s3 cp ${ASVRESULTS_DIR} ${S3_ASV_DIR} --recursive
-
 exit $JOBEXITCODE
+
