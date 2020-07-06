@@ -44,6 +44,10 @@ export DATASETS_DIR=${WORKSPACE}/datasets
 export ASVRESULTS_DIR=${WORKSPACE}/ci/artifacts/asv/results
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
 
+# Ensure ASV results directory exists
+
+mkdir -p ${ASVRESULTS_DIR}
+
 ##########################################
 # Environment Setup                      #
 ##########################################
@@ -123,8 +127,7 @@ if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
     else
         #There was a FATAL error during the benchmark runs, abort entirely and send notification
         JOBEXITCODE=${EXITCODE}
+	exit ${JOBEXITCODE}
     fi
 fi
-
-exit $JOBEXITCODE
 
