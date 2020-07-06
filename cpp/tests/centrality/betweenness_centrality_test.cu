@@ -193,7 +193,7 @@ void reference_rescale(result_t *result,
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void reference_betweenness_centrality(cugraph::experimental::GraphCSRView<VT, ET, WT> const &graph,
+void reference_betweenness_centrality(cugraph::GraphCSRView<VT, ET, WT> const &graph,
                                       result_t *result,
                                       bool normalize,
                                       bool endpoints,  // This is not yet implemented
@@ -224,20 +224,22 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSRView<VT, ET
     result, graph.prop.directed, normalize, endpoints, number_of_vertices, number_of_sources);
 }
 // Explicit instantiation
+/*    FIXME!!!
 template void reference_betweenness_centrality<int, int, float, float>(
-  cugraph::experimental::GraphCSRView<int, int, float> const &,
+  cugraph::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   bool,
   const int,
   int const *);
 template void reference_betweenness_centrality<int, int, double, double>(
-  cugraph::experimental::GraphCSRView<int, int, double> const &,
+  cugraph::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
   const int,
   int const *);
+*/
 
 // =============================================================================
 // Utility functions
@@ -302,7 +304,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     auto csr =
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
+    cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_vertices, 0);

@@ -31,7 +31,7 @@ namespace cugraph {
 namespace detail {
 namespace {
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality_impl(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality_impl(GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  bool endpoints,
@@ -52,7 +52,7 @@ void betweenness_centrality_impl(experimental::GraphCSRView<VT, ET, WT> const &g
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality_impl(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void edge_betweenness_centrality_impl(GraphCSRView<VT, ET, WT> const &graph,
                                       result_t *result,
                                       bool normalize,
                                       WT const *weight,
@@ -393,7 +393,7 @@ void BC<VT, ET, WT, result_t>::apply_rescale_factor_to_betweenness(result_t resc
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -405,7 +405,7 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void betweenness_centrality<int, int, float, float>(
-  experimental::GraphCSRView<int, int, float> const &,
+  GraphCSRView<int, int, float> const &,
   float *,
   bool,
   bool,
@@ -413,7 +413,7 @@ template void betweenness_centrality<int, int, float, float>(
   int,
   int const *);
 template void betweenness_centrality<int, int, double, double>(
-  experimental::GraphCSRView<int, int, double> const &,
+  GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
@@ -422,7 +422,7 @@ template void betweenness_centrality<int, int, double, double>(
   int const *);
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void edge_betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  WT const *weight,
@@ -433,14 +433,14 @@ void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &g
 }
 
 template void edge_betweenness_centrality<int, int, float, float>(
-  experimental::GraphCSRView<int, int, float> const &,
+  GraphCSRView<int, int, float> const &,
   float *,
   bool,
   float const *,
   int,
   int const *);
 template void edge_betweenness_centrality<int, int, double, double>(
-  experimental::GraphCSRView<int, int, double> const &,
+  GraphCSRView<int, int, double> const &,
   double *,
   bool,
   double const *,

@@ -82,7 +82,7 @@ namespace cugraph {
  */
 template <typename VT, typename ET, typename WT>
 void pagerank(raft::handle_t const &handle,
-              experimental::GraphCSCView<VT, ET, WT> const &graph,
+              GraphCSCView<VT, ET, WT> const &graph,
               WT *pagerank,
               VT personalization_subset_size = 0,
               VT *personalization_subset     = nullptr,
@@ -111,7 +111,7 @@ void pagerank(raft::handle_t const &handle,
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void jaccard(experimental::GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
+void jaccard(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
 
 /**
  * @brief     Compute jaccard similarity coefficient for selected vertex pairs
@@ -135,7 +135,7 @@ void jaccard(experimental::GraphCSRView<VT, ET, WT> const &graph, WT const *weig
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void jaccard_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void jaccard_list(GraphCSRView<VT, ET, WT> const &graph,
                   WT const *weights,
                   ET num_pairs,
                   VT const *first,
@@ -161,7 +161,7 @@ void jaccard_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void overlap(experimental::GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
+void overlap(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
 
 /**
  * @brief     Compute overlap coefficient for select pairs of vertices
@@ -185,7 +185,7 @@ void overlap(experimental::GraphCSRView<VT, ET, WT> const &graph, WT const *weig
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
                   WT const *weights,
                   ET num_pairs,
                   VT const *first,
@@ -246,7 +246,7 @@ void overlap_list(experimental::GraphCSRView<VT, ET, WT> const &graph,
  *
  */
 template <typename VT, typename ET, typename WT>
-void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
+void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
                   float *pos,
                   const int max_iter                            = 500,
                   float *x_start                                = nullptr,
@@ -298,7 +298,7 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalized    = true,
                             bool endpoints     = false,
@@ -339,7 +339,7 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void edge_betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
                                  bool normalized    = true,
                                  WT const *weight   = nullptr,
@@ -382,7 +382,7 @@ enum class cugraph_cc_t {
  * associated with vertex id i.
  */
 template <typename VT, typename ET, typename WT>
-void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void connected_components(GraphCSRView<VT, ET, WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels);
 
@@ -411,8 +411,8 @@ void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
  *
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
-  experimental::GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<GraphCOO<VT, ET, WT>> k_truss_subgraph(
+  GraphCOOView<VT, ET, WT> const &graph,
   int k,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
@@ -449,7 +449,7 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_truss_subgraph(
  * @param[in] normalized             If True normalize the resulting katz centrality values
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void katz_centrality(GraphCSRView<VT, ET, WT> const &graph,
                      result_t *result,
                      double alpha,
                      int max_iter,
@@ -467,7 +467,7 @@ void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
-void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_number);
+void core_number(GraphCSRView<VT, ET, WT> const &graph, VT *core_number);
 
 /**
  * @brief   Compute K Core of the graph G
@@ -491,8 +491,8 @@ void core_number(experimental::GraphCSRView<VT, ET, WT> const &graph, VT *core_n
  * @param[out] out_graph             Unique pointer to K Core subgraph in COO format
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
-  experimental::GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(
+  GraphCOOView<VT, ET, WT> const &graph,
   int k,
   VT const *vertex_id,
   VT const *core_number,
@@ -517,8 +517,8 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> k_core(
  * @return                  Graph in COO format
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
-  experimental::GraphCSRView<VT, ET, WT> const &graph);
+std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
@@ -545,7 +545,7 @@ std::unique_ptr<cugraph::experimental::GraphCOO<VT, ET, WT>> get_two_hop_neighbo
  *
  */
 template <typename VT, typename ET, typename WT>
-void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void sssp(GraphCSRView<VT, ET, WT> const &graph,
           WT *distances,
           VT *predecessors,
           const VT source_vertex);
@@ -583,7 +583,7 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @throws     cugraph::logic_error when an error occurs.
  */
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void bfs(GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
          double *sp_counters,
@@ -610,7 +610,7 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
  */
 template <typename VT, typename ET, typename WT>
-void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void louvain(GraphCSRView<VT, ET, WT> const &graph,
              WT *final_modularity,
              int *num_level,
              VT *louvain_parts,
@@ -641,7 +641,7 @@ void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * written
  */
 template <typename VT, typename ET, typename WT>
-void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph_csr,
+void ecg(GraphCSRView<VT, ET, WT> const &graph_csr,
          WT min_weight,
          VT ensemble_size,
          VT *ecg_parts);
@@ -664,7 +664,7 @@ namespace nvgraph {
  * @return                           The number of triangles
  */
 template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph);
+uint64_t triangle_count(GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @brief             Extract subgraph by vertices
@@ -687,8 +687,8 @@ uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph);
  * @param[out] result                a graph in COO format containing the edges in the subgraph
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
-  experimental::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices);
+std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices);
 
 /**
  * @brief     Wrapper function for Nvgraph balanced cut clustering
@@ -712,7 +712,7 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
  * stored
  */
 template <typename VT, typename ET, typename WT>
-void balancedCutClustering(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,
                            VT num_clusters,
                            VT num_eigen_vects,
                            WT evs_tolerance,
@@ -743,7 +743,7 @@ void balancedCutClustering(experimental::GraphCSRView<VT, ET, WT> const &graph,
  * stored
  */
 template <typename VT, typename ET, typename WT>
-void spectralModularityMaximization(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void spectralModularityMaximization(GraphCSRView<VT, ET, WT> const &graph,
                                     VT n_clusters,
                                     VT n_eig_vects,
                                     WT evs_tolerance,
@@ -769,7 +769,7 @@ void spectralModularityMaximization(experimental::GraphCSRView<VT, ET, WT> const
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_modularity(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_modularity(GraphCSRView<VT, ET, WT> const &graph,
                                   int n_clusters,
                                   VT const *clustering,
                                   WT *score);
@@ -791,7 +791,7 @@ void analyzeClustering_modularity(experimental::GraphCSRView<VT, ET, WT> const &
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_edge_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_edge_cut(GraphCSRView<VT, ET, WT> const &graph,
                                 int n_clusters,
                                 VT const *clustering,
                                 WT *score);
@@ -813,7 +813,7 @@ void analyzeClustering_edge_cut(experimental::GraphCSRView<VT, ET, WT> const &gr
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_ratio_cut(GraphCSRView<VT, ET, WT> const &graph,
                                  int n_clusters,
                                  VT const *clustering,
                                  WT *score);
@@ -850,7 +850,7 @@ namespace gunrock {
  *
  */
 template <typename VT, typename ET, typename WT>
-void hits(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void hits(GraphCSRView<VT, ET, WT> const &graph,
           int max_iter,
           WT tolerance,
           WT const *starting_value,

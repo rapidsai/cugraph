@@ -23,7 +23,6 @@
 #include <rmm/device_buffer.hpp>
 
 namespace cugraph {
-namespace experimental {
 
 enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
 
@@ -662,5 +661,4 @@ template <typename ET>
 struct invalid_edge_id : invalid_idx<ET> {
 };
 
-}  // namespace experimental
 }  // namespace cugraph

@@ -93,7 +93,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     auto csr =
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
+    cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = directed;
 
     ASSERT_TRUE(configuration.source_ >= 0 && (VT)configuration.source_ < G.number_of_vertices)
@@ -171,7 +171,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // that the predecessor obtained with the GPU implementation is one of the
       // predecessors obtained during the C++ BFS traversal
       VT pred = cugraph_pred[i];  // It could be equal to -1 if the node is never reached
-      constexpr VT invalid_vid = cugraph::experimental::invalid_vertex_id<VT>::value;
+      constexpr VT invalid_vid = cugraph::invalid_vertex_id<VT>::value;
       if (pred == invalid_vid) {
         EXPECT_TRUE(ref_bfs_pred[i].empty())
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph had not predecessor,"

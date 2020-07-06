@@ -56,7 +56,7 @@ class Pagerank {
   bool is_setup;
 
  public:
-  Pagerank(const raft::handle_t &handle, const experimental::GraphCSCView<VT, ET, WT> &G);
+  Pagerank(const raft::handle_t &handle, const GraphCSCView<VT, ET, WT> &G);
   ~Pagerank();
 
   void transition_vals(const VT *degree);
@@ -72,7 +72,7 @@ class Pagerank {
 
 template <typename VT, typename ET, typename WT>
 void pagerank(raft::handle_t const &handle,
-              const experimental::GraphCSCView<VT, ET, WT> &G,
+              const GraphCSCView<VT, ET, WT> &G,
               WT *pagerank_result,
               const float damping_factor = 0.85,
               const int n_iter           = 40)
@@ -93,7 +93,7 @@ void pagerank(raft::handle_t const &handle,
   rmm::device_vector<VT> degree(G.number_of_vertices);
 
   // in-degree of CSC (equivalent to out-degree of original edge list)
-  G.degree(degree.data().get(), experimental::DegreeDirection::IN);
+  G.degree(degree.data().get(), DegreeDirection::IN);
 
   // Allocate and intialize Pagerank class
   Pagerank<VT, ET, WT> pr_solver(handle, G);

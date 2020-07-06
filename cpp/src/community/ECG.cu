@@ -108,7 +108,7 @@ void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void ecg(GraphCSRView<VT, ET, WT> const &graph,
          WT min_weight,
          VT ensemble_size,
          VT *ecg_parts)
@@ -124,7 +124,7 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
   VT seed{0};
   // VT seed{1};  // Note... this seed won't work for the unit tests... retest after fixing Louvain.
 
-  auto permuted_graph = std::make_unique<experimental::GraphCSR<VT, ET, WT>>(
+  auto permuted_graph = std::make_unique<GraphCSR<VT, ET, WT>>(
     size, graph.number_of_edges, graph.has_data());
 
   // Iterate over each member of the ensemble
@@ -170,7 +170,7 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
                     uf);
 
   // Run Louvain on the original graph using the computed weights
-  experimental::GraphCSRView<VT, ET, WT> louvain_graph;
+  GraphCSRView<VT, ET, WT> louvain_graph;
   louvain_graph.indices            = graph.indices;
   louvain_graph.offsets            = graph.offsets;
   louvain_graph.edge_data          = ecg_weights_v.data().get();
@@ -184,12 +184,12 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
 
 // Explicit template instantiations.
 template void ecg<int32_t, int32_t, float>(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &graph,
+  GraphCSRView<int32_t, int32_t, float> const &graph,
   float min_weight,
   int32_t ensemble_size,
   int32_t *ecg_parts);
 template void ecg<int32_t, int32_t, double>(
-  experimental::GraphCSRView<int32_t, int32_t, double> const &graph,
+  GraphCSRView<int32_t, int32_t, double> const &graph,
   double min_weight,
   int32_t ensemble_size,
   int32_t *ecg_parts);

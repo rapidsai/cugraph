@@ -22,7 +22,7 @@
 namespace cugraph {
 namespace detail {
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -31,7 +31,7 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             VT const *sources);
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void edge_betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  WT const *weight,
@@ -51,7 +51,7 @@ template <typename VT, typename ET, typename WT, typename result_t>
 class BC {
  public:
   virtual ~BC(void) {}
-  BC(experimental::GraphCSRView<VT, ET, WT> const &graph, cudaStream_t stream = 0)
+  BC(GraphCSRView<VT, ET, WT> const &graph, cudaStream_t stream = 0)
     : graph_(graph), stream_(stream)
   {
     setup();
@@ -73,7 +73,7 @@ class BC {
 
  private:
   // --- Information concerning the graph ---
-  const experimental::GraphCSRView<VT, ET, WT> &graph_;
+  const GraphCSRView<VT, ET, WT> &graph_;
   // --- These information are extracted on setup ---
   VT number_of_vertices_;  // Number of vertices in the graph
   VT number_of_edges_;     // Number of edges in the graph

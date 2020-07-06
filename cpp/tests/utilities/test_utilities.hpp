@@ -274,7 +274,7 @@ int read_binary_vector(FILE* fpin, int n, std::vector<double>& val)
  * @tparam
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<cugraph::experimental::GraphCSR<VT, ET, WT>> generate_graph_csr_from_mm(
+std::unique_ptr<cugraph::GraphCSR<VT, ET, WT>> generate_graph_csr_from_mm(
   bool& directed, std::string mm_file)
 {
   VT number_of_vertices;
@@ -306,7 +306,7 @@ std::unique_ptr<cugraph::experimental::GraphCSR<VT, ET, WT>> generate_graph_csr_
             0);
   EXPECT_EQ(fclose(fpin), 0);
 
-  cugraph::experimental::GraphCOOView<VT, ET, WT> cooview(
+  cugraph::GraphCOOView<VT, ET, WT> cooview(
     &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], number_of_vertices, number_of_edges);
 
   return cugraph::coo_to_csr(cooview);

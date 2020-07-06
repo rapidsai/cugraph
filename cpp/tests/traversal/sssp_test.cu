@@ -257,14 +257,14 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_TRUE(0);
     }
 
-    cugraph::experimental::GraphCOOView<MaxVType, MaxEType, DistType> G_coo(
+    cugraph::GraphCOOView<MaxVType, MaxEType, DistType> G_coo(
       &cooRowInd[0],
       &cooColInd[0],
       (DoRandomWeights ? &cooVal[0] : nullptr),
       num_vertices,
       num_edges);
     auto G_unique = cugraph::coo_to_csr(G_coo);
-    cugraph::experimental::GraphCSRView<MaxVType, MaxEType, DistType> G = G_unique->view();
+    cugraph::GraphCSRView<MaxVType, MaxEType, DistType> G = G_unique->view();
     cudaDeviceSynchronize();
 
     std::vector<DistType> dist_vec;
