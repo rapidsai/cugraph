@@ -180,6 +180,7 @@ template <typename HandleType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp,
+          typename T,
           typename VertexValueOutputIterator>
 void copy_v_transform_reduce_out_nbr(
   HandleType& handle,
@@ -187,11 +188,9 @@ void copy_v_transform_reduce_out_nbr(
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   EdgeOp e_op,
-  typename std::iterator_traits<VertexValueOutputIterator>::value_type init,
+  T init,
   VertexValueOutputIterator vertex_value_output_first)
 {
-  using T = typename std::iterator_traits<VertexValueOutputIterator>::value_type;
-
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(!GraphType::is_adj_matrix_transposed ||
                 cugraph::experimental::detail::is_atomically_addable<T>::value);

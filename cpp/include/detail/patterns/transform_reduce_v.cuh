@@ -52,6 +52,32 @@ T transform_reduce_v(HandleType& handle,
   return ret;
 }
 
+template <typename HandleType,
+          typename GraphType,
+          typename VertexValueInputIterator,
+          typename VertexOp,
+          typename T>
+T transform_reduce_v(HandleType& handle,
+                     GraphType const& graph_device_view,
+                     VertexValueInputIterator vertex_value_input_first,
+                     VertexValueInputIterator vertex_value_input_last,
+                     VertexOp v_op,
+                     T init)
+{
+  auto ret = thrust::transform_reduce(
+    thrust::cuda::par.on(handle.get_stream()),
+    vertex_value_input_first,
+    vertex_value_input_last,
+    v_op,
+    init,
+    thrust::plus<T>());
+  if (GraphType::is_opg) {
+    // need to reduce ret
+    CUGRAPH_FAIL("unimplemented.");
+  }
+  return ret;
+}
+
 }  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph
