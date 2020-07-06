@@ -188,9 +188,7 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
 {
   // Step 1) Singe-source shortest-path problem
   cugraph::bfs(
-    handle_, graph_,
-    distances_, predecessors_, sp_counters_,
-    source_vertex, graph_.prop.directed);
+    handle_, graph_, distances_, predecessors_, sp_counters_, source_vertex, graph_.prop.directed);
 
   // FIXME: Remove that with a BC specific class to gather
   //        information during traversal
@@ -406,7 +404,8 @@ void betweenness_centrality(raft::handle_t const &handle,
                             VT k,
                             VT const *vertices)
 {
-  detail::betweenness_centrality_impl(handle, graph, result, normalize, endpoints, weight, k, vertices);
+  detail::betweenness_centrality_impl(
+    handle, graph, result, normalize, endpoints, weight, k, vertices);
 }
 
 template void betweenness_centrality<int, int, float, float>(
@@ -437,8 +436,7 @@ void edge_betweenness_centrality(raft::handle_t const &handle,
                                  VT k,
                                  VT const *vertices)
 {
-  detail::edge_betweenness_centrality_impl(
-      handle, graph, result, normalize, weight, k, vertices);
+  detail::edge_betweenness_centrality_impl(handle, graph, result, normalize, weight, k, vertices);
 }
 
 template void edge_betweenness_centrality<int, int, float, float>(

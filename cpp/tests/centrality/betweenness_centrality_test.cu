@@ -20,8 +20,8 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <raft/handle.hpp>
 #include <raft/error.hpp>
+#include <raft/handle.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <thrust/device_vector.h>
@@ -278,6 +278,7 @@ typedef struct BC_Usecase_t {
 
 class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
   raft::handle_t handle;
+
  public:
   Tests_BC() {}
   static void SetupTestCase() {}

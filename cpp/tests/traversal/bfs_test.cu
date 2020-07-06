@@ -73,6 +73,7 @@ typedef struct BFS_Usecase_t {
 
 class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   raft::handle_t handle;
+
  public:
   Tests_BFS() {}
   static void SetupTestCase() {}

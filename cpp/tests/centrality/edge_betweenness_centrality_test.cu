@@ -17,8 +17,8 @@
 #include <traversal/bfs_ref.h>
 #include <utilities/test_utilities.hpp>
 
-#include <raft/handle.hpp>
 #include <raft/error.hpp>
+#include <raft/handle.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <thrust/device_vector.h>
@@ -230,6 +230,7 @@ typedef struct EdgeBC_Usecase_t {
 
 class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
   raft::handle_t handle_;
+
  public:
   Tests_EdgeBC() {}
   static void SetupTestCase() {}

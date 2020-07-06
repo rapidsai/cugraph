@@ -88,7 +88,8 @@ class GraphViewBase {
       local_vertices(nullptr),
       local_edges(nullptr),
       local_offsets(nullptr)
-  {}
+  {
+  }
   bool has_data(void) const { return edge_data != nullptr; }
 };
 
