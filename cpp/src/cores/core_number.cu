@@ -144,13 +144,12 @@ void core_number(GraphCSRView<VT, ET, WT> const &graph, VT *core_number)
 }
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(
-  GraphCOOView<VT, ET, WT> const &in_graph,
-  int k,
-  VT const *vertex_id,
-  VT const *core_number,
-  VT num_vertex_ids,
-  rmm::mr::device_memory_resource *mr)
+std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(GraphCOOView<VT, ET, WT> const &in_graph,
+                                             int k,
+                                             VT const *vertex_id,
+                                             VT const *core_number,
+                                             VT num_vertex_ids,
+                                             rmm::mr::device_memory_resource *mr)
 {
   CUGRAPH_EXPECTS(vertex_id != nullptr, "Invalid API parameter: vertex_id is NULL");
   CUGRAPH_EXPECTS(core_number != nullptr, "Invalid API parameter: core_number is NULL");
@@ -159,21 +158,21 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(
   return detail::extract_subgraph(in_graph, vertex_id, core_number, k, num_vertex_ids, mr);
 }
 
-template void core_number<int32_t, int32_t, float>(
-  GraphCSRView<int32_t, int32_t, float> const &, int32_t *core_number);
-template std::unique_ptr<GraphCOO<int32_t, int32_t, float>>
-k_core<int32_t, int32_t, float>(GraphCOOView<int32_t, int32_t, float> const &,
-                                int,
-                                int32_t const *,
-                                int32_t const *,
-                                int32_t,
-                                rmm::mr::device_memory_resource *);
-template std::unique_ptr<GraphCOO<int32_t, int32_t, double>>
-k_core<int32_t, int32_t, double>(GraphCOOView<int32_t, int32_t, double> const &,
-                                 int,
-                                 int32_t const *,
-                                 int32_t const *,
-                                 int32_t,
-                                 rmm::mr::device_memory_resource *);
+template void core_number<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &,
+                                                   int32_t *core_number);
+template std::unique_ptr<GraphCOO<int32_t, int32_t, float>> k_core<int32_t, int32_t, float>(
+  GraphCOOView<int32_t, int32_t, float> const &,
+  int,
+  int32_t const *,
+  int32_t const *,
+  int32_t,
+  rmm::mr::device_memory_resource *);
+template std::unique_ptr<GraphCOO<int32_t, int32_t, double>> k_core<int32_t, int32_t, double>(
+  GraphCOOView<int32_t, int32_t, double> const &,
+  int,
+  int32_t const *,
+  int32_t const *,
+  int32_t,
+  rmm::mr::device_memory_resource *);
 
 }  // namespace cugraph

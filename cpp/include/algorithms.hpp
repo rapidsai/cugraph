@@ -517,8 +517,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(
  * @return                  Graph in COO format
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
-  GraphCSRView<VT, ET, WT> const &graph);
+std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
@@ -641,10 +640,7 @@ void louvain(GraphCSRView<VT, ET, WT> const &graph,
  * written
  */
 template <typename VT, typename ET, typename WT>
-void ecg(GraphCSRView<VT, ET, WT> const &graph_csr,
-         WT min_weight,
-         VT ensemble_size,
-         VT *ecg_parts);
+void ecg(GraphCSRView<VT, ET, WT> const &graph_csr, WT min_weight, VT ensemble_size, VT *ecg_parts);
 
 namespace nvgraph {
 
@@ -687,8 +683,9 @@ uint64_t triangle_count(GraphCSRView<VT, ET, WT> const &graph);
  * @param[out] result                a graph in COO format containing the edges in the subgraph
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
-  GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices);
+std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, ET, WT> const &graph,
+                                                              VT const *vertices,
+                                                              VT num_vertices);
 
 /**
  * @brief     Wrapper function for Nvgraph balanced cut clustering

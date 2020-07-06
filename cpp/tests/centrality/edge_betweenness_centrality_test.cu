@@ -152,12 +152,11 @@ void reference_rescale(result_t *result,
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void reference_edge_betweenness_centrality(
-  cugraph::GraphCSRView<VT, ET, WT> const &graph,
-  result_t *result,
-  bool normalize,
-  VT const number_of_sources,
-  VT const *sources)
+void reference_edge_betweenness_centrality(cugraph::GraphCSRView<VT, ET, WT> const &graph,
+                                           result_t *result,
+                                           bool normalize,
+                                           VT const number_of_sources,
+                                           VT const *sources)
 {
   VT number_of_vertices = graph.number_of_vertices;
   ET number_of_edges    = graph.number_of_edges;
@@ -237,7 +236,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
-    G.prop.directed                                   = is_directed;
+    G.prop.directed                     = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_edges, 0);
     std::vector<result_t> expected(G.number_of_edges, 0);

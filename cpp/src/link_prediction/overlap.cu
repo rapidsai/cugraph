@@ -389,41 +389,41 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
   }
 }
 
-template void overlap<int32_t, int32_t, float>(
-  GraphCSRView<int32_t, int32_t, float> const &, float const *, float *);
-template void overlap<int32_t, int32_t, double>(
-  GraphCSRView<int32_t, int32_t, double> const &, double const *, double *);
-template void overlap<int64_t, int64_t, float>(
-  GraphCSRView<int64_t, int64_t, float> const &, float const *, float *);
-template void overlap<int64_t, int64_t, double>(
-  GraphCSRView<int64_t, int64_t, double> const &, double const *, double *);
-template void overlap_list<int32_t, int32_t, float>(
-  GraphCSRView<int32_t, int32_t, float> const &,
-  float const *,
-  int32_t,
-  int32_t const *,
-  int32_t const *,
-  float *);
-template void overlap_list<int32_t, int32_t, double>(
-  GraphCSRView<int32_t, int32_t, double> const &,
-  double const *,
-  int32_t,
-  int32_t const *,
-  int32_t const *,
-  double *);
-template void overlap_list<int64_t, int64_t, float>(
-  GraphCSRView<int64_t, int64_t, float> const &,
-  float const *,
-  int64_t,
-  int64_t const *,
-  int64_t const *,
-  float *);
-template void overlap_list<int64_t, int64_t, double>(
-  GraphCSRView<int64_t, int64_t, double> const &,
-  double const *,
-  int64_t,
-  int64_t const *,
-  int64_t const *,
-  double *);
+template void overlap<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &,
+                                               float const *,
+                                               float *);
+template void overlap<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &,
+                                                double const *,
+                                                double *);
+template void overlap<int64_t, int64_t, float>(GraphCSRView<int64_t, int64_t, float> const &,
+                                               float const *,
+                                               float *);
+template void overlap<int64_t, int64_t, double>(GraphCSRView<int64_t, int64_t, double> const &,
+                                                double const *,
+                                                double *);
+template void overlap_list<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &,
+                                                    float const *,
+                                                    int32_t,
+                                                    int32_t const *,
+                                                    int32_t const *,
+                                                    float *);
+template void overlap_list<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &,
+                                                     double const *,
+                                                     int32_t,
+                                                     int32_t const *,
+                                                     int32_t const *,
+                                                     double *);
+template void overlap_list<int64_t, int64_t, float>(GraphCSRView<int64_t, int64_t, float> const &,
+                                                    float const *,
+                                                    int64_t,
+                                                    int64_t const *,
+                                                    int64_t const *,
+                                                    float *);
+template void overlap_list<int64_t, int64_t, double>(GraphCSRView<int64_t, int64_t, double> const &,
+                                                     double const *,
+                                                     int64_t,
+                                                     int64_t const *,
+                                                     int64_t const *,
+                                                     double *);
 
 }  // namespace cugraph

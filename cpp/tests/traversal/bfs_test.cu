@@ -94,7 +94,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
-    G.prop.directed                                   = directed;
+    G.prop.directed                     = directed;
 
     ASSERT_TRUE(configuration.source_ >= 0 && (VT)configuration.source_ < G.number_of_vertices)
       << "Starting sources should be >= 0 and"

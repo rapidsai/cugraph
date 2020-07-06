@@ -274,8 +274,8 @@ int read_binary_vector(FILE* fpin, int n, std::vector<double>& val)
  * @tparam
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<cugraph::GraphCSR<VT, ET, WT>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file)
+std::unique_ptr<cugraph::GraphCSR<VT, ET, WT>> generate_graph_csr_from_mm(bool& directed,
+                                                                          std::string mm_file)
 {
   VT number_of_vertices;
   ET number_of_edges;

@@ -113,9 +113,8 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    cugraph::GraphCOOView<int, int, float> G_coo(
-      &cooRowInd[0], &cooColInd[0], nullptr, m, nnz);
-    auto G_unique                                          = cugraph::coo_to_csr(G_coo);
+    cugraph::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, m, nnz);
+    auto G_unique                            = cugraph::coo_to_csr(G_coo);
     cugraph::GraphCSRView<int, int, float> G = G_unique->view();
 
     rmm::device_vector<int> d_labels(m);

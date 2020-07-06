@@ -324,11 +324,10 @@ struct equal_to_i_op {
  *  @param modularity On exit, modularity
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-NVGRAPH_ERROR analyzeModularity(
-  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  vertex_t nClusters,
-  const vertex_t *__restrict__ parts,
-  weight_t &modularity)
+NVGRAPH_ERROR analyzeModularity(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                vertex_t nClusters,
+                                const vertex_t *__restrict__ parts,
+                                weight_t &modularity)
 {
   cudaStream_t stream = 0;
   edge_t i;

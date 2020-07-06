@@ -143,8 +143,8 @@ rmm::device_buffer create_offset(VT* source,
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(
-  GraphCOOView<VT, ET, WT> const& graph, rmm::mr::device_memory_resource* mr)
+std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const& graph,
+                                                 rmm::mr::device_memory_resource* mr)
 {
   cudaStream_t stream{nullptr};
 
@@ -165,8 +165,7 @@ std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(
 }
 
 template <typename VT, typename ET, typename WT>
-void coo_to_csr_inplace(GraphCOOView<VT, ET, WT>& graph,
-                        GraphCSRView<VT, ET, WT>& result)
+void coo_to_csr_inplace(GraphCOOView<VT, ET, WT>& graph, GraphCSRView<VT, ET, WT>& result)
 {
   cudaStream_t stream{nullptr};
 

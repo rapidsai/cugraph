@@ -32,8 +32,7 @@
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
-  GraphCSRView<VT, ET, WT> const &graph)
+std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET, WT> const &graph)
 {
   cudaStream_t stream{nullptr};
 
@@ -109,8 +108,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
   // Get things ready to return
   ET outputSize = tuple_end - tuple_start;
 
-  auto result = std::make_unique<GraphCOO<VT, ET, WT>>(
-    graph.number_of_vertices, outputSize, false);
+  auto result = std::make_unique<GraphCOO<VT, ET, WT>>(graph.number_of_vertices, outputSize, false);
 
   cudaMemcpy(result->src_indices(), d_first_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
   cudaMemcpy(result->dst_indices(), d_second_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);

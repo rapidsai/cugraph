@@ -25,8 +25,7 @@
 namespace {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>
-std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>
-extract_subgraph_by_vertices(
+std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_by_vertices(
   cugraph::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
   vertex_t const *vertices,
   vertex_t num_vertices,
@@ -108,8 +107,7 @@ extract_subgraph_by_vertices(
 
     return result;
   } else {
-    return std::make_unique<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>(
-      0, 0, has_weight);
+    return std::make_unique<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>(0, 0, has_weight);
   }
 }
 }  // namespace
@@ -118,8 +116,9 @@ namespace cugraph {
 namespace nvgraph {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
-  GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices)
+std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, ET, WT> const &graph,
+                                                              VT const *vertices,
+                                                              VT num_vertices)
 {
   CUGRAPH_EXPECTS(vertices != nullptr, "API error, vertices must be non null");
 
@@ -133,11 +132,13 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
 }
 
 template std::unique_ptr<GraphCOO<int32_t, int32_t, float>>
-extract_subgraph_vertex<int32_t, int32_t, float>(
-  GraphCOOView<int32_t, int32_t, float> const &, int32_t const *, int32_t);
+extract_subgraph_vertex<int32_t, int32_t, float>(GraphCOOView<int32_t, int32_t, float> const &,
+                                                 int32_t const *,
+                                                 int32_t);
 template std::unique_ptr<GraphCOO<int32_t, int32_t, double>>
-extract_subgraph_vertex<int32_t, int32_t, double>(
-  GraphCOOView<int32_t, int32_t, double> const &, int32_t const *, int32_t);
+extract_subgraph_vertex<int32_t, int32_t, double>(GraphCOOView<int32_t, int32_t, double> const &,
+                                                  int32_t const *,
+                                                  int32_t);
 
 }  // namespace nvgraph
 }  // namespace cugraph

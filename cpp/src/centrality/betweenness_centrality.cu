@@ -405,21 +405,9 @@ void betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void betweenness_centrality<int, int, float, float>(
-  GraphCSRView<int, int, float> const &,
-  float *,
-  bool,
-  bool,
-  float const *,
-  int,
-  int const *);
+  GraphCSRView<int, int, float> const &, float *, bool, bool, float const *, int, int const *);
 template void betweenness_centrality<int, int, double, double>(
-  GraphCSRView<int, int, double> const &,
-  double *,
-  bool,
-  bool,
-  double const *,
-  int,
-  int const *);
+  GraphCSRView<int, int, double> const &, double *, bool, bool, double const *, int, int const *);
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void edge_betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
@@ -433,17 +421,7 @@ void edge_betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void edge_betweenness_centrality<int, int, float, float>(
-  GraphCSRView<int, int, float> const &,
-  float *,
-  bool,
-  float const *,
-  int,
-  int const *);
+  GraphCSRView<int, int, float> const &, float *, bool, float const *, int, int const *);
 template void edge_betweenness_centrality<int, int, double, double>(
-  GraphCSRView<int, int, double> const &,
-  double *,
-  bool,
-  double const *,
-  int,
-  int const *);
+  GraphCSRView<int, int, double> const &, double *, bool, double const *, int, int const *);
 }  // namespace cugraph

@@ -136,8 +136,7 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
 
     //  Pagerank runs on CSC, so feed COOtoCSR the row/col backwards.
     raft::handle_t handle;
-    cugraph::GraphCOOView<int, int, T> G_coo(
-      &cooColInd[0], &cooRowInd[0], &cooVal[0], m, nnz);
+    cugraph::GraphCOOView<int, int, T> G_coo(&cooColInd[0], &cooRowInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
     cugraph::GraphCSCView<int, int, T> G(G_unique->view().offsets,
                                          G_unique->view().indices,

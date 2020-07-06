@@ -502,22 +502,20 @@ void bfs(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 // Explicit Instantiation
-template void bfs<uint32_t, uint32_t, float>(
-  GraphCSRView<uint32_t, uint32_t, float> const &graph,
-  uint32_t *distances,
-  uint32_t *predecessors,
-  double *sp_counters,
-  const uint32_t source_vertex,
-  bool directed);
+template void bfs<uint32_t, uint32_t, float>(GraphCSRView<uint32_t, uint32_t, float> const &graph,
+                                             uint32_t *distances,
+                                             uint32_t *predecessors,
+                                             double *sp_counters,
+                                             const uint32_t source_vertex,
+                                             bool directed);
 
 // Explicit Instantiation
-template void bfs<uint32_t, uint32_t, double>(
-  GraphCSRView<uint32_t, uint32_t, double> const &graph,
-  uint32_t *distances,
-  uint32_t *predecessors,
-  double *sp_counters,
-  const uint32_t source_vertex,
-  bool directed);
+template void bfs<uint32_t, uint32_t, double>(GraphCSRView<uint32_t, uint32_t, double> const &graph,
+                                              uint32_t *distances,
+                                              uint32_t *predecessors,
+                                              double *sp_counters,
+                                              const uint32_t source_vertex,
+                                              bool directed);
 
 // Explicit Instantiation
 template void bfs<int, int, float>(GraphCSRView<int, int, float> const &graph,
@@ -536,21 +534,19 @@ template void bfs<int, int, double>(GraphCSRView<int, int, double> const &graph,
                                     bool directed);
 
 // Explicit Instantiation
-template void bfs<int64_t, int64_t, float>(
-  GraphCSRView<int64_t, int64_t, float> const &graph,
-  int64_t *distances,
-  int64_t *predecessors,
-  double *sp_counters,
-  const int64_t source_vertex,
-  bool directed);
+template void bfs<int64_t, int64_t, float>(GraphCSRView<int64_t, int64_t, float> const &graph,
+                                           int64_t *distances,
+                                           int64_t *predecessors,
+                                           double *sp_counters,
+                                           const int64_t source_vertex,
+                                           bool directed);
 
 // Explicit Instantiation
-template void bfs<int64_t, int64_t, double>(
-  GraphCSRView<int64_t, int64_t, double> const &graph,
-  int64_t *distances,
-  int64_t *predecessors,
-  double *sp_counters,
-  const int64_t source_vertex,
-  bool directed);
+template void bfs<int64_t, int64_t, double>(GraphCSRView<int64_t, int64_t, double> const &graph,
+                                            int64_t *distances,
+                                            int64_t *predecessors,
+                                            double *sp_counters,
+                                            const int64_t source_vertex,
+                                            bool directed);
 
 }  // namespace cugraph
