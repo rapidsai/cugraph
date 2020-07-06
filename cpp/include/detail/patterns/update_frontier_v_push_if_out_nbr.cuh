@@ -256,30 +256,30 @@ namespace detail {
 template <typename HandleType,
           typename GraphType,
           typename RowIterator,
-          typename VertexValueInputIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
+          typename EdgeOp,
+          typename ReduceOp,
+          typename VertexValueInputIterator,
           typename VertexValueOutputIterator,
           typename AdjMatrixRowValueOutputIterator,
           typename AdjMatrixColValueOutputIterator,
           typename RowFrontierType,
-          typename EdgeOp,
-          typename ReduceOp,
           typename VertexOp>
 void update_frontier_v_push_if_out_nbr(
   HandleType& handle,
   GraphType const& graph_device_view,
   RowIterator row_first,
   RowIterator row_last,
-  VertexValueInputIterator vertex_value_input_first,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  EdgeOp e_op,
+  ReduceOp reduce_op,
+  VertexValueInputIterator vertex_value_input_first,
   VertexValueOutputIterator vertex_value_output_first,
   AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
   AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
   RowFrontierType& row_frontier,
-  EdgeOp e_op,
-  ReduceOp reduce_op,
   VertexOp v_op)
 {
   static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
@@ -380,6 +380,14 @@ void update_frontier_v_push_if_out_nbr(
 }
 
 /*
+
+FIXME:
+static_cast<T>(val) vs T{val} when both are acceptable.
+T init vs std::iterator_traits<T>::value_type init in pattern API declarations
+row_first, row_last vs vertex_first, vertex_last in update_frontier_v_push_if_out_nbr
+check for input parameter orders (two level API)
+
+
 iterating over lower triangular (or upper triangular) : triangle counting
 LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and
 degree(j) : triangle counting

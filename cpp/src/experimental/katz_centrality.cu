@@ -41,8 +41,8 @@ void katz_centrality(raft::handle_t &handle,
                      GraphType const &pull_graph,
                      result_t *betas,
                      result_t *katz_centralities,
-                     double alpha,
-                     double epsilon,
+                     result_t alpha,
+                     result_t epsilon,
                      size_t max_iterations,
                      bool has_initial_guess,
                      bool normalize,
@@ -92,36 +92,24 @@ void katz_centrality(raft::handle_t &handle,
   // 3. katz centrality iteration
 
   // old katz centrality values
-  rmm::device_vector<result_t> adj_matrix_row_katz_centralities(graph_device_view.get_number_of_adj_matrix_local_rows(),
-                                                                static_cast<result_t>(0.0));
+  rmm::device_vector<result_t> adj_matrix_row_katz_centralities(
+    graph_device_view.get_number_of_adj_matrix_local_rows(), static_cast<result_t>(0.0));
   size_t iter{0};
   while (true) {
     copy_to_adj_matrix_row(
       handle, graph_device_view, katz_centralities, adj_matrix_row_katz_centralities.begin());
 
-    if (graph_device_view.is_weighted()) {
-      copy_v_transform_reduce_in_nbr(
-        handle,
-        graph_device_view,
-        adj_matrix_row_katz_centralities.begin(),
-        thrust::make_constant_iterator(0) /* dummy */,
-        katz_centralities,
-        [alpha] __device__(auto src_val, auto dst_val, weight_t w) {
-          return static_cast<result_t>(alpha * src_val * w);
-        },
-        static_cast<result_t>(0.0));
-    } else {
-      copy_v_transform_reduce_in_nbr(
-        handle,
-        graph_device_view,
-        thrust::make_constant_iterator(0) /* dummy */,
-        adj_matrix_row_katz_centralities.begin(),
-        katz_centralities,
-        [alpha] __device__(auto src_val, auto dst_val) {
-          return static_cast<result_t>(alpha * src_val);
-        },
-        static_cast<result_t>(0.0));
-    }
+    copy_v_transform_reduce_in_nbr(
+      handle,
+      graph_device_view,
+      adj_matrix_row_katz_centralities.begin(),
+      thrust::make_constant_iterator(0) /* dummy */,
+      [alpha] __device__(auto src_val, auto dst_val, weight_t w) {
+        return static_cast<result_t>(alpha * src_val * w);
+      },
+      static_cast<result_t>(0.0),
+      katz_centralities);
+
     auto val_first = thrust::make_zip_iterator(thrust::make_tuple(katz_centralities, betas));
     thrust::transform(val_first,
                       val_first + graph_device_view.get_number_of_local_vertices(),
@@ -137,12 +125,12 @@ void katz_centrality(raft::handle_t &handle,
       graph_device_view,
       katz_centralities,
       adj_matrix_row_katz_centralities.begin(),
-      [] __device__(auto v_val, auto col_val) { return std::abs(v_val - col_val); },
+      [] __device__(auto v_val, auto row_val) { return std::abs(v_val - row_val); },
       static_cast<result_t>(0.0));
 
     iter++;
 
-    if (diff_sum < static_cast<result_t>(num_vertices) * static_cast<result_t>(epsilon)) {
+    if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) {
       break;
     } else if (iter >= max_iterations) {
       CUGRAPH_FAIL("Katz Centrality failed to converge.");

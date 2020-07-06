@@ -122,13 +122,8 @@ void bfs(raft::handle_t &handle,
         graph_device_view,
         cur_adj_matrix_local_row_frontier_first,
         cur_adj_matrix_local_row_frontier_last,
-        distances,
         graph_device_view.adj_matrix_local_row_begin(),
         graph_device_view.adj_matrix_local_col_begin(),
-        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        thrust::make_discard_iterator(),
-        thrust::make_discard_iterator(),
-        adj_matrix_row_frontier,
         [graph_device_view, distances] __device__(auto src_val, auto dst_val) {
           uint32_t push = true;
           if (graph_device_view.is_local_vertex_nocheck(dst_val)) {
@@ -141,6 +136,11 @@ void bfs(raft::handle_t &handle,
           return thrust::make_tuple(push, src_val);
         },
         reduce_op::any<thrust::tuple<vertex_t>>(),
+        distances,
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
+        thrust::make_discard_iterator(),
+        thrust::make_discard_iterator(),
+        adj_matrix_row_frontier,
         [depth] __device__(auto v_val, auto pushed_val) {
           auto idx = (v_val == invalid_distance)
                        ? static_cast<size_t>(Bucket::cur)

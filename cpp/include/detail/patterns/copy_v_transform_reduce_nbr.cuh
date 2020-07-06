@@ -127,16 +127,16 @@ template <typename HandleType,
           typename GraphType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
-          typename VertexValueOutputIterator,
-          typename EdgeOp>
+          typename EdgeOp,
+          typename VertexValueOutputIterator>
 void copy_v_transform_reduce_in_nbr(
   HandleType& handle,
   GraphType const& graph_device_view,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexValueOutputIterator vertex_value_output_first,
   EdgeOp e_op,
-  typename std::iterator_traits<VertexValueOutputIterator>::value_type init)
+  typename std::iterator_traits<VertexValueOutputIterator>::value_type init,
+  VertexValueOutputIterator vertex_value_output_first)
 {
   using T = typename std::iterator_traits<VertexValueOutputIterator>::value_type;
 
@@ -179,16 +179,16 @@ template <typename HandleType,
           typename GraphType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
-          typename VertexValueOutputIterator,
-          typename EdgeOp>
+          typename EdgeOp,
+          typename VertexValueOutputIterator>
 void copy_v_transform_reduce_out_nbr(
   HandleType& handle,
   GraphType const& graph_device_view,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexValueOutputIterator vertex_value_output_first,
   EdgeOp e_op,
-  typename std::iterator_traits<VertexValueOutputIterator>::value_type init)
+  typename std::iterator_traits<VertexValueOutputIterator>::value_type init,
+  VertexValueOutputIterator vertex_value_output_first)
 {
   using T = typename std::iterator_traits<VertexValueOutputIterator>::value_type;
 

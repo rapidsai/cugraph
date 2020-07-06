@@ -82,7 +82,7 @@ void pagerank(raft::handle_t& handle,
     if (adj_matrix_row_out_weight_sums != nullptr) {
       auto num_negative_weight_sums = count_if_adj_matrix_row(
         handle, graph_device_view, adj_matrix_row_out_weight_sums, [] __device__(auto val) {
-          return val < static_cast<result_t>(0.0);
+          return val < result_t{0.0};
         });
       CUGRAPH_EXPECTS(
         num_negative_weight_sums == 0,
@@ -141,9 +141,9 @@ void pagerank(raft::handle_t& handle,
       graph_device_view,
       thrust::make_constant_iterator(0) /* dummy */,
       thrust::make_constant_iterator(0) /* dummy */,
-      tmp_out_weight_sums.data().get(),
       [alpha] __device__(auto src_val, auto dst_val, weight_t w) { return w; },
-      weight_t{0.0});
+      weight_t{0.0},
+      tmp_out_weight_sums.data().get());
 
     tmp_adj_matrix_row_out_weight_sums.assign(
       graph_device_view.get_number_of_adj_matrix_local_rows(), weight_t{0.0});
@@ -160,7 +160,7 @@ void pagerank(raft::handle_t& handle,
   // 3. initialize pagerank values
 
   if (has_initial_guess) {
-    auto sum = reduce_v(handle, graph_device_view, pageranks, static_cast<result_t>(0.0));
+    auto sum = reduce_v(handle, graph_device_view, pageranks, result_t{0.0});
     CUGRAPH_EXPECTS(
       sum > 0.0,
       "Invalid input argument: sum of the PageRank initial guess values should be positive.");
@@ -173,7 +173,7 @@ void pagerank(raft::handle_t& handle,
     thrust::fill(thrust::cuda::par.on(handle.get_stream()),
                  pageranks,
                  pageranks + graph_device_view.get_number_of_local_vertices(),
-                 static_cast<result_t>(1.0) / static_cast<result_t>(num_vertices));
+                 result_t{1.0} / static_cast<result_t>(num_vertices));
   }
 
   // 4. sum the personalization values
@@ -184,7 +184,7 @@ void pagerank(raft::handle_t& handle,
                                    graph_device_view,
                                    personalization_values,
                                    personalization_values + personalization_vector_size,
-                                   static_cast<result_t>(0.0));
+                                   result_t{0.0});
     CUGRAPH_EXPECTS(personalization_sum > 0.0,
                     "Invalid input argument: sum of personalization valuese should be positive.");
   }
@@ -193,7 +193,7 @@ void pagerank(raft::handle_t& handle,
 
   // old PageRank values
   rmm::device_vector<result_t> adj_matrix_row_pageranks(
-    graph_device_view.get_number_of_adj_matrix_local_rows(), static_cast<result_t>(0.0));
+    graph_device_view.get_number_of_adj_matrix_local_rows(), result_t{0.0});
   size_t iter{0};
   while (true) {
     copy_to_adj_matrix_row(handle, graph_device_view, pageranks, adj_matrix_row_pageranks.begin());
@@ -207,9 +207,8 @@ void pagerank(raft::handle_t& handle,
                       [] __device__(auto val) {
                         auto const row_pagerank       = thrust::get<0>(val);
                         auto const row_out_weight_sum = thrust::get<1>(val);
-                        auto const divisor = row_out_weight_sum == static_cast<result_t>(0.0)
-                                               ? static_cast<result_t>(1.0)
-                                               : row_out_weight_sum;
+                        auto const divisor =
+                          row_out_weight_sum == result_t{0.0} ? result_t{1.0} : row_out_weight_sum;
                         return row_pagerank / divisor;
                       });
 
@@ -221,25 +220,23 @@ void pagerank(raft::handle_t& handle,
       [] __device__(auto v_val, auto row_val) {
         auto const row_pagerank       = thrust::get<0>(row_val);
         auto const row_out_weight_sum = thrust::get<1>(row_val);
-        return row_out_weight_sum == static_cast<result_t>(0.0) ? row_pagerank
-                                                                : static_cast<result_t>(0.0);
+        return row_out_weight_sum == result_t{0.0} ? row_pagerank : result_t{0.0};
       },
-      static_cast<result_t>(0.0));
+      result_t{0.0});
 
     auto unvarying_part =
       personalization_vertices == nullptr
-        ? (static_cast<result_t>(1.0 - alpha)) / static_cast<result_t>(num_vertices) +
-            static_cast<result_t>(alpha) * (dangling_sum / static_cast<result_t>(num_vertices))
-        : static_cast<result_t>(0.0);
+        ? (dangling_sum + static_cast<result_t>(1.0 - alpha)) / static_cast<result_t>(num_vertices)
+        : result_t{0.0};
 
     copy_v_transform_reduce_in_nbr(
       handle,
       graph_device_view,
       adj_matrix_row_pageranks.begin(),
       thrust::make_constant_iterator(0) /* dummy */,
-      pageranks,
-      [alpha] __device__(auto src_val, auto dst_val, weight_t w) { return src_val * alpha; },
-      unvarying_part);
+      [alpha] __device__(auto src_val, auto dst_val, weight_t w) { return src_val * w * alpha; },
+      unvarying_part,
+      pageranks);
 
     if (personalization_vertices != nullptr) {
       auto val_first = thrust::make_zip_iterator(
@@ -260,13 +257,18 @@ void pagerank(raft::handle_t& handle,
       handle,
       graph_device_view,
       pageranks,
-      adj_matrix_row_pageranks.begin(),
-      [] __device__(auto v_val, auto col_val) { return std::abs(v_val - col_val); },
-      static_cast<result_t>(0.0));
+      thrust::make_zip_iterator(
+        thrust::make_tuple(adj_matrix_row_pageranks.begin(), row_out_weight_sums)),
+      [] __device__(auto v_val, auto row_val) {
+        auto multiplier =
+          thrust::get<1>(row_val) == result_t{0.0} ? result_t{1.0} : thrust::get<1>(row_val);
+        return std::abs(v_val - thrust::get<0>(row_val) * multiplier);
+      },
+      result_t{0.0});
 
     iter++;
 
-    if (diff_sum < static_cast<result_t>(num_vertices) * static_cast<result_t>(epsilon)) {
+    if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) {
       break;
     } else if (iter >= max_iterations) {
       CUGRAPH_FAIL("PageRank failed to converge.");

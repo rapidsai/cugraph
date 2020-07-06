@@ -187,18 +187,18 @@ void sssp(raft::handle_t &handle,
         handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
-        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
-        distances,
+        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),        
         thrust::make_zip_iterator(
           thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
         graph_device_view.adj_matrix_local_col_begin(),
+        e_op,
+        reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
+        distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         thrust::make_zip_iterator(
           thrust::make_tuple(adj_matrix_row_distances.begin(), thrust::make_discard_iterator())),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
-        e_op,
-        reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         v_op);
     } else {
       update_frontier_v_push_if_out_nbr(
@@ -206,16 +206,16 @@ void sssp(raft::handle_t &handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
-        distances,
         thrust::make_zip_iterator(
           thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
         graph_device_view.adj_matrix_local_col_begin(),
+        e_op,
+        reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
+        distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         thrust::make_discard_iterator(),
         thrust::make_discard_iterator(),
         adj_matrix_row_frontier,
-        e_op,
-        reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         v_op);
     }
 
