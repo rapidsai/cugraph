@@ -229,7 +229,7 @@ typedef struct EdgeBC_Usecase_t {
 } EdgeBC_Usecase;
 
 class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
-  raft::handle_t handle;
+  raft::handle_t handle_;
  public:
   Tests_EdgeBC() {}
   static void SetupTestCase() {}
@@ -277,7 +277,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
     thrust::device_vector<result_t> d_result(G.number_of_edges);
-    cugraph::edge_betweenness_centrality(handle,
+    cugraph::edge_betweenness_centrality(handle_,
                                          G,
                                          d_result.data().get(),
                                          normalize,

@@ -526,21 +526,21 @@ template void bfs<uint32_t, uint32_t, double>(
   bool directed);
 
 // Explicit Instantiation
-template void bfs<int, int, float>(raft::handle_t const &handle,
-                                   experimental::GraphCSRView<int, int, float> const &graph,
-                                   int *distances,
-                                   int *predecessors,
+template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
+                                   experimental::GraphCSRView<int32_t, int32_t, float> const &graph,
+                                   int32_t *distances,
+                                   int32_t *predecessors,
                                    double *sp_counters,
-                                   const int source_vertex,
+                                   const int32_t source_vertex,
                                    bool directed);
 
 // Explicit Instantiation
-template void bfs<int, int, double>(raft::handle_t const &handle,
-                                    experimental::GraphCSRView<int, int, double> const &graph,
-                                    int *distances,
-                                    int *predecessors,
+template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
+                                    experimental::GraphCSRView<int32_t, int32_t, double> const &graph,
+                                    int32_t *distances,
+                                    int32_t *predecessors,
                                     double *sp_counters,
-                                    const int source_vertex,
+                                    const int32_t source_vertex,
                                     bool directed);
 
 // Explicit Instantiation

@@ -51,7 +51,7 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_,
   is_setup = false;
 
   // intialize cusparse. This can take some time.
-  cugraph::detail::Cusparse::get_handle();
+  handle_.get_cusparse_handle();
 }
 
 template <typename VT, typename ET, typename WT>

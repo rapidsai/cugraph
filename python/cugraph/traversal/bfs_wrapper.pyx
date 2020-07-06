@@ -51,6 +51,9 @@ def bfs(input_graph, start, directed=True,
     if input_graph.adjlist is None:
         input_graph.view_adj_list()
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+
     # Step 3: Extract CSR offsets, indices, weights are not expected
     #         - offsets: int (signed, 32-bit)
     #         - indices: int (signed, 32-bit)
@@ -94,7 +97,7 @@ def bfs(input_graph, start, directed=True,
                                             num_edges)
     graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
     # Different pathing wether shortest_path_counting is required or not
-    c_bfs.bfs[int, int, float](get_default_raft_handle(),
+    c_bfs.bfs[int, int, float](handle_ptr.get()[0],
                                graph_float,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
