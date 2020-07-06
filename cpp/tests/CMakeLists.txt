@@ -279,6 +279,24 @@ set(EXPERIMENTAL_SSSP_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_SSSP_TEST "${EXPERIMENTAL_SSSP_TEST_SRCS}" "")
 
 ###################################################################################################
+# - Experimental PAGERANK tests -------------------------------------------------------------------
+
+set(EXPERIMENTAL_PAGERANK_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/pagerank_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}" "")
+
+###################################################################################################
+# - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
+
+set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/katz_centrality_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}" "")
+
+###################################################################################################
 ### enable testing ################################################################################
 ###################################################################################################
 
