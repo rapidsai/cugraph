@@ -25,17 +25,17 @@ cdef extern from "raft/handle.hpp" namespace "raft":
     cdef cppclass handle_t:
         handle_t() except +
 
-cdef extern from "graph.hpp" namespace "cugraph::experimental":
+cdef extern from "graph.hpp" namespace "cugraph":
 
     ctypedef enum PropType:
-        PROP_UNDEF "cugraph::experimental::PROP_UNDEF"
-        PROP_FALSE "cugraph::experimental::PROP_FALSE"
-        PROP_TRUE "cugraph::experimental::PROP_TRUE"
+        PROP_UNDEF "cugraph::PROP_UNDEF"
+        PROP_FALSE "cugraph::PROP_FALSE"
+        PROP_TRUE "cugraph::PROP_TRUE"
 
     ctypedef enum DegreeDirection:
-        DIRECTION_IN_PLUS_OUT "cugraph::experimental::DegreeDirection::IN_PLUS_OUT"
-        DIRECTION_IN "cugraph::experimental::DegreeDirection::IN"
-        DIRECTION_OUT "cugraph::experimental::DegreeDirection::OUT"
+        DIRECTION_IN_PLUS_OUT "cugraph::DegreeDirection::IN_PLUS_OUT"
+        DIRECTION_IN "cugraph::DegreeDirection::IN"
+        DIRECTION_OUT "cugraph::DegreeDirection::OUT"
 
     struct GraphProperties:
         bool directed
