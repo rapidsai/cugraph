@@ -88,12 +88,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     df = overlap_wrapper.overlap(input_graph, weights, vertex_pair)
 
     if input_graph.renumbered:
-        # FIXME: multi column support
-        df = renumber_map.from_vertex_id(df, "source", drop=True).rename(
-            columns={"0": "source"}, copy=False
-        )
-        df = renumber_map.from_vertex_id(df, "destination", drop=True).rename(
-            columns={"0": "destination"}, copy=False
-        )
+        df = input_graph.unrenumber(df, "source")
+        df = input_graph.unrenumber(df, "destination")
 
     return df

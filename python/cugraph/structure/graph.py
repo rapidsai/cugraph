@@ -182,36 +182,29 @@ class Graph:
         dest_col = None
         value_col = None
         renumber_map = None
+        df = None
+
+        if renumber:
+            df, renumber_map = NumberMap.renumber(input_df, source, destination)
+            source = 'src'
+            destination = 'dst'
+            self.renumbered = True
+        else:
+            df = input_df
 
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception("edge_attr should be a list of column names")
             value_col = {}
             for col_name in edge_attr:
-                value_col[col_name] = input_df[col_name]
+                value_col[col_name] = df[col_name]
         elif edge_attr is not None:
-            value_col = input_df[edge_attr]
+            value_col = df[edge_attr]
         else:
             value_col = None
 
-        if renumber:
-            renumber_map = NumberMap()
-            if type(source) is list:
-                renumber_map.from_dataframe(input_df, source, destination)
-                source_col = renumber_map.to_vertex_id(input_df, source)
-                dest_col = renumber_map.to_vertex_id(input_df, destination)
-            else:
-                renumber_map.from_dataframe(input_df, [source], [destination])
-                source_col = renumber_map.to_vertex_id(input_df, [source])
-                dest_col = renumber_map.to_vertex_id(input_df, [destination])
-
-            self.renumbered = True
-        else:
-            if type(source) is list and type(destination) is list:
-                raise Exception("set renumber to True for multi column ids")
-            else:
-                source_col = input_df[source]
-                dest_col = input_df[destination]
+        source_col = df[source]
+        dest_col = df[destination]
 
         if not self.symmetrized and not self.multi:
             if value_col is not None:
@@ -239,8 +232,15 @@ class Graph:
         else:
             self.from_cudf_edgelist(input_df)
 
-    def from_dask_cudf_edgelist(self, input_ddf):
-        self.edgelist = self.EdgeList(input_ddf)
+    def from_dask_cudf_edgelist(self, input_ddf, renumber=False):
+        if renumber:
+            renumbered_ddf, number_map = NumberMap.renumber(input_ddf, "src", "dst")
+            self.edgelist = self.EdgeList(renumbered_ddf)
+            self.edgelist.renumber_map = number_map
+            self.renumbered = True
+        else:
+            self.edgelist = self.EdgeList(input_ddf)
+            self.renumbered = False
 
     def view_edge_list(self):
         """
@@ -283,19 +283,8 @@ class Graph:
         edgelist_df = self.edgelist.edgelist_df
 
         if self.renumbered:
-            src_name_mapping = {"0": "src"}
-            dst_name_mapping = {"0": "dst"}
-            if len(self.edgelist.renumber_map.column_names()) > 1:
-                for name in self.edgelist.renumber_map.column_names():
-                    src_name_mapping[name] = name + "_src"
-                    dst_name_mapping[name] = name + "_dst"
-
-            edgelist_df = self.edgelist.renumber_map.from_vertex_id(
-                edgelist_df, "src", drop=True
-            ).rename(columns=src_name_mapping, copy=False)
-            edgelist_df = self.edgelist.renumber_map.from_vertex_id(
-                edgelist_df, "dst", drop=True
-            ).rename(columns=dst_name_mapping, copy=False)
+            edgelist_df = self.unrenumber(edgelist_df, "src")
+            edgelist_df = self.unrenumber(edgelist_df, "dst")
 
         if type(self) is Graph:
             edgelist_df = edgelist_df[edgelist_df["src"] <= edgelist_df["dst"]]
@@ -480,23 +469,8 @@ class Graph:
         """
         df = graph_new_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
-            first_name_mapping = {"0": "first"}
-            second_name_mapping = {"0": "second"}
-            if len(self.edgelist.renumber_map.column_names()) > 1:
-                for name in self.edgelist.renumber_map.column_names():
-                    first_name_mapping[name] = name + "_first"
-                    second_name_mapping[name] = name + "_second"
-
-            df = (
-                self.edgelist.renumber_map.from_vertex_id(df, "first")
-                .drop("first")
-                .rename(columns=first_name_mapping, copy=False)
-            )
-            df = (
-                self.edgelist.renumber_map.from_vertex_id(df, "second")
-                .drop("second")
-                .rename(columns=second_name_mapping, copy=False)
-            )
+            df = self.unrenumber(df, "first")
+            df = self.unrenumber(df, "second")
 
         return df
 
@@ -714,16 +688,7 @@ class Graph:
         df["out_degree"] = out_degree_col
 
         if self.renumbered is True:
-            name_mapping = {"0": "vertex"}
-            if len(self.edgelist.renumber_map.column_names()) > 1:
-                for name in self.edgelist.renumber_map.column_names():
-                    name_mapping[name] = name + "_vertex"
-
-            df = (
-                self.edgelist.renumber_map.from_vertex_id(df, "vertex")
-                .drop("vertex")
-                .rename(columns=name_mapping, copy=False)
-            )
+            df = self.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
             df = df.query("`vertex` in @vertex_subset")
@@ -738,16 +703,7 @@ class Graph:
         df["degree"] = degree_col
 
         if self.renumbered is True:
-            name_mapping = {"0": "vertex"}
-            if len(self.edgelist.renumber_map.column_names()) > 1:
-                for name in self.edgelist.renumber_map.column_names():
-                    name_mapping[name] = name + "_vertex"
-
-            df = (
-                self.edgelist.renumber_map.from_vertex_id(df, "vertex")
-                .drop("vertex")
-                .rename(columns=name_mapping, copy=False)
-            )
+            df = self.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
             df = df.query("`vertex` in @vertex_subset")
@@ -895,6 +851,9 @@ class Graph:
             return self.edgelist.renumber_map.from_vertex_id(neighbors)["0"]
         else:
             return neighbors
+
+    def unrenumber(self, df, column_name):
+        return self.edgelist.renumber_map.unrenumber(df, column_name)
 
 
 class DiGraph(Graph):

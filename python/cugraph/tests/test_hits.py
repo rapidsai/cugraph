@@ -54,6 +54,7 @@ def cugraph_call(cu_M, max_iter, tol):
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
     df = cugraph.hits(G, max_iter, tol)
+    df = df.sort_values("vertex").reset_index(drop=True)
     t2 = time.time() - t1
     print("Cugraph Time : " + str(t2))
 

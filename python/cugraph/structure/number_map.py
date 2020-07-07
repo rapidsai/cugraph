@@ -65,13 +65,18 @@ class NumberMap:
                 .reset_index()["id"]
             )
 
-        def add_vertex_id(self, df, id_column_name, col_names):
+        def add_vertex_id(self, df, id_column_name, col_names, drop):
+            ret = None
             if col_names is None:
-                return df.merge(self.df, on=self.col_names, how="left").rename(
+                ret = df.merge(self.df, on=self.col_names, how="left").rename(
+                    columns={"id": id_column_name}, copy=False
+                )
+            elif col_names == self.col_names:
+                ret = df.merge(self.df, on=self.col_names, how="left").rename(
                     columns={"id": id_column_name}, copy=False
                 )
             else:
-                return (
+                ret = (
                     df.merge(
                         self.df,
                         left_on=col_names,
@@ -81,6 +86,12 @@ class NumberMap:
                     .drop(self.col_names)
                     .rename(columns={"id": id_column_name}, copy=False)
                 )
+
+            if drop:
+                return ret.drop(col_names)
+
+            return ret
+
 
         def from_vertex_id(
             self, df, internal_column_name, external_column_names
@@ -244,19 +255,25 @@ class NumberMap:
                 how="left",
             )["global_id"]
 
-        def add_vertex_id(self, ddf, id_column_name, col_names):
+        def add_vertex_id(self, ddf, id_column_name, col_names, drop):
+            ret = None
             if col_names is None:
-                return ddf.merge(
+                ret = ddf.merge(
                     self.ddf, on=self.col_names, how="left"
                 ).reset_index(drop=True)
             else:
-                return ddf.merge(
+                ret = ddf.merge(
                     self.ddf, left_on=col_names, right_on=self.col_names
                 ).map_partitions(
                     lambda df: df.drop(self.col_names).rename(
                         columns={"global_id": id_column_name}, copy=False
                     )
                 )
+
+            if drop:
+                return ret.map_partitions(lambda df: df.drop(col_names))
+
+            return ret
 
         def from_vertex_id(
             self, df, internal_column_name, external_column_names
@@ -320,7 +337,7 @@ class NumberMap:
             dst_col_names
         ):
             raise Exception(
-                "src_col_names must have same length " "as dst_col_names"
+                "src_col_names must have same length as dst_col_names"
             )
 
         if type(df) is cudf.DataFrame:
@@ -476,16 +493,15 @@ class NumberMap:
             can_drop = False
         else:
             tmp_df = df
-            tmp_col_names = col_names
 
-        output_df = self.implementation.add_vertex_id(
-            tmp_df, id_column_name, tmp_col_names
+            if isinstance(col_names, list):
+                tmp_col_names = col_names
+            else:
+                tmp_col_names = [ col_names ]
+
+        return self.implementation.add_vertex_id(
+            tmp_df, id_column_name, tmp_col_names, (drop and can_drop)
         )
-
-        if drop and can_drop:
-            return output_df.drop(tmp_col_names)
-
-        return output_df
 
     def from_vertex_id(
         self,
@@ -561,3 +577,34 @@ class NumberMap:
             List of column names ('0', '1', ..., 'n-1')
         """
         return self.implementation.col_names
+
+
+    def renumber(df, source_columns, dest_columns):
+        renumber_map = NumberMap()
+
+        if isinstance(source_columns, list):
+            renumber_map.from_dataframe(df, source_columns, dest_columns)
+            df = renumber_map.add_vertex_id(df, "id", source_columns, drop=True).rename(columns={"id": 'src'})
+            df = renumber_map.add_vertex_id(df, "id", dest_columns, drop=True).rename(columns={"id": 'dst'})
+        else:
+            renumber_map.from_dataframe(df, [source_columns], [dest_columns])
+            df = renumber_map.add_vertex_id(df, "id", source_columns, drop=True).rename(columns={"id": 'src'})
+            df = renumber_map.add_vertex_id(df, "id", dest_columns, drop=True).rename(columns={"id": 'dst'})
+
+        return df, renumber_map
+
+    def unrenumber(self, df, column_name):
+        if len(self.implementation.col_names) == 1:
+            # Output will be renamed to match input
+            mapping = {"0": column_name}
+        else:
+            # Output will be renamed to ${i}_${column_name}
+            mapping = {}
+            for nm in self.implementation.col_names:
+                mapping[nm] = nm + "_" + column_name
+
+        df = self.from_vertex_id(df, column_name, drop=True)
+
+        return df.rename(columns=mapping, copy=False)
+
+

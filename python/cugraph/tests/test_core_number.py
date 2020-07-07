@@ -37,6 +37,7 @@ def calc_core_number(graph_file):
     G.from_cudf_edgelist(M, source="0", destination="1")
 
     cn = cugraph.core_number(G)
+    cn = cn.sort_values("vertex").reset_index(drop=True)
 
     NM = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(

@@ -82,13 +82,7 @@ def spectralBalancedCutClustering(
     )
 
     if G.renumbered:
-        # FIXME: multi-column vertex support
-        df = (
-            G.edgelist.renumber_map.from_vertex_id(df, "vertex")
-            .drop("vertex")
-            .rename(columns={"0": "vertex"}, copy=False)
-        )
-        df = df.sort_values("vertex").reset_index(drop=True)
+        df = G.unrenumber(df, "vertex")
 
     return df
 
@@ -158,12 +152,10 @@ def spectralModularityMaximizationClustering(
     )
 
     if G.renumbered:
-        # FIXME: multi-column vertex support
-        df = (
-            G.edgelist.renumber_map.from_vertex_id(df, "vertex")
-            .drop("vertex")
-            .rename(columns={"0": "vertex"}, copy=False)
-        )
+        df = G.unrenumber(df, "vertex")
+        # FIXME:  Existing code relies on df being sorted...
+        #   Shouldn't because in MG we can't guarantee sorting
+        #   and partitioning of output
         df = df.sort_values("vertex").reset_index(drop=True)
 
     return df

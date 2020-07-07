@@ -107,13 +107,6 @@ def pagerank(
     )
 
     if G.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = G.edgelist.renumber_map.from_vertex_id(df["vertex"])
-        if len(tmp.columns) == 1:
-            df["vertex"] = tmp["0"]
-        else:
-            df = df.drop("vertex")
-            for col in tmp.columns:
-                df[col] = tmp[col]
+        df = G.unrenumber(df, "vertex")
 
     return df

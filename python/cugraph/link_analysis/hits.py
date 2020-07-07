@@ -75,8 +75,6 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     df = hits_wrapper.hits(G, max_iter, tol)
 
     if G.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = G.edgelist.renumber_map.from_vertex_id(df["vertex"])
-        df["vertex"] = tmp["0"]
+        df = G.unrenumber(df, "vertex")
 
     return df

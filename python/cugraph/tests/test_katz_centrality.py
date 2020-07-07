@@ -49,6 +49,7 @@ def calc_katz(graph_file):
     katz_alpha = 1 / (largest_out_degree + 1)
 
     k_df = cugraph.katz_centrality(G, None, max_iter=1000)
+    k_df = k_df.sort_values("vertex").reset_index(drop=True)
 
     NM = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(

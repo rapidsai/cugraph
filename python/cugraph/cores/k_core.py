@@ -76,13 +76,8 @@ def k_core(G, k=None, core_number=None):
     k_core_df = k_core_wrapper.k_core(G, k, core_number)
 
     if G.renumbered:
-        # FIXME: multi-column vertex support
-        k_core_df = G.edgelist.renumber_map.from_vertex_id(
-            k_core_df, "src", drop=True
-        ).rename(columns={"0": "src"}, copy=False)
-        k_core_df = G.edgelist.renumber_map.from_vertex_id(
-            k_core_df, "dst", drop=True
-        ).rename(columns={"0": "dst"}, copy=False)
+        k_core_df = G.unrenumber(k_core_df, "src")
+        k_core_df = G.unrenumber(k_core_df, "dst")
 
     if G.edgelist.weights:
         KCoreGraph.from_cudf_edgelist(

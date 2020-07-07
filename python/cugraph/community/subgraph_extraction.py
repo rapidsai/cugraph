@@ -60,13 +60,8 @@ def subgraph(G, vertices):
     df = subgraph_extraction_wrapper.subgraph(G, vertices)
 
     if G.renumbered:
-        # FIXME: multi-column vertex support
-        df = G.edgelist.renumber_map.from_vertex_id(
-            df, "src", drop=True
-        ).rename(columns={"0": "src"}, copy=False)
-        df = G.edgelist.renumber_map.from_vertex_id(
-            df, "dst", drop=True
-        ).rename(columns={"0": "dst"}, copy=False)
+        df = G.unrenumber(df, "src")
+        df = G.unrenumber(df, "dst")
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(

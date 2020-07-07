@@ -53,8 +53,6 @@ def core_number(G):
     df = core_number_wrapper.core_number(G)
 
     if G.renumbered:
-        # FIXME: multi-column vertex support
-        tmp = G.edgelist.renumber_map.from_vertex_id(df["vertex"])
-        df["vertex"] = tmp["0"]
+        df = G.unrenumber(df, "vertex")
 
     return df
