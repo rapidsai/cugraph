@@ -149,14 +149,14 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-        cugraph::pagerank<int, int, T>(G.handle[0], G, d_pagerank);
+        cugraph::pagerank<int, int, T>(handle, G, d_pagerank);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       pagerank_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();
-      cugraph::pagerank<int, int, T>(G.handle[0], G, d_pagerank);
+      cugraph::pagerank<int, int, T>(handle, G, d_pagerank);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }
