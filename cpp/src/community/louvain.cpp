@@ -28,7 +28,7 @@
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void louvain(GraphCSRView<VT, ET, WT> const &graph,
              WT *final_modularity,
              int *num_level,
              VT *louvain_parts,
@@ -43,8 +43,8 @@ void louvain(experimental::GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void louvain(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int);
+  GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int);
 template void louvain(
-  experimental::GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int);
+  GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int);
 
 }  // namespace cugraph
