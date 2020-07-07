@@ -283,6 +283,8 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
  * @tparam result_t                  Type of computed result.  Supported values :  float or double
  * (double only supported in default implementation)
  *
+ * @param[in] handle                 Library handle (RAFT). If a communicator is set in the handle,
+ the multi GPU version will be selected.
  * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  * information as a CSR
  * @param[out] result                Device array of centrality scores
@@ -298,7 +300,8 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality(raft::handle_t const &handle,
+                            GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalized    = true,
                             bool endpoints     = false,
@@ -325,6 +328,8 @@ void betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
  * @tparam result_t                  Type of computed result.  Supported values :  float or double
  * (double only supported in default implementation)
  *
+ * @param[in] handle                 Library handle (RAFT). If a communicator is set in the handle,
+ the multi GPU version will be selected.
  * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  * information as a CSR
  * @param[out] result                Device array of centrality scores
@@ -339,7 +344,8 @@ void betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
+void edge_betweenness_centrality(raft::handle_t const &handle,
+                                 GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
                                  bool normalized    = true,
                                  WT const *weight   = nullptr,
@@ -563,6 +569,8 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : int (signed, 32-bit)
  *
+ * @param[in] handle                 Library handle (RAFT). If a communicator is set in the handle,
+ the multi GPU version will be selected.
  * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
  * information as a CSR
  *
@@ -582,7 +590,8 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
  * @throws     cugraph::logic_error when an error occurs.
  */
 template <typename VT, typename ET, typename WT>
-void bfs(GraphCSRView<VT, ET, WT> const &graph,
+void bfs(raft::handle_t const &handle,
+         GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
          double *sp_counters,

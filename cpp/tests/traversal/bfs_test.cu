@@ -22,6 +22,7 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
+#include <raft/handle.hpp>
 #include "gtest/gtest.h"
 
 #include "utilities/test_utilities.hpp"
@@ -71,6 +72,8 @@ typedef struct BFS_Usecase_t {
 } BFS_Usecase;
 
 class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
+  raft::handle_t handle;
+
  public:
   Tests_BFS() {}
   static void SetupTestCase() {}
@@ -140,7 +143,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     // Don't pass valid sp_sp_counter ptr unless needed because it disables
     // the bottom up flow
-    cugraph::bfs<VT, ET, WT>(G,
+    cugraph::bfs<VT, ET, WT>(handle,
+                             G,
                              d_cugraph_dist.data().get(),
                              d_cugraph_pred.data().get(),
                              (return_sp_counter) ? d_cugraph_sigmas.data().get() : nullptr,

@@ -49,6 +49,9 @@ def sssp(input_graph, source):
     cdef uintptr_t c_distance_ptr       = <uintptr_t> NULL # Pointer to the DataFrame 'distance' Series
     cdef uintptr_t c_predecessor_ptr    = <uintptr_t> NULL # Pointer to the DataFrame 'predecessor' Series
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+
     # Step 2: Verify that input_graph has the expected format
     #         the SSSP implementation expects CSR format
     if not input_graph.adjlist:
@@ -129,7 +132,8 @@ def sssp(input_graph, source):
                                                 num_verts,
                                                 num_edges)
         graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
-        c_bfs.bfs[int, int, float](graph_float,
+        c_bfs.bfs[int, int, float](handle_ptr.get()[0],
+                                   graph_float,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
                                    <double*> NULL,

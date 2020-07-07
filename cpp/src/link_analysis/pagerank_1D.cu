@@ -50,6 +50,8 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, E
   is_setup = false;
 
   // intialize cusparse. This can take some time.
+  // TODO use cusparse handle from raft handle and pass it
+  // to OPGcsrmv and CusparseCsrMV
   cugraph::detail::Cusparse::get_handle();
 }
 

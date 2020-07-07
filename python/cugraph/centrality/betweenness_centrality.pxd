@@ -23,6 +23,7 @@ from libcpp cimport bool
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void betweenness_centrality[VT,ET,WT,result_t](
+        const handle_t &handle,
         const GraphCSRView[VT,ET,WT] &graph,
         result_t *result,
         bool normalized,
@@ -32,6 +33,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         const VT *vertices) except +
 
     cdef void edge_betweenness_centrality[VT, ET, WT, result_t](
+        const handle_t &handle,
         const GraphCSRView[VT, ET, WT] &graph,
         result_t *result,
         bool normalized,

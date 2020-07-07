@@ -22,7 +22,8 @@
 namespace cugraph {
 namespace detail {
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality(raft::handle_t const &handle,
+                            GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -51,8 +52,10 @@ template <typename VT, typename ET, typename WT, typename result_t>
 class BC {
  public:
   virtual ~BC(void) {}
-  BC(GraphCSRView<VT, ET, WT> const &graph, cudaStream_t stream = 0)
-    : graph_(graph), stream_(stream)
+  BC(raft::handle_t const &handle,
+     GraphCSRView<VT, ET, WT> const &graph,
+     cudaStream_t stream = 0)
+    : handle_(handle), graph_(graph), stream_(stream)
   {
     setup();
   }
@@ -72,6 +75,8 @@ class BC {
   void compute();
 
  private:
+  // --- RAFT handle ---
+  raft::handle_t const &handle_;
   // --- Information concerning the graph ---
   const GraphCSRView<VT, ET, WT> &graph_;
   // --- These information are extracted on setup ---
