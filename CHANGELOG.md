@@ -26,6 +26,7 @@
 - PR #975 Upgrade GitHub template
 - PR #976 Fix error in Graph.edges(), update cuDF rename() calls
 - PR #977 Update force_atlas2 to call on_train_end after iterating
+- PR #984 Removing codecov until we figure out how to interpret failures that block CI
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
