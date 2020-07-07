@@ -52,9 +52,7 @@ template <typename VT, typename ET, typename WT, typename result_t>
 class BC {
  public:
   virtual ~BC(void) {}
-  BC(raft::handle_t const &handle,
-     GraphCSRView<VT, ET, WT> const &graph,
-     cudaStream_t stream = 0)
+  BC(raft::handle_t const &handle, GraphCSRView<VT, ET, WT> const &graph, cudaStream_t stream = 0)
     : handle_(handle), graph_(graph), stream_(stream)
   {
     setup();

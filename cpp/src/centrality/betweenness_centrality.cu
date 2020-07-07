@@ -408,15 +408,14 @@ void betweenness_centrality(raft::handle_t const &handle,
     handle, graph, result, normalize, endpoints, weight, k, vertices);
 }
 
-template void betweenness_centrality<int, int, float, float>(
-  raft::handle_t const &handle,
-  GraphCSRView<int, int, float> const &,
-  float *,
-  bool,
-  bool,
-  float const *,
-  int,
-  int const *);
+template void betweenness_centrality<int, int, float, float>(raft::handle_t const &handle,
+                                                             GraphCSRView<int, int, float> const &,
+                                                             float *,
+                                                             bool,
+                                                             bool,
+                                                             float const *,
+                                                             int,
+                                                             int const *);
 template void betweenness_centrality<int, int, double, double>(
   raft::handle_t const &handle,
   GraphCSRView<int, int, double> const &,
