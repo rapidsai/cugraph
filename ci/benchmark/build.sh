@@ -124,10 +124,10 @@ JOBEXITCODE=0
 if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
     if (( ${EXITCODE} == 1 )); then
         sleep 1 #There were some benchmark failures, send notification
-    else
+    elif (( ${EXITCODE} != 0 )); then
         #There was a FATAL error during the benchmark runs, abort entirely and send notification
         JOBEXITCODE=${EXITCODE}
-	exit ${JOBEXITCODE}
+        exit ${JOBEXITCODE}
     fi
 fi
 
