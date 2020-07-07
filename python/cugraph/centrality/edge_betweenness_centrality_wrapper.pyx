@@ -54,6 +54,9 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+
     df = get_output_df(input_graph, result_dtype)
 
     c_src_identifier = df['src'].__cuda_array_interface__['data'][0]
@@ -81,7 +84,8 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
         graph_float.prop.directed = type(input_graph) is DiGraph
 
         c_edge_betweenness_centrality[int, int,
-                                      float, float](graph_float,
+                                      float, float](handle_ptr.get()[0],
+                                                    graph_float,
                                                     <float*> c_betweenness,
                                                     normalized,
                                                     <float*> c_weight,
@@ -95,7 +99,8 @@ def edge_betweenness_centrality(input_graph, normalized, weight, k,
         graph_double.prop.directed = type(input_graph) is DiGraph
 
         c_edge_betweenness_centrality[int, int,
-                                      double, double](graph_double,
+                                      double, double](handle_ptr.get()[0],
+                                                      graph_double,
                                                       <double*> c_betweenness,
                                                       normalized,
                                                       <double*> c_weight,
