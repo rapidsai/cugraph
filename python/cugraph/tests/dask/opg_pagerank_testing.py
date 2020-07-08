@@ -56,11 +56,14 @@ def test_dask_pagerank():
 
     assert len(expected_pr) == len(result_pr)
 
-    compare_pr = expected_pr.merge(result_pr, on="vertex", suffixes=['_local', '_dask'])
+    compare_pr = expected_pr.merge(
+        result_pr, on="vertex", suffixes=['_local', '_dask']
+    )
 
     for i in range(len(compare_pr)):
-        if(abs(compare_pr['pagerank_local'].iloc[i]-compare_pr['pagerank_dask'].iloc[i])
-           > tol*1.1):
+        diff = abs(compare_pr['pagerank_local'].iloc[i] -
+                   compare_pr['pagerank_dask'].iloc[i])
+        if diff > tol * 1.1:
             err = err + 1
     print("Mismatches:", err)
     assert err == 0
