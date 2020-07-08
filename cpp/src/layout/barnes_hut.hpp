@@ -33,7 +33,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                 float *pos,
                 const int max_iter                            = 1000,
                 float *x_start                                = nullptr,
@@ -153,7 +153,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   sort(graph, stream);
   CHECK_CUDA(stream);
   // FIXME: this should work on "stream"
-  graph.degree(massl, cugraph::experimental::DegreeDirection::OUT);
+  graph.degree(massl, cugraph::DegreeDirection::OUT);
   CHECK_CUDA(stream);
 
   const vertex_t *row = graph.src_indices;

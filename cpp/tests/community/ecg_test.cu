@@ -42,7 +42,7 @@ TEST(ecg, success)
   rmm::device_vector<float> weights_v(w_h);
   rmm::device_vector<int> result_v(cluster_id);
 
-  cugraph::experimental::GraphCSRView<int, int, float> graph_csr(
+  cugraph::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   cugraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get());
@@ -103,7 +103,7 @@ TEST(ecg, dolphin)
   rmm::device_vector<float> weights_v(w_h);
   rmm::device_vector<int> result_v(cluster_id);
 
-  cugraph::experimental::GraphCSRView<int, int, float> graph_csr(
+  cugraph::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   cugraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get());

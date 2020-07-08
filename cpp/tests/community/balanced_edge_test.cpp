@@ -50,7 +50,7 @@ TEST(balanced_edge, success)
   rmm::device_vector<float> weights_v(w_h);
   rmm::device_vector<int> result_v(cluster_id);
 
-  cugraph::experimental::GraphCSRView<int, int, float> G(
+  cugraph::GraphCSRView<int, int, float> G(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   int num_clusters{8};

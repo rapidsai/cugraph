@@ -834,7 +834,7 @@ void TrianglesCount<IndexType>::count()
 }  // namespace
 
 template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph)
+uint64_t triangle_count(GraphCSRView<VT, ET, WT> const &graph)
 {
   TrianglesCount<VT> counter(
     graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices);
@@ -844,7 +844,7 @@ uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph)
 }
 
 template uint64_t triangle_count<int32_t, int32_t, float>(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &);
+  GraphCSRView<int32_t, int32_t, float> const &);
 
 }  // namespace triangle
 }  // namespace cugraph
