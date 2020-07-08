@@ -22,10 +22,20 @@
 - PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
 - PR #954 Update cuGraph error handling to use RAFT
 - PR #968 Add build script for CI benchmark integration
+- PR #959 Add support for uint32_t and int64_t types for BFS (cpp side)
+- PR #962 Update dask pagerank
+- PR #975 Upgrade GitHub template
+- PR #976 Fix error in Graph.edges(), update cuDF rename() calls
+- PR #977 Update force_atlas2 to call on_train_end after iterating
+- PR #987 Move graph out of experimental namespace
+- PR #984 Removing codecov until we figure out how to interpret failures that block CI
+- PR #985 Add raft handle to BFS, BC and edge BC
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
 - PR #938 Quote conda installs to avoid bash interpretation
+- PR #966 Fix build error (debug mode)
+- PR #983 Fix offset calculation in COO to CSR
 
 # cuGraph 0.14.0 (03 Jun 2020)
 

@@ -52,6 +52,9 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+
     df = get_output_df(input_graph, result_dtype)
 
     c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
@@ -79,7 +82,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         # FIXME: There might be a way to avoid manually setting the Graph property
         graph_float.prop.directed = type(input_graph) is DiGraph
 
-        c_betweenness_centrality[int, int, float, float](graph_float,
+        c_betweenness_centrality[int, int, float, float](handle_ptr.get()[0],
+                                                         graph_float,
                                                          <float*> c_betweenness,
                                                          normalized, endpoints,
                                                          <float*> c_weight, c_k,
@@ -90,7 +94,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weight, k,
         # FIXME: There might be a way to avoid manually setting the Graph property
         graph_double.prop.directed = type(input_graph) is DiGraph
 
-        c_betweenness_centrality[int, int, double, double](graph_double,
+        c_betweenness_centrality[int, int, double, double](handle_ptr.get()[0],
+                                                           graph_double,
                                                            <double*> c_betweenness,
                                                            normalized, endpoints,
                                                            <double*> c_weight, c_k,

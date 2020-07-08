@@ -461,23 +461,32 @@ void BFS<IndexType>::clean()
   // the vectors have a destructor that takes care of cleaning
 }
 
+// Explicit Instantiation
+template class BFS<uint32_t>;
 template class BFS<int>;
+template class BFS<int64_t>;
+
 }  // namespace detail
 
 // NOTE: SP counter increase extremely fast on large graph
 //       It can easily reach 1e40~1e70 on GAP-road.mtx
 template <typename VT, typename ET, typename WT>
-void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void bfs(raft::handle_t const &handle,
+         GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
          double *sp_counters,
          const VT start_vertex,
          bool directed)
 {
-  CUGRAPH_EXPECTS(typeid(VT) == typeid(int), "Unsupported vertex id data type, please use int");
-  CUGRAPH_EXPECTS(typeid(ET) == typeid(int), "Unsupported edge id data type, please use int");
-  CUGRAPH_EXPECTS((typeid(WT) == typeid(float)) || (typeid(WT) == typeid(double)),
-                  "Unsupported weight data type, please use float or double");
+  static_assert(std::is_integral<VT>::value && sizeof(VT) >= sizeof(int32_t),
+                "Unsupported vertex id data type. Use integral types of size >= sizeof(int32_t)");
+  static_assert(std::is_same<VT, ET>::value,
+                "VT and ET should be the same time for the current BFS implementation");
+  static_assert(std::is_floating_point<WT>::value,
+                "Unsupported edge weight type. Use floating point types");  // actually, this is
+                                                                            // unnecessary for BFS
+  if (handle.comms_initialized()) { CUGRAPH_FAIL("Multi-GPU version of BFS is not implemented"); }
 
   VT number_of_vertices = graph.number_of_vertices;
   ET number_of_edges    = graph.number_of_edges;
@@ -494,17 +503,58 @@ void bfs(experimental::GraphCSRView<VT, ET, WT> const &graph,
   bfs.traverse(start_vertex);
 }
 
-template void bfs<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
-                                   int *distances,
-                                   int *predecessors,
-                                   double *sp_counters,
-                                   const int source_vertex,
-                                   bool directed);
-template void bfs<int, int, double>(experimental::GraphCSRView<int, int, double> const &graph,
-                                    int *distances,
-                                    int *predecessors,
-                                    double *sp_counters,
-                                    const int source_vertex,
-                                    bool directed);
+// Explicit Instantiation
+template void bfs<uint32_t, uint32_t, float>(raft::handle_t const &handle,
+                                             GraphCSRView<uint32_t, uint32_t, float> const &graph,
+                                             uint32_t *distances,
+                                             uint32_t *predecessors,
+                                             double *sp_counters,
+                                             const uint32_t source_vertex,
+                                             bool directed);
+
+// Explicit Instantiation
+template void bfs<uint32_t, uint32_t, double>(raft::handle_t const &handle,
+                                              GraphCSRView<uint32_t, uint32_t, double> const &graph,
+                                              uint32_t *distances,
+                                              uint32_t *predecessors,
+                                              double *sp_counters,
+                                              const uint32_t source_vertex,
+                                              bool directed);
+
+// Explicit Instantiation
+template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
+                                           GraphCSRView<int32_t, int32_t, float> const &graph,
+                                           int32_t *distances,
+                                           int32_t *predecessors,
+                                           double *sp_counters,
+                                           const int32_t source_vertex,
+                                           bool directed);
+
+// Explicit Instantiation
+template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
+                                            GraphCSRView<int32_t, int32_t, double> const &graph,
+                                            int32_t *distances,
+                                            int32_t *predecessors,
+                                            double *sp_counters,
+                                            const int32_t source_vertex,
+                                            bool directed);
+
+// Explicit Instantiation
+template void bfs<int64_t, int64_t, float>(raft::handle_t const &handle,
+                                           GraphCSRView<int64_t, int64_t, float> const &graph,
+                                           int64_t *distances,
+                                           int64_t *predecessors,
+                                           double *sp_counters,
+                                           const int64_t source_vertex,
+                                           bool directed);
+
+// Explicit Instantiation
+template void bfs<int64_t, int64_t, double>(raft::handle_t const &handle,
+                                            GraphCSRView<int64_t, int64_t, double> const &graph,
+                                            int64_t *distances,
+                                            int64_t *predecessors,
+                                            double *sp_counters,
+                                            const int64_t source_vertex,
+                                            bool directed);
 
 }  // namespace cugraph

@@ -50,7 +50,7 @@ TEST(triangle, dolphin)
   rmm::device_vector<int> indices_v(ind_h);
   rmm::device_vector<float> weights_v(w_h);
 
-  cugraph::experimental::GraphCSRView<int, int, float> graph_csr(
+  cugraph::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   uint64_t count{0};

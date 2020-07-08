@@ -23,7 +23,6 @@
 #include <rmm/device_buffer.hpp>
 
 namespace cugraph {
-namespace experimental {
 
 enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
 
@@ -80,7 +79,8 @@ class GraphViewBase {
   }
   void set_handle(raft::handle_t *handle_) { handle = handle_; }
   GraphViewBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
-    : edge_data(edge_data_),
+    : handle(nullptr),
+      edge_data(edge_data_),
       prop(),
       number_of_vertices(number_of_vertices_),
       number_of_edges(number_of_edges_),
@@ -88,7 +88,6 @@ class GraphViewBase {
       local_edges(nullptr),
       local_offsets(nullptr)
   {
-    handle = new raft::handle_t;
   }
   bool has_data(void) const { return edge_data != nullptr; }
 };
@@ -637,5 +636,29 @@ class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
   }
 };
 
-}  // namespace experimental
+template <typename T, typename Enable = void>
+struct invalid_idx;
+
+template <typename T>
+struct invalid_idx<
+  T,
+  typename std::enable_if_t<std::is_integral<T>::value && std::is_signed<T>::value>>
+  : std::integral_constant<T, -1> {
+};
+
+template <typename T>
+struct invalid_idx<
+  T,
+  typename std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value>>
+  : std::integral_constant<T, std::numeric_limits<T>::max()> {
+};
+
+template <typename VT>
+struct invalid_vertex_id : invalid_idx<VT> {
+};
+
+template <typename ET>
+struct invalid_edge_id : invalid_idx<ET> {
+};
+
 }  // namespace cugraph

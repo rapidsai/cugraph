@@ -60,7 +60,7 @@ namespace detail {
  * @param[out] result      Total number of vertices
  */
 template <typename VT, typename ET, typename WT>
-VT sort(experimental::GraphCOOView<VT, ET, WT>& graph, cudaStream_t stream)
+VT sort(GraphCOOView<VT, ET, WT>& graph, cudaStream_t stream)
 {
   VT max_src_id;
   VT max_dst_id;
@@ -111,8 +111,10 @@ void fill_offset(
                      VT id = source[index];
                      if (id != source[index - 1]) { offsets[id] = index; }
                    });
-  ET zero = 0;
-  CUDA_TRY(cudaMemcpy(offsets, &zero, sizeof(ET), cudaMemcpyDefault));
+  thrust::device_ptr<VT> src = thrust::device_pointer_cast(source);
+  thrust::device_ptr<ET> off = thrust::device_pointer_cast(offsets);
+  off[src[0]]                = ET{0};
+
   auto iter = thrust::make_reverse_iterator(offsets + number_of_vertices + 1);
   thrust::inclusive_scan(rmm::exec_policy(stream)->on(stream),
                          iter,
@@ -141,13 +143,10 @@ rmm::device_buffer create_offset(VT* source,
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
-  experimental::GraphCOOView<VT, ET, WT> const& graph, rmm::mr::device_memory_resource* mr)
+std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const& graph,
+                                                 rmm::mr::device_memory_resource* mr)
 {
   cudaStream_t stream{nullptr};
-  using experimental::GraphCOO;
-  using experimental::GraphCOOView;
-  using experimental::GraphSparseContents;
 
   GraphCOO<VT, ET, WT> temp_graph(graph, stream, mr);
   GraphCOOView<VT, ET, WT> temp_graph_view = temp_graph.view();
@@ -162,12 +161,11 @@ std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
     std::move(coo_contents.dst_indices),
     std::move(coo_contents.edge_data)};
 
-  return std::make_unique<experimental::GraphCSR<VT, ET, WT>>(std::move(csr_contents));
+  return std::make_unique<GraphCSR<VT, ET, WT>>(std::move(csr_contents));
 }
 
 template <typename VT, typename ET, typename WT>
-void coo_to_csr_inplace(experimental::GraphCOOView<VT, ET, WT>& graph,
-                        experimental::GraphCSRView<VT, ET, WT>& result)
+void coo_to_csr_inplace(GraphCOOView<VT, ET, WT>& graph, GraphCSRView<VT, ET, WT>& result)
 {
   cudaStream_t stream{nullptr};
 

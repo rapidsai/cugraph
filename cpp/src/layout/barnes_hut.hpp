@@ -33,7 +33,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                 float *pos,
                 const int max_iter                            = 1000,
                 float *x_start                                = nullptr,
@@ -73,6 +73,8 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   int *maxdepthd    = d_maxdepthd.data().get();
   int *bottomd      = d_bottomd.data().get();
   float *radiusd    = d_radiusd.data().get();
+
+  cudaStream_t stream = {nullptr};
 
   // FIXME: this should work on "stream"
   InitializationKernel<<<1, 1>>>(limiter, maxdepthd, radiusd);
@@ -148,11 +150,10 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   traction   = d_traction.data().get();
 
   // Sort COO for coalesced memory access.
-  cudaStream_t stream = {nullptr};
   sort(graph, stream);
   CHECK_CUDA(stream);
   // FIXME: this should work on "stream"
-  graph.degree(massl, cugraph::experimental::DegreeDirection::OUT);
+  graph.degree(massl, cugraph::DegreeDirection::OUT);
   CHECK_CUDA(stream);
 
   const vertex_t *row = graph.src_indices;
@@ -334,7 +335,7 @@ void barnes_hut(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   copy(n, nodes_pos, pos);
   copy(n, nodes_pos + nnodes + 1, pos + n);
 
-  if (callback) callback->on_epoch_end(nodes_pos);
+  if (callback) callback->on_train_end(nodes_pos);
 }
 
 }  // namespace detail
