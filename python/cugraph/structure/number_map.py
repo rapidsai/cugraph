@@ -92,7 +92,6 @@ class NumberMap:
 
             return ret
 
-
         def from_vertex_id(
             self, df, internal_column_name, external_column_names
         ):
@@ -497,7 +496,7 @@ class NumberMap:
             if isinstance(col_names, list):
                 tmp_col_names = col_names
             else:
-                tmp_col_names = [ col_names ]
+                tmp_col_names = [col_names]
 
         return self.implementation.add_vertex_id(
             tmp_df, id_column_name, tmp_col_names, (drop and can_drop)
@@ -578,18 +577,25 @@ class NumberMap:
         """
         return self.implementation.col_names
 
-
     def renumber(df, source_columns, dest_columns):
         renumber_map = NumberMap()
 
         if isinstance(source_columns, list):
             renumber_map.from_dataframe(df, source_columns, dest_columns)
-            df = renumber_map.add_vertex_id(df, "id", source_columns, drop=True).rename(columns={"id": 'src'})
-            df = renumber_map.add_vertex_id(df, "id", dest_columns, drop=True).rename(columns={"id": 'dst'})
+            df = renumber_map.add_vertex_id(
+                df, "id", source_columns, drop=True
+            ).rename(columns={"id": 'src'})
+            df = renumber_map.add_vertex_id(
+                df, "id", dest_columns, drop=True
+            ).rename(columns={"id": 'dst'})
         else:
             renumber_map.from_dataframe(df, [source_columns], [dest_columns])
-            df = renumber_map.add_vertex_id(df, "id", source_columns, drop=True).rename(columns={"id": 'src'})
-            df = renumber_map.add_vertex_id(df, "id", dest_columns, drop=True).rename(columns={"id": 'dst'})
+            df = renumber_map.add_vertex_id(
+                df, "id", source_columns, drop=True
+            ).rename(columns={"id": 'src'})
+            df = renumber_map.add_vertex_id(
+                df, "id", dest_columns, drop=True
+            ).rename(columns={"id": 'dst'})
 
         return df, renumber_map
 
@@ -606,5 +612,3 @@ class NumberMap:
         df = self.from_vertex_id(df, column_name, drop=True)
 
         return df.rename(columns=mapping, copy=False)
-
-

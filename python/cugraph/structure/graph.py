@@ -17,7 +17,6 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.input_utils import get_local_data
 import cudf
 import dask_cudf
-import numpy as np
 import warnings
 
 
@@ -189,7 +188,9 @@ class Graph:
         df = None
 
         if renumber:
-            df, renumber_map = NumberMap.renumber(input_df, source, destination)
+            df, renumber_map = NumberMap.renumber(
+                input_df, source, destination
+            )
             source = 'src'
             destination = 'dst'
             self.renumbered = True
@@ -254,7 +255,9 @@ class Graph:
             self.distributed = True
             self.local_data = None
             if renumber:
-                renumbered_ddf, number_map = NumberMap.renumber(input_ddf, "src", "dst")
+                renumbered_ddf, number_map = NumberMap.renumber(
+                    input_ddf, "src", "dst"
+                )
                 self.edgelist = self.EdgeList(renumbered_ddf)
                 self.edgelist.renumber_map = number_map
                 self.renumbered = True

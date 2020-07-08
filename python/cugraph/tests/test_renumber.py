@@ -326,10 +326,14 @@ def test_opg_renumber2(graph_file, client_setup):
 
     ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
 
-    ren2, num2 = NumberMap.renumber(ddf, ["src", "src_old"], ["dst", "dst_old"])
+    ren2, num2 = NumberMap.renumber(
+        ddf, ["src", "src_old"], ["dst", "dst_old"]
+    )
 
-    check_src = num2.from_vertex_id(ren2, "src").compute().sort_values('weight').reset_index(drop=True)
-    check_dst = num2.from_vertex_id(ren2, "dst").compute().sort_values('weight').reset_index(drop=True)
+    check_src = num2.from_vertex_id(ren2, "src").compute()
+    check_src = check_src.sort_values('weight').reset_index(drop=True)
+    check_dst = num2.from_vertex_id(ren2, "dst").compute()
+    check_dst = check_dst.sort_values('weight').reset_index(drop=True)
 
     assert check_src["0"].to_pandas().equals(gdf["src"].to_pandas())
     assert check_src["1"].to_pandas().equals(gdf["src_old"].to_pandas())
