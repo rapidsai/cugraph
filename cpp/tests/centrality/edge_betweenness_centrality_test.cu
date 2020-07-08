@@ -274,13 +274,19 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
+    VT total_number_of_sources = configuration.number_of_sources_;
+    if (total_number_of_sources == 0) { total_number_of_sources = G.number_of_vertices; }
+
     thrust::device_vector<result_t> d_result(G.number_of_edges);
-    cugraph::edge_betweenness_centrality(G,
+    raft::handle_t handle;
+    cugraph::edge_betweenness_centrality(handle,
+                                         &G,
                                          d_result.data().get(),
                                          normalize,
                                          static_cast<WT *>(nullptr),
                                          configuration.number_of_sources_,
-                                         sources_ptr);
+                                         sources_ptr,
+                                         total_number_of_sources);
     CUDA_TRY(cudaMemcpy(result.data(),
                         d_result.data().get(),
                         sizeof(result_t) * G.number_of_edges,

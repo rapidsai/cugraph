@@ -102,7 +102,7 @@ def betweenness_centrality(G, k=None, normalized=True,
     # workaround.
 
     # TODO(xcadet): Get rid of the k parameter after updating edge betweenness
-    vertices, _ = _initialize_vertices(G, k, seed)
+    vertices = _initialize_vertices(G, k, seed)
 
     if weight is not None:
         raise NotImplementedError("weighted implementation of betweenness "
@@ -205,7 +205,7 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
     >>> ebc = cugraph.edge_betweenness_centrality(G)
     """
 
-    vertices, k = _initialize_vertices(G, k, seed)
+    vertices = _initialize_vertices(G, k, seed)
     if weight is not None:
         raise NotImplementedError("weighted implementation of betweenness "
                                   "centrality not currently supported")
@@ -213,7 +213,7 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
         raise TypeError("result type can only be np.float32 or np.float64")
 
     df = edge_betweenness_centrality_wrapper                                  \
-        .edge_betweenness_centrality(G, normalized, weight, k, vertices,
+        .edge_betweenness_centrality(G, normalized, weight, vertices,
                                      result_dtype)
     return df
 
@@ -225,12 +225,16 @@ def edge_betweenness_centrality(G, k=None, normalized=True,
 # None: All the vertices are considered
 def _initialize_vertices(G, k, seed):
     vertices = None
+    numpy_vertices = None
     if k is not None:
         if isinstance(k, int):
             vertices = _initialize_vertices_from_indices_sampling(G, k, seed)
         elif isinstance(k, list):
-            vertices, k = _initialize_vertices_from_identifiers_list(G, k)
-    return vertices, k
+            vertices = _initialize_vertices_from_identifiers_list(G, k)
+        numpy_vertices = np.array(vertices, dtype=np.int32)
+    else:
+        numpy_vertices = np.arange(G.number_of_vertices(), dtype=np.int32)
+    return numpy_vertices
 
 
 # NOTE: We do not renumber in case k is an int, the sampling is
@@ -254,5 +258,4 @@ def _initialize_vertices_from_identifiers_list(G, identifiers):
         vertices = [G.edgelist.renumber_map[G.edgelist.renumber_map ==
                                             vert].index[0] for vert in
                     vertices]
-    k = len(vertices)
-    return vertices, k
+    return vertices

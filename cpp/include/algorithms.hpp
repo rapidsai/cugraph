@@ -284,7 +284,8 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  * double.
  * @tparam result_t                         Type of computed result.  Supported values :  float or
  * double (double only supported in default implementation)
- *
+ * @param[in] handle                        Library handle (RAFT). If a communicator is set in the
+ * handle, the multi GPU version will be selected.
  * @param[in] graph                         cuGRAPH graph descriptor, should contain the
  * connectivity information as a CSR
  * @param[out] result                       Device array of centrality scores
@@ -296,24 +297,21 @@ void force_atlas2(experimental::GraphCOOView<VT, ET, WT> &graph,
  * @param[in] k                             If specified, number of vertex samples defined in the
  * vertices array.
  * @param[in] vertices                      If specified, host array of vertex ids to estimate
- * betweenness
- * @param[in] total_number_of_source_used   If specified use this number of to normalized results
- * when using subsampling, it allows accumulation of results across multiple calls centrality,
- * these vertices will serve as sources for the traversal algorihtm to obtain shortest path
- * counters.
+ * betweenness these vertices will serve as sources for the traversal
+ * algorihtm to obtain shortest path counters.
+ * @param[in] total_number_of_source_used   If specified use this number to normalize results
+ * when using subsampling, it allows accumulation of results across multiple calls,
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(const raft::handle_t &handle,
                             experimental::GraphCSRView<VT, ET, WT> const *graph,
                             result_t *result,
-                            bool normalized    = true,
-                            bool endpoints     = false,
-                            WT const *weight   = nullptr,
-                            VT k               = 0,
-                            VT const *vertices = nullptr,
-                            // TODO(xcadet) If batch distribution is operated at C++ level we
-                            // might not need to add this extra parameter
+                            bool normalized                = true,
+                            bool endpoints                 = false,
+                            WT const *weight               = nullptr,
+                            VT k                           = 0,
+                            VT const *vertices             = nullptr,
                             VT total_number_of_source_used = 0);
 
 /**
@@ -327,34 +325,40 @@ void betweenness_centrality(const raft::handle_t &handle,
  true`.
 
  *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- * @tparam result_t                  Type of computed result.  Supported values :  float or double
- * (double only supported in default implementation)
- *
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a CSR
- * @param[out] result                Device array of centrality scores
- * @param[in] normalized             If true, return normalized scores, if false return unnormalized
- * scores.
- * @param[in] weight                 If specified, device array of weights for each edge
- * @param[in] k                      If specified, number of vertex samples defined in the vertices
- * array.
- * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
- * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
- * shortest path counters.
+ * @tparam VT                               Type of vertex identifiers. Supported value : int
+ * (signed, 32-bit)
+ * @tparam ET                               Type of edge identifiers.  Supported value : int
+ * (signed, 32-bit)
+ * @tparam WT                               Type of edge weights. Supported values : float or
+ * double.
+ * @tparam result_t                         Type of computed result.  Supported values :  float or
+ * double
+ * @param[in] handle                        Library handle (RAFT). If a communicator is set in the
+ * handle, the multi GPU version will be selected.
+ * @param[in] graph                         cuGraph graph descriptor, should contain the
+ * connectivity information as a CSR
+ * @param[out] result                       Device array of centrality scores
+ * @param[in] normalized                    If true, return normalized scores, if false return
+ * unnormalized scores.
+ * @param[in] weight                        If specified, device array of weights for each edge
+ * @param[in] k                             If specified, number of vertex samples defined in the
+ * vertices array.
+ * @param[in] vertices                      If specified, host array of vertex ids to estimate
+ * betweenness these vertices will serve as sources for the traversal
+ * algorihtm to obtain shortest path counters.
+ * @param[in] total_number_of_source_used   If specified use this number to normalize results
+ * when using subsampling, it allows accumulation of results across multiple calls,
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void edge_betweenness_centrality(const raft::handle_t &handle,
+                                 experimental::GraphCSRView<VT, ET, WT> const *graph,
                                  result_t *result,
-                                 bool normalized    = true,
-                                 WT const *weight   = nullptr,
-                                 VT k               = 0,
-                                 VT const *vertices = nullptr);
+                                 bool normalized                = true,
+                                 WT const *weight               = nullptr,
+                                 VT k                           = 0,
+                                 VT const *vertices             = nullptr,
+                                 VT total_number_of_source_used = 0);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components

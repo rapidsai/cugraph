@@ -31,9 +31,17 @@ import numpy.ctypeslib as ctypeslib
 import dask_cudf
 import dask_cuda
 import cugraph.raft
+
+from cugraph.raft.dask.common.comms import Comms
+from cugraph.dask.common.opg_utils import (CommsInitAndDestroyContext,
+                                                opg_get_client,
+                                                opg_get_comms_using_client)
 from cugraph.raft.dask.common.comms import (Comms, worker_state)
-from cugraph.raft.dask.common.utils import default_client
 import dask.distributed
+
+
+def is_worker_organizer(worker_idx):
+    return worker_idx == 0
 
 
 def get_output_df(number_of_vertices, result_dtype):
@@ -203,74 +211,30 @@ cdef void run_c_betweenness_centrality(uintptr_t c_handle,
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
 
-def opg_get_client():
-    try:
-        client = default_client()
-    except ValueError:
-        client = None
-
-    return client
-
-
-def opg_get_comms_using_client(client):
-    comms = None
-
-    if client is not None:
-        comms = Comms(client=client)
-
-    return comms
-
-
-def get_numpy_vertices(vertices, graph_number_of_vertices):
-    if vertices is not None:
-        numpy_vertices =  np.array(vertices, dtype=np.int32)
-    else:
-        numpy_vertices = np.arange(graph_number_of_vertices, dtype=np.int32)
-
-    return numpy_vertices
-
-
-class CommsContext:
-    def __init__(self, comms):
-        self._comms = comms
-
-    def __enter__(self):
-        self._comms.init()
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self._comms.destroy()
-
-
+# NOTE: The current implementation only has <int, int, float, float> and
+#       <int, int, double, double> as explicit template declaration
+#       The current BFS requires the GraphCSR to be declared
+#       as <int, int, float> or <int, int double> even if weights is null
 def betweenness_centrality(input_graph, normalized, endpoints, weights,
                            vertices, result_dtype):
     """
     Call betweenness centrality
     """
-
+    df = None
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    numpy_vertices =  get_numpy_vertices(vertices, input_graph.number_of_vertices())
-
-    # TODO(xcadet) Check if there is a better way to do this
-    # NOTE: The current implementation only has <int, int, float, float> and
-    #       <int, int, double, double> as explicit template declaration
-    #       The current BFS requires the GraphCSR to be declared
-    #       as <int, int, float> or <int, int double> even if weights is null
     client = opg_get_client()
     comms = opg_get_comms_using_client(client)
-    df = None
-    print("[DBG] Client:", client)
     if comms:
-        with CommsContext(comms):
+        with CommsInitAndDestroyContext(comms):
             if len(comms.worker_addresses) > 1: # Fall back to regular BC otherwise
                 main_worker = comms.worker_addresses[0]
                 future_pointer_to_input_graph =  client.scatter(input_graph, workers=[main_worker])
                 future_input_data = [idx for idx in enumerate(comms.worker_addresses)]
                 future_input_data[0] = future_pointer_to_input_graph
                 work_futures =  [client.submit(run_work, input_data, normalized,
-                                            endpoints, numpy_vertices,
+                                            endpoints, vertices,
                                             weights, result_dtype,
                                             comms.sessionId,
                                             workers=[worker_address]) for
@@ -278,8 +242,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
                 dask.distributed.wait(work_futures)
                 df = work_futures[0].result()
     if df is None:
-        handle = cugraph.raft.common.handle.Handle() #  if handle is None else handle
-        df = run_organizer_work(handle, input_graph, normalized, endpoints, numpy_vertices, weights, len(numpy_vertices), result_dtype)
+        handle = cugraph.raft.common.handle.Handle()
+        df = run_organizer_work(handle, input_graph, normalized, endpoints, vertices, weights, len(vertices), result_dtype)
 
     # For large graph unrenumbering produces a dataframe organized
     #       in buckets, i.e, if they are 3 buckets

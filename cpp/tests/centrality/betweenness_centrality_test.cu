@@ -21,6 +21,7 @@
 #include <graph.hpp>
 
 #include <raft/error.hpp>
+#include <raft/handle.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <thrust/device_vector.h>
@@ -327,16 +328,19 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
+    VT total_number_of_sources = configuration.number_of_sources_;
+    if (total_number_of_sources == 0) { total_number_of_sources = G.number_of_vertices; }
     thrust::device_vector<result_t> d_result(G.number_of_vertices);
-    ASSERT_TRUE(false);  // TODO(xcadet) DBG Re-enable for OPG
-    /*cugraph::betweenness_centrality(G,
+    raft::handle_t handle;
+    cugraph::betweenness_centrality(handle,
+                                    &G,
                                     d_result.data().get(),
                                     normalize,
                                     endpoints,
                                     static_cast<WT *>(nullptr),
                                     configuration.number_of_sources_,
-                                    sources_ptr);
-                                    */
+                                    sources_ptr,
+                                    total_number_of_sources);
     cudaDeviceSynchronize();
     CUDA_TRY(cudaMemcpy(result.data(),
                         d_result.data().get(),

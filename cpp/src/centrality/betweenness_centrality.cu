@@ -646,28 +646,35 @@ template void betweenness_centrality<int, int, double, double>(
   int);
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void edge_betweenness_centrality(const raft::handle_t &handle,
+                                 experimental::GraphCSRView<VT, ET, WT> const *graph,
                                  result_t *result,
                                  bool normalize,
                                  WT const *weight,
                                  VT k,
-                                 VT const *vertices)
+                                 VT const *vertices,
+                                 VT total_number_of_sources_used)
 {
-  detail::edge_betweenness_centrality_impl(graph, result, normalize, weight, k, vertices);
+  detail::edge_betweenness_centrality_impl(*graph, result, normalize, weight, k, vertices);
 }
 
 template void edge_betweenness_centrality<int, int, float, float>(
-  experimental::GraphCSRView<int, int, float> const &,
+  const raft::handle_t &,
+  experimental::GraphCSRView<int, int, float> const *,
   float *,
   bool,
   float const *,
   int,
-  int const *);
+  int const *,
+  int);
+
 template void edge_betweenness_centrality<int, int, double, double>(
-  experimental::GraphCSRView<int, int, double> const &,
+  const raft::handle_t &,
+  experimental::GraphCSRView<int, int, double> const *,
   double *,
   bool,
   double const *,
   int,
-  int const *);
+  int const *,
+  int);
 }  // namespace cugraph
