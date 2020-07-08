@@ -80,12 +80,12 @@ void pagerank_reference(edge_t* offsets,
   size_t iter{0};
   while (true) {
     std::copy(pageranks, pageranks + num_vertices, old_pageranks.begin());
-    std::fill(pageranks, pageranks + num_vertices, result_t{0.0});
     result_t dangling_sum{0.0};
     for (vertex_t i = 0; i < num_vertices; ++i) {
       if (out_weight_sums[i] == result_t{0.0}) { dangling_sum += old_pageranks[i]; }
     }
     for (vertex_t i = 0; i < num_vertices; ++i) {
+      pageranks[i] = result_t{0.0};
       for (auto j = *(offsets + i); j < *(offsets + i + 1); ++j) {
         auto nbr = indices[j];
         auto w   = weights != nullptr ? weights[j] : result_t{1.0};
@@ -176,9 +176,6 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
       p_csc_graph->number_of_vertices(),
       p_csc_graph->number_of_edges());
 
-    result_t constexpr alpha{0.85};
-    result_t constexpr epsilon{1e-6};
-
     std::vector<edge_t> h_offsets(csc_graph_view.number_of_vertices + 1);
     std::vector<vertex_t> h_indices(csc_graph_view.number_of_edges);
     std::vector<weight_t> h_weights{};
@@ -199,6 +196,9 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                           sizeof(weight_t) * h_weights.size(),
                           cudaMemcpyDeviceToHost));
     }
+
+    result_t constexpr alpha{0.85};
+    result_t constexpr epsilon{1e-6};
 
     pagerank_reference(h_offsets.data(),
                        h_indices.data(),
