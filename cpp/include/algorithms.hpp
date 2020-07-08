@@ -902,6 +902,7 @@ void katz_centrality(raft::handle_t &handle,
                      result_t *betas,
                      result_t *katz_centralities,
                      result_t alpha,
+                     result_t beta,  // relevant only if betas == nullptr
                      result_t epsilon,
                      size_t max_iterations   = 500,
                      bool has_initial_guess  = false,

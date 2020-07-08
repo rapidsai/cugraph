@@ -42,6 +42,7 @@ void katz_centrality(raft::handle_t &handle,
                      result_t *betas,
                      result_t *katz_centralities,
                      result_t alpha,
+                     result_t beta,  // relevant only if betas == nullptr
                      result_t epsilon,
                      size_t max_iterations,
                      bool has_initial_guess,
@@ -84,7 +85,8 @@ void katz_centrality(raft::handle_t &handle,
   // 2. initialize katz centrality values
 
   if (!has_initial_guess) {
-    thrust::fill(katz_centralities,
+    thrust::fill(thrust::cuda::par.on(handle.get_stream()),
+                 katz_centralities,
                  katz_centralities + graph_device_view.get_number_of_local_vertices(),
                  static_cast<result_t>(0.0));
   }
@@ -107,18 +109,21 @@ void katz_centrality(raft::handle_t &handle,
       [alpha] __device__(auto src_val, auto dst_val, weight_t w) {
         return static_cast<result_t>(alpha * src_val * w);
       },
-      static_cast<result_t>(0.0),
+      betas != nullptr ? result_t{0.0} : beta,
       katz_centralities);
 
-    auto val_first = thrust::make_zip_iterator(thrust::make_tuple(katz_centralities, betas));
-    thrust::transform(val_first,
-                      val_first + graph_device_view.get_number_of_local_vertices(),
-                      katz_centralities,
-                      [] __device__(auto val) {
-                        auto const katz_centrality = thrust::get<0>(val);
-                        auto const beta            = thrust::get<1>(val);
-                        return katz_centrality + beta;
-                      });
+    if (betas != nullptr) {
+      auto val_first = thrust::make_zip_iterator(thrust::make_tuple(katz_centralities, betas));
+      thrust::transform(thrust::cuda::par.on(handle.get_stream()),
+                        val_first,
+                        val_first + graph_device_view.get_number_of_local_vertices(),
+                        katz_centralities,
+                        [] __device__(auto val) {
+                          auto const katz_centrality = thrust::get<0>(val);
+                          auto const beta            = thrust::get<1>(val);
+                          return katz_centrality + beta;
+                        });
+    }
 
     auto diff_sum = transform_reduce_v_with_adj_matrix_row(
       handle,
@@ -147,7 +152,8 @@ void katz_centrality(raft::handle_t &handle,
     l2_norm = std::sqrt(l2_norm);
     CUGRAPH_EXPECTS(l2_norm > 0.0,
                     "L2 norm of the computed Katz Centrality values should be positive.");
-    thrust::transform(katz_centralities,
+    thrust::transform(thrust::cuda::par.on(handle.get_stream()),
+                      katz_centralities,
                       katz_centralities + graph_device_view.get_number_of_local_vertices(),
                       katz_centralities,
                       [l2_norm] __device__(auto val) { return val / l2_norm; });
@@ -164,6 +170,7 @@ void katz_centrality(raft::handle_t &handle,
                      result_t *betas,
                      result_t *katz_centralities,
                      result_t alpha,
+                     result_t beta,  // relevant only if beta == nullptr
                      result_t epsilon,
                      size_t max_iterations,
                      bool has_initial_guess,
@@ -175,6 +182,7 @@ void katz_centrality(raft::handle_t &handle,
                           betas,
                           katz_centralities,
                           alpha,
+                          beta,
                           epsilon,
                           max_iterations,
                           has_initial_guess,
@@ -189,6 +197,7 @@ template void katz_centrality(raft::handle_t &handle,
                               float *betas,
                               float *katz_centralities,
                               float alpha,
+                              float beta,
                               float epsilon,
                               size_t max_iterations,
                               bool has_initial_guess,
