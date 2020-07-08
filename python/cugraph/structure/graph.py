@@ -132,7 +132,7 @@ class Graph:
 
         Parameters
         ----------
-        input_df : cudf.DataFrame
+        input_df : cudf.DataFrame or dask_cudf.DataFrame
             This cudf.DataFrame wraps source, destination and weight
             gdf_column of size E (E: number of edges)
             The 'src' column contains the source index for each edge.
@@ -144,6 +144,9 @@ class Graph:
             argument should be passed as True.
             For weighted graphs, dataframe contains 'weight' column
             containing the weight value for each edge.
+            If a dask_cudf.DataFrame is passed it will be reinterpreted as
+            a cudf.DataFrame. For the distributed path please use
+            from_dask_cudf_edgelist.
         source : str
             source argument is source column name
         destination : str
@@ -165,32 +168,40 @@ class Graph:
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
+
+        if isinstance(input_df, cudf.DataFrame):
+            edge_list = input_df
+        elif isinstance(input_df, dask_cudf.DataFrame):
+            edge_list = input_df.compute()
+        else:
+            raise Exception('input should be a cudf.DataFrame or a dask_cudf dataFrame')
+
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception('edge_attr should be a list of column names')
             value_col = {}
             for col_name in edge_attr:
-                value_col[col_name] = input_df[col_name]
+                value_col[col_name] = edge_list[col_name]
         elif edge_attr is not None:
-            value_col = input_df[edge_attr]
+            value_col = edge_list[edge_attr]
         else:
             value_col = None
         renumber_map = None
         if renumber:
             if type(source) is list and type(destination) is list:
-                source_col, dest_col, renumber_map = multi_rnb(input_df,
+                source_col, dest_col, renumber_map = multi_rnb(edge_list,
                                                                source,
                                                                destination)
             else:
-                source_col, dest_col, renumber_map = rnb(input_df[source],
-                                                         input_df[destination])
+                source_col, dest_col, renumber_map = rnb(edge_list[source],
+                                                         edge_list[destination])
             self.renumbered = True
         else:
             if type(source) is list and type(destination) is list:
                 raise Exception('set renumber to True for multi column ids')
             else:
-                source_col = input_df[source]
-                dest_col = input_df[destination]
+                source_col = edge_list[source]
+                dest_col = edge_list[destination]
         if not self.symmetrized and not self.multi:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(source_col,
@@ -200,6 +211,7 @@ class Graph:
                 source_col, dest_col = symmetrize(source_col, dest_col)
 
         self.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
+                                       renumber_map)
                                        renumber_map)
 
     def add_edge_list(self, source, destination, value=None):
