@@ -33,8 +33,7 @@ __global__ void transition_kernel(const size_t e, const VT *ind, const VT *degre
 }
 
 template <typename VT, typename ET, typename WT>
-Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_,
-                               experimental::GraphCSCView<VT, ET, WT> const &G)
+Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, ET, WT> const &G)
   : comm(handle_.get_comms()), bookmark(G.number_of_vertices), val(G.local_edges[comm.get_rank()])
 {
   v_glob         = G.number_of_vertices;

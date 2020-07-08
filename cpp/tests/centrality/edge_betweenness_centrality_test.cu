@@ -153,12 +153,11 @@ void reference_rescale(result_t *result,
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void reference_edge_betweenness_centrality(
-  cugraph::experimental::GraphCSRView<VT, ET, WT> const &graph,
-  result_t *result,
-  bool normalize,
-  VT const number_of_sources,
-  VT const *sources)
+void reference_edge_betweenness_centrality(cugraph::GraphCSRView<VT, ET, WT> const &graph,
+                                           result_t *result,
+                                           bool normalize,
+                                           VT const number_of_sources,
+                                           VT const *sources)
 {
   VT number_of_vertices = graph.number_of_vertices;
   ET number_of_edges    = graph.number_of_edges;
@@ -178,19 +177,6 @@ void reference_edge_betweenness_centrality(
   reference_rescale<VT, ET, WT, result_t>(
     result, graph.prop.directed, normalize, number_of_vertices, number_of_edges);
 }
-// Explicit instantiation
-template void reference_edge_betweenness_centrality<int, int, float, float>(
-  cugraph::experimental::GraphCSRView<int, int, float> const &,
-  float *,
-  bool,
-  const int,
-  int const *);
-template void reference_edge_betweenness_centrality<int, int, double, double>(
-  cugraph::experimental::GraphCSRView<int, int, double> const &,
-  double *,
-  bool,
-  const int,
-  int const *);
 
 // =============================================================================
 // Utility functions
@@ -252,8 +238,8 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     auto csr =
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
-    G.prop.directed                                   = is_directed;
+    cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
+    G.prop.directed                     = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_edges, 0);
     std::vector<result_t> expected(G.number_of_edges, 0);

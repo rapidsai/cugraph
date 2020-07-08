@@ -38,13 +38,13 @@ std::vector<int> getTopKIds(double* p_katz, int count, int k = 10)
 }
 
 template <typename VT, typename ET, typename WT>
-int getMaxDegree(cugraph::experimental::GraphCSRView<VT, ET, WT> const& g)
+int getMaxDegree(cugraph::GraphCSRView<VT, ET, WT> const& g)
 {
   cudaStream_t stream{nullptr};
 
   rmm::device_vector<ET> degree_vector(g.number_of_vertices);
   ET* p_degree = degree_vector.data().get();
-  g.degree(p_degree, cugraph::experimental::DegreeDirection::OUT);
+  g.degree(p_degree, cugraph::DegreeDirection::OUT);
   ET max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
                                      p_degree,
                                      p_degree + g.number_of_vertices,
@@ -119,10 +119,9 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    cugraph::experimental::GraphCOOView<int, int, float> cooview(
-      &cooColInd[0], &cooRowInd[0], nullptr, m, nnz);
-    auto csr                                               = cugraph::coo_to_csr(cooview);
-    cugraph::experimental::GraphCSRView<int, int, float> G = csr->view();
+    cugraph::GraphCOOView<int, int, float> cooview(&cooColInd[0], &cooRowInd[0], nullptr, m, nnz);
+    auto csr                                 = cugraph::coo_to_csr(cooview);
+    cugraph::GraphCSRView<int, int, float> G = csr->view();
 
     rmm::device_vector<double> katz_vector(m);
     double* d_katz = thrust::raw_pointer_cast(katz_vector.data());

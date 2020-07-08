@@ -145,7 +145,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
-    cugraph::experimental::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
+    cugraph::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
 
     const int max_iter                    = 500;
     float* x_start                        = nullptr;
