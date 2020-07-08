@@ -121,16 +121,16 @@ def get_traversed_path_list(df, id):
     answer = []
     answer.append(id)
 
-    ddf = df.loc[df['vertex'] == id]
+    ddf = df[df['vertex'] == id]
     if len(ddf) == 0:
         raise ValueError("The vertex (", id, " is not in the result set")
 
     pred = ddf['predecessor'].iloc[0]
 
-    while (pred != -1):
+    while pred != -1:
         answer.append(pred)
 
-        ddf = df.loc[df['vertex'] == pred]
+        ddf = df[df['vertex'] == pred]
         pred = ddf['predecessor'].iloc[0]
 
     return answer

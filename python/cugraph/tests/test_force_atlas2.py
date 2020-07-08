@@ -16,6 +16,7 @@ import time
 import pytest
 
 import cugraph
+from cugraph.internals import GraphBasedDimRedCallback
 from cugraph.tests import utils
 from sklearn.manifold import trustworthiness
 import scipy.io
@@ -27,21 +28,10 @@ import scipy.io
 # relocated in the third-party group once this gets fixed.
 
 
-def cugraph_call(
-    cu_M,
-    max_iter,
-    pos_list,
-    outbound_attraction_distribution,
-    lin_log_mode,
-    prevent_overlapping,
-    edge_weight_influence,
-    jitter_tolerance,
-    barnes_hut_theta,
-    barnes_hut_optimize,
-    scaling_ratio,
-    strong_gravity_mode,
-    gravity,
-):
+def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
+                 lin_log_mode, prevent_overlapping, edge_weight_influence,
+                 jitter_tolerance, barnes_hut_theta, barnes_hut_optimize,
+                 scaling_ratio, strong_gravity_mode, gravity, callback=None):
 
     G = cugraph.Graph()
     G.from_cudf_edgelist(
@@ -51,20 +41,20 @@ def cugraph_call(
     # cugraph Force Atlas 2 Call
     t1 = time.time()
     pos = cugraph.force_atlas2(
-        G,
-        max_iter=max_iter,
-        pos_list=pos_list,
-        outbound_attraction_distribution=outbound_attraction_distribution,
-        lin_log_mode=lin_log_mode,
-        prevent_overlapping=prevent_overlapping,
-        edge_weight_influence=edge_weight_influence,
-        jitter_tolerance=jitter_tolerance,
-        barnes_hut_optimize=barnes_hut_optimize,
-        barnes_hut_theta=barnes_hut_theta,
-        scaling_ratio=scaling_ratio,
-        strong_gravity_mode=strong_gravity_mode,
-        gravity=gravity,
-    )
+            G,
+            max_iter=max_iter,
+            pos_list=pos_list,
+            outbound_attraction_distribution=outbound_attraction_distribution,
+            lin_log_mode=lin_log_mode,
+            prevent_overlapping=prevent_overlapping,
+            edge_weight_influence=edge_weight_influence,
+            jitter_tolerance=jitter_tolerance,
+            barnes_hut_optimize=barnes_hut_optimize,
+            barnes_hut_theta=barnes_hut_theta,
+            scaling_ratio=scaling_ratio,
+            strong_gravity_mode=strong_gravity_mode,
+            gravity=gravity,
+            callback=callback)
     t2 = time.time() - t1
     print("Cugraph Time : " + str(t2))
     return pos
@@ -80,26 +70,44 @@ MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
 
 
-@pytest.mark.parametrize("graph_file, score", DATASETS)
-@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-@pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
-def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
+class TestCallback(GraphBasedDimRedCallback):
+    def __init__(self):
+        super(TestCallback, self).__init__()
+        self.on_preprocess_end_called_count = 0
+        self.on_epoch_end_called_count = 0
+        self.on_train_end_called_count = 0
+
+    def on_preprocess_end(self, positions):
+        self.on_preprocess_end_called_count += 1
+
+    def on_epoch_end(self, positions):
+        self.on_epoch_end_called_count += 1
+
+    def on_train_end(self, positions):
+        self.on_train_end_called_count += 1
+
+
+@pytest.mark.parametrize('graph_file, score', DATASETS)
+@pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
+@pytest.mark.parametrize('barnes_hut_optimize', BARNES_HUT_OPTIMIZE)
+def test_force_atlas2(graph_file, score, max_iter,
+                      barnes_hut_optimize):
     cu_M = utils.read_csv_file(graph_file)
-    cu_pos = cugraph_call(
-        cu_M,
-        max_iter=max_iter,
-        pos_list=None,
-        outbound_attraction_distribution=True,
-        lin_log_mode=False,
-        prevent_overlapping=False,
-        edge_weight_influence=1.0,
-        jitter_tolerance=1.0,
-        barnes_hut_optimize=False,
-        barnes_hut_theta=0.5,
-        scaling_ratio=2.0,
-        strong_gravity_mode=False,
-        gravity=1.0,
-    )
+    test_callback = TestCallback()
+    cu_pos = cugraph_call(cu_M,
+                          max_iter=max_iter,
+                          pos_list=None,
+                          outbound_attraction_distribution=True,
+                          lin_log_mode=False,
+                          prevent_overlapping=False,
+                          edge_weight_influence=1.0,
+                          jitter_tolerance=1.0,
+                          barnes_hut_optimize=False,
+                          barnes_hut_theta=0.5,
+                          scaling_ratio=2.0,
+                          strong_gravity_mode=False,
+                          gravity=1.0,
+                          callback=test_callback)
     """
         Trustworthiness score can be used for Force Atlas 2 as the algorithm
         optimizes modularity. The final layout will result in
@@ -118,3 +126,9 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score
+    # verify `on_preprocess_end` was only called once
+    assert test_callback.on_preprocess_end_called_count == 1
+    # verify `on_epoch_end` was called on each iteration
+    assert test_callback.on_epoch_end_called_count == max_iter
+    # verify `on_train_end` was only called once
+    assert test_callback.on_train_end_called_count == 1

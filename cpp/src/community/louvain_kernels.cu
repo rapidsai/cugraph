@@ -51,7 +51,7 @@ __global__  // __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t modularity(weight_t m2,
-                    experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                    GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                     vertex_t const *d_cluster,
                     cudaStream_t stream)
 {
@@ -107,12 +107,11 @@ weight_t modularity(weight_t m2,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void generate_superverticies_graph(
-  cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> &current_graph,
-  rmm::device_vector<vertex_t> &src_indices_v,
-  vertex_t new_number_of_vertices,
-  rmm::device_vector<vertex_t> &cluster_v,
-  cudaStream_t stream)
+void generate_superverticies_graph(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> &current_graph,
+                                   rmm::device_vector<vertex_t> &src_indices_v,
+                                   vertex_t new_number_of_vertices,
+                                   rmm::device_vector<vertex_t> &cluster_v,
+                                   cudaStream_t stream)
 {
   rmm::device_vector<vertex_t> new_src_v(current_graph.number_of_edges);
   rmm::device_vector<vertex_t> new_dst_v(current_graph.number_of_edges);
@@ -180,7 +179,7 @@ void generate_superverticies_graph(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void compute_vertex_sums(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void compute_vertex_sums(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                          rmm::device_vector<weight_t> &sums,
                          cudaStream_t stream)
 {
@@ -247,7 +246,7 @@ vertex_t renumber_clusters(vertex_t graph_num_vertices,
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t update_clustering_by_delta_modularity(
   weight_t m2,
-  experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::device_vector<vertex_t> const &src_indices,
   rmm::device_vector<weight_t> const &vertex_weights,
   rmm::device_vector<weight_t> &cluster_weights,
@@ -444,7 +443,7 @@ weight_t update_clustering_by_delta_modularity(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void louvain(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
              weight_t *final_modularity,
              int *num_level,
              vertex_t *cluster_vec,
@@ -493,12 +492,11 @@ void louvain(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph
   //  Our copy of the graph.  Each iteration of the outer loop will
   //  shrink this copy of the graph.
   //
-  cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> current_graph(
-    offsets_v.data().get(),
-    indices_v.data().get(),
-    weights_v.data().get(),
-    graph.number_of_vertices,
-    graph.number_of_edges);
+  GraphCSRView<vertex_t, edge_t, weight_t> current_graph(offsets_v.data().get(),
+                                                         indices_v.data().get(),
+                                                         weights_v.data().get(),
+                                                         graph.number_of_vertices,
+                                                         graph.number_of_edges);
 
   current_graph.get_source_indices(src_indices_v.data().get());
 
@@ -561,18 +559,10 @@ void louvain(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph
   *final_modularity = best_modularity;
 }
 
-template void louvain(experimental::GraphCSRView<int32_t, int32_t, float> const &,
-                      float *,
-                      int *,
-                      int32_t *,
-                      int,
-                      cudaStream_t);
-template void louvain(experimental::GraphCSRView<int32_t, int32_t, double> const &,
-                      double *,
-                      int *,
-                      int32_t *,
-                      int,
-                      cudaStream_t);
+template void louvain(
+  GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int, cudaStream_t);
+template void louvain(
+  GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int, cudaStream_t);
 
 }  // namespace detail
 }  // namespace cugraph

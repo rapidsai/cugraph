@@ -22,6 +22,7 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
+#include <raft/handle.hpp>
 #include "gtest/gtest.h"
 
 #include "utilities/test_utilities.hpp"
@@ -71,6 +72,8 @@ typedef struct BFS_Usecase_t {
 } BFS_Usecase;
 
 class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
+  raft::handle_t handle;
+
  public:
   Tests_BFS() {}
   static void SetupTestCase() {}
@@ -93,8 +96,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     auto csr =
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
-    G.prop.directed                                   = directed;
+    cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
+    G.prop.directed                     = directed;
 
     ASSERT_TRUE(configuration.source_ >= 0 && (VT)configuration.source_ < G.number_of_vertices)
       << "Starting sources should be >= 0 and"
@@ -140,7 +143,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     // Don't pass valid sp_sp_counter ptr unless needed because it disables
     // the bottom up flow
-    cugraph::bfs<VT, ET, WT>(G,
+    cugraph::bfs<VT, ET, WT>(handle,
+                             G,
                              d_cugraph_dist.data().get(),
                              d_cugraph_pred.data().get(),
                              (return_sp_counter) ? d_cugraph_sigmas.data().get() : nullptr,
@@ -171,7 +175,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // that the predecessor obtained with the GPU implementation is one of the
       // predecessors obtained during the C++ BFS traversal
       VT pred = cugraph_pred[i];  // It could be equal to -1 if the node is never reached
-      constexpr VT invalid_vid = cugraph::experimental::invalid_vertex_id<VT>::value;
+      constexpr VT invalid_vid = cugraph::invalid_vertex_id<VT>::value;
       if (pred == invalid_vid) {
         EXPECT_TRUE(ref_bfs_pred[i].empty())
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph had not predecessor,"

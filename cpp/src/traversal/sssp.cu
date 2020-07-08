@@ -242,7 +242,7 @@ void SSSP<IndexType, DistType>::clean()
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
-void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void sssp(GraphCSRView<VT, ET, WT> const &graph,
           WT *distances,
           VT *predecessors,
           const VT source_vertex)
@@ -281,7 +281,7 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
   } else {
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
-    if (graph.prop.has_negative_edges == experimental::PropType::PROP_TRUE)
+    if (graph.prop.has_negative_edges == PropType::PROP_TRUE)
       std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
                    "converge if the graph has negative weight cycles\n";
     edge_weights_ptr = graph.edge_data;
@@ -293,11 +293,11 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
 }
 
 // explicit instantiation
-template void sssp<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
+template void sssp<int, int, float>(GraphCSRView<int, int, float> const &graph,
                                     float *distances,
                                     int *predecessors,
                                     const int source_vertex);
-template void sssp<int, int, double>(experimental::GraphCSRView<int, int, double> const &graph,
+template void sssp<int, int, double>(GraphCSRView<int, int, double> const &graph,
                                      double *distances,
                                      int *predecessors,
                                      const int source_vertex);
