@@ -584,18 +584,18 @@ class NumberMap:
             renumber_map.from_dataframe(df, source_columns, dest_columns)
             df = renumber_map.add_vertex_id(
                 df, "id", source_columns, drop=True
-            ).rename(columns={"id": 'src'})
+            ).rename(columns={"id": "src"})
             df = renumber_map.add_vertex_id(
                 df, "id", dest_columns, drop=True
-            ).rename(columns={"id": 'dst'})
+            ).rename(columns={"id": "dst"})
         else:
             renumber_map.from_dataframe(df, [source_columns], [dest_columns])
             df = renumber_map.add_vertex_id(
                 df, "id", source_columns, drop=True
-            ).rename(columns={"id": 'src'})
+            ).rename(columns={"id": "src"})
             df = renumber_map.add_vertex_id(
                 df, "id", dest_columns, drop=True
-            ).rename(columns={"id": 'dst'})
+            ).rename(columns={"id": "dst"})
 
         return df, renumber_map
 
