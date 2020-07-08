@@ -15,6 +15,7 @@
 
 import gc
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -303,3 +304,34 @@ def test_opg_renumber(graph_file, client_setup):
     assert check_src["1"].to_pandas().equals(check_src["src_old"].to_pandas())
     assert check_dst["0"].to_pandas().equals(check_dst["dst"].to_pandas())
     assert check_dst["1"].to_pandas().equals(check_dst["dst_old"].to_pandas())
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_opg_renumber2(graph_file, client_setup):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    sources = cudf.Series(M["0"])
+    destinations = cudf.Series(M["1"])
+
+    translate = 1000
+
+    gdf = cudf.DataFrame()
+    gdf["src_old"] = sources
+    gdf["dst_old"] = destinations
+    gdf["src"] = sources + translate
+    gdf["dst"] = destinations + translate
+    gdf["weight"] = gdf.index.astype(np.float)
+
+    ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
+
+    ren2, num2 = NumberMap.renumber(ddf, ["src", "src_old"], ["dst", "dst_old"])
+
+    check_src = num2.from_vertex_id(ren2, "src").compute().sort_values('weight').reset_index(drop=True)
+    check_dst = num2.from_vertex_id(ren2, "dst").compute().sort_values('weight').reset_index(drop=True)
+
+    assert check_src["0"].to_pandas().equals(gdf["src"].to_pandas())
+    assert check_src["1"].to_pandas().equals(gdf["src_old"].to_pandas())
+    assert check_dst["0"].to_pandas().equals(gdf["dst"].to_pandas())
+    assert check_dst["1"].to_pandas().equals(gdf["dst_old"].to_pandas())
