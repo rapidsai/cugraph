@@ -114,7 +114,7 @@ struct is_thrust_tuple_of_arithmetic<TupleType,
                                      std::enable_if_t<is_thrust_tuple<TupleType>::value>> {
   static constexpr bool value =
     is_thrust_tuple_of_arithemetic_impl<TupleType,
-                                        static_cast<size_t>(0),
+                                        size_t{0},
                                         static_cast<size_t>(thrust::tuple_size<TupleType>::value)>()
       .evaluate();
 };
@@ -135,8 +135,7 @@ struct compute_thrust_tuple_element_sizes {
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     std::array<size_t, tuple_size> ret;
-    compute_thrust_tuple_element_sizes_impl<TupleType, static_cast<size_t>(0), tuple_size>()
-      .compute(ret);
+    compute_thrust_tuple_element_sizes_impl<TupleType, size_t{0}, tuple_size>().compute(ret);
     return ret;
   }
 };
@@ -157,7 +156,7 @@ struct plus_thrust_tuple {
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     auto ret                    = lhs;
-    plus_thrust_tuple_impl<TupleType, static_cast<size_t>(0), tuple_size>().compute(ret, rhs);
+    plus_thrust_tuple_impl<TupleType, size_t{0}, tuple_size>().compute(ret, rhs);
     return ret;
   }
 };
@@ -168,8 +167,7 @@ struct block_reduce_thrust_tuple {
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     auto ret                    = tuple;
-    block_reduce_thrust_tuple_impl<TupleType, BlockSize, static_cast<size_t>(0), tuple_size>()
-      .compute(ret);
+    block_reduce_thrust_tuple_impl<TupleType, BlockSize, size_t{0}, tuple_size>().compute(ret);
     return ret;
   }
 };

@@ -29,8 +29,9 @@ namespace detail {
 
 template <typename T>
 struct is_atomically_addable {
-  static constexpr bool value = std::is_floating_point<T>::value ||
-                         (std::is_integral<T>::value && ((sizeof(T) == 4) || (sizeof(T) == 8)));
+  static constexpr bool value =
+    std::is_floating_point<T>::value ||
+    (std::is_integral<T>::value && ((sizeof(T) == 4) || (sizeof(T) == 8)));
 };
 
 template <typename T>
@@ -41,7 +42,7 @@ __device__ std::enable_if_t<std::is_floating_point<T>::value, T> atomic_add(T* p
 
 template <typename T>
 __device__ std::enable_if_t<std::is_integral<T>::value && (sizeof(T) == 4), T> atomic_add(T* ptr,
-                                                                                         T val)
+                                                                                          T val)
 {
   static_assert(sizeof(unsigned int) == 4);
   return T{atomicAdd(reinterpret_cast<unsigned int*>(ptr), static_cast<unsigned int>(val))};
@@ -152,7 +153,7 @@ class grid_1d_block_t {
 };
 
 // FIXME: a temporary to test 1D pattern accelerator, should be added to RAFT::handle_t
-constexpr size_t get_max_num_blocks_1D() { return static_cast<size_t>(65535); }
+constexpr size_t get_max_num_blocks_1D() { return size_t{65535}; }
 
 }  // namespace detail
 }  // namespace experimental

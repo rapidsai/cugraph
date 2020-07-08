@@ -88,14 +88,14 @@ void katz_centrality(raft::handle_t &handle,
     thrust::fill(thrust::cuda::par.on(handle.get_stream()),
                  katz_centralities,
                  katz_centralities + graph_device_view.get_number_of_local_vertices(),
-                 static_cast<result_t>(0.0));
+                 result_t{0.0});
   }
 
   // 3. katz centrality iteration
 
   // old katz centrality values
   rmm::device_vector<result_t> adj_matrix_row_katz_centralities(
-    graph_device_view.get_number_of_adj_matrix_local_rows(), static_cast<result_t>(0.0));
+    graph_device_view.get_number_of_adj_matrix_local_rows(), result_t{0.0});
   size_t iter{0};
   while (true) {
     copy_to_adj_matrix_row(
@@ -131,7 +131,7 @@ void katz_centrality(raft::handle_t &handle,
       katz_centralities,
       adj_matrix_row_katz_centralities.begin(),
       [] __device__(auto v_val, auto row_val) { return std::abs(v_val - row_val); },
-      static_cast<result_t>(0.0));
+      result_t{0.0});
 
     iter++;
 
@@ -148,7 +148,7 @@ void katz_centrality(raft::handle_t &handle,
       graph_device_view,
       katz_centralities,
       [] __device__(auto val) { return val * val; },
-      static_cast<result_t>(0.0));
+      result_t{0.0});
     l2_norm = std::sqrt(l2_norm);
     CUGRAPH_EXPECTS(l2_norm > 0.0,
                     "L2 norm of the computed Katz Centrality values should be positive.");

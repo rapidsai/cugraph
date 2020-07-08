@@ -93,7 +93,7 @@ void sssp(raft::handle_t &handle,
                     val_first,
                     [graph_device_view, start_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
-                      if (val == start_vertex) { distance = static_cast<weight_t>(0.0); }
+                      if (val == start_vertex) { distance = weight_t{0.0}; }
                       return thrust::make_tuple(distance, invalid_vertex);
                     });
 
@@ -109,9 +109,9 @@ void sssp(raft::handle_t &handle,
     thrust::make_constant_iterator(0) /* dummy */,
     thrust::make_constant_iterator(0) /* dummy */,
     [] __device__(auto row_val, auto col_val, weight_t w) {
-      return thrust::make_tuple(static_cast<weight_t>(1.0), w);
+      return thrust::make_tuple(weight_t{1.0}, w);
     },
-    thrust::make_tuple(static_cast<weight_t>(0.0), static_cast<weight_t>(0.0)));
+    thrust::make_tuple(weight_t{0.0}, weight_t{0.0}));
   average_vertex_degree /= static_cast<weight_t>(num_vertices);
   average_edge_weight /= static_cast<weight_t>(num_edges);
   auto delta =
@@ -149,7 +149,7 @@ void sssp(raft::handle_t &handle,
     adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(start_vertex);
     if (!vertex_and_adj_matrix_row_ranges_coincide) {
       adj_matrix_row_distances[graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(
-        start_vertex)] = static_cast<weight_t>(0.0);
+        start_vertex)] = weight_t{0.0};
     }
   }
 
@@ -187,7 +187,7 @@ void sssp(raft::handle_t &handle,
         handle,
         graph_device_view,
         adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
-        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),        
+        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
         thrust::make_zip_iterator(
           thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
         graph_device_view.adj_matrix_local_col_begin(),

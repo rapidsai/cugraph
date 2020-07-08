@@ -294,7 +294,7 @@ void update_frontier_v_push_if_out_nbr(
     [graph_device_view] __device__(auto row) {
       return graph_device_view.get_local_out_degree_nocheck(row);
     },
-    static_cast<size_t>(0),
+    size_t{0},
     thrust::plus<size_t>());
   // FIXME: This is highly pessimistic for single GPU (and OPG as well if we maintain additional
   // per column data for filtering in e_op). If we can pause & resume execution if buffer needs to

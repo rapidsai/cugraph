@@ -84,7 +84,7 @@ void bfs(raft::handle_t &handle,
                     val_first,
                     [graph_device_view, start_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
-                      if (val == start_vertex) { distance = static_cast<vertex_t>(0); }
+                      if (val == start_vertex) { distance = vertex_t{0}; }
                       return thrust::make_tuple(distance, invalid_vertex);
                     });
 

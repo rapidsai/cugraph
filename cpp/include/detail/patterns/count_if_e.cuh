@@ -141,7 +141,7 @@ typename GraphType::edge_type count_if_e(
   auto count = thrust::reduce(thrust::cuda::par.on(handle.get_stream()),
                               block_counts.begin(),
                               block_counts.end(),
-                              static_cast<edge_t>(0),
+                              edge_t{0},
                               thrust::plus<edge_t>());
 
   if (GraphType::is_opg) {

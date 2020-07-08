@@ -232,10 +232,7 @@ class graph_device_view_t<GraphType, std::enable_if_t<!GraphType::is_opg>>
     return col;
   }
 
-  auto local_vertex_begin() const
-  {
-    return thrust::make_counting_iterator(static_cast<vertex_type>(0));
-  }
+  auto local_vertex_begin() const { return thrust::make_counting_iterator(vertex_type{0}); }
 
   auto local_vertex_end() const
   {
@@ -244,20 +241,14 @@ class graph_device_view_t<GraphType, std::enable_if_t<!GraphType::is_opg>>
 
   // FIXME: this API does not work if a single process holds more than one rectangular partitions
   // of the adjacency matrix.
-  auto adj_matrix_local_row_begin() const
-  {
-    return thrust::make_counting_iterator(static_cast<vertex_type>(0));
-  }
+  auto adj_matrix_local_row_begin() const { return thrust::make_counting_iterator(vertex_type{0}); }
 
   auto adj_matrix_local_row_end() const
   {
     return thrust::make_counting_iterator(this->number_of_vertices_);
   }
 
-  auto adj_matrix_local_col_begin() const
-  {
-    return thrust::make_counting_iterator(static_cast<vertex_type>(0));
-  }
+  auto adj_matrix_local_col_begin() const { return thrust::make_counting_iterator(vertex_type{0}); }
 
   auto adj_matrix_local_col_end() const
   {

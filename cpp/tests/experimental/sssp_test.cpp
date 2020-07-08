@@ -48,10 +48,10 @@ void sssp_reference(edge_t* offsets,
   std::fill(distances, distances + num_vertices, std::numeric_limits<weight_t>::max());
   std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
 
-  *(distances + source) = static_cast<weight_t>(0.0);
+  *(distances + source) = weight_t{0.0};
   std::priority_queue<queue_iterm_t, std::vector<queue_iterm_t>, std::greater<queue_iterm_t>>
     queue{};
-  queue.push(std::make_tuple(static_cast<weight_t>(0.0), source));
+  queue.push(std::make_tuple(weight_t{0.0}, source));
 
   while (queue.size() > 0) {
     weight_t distance{};
@@ -176,7 +176,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                         cudaMemcpyDeviceToHost));
 
     auto max_weight_element = std::max_element(h_weights.begin(), h_weights.end());
-    auto epsilon            = *max_weight_element * static_cast<weight_t>(1e-6);
+    auto epsilon            = *max_weight_element * weight_t{1e-6};
     auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
 
     ASSERT_TRUE(std::equal(h_reference_distances.begin(),
