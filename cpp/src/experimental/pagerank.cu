@@ -15,9 +15,9 @@
  */
 #include <algorithms.hpp>
 #include <detail/graph_device_view.cuh>
+#include <detail/patterns/any_of_adj_matrix_row.cuh>
 #include <detail/patterns/copy_to_adj_matrix_row.cuh>
 #include <detail/patterns/copy_v_transform_reduce_nbr.cuh>
-#include <detail/patterns/count_if_adj_matrix_row.cuh>
 #include <detail/patterns/count_if_e.cuh>
 #include <detail/patterns/count_if_v.cuh>
 #include <detail/patterns/reduce_v.cuh>
@@ -80,12 +80,12 @@ void pagerank(raft::handle_t& handle,
 
   if (do_expensive_check) {
     if (adj_matrix_row_out_weight_sums != nullptr) {
-      auto num_negative_weight_sums = count_if_adj_matrix_row(
+      auto has_negative_weight_sums = any_of_adj_matrix_row(
         handle, graph_device_view, adj_matrix_row_out_weight_sums, [] __device__(auto val) {
           return val < result_t{0.0};
         });
       CUGRAPH_EXPECTS(
-        num_negative_weight_sums == 0,
+        has_negative_weight_sums == false,
         "Invalid input argument: outgoing edge weight sum values should be non-negative.");
     }
 

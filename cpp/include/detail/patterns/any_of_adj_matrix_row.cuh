@@ -31,12 +31,13 @@ template <typename HandleType,
           typename GraphType,
           typename AdjMatrixRowValueInputIterator,
           typename RowOp>
-typename GraphType::vertex_type count_if_adj_matrix_row(
+bool any_of_adj_matrix_row(
   HandleType& handle,
   GraphType const& graph_device_view,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   RowOp row_op)
 {
+  // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
   auto count = thrust::count_if(thrust::cuda::par.on(handle.get_stream()),
                                 adj_matrix_row_value_input_first,
                                 adj_matrix_row_value_input_first +
@@ -46,7 +47,7 @@ typename GraphType::vertex_type count_if_adj_matrix_row(
     // need to reduce count
     CUGRAPH_FAIL("unimplemented.");
   }
-  return count;
+  return (count > 0);
 }
 
 }  // namespace detail
