@@ -139,10 +139,10 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
     ASSERT_EQ(fclose(file), 0);
 
     // FIXME: this is more of a hack than a proper implementation.
-    cugraph::experimental::GraphCOOView<vertex_t, edge_t, weight_t> coo_graph(
+    cugraph::GraphCOOView<vertex_t, edge_t, weight_t> coo_graph(
       cols.data(), rows.data(), weights.data(), m, nnz);
     auto p_csc_graph = cugraph::coo_to_csr(coo_graph);
-    cugraph::experimental::GraphCSCView<vertex_t, edge_t, weight_t> csc_graph_view(
+    cugraph::GraphCSCView<vertex_t, edge_t, weight_t> csc_graph_view(
       p_csc_graph->offsets(),
       p_csc_graph->indices(),
       p_csc_graph->edge_data(),

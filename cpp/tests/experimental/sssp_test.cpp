@@ -46,9 +46,7 @@ void sssp_reference(edge_t* offsets,
   using queue_iterm_t = std::tuple<weight_t, vertex_t>;
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<weight_t>::max());
-  std::fill(predecessors,
-            predecessors + num_vertices,
-            cugraph::experimental::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = static_cast<weight_t>(0.0);
   std::priority_queue<queue_iterm_t, std::vector<queue_iterm_t>, std::greater<queue_iterm_t>>
@@ -108,9 +106,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
   {
     // FIXME: directed is a misnomer.
     bool directed{false};
-    auto p_csr_graph =
-      cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
-        directed, configuration.graph_file_full_path_);
+    auto p_csr_graph = cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
+      directed, configuration.graph_file_full_path_);
     auto csr_graph_view = p_csr_graph->view();
     // FIXME: this shouldn't be necessary
     csr_graph_view.prop.directed = directed;
@@ -190,7 +187,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
       auto i = std::distance(h_cugraph_predecessors.begin(), it);
-      if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
+      if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
         ASSERT_TRUE(h_reference_predecessors[i] == *it)
           << "vertex reachability do not match with the reference.";
       } else {
