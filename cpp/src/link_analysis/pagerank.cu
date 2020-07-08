@@ -261,7 +261,7 @@ template int pagerankSolver<int, double>(int n,
                                          double *&residual);
 
 template <typename VT, typename ET, typename WT>
-void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
+void pagerank_impl(GraphCSCView<VT, ET, WT> const &graph,
                    WT *pagerank,
                    VT personalization_subset_size = 0,
                    VT *personalization_subset     = nullptr,
@@ -342,7 +342,7 @@ void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
 
 template <typename VT, typename ET, typename WT>
 void pagerank(raft::handle_t const &handle,
-              experimental::GraphCSCView<VT, ET, WT> const &graph,
+              GraphCSCView<VT, ET, WT> const &graph,
               WT *pagerank,
               VT personalization_subset_size,
               VT *personalization_subset,
@@ -378,7 +378,7 @@ void pagerank(raft::handle_t const &handle,
 
 // explicit instantiation
 template void pagerank<int, int, float>(raft::handle_t const &handle,
-                                        experimental::GraphCSCView<int, int, float> const &graph,
+                                        GraphCSCView<int, int, float> const &graph,
                                         float *pagerank,
                                         int personalization_subset_size,
                                         int *personalization_subset,
@@ -388,7 +388,7 @@ template void pagerank<int, int, float>(raft::handle_t const &handle,
                                         int64_t max_iter,
                                         bool has_guess);
 template void pagerank<int, int, double>(raft::handle_t const &handle,
-                                         experimental::GraphCSCView<int, int, double> const &graph,
+                                         GraphCSCView<int, int, double> const &graph,
                                          double *pagerank,
                                          int personalization_subset_size,
                                          int *personalization_subset,

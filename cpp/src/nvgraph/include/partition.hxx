@@ -57,7 +57,7 @@ namespace nvgraph {
    *  @return NVGRAPH error flag.
    */
   template <typename vertex_t, typename edge_t, typename weight_t>
-  NVGRAPH_ERROR partition(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  NVGRAPH_ERROR partition(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                           vertex_t nParts,
                           vertex_t nEigVecs,
                           int maxIter_lanczos,
@@ -84,7 +84,7 @@ namespace nvgraph {
    *  @return NVGRAPH error flag.
    */
   template <typename vertex_t, typename edge_t, typename weight_t>
-  NVGRAPH_ERROR analyzePartition(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  NVGRAPH_ERROR analyzePartition(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  vertex_t nParts,
                                  const vertex_t * __restrict__ parts,
                                  weight_t & edgeCut, weight_t & cost);
