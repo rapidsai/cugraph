@@ -61,7 +61,7 @@ logger "Check GPU usage..."
 nvidia-smi
 
 logger "Activate conda env..."
-source activate gdf
+source activate rapids
 
 logger "conda install required packages"
 conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
