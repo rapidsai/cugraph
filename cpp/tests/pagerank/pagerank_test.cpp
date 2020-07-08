@@ -136,27 +136,26 @@ class Tests_Pagerank : public ::testing::TestWithParam<Pagerank_Usecase> {
 
     //  Pagerank runs on CSC, so feed COOtoCSR the row/col backwards.
     raft::handle_t handle;
-    cugraph::experimental::GraphCOOView<int, int, T> G_coo(
-      &cooColInd[0], &cooRowInd[0], &cooVal[0], m, nnz);
+    cugraph::GraphCOOView<int, int, T> G_coo(&cooColInd[0], &cooRowInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
-    cugraph::experimental::GraphCSCView<int, int, T> G(G_unique->view().offsets,
-                                                       G_unique->view().indices,
-                                                       G_unique->view().edge_data,
-                                                       G_unique->view().number_of_vertices,
-                                                       G_unique->view().number_of_edges);
+    cugraph::GraphCSCView<int, int, T> G(G_unique->view().offsets,
+                                         G_unique->view().indices,
+                                         G_unique->view().edge_data,
+                                         G_unique->view().number_of_vertices,
+                                         G_unique->view().number_of_edges);
 
     cudaDeviceSynchronize();
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-        cugraph::pagerank<int, int, T>(G.handle[0], G, d_pagerank);
+        cugraph::pagerank<int, int, T>(handle, G, d_pagerank);
         cudaDeviceSynchronize();
       }
       hr_clock.stop(&time_tmp);
       pagerank_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();
-      cugraph::pagerank<int, int, T>(G.handle[0], G, d_pagerank);
+      cugraph::pagerank<int, int, T>(handle, G, d_pagerank);
       cudaProfilerStop();
       cudaDeviceSynchronize();
     }

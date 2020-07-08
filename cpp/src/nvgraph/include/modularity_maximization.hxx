@@ -44,7 +44,7 @@ namespace nvgraph {
    *  @return NVGRAPH error flag.
    */
   template <typename vertex_t, typename edge_t, typename weight_t>
-  NVGRAPH_ERROR modularity_maximization(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  NVGRAPH_ERROR modularity_maximization(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                         vertex_t nClusters,
                                         vertex_t nEigVecs,
                                         int maxIter_lanczos,
@@ -67,7 +67,7 @@ namespace nvgraph {
    *  @param modularity On exit, modularity
    */
   template <typename vertex_t, typename edge_t, typename weight_t>
-  NVGRAPH_ERROR analyzeModularity(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  NVGRAPH_ERROR analyzeModularity(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                   vertex_t nClusters,
                                   const vertex_t * __restrict__ parts,
                                   weight_t & modularity);

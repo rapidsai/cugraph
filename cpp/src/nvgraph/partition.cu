@@ -158,18 +158,17 @@ cudaError_t scale_obs(IndexType_ m, IndexType_ n, ValueType_ *obs)
  *  @return NVGRAPH error flag.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-NVGRAPH_ERROR partition(
-  cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  vertex_t nParts,
-  vertex_t nEigVecs,
-  int maxIter_lanczos,
-  int restartIter_lanczos,
-  weight_t tol_lanczos,
-  int maxIter_kmeans,
-  weight_t tol_kmeans,
-  vertex_t *__restrict__ parts,
-  weight_t *eigVals,
-  weight_t *eigVecs)
+NVGRAPH_ERROR partition(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                        vertex_t nParts,
+                        vertex_t nEigVecs,
+                        int maxIter_lanczos,
+                        int restartIter_lanczos,
+                        weight_t tol_lanczos,
+                        int maxIter_kmeans,
+                        weight_t tol_kmeans,
+                        vertex_t *__restrict__ parts,
+                        weight_t *eigVals,
+                        weight_t *eigVecs)
 {
   cudaStream_t stream = 0;
 
@@ -312,12 +311,11 @@ struct equal_to_i_op {
  *  @return NVGRAPH error flag.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-NVGRAPH_ERROR analyzePartition(
-  cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  vertex_t nParts,
-  const vertex_t *__restrict__ parts,
-  weight_t &edgeCut,
-  weight_t &cost)
+NVGRAPH_ERROR analyzePartition(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                               vertex_t nParts,
+                               const vertex_t *__restrict__ parts,
+                               weight_t &edgeCut,
+                               weight_t &cost)
 {
   cudaStream_t stream = 0;
 
@@ -385,7 +383,7 @@ NVGRAPH_ERROR analyzePartition(
 // Explicit instantiation
 // =========================================================
 template NVGRAPH_ERROR partition<int, int, float>(
-  cugraph::experimental::GraphCSRView<int, int, float> const &graph,
+  cugraph::GraphCSRView<int, int, float> const &graph,
   int nParts,
   int nEigVecs,
   int maxIter_lanczos,
@@ -398,7 +396,7 @@ template NVGRAPH_ERROR partition<int, int, float>(
   float *eigVecs);
 
 template NVGRAPH_ERROR partition<int, int, double>(
-  cugraph::experimental::GraphCSRView<int, int, double> const &graph,
+  cugraph::GraphCSRView<int, int, double> const &graph,
   int nParts,
   int nEigVecs,
   int maxIter_lanczos,
@@ -411,13 +409,13 @@ template NVGRAPH_ERROR partition<int, int, double>(
   double *eigVecs);
 
 template NVGRAPH_ERROR analyzePartition<int, int, float>(
-  cugraph::experimental::GraphCSRView<int, int, float> const &graph,
+  cugraph::GraphCSRView<int, int, float> const &graph,
   int nParts,
   const int *__restrict__ parts,
   float &edgeCut,
   float &cost);
 template NVGRAPH_ERROR analyzePartition<int, int, double>(
-  cugraph::experimental::GraphCSRView<int, int, double> const &graph,
+  cugraph::GraphCSRView<int, int, double> const &graph,
   int nParts,
   const int *__restrict__ parts,
   double &edgeCut,

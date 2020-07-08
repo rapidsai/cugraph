@@ -21,7 +21,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void louvain(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
              weight_t *final_modularity,
              int *num_level,
              vertex_t *cluster_vec,

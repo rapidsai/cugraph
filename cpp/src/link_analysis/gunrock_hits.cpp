@@ -31,7 +31,7 @@ namespace cugraph {
 namespace gunrock {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void hits(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void hits(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
           int max_iter,
           weight_t tolerance,
           weight_t const *starting_value,
@@ -89,7 +89,7 @@ void hits(cugraph::experimental::GraphCSRView<vertex_t, edge_t, weight_t> const 
                       cudaMemcpyHostToDevice));
 }
 
-template void hits(cugraph::experimental::GraphCSRView<int32_t, int32_t, float> const &,
+template void hits(cugraph::GraphCSRView<int32_t, int32_t, float> const &,
                    int,
                    float,
                    float const *,
