@@ -262,8 +262,6 @@ template <typename HandleType,
           typename ReduceOp,
           typename VertexValueInputIterator,
           typename VertexValueOutputIterator,
-          typename AdjMatrixRowValueOutputIterator,
-          typename AdjMatrixColValueOutputIterator,
           typename VertexFrontierType,
           typename VertexOp>
 void update_frontier_v_push_if_out_nbr(
@@ -277,8 +275,6 @@ void update_frontier_v_push_if_out_nbr(
   ReduceOp reduce_op,
   VertexValueInputIterator vertex_value_input_first,
   VertexValueOutputIterator vertex_value_output_first,
-  AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
-  AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
   VertexFrontierType& vertex_frontier,
   VertexOp v_op)
 {
@@ -382,49 +378,41 @@ void update_frontier_v_push_if_out_nbr(
     CUGRAPH_FAIL("unimplemented.");
   }
 
-  grid_1d_thread_t update_grid(num_buffer_elements,
-                               update_frontier_v_push_if_out_nbr_update_block_size,
-                               get_max_num_blocks_1D());
+  if (num_buffer_elements > 0) {
+    grid_1d_thread_t update_grid(num_buffer_elements,
+                                 update_frontier_v_push_if_out_nbr_update_block_size,
+                                 get_max_num_blocks_1D());
 
-  auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
+    auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
-  auto bucket_and_bucket_size_device_ptrs =
-    vertex_frontier.get_bucket_and_bucket_size_device_pointers();
-  update_frontier_and_vertex_output_values<VertexFrontierType::kNumBuckets>
-    <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-      buffer_key_first,
-      buffer_payload_first,
-      num_buffer_elements,
-      vertex_value_input_first,
-      vertex_value_output_first,
-      std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
-      std::get<1>(bucket_and_bucket_size_device_ptrs).get(),
-      VertexFrontierType::kInvalidBucketIdx,
-      invalid_vertex,
-      v_op);
+    auto bucket_and_bucket_size_device_ptrs =
+      vertex_frontier.get_bucket_and_bucket_size_device_pointers();
+    update_frontier_and_vertex_output_values<VertexFrontierType::kNumBuckets>
+      <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+        buffer_key_first,
+        buffer_payload_first,
+        num_buffer_elements,
+        vertex_value_input_first,
+        vertex_value_output_first,
+        std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
+        std::get<1>(bucket_and_bucket_size_device_ptrs).get(),
+        VertexFrontierType::kInvalidBucketIdx,
+        invalid_vertex,
+        v_op);
 
-  auto bucket_sizes_device_ptr = std::get<1>(bucket_and_bucket_size_device_ptrs);
-  thrust::host_vector<size_t> bucket_sizes(
-    bucket_sizes_device_ptr, bucket_sizes_device_ptr + VertexFrontierType::kNumBuckets);
-  for (size_t i = 0; i < VertexFrontierType::kNumBuckets; ++i) {
-    vertex_frontier.get_bucket(i).set_size(bucket_sizes[i]);
-  }
-
-  if (!std::is_same<AdjMatrixRowValueOutputIterator, thrust::discard_iterator<>>::value) {
-    CUGRAPH_FAIL("unimplemented.");
-  }
-
-  if (!std::is_same<AdjMatrixRowValueOutputIterator, thrust::discard_iterator<>>::value) {
-    CUGRAPH_FAIL("unimplemented.");
+    auto bucket_sizes_device_ptr = std::get<1>(bucket_and_bucket_size_device_ptrs);
+    thrust::host_vector<size_t> bucket_sizes(
+      bucket_sizes_device_ptr, bucket_sizes_device_ptr + VertexFrontierType::kNumBuckets);
+    for (size_t i = 0; i < VertexFrontierType::kNumBuckets; ++i) {
+      vertex_frontier.get_bucket(i).set_size(bucket_sizes[i]);
+    }
   }
 }
 
 /*
 
 FIXME:
-check for input parameter orders (two level API)
 is_fully_functional type trait (???) for reduce_op
-split copy-to-adj-matrix-row part of this to a separate function
 
 iterating over lower triangular (or upper triangular) : triangle counting
 LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and

@@ -22,11 +22,24 @@
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
+#include <thrust/iterator/permutation_iterator.h>
 
 namespace cugraph {
 namespace experimental {
 namespace detail {
 
+/**
+ * @brief
+ *
+ * @tparam HandleType
+ * @tparam GraphType
+ * @tparam VertexValueInputIterator
+ * @tparam AdjMatrixRowValueOutputIterator
+ * @param handle
+ * @param graph_device_view
+ * @param vertex_value_input_first
+ * @param adj_matrix_row_value_output_first
+ */
 template <typename HandleType,
           typename GraphType,
           typename VertexValueInputIterator,
@@ -45,6 +58,48 @@ void copy_to_adj_matrix_row(HandleType& handle,
                  vertex_value_input_first,
                  vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
                  adj_matrix_row_value_output_first);
+  }
+}
+
+/**
+ * @brief
+ *
+ * @tparam HandleType
+ * @tparam GraphType
+ * @tparam VertexIterator
+ * @tparam VertexValueInputIterator
+ * @tparam AdjMatrixRowValueOutputIterator
+ * @param handle
+ * @param graph_device_view
+ * @param vertex_first v in [vertex_first, vertex_last) should be distinct, otherwise undefined
+ * behavior
+ * @param vertex_last
+ * @param vertex_value_input_first
+ * @param adj_matrix_row_value_output_first
+ */
+template <typename HandleType,
+          typename GraphType,
+          typename VertexIterator,
+          typename VertexValueInputIterator,
+          typename AdjMatrixRowValueOutputIterator>
+void copy_to_adj_matrix_row(HandleType& handle,
+                            GraphType const& graph_device_view,
+                            VertexIterator vertex_first,
+                            VertexIterator vertex_last,
+                            VertexValueInputIterator vertex_value_input_first,
+                            AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
+{
+  if (GraphType::is_opg) {
+    CUGRAPH_FAIL("unimplemented.");
+  } else {
+    assert(graph_device_view.get_number_of_local_vertices() ==
+           graph_device_view.get_number_of_adj_matrix_local_rows());
+    auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
+    thrust::scatter(thrust::cuda::par.on(handle.get_stream()),
+                    val_first,
+                    val_first + thrust::distance(vertex_first, vertex_last),
+                    vertex_first,
+                    adj_matrix_row_value_output_first);
   }
 }
 

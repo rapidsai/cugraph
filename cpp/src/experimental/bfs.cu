@@ -138,8 +138,6 @@ void bfs(raft::handle_t &handle,
         reduce_op::any<thrust::tuple<vertex_t>>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        thrust::make_discard_iterator(),
-        thrust::make_discard_iterator(),
         vertex_frontier,
         [depth] __device__(auto v_val, auto pushed_val) {
           auto idx = (v_val == invalid_distance) ? static_cast<size_t>(Bucket::cur)

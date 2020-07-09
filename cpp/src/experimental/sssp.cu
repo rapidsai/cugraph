@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <detail/graph_device_view.cuh>
+#include <detail/patterns/copy_to_adj_matrix_row.cuh>
 #include <detail/patterns/count_if_e.cuh>
 #include <detail/patterns/reduce_op.cuh>
 #include <detail/patterns/transform_reduce_e.cuh>
@@ -149,15 +150,18 @@ void sssp(raft::handle_t &handle,
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(start_vertex);
   }
 
-  if (graph_device_view.is_adj_matrix_local_row_nocheck(start_vertex)) {
-    if (!vertex_and_adj_matrix_row_ranges_coincide) {
-      adj_matrix_row_distances[graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(
-        start_vertex)] = weight_t{0.0};
-    }
-  }
-
   auto near_far_threshold = delta;
   while (true) {
+    if (!vertex_and_adj_matrix_row_ranges_coincide) {
+      copy_to_adj_matrix_row(
+        handle,
+        graph_device_view,
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
+        distances,
+        row_distances);
+    }
+
     auto v_op = [near_far_threshold] __device__(auto v_val, auto pushed_val) {
       auto new_dist = thrust::get<0>(pushed_val);
       auto idx =
@@ -198,9 +202,6 @@ void sssp(raft::handle_t &handle,
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        thrust::make_zip_iterator(
-          thrust::make_tuple(adj_matrix_row_distances.begin(), thrust::make_discard_iterator())),
-        thrust::make_discard_iterator(),
         vertex_frontier,
         v_op);
     } else {
@@ -216,8 +217,6 @@ void sssp(raft::handle_t &handle,
         reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        thrust::make_discard_iterator(),
-        thrust::make_discard_iterator(),
         vertex_frontier,
         v_op);
     }
