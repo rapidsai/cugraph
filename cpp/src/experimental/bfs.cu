@@ -15,9 +15,9 @@
  */
 #include <algorithms.hpp>
 #include <detail/graph_device_view.cuh>
-#include <detail/patterns/adj_matrix_row_frontier.cuh>
 #include <detail/patterns/reduce_op.cuh>
 #include <detail/patterns/update_frontier_v_push_if_out_nbr.cuh>
+#include <detail/patterns/vertex_frontier.cuh>
 #include <graph.hpp>
 #include <utilities/error.hpp>
 
@@ -92,36 +92,36 @@ void bfs(raft::handle_t &handle,
 
   enum class Bucket { cur, num_buckets };
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
-                                   graph_device_view.get_number_of_adj_matrix_local_rows());
-  AdjMatrixRowFrontier<raft::handle_t,
-                       thrust::tuple<vertex_t>,
-                       vertex_t,
-                       false,
-                       static_cast<size_t>(Bucket::num_buckets)>
-    adj_matrix_row_frontier(handle, bucket_sizes);
+                                   graph_device_view.get_number_of_local_vertices());
+  VertexFrontier<raft::handle_t,
+                 thrust::tuple<vertex_t>,
+                 vertex_t,
+                 false,
+                 static_cast<size_t>(Bucket::num_buckets)>
+    vertex_frontier(handle, bucket_sizes);
 
-  if (graph_device_view.is_adj_matrix_local_row_nocheck(start_vertex)) {
-    adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(start_vertex);
+  if (graph_device_view.is_local_vertex_nocheck(start_vertex)) {
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(start_vertex);
   }
 
   // 4. BFS iteration
 
   vertex_t depth{0};
-  auto cur_adj_matrix_local_row_frontier_first =
-    adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();
-  auto cur_adj_matrix_row_frontier_aggregate_size =
-    adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size();
+  auto cur_local_vertex_frontier_first =
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();
+  auto cur_vertex_frontier_aggregate_size =
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size();
   while (true) {
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
-      auto cur_adj_matrix_local_row_frontier_last =
-        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
+      auto cur_local_vertex_frontier_last =
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
       update_frontier_v_push_if_out_nbr(
         handle,
         graph_device_view,
-        cur_adj_matrix_local_row_frontier_first,
-        cur_adj_matrix_local_row_frontier_last,
+        cur_local_vertex_frontier_first,
+        cur_local_vertex_frontier_last,
         graph_device_view.adj_matrix_local_row_begin(),
         graph_device_view.adj_matrix_local_col_begin(),
         [graph_device_view, distances] __device__(auto src_val, auto dst_val) {
@@ -140,22 +140,22 @@ void bfs(raft::handle_t &handle,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         thrust::make_discard_iterator(),
         thrust::make_discard_iterator(),
-        adj_matrix_row_frontier,
+        vertex_frontier,
         [depth] __device__(auto v_val, auto pushed_val) {
-          auto idx = (v_val == invalid_distance)
-                       ? static_cast<size_t>(Bucket::cur)
-                       : AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
-                           kInvalidBucketIdx;
+          auto idx = (v_val == invalid_distance) ? static_cast<size_t>(Bucket::cur)
+                                                 : VertexFrontier<raft::handle_t,
+                                                                  thrust::tuple<vertex_t>,
+                                                                  vertex_t>::kInvalidBucketIdx;
           return thrust::make_tuple(idx, depth + 1, thrust::get<0>(pushed_val));
         });
 
-      auto new_adj_matrix_row_frontier_aggregate_size =
-        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() -
-        cur_adj_matrix_row_frontier_aggregate_size;
-      if (new_adj_matrix_row_frontier_aggregate_size == 0) { break; }
+      auto new_vertex_frontier_aggregate_size =
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() -
+        cur_vertex_frontier_aggregate_size;
+      if (new_vertex_frontier_aggregate_size == 0) { break; }
 
-      cur_adj_matrix_local_row_frontier_first = cur_adj_matrix_local_row_frontier_last;
-      cur_adj_matrix_row_frontier_aggregate_size += new_adj_matrix_row_frontier_aggregate_size;
+      cur_local_vertex_frontier_first = cur_local_vertex_frontier_last;
+      cur_vertex_frontier_aggregate_size += new_vertex_frontier_aggregate_size;
     }
 
     depth++;

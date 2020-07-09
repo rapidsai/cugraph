@@ -201,12 +201,12 @@ template <typename HandleType,
           typename vertex_t,
           bool is_opg        = false,
           size_t num_buckets = 1>
-class AdjMatrixRowFrontier {
+class VertexFrontier {
  public:
   static size_t constexpr kNumBuckets = num_buckets;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
-  AdjMatrixRowFrontier(HandleType const& handle, std::vector<size_t> bucket_capacities)
+  VertexFrontier(HandleType const& handle, std::vector<size_t> bucket_capacities)
     : handle_ptr_(&handle),
       tmp_bucket_ptrs_(num_buckets, nullptr),
       tmp_bucket_sizes_(num_buckets, 0),

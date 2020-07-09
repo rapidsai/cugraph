@@ -255,7 +255,7 @@ namespace detail {
 
 template <typename HandleType,
           typename GraphType,
-          typename RowIterator,
+          typename VertexIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp,
@@ -264,13 +264,13 @@ template <typename HandleType,
           typename VertexValueOutputIterator,
           typename AdjMatrixRowValueOutputIterator,
           typename AdjMatrixColValueOutputIterator,
-          typename RowFrontierType,
+          typename VertexFrontierType,
           typename VertexOp>
 void update_frontier_v_push_if_out_nbr(
   HandleType& handle,
   GraphType const& graph_device_view,
-  RowIterator row_first,
-  RowIterator row_last,
+  VertexIterator vertex_first,
+  VertexIterator vertex_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   EdgeOp e_op,
@@ -279,7 +279,7 @@ void update_frontier_v_push_if_out_nbr(
   VertexValueOutputIterator vertex_value_output_first,
   AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first,
   AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first,
-  RowFrontierType& row_frontier,
+  VertexFrontierType& vertex_frontier,
   VertexOp v_op)
 {
   static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
@@ -287,65 +287,110 @@ void update_frontier_v_push_if_out_nbr(
   using vertex_t          = typename GraphType::vertex_type;
   using reduce_op_input_t = typename ReduceOp::type;
 
-  auto max_pushes = thrust::transform_reduce(
-    thrust::cuda::par.on(handle.get_stream()),
-    row_first,
-    row_last,
-    [graph_device_view] __device__(auto row) {
-      return graph_device_view.get_local_out_degree_nocheck(row);
-    },
-    size_t{0},
-    thrust::plus<size_t>());
-  // FIXME: This is highly pessimistic for single GPU (and OPG as well if we maintain additional
-  // per column data for filtering in e_op). If we can pause & resume execution if buffer needs to
-  // be increased (and if we reserve address space to avoid expensive reallocation;
+  // FIXME: Better make this a memeber variable of VertexFrontier to reduce # of memory allocations
+  thrust::device_vector<vertex_t> frontier_rows{};  // relevant only if GraphType::is_opg is true
+  if (GraphType::is_opg) {
+    // need to merge row_frontier
+    CUGRAPH_FAIL("unimplemented.");
+  }
+
+  auto max_pushes = GraphType::is_opg
+                      ? thrust::transform_reduce(
+                          thrust::cuda::par.on(handle.get_stream()),
+                          frontier_rows.begin(),
+                          frontier_rows.end(),
+                          [graph_device_view] __device__(auto row) {
+                            return graph_device_view.get_local_out_degree_nocheck(row);
+                          },
+                          size_t{0},
+                          thrust::plus<size_t>())
+                      : thrust::transform_reduce(
+                          thrust::cuda::par.on(handle.get_stream()),
+                          vertex_first,
+                          vertex_last,
+                          [graph_device_view] __device__(auto row) {
+                            return graph_device_view.get_local_out_degree_nocheck(row);
+                          },
+                          size_t{0},
+                          thrust::plus<size_t>());
+  // FIXME: This is highly pessimistic for single GPU (and OPG as well if we maintain
+  // additional per column data for filtering in e_op). If we can pause & resume execution if
+  // buffer needs to be increased (and if we reserve address space to avoid expensive
+  // reallocation;
   // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management/), we can
   // start with a smaller buffer size (especially when the frontier size is large).
-  row_frontier.resize_buffer(max_pushes);
-  row_frontier.set_buffer_idx_value(0);
-  auto buffer_first         = row_frontier.buffer_begin();
+  vertex_frontier.resize_buffer(max_pushes);
+  vertex_frontier.set_buffer_idx_value(0);
+  auto buffer_first         = vertex_frontier.buffer_begin();
   auto buffer_key_first     = std::get<0>(buffer_first);
   auto buffer_payload_first = std::get<1>(buffer_first);
 
+  auto num_rows = GraphType::is_opg
+                    ? static_cast<size_t>(frontier_rows.size())
+                    : static_cast<size_t>(thrust::distance(vertex_first, vertex_last));
   grid_1d_thread_t for_all_low_out_degree_grid(
-    thrust::distance(row_first, row_last),
+    num_rows,
     update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
     get_max_num_blocks_1D());
 
-  // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
-  // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
-  // order, we will apply this kernel only to low out-degree vertices.
-  for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                    for_all_low_out_degree_grid.block_size,
-                                                    0,
-                                                    handle.get_stream()>>>(
-    graph_device_view,
-    row_first,
-    row_last,
-    adj_matrix_row_value_input_first,
-    adj_matrix_col_value_input_first,
-    buffer_key_first,
-    buffer_payload_first,
-    row_frontier.get_buffer_idx_ptr(),
-    e_op);
+  // FIXME: if we update the code to invoke multiple kernels for this part (based on vertex
+  // degrees), we may better create another template function to avoid this if-else.
+  if (GraphType::is_opg) {
+    // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
+    // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
+    // order, we will apply this kernel only to low out-degree vertices.
+    for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
+                                                      for_all_low_out_degree_grid.block_size,
+                                                      0,
+                                                      handle.get_stream()>>>(
+      graph_device_view,
+      frontier_rows.begin(),
+      frontier_rows.end(),
+      adj_matrix_row_value_input_first,
+      adj_matrix_col_value_input_first,
+      buffer_key_first,
+      buffer_payload_first,
+      vertex_frontier.get_buffer_idx_ptr(),
+      e_op);
+  } else {
+    // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
+    // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
+    // order, we will apply this kernel only to low out-degree vertices.
+    for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
+                                                      for_all_low_out_degree_grid.block_size,
+                                                      0,
+                                                      handle.get_stream()>>>(
+      graph_device_view,
+      vertex_first,
+      vertex_last,
+      adj_matrix_row_value_input_first,
+      adj_matrix_col_value_input_first,
+      buffer_key_first,
+      buffer_payload_first,
+      vertex_frontier.get_buffer_idx_ptr(),
+      e_op);
+  }
 
-  auto num_buffer_elements = reduce_buffer_elements(
-    handle, buffer_key_first, buffer_payload_first, row_frontier.get_buffer_idx_value(), reduce_op);
+  auto num_buffer_elements = reduce_buffer_elements(handle,
+                                                    buffer_key_first,
+                                                    buffer_payload_first,
+                                                    vertex_frontier.get_buffer_idx_value(),
+                                                    reduce_op);
 
   if (GraphType::is_opg) {
     // need to exchange buffer elements (and may reduce again)
     CUGRAPH_FAIL("unimplemented.");
   }
 
-  grid_1d_thread_t update_grid(thrust::distance(row_first, row_last),
+  grid_1d_thread_t update_grid(num_buffer_elements,
                                update_frontier_v_push_if_out_nbr_update_block_size,
                                get_max_num_blocks_1D());
 
   auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
   auto bucket_and_bucket_size_device_ptrs =
-    row_frontier.get_bucket_and_bucket_size_device_pointers();
-  update_frontier_and_vertex_output_values<RowFrontierType::kNumBuckets>
+    vertex_frontier.get_bucket_and_bucket_size_device_pointers();
+  update_frontier_and_vertex_output_values<VertexFrontierType::kNumBuckets>
     <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
       buffer_key_first,
       buffer_payload_first,
@@ -354,15 +399,15 @@ void update_frontier_v_push_if_out_nbr(
       vertex_value_output_first,
       std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
       std::get<1>(bucket_and_bucket_size_device_ptrs).get(),
-      RowFrontierType::kInvalidBucketIdx,
+      VertexFrontierType::kInvalidBucketIdx,
       invalid_vertex,
       v_op);
 
   auto bucket_sizes_device_ptr = std::get<1>(bucket_and_bucket_size_device_ptrs);
-  thrust::host_vector<size_t> bucket_sizes(bucket_sizes_device_ptr,
-                                           bucket_sizes_device_ptr + RowFrontierType::kNumBuckets);
-  for (size_t i = 0; i < RowFrontierType::kNumBuckets; ++i) {
-    row_frontier.get_bucket(i).set_size(bucket_sizes[i]);
+  thrust::host_vector<size_t> bucket_sizes(
+    bucket_sizes_device_ptr, bucket_sizes_device_ptr + VertexFrontierType::kNumBuckets);
+  for (size_t i = 0; i < VertexFrontierType::kNumBuckets; ++i) {
+    vertex_frontier.get_bucket(i).set_size(bucket_sizes[i]);
   }
 
   if (!std::is_same<AdjMatrixRowValueOutputIterator, thrust::discard_iterator<>>::value) {
@@ -370,11 +415,6 @@ void update_frontier_v_push_if_out_nbr(
   }
 
   if (!std::is_same<AdjMatrixRowValueOutputIterator, thrust::discard_iterator<>>::value) {
-    CUGRAPH_FAIL("unimplemented.");
-  }
-
-  if (GraphType::is_opg) {
-    // need to merge row_frontier
     CUGRAPH_FAIL("unimplemented.");
   }
 }
@@ -382,11 +422,9 @@ void update_frontier_v_push_if_out_nbr(
 /*
 
 FIXME:
-static_cast<T>(val) vs T{val} when both are acceptable.
-T init vs std::iterator_traits<T>::value_type init in pattern API declarations
-row_first, row_last vs vertex_first, vertex_last in update_frontier_v_push_if_out_nbr
 check for input parameter orders (two level API)
-
+is_fully_functional type trait (???) for reduce_op
+split copy-to-adj-matrix-row part of this to a separate function
 
 iterating over lower triangular (or upper triangular) : triangle counting
 LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and
@@ -394,13 +432,10 @@ degree(j) : triangle counting
 push-pull switching support (e.g. DOBFS), in this case, we need both
 CSR & CSC (trade-off execution time vs memory requirement, unless graph is symmetric)
 should I take multi-GPU support as a template argument?
-Add bool expensive_check = false ?
-cugraph::count_if as a multi-GPU wrapper of thrust::count_if? (for expensive check)
 if graph is symmetric, there will be additional optimization opportunities (e.g. in-degree ==
 out-degree) For BFS, sending a bit vector (for the entire set of dest vertices per partitoin may
 work better we can use thrust::set_intersection for triangle counting think about adding thrust
-wrappers for reduction functions. thrust::(); if (opg) { allreduce }; can be cugraph::(), and be
-more consistant with other APIs that hide communication inside if opg. Can I pass nullptr for dummy
+wrappers for reduction functions. Can I pass nullptr for dummy
 instead of thrust::make_counting_iterator(0)?
 */
 

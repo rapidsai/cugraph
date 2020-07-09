@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 #include <detail/graph_device_view.cuh>
-#include <detail/patterns/adj_matrix_row_frontier.cuh>
 #include <detail/patterns/count_if_e.cuh>
 #include <detail/patterns/reduce_op.cuh>
 #include <detail/patterns/transform_reduce_e.cuh>
 #include <detail/patterns/update_frontier_v_push_if_out_nbr.cuh>
+#include <detail/patterns/vertex_frontier.cuh>
 #include <detail/utilities/cuda.cuh>
 #include <graph.hpp>
 #include <utilities/error.hpp>
@@ -122,13 +122,13 @@ void sssp(raft::handle_t &handle,
   enum class Bucket { cur_near, new_near, far, num_buckets };
   // FIXME: need to double check the bucket sizes are sufficient
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
-                                   graph_device_view.get_number_of_adj_matrix_local_rows());
-  AdjMatrixRowFrontier<raft::handle_t,
-                       thrust::tuple<weight_t, vertex_t>,
-                       vertex_t,
-                       false,
-                       static_cast<size_t>(Bucket::num_buckets)>
-    adj_matrix_row_frontier(handle, bucket_sizes);
+                                   graph_device_view.get_number_of_local_vertices());
+  VertexFrontier<raft::handle_t,
+                 thrust::tuple<weight_t, vertex_t>,
+                 vertex_t,
+                 false,
+                 static_cast<size_t>(Bucket::num_buckets)>
+    vertex_frontier(handle, bucket_sizes);
 
   // 5. SSSP iteration
 
@@ -145,8 +145,11 @@ void sssp(raft::handle_t &handle,
   auto row_distances =
     !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data().get() : distances;
 
+  if (graph_device_view.is_local_vertex_nocheck(start_vertex)) {
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(start_vertex);
+  }
+
   if (graph_device_view.is_adj_matrix_local_row_nocheck(start_vertex)) {
-    adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(start_vertex);
     if (!vertex_and_adj_matrix_row_ranges_coincide) {
       adj_matrix_row_distances[graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(
         start_vertex)] = weight_t{0.0};
@@ -157,11 +160,11 @@ void sssp(raft::handle_t &handle,
   while (true) {
     auto v_op = [near_far_threshold] __device__(auto v_val, auto pushed_val) {
       auto new_dist = thrust::get<0>(pushed_val);
-      auto idx      = new_dist < v_val
-                   ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
-                                                    : static_cast<size_t>(Bucket::far))
-                   : AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
-                       kInvalidBucketIdx;
+      auto idx =
+        new_dist < v_val
+          ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
+                                           : static_cast<size_t>(Bucket::far))
+          : VertexFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
       return thrust::make_tuple(idx, thrust::get<0>(pushed_val), thrust::get<1>(pushed_val));
     };
 
@@ -186,8 +189,8 @@ void sssp(raft::handle_t &handle,
       update_frontier_v_push_if_out_nbr(
         handle,
         graph_device_view,
-        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
-        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
         thrust::make_zip_iterator(
           thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
         graph_device_view.adj_matrix_local_col_begin(),
@@ -198,14 +201,14 @@ void sssp(raft::handle_t &handle,
         thrust::make_zip_iterator(
           thrust::make_tuple(adj_matrix_row_distances.begin(), thrust::make_discard_iterator())),
         thrust::make_discard_iterator(),
-        adj_matrix_row_frontier,
+        vertex_frontier,
         v_op);
     } else {
       update_frontier_v_push_if_out_nbr(
         handle,
         graph_device_view,
-        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
-        adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
         thrust::make_zip_iterator(
           thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
         graph_device_view.adj_matrix_local_col_begin(),
@@ -215,29 +218,28 @@ void sssp(raft::handle_t &handle,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         thrust::make_discard_iterator(),
         thrust::make_discard_iterator(),
-        adj_matrix_row_frontier,
+        vertex_frontier,
         v_op);
     }
 
-    adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).clear();
-    if (adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::new_near)).aggregate_size() >
-        0) {
-      adj_matrix_row_frontier.swap_buckets(static_cast<size_t>(Bucket::cur_near),
-                                           static_cast<size_t>(Bucket::new_near));
-    } else if (adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::far))
-                 .aggregate_size() > 0) {  // near queue is empty, split the far queue
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).clear();
+    if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::new_near)).aggregate_size() > 0) {
+      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur_near),
+                                   static_cast<size_t>(Bucket::new_near));
+    } else if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size() >
+               0) {  // near queue is empty, split the far queue
       auto old_near_far_threshold = near_far_threshold;
       near_far_threshold += delta;
 
       while (true) {
-        adj_matrix_row_frontier.split_bucket(
+        vertex_frontier.split_bucket(
           static_cast<size_t>(Bucket::far),
-          [graph_device_view, row_distances, old_near_far_threshold, near_far_threshold] __device__(
+          [graph_device_view, distances, old_near_far_threshold, near_far_threshold] __device__(
             auto v) {
-            auto dist = *(row_distances +
-                          graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(v));
+            auto dist =
+              *(distances + graph_device_view.get_local_vertex_offset_from_vertex_nocheck(v));
             if (dist < old_near_far_threshold) {
-              return AdjMatrixRowFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
+              return VertexFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
                 kInvalidBucketIdx;
             } else if (dist < near_far_threshold) {
               return static_cast<size_t>(Bucket::cur_near);
@@ -245,8 +247,8 @@ void sssp(raft::handle_t &handle,
               return static_cast<size_t>(Bucket::far);
             }
           });
-        if (adj_matrix_row_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near))
-              .aggregate_size() > 0) {
+        if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).aggregate_size() >
+            0) {
           break;
         } else {
           near_far_threshold += delta;
