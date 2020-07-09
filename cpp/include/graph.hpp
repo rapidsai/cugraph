@@ -695,42 +695,21 @@ class DSGGraph {
 
   virtual size_t get_required_size_for_info()
   {
-    size_t required_size_for_number_of_vertices = sizeof(VT);
-    size_t required_size_for_number_of_edges    = sizeof(ET);
-    size_t required_size_for_graph_properties   = sizeof(experimental::GraphProperties);
-    size_t required_size_for_has_edge_data      = sizeof(bool);
-    size_t total_required_size =
-      required_size_for_number_of_vertices + required_size_for_number_of_edges +
-      required_size_for_has_edge_data + required_size_for_graph_properties;
-    return total_required_size;
+    size_t required_size = sizeof(GraphType);
+    return required_size;
   }
 
   virtual void fill_info_storage()
   {
-    size_t position = 0;
-    bool has_data   = graph.has_data();
-    memcpy(h_buffer_.data() + position, &graph.number_of_vertices, sizeof(VT));
-    position += sizeof(VT);
-    memcpy(h_buffer_.data() + position, &graph.number_of_edges, sizeof(ET));
-    position += sizeof(ET);
-    memcpy(h_buffer_.data() + position, &has_data, sizeof(bool));
-    position += sizeof(bool);
-    memcpy(h_buffer_.data() + position, &graph.prop, sizeof(experimental::GraphProperties));
+    char *start_position = reinterpret_cast<char *>(&graph);
+    thrust::copy(start_position, start_position + h_buffer_.size(), h_buffer_.begin());
     thrust::copy(h_buffer_.begin(), h_buffer_.end(), d_buffer_.begin());
   }
 
   virtual void read_info_storage()
   {
     thrust::copy(d_buffer_.begin(), d_buffer_.end(), h_buffer_.begin());
-    size_t position          = 0;
-    char *storage_start      = h_buffer_.data();
-    graph.number_of_vertices = *reinterpret_cast<VT *>(storage_start + position);
-    position += sizeof(VT);
-    graph.number_of_edges = *reinterpret_cast<ET *>(storage_start + position);
-    position += sizeof(ET);
-    has_data_ = *reinterpret_cast<bool *>(storage_start + position);
-    position += sizeof(bool);
-    graph.prop = *reinterpret_cast<experimental::GraphProperties *>(storage_start + position);
+    graph = *reinterpret_cast<GraphType *>(h_buffer_.data());
   }
   GraphType graph;
 
@@ -752,12 +731,6 @@ class DSGGraphCSR : public DSGGraph<VT, ET, WT, experimental::GraphCSRView<VT, E
   DSGGraphCSR(const raft::handle_t &handle, experimental::GraphCSRView<VT, ET, WT> const *graph)
     : GT(handle, graph)
   {
-    /*if (graph != nullptr) {
-      GT::graph.offsets = graph->offsets;
-      GT::graph.indices = graph->indices;
-      if (graph->has_data()) { GT::graph.edge_data = graph->edge_data; }
-    }
-    */
   }
 
   void distribute()
