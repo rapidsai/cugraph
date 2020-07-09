@@ -141,7 +141,7 @@ def run_organizer_work(handle, input_graph, normalized, batch,
     return result_df
 
 
-def run_regular_work(handle, normalized, endpoints, batch, weights,
+def run_regular_work(handle, normalized, batch, weights,
                      total_number_of_sources, result_dtype):
     cdef uintptr_t c_handle = <uintptr_t> NULL
     cdef uintptr_t c_graph = <uintptr_t> NULL

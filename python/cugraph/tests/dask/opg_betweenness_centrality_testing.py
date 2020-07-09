@@ -11,7 +11,6 @@ from cugraph.tests.test_betweenness_centrality import (
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
     DATASETS,
-    UNRENUMBERED_DATASETS,
     SUBSET_SIZE_OPTIONS,
     SUBSET_SEED_OPTIONS,
     RESULT_DTYPE_OPTIONS

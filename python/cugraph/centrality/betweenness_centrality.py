@@ -101,7 +101,6 @@ def betweenness_centrality(G, k=None, normalized=True,
     # NOTE: cuDF doesn't currently support sampling, but there is a python
     # workaround.
 
-    # TODO(xcadet): Get rid of the k parameter after updating edge betweenness
     vertices = _initialize_vertices(G, k, seed)
 
     if weight is not None:

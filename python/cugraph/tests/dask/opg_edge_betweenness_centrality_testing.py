@@ -5,13 +5,11 @@ from cugraph.dask.core import get_visible_devices
 from cugraph.tests.dask.opg_context import (OPGContext, enforce_rescale)
 
 # Get parameters from standard betwenness_centrality_test
-from cugraph.tests.test_betweenness_centrality import (
+from cugraph.tests.test_edge_betweenness_centrality import (
     DIRECTED_GRAPH_OPTIONS,
-    ENDPOINTS_OPTIONS,
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
     DATASETS,
-    UNRENUMBERED_DATASETS,
     SUBSET_SIZE_OPTIONS,
     SUBSET_SEED_OPTIONS,
     RESULT_DTYPE_OPTIONS

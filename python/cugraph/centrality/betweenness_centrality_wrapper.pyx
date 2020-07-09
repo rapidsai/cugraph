@@ -34,14 +34,11 @@ import cugraph.raft
 
 from cugraph.raft.dask.common.comms import Comms
 from cugraph.dask.common.opg_utils import (CommsInitAndDestroyContext,
-                                                opg_get_client,
-                                                opg_get_comms_using_client)
+                                           opg_get_client,
+                                           opg_get_comms_using_client,
+                                           is_worker_organizer)
 from cugraph.raft.dask.common.comms import (Comms, worker_state)
 import dask.distributed
-
-
-def is_worker_organizer(worker_idx):
-    return worker_idx == 0
 
 
 def get_output_df(number_of_vertices, result_dtype):
@@ -62,8 +59,6 @@ def get_batch(sources, number_of_workers, current_worker):
     return batch
 
 
-# TODO(xcadet) There might be an issue with weights, should be duplicated at
-# c++ level
 def run_work(input_graph, normalized, endpoints, sources, weights,
              result_dtype, session_id):
     result = None
@@ -75,11 +70,11 @@ def run_work(input_graph, normalized, endpoints, sources, weights,
     # 2. Get handle
     handle = session_state['handle']
 
-    # 3. Get Batch # TODO(xcadet): This maybe be directly handled deeper
+    # 3. Get Batch
     batch = get_batch(sources, number_of_workers, worker_idx)
 
     # 4. Determine worker type
-    is_organizer = (worker_idx == 0) # TODO(xcadet) Refactor for clarity
+    is_organizer = is_worker_organizer(worker_idx)
     total_number_of_sources = len(sources)
 
     # 5. Dispatch to proper type
