@@ -170,38 +170,39 @@ class Graph:
             raise Exception('Graph already has values')
 
         if isinstance(input_df, cudf.DataFrame):
-            edge_list = input_df
+            elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
-            edge_list = input_df.compute()
+            elist = input_df.compute().reset_index(drop=True)
         else:
-            raise Exception('input should be a cudf.DataFrame or a dask_cudf dataFrame')
+            raise Exception('input should be a cudf.DataFrame or \
+                              a dask_cudf dataFrame')
 
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception('edge_attr should be a list of column names')
             value_col = {}
             for col_name in edge_attr:
-                value_col[col_name] = edge_list[col_name]
+                value_col[col_name] = elist[col_name]
         elif edge_attr is not None:
-            value_col = edge_list[edge_attr]
+            value_col = elist[edge_attr]
         else:
             value_col = None
         renumber_map = None
         if renumber:
             if type(source) is list and type(destination) is list:
-                source_col, dest_col, renumber_map = multi_rnb(edge_list,
+                source_col, dest_col, renumber_map = multi_rnb(elist,
                                                                source,
                                                                destination)
             else:
-                source_col, dest_col, renumber_map = rnb(edge_list[source],
-                                                         edge_list[destination])
+                source_col, dest_col, renumber_map = rnb(elist[source],
+                                                         elist[destination])
             self.renumbered = True
         else:
             if type(source) is list and type(destination) is list:
                 raise Exception('set renumber to True for multi column ids')
             else:
-                source_col = edge_list[source]
-                dest_col = edge_list[destination]
+                source_col = elist[source]
+                dest_col = elist[destination]
         if not self.symmetrized and not self.multi:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(source_col,
@@ -211,7 +212,6 @@ class Graph:
                 source_col, dest_col = symmetrize(source_col, dest_col)
 
         self.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
-                                       renumber_map)
                                        renumber_map)
 
     def add_edge_list(self, source, destination, value=None):
