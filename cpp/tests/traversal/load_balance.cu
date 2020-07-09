@@ -80,13 +80,13 @@ class Tests_LB : public ::testing::TestWithParam<LB_Usecase> {
     auto csr =
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
+    cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
     G.prop.directed                                   = directed;
 
     rmm::device_vector<ET> in_degree_lb(G.number_of_vertices, 0);
 
     raft::handle_t handle;
-    cugraph::detail::opg::LoadBalanceExecution<VT, ET, WT> lb(handle, G);
+    cugraph::opg::detail::LoadBalanceExecution<VT, ET, WT> lb(handle, G);
     CUDA_TRY(cudaGetLastError());
     in_degree<VT, ET> in_degree_op(in_degree_lb.data().get());
     lb.run(in_degree_op);

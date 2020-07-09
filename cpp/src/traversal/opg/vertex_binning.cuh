@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef VERTEX_BINNING_CUH
-#define VERTEX_BINNING_CUH
+#pragma once
 
 #include "vertex_binning_kernels.cuh"
 
 namespace cugraph {
 
-namespace detail {
-
 namespace opg {
+
+namespace detail {
 
 template <typename VT, typename ET>
 struct DegreeBucket
@@ -52,9 +51,7 @@ class LogDistribution
 
   DegreeBucket<VT, ET> degreeRange(
       ET ceilLogDegreeStart, ET ceilLogDegreeEnd = std::numeric_limits<ET>::max()) {
-    if (ceilLogDegreeStart < static_cast<ET>(0)) {
-      ceilLogDegreeStart = 0;
-    }
+    ceilLogDegreeStart = std::max(ceilLogDegreeStart, ET{0});
     if (ceilLogDegreeEnd > static_cast<ET>(bin_offsets_.size()) - 2) {
       ceilLogDegreeEnd = bin_offsets_.size() - 2;
     }
@@ -114,10 +111,8 @@ VertexBinner<VT, ET>::run(
   return LogDistribution<VT, ET>(reorganized_vertices, bin_offsets_);
 }
 
-}//namespace opg
-
 }//namespace detail
 
-}//namespace cugraph
+}//namespace opg
 
-#endif //VERTEX_BINNING_CUH
+}//namespace cugraph

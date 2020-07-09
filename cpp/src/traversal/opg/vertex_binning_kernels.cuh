@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef BIN_KERNELS_CUH
-#define BIN_KERNELS_CUH
+#pragma once
 
 #include <rmm/thrust_rmm_allocator.h>
+#include "../traversal_common.cuh"
 
 namespace cugraph {
 
-namespace detail {
-
 namespace opg {
+
+namespace detail {
 
 template <typename degree_t>
 constexpr int BitsPWrd = sizeof(degree_t)*8;
@@ -78,6 +78,7 @@ void count_bin_sizes(
     ET const *offsets,
     VT vertex_begin,
     VT vertex_end) {
+  using cugraph::detail::traversal::atomicAdd;
   constexpr int BinCount = NumberBins<ET>;
   __shared__ ET lBin[BinCount];
   for (int i = threadIdx.x; i < BinCount; i += blockDim.x) {
@@ -88,7 +89,7 @@ void count_bin_sizes(
   for (VT i =  threadIdx.x + (blockIdx.x*blockDim.x);
       i < (vertex_end - vertex_begin); i += gridDim.x*blockDim.x) {
     if (is_nth_bit_set(active_bitmap, vertex_begin + i)) {
-      atomicAdd(lBin + ceilLog2_p1(offsets[i+1] - offsets[i]), 1);
+      atomicAdd(lBin + ceilLog2_p1(offsets[i+1] - offsets[i]), ET{1});
     }
   }
   __syncthreads();
@@ -109,6 +110,7 @@ void count_bin_sizes(
     ET const *offsets,
     VT vertex_begin,
     VT vertex_end) {
+  using cugraph::detail::traversal::atomicAdd;
   constexpr int BinCount = NumberBins<ET>;
   __shared__ ET lBin[BinCount];
   for (int i = threadIdx.x; i < BinCount; i += blockDim.x) {
@@ -118,7 +120,7 @@ void count_bin_sizes(
 
   for (VT i =  threadIdx.x + (blockIdx.x*blockDim.x);
       i < (vertex_end - vertex_begin); i += gridDim.x*blockDim.x) {
-    atomicAdd(lBin + ceilLog2_p1(offsets[i+1] - offsets[i]), 1);
+    atomicAdd(lBin + ceilLog2_p1(offsets[i+1] - offsets[i]), ET{1});
   }
   __syncthreads();
 
@@ -138,6 +140,7 @@ void create_vertex_bins(
     ET const *offsets,
     VT vertex_begin,
     VT vertex_end) {
+  using cugraph::detail::traversal::atomicAdd;
   constexpr int BinCount = NumberBins<ET>;
   __shared__ ET lBin[BinCount];
   __shared__ int lPos[BinCount];
@@ -154,7 +157,7 @@ void create_vertex_bins(
   ET threadPos;
   if (is_valid_vertex) {
     threadBin = ceilLog2_p1(offsets[vertex_id+1] - offsets[vertex_id]);
-    threadPos = atomicAdd(lBin + threadBin, 1);
+    threadPos = atomicAdd(lBin + threadBin, ET{1});
   }
   __syncthreads();
 
@@ -178,6 +181,7 @@ void create_vertex_bins(
     ET const *offsets,
     VT vertex_begin,
     VT vertex_end) {
+  using cugraph::detail::traversal::atomicAdd;
   constexpr int BinCount = NumberBins<ET>;
   __shared__ ET lBin[BinCount];
   __shared__ int lPos[BinCount];
@@ -193,7 +197,7 @@ void create_vertex_bins(
   ET threadPos;
   if (is_valid_vertex) {
     threadBin = ceilLog2_p1(offsets[vertex_id+1] - offsets[vertex_id]);
-    threadPos = atomicAdd(lBin + threadBin, 1);
+    threadPos = atomicAdd(lBin + threadBin, ET{1});
   }
   __syncthreads();
 
@@ -259,10 +263,8 @@ void bin_vertices(
 
 }
 
-}//namespace opg
-
 }//namespace detail
 
-}//namespace cugraph
+}//namespace opg
 
-#endif //BIN_KERNELS_CUH
+}//namespace cugraph

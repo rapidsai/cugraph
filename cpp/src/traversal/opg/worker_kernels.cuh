@@ -14,22 +14,20 @@
  * limitations under the License.
  */
 
-
-#ifndef WORKER_KERNELS_CUH
-#define WORKER_KERNELS_CUH
+#pragma once
 
 #include "vertex_binning.cuh"
 #include <graph.hpp>
 
 namespace cugraph {
 
-namespace detail {
-
 namespace opg {
+
+namespace detail {
 
 template <typename VT, typename ET, typename WT, typename Operator>
 __global__ void kernel_per_vertex_worker_weightless(
-    cugraph::experimental::GraphCSRView<VT, ET, WT> graph,
+    cugraph::GraphCSRView<VT, ET, WT> graph,
     VT *vertex_ids,
     VT number_of_vertices,
     Operator op) {
@@ -52,7 +50,7 @@ __global__ void kernel_per_vertex_worker_weightless(
 
 template <typename VT, typename ET, typename WT, typename Operator>
 void large_vertex_worker(
-    cugraph::experimental::GraphCSRView<VT, ET, WT>& graph,
+    cugraph::GraphCSRView<VT, ET, WT> const &graph,
     DegreeBucket<VT, ET>& bucket,
     Operator op,
     cudaStream_t stream) {
@@ -69,7 +67,7 @@ void large_vertex_worker(
 
 template <typename VT, typename ET, typename WT, typename Operator>
 __global__ void block_per_vertex_worker_weightless(
-    cugraph::experimental::GraphCSRView<VT, ET, WT> graph,
+    cugraph::GraphCSRView<VT, ET, WT> graph,
     VT *vertex_ids,
     VT number_of_vertices,
     Operator op) {
@@ -89,7 +87,7 @@ __global__ void block_per_vertex_worker_weightless(
 
 template <typename VT, typename ET, typename WT, typename Operator>
 void medium_vertex_worker(
-    cugraph::experimental::GraphCSRView<VT, ET, WT>& graph,
+    cugraph::GraphCSRView<VT, ET, WT> const &graph,
     DegreeBucket<VT, ET>& bucket,
     Operator op,
     cudaStream_t stream) {
@@ -108,7 +106,7 @@ void medium_vertex_worker(
 
 template <typename VT, typename ET, typename WT, typename Operator>
 void small_vertex_worker(
-    cugraph::experimental::GraphCSRView<VT, ET, WT>& graph,
+    cugraph::GraphCSRView<VT, ET, WT> const &graph,
     DegreeBucket<VT, ET>& bucket,
     Operator op,
     cudaStream_t stream) {
@@ -132,10 +130,8 @@ void small_vertex_worker(
   }
 }
 
-}//namespace opg
-
 }//namespace detail
 
-}//namespace cugraph
+}//namespace opg
 
-#endif //WORKER_KERNELS_CUH
+}//namespace cugraph

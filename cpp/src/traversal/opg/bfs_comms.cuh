@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#pragma once
+
 #include <raft/handle.hpp>
 #include <graph.hpp>
 
 namespace cugraph {
 
-namespace detail {
-
 namespace opg {
+
+namespace detail {
 
 constexpr inline size_t
 divup(const size_t& numerator, const size_t& denominator) {
@@ -102,8 +105,8 @@ class BFSCommunicator {
 };
 
 
-}//namespace opg
-
 }//namespace detail
+
+}//namespace opg
 
 }//namespace cugraph

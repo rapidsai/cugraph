@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <raft/handle.hpp>
 #include "load_balance.cuh"
 #include "bfs_comms.cuh"
 
 namespace cugraph {
 
-namespace detail {
-
 namespace opg {
+
+namespace detail {
 
 struct bitwise_or {
   __device__ unsigned operator()(unsigned& a, unsigned & b) { return a | b; }
@@ -100,12 +102,16 @@ struct is_not_equal {
   }
 };
 
+}//namespace detail
+
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
-    cugraph::experimental::GraphCSRView<VT, ET, WT>& graph,
+    cugraph::GraphCSRView<VT, ET, WT> const &graph,
     VT *distances,
     VT *predecessors,
     const VT start_vertex) {
+
+  using namespace detail;
 
   //We need to keep track if a vertex is visited or its status
   //This needs to be done for all the vertices in the global graph
@@ -160,12 +166,12 @@ void bfs(raft::handle_t const &handle,
     //3. Create output frontier from input frontier
     if (distances != nullptr) {
       //BFS Functor for frontier calculation
-      bfs_frontier_pred_dist<VT> bfs_op(
+      detail::bfs_frontier_pred_dist<VT> bfs_op(
           output_frontier.data().get(), predecessors, distances, level++);
       lb.run(bfs_op, input_frontier.data().get());
     } else {
       //BFS Functor for frontier calculation
-      bfs_frontier_pred<VT> bfs_op(
+      detail::bfs_frontier_pred<VT> bfs_op(
           output_frontier.data().get(), predecessors);
       lb.run(bfs_op, input_frontier.data().get());
     }
@@ -205,7 +211,7 @@ void bfs(raft::handle_t const &handle,
   thrust::replace(rmm::exec_policy(stream)->on(stream),
       predecessors, predecessors + graph.number_of_vertices,
       graph.number_of_vertices,
-      cugraph::experimental::invalid_vertex_id<VT>::value);
+      cugraph::invalid_vertex_id<VT>::value);
 
   if (distances != nullptr) {
     //In place reduce to collect predecessors
@@ -218,21 +224,6 @@ void bfs(raft::handle_t const &handle,
 
 }
 
-template void bfs(raft::handle_t const &handle,
-    cugraph::experimental::GraphCSRView<int, int, float> &graph,
-    int *distances,
-    int *predecessors,
-    const int start_vertex);
-
-template void bfs(raft::handle_t const &handle,
-    cugraph::experimental::GraphCSRView<int, int, double> &graph,
-    int *distances,
-    int *predecessors,
-    const int start_vertex);
-
-
 }//namespace opg
-
-}//namespace detail
 
 }//namespace cugraph

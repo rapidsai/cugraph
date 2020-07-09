@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef LB_CUH
-#define LB_CUH
+#pragma once
 
 #include "vertex_binning.cuh"
 #include "worker_kernels.cuh"
@@ -24,22 +23,22 @@
 
 namespace cugraph {
 
-namespace detail {
-
 namespace opg {
+
+namespace detail {
 
 template <typename VT, typename ET, typename WT>
 class LoadBalanceExecution {
   raft::handle_t const &handle_;
-  cugraph::experimental::GraphCSRView<VT, ET, WT>& graph_;
+  cugraph::GraphCSRView<VT, ET, WT> const &graph_;
   VertexBinner<VT, ET> dist_;
   rmm::device_vector<VT> reorganized_vertices_;
   ET vertex_begin_;
   ET vertex_end_;
 
   public:
-  LoadBalanceExecution(raft::handle_t const & handle,
-      cugraph::experimental::GraphCSRView<VT, ET, WT>& graph) :
+  LoadBalanceExecution(raft::handle_t const &handle,
+      cugraph::GraphCSRView<VT, ET, WT> const &graph) :
     handle_(handle),
     graph_(graph)
   {
@@ -86,10 +85,8 @@ class LoadBalanceExecution {
   }
 };
 
-}//namespace opg
-
 }//namespace detail
 
-}//namespace cugraph
+}//namespace opg
 
-#endif //LB_CUH
+}//namespace cugraph
