@@ -271,7 +271,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/aschaffer/raft.git
-    GIT_TAG           1502821cbc747436bcd07bd5ddec54160a320259
+    GIT_TAG           e2873503a5baf3e780bc18702217759506d1306b
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
