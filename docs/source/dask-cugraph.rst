@@ -20,6 +20,10 @@ With cuGraph and Dask, whether you’re using a single NVIDIA GPU or using all 1
 
 If your graph comfortably fits in memory on a single GPU, you would want to use the single-GPU version of cuGraph. If you want to distribute your workflow across multiple GPUs and have more data than you can fit in memory on a single GPU, you would want to use cuGraph's multi-GPU features.
 
+Distributed Graph Analytics Support
+-----------------------------------
+
+Pagerank
 
 .. automodule:: cugraph.dask.pagerank.pagerank
     :members: pagerank
