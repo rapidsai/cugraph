@@ -24,12 +24,16 @@ namespace reduce_op {
 template <typename T>
 struct any {
   using type = T;
+  static constexpr bool pure_function = true;
+
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs; }
 };
 
 template <typename T>
 struct min {
   using type = T;
+  static constexpr bool pure_function = true;
+
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const
   {
     return lhs < rhs ? lhs : rhs;
