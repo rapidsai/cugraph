@@ -28,7 +28,7 @@
 
 #include <thrust/iterator/counting_iterator.h>
 
-#include <raft/spectral/sm_utils.hpp>
+#include <raft/utils/sm_utils.hpp>
 #include "cub/cub.cuh"
 
 #define TH_CENT_K_LOCLEN (34)
