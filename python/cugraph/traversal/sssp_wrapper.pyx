@@ -152,5 +152,7 @@ def sssp(input_graph, source):
             df = unrenumbered_df[cols[1:n_cols + 1] + [cols[0]] + cols[n_cols:]]
         else: # Simple renumbering
             df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-            df['predecessor'][df['predecessor'] >- 1] = input_graph.edgelist.renumber_map.iloc[df['predecessor'][df['predecessor'] >- 1]]
+            df = unrenumber(input_graph.edgelist.renumber_map, df, 'predecessor')
+            df['predecessor'].fillna(-1, inplace=True)
+
     return df
