@@ -433,28 +433,11 @@ def test_consolidation(graph_file):
     df = pd.DataFrame()
     df['source'] = pd.Series(M['0'])
     df['target'] = pd.Series(M['1'])
-    df['weight'] = pd.Series(M.weight)
 
     ddf = dask_cudf.read_csv(graph_file, chunksize=chunksize,
                              delimiter=' ',
                              names=['source', 'target', 'weight'],
                              dtype=['int32', 'int32', 'float32'], header=None)
-
-    Gnx = nx.from_pandas_edgelist(df,
-                                  source='source',
-                                  target='target',
-                                  edge_attr='weight',
-                                  create_using=nx.DiGraph)
-
-    G = cugraph.from_cudf_edgelist(ddf,
-                                   source='source',
-                                   destination='target',
-                                   edge_attr='weight',
-                                   create_using=cugraph.DiGraph)
-    assert compare_graphs(Gnx, G)
-
-    Gnx.clear()
-    G.clear()
 
     Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
                                   create_using=nx.DiGraph)

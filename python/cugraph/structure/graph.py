@@ -169,9 +169,16 @@ class Graph:
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
 
+        # Consolidation
         if isinstance(input_df, cudf.DataFrame):
+            if len(input_df[source]) > 2147483100:
+                raise Exception('cudf dataFrame edge list is too big \
+                                 to fit in a single GPU')
             elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
+            if len(input_df[source]) > 2147483100:
+                raise Exception('dask_cudf dataFrame edge list is too big \
+                                 to fit in a single GPU')
             elist = input_df.compute().reset_index(drop=True)
         else:
             raise Exception('input should be a cudf.DataFrame or \
