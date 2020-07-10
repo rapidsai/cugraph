@@ -36,6 +36,7 @@
 - PR #938 Quote conda installs to avoid bash interpretation
 - PR #966 Fix build error (debug mode)
 - PR #983 Fix offset calculation in COO to CSR
+- PR #992 Fix unrenumber of predecessor
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
