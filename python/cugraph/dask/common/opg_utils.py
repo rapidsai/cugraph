@@ -38,4 +38,3 @@ def opg_get_comms_using_client(client):
         comms = Comms(client=client)
 
     return comms
-

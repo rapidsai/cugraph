@@ -168,10 +168,8 @@ void BC<VT, ET, WT, result_t>::initialize_pointers_to_vectors()
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::initialize_device_information()
 {
-  // TODO(xcadet) Update to use raft::handle
-  CUDA_TRY(cudaGetDevice(&device_id_));
-  CUDA_TRY(cudaDeviceGetAttribute(&max_grid_dim_1D_, cudaDevAttrMaxGridDimX, device_id_));
-  CUDA_TRY(cudaDeviceGetAttribute(&max_block_dim_1D_, cudaDevAttrMaxBlockDimX, device_id_));
+  max_grid_dim_1D_  = handle_.get_device_properties().maxGridSize[0];
+  max_block_dim_1D_ = handle_.get_device_properties().maxThreadsDim[0];
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
