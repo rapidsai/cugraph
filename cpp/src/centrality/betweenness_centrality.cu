@@ -32,8 +32,8 @@ namespace cugraph {
 namespace detail {
 namespace {
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality_impl(const raft::handle_t &handle,
-                                 experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality_impl(raft::handle_t const &handle,
+                                 GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  bool endpoints,
@@ -48,7 +48,7 @@ void betweenness_centrality_impl(const raft::handle_t &handle,
   bool is_edge_betweenness = false;
   verify_betweenness_centrality_input<VT, ET, WT, result_t>(
     result, is_edge_betweenness, normalize, endpoints, weight, number_of_sources, sources);
-  cugraph::detail::BC<VT, ET, WT, result_t> bc(graph);
+  cugraph::detail::BC<VT, ET, WT, result_t> bc(handle, graph);
   bc.configure(
     result, is_edge_betweenness, normalize, endpoints, weight, sources, number_of_sources);
   bc.compute();
@@ -56,8 +56,8 @@ void betweenness_centrality_impl(const raft::handle_t &handle,
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality_impl(const raft::handle_t &handle,
-                                      experimental::GraphCSRView<VT, ET, WT> const &graph,
+void edge_betweenness_centrality_impl(raft::handle_t const &handle,
+                                      GraphCSRView<VT, ET, WT> const &graph,
                                       result_t *result,
                                       bool normalize,
                                       WT const *weight,
@@ -72,7 +72,7 @@ void edge_betweenness_centrality_impl(const raft::handle_t &handle,
   bool endpoints           = false;
   verify_betweenness_centrality_input<VT, ET, WT, result_t>(
     result, is_edge_betweenness, normalize, endpoints, weight, number_of_sources, sources);
-  cugraph::detail::BC<VT, ET, WT, result_t> bc(graph);
+  cugraph::detail::BC<VT, ET, WT, result_t> bc(handle, graph);
   bc.configure(
     result, is_edge_betweenness, normalize, endpoints, weight, sources, number_of_sources);
   bc.compute();
@@ -196,7 +196,7 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
 {
   // Step 1) Singe-source shortest-path problem
   cugraph::bfs(
-    graph_, distances_, predecessors_, sp_counters_, source_vertex, graph_.prop.directed);
+    handle_, graph_, distances_, predecessors_, sp_counters_, source_vertex, graph_.prop.directed);
 
   // FIXME: Remove that with a BC specific class to gather
   //        information during traversal
@@ -416,8 +416,8 @@ void BC<VT, ET, WT, result_t>::rescale_by_total_sources_used(VT total_number_of_
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(const raft::handle_t &handle,
-                            experimental::GraphCSRView<VT, ET, WT> const *graph,
+void betweenness_centrality(raft::handle_t const &handle,
+                            GraphCSRView<VT, ET, WT> const *graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -427,7 +427,6 @@ void betweenness_centrality(const raft::handle_t &handle,
                             VT total_number_of_sources_used)
 {
   if (handle.comms_initialized()) {
-    printf("[DBG][OPG] Started BATCH-OPG-BC\n");
     int rank = handle.get_comms().get_rank();
     cugraph::opg::DSGGraphCSR<VT, ET, WT> local_holder(handle, graph);
     local_holder.distribute();
@@ -444,9 +443,7 @@ void betweenness_centrality(const raft::handle_t &handle,
                                         total_number_of_sources_used);
     handle.get_comms().reduce(
       betweenness.data().get(), result, betweenness.size(), raft::comms::op_t::SUM, 0, 0);
-    printf("[DBG][OPG] Rank(%d)\n", rank);
   } else {
-    printf("[DBG][OPG] Started Regular-BC\n");
     detail::betweenness_centrality_impl(handle,
                                         *graph,
                                         result,
@@ -459,19 +456,18 @@ void betweenness_centrality(const raft::handle_t &handle,
   }
 }
 
-template void betweenness_centrality<int, int, float, float>(
-  const raft::handle_t &,
-  experimental::GraphCSRView<int, int, float> const *,
-  float *,
-  bool,
-  bool,
-  float const *,
-  int,
-  int const *,
-  int);
+template void betweenness_centrality<int, int, float, float>(const raft::handle_t &,
+                                                             GraphCSRView<int, int, float> const *,
+                                                             float *,
+                                                             bool,
+                                                             bool,
+                                                             float const *,
+                                                             int,
+                                                             int const *,
+                                                             int);
 template void betweenness_centrality<int, int, double, double>(
   const raft::handle_t &,
-  experimental::GraphCSRView<int, int, double> const *,
+  GraphCSRView<int, int, double> const *,
   double *,
   bool,
   bool,
@@ -481,8 +477,8 @@ template void betweenness_centrality<int, int, double, double>(
   int);
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality(const raft::handle_t &handle,
-                                 experimental::GraphCSRView<VT, ET, WT> const *graph,
+void edge_betweenness_centrality(raft::handle_t const &handle,
+                                 GraphCSRView<VT, ET, WT> const *graph,
                                  result_t *result,
                                  bool normalize,
                                  WT const *weight,
@@ -513,7 +509,7 @@ void edge_betweenness_centrality(const raft::handle_t &handle,
 
 template void edge_betweenness_centrality<int, int, float, float>(
   const raft::handle_t &,
-  experimental::GraphCSRView<int, int, float> const *,
+  GraphCSRView<int, int, float> const *,
   float *,
   bool,
   float const *,
@@ -522,8 +518,8 @@ template void edge_betweenness_centrality<int, int, float, float>(
   int);
 
 template void edge_betweenness_centrality<int, int, double, double>(
-  const raft::handle_t &,
-  experimental::GraphCSRView<int, int, double> const *,
+  raft::handle_t const &handle,
+  GraphCSRView<int, int, double> const *,
   double *,
   bool,
   double const *,

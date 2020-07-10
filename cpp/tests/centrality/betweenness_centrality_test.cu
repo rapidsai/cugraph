@@ -194,7 +194,7 @@ void reference_rescale(result_t *result,
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void reference_betweenness_centrality(cugraph::experimental::GraphCSRView<VT, ET, WT> const &graph,
+void reference_betweenness_centrality(cugraph::GraphCSRView<VT, ET, WT> const &graph,
                                       result_t *result,
                                       bool normalize,
                                       bool endpoints,  // This is not yet implemented
@@ -225,20 +225,22 @@ void reference_betweenness_centrality(cugraph::experimental::GraphCSRView<VT, ET
     result, graph.prop.directed, normalize, endpoints, number_of_vertices, number_of_sources);
 }
 // Explicit instantiation
+/*    FIXME!!!
 template void reference_betweenness_centrality<int, int, float, float>(
-  cugraph::experimental::GraphCSRView<int, int, float> const &,
+  cugraph::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   bool,
   const int,
   int const *);
 template void reference_betweenness_centrality<int, int, double, double>(
-  cugraph::experimental::GraphCSRView<int, int, double> const &,
+  cugraph::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
   const int,
   int const *);
+*/
 
 // =============================================================================
 // Utility functions
@@ -277,6 +279,8 @@ typedef struct BC_Usecase_t {
 } BC_Usecase;
 
 class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
+  raft::handle_t handle;
+
  public:
   Tests_BC() {}
   static void SetupTestCase() {}
@@ -303,8 +307,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     auto csr =
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::experimental::GraphCSRView<VT, ET, WT> G = csr->view();
-    G.prop.directed                                   = is_directed;
+    cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
+    G.prop.directed                     = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);
@@ -331,7 +335,6 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     VT total_number_of_sources = configuration.number_of_sources_;
     if (total_number_of_sources == 0) { total_number_of_sources = G.number_of_vertices; }
     thrust::device_vector<result_t> d_result(G.number_of_vertices);
-    raft::handle_t handle;
     cugraph::betweenness_centrality(handle,
                                     &G,
                                     d_result.data().get(),

@@ -25,7 +25,6 @@
 #include <rmm/device_buffer.hpp>
 
 namespace cugraph {
-namespace experimental {
 
 enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
 
@@ -82,7 +81,8 @@ class GraphViewBase {
   }
   void set_handle(raft::handle_t *handle_) { handle = handle_; }
   GraphViewBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
-    : edge_data(edge_data_),
+    : handle(nullptr),
+      edge_data(edge_data_),
       prop(),
       number_of_vertices(number_of_vertices_),
       number_of_edges(number_of_edges_),
@@ -90,7 +90,6 @@ class GraphViewBase {
       local_edges(nullptr),
       local_offsets(nullptr)
   {
-    handle = new raft::handle_t;
   }
   bool has_data(void) const { return edge_data != nullptr; }
 };
@@ -664,7 +663,6 @@ template <typename ET>
 struct invalid_edge_id : invalid_idx<ET> {
 };
 
-}  // namespace experimental
 namespace opg {
 template <typename VT, typename ET, typename WT, typename GraphType>
 class DSGGraph {
@@ -724,11 +722,11 @@ class DSGGraph {
 };
 
 template <typename VT, typename ET, typename WT>
-class DSGGraphCSR : public DSGGraph<VT, ET, WT, experimental::GraphCSRView<VT, ET, WT>> {
-  using GT = DSGGraph<VT, ET, WT, experimental::GraphCSRView<VT, ET, WT>>;
+class DSGGraphCSR : public DSGGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>> {
+  using GT = DSGGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>>;
 
  public:
-  DSGGraphCSR(const raft::handle_t &handle, experimental::GraphCSRView<VT, ET, WT> const *graph)
+  DSGGraphCSR(const raft::handle_t &handle, GraphCSRView<VT, ET, WT> const *graph)
     : GT(handle, graph)
   {
   }

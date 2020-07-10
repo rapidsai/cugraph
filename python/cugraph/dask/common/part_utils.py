@@ -18,10 +18,12 @@ from tornado import gen
 from collections import Sequence
 from dask.distributed import futures_of, default_client, wait
 from toolz import first
-
+from collections import OrderedDict
+import dask_cudf as dc
 from dask.array.core import Array as daskArray
 from dask_cudf.core import DataFrame as daskDataFrame
 from dask_cudf.core import Series as daskSeries
+
 
 '''
 def hosts_to_parts(futures):
@@ -149,3 +151,101 @@ def _extract_partitions(dask_obj, client=None):
     who_has = yield client.who_has(parts)
     raise gen.Return([(first(who_has[key]), part)
                       for key, part in key_to_part])
+
+
+def create_dict(futures):
+    w_to_p_map = OrderedDict()
+    for w, k, p in futures:
+        if w not in w_to_p_map:
+            w_to_p_map[w] = []
+        w_to_p_map[w].append([p, k])
+    return w_to_p_map
+
+
+def set_global_index(df, cumsum):
+    df.index = df.index + cumsum
+    return df
+
+
+def get_cumsum(df, by):
+    return df[by].value_counts(sort=False).cumsum()
+
+
+def repartition(ddf, cumsum):
+    # Calculate new optimal divisions and repartition the data
+    # for load balancing.
+
+    import math
+    npartitions = ddf.npartitions
+    count = math.ceil(len(ddf)/npartitions)
+    new_divisions = [0]
+    move_count = 0
+    for i in range(npartitions-1):
+        search_val = count - move_count
+        index = cumsum[i].searchsorted(search_val)
+        if index == len(cumsum[i]):
+            index = -1
+        elif index > 0:
+            left = cumsum[i].iloc[index-1]
+            right = cumsum[i].iloc[index]
+            index -= search_val - left < right - search_val
+        new_divisions.append(new_divisions[i] +
+                             cumsum[i].iloc[index] +
+                             move_count)
+        move_count = cumsum[i].iloc[-1] - cumsum[i].iloc[index]
+    new_divisions.append(new_divisions[i+1] +
+                         cumsum[-1].iloc[-1] +
+                         move_count - 1)
+
+    return ddf.repartition(divisions=tuple(new_divisions))
+
+
+def load_balance_func(ddf_, by, client=None):
+    # Load balances the sorted dask_cudf DataFrame.
+    # Input is a dask_cudf dataframe ddf_ which is sorted by
+    # the column name passed as the 'by' argument.
+
+    client = default_client() if client is None else client
+
+    persisted = client.persist(ddf_)
+    parts = futures_of(persisted)
+    wait(parts)
+
+    who_has = client.who_has(parts)
+    key_to_part = [(str(part.key), part) for part in parts]
+    gpu_fututres = [(first(who_has[key]),
+                     part.key[1], part) for key, part in key_to_part]
+    worker_to_data = create_dict(gpu_fututres)
+
+    # Calculate cumulative sum in each dataframe partition
+    cumsum_parts = [client.submit(get_cumsum,
+                    wf[1][0][0],
+                    by,
+                    workers=[wf[0]]).result()
+                    for idx, wf in enumerate(worker_to_data.items())]
+
+    num_rows = []
+    for cumsum in cumsum_parts:
+        num_rows.append(cumsum.iloc[-1])
+
+    # Calculate current partition divisions
+    divisions = [sum(num_rows[0:x:1]) for x in range(0, len(num_rows) + 1)]
+    divisions[-1] = divisions[-1] - 1
+    divisions = tuple(divisions)
+
+    # Set global index from 0 to len(dask_cudf_dataframe) so that global
+    # indexing of divisions can be used for repartitioning.
+    futures = [client.submit(set_global_index,
+               wf[1][0][0],
+               divisions[wf[1][0][1]],
+               workers=[wf[0]])
+               for idx, wf in enumerate(worker_to_data.items())]
+    wait(futures)
+
+    ddf = dc.from_delayed(futures)
+    ddf.divisions = divisions
+
+    # Repartition the data
+    ddf = repartition(ddf, cumsum_parts)
+
+    return ddf
