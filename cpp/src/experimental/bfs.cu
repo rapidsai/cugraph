@@ -44,7 +44,7 @@ void bfs(raft::handle_t &handle,
          GraphType const &push_graph,
          typename GraphType::vertex_type *distances,
          PredecessorIterator predecessor_first,
-         typename GraphType::vertex_type start_vertex,
+         typename GraphType::vertex_type source_vertex,
          bool direction_optimizing,
          typename GraphType::vertex_type depth_limit,
          bool do_expensive_check)
@@ -65,8 +65,8 @@ void bfs(raft::handle_t &handle,
   CUGRAPH_EXPECTS(
     graph_device_view.is_symmetric() || !direction_optimizing,
     "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
-  CUGRAPH_EXPECTS(graph_device_view.is_valid_vertex(start_vertex),
-                  "Invalid input argument: start vertex out-of-range.");
+  CUGRAPH_EXPECTS(graph_device_view.is_valid_vertex(source_vertex),
+                  "Invalid input argument: source vertex out-of-range.");
 
   if (do_expensive_check) {
     // nothing to do
@@ -82,9 +82,9 @@ void bfs(raft::handle_t &handle,
                     graph_device_view.local_vertex_begin(),
                     graph_device_view.local_vertex_end(),
                     val_first,
-                    [graph_device_view, start_vertex] __device__(auto val) {
+                    [graph_device_view, source_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
-                      if (val == start_vertex) { distance = vertex_t{0}; }
+                      if (val == source_vertex) { distance = vertex_t{0}; }
                       return thrust::make_tuple(distance, invalid_vertex);
                     });
 
@@ -100,8 +100,8 @@ void bfs(raft::handle_t &handle,
                  static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
-  if (graph_device_view.is_local_vertex_nocheck(start_vertex)) {
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(start_vertex);
+  if (graph_device_view.is_local_vertex_nocheck(source_vertex)) {
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(source_vertex);
   }
 
   // 4. BFS iteration
@@ -170,7 +170,7 @@ void bfs(raft::handle_t &handle,
          GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          vertex_t *distances,
          vertex_t *predecessors,
-         vertex_t start_vertex,
+         vertex_t source_vertex,
          bool direction_optimizing,
          vertex_t depth_limit,
          bool do_expensive_check)
@@ -180,7 +180,7 @@ void bfs(raft::handle_t &handle,
                 graph,
                 distances,
                 predecessors,
-                start_vertex,
+                source_vertex,
                 direction_optimizing,
                 depth_limit,
                 do_expensive_check);
@@ -189,7 +189,7 @@ void bfs(raft::handle_t &handle,
                 graph,
                 distances,
                 thrust::make_discard_iterator(),
-                start_vertex,
+                source_vertex,
                 direction_optimizing,
                 depth_limit,
                 do_expensive_check);
@@ -202,7 +202,7 @@ template void bfs(raft::handle_t &handle,
                   GraphCSRView<int32_t, int32_t, float> const &graph,
                   int32_t *distances,
                   int32_t *predecessors,
-                  int32_t start_vertex,
+                  int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);

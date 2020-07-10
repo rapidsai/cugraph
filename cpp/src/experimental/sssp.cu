@@ -45,7 +45,7 @@ void sssp(raft::handle_t &handle,
           GraphType const &push_graph,
           typename GraphType::weight_type *distances,
           PredecessorIterator predecessor_first,
-          typename GraphType::vertex_type start_vertex,
+          typename GraphType::vertex_type source_vertex,
           typename GraphType::weight_type cutoff,
           bool do_expensive_check)
 {
@@ -68,8 +68,8 @@ void sssp(raft::handle_t &handle,
 
   // 1. check input arguments
 
-  CUGRAPH_EXPECTS(graph_device_view.is_valid_vertex(start_vertex),
-                  "Invalid input argument: start vertex out-of-range.");
+  CUGRAPH_EXPECTS(graph_device_view.is_valid_vertex(source_vertex),
+                  "Invalid input argument: source vertex out-of-range.");
 
   if (do_expensive_check) {
     auto num_negative_edge_weights =
@@ -92,9 +92,9 @@ void sssp(raft::handle_t &handle,
                     graph_device_view.local_vertex_begin(),
                     graph_device_view.local_vertex_end(),
                     val_first,
-                    [graph_device_view, start_vertex] __device__(auto val) {
+                    [graph_device_view, source_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
-                      if (val == start_vertex) { distance = weight_t{0.0}; }
+                      if (val == source_vertex) { distance = weight_t{0.0}; }
                       return thrust::make_tuple(distance, invalid_vertex);
                     });
 
@@ -146,8 +146,8 @@ void sssp(raft::handle_t &handle,
   auto row_distances =
     !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data().get() : distances;
 
-  if (graph_device_view.is_local_vertex_nocheck(start_vertex)) {
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(start_vertex);
+  if (graph_device_view.is_local_vertex_nocheck(source_vertex)) {
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
   }
 
   auto near_far_threshold = delta;
@@ -268,18 +268,18 @@ void sssp(raft::handle_t &handle,
           GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
           weight_t *distances,
           vertex_t *predecessors,
-          vertex_t start_vertex,
+          vertex_t source_vertex,
           weight_t cutoff,
           bool do_expensive_check)
 {
   if (predecessors != nullptr) {
-    detail::sssp(handle, graph, distances, predecessors, start_vertex, cutoff, do_expensive_check);
+    detail::sssp(handle, graph, distances, predecessors, source_vertex, cutoff, do_expensive_check);
   } else {
     detail::sssp(handle,
                  graph,
                  distances,
                  thrust::make_discard_iterator(),
-                 start_vertex,
+                 source_vertex,
                  cutoff,
                  do_expensive_check);
   }
@@ -291,7 +291,7 @@ template void sssp(raft::handle_t &handle,
                    GraphCSRView<int32_t, int32_t, float> const &graph,
                    float *distances,
                    int32_t *predecessors,
-                   int32_t start_vertex,
+                   int32_t source_vertex,
                    float cutoff,
                    bool do_expensive_check);
 
