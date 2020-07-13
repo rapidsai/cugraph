@@ -126,10 +126,15 @@ def flatten_grouped_results(client, gpu_futures,
 def _extract_partitions(dask_obj, client=None):
 
     client = default_client() if client is None else client
-
     # dask.dataframe or dask.array
     if isinstance(dask_obj, (daskDataFrame, daskArray, daskSeries)):
-        persisted = client.persist(dask_obj)
+        worker_addresses = list(OrderedDict.fromkeys(
+            client.scheduler_info()["workers"].keys()))
+        _keys = dask_obj.__dask_keys__()
+        worker_dict = {}
+        for i, key in enumerate(_keys):
+            worker_dict[str(key)] = tuple([worker_addresses[i]])
+        persisted = client.persist(dask_obj, workers=worker_dict)
         parts = futures_of(persisted)
 
     # iterable of dask collections (need to colocate them)
@@ -207,7 +212,14 @@ def load_balance_func(ddf_, by, client=None):
 
     client = default_client() if client is None else client
 
-    persisted = client.persist(ddf_)
+    worker_addresses = list(OrderedDict.fromkeys(
+        client.scheduler_info()["workers"].keys()))
+    _keys = ddf_.__dask_keys__()
+    worker_dict={}
+    for i, key in enumerate(_keys):
+        worker_dict[str(key)] = tuple([worker_addresses[i]])
+
+    persisted = client.persist(ddf_, workers=worker_dict)
     parts = futures_of(persisted)
     wait(parts)
 

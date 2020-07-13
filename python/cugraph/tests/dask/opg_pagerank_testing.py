@@ -12,7 +12,8 @@
 # limitations under the License.
 
 import cugraph.dask as dcg
-from dask.distributed import Client
+import cugraph.comms.comms as Comms
+from dask.distributed import Client, futures_of, wait
 import gc
 import cugraph
 import dask_cudf
@@ -24,9 +25,9 @@ def test_dask_pagerank():
     gc.collect()
     cluster = LocalCUDACluster()
     client = Client(cluster)
+    Comms.initialize()
 
     input_data_path = r"../datasets/karate.csv"
-
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
@@ -42,6 +43,7 @@ def test_dask_pagerank():
     g = cugraph.DiGraph()
     g.from_cudf_edgelist(df, 'src', 'dst')
 
+
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf)
 
@@ -49,8 +51,8 @@ def test_dask_pagerank():
     # dg.compute_local_data(by='dst')
 
     expected_pr = cugraph.pagerank(g)
-    result_pr = dcg.pagerank(dg, tol=4)
-    print(result_pr)
+    result_pr = dcg.pagerank(dg)
+
     err = 0
     tol = 1.0e-05
 
@@ -62,5 +64,6 @@ def test_dask_pagerank():
     print("Mismatches:", err)
     assert err == 0
 
+    Comms.destroy()
     client.close()
     cluster.close()

@@ -17,6 +17,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_local_data
 from cugraph.raft.dask.common.comms import worker_state
 from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
+import cugraph.comms.comms as Comms
 import warnings
 
 
@@ -107,12 +108,12 @@ supported. Setting them to None")
 
     client = default_client()
 
+    comms = Comms.get_comms()
     if(input_graph.local_data is not None and
        input_graph.local_data['by'] == 'dst'):
         data = input_graph.local_data['data']
-        comms = input_graph.local_data['comms']
     else:
-        data, comms = get_local_data(input_graph, by='dst')
+        data = get_local_data(input_graph, by='dst')
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
