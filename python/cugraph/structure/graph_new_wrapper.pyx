@@ -26,7 +26,7 @@ from libc.stdint cimport uintptr_t
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
 
 import dask_cudf as dc
-from cugraph.raft.dask.common.comms import Comms
+import cugraph.comms.comms as Comms
 from dask.distributed import wait, default_client
 from cugraph.raft.dask.common.comms import worker_state
 from cugraph.dask.common.input_utils import DistributedDataHandler
@@ -177,7 +177,6 @@ def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
     cdef size_t handle_size_t
     if sID is not None:
         sessionstate = worker_state(sID)
-        print("nworkers: ", sessionstate['nworkers'],"  id: ", sessionstate['wid'])
         handle = sessionstate['handle']
         handle_size_t = <size_t>handle.getHandle()
         graph.set_handle(<handle_t*>handle_size_t)
@@ -244,11 +243,8 @@ def _degree(input_graph, x=0):
             cols = input_ddf.columns
             num_verts = input_ddf[cols[0:2]].max().max().compute() + 1
             data = DistributedDataHandler.create(data=input_ddf)
-            comms = Comms(comms_p2p=False)
-            comms.init()
-            #degree_ddf = input_ddf.map_partitions(_degree_coo, input_ddf.columns[0], input_ddf.columns[1], x, num_verts, comms.sessionId)
+            comms = Comms.get_comms()
             client = default_client()
-            #data = DistributedDataHandler.create(data=ddf)
             data.calculate_parts_to_sizes(comms)
             degree_ddf = [client.submit(_degree_coo, wf[1][0], cols[0], cols[1], x, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
             wait(degree_ddf)
