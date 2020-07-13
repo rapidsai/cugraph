@@ -30,6 +30,7 @@
 - PR #987 Move graph out of experimental namespace
 - PR #984 Removing codecov until we figure out how to interpret failures that block CI
 - PR #985 Add raft handle to BFS, BC and edge BC
+- PR #991 Update conda upload versions for new supported CUDA/Python
 - PR #988 Add clang and clang tools to the conda env
 
 ## Bug Fixes
