@@ -37,6 +37,7 @@
 - PR #966 Fix build error (debug mode)
 - PR #983 Fix offset calculation in COO to CSR
 - PR #989: Fix issue with incorrect docker image being used in local build script
+- PR #992 Fix unrenumber of predecessor
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
