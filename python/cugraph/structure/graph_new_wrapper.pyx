@@ -28,7 +28,6 @@ from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
 import dask_cudf as dc
 import cugraph.comms.comms as Comms
 from dask.distributed import wait, default_client
-from cugraph.raft.dask.common.comms import worker_state
 from cugraph.dask.common.input_utils import DistributedDataHandler
 
 import cudf
@@ -176,7 +175,7 @@ def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
 
     cdef size_t handle_size_t
     if sID is not None:
-        sessionstate = worker_state(sID)
+        sessionstate = Comms.get_session(sID)
         handle = sessionstate['handle']
         handle_size_t = <size_t>handle.getHandle()
         graph.set_handle(<handle_t*>handle_size_t)

@@ -15,7 +15,6 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_local_data
-from cugraph.raft.dask.common.comms import worker_state
 from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 import warnings
@@ -23,7 +22,7 @@ import warnings
 
 def call_pagerank(sID, data, local_data, alpha, max_iter,
                   tol, personalization, nstart):
-    sessionstate = worker_state(sID)
+    sessionstate = Comms.get_session(sID)
     return mg_pagerank.mg_pagerank(data[0],
                                    local_data,
                                    sessionstate['wid'],
