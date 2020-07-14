@@ -49,21 +49,20 @@ class BFSCommunicatorIterativeBCastReduce {
   size_t word_count_;
   int total_gpu_count_;
   int my_gpu_rank_;
-  // std::vector<rmm::device_vector<unsigned>> data_;
   rmm::device_vector<unsigned> remote_frontier_;
 
  public:
   BFSCommunicatorIterativeBCastReduce(raft::handle_t const& handle, size_t word_count)
     : handle_(handle),
       word_count_(word_count),
-      total_gpu_count_(handle_.get_comms().get_size()),
-      my_gpu_rank_(handle_.get_comms().get_rank()),
+      total_gpu_count_(handle_.comms_initialized()? handle_.get_comms().get_size() : 0),
+      my_gpu_rank_(handle_.comms_initialized()? handle_.get_comms().get_rank() : 0),
       remote_frontier_(word_count_)
   {
   }
 
-  void allreduce(rmm::device_vector<unsigned>& frontier)
-  {
+  void allreduce(rmm::device_vector<unsigned>& frontier) {
+    if (!handle_.comms_initialized()) { return; }
     cudaStream_t stream = handle_.get_stream();
     for (int i = 0; i < total_gpu_count_; ++i) {
       auto ptr = remote_frontier_.data().get();
@@ -95,9 +94,9 @@ class BFSCommunicatorBCastReduce {
   BFSCommunicatorBCastReduce(raft::handle_t const& handle, size_t word_count)
     : handle_(handle),
       word_count_(word_count),
-      total_gpu_count_(handle_.get_comms().get_size()),
-      my_gpu_rank_(handle_.get_comms().get_rank()),
-      data_(handle_.get_comms().get_size()),
+      total_gpu_count_(handle_.comms_initialized()? handle_.get_comms().get_size() : 0),
+      my_gpu_rank_(handle_.comms_initialized()? handle_.get_comms().get_rank() : 0),
+      data_(handle_.comms_initialized()? handle_.get_comms().get_size() : 0),
       ptr_(total_gpu_count_, nullptr),
       ptr_device_(total_gpu_count_, nullptr)
   {
@@ -109,8 +108,8 @@ class BFSCommunicatorBCastReduce {
     }
   }
 
-  void allreduce(rmm::device_vector<unsigned>& frontier)
-  {
+  void allreduce(rmm::device_vector<unsigned>& frontier) {
+    if (!handle_.comms_initialized()) { return; }
     cudaStream_t stream = handle_.get_stream();
     ptr_[my_gpu_rank_]  = frontier.data().get();
     for (int i = 0; i < total_gpu_count_; ++i) {
@@ -136,9 +135,9 @@ class BFSCommunicatorAllGatherReduce {
   BFSCommunicatorAllGatherReduce(raft::handle_t const& handle, size_t word_count)
     : handle_(handle),
       word_count_(word_count),
-      total_gpu_count_(handle_.get_comms().get_size()),
-      my_gpu_rank_(handle_.get_comms().get_rank()),
-      data_(word_count_ * handle_.get_comms().get_size()),
+      total_gpu_count_(handle_.comms_initialized()? handle_.get_comms().get_size() : 0),
+      my_gpu_rank_(handle_.comms_initialized()? handle_.get_comms().get_rank() : 0),
+      data_(handle_.comms_initialized()? word_count_ * handle_.get_comms().get_size() : 0),
       ptr_(total_gpu_count_, nullptr),
       ptr_device_(total_gpu_count_, nullptr)
   {
@@ -147,8 +146,8 @@ class BFSCommunicatorAllGatherReduce {
     }
   }
 
-  void allreduce(rmm::device_vector<unsigned>& frontier)
-  {
+  void allreduce(rmm::device_vector<unsigned>& frontier) {
+    if (!handle_.comms_initialized()) { return; }
     cudaStream_t stream = handle_.get_stream();
     ptr_[my_gpu_rank_]  = frontier.data().get();
     thrust::copy(rmm::exec_policy(stream)->on(stream),
