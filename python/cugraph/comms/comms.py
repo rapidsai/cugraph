@@ -52,6 +52,7 @@ def destroy():
         __instance.destroy()
         __instance = None
 
+
 # Default handle in case Comms is not initialized.
 # This does not perform nccl initialization.
 def get_default_handle():
