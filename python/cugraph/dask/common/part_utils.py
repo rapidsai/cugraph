@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 import numpy as np
 from tornado import gen
@@ -185,6 +184,7 @@ def repartition(ddf, cumsum):
     count = math.ceil(len(ddf)/npartitions)
     new_divisions = [0]
     move_count = 0
+    i = npartitions - 2
     for i in range(npartitions-1):
         search_val = count - move_count
         index = cumsum[i].searchsorted(search_val)
@@ -215,7 +215,7 @@ def load_balance_func(ddf_, by, client=None):
     worker_addresses = list(OrderedDict.fromkeys(
         client.scheduler_info()["workers"].keys()))
     _keys = ddf_.__dask_keys__()
-    worker_dict={}
+    worker_dict = {}
     for i, key in enumerate(_keys):
         worker_dict[str(key)] = tuple([worker_addresses[i]])
 
