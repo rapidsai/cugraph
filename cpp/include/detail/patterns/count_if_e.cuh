@@ -102,7 +102,7 @@ namespace detail {
  *
  * This function is inspired by thrust::count_if().
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
@@ -114,11 +114,11 @@ namespace detail {
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in OPG).
+ * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
  * @p graph_device_view.get_number_of_adj_matrix_local_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
- * properties for the first (inclusive) column (assigned to this process in OPG).
+ * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
  * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
@@ -174,7 +174,7 @@ typename GraphType::edge_type count_if_e(
                               edge_t{0},
                               thrust::plus<edge_t>());
 
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     // need to reduce count
     CUGRAPH_FAIL("unimplemented.");
   }

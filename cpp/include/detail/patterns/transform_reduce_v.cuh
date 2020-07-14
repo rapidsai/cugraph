@@ -33,7 +33,7 @@ namespace detail {
  * This version iterates over the entire set of graph vertices. This function is inspired by
  * thrust::transform_reduce().
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
  * @tparam VertexOp Type of the unary vertex operator.
@@ -43,8 +43,8 @@ namespace detail {
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
- * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
+ * is deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
  * @param v_op Unary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
  * graph_device_view.get_number_of_local_vertices())) and returns a transformed value to be reduced.
  * @param init Initial value to be added to the transform-reduced input vertex properties.
@@ -68,7 +68,7 @@ T transform_reduce_v(HandleType& handle,
     v_op,
     init,
     thrust::plus<T>());
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     // need to reduce ret
     CUGRAPH_FAIL("unimplemented.");
   }
@@ -79,9 +79,10 @@ T transform_reduce_v(HandleType& handle,
  * @brief Apply an operator to the vertex properties and reduce.
  *
  * This version (conceptually) iterates over only a subst of the graph vertices. This function
- * actually works as thrust::transform_reduce() on [@p input_first, @p input_last) (followed by inter-process reduction in OPG).
+ * actually works as thrust::transform_reduce() on [@p input_first, @p input_last) (followed by
+ * inter-process reduction in multi-GPU).
  *
- * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam InputIterator Type of the iterator for input values.
  * @tparam VertexOp
@@ -90,7 +91,8 @@ T transform_reduce_v(HandleType& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
- * @param input_first Iterator pointing to the beginning (inclusive) of the values to be passed to @p v_op.
+ * @param input_first Iterator pointing to the beginning (inclusive) of the values to be passed to
+ * @p v_op.
  * @param input_last Iterator pointing to the end (exclusive) of the values to be passed to @p v_op.
  * @param v_op Unary operator takes *(@p input_first + i) (where i is [0, @p input_last - @p
  * input_first)) and returns a transformed value to be reduced.
@@ -115,7 +117,7 @@ T transform_reduce_v(HandleType& handle,
                                       v_op,
                                       init,
                                       thrust::plus<T>());
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     // need to reduce ret
     CUGRAPH_FAIL("unimplemented.");
   }

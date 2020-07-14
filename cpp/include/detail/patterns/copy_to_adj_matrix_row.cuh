@@ -35,7 +35,7 @@ namespace detail {
  * This version fills the entire set of graph adjacency matrix row property values. This function is
  * inspired by thrust::copy().
  *
- * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
  * @tparam AdjMatrixRowValueOutputIterator Type of the iterator for graph adjacency matrix row
@@ -45,10 +45,10 @@ namespace detail {
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
- * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
+ * is deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
  * @param adj_matrix_row_value_output_first Iterator pointing to the adjacency matrix row output
- * property variables for the first (inclusive) row (assigned to this process in OPG).
+ * property variables for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_output_last` (exclusive) is deduced as @p adj_matrix_row_value_output_first
  * + @p graph_device_view.get_number_of_adj_matrix_local_rows().
  */
@@ -61,7 +61,7 @@ void copy_to_adj_matrix_row(HandleType& handle,
                             VertexValueInputIterator vertex_value_input_first,
                             AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
 {
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
     assert(graph_device_view.get_number_of_local_vertices() ==
@@ -81,7 +81,7 @@ void copy_to_adj_matrix_row(HandleType& handle,
  * @p vertex_last) specifies the vertices with new values to be copied to graph adjacency matrix row
  * property variables. This function is inspired by thrust::copy().
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
@@ -93,13 +93,13 @@ void copy_to_adj_matrix_row(HandleType& handle,
  * kernels.
  * @param vertex_first Iterator pointing to the first (inclusive) vertex with new values to be
  * copied. v in [vertex_first, vertex_last) should be distinct (and should belong to this process in
- * OPG), otherwise undefined behavior
+ * multi-GPU), otherwise undefined behavior
  * @param vertex_last Iterator pointing to the last (exclusive) vertex with new values to be copied.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
- * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
+ * is deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
  * @param adj_matrix_row_value_output_first Iterator pointing to the adjacency matrix row output
- * property variables for the first (inclusive) row (assigned to this process in OPG).
+ * property variables for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_output_last` (exclusive) is deduced as @p adj_matrix_row_value_output_first
  * + @p graph_device_view.get_number_of_adj_matrix_local_rows().
  */
@@ -115,7 +115,7 @@ void copy_to_adj_matrix_row(HandleType& handle,
                             VertexValueInputIterator vertex_value_input_first,
                             AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
 {
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
     assert(graph_device_view.get_number_of_local_vertices() ==

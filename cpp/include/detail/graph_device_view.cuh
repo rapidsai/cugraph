@@ -30,7 +30,7 @@
 namespace cugraph {
 namespace experimental {
 
-// Common for both OPG and single-GPU versions
+// Common for both single-GPU and multi-GPU versions
 template <typename GraphType>
 class graph_base_device_view_t {
  public:
@@ -38,7 +38,7 @@ class graph_base_device_view_t {
   using edge_type                                = typename GraphType::edge_type;
   using weight_type                              = typename GraphType::weight_type;
   static constexpr bool is_adj_matrix_transposed = GraphType::is_adj_matrix_transposed;
-  static constexpr bool is_opg                   = GraphType::is_opg;
+  static constexpr bool is_multi_gpu             = GraphType::is_multi_gpu;
 
   graph_base_device_view_t()                                = delete;
   ~graph_base_device_view_t()                               = default;
@@ -97,16 +97,16 @@ class graph_base_device_view_t {
 template <typename GraphType, typename Enable = void>
 class graph_device_view_t;
 
-// OPG version
+// multi-GPU version
 template <typename GraphType>
-class graph_device_view_t<GraphType, std::enable_if_t<GraphType::is_opg>>
+class graph_device_view_t<GraphType, std::enable_if_t<GraphType::is_multi_gpu>>
   : public graph_base_device_view_t<GraphType> {
  public:
   using vertex_type                              = typename GraphType::vertex_type;
   using edge_type                                = typename GraphType::edge_type;
   using weight_type                              = typename GraphType::weight_type;
   static constexpr bool is_adj_matrix_transposed = GraphType::is_adj_matrix_transposed;
-  static constexpr bool is_opg                   = true;
+  static constexpr bool is_multi_gpu             = true;
 
   graph_device_view_t()                           = delete;
   ~graph_device_view_t()                          = default;
@@ -154,14 +154,14 @@ class graph_device_view_t<GraphType, std::enable_if_t<GraphType::is_opg>>
 
 // single GPU version
 template <typename GraphType>
-class graph_device_view_t<GraphType, std::enable_if_t<!GraphType::is_opg>>
+class graph_device_view_t<GraphType, std::enable_if_t<!GraphType::is_multi_gpu>>
   : public graph_base_device_view_t<GraphType> {
  public:
   using vertex_type                              = typename GraphType::vertex_type;
   using edge_type                                = typename GraphType::edge_type;
   using weight_type                              = typename GraphType::weight_type;
   static constexpr bool is_adj_matrix_transposed = GraphType::is_adj_matrix_transposed;
-  static constexpr bool is_opg                   = false;
+  static constexpr bool is_multi_gpu             = false;
 
   graph_device_view_t()                           = delete;
   ~graph_device_view_t()                          = default;
@@ -214,8 +214,8 @@ class graph_device_view_t<GraphType, std::enable_if_t<!GraphType::is_opg>>
     return offset;
   }
 
-  __host__ __device__ vertex_type get_local_vertex_offset_from_vertex_nocheck(vertex_type v) const
-    noexcept
+  __host__ __device__ vertex_type
+  get_local_vertex_offset_from_vertex_nocheck(vertex_type v) const noexcept
   {
     return v;
   }

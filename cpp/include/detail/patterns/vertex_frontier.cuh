@@ -143,7 +143,7 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename HandleType, typename vertex_t, bool is_opg = false>
+template <typename HandleType, typename vertex_t, bool is_multi_gpu = false>
 class Bucket {
  public:
   Bucket(HandleType const& handle, size_t capacity)
@@ -161,14 +161,14 @@ class Bucket {
 
   void set_size(size_t size) { size_ = size; }
 
-  template <bool do_aggregate = is_opg>
+  template <bool do_aggregate = is_multi_gpu>
   std::enable_if_t<do_aggregate, size_t> aggregate_size() const
   {
     CUGRAPH_FAIL("unimplemented.");
     return size_;
   }
 
-  template <bool do_aggregate = is_opg>
+  template <bool do_aggregate = is_multi_gpu>
   std::enable_if_t<!do_aggregate, size_t> aggregate_size() const
   {
     return size_;
@@ -199,7 +199,7 @@ class Bucket {
 template <typename HandleType,
           typename ReduceInputTupleType,
           typename vertex_t,
-          bool is_opg        = false,
+          bool is_multi_gpu  = false,
           size_t num_buckets = 1>
 class VertexFrontier {
  public:
@@ -221,12 +221,12 @@ class VertexFrontier {
     buffer_.set_stream(handle_ptr_->get_stream());
   }
 
-  Bucket<HandleType, vertex_t, is_opg>& get_bucket(size_t bucket_idx)
+  Bucket<HandleType, vertex_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
   {
     return buckets_[bucket_idx];
   }
 
-  Bucket<HandleType, vertex_t, is_opg> const& get_bucket(size_t bucket_idx) const
+  Bucket<HandleType, vertex_t, is_multi_gpu> const& get_bucket(size_t bucket_idx) const
   {
     return buckets_[bucket_idx];
   }
@@ -343,7 +343,7 @@ class VertexFrontier {
   static size_t constexpr kBufferAlignment      = 128;
 
   HandleType const* handle_ptr_{nullptr};
-  std::vector<Bucket<HandleType, vertex_t, is_opg>> buckets_{};
+  std::vector<Bucket<HandleType, vertex_t, is_multi_gpu>> buckets_{};
   rmm::device_vector<vertex_t*> tmp_bucket_ptrs_{};
   rmm::device_vector<size_t> tmp_bucket_sizes_{};
 

@@ -256,7 +256,7 @@ namespace detail {
 /**
  * @brief Update vertex frontier and vertex property values iterating over the outgoing edges.
  *
- * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam VertexIterator Type of the iterator for vertex identifiers.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
@@ -275,15 +275,15 @@ namespace detail {
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param vertex_first Iterator pointing to the first (inclusive) vertex in the current frontier. v
- * in [vertex_first, vertex_last) should be distinct (and should belong to this process in OPG),
- * otherwise undefined behavior
+ * in [vertex_first, vertex_last) should be distinct (and should belong to this process in
+ * multi-GPU), otherwise undefined behavior
  * @param vertex_last Iterator pointing to the last (exclusive) vertex in the current frontier.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in OPG).
+ * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
  * @p graph_device_view.get_number_of_adj_matrix_local_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
- * properties for the first (inclusive) column (assigned to this process in OPG).
+ * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
  * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
@@ -291,11 +291,12 @@ namespace detail {
  * column indices, respectively) and returns a value to reduced by the @p reduce_op.
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
- * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
+ * is deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to tihs process in OPG). `vertex_value_output_last` (exclusive) is
- * deduced as @p vertex_value_output_first + @p graph_device_view.get_number_of_local_vertices().
+ * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * (exclusive) is deduced as @p vertex_value_output_first + @p
+ * graph_device_view.get_number_of_local_vertices().
  * @param vertex_frontier vertex frontier class object for vertex frontier managements. This object
  * includes multiple bucket objects.
  * @param v_op Binary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
@@ -334,13 +335,14 @@ void update_frontier_v_push_if_out_nbr(
   using reduce_op_input_t = typename ReduceOp::type;
 
   // FIXME: Better make this a memeber variable of VertexFrontier to reduce # of memory allocations
-  thrust::device_vector<vertex_t> frontier_rows{};  // relevant only if GraphType::is_opg is true
-  if (GraphType::is_opg) {
+  thrust::device_vector<vertex_t>
+    frontier_rows{};  // relevant only if GraphType::is_multi_gpu is true
+  if (GraphType::is_multi_gpu) {
     // need to merge row_frontier
     CUGRAPH_FAIL("unimplemented.");
   }
 
-  auto max_pushes = GraphType::is_opg
+  auto max_pushes = GraphType::is_multi_gpu
                       ? thrust::transform_reduce(
                           thrust::cuda::par.on(handle.get_stream()),
                           frontier_rows.begin(),
@@ -359,7 +361,7 @@ void update_frontier_v_push_if_out_nbr(
                           },
                           size_t{0},
                           thrust::plus<size_t>());
-  // FIXME: This is highly pessimistic for single GPU (and OPG as well if we maintain
+  // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
   // additional per column data for filtering in e_op). If we can pause & resume execution if
   // buffer needs to be increased (and if we reserve address space to avoid expensive
   // reallocation;
@@ -371,7 +373,7 @@ void update_frontier_v_push_if_out_nbr(
   auto buffer_key_first     = std::get<0>(buffer_first);
   auto buffer_payload_first = std::get<1>(buffer_first);
 
-  auto num_rows = GraphType::is_opg
+  auto num_rows = GraphType::is_multi_gpu
                     ? static_cast<size_t>(frontier_rows.size())
                     : static_cast<size_t>(thrust::distance(vertex_first, vertex_last));
   grid_1d_thread_t for_all_low_out_degree_grid(
@@ -381,7 +383,7 @@ void update_frontier_v_push_if_out_nbr(
 
   // FIXME: if we update the code to invoke multiple kernels for this part (based on vertex
   // degrees), we may better create another template function to avoid this if-else.
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
     // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
     // order, we will apply this kernel only to low out-degree vertices.
@@ -423,7 +425,7 @@ void update_frontier_v_push_if_out_nbr(
                                                     vertex_frontier.get_buffer_idx_value(),
                                                     reduce_op);
 
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     // need to exchange buffer elements (and may reduce again)
     CUGRAPH_FAIL("unimplemented.");
   }

@@ -58,7 +58,7 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphViewBase {
  public:
-  static bool constexpr is_opg = false;
+  static bool constexpr is_multi_gpu = false;
 
   WT *edge_data;  ///< edge weight
   raft::handle_t *handle;
@@ -376,10 +376,10 @@ class GraphCOO {
   rmm::device_buffer edge_data_{};    ///< CSR data
 
  public:
-  using vertex_type            = VT;
-  using edge_type              = ET;
-  using weight_type            = WT;
-  static bool constexpr is_opg = false;
+  using vertex_type                  = VT;
+  using edge_type                    = ET;
+  using weight_type                  = WT;
+  static bool constexpr is_multi_gpu = false;
 
   /**
    * @brief      Take ownership of the provided graph arrays in COO format
@@ -482,7 +482,7 @@ class GraphCompressedSparseBase {
   bool has_data_{false};
 
  public:
-  static bool constexpr is_opg = false;
+  static bool constexpr is_multi_gpu = false;
 
   /**
    * @brief      Take ownership of the provided graph arrays in CSR/CSC format

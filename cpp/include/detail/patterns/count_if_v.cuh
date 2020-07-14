@@ -33,7 +33,7 @@ namespace detail {
  * This version iterates over the entire set of graph vertices. This function is inspired by
  * thrust::count_if().
  *
- * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
  * @tparam VertexOp Type of the unary predicate operator.
@@ -42,8 +42,8 @@ namespace detail {
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
- * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
+ * is deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
  * @param v_op Unary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
  * graph_device_view.get_number_of_local_vertices())) and returns true if this vertex should be
  * included in the returned count.
@@ -63,7 +63,7 @@ typename GraphType::vertex_type count_if_v(HandleType& handle,
                      vertex_value_input_first,
                      vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
                      v_op);
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     // need to reduce count
     CUGRAPH_FAIL("unimplemented.");
   }
@@ -75,10 +75,10 @@ typename GraphType::vertex_type count_if_v(HandleType& handle,
  *
  * This version (conceptually) iterates over only a subst of the graph vertices. This function
  * actually works as thrust::count_if() on [@p input_first, @p input_last) (followed by
- * inter-process reduction in OPG). @p input_last - @p input_first (or the sum of @p input_last - @p
- * input_first values in OPG) should not overflow GraphType::vertex_type.
+ * inter-process reduction in multi-GPU). @p input_last - @p input_first (or the sum of @p
+ * input_last - @p input_first values in multi-GPU) should not overflow GraphType::vertex_type.
  *
- * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam InputIterator Type of the iterator for input values.
  * @tparam VertexOp VertexOp Type of the unary predicate operator.
@@ -102,7 +102,7 @@ typename GraphType::vertex_type count_if_v(HandleType& handle,
 {
   auto count =
     thrust::count_if(thrust::cuda::par.on(handle.get_stream()), input_first, input_last, v_op);
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     // need to reduce count
     CUGRAPH_FAIL("unimplemented.");
   }

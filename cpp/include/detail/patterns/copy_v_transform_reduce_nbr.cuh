@@ -129,7 +129,7 @@ namespace detail {
  * This function is inspired by thrust::transfrom_reduce() (iteration over the incoming edges part)
  * and thrust::copy() (update vertex properties part, take transform_reduce output as copy input).
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
@@ -143,11 +143,11 @@ namespace detail {
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in OPG).
+ * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
  * @p graph_device_view.get_number_of_adj_matrix_local_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
- * properties for the first (inclusive) column (assigned to this process in OPG).
+ * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
  * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
@@ -155,8 +155,9 @@ namespace detail {
  * column indices, respectively) and returns a value to be reduced.
  * @param init Initial value to be added to the reduced @e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to tihs process in OPG). `vertex_value_output_last` (exclusive) is
- * deduced as @p vertex_value_output_first + @p graph_device_view.get_number_of_local_vertices().
+ * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * (exclusive) is deduced as @p vertex_value_output_first + @p
+ * graph_device_view.get_number_of_local_vertices().
  */
 template <typename HandleType,
           typename GraphType,
@@ -181,7 +182,7 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
                                copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
                                get_max_num_blocks_1D());
 
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
     if (!GraphType::is_adj_matrix_transposed) {
@@ -214,7 +215,7 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
  * This function is inspired by thrust::transfrom_reduce() (iteration over the outgoing edges part)
  * and thrust::copy() (update vertex properties part, take transform_reduce output as copy input).
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
@@ -228,11 +229,11 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in OPG).
+ * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
  * @p graph_device_view.get_number_of_adj_matrix_local_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
- * properties for the first (inclusive) column (assigned to this process in OPG).
+ * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
  * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
@@ -240,8 +241,9 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
  * column indices, respectively) and returns a value to be reduced.
  * @param init Initial value to be added to the reduced @e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to tihs process in OPG). `vertex_value_output_last` (exclusive) is
- * deduced as @p vertex_value_output_first + @p graph_device_view.get_number_of_local_vertices().
+ * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * (exclusive) is deduced as @p vertex_value_output_first + @p
+ * graph_device_view.get_number_of_local_vertices().
  */
 template <typename HandleType,
           typename GraphType,
@@ -267,7 +269,7 @@ void copy_v_transform_reduce_out_nbr(
                                copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
                                get_max_num_blocks_1D());
 
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
     if (GraphType::is_adj_matrix_transposed) {

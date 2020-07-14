@@ -30,10 +30,10 @@ namespace detail {
 /**
  * @brief Check any of graph adjacency matrix row properties satisfy the given predicate.
  *
- * Returns true if @p row_op returns true for at least once (in any process in OPG), returns false
- * otherwise. This function is inspired by thrust::any_of().
+ * Returns true if @p row_op returns true for at least once (in any process in multi-GPU), returns
+ * false otherwise. This function is inspired by thrust::any_of().
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
  * @tparam GraphType Type of the passed graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
@@ -43,14 +43,14 @@ namespace detail {
  * @param graph_device_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row properties
- * for the first (inclusive) row (assigned to this process in OPG).
+ * for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
  * @p graph_device_view.get_number_of_adj_matrix_local_rows().
  * @param row_op Unary predicate operator that takes *(@p adj_matrix_row_value_input_first + i)
  * (where i = [0, @p graph_device_view.get_number_of_adj_matrix_local_rows()) and returns either
  * true or false.
- * @return true If the predicate returns true at least once (in any process in OPG).
- * @return false If the predicate never returns true (in any process in OPG).
+ * @return true If the predicate returns true at least once (in any process in multi-GPU).
+ * @return false If the predicate never returns true (in any process in multi-GPU).
  */
 template <typename HandleType,
           typename GraphType,
@@ -67,7 +67,7 @@ bool any_of_adj_matrix_row(HandleType& handle,
     adj_matrix_row_value_input_first,
     adj_matrix_row_value_input_first + graph_device_view.get_number_of_adj_matrix_local_rows(),
     row_op);
-  if (GraphType::is_opg) {
+  if (GraphType::is_multi_gpu) {
     // need to reduce count
     CUGRAPH_FAIL("unimplemented.");
   }
