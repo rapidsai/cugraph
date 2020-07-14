@@ -22,11 +22,12 @@ import warnings
 
 def call_pagerank(sID, data, local_data, alpha, max_iter,
                   tol, personalization, nstart):
-    sessionstate = Comms.get_session(sID)
+    wid = Comms.get_worker_id(sID)
+    handle = Comms.get_handle(sID)
     return mg_pagerank.mg_pagerank(data[0],
                                    local_data,
-                                   sessionstate['wid'],
-                                   sessionstate['handle'],
+                                   wid,
+                                   handle,
                                    alpha,
                                    max_iter,
                                    tol,
@@ -107,7 +108,6 @@ supported. Setting them to None")
 
     client = default_client()
 
-    comms = Comms.get_comms()
     if(input_graph.local_data is not None and
        input_graph.local_data['by'] == 'dst'):
         data = input_graph.local_data['data']
@@ -117,7 +117,7 @@ supported. Setting them to None")
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
             call_pagerank,
-            comms.sessionId,
+            Comms.get_session_id(),
             wf[1],
             data.local_data,
             alpha,

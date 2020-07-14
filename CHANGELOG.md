@@ -6,6 +6,7 @@
 - PR #944 OPG pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
 - PR #964 OPG BFS (CUDA)
+- PR #993 Update Comms to have a persistent Handle
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC

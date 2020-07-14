@@ -175,8 +175,7 @@ def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
 
     cdef size_t handle_size_t
     if sID is not None:
-        sessionstate = Comms.get_session(sID)
-        handle = sessionstate['handle']
+        handle = Comms.get_handle(sID)
         handle_size_t = <size_t>handle.getHandle()
         graph.set_handle(<handle_t*>handle_size_t)
 
