@@ -32,6 +32,7 @@
 - PR #985 Add raft handle to BFS, BC and edge BC
 - PR #991 Update conda upload versions for new supported CUDA/Python
 - PR #988 Add clang and clang tools to the conda env
+- PR #997 Update setup.cfg to run pytests under cugraph tests directory only
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
