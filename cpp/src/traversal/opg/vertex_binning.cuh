@@ -90,6 +90,10 @@ template <typename VT, typename ET>
 LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& reorganized_vertices,
                                                   cudaStream_t stream)
 {
+  thrust::fill(rmm::exec_policy(stream)->on(stream),
+      bin_offsets_.begin(), bin_offsets_.end(), ET{0});
+  thrust::fill(rmm::exec_policy(stream)->on(stream),
+      tempBins_.begin(), tempBins_.end(), ET{0});
   bin_vertices(reorganized_vertices,
                bin_offsets_,
                tempBins_,

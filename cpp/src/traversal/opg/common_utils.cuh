@@ -53,10 +53,16 @@ struct remove_visited {
 template <typename VT>
 struct bfs_frontier_pred {
   unsigned* output_frontier_;
+  unsigned* visited_;
   VT* predecessors_;
 
-  bfs_frontier_pred(unsigned* output_frontier, VT* predecessors)
-    : output_frontier_(output_frontier), predecessors_(predecessors)
+  bfs_frontier_pred(
+      unsigned* output_frontier,
+      unsigned* visited,
+      VT* predecessors)
+    : output_frontier_(output_frontier),
+      visited_(visited),
+      predecessors_(predecessors)
   {
   }
 
@@ -64,21 +70,30 @@ struct bfs_frontier_pred {
   {
     unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
     unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
+    bool dst_not_visited_earlier = !(active_bit & visited_[dst/BitsPWrd<unsigned>]);
+    bool dst_not_visited_current = !(prev_word & active_bit);
     // If this thread activates the frontier bitmap for a destination
     // then the source is the predecessor of that destination
-    if (prev_word & active_bit == 0) { predecessors_[dst] = src; }
+    if (dst_not_visited_earlier && dst_not_visited_current) {
+      predecessors_[dst] = src;
+    }
   }
 };
 
 template <typename VT>
 struct bfs_frontier_pred_dist {
   unsigned* output_frontier_;
+  unsigned* visited_;
   VT* predecessors_;
   VT* distances_;
   VT level_;
 
-  bfs_frontier_pred_dist(unsigned* output_frontier, VT* predecessors, VT* distances, VT level)
+  bfs_frontier_pred_dist(
+      unsigned* output_frontier,
+      unsigned* visited,
+      VT* predecessors, VT* distances, VT level)
     : output_frontier_(output_frontier),
+      visited_(visited),
       predecessors_(predecessors),
       distances_(distances),
       level_(level)
@@ -89,9 +104,11 @@ struct bfs_frontier_pred_dist {
   {
     unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
     unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
+    bool dst_not_visited_earlier = !(active_bit & visited_[dst/BitsPWrd<unsigned>]);
+    bool dst_not_visited_current = !(prev_word & active_bit);
     // If this thread activates the frontier bitmap for a destination
     // then the source is the predecessor of that destination
-    if (prev_word & active_bit == 0) {
+    if (dst_not_visited_earlier && dst_not_visited_current) {
       distances_[dst]    = level_;
       predecessors_[dst] = src;
     }
