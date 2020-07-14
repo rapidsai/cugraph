@@ -50,7 +50,7 @@ def destroy():
     global __instance
     if is_initialized():
         __instance.destroy()
-
+        __instance = None
 
 # Default handle in case Comms is not initialized.
 # This does not perform nccl initialization.
