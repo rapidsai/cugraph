@@ -26,12 +26,6 @@ namespace opg {
 namespace detail {
 
 template <typename degree_t>
-constexpr int BitsPWrd = sizeof(degree_t) * 8;
-
-template <typename degree_t>
-constexpr int NumberBins = sizeof(degree_t) * 8 + 1;
-
-template <typename degree_t>
 __device__ inline typename std::enable_if<(sizeof(degree_t) == 4), int>::type ceilLog2_p1(
   degree_t val)
 {

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "common_utils.cuh"
 #include "vertex_binning_kernels.cuh"
 
 namespace cugraph {
