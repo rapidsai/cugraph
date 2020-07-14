@@ -17,9 +17,9 @@
 #pragma once
 
 #include <raft/handle.hpp>
-#include "load_balance.cuh"
 #include "bfs_comms.cuh"
 #include "common_utils.cuh"
+#include "load_balance.cuh"
 
 namespace cugraph {
 
@@ -27,15 +27,15 @@ namespace opg {
 
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
-    cugraph::GraphCSRView<VT, ET, WT> const &graph,
-    VT *distances,
-    VT *predecessors,
-    const VT start_vertex) {
-
+         cugraph::GraphCSRView<VT, ET, WT> const &graph,
+         VT *distances,
+         VT *predecessors,
+         const VT start_vertex)
+{
   using namespace detail;
 
-  //We need to keep track if a vertex is visited or its status
-  //This needs to be done for all the vertices in the global graph
+  // We need to keep track if a vertex is visited or its status
+  // This needs to be done for all the vertices in the global graph
   size_t word_count = detail::number_of_words(graph.number_of_vertices);
   rmm::device_vector<unsigned> input_frontier(word_count);
   rmm::device_vector<unsigned> output_frontier(word_count);
@@ -43,108 +43,104 @@ void bfs(raft::handle_t const &handle,
 
   rmm::device_vector<unsigned> frontier_not_empty(1);
 
-  //Load balancer for calls to bfs functors
+  // Load balancer for calls to bfs functors
   LoadBalanceExecution<VT, ET, WT> lb(handle, graph);
 
-  //Functor to check if frontier is empty
+  // Functor to check if frontier is empty
   is_not_equal neq(static_cast<unsigned>(0), frontier_not_empty.data().get());
 
   cudaStream_t stream = handle.get_stream();
 
-  //Fill predecessors with an invalid vertex id
+  // Fill predecessors with an invalid vertex id
   thrust::fill(rmm::exec_policy(stream)->on(stream),
-      predecessors, predecessors + graph.number_of_vertices,
-      graph.number_of_vertices);
+               predecessors,
+               predecessors + graph.number_of_vertices,
+               graph.number_of_vertices);
 
   VT level = 0;
   if (distances != nullptr) {
     thrust::fill(rmm::exec_policy(stream)->on(stream),
-        distances, distances + graph.number_of_vertices,
-        std::numeric_limits<VT>::max());
+                 distances,
+                 distances + graph.number_of_vertices,
+                 std::numeric_limits<VT>::max());
   }
 
-  //BFS communications wrapper
+  // BFS communications wrapper
   BFSCommunicatorIterativeBCastReduce<VT, ET, WT> bfs_comm(handle, word_count);
 
-  //0. 'Insert' starting vertex in the input frontier
-  input_frontier[start_vertex/BitsPWrd<unsigned>] =
-    static_cast<unsigned>(1)<<(start_vertex%BitsPWrd<unsigned>);
+  // 0. 'Insert' starting vertex in the input frontier
+  input_frontier[start_vertex / BitsPWrd<unsigned>] = static_cast<unsigned>(1)
+                                                      << (start_vertex % BitsPWrd<unsigned>);
 
   do {
-    //1. Mark all input frontier vertices as visited
+    // 1. Mark all input frontier vertices as visited
     thrust::transform(rmm::exec_policy(stream)->on(stream),
-        input_frontier.begin(), input_frontier.end(),
-        visited.begin(),
-        visited.begin(),
-        bitwise_or());
+                      input_frontier.begin(),
+                      input_frontier.end(),
+                      visited.begin(),
+                      visited.begin(),
+                      bitwise_or());
 
-    //2. Clear out output frontier
-    thrust::fill(
-        output_frontier.begin(),
-        output_frontier.end(),
-        static_cast<unsigned>(0));
+    // 2. Clear out output frontier
+    thrust::fill(output_frontier.begin(), output_frontier.end(), static_cast<unsigned>(0));
 
-    //3. Create output frontier from input frontier
+    // 3. Create output frontier from input frontier
     if (distances != nullptr) {
-      //BFS Functor for frontier calculation
+      // BFS Functor for frontier calculation
       detail::bfs_frontier_pred_dist<VT> bfs_op(
-          output_frontier.data().get(), predecessors, distances, level++);
+        output_frontier.data().get(), predecessors, distances, level++);
       lb.run(bfs_op, input_frontier.data().get());
     } else {
-      //BFS Functor for frontier calculation
-      detail::bfs_frontier_pred<VT> bfs_op(
-          output_frontier.data().get(), predecessors);
+      // BFS Functor for frontier calculation
+      detail::bfs_frontier_pred<VT> bfs_op(output_frontier.data().get(), predecessors);
       lb.run(bfs_op, input_frontier.data().get());
     }
 
-    //3a. Combine output frontier from all GPUs
+    // 3a. Combine output frontier from all GPUs
     bfs_comm.allreduce(output_frontier);
 
-    //4. 'Remove' all vertices in output frontier
-    //that are already visited
+    // 4. 'Remove' all vertices in output frontier
+    // that are already visited
     thrust::transform(rmm::exec_policy(stream)->on(stream),
-        visited.begin(), visited.end(),
-        output_frontier.begin(),
-        output_frontier.begin(),
-        remove_visited());
+                      visited.begin(),
+                      visited.end(),
+                      output_frontier.begin(),
+                      output_frontier.begin(),
+                      remove_visited());
 
-    //5. Use the output frontier as input for the next step
+    // 5. Use the output frontier as input for the next step
     input_frontier.swap(output_frontier);
 
-    //6. If all bits in input frontier are inactive then bfs is done
+    // 6. If all bits in input frontier are inactive then bfs is done
     frontier_not_empty[0] = 0;
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-        input_frontier.begin(), input_frontier.end(),
-        neq);
+    thrust::for_each(
+      rmm::exec_policy(stream)->on(stream), input_frontier.begin(), input_frontier.end(), neq);
   } while (frontier_not_empty[0] == 1);
 
-  //In place reduce to collect predecessors
-  handle.get_comms().allreduce(
-      predecessors, predecessors,
-      graph.number_of_vertices,
-      raft::comms::op_t::MIN,
-      handle.get_stream());
+  // In place reduce to collect predecessors
+  handle.get_comms().allreduce(predecessors,
+                               predecessors,
+                               graph.number_of_vertices,
+                               raft::comms::op_t::MIN,
+                               handle.get_stream());
 
-  //If the bfs loop does not assign a predecessor for a vertex
-  //then its value will be graph.number_of_vertices. This needs to be
-  //replaced by invalid vertex id to denote that a vertex does have
-  //a predecessor
+  // If the bfs loop does not assign a predecessor for a vertex
+  // then its value will be graph.number_of_vertices. This needs to be
+  // replaced by invalid vertex id to denote that a vertex does have
+  // a predecessor
   thrust::replace(rmm::exec_policy(stream)->on(stream),
-      predecessors, predecessors + graph.number_of_vertices,
-      graph.number_of_vertices,
-      cugraph::invalid_vertex_id<VT>::value);
+                  predecessors,
+                  predecessors + graph.number_of_vertices,
+                  graph.number_of_vertices,
+                  cugraph::invalid_vertex_id<VT>::value);
 
   if (distances != nullptr) {
-    //In place reduce to collect predecessors
+    // In place reduce to collect predecessors
     handle.get_comms().allreduce(
-        distances, distances,
-        graph.number_of_vertices,
-        raft::comms::op_t::MIN,
-        handle.get_stream());
+      distances, distances, graph.number_of_vertices, raft::comms::op_t::MIN, handle.get_stream());
   }
-
 }
 
-}//namespace opg
+}  // namespace opg
 
-}//namespace cugraph
+}  // namespace cugraph

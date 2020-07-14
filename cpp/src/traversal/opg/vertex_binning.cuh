@@ -25,32 +25,30 @@ namespace opg {
 namespace detail {
 
 template <typename VT, typename ET>
-struct DegreeBucket
-{
-  VT * vertexIds;
+struct DegreeBucket {
+  VT* vertexIds;
   VT numberOfVertices;
   ET ceilLogDegreeStart;
   ET ceilLogDegreeEnd;
 };
 
 template <typename VT, typename ET>
-class LogDistribution
-{
-  VT * vertex_id_begin_;
+class LogDistribution {
+  VT* vertex_id_begin_;
   thrust::host_vector<ET> bin_offsets_;
 
-  public :
-  LogDistribution(
-      rmm::device_vector<ET>& vertex_id,
-      rmm::device_vector<ET>& bin_offsets) :
-    vertex_id_begin_(vertex_id.data().get()), bin_offsets_(bin_offsets) {
-      //If bin_offsets_ is smaller than NumberBins<ET> then resize it
-      //so that the last element is repeated
-      bin_offsets_.resize(NumberBins<ET>, bin_offsets_.back());
-    }
+ public:
+  LogDistribution(rmm::device_vector<ET>& vertex_id, rmm::device_vector<ET>& bin_offsets)
+    : vertex_id_begin_(vertex_id.data().get()), bin_offsets_(bin_offsets)
+  {
+    // If bin_offsets_ is smaller than NumberBins<ET> then resize it
+    // so that the last element is repeated
+    bin_offsets_.resize(NumberBins<ET>, bin_offsets_.back());
+  }
 
-  DegreeBucket<VT, ET> degreeRange(
-      ET ceilLogDegreeStart, ET ceilLogDegreeEnd = std::numeric_limits<ET>::max()) {
+  DegreeBucket<VT, ET> degreeRange(ET ceilLogDegreeStart,
+                                   ET ceilLogDegreeEnd = std::numeric_limits<ET>::max())
+  {
     ceilLogDegreeStart = std::max(ceilLogDegreeStart, ET{0});
     if (ceilLogDegreeEnd > static_cast<ET>(bin_offsets_.size()) - 2) {
       ceilLogDegreeEnd = bin_offsets_.size() - 2;
@@ -58,61 +56,53 @@ class LogDistribution
     return DegreeBucket<VT, ET>{
       vertex_id_begin_ + bin_offsets_[ceilLogDegreeStart + 1],
       bin_offsets_[ceilLogDegreeEnd + 1] - bin_offsets_[ceilLogDegreeStart + 1],
-      ceilLogDegreeStart, ceilLogDegreeEnd};
+      ceilLogDegreeStart,
+      ceilLogDegreeEnd};
   }
-
 };
 
 template <typename VT, typename ET>
-class VertexBinner
-{
-  ET *offsets_;
-  unsigned *active_bitmap_;
+class VertexBinner {
+  ET* offsets_;
+  unsigned* active_bitmap_;
   VT vertex_begin_;
   VT vertex_end_;
 
   rmm::device_vector<ET> tempBins_;
   rmm::device_vector<ET> bin_offsets_;
 
-  public :
-  VertexBinner(void) :
-    tempBins_(NumberBins<ET>), bin_offsets_(NumberBins<ET>) {}
+ public:
+  VertexBinner(void) : tempBins_(NumberBins<ET>), bin_offsets_(NumberBins<ET>) {}
 
-  void setup(
-    ET *offsets,
-    unsigned *active_bitmap,
-    VT vertex_begin,
-    VT vertex_end) {
-    offsets_ = offsets;
+  void setup(ET* offsets, unsigned* active_bitmap, VT vertex_begin, VT vertex_end)
+  {
+    offsets_       = offsets;
     active_bitmap_ = active_bitmap;
-    vertex_begin_ = vertex_begin;
-    vertex_end_ = vertex_end;
+    vertex_begin_  = vertex_begin;
+    vertex_end_    = vertex_end;
   }
 
-  LogDistribution<VT, ET>
-  run(
-    rmm::device_vector<VT>& reorganized_vertices,
-    cudaStream_t stream);
+  LogDistribution<VT, ET> run(rmm::device_vector<VT>& reorganized_vertices, cudaStream_t stream);
 };
 
 template <typename VT, typename ET>
-LogDistribution<VT, ET>
-VertexBinner<VT, ET>::run(
-    rmm::device_vector<VT>& reorganized_vertices,
-    cudaStream_t stream) {
-  bin_vertices(
-      reorganized_vertices,
-      bin_offsets_, tempBins_,
-      active_bitmap_,
-      offsets_,
-      vertex_begin_, vertex_end_,
-      stream);
+LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& reorganized_vertices,
+                                                  cudaStream_t stream)
+{
+  bin_vertices(reorganized_vertices,
+               bin_offsets_,
+               tempBins_,
+               active_bitmap_,
+               offsets_,
+               vertex_begin_,
+               vertex_end_,
+               stream);
 
   return LogDistribution<VT, ET>(reorganized_vertices, bin_offsets_);
 }
 
-}//namespace detail
+}  // namespace detail
 
-}//namespace opg
+}  // namespace opg
 
-}//namespace cugraph
+}  // namespace cugraph

@@ -25,72 +25,68 @@ namespace opg {
 namespace detail {
 
 template <typename T>
-constexpr inline T
-number_of_words(T number_of_bits) {
-  return raft::div_rounding_up_safe(number_of_bits,
-      static_cast<T>(BitsPWrd<unsigned>));
+constexpr inline T number_of_words(T number_of_bits)
+{
+  return raft::div_rounding_up_safe(number_of_bits, static_cast<T>(BitsPWrd<unsigned>));
 }
 
 struct bitwise_or {
-  __device__ unsigned operator()(unsigned& a, unsigned & b) { return a | b; }
+  __device__ unsigned operator()(unsigned& a, unsigned& b) { return a | b; }
 };
 
 struct remove_visited {
-  __device__ unsigned operator()(unsigned& visited, unsigned& output) {
-    //OUTPUT AND VISITED - common bits between output and visited
-    //OUTPUT AND (NOT (OUTPUT AND VISITED))
+  __device__ unsigned operator()(unsigned& visited, unsigned& output)
+  {
+    // OUTPUT AND VISITED - common bits between output and visited
+    // OUTPUT AND (NOT (OUTPUT AND VISITED))
     // - remove common bits between output and visited from output
-    return (output & (~( output & visited )));
+    return (output & (~(output & visited)));
   }
 };
 
 template <typename VT>
 struct bfs_frontier_pred {
-  unsigned * output_frontier_;
-  VT * predecessors_;
+  unsigned* output_frontier_;
+  VT* predecessors_;
 
-  bfs_frontier_pred(
-      unsigned * output_frontier,
-      VT * predecessors) :
-    output_frontier_(output_frontier),
-    predecessors_(predecessors) {}
+  bfs_frontier_pred(unsigned* output_frontier, VT* predecessors)
+    : output_frontier_(output_frontier), predecessors_(predecessors)
+  {
+  }
 
-  __device__ void operator()(VT src, VT dst) {
-    unsigned active_bit = static_cast<unsigned>(1)<<(dst % BitsPWrd<unsigned>);
-    unsigned prev_word =
-      atomicOr(output_frontier_ + (dst/BitsPWrd<unsigned>), active_bit);
-    //If this thread activates the frontier bitmap for a destination
-    //then the source is the predecessor of that destination
-    if (prev_word & active_bit == 0) {
-      predecessors_[dst] = src;
-    }
+  __device__ void operator()(VT src, VT dst)
+  {
+    unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
+    unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
+    // If this thread activates the frontier bitmap for a destination
+    // then the source is the predecessor of that destination
+    if (prev_word & active_bit == 0) { predecessors_[dst] = src; }
   }
 };
 
 template <typename VT>
 struct bfs_frontier_pred_dist {
-  unsigned * output_frontier_;
-  VT * predecessors_;
-  VT * distances_;
+  unsigned* output_frontier_;
+  VT* predecessors_;
+  VT* distances_;
   VT level_;
 
-  bfs_frontier_pred_dist(
-      unsigned * output_frontier,
-      VT * predecessors,
-      VT * distances, VT level) :
-    output_frontier_(output_frontier),
-    predecessors_(predecessors),
-    distances_(distances),
-    level_(level) {}
+  bfs_frontier_pred_dist(unsigned* output_frontier, VT* predecessors, VT* distances, VT level)
+    : output_frontier_(output_frontier),
+      predecessors_(predecessors),
+      distances_(distances),
+      level_(level)
+  {
+  }
 
-  __device__ void operator()(VT src, VT dst) {
-    unsigned active_bit = static_cast<unsigned>(1)<<(dst % BitsPWrd<unsigned>);
-    unsigned prev_word =
-      atomicOr(output_frontier_ + (dst/BitsPWrd<unsigned>), active_bit);
-    //If this thread activates the frontier bitmap for a destination
-    //then the source is the predecessor of that destination
+  __device__ void operator()(VT src, VT dst)
+  {
+    unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
+    unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
+    // If this thread activates the frontier bitmap for a destination
+    // then the source is the predecessor of that destination
     if (prev_word & active_bit == 0) {
-      distances_[dst] = level_;
+      distances_[dst]    = level_;
       predecessors_[dst] = src;
     }
   }
@@ -98,17 +94,16 @@ struct bfs_frontier_pred_dist {
 
 struct is_not_equal {
   unsigned cmp_;
-  unsigned * flag_;
-  is_not_equal(unsigned cmp, unsigned * flag) : cmp_(cmp), flag_(flag) {}
-  __device__ void operator()(unsigned& val) {
-    if (val != cmp_) {
-      *flag_ = 1;
-    }
+  unsigned* flag_;
+  is_not_equal(unsigned cmp, unsigned* flag) : cmp_(cmp), flag_(flag) {}
+  __device__ void operator()(unsigned& val)
+  {
+    if (val != cmp_) { *flag_ = 1; }
   }
 };
 
-}//namespace detail
+}  // namespace detail
 
-}//namespace opg
+}  // namespace opg
 
-}//namespace cugraph
+}  // namespace cugraph

@@ -18,9 +18,9 @@
 
 #include <utilities/error.hpp>
 #include "bfs_kernels.cuh"
+#include "opg/bfs.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
-#include "opg/bfs.cuh"
 
 namespace cugraph {
 namespace detail {
@@ -488,7 +488,8 @@ void bfs(raft::handle_t const &handle,
                 "Unsupported edge weight type. Use floating point types");  // actually, this is
                                                                             // unnecessary for BFS
   if (handle.comms_initialized()) {
-    CUGRAPH_EXPECTS(sp_counters != nullptr, "BFS Traversal shortest path is not supported in OPG path");
+    CUGRAPH_EXPECTS(sp_counters == nullptr,
+                    "BFS Traversal shortest path is not supported in OPG path");
     opg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
   } else {
     VT number_of_vertices = graph.number_of_vertices;

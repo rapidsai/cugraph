@@ -18,18 +18,18 @@
 #include "utilities/test_utilities.hpp"
 
 #include <raft/handle.hpp>
-#include <utilities/error.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <utilities/error.hpp>
 
 #include "traversal/opg/load_balance.cuh"
 
 // ============================================================================
 // Test Suite
 // ============================================================================
-typedef struct BFS_Usecase_t {
+typedef struct LB_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
-  BFS_Usecase_t(const std::string &config) : config_(config)
+  LB_Usecase_t(const std::string &config) : config_(config)
   {
     const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
@@ -42,20 +42,16 @@ typedef struct BFS_Usecase_t {
 
 template <typename VT, typename ET>
 struct in_degree {
-  ET * in_degree_counter_;
-  in_degree(ET * in_degree_counter) : in_degree_counter_(in_degree_counter) {}
-  __device__ void operator()(VT src, VT dst) {
-    atomicAdd(in_degree_counter_ + dst, 1);
-  }
+  ET *in_degree_counter_;
+  in_degree(ET *in_degree_counter) : in_degree_counter_(in_degree_counter) {}
+  __device__ void operator()(VT src, VT dst) { atomicAdd(in_degree_counter_ + dst, 1); }
 };
 
 template <typename VT, typename ET>
 struct in_degree_simple {
-  ET * in_degree_counter_;
-  in_degree_simple(ET * in_degree_counter) : in_degree_counter_(in_degree_counter) {}
-  __device__ void operator()(VT dst) {
-    atomicAdd(in_degree_counter_ + dst, 1);
-  }
+  ET *in_degree_counter_;
+  in_degree_simple(ET *in_degree_counter) : in_degree_counter_(in_degree_counter) {}
+  __device__ void operator()(VT dst) { atomicAdd(in_degree_counter_ + dst, 1); }
 };
 
 class Tests_LB : public ::testing::TestWithParam<LB_Usecase> {
@@ -74,14 +70,14 @@ class Tests_LB : public ::testing::TestWithParam<LB_Usecase> {
   void run_current_test(const LB_Usecase &configuration)
   {
     // Step 1: Construction of the graph based on configuration
-    //VT number_of_vertices;
-    //ET number_of_edges;
+    // VT number_of_vertices;
+    // ET number_of_edges;
     bool directed = false;
     auto csr =
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
-    G.prop.directed                                   = directed;
+    G.prop.directed                     = directed;
 
     rmm::device_vector<ET> in_degree_lb(G.number_of_vertices, 0);
 
@@ -94,20 +90,22 @@ class Tests_LB : public ::testing::TestWithParam<LB_Usecase> {
 
     cudaStream_t stream = 0;
 
-    //Calculate the in degree of destinations
+    // Calculate the in degree of destinations
     rmm::device_vector<ET> gold_indegree(G.number_of_vertices, 0);
     rmm::device_vector<VT> destinations(G.number_of_edges);
-    CUDA_TRY(cudaMemcpy(destinations.data().get(), G.indices,
-        sizeof(VT) * destinations.size(),
-        cudaMemcpyDeviceToDevice));
+    CUDA_TRY(cudaMemcpy(destinations.data().get(),
+                        G.indices,
+                        sizeof(VT) * destinations.size(),
+                        cudaMemcpyDeviceToDevice));
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
-        destinations.begin(), destinations.end(),
-        in_degree_simple<VT, ET>(gold_indegree.data().get())
-        );
+                     destinations.begin(),
+                     destinations.end(),
+                     in_degree_simple<VT, ET>(gold_indegree.data().get()));
 
     bool is_result_equal = thrust::equal(rmm::exec_policy(stream)->on(stream),
-        in_degree_lb.begin(), in_degree_lb.end(),
-        gold_indegree.begin());
+                                         in_degree_lb.begin(),
+                                         in_degree_lb.end(),
+                                         gold_indegree.begin());
 
     EXPECT_TRUE(is_result_equal);
   }
