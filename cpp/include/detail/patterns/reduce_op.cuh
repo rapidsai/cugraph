@@ -21,18 +21,20 @@ namespace experimental {
 namespace detail {
 namespace reduce_op {
 
+// reducing N elements, any element can be a valid output.
 template <typename T>
 struct any {
   using type = T;
-  static constexpr bool pure_function = true;
+  static constexpr bool pure_function = true;  // this can be called in any process
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs; }
 };
 
+// reducing N elements (operator < should be defined between any two elements), the minimum element should be selected.
 template <typename T>
 struct min {
   using type = T;
-  static constexpr bool pure_function = true;
+  static constexpr bool pure_function = true;  // this can be called in any process
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const
   {

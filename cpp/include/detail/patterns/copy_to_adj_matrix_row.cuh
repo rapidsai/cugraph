@@ -29,16 +29,28 @@ namespace experimental {
 namespace detail {
 
 /**
- * @brief
+ * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
+ * variables.
  *
- * @tparam HandleType
- * @tparam GraphType
- * @tparam VertexValueInputIterator
- * @tparam AdjMatrixRowValueOutputIterator
- * @param handle
- * @param graph_device_view
- * @param vertex_value_input_first
- * @param adj_matrix_row_value_output_first
+ * This version fills the entire set of graph adjacency matrix row property values. This function is
+ * inspired by thrust::copy().
+ *
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam GraphType Type of the passed graph object.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam AdjMatrixRowValueOutputIterator Type of the iterator for graph adjacency matrix row
+ * output property variables.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * kernels.
+ * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
+ * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
+ * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * @param adj_matrix_row_value_output_first Iterator pointing to the adjacency matrix row output
+ * property variables for the first (inclusive) row (assigned to this process in OPG).
+ * `adj_matrix_row_value_output_last` (exclusive) is deduced as @p adj_matrix_row_value_output_first
+ * + @p graph_device_view.get_number_of_adj_matrix_local_rows().
  */
 template <typename HandleType,
           typename GraphType,
@@ -62,20 +74,34 @@ void copy_to_adj_matrix_row(HandleType& handle,
 }
 
 /**
- * @brief
+ * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
+ * variables.
  *
- * @tparam HandleType
- * @tparam GraphType
- * @tparam VertexIterator
- * @tparam VertexValueInputIterator
- * @tparam AdjMatrixRowValueOutputIterator
- * @param handle
- * @param graph_device_view
- * @param vertex_first v in [vertex_first, vertex_last) should be distinct, otherwise undefined
- * behavior
- * @param vertex_last
- * @param vertex_value_input_first
- * @param adj_matrix_row_value_output_first
+ * This version fills only a subset of graph adjacency matrix row property values. [@p vertex_first,
+ * @p vertex_last) specifies the vertices with new values to be copied to graph adjacency matrix row
+ * property variables. This function is inspired by thrust::copy().
+ *
+ * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam GraphType Type of the passed graph object.
+ * @tparam VertexIterator  Type of the iterator for vertex identifiers.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam AdjMatrixRowValueOutputIterator Type of the iterator for graph adjacency matrix row
+ * output property variables.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * kernels.
+ * @param vertex_first Iterator pointing to the first (inclusive) vertex with new values to be
+ * copied. v in [vertex_first, vertex_last) should be distinct (and should belong to this process in
+ * OPG), otherwise undefined behavior
+ * @param vertex_last Iterator pointing to the last (exclusive) vertex with new values to be copied.
+ * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
+ * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
+ * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * @param adj_matrix_row_value_output_first Iterator pointing to the adjacency matrix row output
+ * property variables for the first (inclusive) row (assigned to this process in OPG).
+ * `adj_matrix_row_value_output_last` (exclusive) is deduced as @p adj_matrix_row_value_output_first
+ * + @p graph_device_view.get_number_of_adj_matrix_local_rows().
  */
 template <typename HandleType,
           typename GraphType,

@@ -123,6 +123,37 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
+/**
+ * @brief Iterate over the entire set of edges and reduce @p edge_op outputs.
+ *
+ * This function is inspired by thrust::transform_reduce().
+ *
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam GraphType Type of the passed graph object.
+ * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
+ * input properties.
+ * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
+ * input properties.
+ * @tparam EdgeOp Type of the binary (or ternary) edge operator.
+ * @tparam T Type of the initial value.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * kernels.
+ * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
+ * properties for the first (inclusive) row (assigned to this process in OPG).
+ * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
+ * @p graph_device_view.get_number_of_adj_matrix_local_rows().
+ * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
+ * properties for the first (inclusive) column (assigned to this process in OPG).
+ * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
+ * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
+ * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
+ * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
+ * column indices, respectively) and returns a transformed value to be reduced.
+ * @param init Initial value to be added to the transform-reduced input vertex properties.
+ * @return T Reduction of the @p edge_op outputs.
+ */
 template <typename HandleType,
           typename GraphType,
           typename AdjMatrixRowValueInputIterator,

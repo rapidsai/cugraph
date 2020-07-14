@@ -27,6 +27,28 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
+/**
+ * @brief Count the number of vertices that satisfies the given predicate.
+ *
+ * This version iterates over the entire set of graph vertices. This function is inspired by
+ * thrust::count_if().
+ *
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam GraphType Type of the passed graph object.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam VertexOp Type of the unary predicate operator.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * kernels.
+ * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
+ * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
+ * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * @param v_op Unary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
+ * graph_device_view.get_number_of_local_vertices())) and returns true if this vertex should be
+ * included in the returned count.
+ * @return GraphType::vertex_type Number of times @p v_op returned true.
+ */
 template <typename HandleType,
           typename GraphType,
           typename VertexValueInputIterator,
@@ -36,11 +58,11 @@ typename GraphType::vertex_type count_if_v(HandleType& handle,
                                            VertexValueInputIterator vertex_value_input_first,
                                            VertexOp v_op)
 {
-  auto count = thrust::count_if(
-    thrust::cuda::par.on(handle.get_stream()),
-    vertex_value_input_first,
-    vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
-    v_op);
+  auto count =
+    thrust::count_if(thrust::cuda::par.on(handle.get_stream()),
+                     vertex_value_input_first,
+                     vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
+                     v_op);
   if (GraphType::is_opg) {
     // need to reduce count
     CUGRAPH_FAIL("unimplemented.");
@@ -48,20 +70,38 @@ typename GraphType::vertex_type count_if_v(HandleType& handle,
   return count;
 }
 
-template <typename HandleType,
-          typename GraphType,
-          typename VertexValueInputIterator,
-          typename VertexOp>
+/**
+ * @brief Count the number of vertices that satisfies the given predicate.
+ *
+ * This version (conceptually) iterates over only a subst of the graph vertices. This function
+ * actually works as thrust::count_if() on [@p input_first, @p input_last) (followed by
+ * inter-process reduction in OPG). @p input_last - @p input_first (or the sum of @p input_last - @p
+ * input_first values in OPG) should not overflow GraphType::vertex_type.
+ *
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam GraphType Type of the passed graph object.
+ * @tparam InputIterator Type of the iterator for input values.
+ * @tparam VertexOp VertexOp Type of the unary predicate operator.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * kernels.
+ * @param input_first Iterator pointing to the beginning (inclusive) of the values to be passed to
+ * @p v_op.
+ * @param input_last Iterator pointing to the end (exclusive) of the values to be passed to @p v_op.
+ * @param v_op Unary operator takes *(@p input_first + i) (where i is [0, @p input_last - @p
+ * input_first)) and returns true if this vertex should be included in the returned count.
+ * @return GraphType::vertex_type Number of times @p v_op returned true.
+ */
+template <typename HandleType, typename GraphType, typename InputIterator, typename VertexOp>
 typename GraphType::vertex_type count_if_v(HandleType& handle,
-                                         GraphType const& graph_device_view,
-                                         VertexValueInputIterator vertex_value_input_first,
-                                         VertexValueInputIterator vertex_value_input_last,
-                                         VertexOp v_op)
+                                           GraphType const& graph_device_view,
+                                           InputIterator input_first,
+                                           InputIterator input_last,
+                                           VertexOp v_op)
 {
-  auto count = thrust::count_if(thrust::cuda::par.on(handle.get_stream()),
-                                vertex_value_input_first,
-                                vertex_value_input_last,
-                                v_op);
+  auto count =
+    thrust::count_if(thrust::cuda::par.on(handle.get_stream()), input_first, input_last, v_op);
   if (GraphType::is_opg) {
     // need to reduce count
     CUGRAPH_FAIL("unimplemented.");

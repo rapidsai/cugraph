@@ -20,24 +20,44 @@
 
 #include <raft/handle.hpp>
 
-#include <thrust/reduce.h>
 #include <thrust/execution_policy.h>
+#include <thrust/reduce.h>
 
 namespace cugraph {
 namespace experimental {
 namespace detail {
 
+/**
+ * @brief Reduce the vertex properties.
+ *
+ * This version iterates over the entire set of graph vertices. This function is inspired by
+ * thrust::reduce().
+ *
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam GraphType Type of the passed graph object.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam T Type of the initial value.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * kernels.
+ * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
+ * (inclusive) vertex (assigned to this process in OPG). `vertex_value_input_last` (exclusive) is
+ * deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * @param init Initial value to be added to the reduced input vertex properties.
+ * @return T Reduction of the input vertex properties.
+ */
 template <typename HandleType, typename GraphType, typename VertexValueInputIterator, typename T>
 T reduce_v(HandleType& handle,
            GraphType const& graph_device_view,
            VertexValueInputIterator vertex_value_input_first,
            T init)
 {
-  auto ret = thrust::reduce(
-    thrust::cuda::par.on(handle.get_stream()),
-    vertex_value_input_first,
-    vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
-    init);
+  auto ret =
+    thrust::reduce(thrust::cuda::par.on(handle.get_stream()),
+                   vertex_value_input_first,
+                   vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
+                   init);
   if (GraphType::is_opg) {
     // need to reduce ret
     CUGRAPH_FAIL("unimplemented.");
@@ -45,17 +65,35 @@ T reduce_v(HandleType& handle,
   return ret;
 }
 
-template <typename HandleType, typename GraphType, typename VertexValueInputIterator, typename T>
+/**
+ * @brief Reduce the vertex properties.
+ *
+ * This version (conceptually) iterates over only a subst of the graph vertices. This function
+ * actually works as thrust::reduce() on [@p input_first, @p input_last) (followed by
+ * inter-process reduction in OPG).
+ *
+ * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or OPG).
+ * @tparam GraphType Type of the passed graph object.
+ * @tparam InputIterator Type of the iterator for input values.
+ * @tparam T Type of the initial value.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * kernels.
+ * @param input_first Iterator pointing to the beginning (inclusive) of the values to be reduced.
+ * @param input_last Iterator pointing to the end (exclusive) of the values to be reduced.
+ * @param init Initial value to be added to the reduced input vertex properties.
+ * @return T Reduction of the input vertex properties.
+ */
+template <typename HandleType, typename GraphType, typename InputIterator, typename T>
 T reduce_v(HandleType& handle,
            GraphType const& graph_device_view,
-           VertexValueInputIterator vertex_value_input_first,
-           VertexValueInputIterator vertex_value_input_last,
+           InputIterator input_first,
+           InputIterator input_last,
            T init)
 {
-  auto ret = thrust::reduce(thrust::cuda::par.on(handle.get_stream()),
-                            vertex_value_input_first,
-                            vertex_value_input_last,
-                            init);
+  auto ret =
+    thrust::reduce(thrust::cuda::par.on(handle.get_stream()), input_first, input_last, init);
   if (GraphType::is_opg) {
     // need to reduce ret
     CUGRAPH_FAIL("unimplemented.");
